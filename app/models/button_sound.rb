@@ -255,7 +255,7 @@ class ButtonSound < ActiveRecord::Base
       process_license(params['license']) if params['license']
       self.settings['protected'] = params['protected'] if params['protected'] != nil
       self.settings['protected_source'] = params['protected_source'] if params['protected_source'] != nil
-      self.settings['protected'] = params['ext_sweetsuite_protected'] if params['ext_sweetsuite_protected'] != nil
+      self.settings['protected'] = params['ext_lingolinq_protected'] if params['ext_lingolinq_protected'] != nil
       self.settings['suggestion'] = params['suggestion'] if params['suggestion']
       self.public = params['public'] if params['public'] != nil
     end

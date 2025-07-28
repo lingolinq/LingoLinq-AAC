@@ -732,7 +732,7 @@ describe("frame_listener", function() {
       window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
       waitsFor(function() { return response; });
       runs(function() {
-        expect(response).toEqual({callback_id: undefined, aac_shim: true, status: 'ready', session_id: 'asdf', user_token: undefined, code: undefined, system_token: 'SweetSuiteAAC'});
+        expect(response).toEqual({callback_id: undefined, aac_shim: true, status: 'ready', session_id: 'asdf', user_token: undefined, code: undefined, system_token: 'LingoLinq-AAC'});
       });
 
     });

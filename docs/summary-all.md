@@ -1843,7 +1843,7 @@ class AAC_AI_Platform {
 
 ## Open Source LLM Strategy
 
-### Recommended Models for AAC Applications
+### Recommended Models for LingoLinq AAC Applications
 1. **Llama 3.1 70B**: Primary reasoning and generation
 2. **Mistral 7B**: Fast response and basic interactions
 3. **Phi-4**: Lightweight local processing

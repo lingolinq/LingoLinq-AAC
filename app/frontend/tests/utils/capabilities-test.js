@@ -323,7 +323,7 @@ describe("capabilities", function() {
       var callback = null;
       stub(window, 'cordova', {
         exec: function(cb, err, klass, method, args) {
-          if(klass == 'SweetSuiteMisc') {
+          if(klass == 'LingoLinqMisc') {
             callback = cb;
           }
         }
@@ -398,8 +398,8 @@ describe("capabilities", function() {
       it('should use the cordova mechanism if defined, handling errors', function() {
         stub(window, 'cordova', {
           exec: function(success, err, klass, method, args) {
-            if(klass == 'SweetSuiteMisc' && method == 'listFiles') {
-              expect(klass).toEqual('SweetSuiteMisc');
+            if(klass == 'LingoLinqMisc' && method == 'listFiles') {
+              expect(klass).toEqual('LingoLinqMisc');
               expect(method).toEqual('listFiles');
               expect(args).toEqual([{dir: 'asdfasdf/bacon/'}]);
               err();
@@ -422,8 +422,8 @@ describe("capabilities", function() {
       it('should use the cordova mechanism if defined, handling success', function() {
         stub(window, 'cordova', {
           exec: function(success, err, klass, method, args) {
-            if(klass == 'SweetSuiteMisc' && method == 'listFiles') {
-              expect(klass).toEqual('SweetSuiteMisc');
+            if(klass == 'LingoLinqMisc' && method == 'listFiles') {
+              expect(klass).toEqual('LingoLinqMisc');
               expect(method).toEqual('listFiles');
               expect(args).toEqual([{dir: 'asdfasdf/bacon/'}]);
               success({files: ['a.png', 'b.png']});

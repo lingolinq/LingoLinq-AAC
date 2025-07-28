@@ -879,22 +879,22 @@ describe('subscription', function() {
     it('should return ths correct value', function() {
       db_wait(function() {
         var s = Subscription.create();
-        expect(s.get('description')).toEqual('SweetSuite supporting-role 5-year purchase');
+        expect(s.get('description')).toEqual('LingoLinq supporting-role 5-year purchase');
         s.set('user_type', 'communicator');
-        expect(s.get('description')).toEqual('SweetSuite monthly subscription');
+        expect(s.get('description')).toEqual('LingoLinq monthly subscription');
         s.set('subscription_type', 'long_term');
-        expect(s.get('description')).toEqual('SweetSuite 5-year purchase');
+        expect(s.get('description')).toEqual('LingoLinq 5-year purchase');
         s.set('subscription_type', 'extras');
-        expect(s.get('description')).toEqual('SweetSuite premium symbols');
+        expect(s.get('description')).toEqual('LingoLinq premium symbols');
         s.set('val');
-        expect(s.get('description')).toEqual('SweetSuite evaluation account');
+        expect(s.get('description')).toEqual('LingoLinq evaluation account');
         s.set('subscription_type', 'monthly');
-        expect(s.get('description')).toEqual('SweetSuite monthly evaluation account');
+        expect(s.get('description')).toEqual('LingoLinq monthly evaluation account');
         s.set('user_type', 'supporter');
         s.set('subscription_type', 'monthly');
-        expect(s.get('description')).toEqual('SweetSuite supporting-role');
+        expect(s.get('description')).toEqual('LingoLinq supporting-role');
         s.set('extras', true);
-        expect(s.get('description')).toEqual('SweetSuite supporting-role Plus Premium Symbols');
+        expect(s.get('description')).toEqual('LingoLinq supporting-role Plus Premium Symbols');
       })
     });
   });

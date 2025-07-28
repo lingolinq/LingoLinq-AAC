@@ -41,7 +41,7 @@ var obf = EmberObject.extend({
     hash['background'] = hash['background'] || {};
     board.set('background', {
       image: hash['background']['image'] || hash['background']['image_url'],
-      image_exclusion: hash['background']['ext_sweetsuite_image_exclusion'],
+      image_exclusion: hash['background']['ext_lingolinq_image_exclusion'],
       color: hash['background']['color'],
       position: hash['background']['position'],
       text: hash['background']['text'],

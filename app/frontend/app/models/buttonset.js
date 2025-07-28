@@ -1118,14 +1118,14 @@ LingoLinqAAC.Buttonset.load_button_set = function(id, force, full_set_revision) 
       return RSVP.reject(err);
     }
   });
-  SweetSuite.Buttonset.pending_promises[id] = res;
-  res.then(function() { delete SweetSuite.Buttonset.pending_promises[id]; }, function() { delete SweetSuite.Buttonset.pending_promises[id]; });
+  LingoLinqAAC.Buttonset.pending_promises[id] = res;
+  res.then(function() { delete LingoLinqAAC.Buttonset.pending_promises[id]; }, function() { delete LingoLinqAAC.Buttonset.pending_promises[id]; });
   runLater(function() {
-    if(SweetSuite.Buttonset.pending_promises[id] == res) {
-      delete SweetSuite.Buttonset.pending_promises[id];
+    if(LingoLinqAAC.Buttonset.pending_promises[id] == res) {
+      delete LingoLinqAAC.Buttonset.pending_promises[id];
     }
   }, 30000);
   return res;
 };
 
-export default SweetSuite.Buttonset;
+export default LingoLinqAAC.Buttonset;

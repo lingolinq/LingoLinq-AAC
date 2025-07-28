@@ -1160,8 +1160,8 @@ export default Controller.extend({
       var image_url = button.image;
       if(image && image.get('personalized_url') && !button.no_skin) {
         image_url = image.get('personalized_url');
-      } else if(button.get('original_image_url') && SweetSuiteImage.personalize_url) {
-        image_url = SweetSuiteImage.personalize_url(button.get('original_image_url'), app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+      } else if(button.get('original_image_url') && LingoLinqAACImage.personalize_url) {
+        image_url = LingoLinqAACImage.personalize_url(button.get('original_image_url'), app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
       }
       var obj = {
         label: button.label,
@@ -1320,7 +1320,7 @@ export default Controller.extend({
     return htmlSafe('width: ' + width + 'px;');
   }),
   swatches: computed('app_state.colored_keys', 'app_state.extra_colored_keys', function() {
-    var res = [].concat(SweetSuite.keyed_colors);
+    var res = [].concat(LingoLinqAAC.keyed_colors);
     var extras = app_state.get('extra_colored_keys') || [];
     var extras_per_row = Math.ceil(extras.length / (res.length / 2))
     res.forEach(function(swatch, idx) {

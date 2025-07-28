@@ -95,7 +95,7 @@ module JsonApi::Json
         'css' => domain['css_url'],
         'settings' => domain
       }
-      domain_overrides['settings']['app_name'] ||= "AAC App"
+      domain_overrides['settings']['app_name'] ||= "LingoLinq AAC"
       domain_overrides['settings']['company_name'] ||= "Someone"
     end
     domain_overrides['host'] = host
@@ -114,7 +114,7 @@ module JsonApi::Json
     {
       'css' => nil,
       'settings' => {
-        'app_name' => ENV['APP_NAME'] || "AAC App",
+        'app_name' => ENV['APP_NAME'] || "LingoLinq AAC",
         'company_name' => ENV['COMPANY_NAME'] || "Someone",
         'logo_url' => "/images/logo-big.png",
         'ios_store_url' => ENV['IOS_STORE_URL'],

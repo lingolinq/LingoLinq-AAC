@@ -20,7 +20,7 @@ module Converters::CoughDrop
     res['locale'] = board.settings['locale'] || 'en'
     res['default_layout'] = 'landscape'
     res['image_url'] = board.settings['image_url']
-    res['ext_sweetsuite_image_url'] = board.settings['image_url']
+    res['ext_lingolinq_image_url'] = board.settings['image_url']
     res['url'] = "#{JsonApi::Json.current_host}/#{board.key}"
     if opts && opts['simple']
       res['data_url'] = "#{JsonApi::Json.current_host}/api/v1/boards/#{board.key}/simple.obf"
@@ -40,7 +40,7 @@ module Converters::CoughDrop
       if bg
         res['background'] = {
           'image_url' => bg['image'] || bg['image_url'],
-          'ext_sweetsuite_image_exclusion' => bg['ext_sweetsuite_image_exclusion'],
+          'ext_lingolinq_image_exclusion' => bg['ext_lingolinq_image_exclusion'],
           'color' => bg['color'],
           'position' => bg['position'],
           'text' => bg['text'],
@@ -51,7 +51,7 @@ module Converters::CoughDrop
         res['background'].keys.each{|key| res['background'].delete(key) unless res['background'][key] }
       end
 
-      res['ext_sweetsuite_settings'] = {
+      res['ext_lingolinq_settings'] = {
         'private' => !board.public,
         'key' => board.key,
         'word_suggestions' => !!board.settings['word_suggestions'],
@@ -63,7 +63,7 @@ module Converters::CoughDrop
       }
       if board.unshareable? 
         res['protected_content_user_identifier'] = board.user ? board.user.settings['email'] : "nobody@example.com"
-        res['ext_sweetsuite_settings']['protected_user_id'] = board.user.global_id if board.user
+        res['ext_lingolinq_settings']['protected_user_id'] = board.user.global_id if board.user
       end
     end
     grid = []
@@ -85,7 +85,7 @@ module Converters::CoughDrop
           'background_color' => original_button['background_color'] || "#fff",
           'hidden' => original_button['hidden'],
         }
-        button['ext_sweetsuite_rules'] = original_button['rules'] if original_button['rules']
+        button['ext_lingolinq_rules'] = original_button['rules'] if original_button['rules']
         if !opts || !opts['simple']
           inflection_defaults = nil
           trans = {}
@@ -102,7 +102,7 @@ module Converters::CoughDrop
             button['translations'][loc] ||= {}
             button['translations'][loc]['label'] = hash['label']
             button['translations'][loc]['vocalization'] = hash['vocalization'] if !hash['vocalization'].to_s.match(/^(\:|=+)/) || !hash['vocalization'].to_s.match(/&&/)
-            button['translations'][loc]['ext_sweetsuite_rules'] = hash['rules'] if hash['rules']
+            button['translations'][loc]['ext_lingolinq_rules'] = hash['rules'] if hash['rules']
             (hash['inflections'] || []).each_with_index do |str, idx| 
               next unless str
               button['translations'][loc]['inflections'] ||= {}
@@ -112,8 +112,8 @@ module Converters::CoughDrop
               if button['translations'][loc]['inflections'][key]
               elsif locs.include?(key)
                 button['translations'][loc]['inflections'][key] = str
-                button['translations'][loc]['inflections']['ext_sweetsuite_defaults'] ||= []
-                button['translations'][loc]['inflections']['ext_sweetsuite_defaults'].push(key)
+                button['translations'][loc]['inflections']['ext_lingolinq_defaults'] ||= []
+                button['translations'][loc]['inflections']['ext_lingolinq_defaults'].push(key)
               end
             end
           end
@@ -151,12 +151,12 @@ module Converters::CoughDrop
           end
           EXT_PARAMS.each do |param|
             if original_button[param]
-              button["ext_sweetsuite_#{param}"] = original_button[param]
+              button["ext_lingolinq_#{param}"] = original_button[param]
             end
           end
 
           if original_button['apps']
-            button['ext_sweetsuite_apps'] = original_button['apps']
+            button['ext_lingolinq_apps'] = original_button['apps']
             if original_button['apps']['web'] && original_button['apps']['web']['launch_url']
               button['url'] = original_button['apps']['web']['launch_url']
             end
@@ -181,7 +181,7 @@ module Converters::CoughDrop
               'content_type' => image_settings['content_type']
             }
             if skinned_url && skinned_url != image['url']
-              image['ext_sweetsuite_unskinned_url'] = image['url']
+              image['ext_lingolinq_unskinned_url'] = image['url']
               image['url'] = Uploader.fronted_url(skinned_url)
             end
             alt_urls = []
@@ -260,10 +260,10 @@ module Converters::CoughDrop
     raise "user required" unless opts['user']
     raise "missing id" unless obj['id']
     protected_sources = opts['user'] ? opts['user'].enabled_protected_sources(true) : []
-    if obj['ext_sweetsuite_settings'] && obj['ext_sweetsuite_settings']['protected'] && obj['ext_sweetsuite_settings']['key']
-      user_name = obj['ext_sweetsuite_settings']['key'].split(/\//)[0]
+    if obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['protected'] && obj['ext_lingolinq_settings']['key']
+      user_name = obj['ext_lingolinq_settings']['key'].split(/\//)[0]
       if user_name != opts['user'].user_name
-        if obj['ext_sweetsuite_settings']['protected_user_id'] != opts['user'].global_id
+        if obj['ext_lingolinq_settings']['protected_user_id'] != opts['user'].global_id
           raise "can't import protected boards to a different user"
         end
       end
@@ -289,7 +289,7 @@ module Converters::CoughDrop
           item['ref_url'] = item['data']
         elsif item['url']
           record = klass.create(:user => opts['user'])
-          item['ref_url'] = item['ext_sweetsuite_unskinned_url'] || item['url']
+          item['ref_url'] = item['ext_lingolinq_unskinned_url'] || item['url']
         end
         if record && !hashes[item['id']]
           item.delete('data')
@@ -356,8 +356,8 @@ module Converters::CoughDrop
         new_button['sound_id'] = hashes[button['sound_id']]
       end
       EXT_PARAMS.each do |param|
-        if button["ext_sweetsuite_#{param}"]
-          new_button[param] = button["ext_sweetsuite_#{param}"]
+        if button["ext_lingolinq_#{param}"]
+          new_button[param] = button["ext_lingolinq_#{param}"]
         end
       end
 
@@ -373,10 +373,10 @@ module Converters::CoughDrop
           end
           ref['label'] ||= hash['label'] if hash['label']
           ref['vocalization'] ||= hash['vocalization'] if hash['vocalization']
-          ref['rules'] ||= hash['ext_sweetsuite_rules'] if hash['ext_sweetsuite_rules']
+          ref['rules'] ||= hash['ext_lingolinq_rules'] if hash['ext_lingolinq_rules']
           (hash['inflections'] || {}).each do |key, str|
-            if str == 'ext_sweetsuite_defaults'
-            elsif loc_hash[key] && !(hash['inflections']['ext_sweetsuite_defaults'] || []).include?(key)
+            if str == 'ext_lingolinq_defaults'
+            elsif loc_hash[key] && !(hash['inflections']['ext_lingolinq_defaults'] || []).include?(key)
               ref['inflections'] ||= []
               ref['inflections'][loc_hash[key]] = str.to_s if str
             end
@@ -397,8 +397,8 @@ module Converters::CoughDrop
           end
         end
       elsif button['url']
-        if button['ext_sweetsuite_apps']
-          new_button['apps'] = button['ext_sweetsuite_apps']
+        if button['ext_lingolinq_apps']
+          new_button['apps'] = button['ext_lingolinq_apps']
         else
           new_button['url'] = button['url']
         end
@@ -406,18 +406,18 @@ module Converters::CoughDrop
       new_button
     end
     params['grid'] = obj['grid']
-    params['public'] = !(obj['ext_sweetsuite_settings'] && obj['ext_sweetsuite_settings']['private'])
-    params['home_board'] = (obj['ext_sweetsuite_settings'] || {})['home_board'] || false
-    params['categories'] = (obj['ext_sweetsuite_settings'] || {})['categories'] || []
-    params['word_suggestions'] = obj['ext_sweetsuite_settings'] && obj['ext_sweetsuite_settings']['word_suggestions']
-    params['text_only'] = (obj['ext_sweetsuite_settings'] || {})['text_only'] || false
-    params['hide_empty'] = (obj['ext_sweetsuite_settings'] || {})['hide_empty'] || false
+    params['public'] = !(obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['private'])
+    params['home_board'] = (obj['ext_lingolinq_settings'] || {})['home_board'] || false
+    params['categories'] = (obj['ext_lingolinq_settings'] || {})['categories'] || []
+    params['word_suggestions'] = obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['word_suggestions']
+    params['text_only'] = (obj['ext_lingolinq_settings'] || {})['text_only'] || false
+    params['hide_empty'] = (obj['ext_lingolinq_settings'] || {})['hide_empty'] || false
 
     if obj['background']
       params['background'] = obj['background']
     end
 
-    non_user_params[:key] = (obj['ext_sweetsuite_settings'] && obj['ext_sweetsuite_settings']['key'] && obj['ext_sweetsuite_settings']['key'].split(/\//)[-1])
+    non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
     board = nil
     if opts['boards'] && opts['boards'][obj['id']]
       board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
@@ -496,7 +496,7 @@ module Converters::CoughDrop
         board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
       else
         non_user_params = {'user' => opts['user']}
-        non_user_params[:key] = (obj['ext_sweetsuite_settings'] && obj['ext_sweetsuite_settings']['key'] && obj['ext_sweetsuite_settings']['key'].split(/\//)[-1])
+        non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
         params = {}
         params['name'] = obj['name']
         board = Board.process_new(params, non_user_params)

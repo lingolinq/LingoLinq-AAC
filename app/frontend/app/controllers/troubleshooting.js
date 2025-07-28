@@ -5,7 +5,7 @@ import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
-import lingoLinqExtras from '../utils/extras';
+import sweetSuiteExtras from '../utils/extras';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import capabilities from '../utils/capabilities';
@@ -368,7 +368,7 @@ export default Controller.extend({
       if(this.get('errors')) {
         this.set('errors', null);
         } else {
-        this.set('errors', SweetSuite.errors || []);
+        this.set('errors', LingoLinqAAC.errors || []);
       }
     },
     show_debugging: function() {
