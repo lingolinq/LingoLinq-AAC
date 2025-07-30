@@ -24,9 +24,9 @@ var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 
 var loaded = (new Date()).getTime() / 1000;
 var persistence = EmberObject.extend({
   setup: function(application) {
-    application.register('cough_drop:persistence', persistence, { instantiate: false, singleton: true });
+    application.register('lingolinq:persistence', persistence, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'persistence', 'cough_drop:persistence');
+      application.inject(component, 'persistence', 'lingolinq:persistence');
     });
     persistence.find('settings', 'lastSync').then(function(res) {
       persistence.set('last_sync_at', res.last_sync);

@@ -35,10 +35,10 @@ describe("persistence-sync", function() {
   beforeEach(function() {
     app = {
       register: function(key, obj, args) {
-        app.registered = (key === 'cough_drop:persistence' && obj === persistence && args.singleton === true);
+        app.registered = (key === 'lingolinq:persistence' && obj === persistence && args.singleton === true);
       },
       inject: function(component, name, key) {
-        if(name === 'persistence' && key === 'cough_drop:persistence') {
+        if(name === 'persistence' && key === 'lingolinq:persistence') {
           app.injections.push(component);
         }
       },

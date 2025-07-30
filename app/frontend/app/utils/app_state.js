@@ -45,9 +45,9 @@ import persistence from './persistence';
 // "back button" history
 var app_state = EmberObject.extend({
   setup: function(application) {
-    application.register('cough_drop:app_state', app_state, { instantiate: false, singleton: true });
+    application.register('lingolinq:app_state', app_state, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'app_state', 'cough_drop:app_state');
+      application.inject(component, 'app_state', 'lingolinq:app_state');
     });
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
@@ -799,7 +799,7 @@ var app_state = EmberObject.extend({
       this.toggle_mode('speak', {override_state: stashes.get('root_board_state') || preferred});
     } else if(stashes.get('current_mode') == 'speak') {
       if(this.get('embedded')) {
-        modal.open('about-coughdrop', {no_exit: true});
+        modal.open('about-lingolinq', {no_exit: true});
       } else if(app_state.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && app_state.get('currentUser.preferences.speak_mode_pin')) {
         modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
       } else {
