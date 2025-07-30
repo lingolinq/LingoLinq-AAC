@@ -68,7 +68,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
   elsif args[:system] && args[:system].downcase == 'windows'
     message = "New version of the Windows app is available"
     message += " (#{args[:version]})" if args[:version]
-    message += "\n<https://www.mycoughdrop.com/download|download links>"
+    message += "\n<https://www.lingolinq.com/download|download links>"
   elsif args[:system]
     raise "unrecognized system, #{args[:system]}"
   else
@@ -76,7 +76,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
     match = str.match(/window\.app_version\s+=\s+\"([0-9\.]+\w*)\";/)
     version = match && match[1]
     message = "New version deployed to servers (#{version})"
-    message += "\n<https://github.com/CoughDrop/coughdrop/blob/master/CHANGELOG.md|change notes> | <https://github.com/CoughDrop/coughdrop/commits/master|detailed log>"
+    message += "\n<https://github.com/LingoLinq/LingoLinq-AAC/blob/master/CHANGELOG.md|change notes> | <https://github.com/LingoLinq/LingoLinq-AAC/commits/master|detailed log>"
   end
   json = {"username": "deploy-bot", "icon_emoji": ":cuttlefish:", "text":message}
   `curl -X POST -H 'Content-type: application/json' --data '#{json.to_json}' #{ENV['SLACK_NOTIFICATION_URL']}`
