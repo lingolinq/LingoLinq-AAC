@@ -5,7 +5,7 @@ describe Converters::OBF do
     it "should use the coughdrop-from-obf converter" do
       obf = "/file.obf"
       opts = {}
-      expect(Converters::CoughDrop).to receive(:from_obf).with(obf, opts)
+      expect(Converters::LingoLinq).to receive(:from_obf).with(obf, opts)
       Converters::OBF.to_coughdrop(obf, opts)
     end
   end
@@ -14,7 +14,7 @@ describe Converters::OBF do
     it "should use the coughdrop-to-obf converter" do
       board = Board.new
       opts = {}
-      expect(Converters::CoughDrop).to receive(:to_obf).with(board, opts)
+      expect(Converters::LingoLinq).to receive(:to_obf).with(board, opts)
       Converters::OBF.from_coughdrop(board, opts)
     end
   end

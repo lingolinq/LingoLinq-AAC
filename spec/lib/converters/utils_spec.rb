@@ -61,7 +61,7 @@ describe Converters::Utils do
       u = User.create()
       b = Board.create(:user => u)
       expect(Uploader).to receive(:remote_upload).and_return({url: "http://www.example.com/file.obf"})
-      expect(Converters::CoughDrop).to receive(:to_pdf){|board, path, opts|
+      expect(Converters::LingoLinq).to receive(:to_pdf){|board, path, opts|
         expect(board).to eq(b)
         expect(path).to_not eq(nil)
         expect(opts).to eq({
@@ -103,7 +103,7 @@ describe Converters::Utils do
       res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obf'})
       expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
-      expect(Converters::CoughDrop).to receive(:from_obf).and_return(b)
+      expect(Converters::LingoLinq).to receive(:from_obf).and_return(b)
       res = Converters::Utils.remote_to_boards(nil, "http://example.com/board")
       expect(res).to eq([b])
     end
@@ -116,7 +116,7 @@ describe Converters::Utils do
       res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obz'})
       expect(Typhoeus).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
-      expect(Converters::CoughDrop).to receive(:from_obz).and_return([b])
+      expect(Converters::LingoLinq).to receive(:from_obz).and_return([b])
       res = Converters::Utils.remote_to_boards(nil, "http://example.com/board")
       expect(res).to eq([b])
     end

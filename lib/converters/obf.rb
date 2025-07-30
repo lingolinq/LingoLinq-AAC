@@ -1,10 +1,10 @@
 module Converters::OBF
   def self.to_coughdrop(obf, opts)
-    Converters::CoughDrop.from_obf(obf, opts)
+    Converters::LingoLinq.from_obf(obf, opts)
   end
   
   def self.from_coughdrop(board, dest_path)
-    Converters::CoughDrop.to_obf(board, dest_path)
+    Converters::LingoLinq.to_obf(board, dest_path)
   end
   
   def self.to_pdf(obf, dest_path)

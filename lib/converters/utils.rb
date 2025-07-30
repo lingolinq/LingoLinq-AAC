@@ -64,11 +64,11 @@ module Converters::Utils
     
     Progress.as_percent(0.2, 0.9) do
       if file_type == 'obz'
-        Converters::CoughDrop.to_obz(board, path, {'user' => user})
+        Converters::LingoLinq.to_obz(board, path, {'user' => user})
       elsif file_type == 'obf'
-        Converters::CoughDrop.to_obf(board, path)
+        Converters::LingoLinq.to_obf(board, path)
       elsif file_type == 'pdf'
-        Converters::CoughDrop.to_pdf(board, path, {
+        Converters::LingoLinq.to_pdf(board, path, {
           'user' => user, 
           'packet' => (includes == 'all'), 
           'headerless' => !!headerless, 
@@ -99,10 +99,10 @@ module Converters::Utils
     Progress.update_current_progress(0.2, :processing_file)
     Progress.as_percent(0.2, 1.0) do
       if url.match(/\.obz$/) || response.headers['Content-Type'] == 'application/obz'
-        boards = Converters::CoughDrop.from_obz(file.path, {'user' => user})
+        boards = Converters::LingoLinq.from_obz(file.path, {'user' => user})
         result = boards
       elsif url.match(/\.obf$/) || response.headers['Content-Type'] == 'application/obf'
-        board = Converters::CoughDrop.from_obf(file.path, {'user' => user})
+        board = Converters::LingoLinq.from_obf(file.path, {'user' => user})
         result = [board]
       else
         raise "Unrecognized file type: #{response.headers['Content-Type']}"

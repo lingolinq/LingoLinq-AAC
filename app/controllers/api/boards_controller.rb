@@ -565,7 +565,7 @@ class Api::BoardsController < ApplicationController
     file = Tempfile.new(["board-#{board.global_id}", '.obf'])
     path = file.path
     file.close
-    json = Converters::CoughDrop.to_external(board, {'simple' => true})
+    json = Converters::LingoLinq.to_external(board, {'simple' => true})
     OBF::External.to_obf(json, path, nil, {image_urls: true, sound_urls: true})
     send_data File.read(path), :type => 'application/obf', :disposition => 'attachment', :filename => "board-#{board.global_id}.obf"
   end

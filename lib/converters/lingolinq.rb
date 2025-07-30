@@ -1,6 +1,6 @@
 require 'obf'
 
-module Converters::CoughDrop
+module Converters::LingoLinq
   EXT_PARAMS = ['link_disabled', 'add_to_vocalization', 'add_vocalization', 'hide_label', 'home_lock', 'blocking_speech', 'part_of_speech', 'external_id', 'video', 'book']
 
   def self.to_obf(board, dest_path, path_hash=nil)
@@ -27,7 +27,7 @@ module Converters::CoughDrop
     else
       res['data_url'] = "#{JsonApi::Json.current_host}/api/v1/boards/#{board.key}"
     end
-    res['description_html'] = board.settings['description'] || "built with CoughDrop"
+    res['description_html'] = board.settings['description'] || "built with LingoLinq"
     res['license'] = OBF::Utils.parse_license(board.settings['license'])
     if !opts || !opts['simple']
       trans = BoardContent.load_content(board, 'translations')

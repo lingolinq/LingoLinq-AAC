@@ -5,7 +5,7 @@ describe Converters::OBZ do
     it "should use the coughdrop-from-obz converter" do
       obz = "/file.obz"
       opts = {}
-      expect(Converters::CoughDrop).to receive(:from_obz).with(obz, opts)
+      expect(Converters::LingoLinq).to receive(:from_obz).with(obz, opts)
       Converters::OBZ.to_coughdrop(obz, opts)
     end
   end
@@ -14,7 +14,7 @@ describe Converters::OBZ do
     it "should use the coughdrop-to-obz converter" do
       obz = "/file.obz"
       path = "/output.obz"
-      expect(Converters::CoughDrop).to receive(:to_obz).with(obz, path, {'user' => nil})
+      expect(Converters::LingoLinq).to receive(:to_obz).with(obz, path, {'user' => nil})
       Converters::OBZ.from_coughdrop(obz, path, {'user' => nil})
     end
   end

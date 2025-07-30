@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Converters::CoughDrop do
+describe Converters::LingoLinq do
   describe "to_obf" do
     it "should render a basic board" do
       u = User.create
@@ -214,7 +214,7 @@ describe Converters::CoughDrop do
       expect(b.known_button_images.count).to eq(1)
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b.reload, file.path)
+      Converters::LingoLinq.to_obf(b.reload, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)

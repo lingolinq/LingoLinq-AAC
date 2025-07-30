@@ -101,7 +101,7 @@ describe Exporter do
       ]
       user.save!
       Worker.process_queues
-      expect(Converters::CoughDrop).to receive(:to_obz) do |board, path, opts|
+      expect(Converters::LingoLinq).to receive(:to_obz) do |board, path, opts|
         if board == home || board == sidebar1 || board == sidebar2
           expect(opts).to eq({'user' => user})
         else
@@ -109,7 +109,7 @@ describe Exporter do
         end
       end.exactly(3).times
       boards = []
-      expect(Converters::CoughDrop).to receive(:to_obf) do |board, path|
+      expect(Converters::LingoLinq).to receive(:to_obf) do |board, path|
         boards << board
       end.at_least(3).times
       zipper = OpenStruct.new

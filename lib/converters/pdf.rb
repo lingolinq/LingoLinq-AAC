@@ -10,9 +10,9 @@ module Converters::PDF
   def self.from_coughdrop(board, dest_path, opts)
     json = nil
     if opts['packet']
-      json = Converters::CoughDrop.to_external_nested(board, opts)
+      json = Converters::LingoLinq.to_external_nested(board, opts)
     else
-      json = Converters::CoughDrop.to_external(board)
+      json = Converters::LingoLinq.to_external(board)
     end
     OBF::PDF.from_external(json, dest_path)
   end

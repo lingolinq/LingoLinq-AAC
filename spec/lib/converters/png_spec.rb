@@ -24,7 +24,7 @@ describe Converters::PNG do
       b = Board.new
       hash = {}
       expect(OBF::PNG).to receive(:from_external).with(hash, "/file.png")
-      expect(Converters::CoughDrop).to receive(:to_external).and_return(hash)
+      expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
       Converters::PNG.from_coughdrop(b, "/file.png")
     end
   end
