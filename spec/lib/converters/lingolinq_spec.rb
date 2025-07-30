@@ -692,7 +692,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      expect{ Converters::CoughDrop.from_obf(path, {'user' => u2}) }.to raise_error("can't import protected boards to a different user")
+      expect{ Converters::LingoLinq.from_obf(path, {'user' => u2}) }.to raise_error("can't import protected boards to a different user")
     end
     
     it "should allow importing a protected board to the same user" do
@@ -934,7 +934,7 @@ describe Converters::LingoLinq do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
     end
@@ -953,7 +953,7 @@ describe Converters::LingoLinq do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
@@ -988,7 +988,7 @@ describe Converters::LingoLinq do
       expect(b2.reload.allows?(u, 'view')).to eq(false)
       
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
@@ -1040,7 +1040,7 @@ describe Converters::LingoLinq do
       expect(b.button_sounds.count).to eq(1)
 
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b.reload, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
       
       OBF::Utils.load_zip(path) do |zipper|
         manifest = JSON.parse(zipper.read('manifest.json'))
@@ -1093,11 +1093,11 @@ describe Converters::LingoLinq do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
-      boards = Converters::CoughDrop.from_obz(path, {'user' => u})
+      boards = Converters::LingoLinq.from_obz(path, {'user' => u})
       expect(boards).not_to eq(nil)
       expect(boards.length).to eq(2)
       expect(boards[0].id).not_to eq(b.id)
@@ -1119,7 +1119,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1136,7 +1136,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1151,7 +1151,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1166,7 +1166,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1188,7 +1188,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
@@ -1211,7 +1211,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
@@ -1233,7 +1233,7 @@ describe Converters::LingoLinq do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
