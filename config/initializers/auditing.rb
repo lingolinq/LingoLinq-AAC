@@ -12,7 +12,7 @@ unless ENV['SKIP_VALIDATIONS']
   end
 
   command = defined?(ARGV_COMMAND) ? ARGV_COMMAND : "server"
-   # Custom CoughDrop code...
+   # Custom LingoLinq code...
   raise "not allowed, HIPAA-style" if ['db', 'dbconsole'].include?(command) && Rails.env.production?
   if !ENV['USER_KEY'] && ['runner', 'r', 'console', 'c'].include?(command)
     raise "need ENV['USER_KEY'] for console logging with \"#{INIT_ARGS.join(' ')}\""

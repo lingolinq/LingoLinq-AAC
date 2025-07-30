@@ -113,11 +113,11 @@ describe("coughDropExtras", function() {
 //   window.addEventListener('message', function(event) {
 //     if(event.source != window) { return; }
 //     if(event.data && event.data.type == 'coughDropExtras' && event.data.ready) {
-//       console.debug("COUGHDROP: extras extension found");
+//       console.debug("LINGOLINQ: extras extension found");
 //       window.coughDropExtras.ready = true;
 //       window.coughDropExtras.set('ready', true);
 //       if(window.speechSynthesis) {
-//         console.debug("COUGHDROP: tts enabled");
+//         console.debug("LINGOLINQ: tts enabled");
 //       }
 //       extras.eye_gaze({enable: true});
 //       if(speechSynthesis.voiceList) {
@@ -126,7 +126,7 @@ describe("coughDropExtras", function() {
 //           if(window.speecher) {
 //             window.speecher.checkReadiness();
 //           }
-//           console.debug("COUGHDROP: tts voices added");
+//           console.debug("LINGOLINQ: tts voices added");
 //         });
 //       }
 //     } else if(event.data && event.data.type == 'tts_event') {

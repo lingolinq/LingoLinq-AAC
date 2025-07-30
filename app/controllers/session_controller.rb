@@ -257,7 +257,7 @@ class SessionController < ApplicationController
       uiinf = Nokogiri::XML::Node.new('mdui:UIInfo', xml)
       dn = Nokogiri::XML::Node.new('mdui:DisplayName', xml)
       dn['xml:lang'] = 'en'
-      dn.content = "CoughDrop"
+      dn.content = "LingoLinq"
       desc = Nokogiri::XML::Node.new('mdui:Description', xml)
       desc['xml:lang'] = 'en'
       desc.content = "LingoLinq AAC Application"

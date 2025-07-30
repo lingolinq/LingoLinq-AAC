@@ -60,7 +60,7 @@ class ApplicationController < ActionController::Base
     end
     @token = token
     if token
-      status = Device.check_token(token, request.headers['X-CoughDrop-Version'])
+      status = Device.check_token(token, request.headers['X-LingoLinq-Version'])
       @cached = true if status[:cached]
       ignorable_error = ['/api/v1/token_check', '/oauth/token/refresh'].include?(request.path) && status[:skip_on_token_check]
       if status[:error] && !ignorable_error

@@ -91,7 +91,7 @@ module Passwords
     secret = ((self.settings || {})['tmp_2fa'] || {})['secret']
     secret ||= ((self.settings || {})['2fa'] || {})['secret']
     return nil unless secret
-    totp = ROTP::TOTP.new(secret, issuer: "CoughDrop")  
+    totp = ROTP::TOTP.new(secret, issuer: "LingoLinq")  
     totp.provisioning_uri(self.user_name).sub(/\?/, ':?')
   end
 
@@ -102,14 +102,14 @@ module Passwords
     return false unless secret || tmp_secret
     ts = nil
     if secret
-      totp = ROTP::TOTP.new(secret, issuer: "CoughDrop")  
+      totp = ROTP::TOTP.new(secret, issuer: "LingoLinq")  
       now = Time.now.to_i
       totp.at(now)
       ts = totp.verify(code, drift_behind: 15)
       valid_type = :default if ts
     end
     if tmp_secret && !ts
-      totp = ROTP::TOTP.new(tmp_secret, issuer: "CoughDrop")  
+      totp = ROTP::TOTP.new(tmp_secret, issuer: "LingoLinq")  
       now = Time.now.to_i
       totp.at(now)
       ts = totp.verify(code, drift_behind: 15)

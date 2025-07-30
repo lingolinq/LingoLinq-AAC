@@ -28,10 +28,10 @@ Ember.Test.JasmineAdapter = Ember.Test.Adapter.extend({
 Ember.Test.adapter = Ember.Test.JasmineAdapter.create();
 
 document.write('<div id="test-app-container" style="position: fixed; bottom: 0; right: 0; width: 400px; height: 400px; background: #fff;"><div id="ember-testing"></div></div>');
-CoughDrop.rootElement = '#ember-testing';
-CoughDrop.setupForTesting();
-CoughDrop.injectTestHelpers();
-CoughDrop.testing = true;
+LingoLinq.rootElement = '#ember-testing';
+LingoLinq.setupForTesting();
+LingoLinq.injectTestHelpers();
+LingoLinq.testing = true;
 
 var queryLog = [];
 queryLog.log = function(event) {
@@ -243,7 +243,7 @@ function easyPromise() {
   return promise;
 };
 
-CoughDrop.ApplicationAdapter = DS.RESTAdapter.extend(persistence.DSExtend, {
+LingoLinq.ApplicationAdapter = DS.RESTAdapter.extend(persistence.DSExtend, {
   find: function(store, type, id) {
     if(queryLog.real_lookup) {
       return this._super.apply(this, arguments);
@@ -314,7 +314,7 @@ CoughDrop.ApplicationAdapter = DS.RESTAdapter.extend(persistence.DSExtend, {
 beforeEach(function() {
   persistence.set('online', true);
   app_state.reset();
-  CoughDrop.all_wait = false;
+  LingoLinq.all_wait = false;
 });
 afterEach(function() {  
   while(queryLog.length > 0) {

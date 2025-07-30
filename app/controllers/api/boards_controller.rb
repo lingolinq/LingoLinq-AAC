@@ -460,7 +460,7 @@ class Api::BoardsController < ApplicationController
     if processed_params['button']
       res = board.process_button(processed_params['button'])
     else
-      version_date = Date.parse(request.headers['X-CoughDrop-Version']) rescue nil
+      version_date = Date.parse(request.headers['X-LingoLinq-Version']) rescue nil
       add_voc_error = version_date && version_date < Date.parse('August 3, 2021')
       new_board = board.process(processed_params['board'], {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
       board = new_board if new_board.is_a?(Board)

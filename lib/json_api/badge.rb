@@ -11,7 +11,7 @@ module JsonApi::Badge
     json['user_id'] = badge.related_global_id(badge.user_id)
     json['name'] = badge.data['name'] || 'unnamed badge'
     json['highlighted'] = !!badge.highlighted
-    json['image_url'] = badge.data['image_url'] || "https://coughdrop-usercontent.s3.amazonaws.com/images/6/8/8/5/1_6885_5781b0671b2b65ad0b53f2fe-980af0f90c67ef293e98f871270e4bc0096493b2863245a3cff541792acf01050e534135fb96262c22d691132e2721b37b047a02ccaf6931549278719ec8fa08.png"
+    json['image_url'] = badge.data['image_url'] || "https://lingolinq-usercontent.s3.amazonaws.com/images/6/8/8/5/1_6885_5781b0671b2b65ad0b53f2fe-980af0f90c67ef293e98f871270e4bc0096493b2863245a3cff541792acf01050e534135fb96262c22d691132e2721b37b047a02ccaf6931549278719ec8fa08.png"
     json['sound_url'] = badge.data['sound_url']
     json['level'] = badge.level
     json['max_level'] = badge.data['max_level']

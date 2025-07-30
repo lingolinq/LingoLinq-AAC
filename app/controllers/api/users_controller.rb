@@ -231,8 +231,8 @@ class Api::UsersController < ApplicationController
 
     d = Device.find_or_create_by(:user_id => user.id, :device_key => 'default', :developer_key_id => 0)
     d.settings['ip_address'] = request.remote_ip
-    d.settings['browser'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'false'
-    d.settings['app'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'true'
+    d.settings['browser'] = true if request.headers['X-INSTALLED-LINGOLINQ'] == 'false'
+    d.settings['app'] = true if request.headers['X-INSTALLED-LINGOLINQ'] == 'true'
     d.settings['user_agent'] = request.headers['User-Agent']
     
     d.generate_token!(!!d.settings['app'])

@@ -64,7 +64,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
     message = "An update on the Amazon App Store is going live"
     message += " (#{args[:version]})" if args[:version]
     message += "\nif people start reporting bugs, that is probably why"
-    message += "\n<https://www.amazon.com/CoughDrop-Inc-AAC/dp/B01BU8RUEY/ref=sr_1_1?s=mobile-apps&ie=UTF8&qid=1478539872&sr=1-1&keywords=coughdrop|app store link>"
+    message += "\n<https://www.amazon.com/LingoLinq-Inc-AAC/dp/B01BU8RUEY/ref=sr_1_1?s=mobile-apps&ie=UTF8&qid=1478539872&sr=1-1&keywords=lingolinq|app store link>"
   elsif args[:system] && args[:system].downcase == 'windows'
     message = "New version of the Windows app is available"
     message += " (#{args[:version]})" if args[:version]

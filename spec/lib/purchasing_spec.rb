@@ -661,7 +661,7 @@ describe Purchasing do
         :amount => 2500,
         :currency => 'usd',
         :source => 'token',
-        :description => 'CoughDrop supporter account (plus premium symbols)',
+        :description => 'LingoLinq supporter account (plus premium symbols)',
         :receipt_email => nil,
         :metadata => {
           'user_id' => u.global_id,
@@ -786,7 +786,7 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium symbols one-time charge',
+          :description => 'LingoLinq premium symbols one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -847,7 +847,7 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium 3 supporter accounts one-time charge',
+          :description => 'LingoLinq premium 3 supporter accounts one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -908,7 +908,7 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium symbols and 2 supporter accounts one-time charge',
+          :description => 'LingoLinq premium symbols and 2 supporter accounts one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1142,7 +1142,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -1160,7 +1160,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -1197,7 +1197,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -1215,7 +1215,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -1262,7 +1262,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1284,7 +1284,7 @@ describe Purchasing do
           :amount => 22500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus premium symbols)',
+          :description => 'LingoLinq communicator license purchase (plus premium symbols)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1309,7 +1309,7 @@ describe Purchasing do
           :amount => 32500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus 5 premium supporters)',
+          :description => 'LingoLinq communicator license purchase (plus 5 premium supporters)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1364,7 +1364,7 @@ describe Purchasing do
           :amount => 10000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1394,7 +1394,7 @@ describe Purchasing do
           :amount => 10000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1452,7 +1452,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -1477,7 +1477,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1499,7 +1499,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1533,7 +1533,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
@@ -1720,7 +1720,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -1810,7 +1810,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -1862,7 +1862,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -1890,7 +1890,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -1942,7 +1942,7 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
@@ -3504,7 +3504,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3523,7 +3523,7 @@ describe Purchasing do
         expect(res['quantity']).to eq(1)
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2010-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3543,7 +3543,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3569,7 +3569,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3595,7 +3595,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3637,7 +3637,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3658,7 +3658,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3695,7 +3695,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3716,7 +3716,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3742,7 +3742,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3834g',
@@ -3767,7 +3767,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3806,7 +3806,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3824,7 +3824,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3852,7 +3852,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: []
             }
           }.to_json
@@ -3875,7 +3875,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3893,7 +3893,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -3924,7 +3924,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3942,7 +3942,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSEval')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -3970,7 +3970,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -3988,7 +3988,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSSLP')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4059,7 +4059,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -4079,7 +4079,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4112,7 +4112,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3834g',
@@ -4138,7 +4138,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -4190,7 +4190,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -4208,7 +4208,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4231,7 +4231,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4284,7 +4284,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.lingolinq.coughdrop',
+              bundle_id: 'com.lingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
@@ -4302,7 +4302,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.lingolinq.coughdrop')
+        expect(res['bundle_id']).to eq('com.lingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)

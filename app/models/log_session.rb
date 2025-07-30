@@ -2020,7 +2020,7 @@ More information about the file formats being used is available at https://www.o
       end
     end
     hash = Digest::MD5.hexdigest(user_ids.join(','))
-    res = Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/global/coughdrop-obla-#{hash}-#{date_start.iso8601}-export.zip", file.path, "application/zip")
+    res = Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/global/lingolinq-obla-#{hash}-#{date_start.iso8601}-export.zip", file.path, "application/zip")
     urls ||= []
     urls << res[:url]
     response = {urls: urls}

@@ -609,7 +609,7 @@ describe SessionController, :type => :controller do
       u.generate_password("seashell")
       u.save
       expect(Device.count).to eq(0)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'false'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -688,7 +688,7 @@ describe SessionController, :type => :controller do
       d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!
       expect(Device.count).to eq(1)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'false'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :long_token => true, :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -730,7 +730,7 @@ describe SessionController, :type => :controller do
       d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!
       expect(Device.count).to eq(1)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'true'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :long_token => true, :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -1504,7 +1504,7 @@ describe SessionController, :type => :controller do
       end
 
 
-      it "should error if no coughdrop user matches" do
+      it "should error if no lingolinq user matches" do
         o = Organization.create
         o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
         o.save

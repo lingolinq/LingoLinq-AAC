@@ -278,7 +278,7 @@ the apps can be updated dynamically when all that's changed is the scripts
 - API documentation (yeah I know, I should have done it along the way)
 - Maintenance Work:
 - Upgrade Rails & Ruby (and ensure everything still works, then bump to latest Heroku stack)
-  - For LingoLinq AAC, CoughDrop-Websocket, presenters.aacconference.com
+  - For LingoLinq AAC, LingoLinq-Websocket, presenters.aacconference.com
 - Upgrade Cordova (and ensure everything still works)
 - Upgrade Electron (and re-build dependencies for new version)
   - Generate a new signing cert or move to Microsoft app store for updates

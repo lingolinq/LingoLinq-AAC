@@ -2083,7 +2083,7 @@ class Board < ActiveRecord::Base
         buttons = swap_board.buttons.map do |button|
           # skip buttons that don't currently have an image
           next button unless button['image_id']
-          next button if button['label'] && button['label'].match(/CoughDrop/)
+          next button if button['label'] && button['label'].match(/LingoLinq/)
           old_bi = bis.detect{|i| i.global_id == button['image_id'] }
           # skip buttons that have manually-uploaded image
           if old_bi && old_bi.url && old_bi.url.match(/coughdrop-usercontent/)
@@ -2100,7 +2100,7 @@ class Board < ActiveRecord::Base
               # puts " SEARCHING FOR #{button['label']}"
               image_data ||= (Uploader.find_images(button['label'] || button['vocalization'], library, 'en', author, nil, true, important_board) || [])[0]
             end
-            new_bi = ButtonImage.find_by_global_id(image_data['coughdrop_image_id']) if image_data && image_data['coughdrop_image_id']
+            new_bi = ButtonImage.find_by_global_id(image_data['lingolinq_image_id']) if image_data && image_data['lingolinq_image_id']
             if new_bi
               button['image_id'] = new_bi.global_id
               new_bi.assert_fallback(old_bi)

@@ -1,4 +1,4 @@
-Coughdrop::RESERVED_ROUTES ||= [
+LingoLinq::RESERVED_ROUTES ||= [
   'admin', 'etc', 'settings', 'status', 'reports', 'stats', 'search', 
   'messages', 'inbox', 'log', 'logs', 'session', 'sessions', 'imports', 
   'boards', 'users', 'groups', 'organizations', 'pages', 'people', 'videos', 
@@ -17,7 +17,7 @@ Coughdrop::RESERVED_ROUTES ||= [
 require 'resque/server'
 require 'admin_constraint'
 
-Coughdrop::Application.routes.draw do
+LingoLinq::Application.routes.draw do
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
 

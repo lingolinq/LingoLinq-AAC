@@ -1,7 +1,7 @@
 development:
   adapter: postgresql
   encoding: unicode
-  database: coughdrop-development
+  database: lingolinq-development
   pool: 5
   timeout: 5000
 
@@ -11,7 +11,7 @@ development:
 test:
   adapter: postgresql
   encoding: unicode
-  database: coughdrop-test
+  database: lingolinq-test
   pool: 5
   timeout: 5000
 

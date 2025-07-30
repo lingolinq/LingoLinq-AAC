@@ -90,7 +90,7 @@ describe "throttling URLs" do
         get "/"
       }, ->{
         expect(response.status).to eq(200)
-        expect(response.body).to match(/CoughDrop/)
+        expect(response.body).to match(/LingoLinq/)
       })
     end
   end

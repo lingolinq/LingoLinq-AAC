@@ -1396,7 +1396,7 @@ module Stats
         elsif agent.match(/ios|iphone|ipad|ipod/i)
           maps[:ios] << device.user_id
           maps[:ios].uniq!
-        elsif agent.match(/coughdrop/i) && agent.match(/desktop/i)
+        elsif agent.match(/lingolinq/i) && agent.match(/desktop/i)
           maps[:windows] << device.user_id
           maps[:windows].uniq!
         elsif agent.match(/mozilla/i)
@@ -1413,4 +1413,4 @@ module Stats
   end
   
   class StatsError < StandardError; end
-end  
+end    

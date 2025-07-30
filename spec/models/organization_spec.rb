@@ -1093,7 +1093,7 @@ describe Organization, :type => :model do
           'twitter_handle' => '@coughdrop'
         }
       }, {'updater' => u})
-      expect(o.settings['host_settings']).to eq({'css' => nil, 'app_name' => 'CoughDrop', 'company_name' => 'CoughDrop', 'logo_url' => 'https://www.example.com/logo.png', 'twitter_handle' => 'lingolinq'})
+      expect(o.settings['host_settings']).to eq({'css' => nil, 'app_name' => 'LingoLinq', 'company_name' => 'LingoLinq', 'logo_url' => 'https://www.example.com/logo.png', 'twitter_handle' => 'lingolinq'})
       o.process({
         :host_settings => {
           'b' => 1,
@@ -1101,7 +1101,7 @@ describe Organization, :type => :model do
           'admin_email' => 'admin@example.com'
         }
       }, {'updater' => u})
-      expect(o.settings['host_settings']).to eq({'css' => nil, 'app_name' => 'CoughDrop', 'company_name' => 'CoughDrop', 'admin_email' => 'admin@example.com', 'twitter_handle' => 'lingolinq'})
+      expect(o.settings['host_settings']).to eq({'css' => nil, 'app_name' => 'LingoLinq', 'company_name' => 'LingoLinq', 'admin_email' => 'admin@example.com', 'twitter_handle' => 'lingolinq'})
     end
 
     it "should log an event when updating extras count" do

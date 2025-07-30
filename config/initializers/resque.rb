@@ -17,11 +17,11 @@ module RedisInit
     end
     if defined?(Resque)
       Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
-      Resque.redis.namespace = "coughdrop#{ns_suffix}"
+      Resque.redis.namespace = "lingolinq#{ns_suffix}"
     end
     @redis_inst = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 5)
-    @default = Redis::Namespace.new("coughdrop-stash#{ns_suffix}", :redis => @redis_inst)
-    @permissions = Redis::Namespace.new("coughdrop-permissions#{ns_suffix}", :redis => @redis_inst)
+    @default = Redis::Namespace.new("lingolinq-stash#{ns_suffix}", :redis => @redis_inst)
+    @permissions = Redis::Namespace.new("lingolinq-permissions#{ns_suffix}", :redis => @redis_inst)
     self.cache_token = 'abc'
   end
 
@@ -32,7 +32,7 @@ module RedisInit
 
   def self.flush_resque_errors
     redis = @redis_inst
-    key = 'coughdrop:failed'
+    key = 'lingolinq:failed'
     redis.type(key)
     len = redis.llen(key)
     if len > 500
@@ -54,7 +54,7 @@ module RedisInit
   def self.errors
     uri = RedisInit.redis_uri
     redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
-    key = 'coughdrop:failed'
+    key = 'lingolinq:failed'
     redis.type(key)
     len = redis.llen(key)
     puts JSON.pretty_generate(redis.lrange(key, 0, len))
@@ -120,7 +120,7 @@ module RedisInit
       end
       total += size
       key = key.sub(/jobs_from_/, 'jobs_from/')
-      key = key.sub(/coughdrop:stat:/, 'coughdrop:stat/')
+      key = key.sub(/lingolinq:stat:/, 'lingolinq:stat/')
       prefix = key.split(/\//)[0]
       prefixes[prefix] = (prefixes[prefix] || 0) + size
       if size > 500000
