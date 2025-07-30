@@ -50,7 +50,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
       message += " (#{args[:version]})" if args[:version]
       message += "\nif people start reporting bugs, that is probably why"
     end
-    message += "\n<https://play.google.com/store/apps/details?id=com.mycoughdrop.coughdrop|app store link>"
+    message += "\n<https://play.google.com/store/apps/details?id=com.lingolinq.coughdrop|app store link>"
   elsif args[:system] && args[:system].downcase == 'ios'
     if args[:level] && (args[:level].downcase == 'beta' || args[:level].downcase == 'alpha')
       message "#{args[:level]} version submitted to the iOS App Store"

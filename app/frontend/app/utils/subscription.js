@@ -942,7 +942,7 @@ document.addEventListener("deviceready", function() {
     });
     capabilities.bundle_id().then(function(res) {
       // Don't register known-free bundles`
-      if(res.bundle_id != "com.mycoughdrop.coughdrop") {
+      if(res.bundle_id != "com.lingolinq.lingolinq") {
         var app_bundle_id = res.bundle_id;
         store.register({
           id: app_bundle_id,

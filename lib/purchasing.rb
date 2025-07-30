@@ -287,30 +287,30 @@ module Purchasing
     description = type
     if type.match(/^slp_monthly/)
       valid_amount = false
-      description = "CoughDrop supporter account"
+      description = "LingoLinq supporter account"
     elsif type.match(/^slp_long_term/)
       valid_amount = false unless amount >= Purchasing.extras_supporter_cost
       if type.match(/free/)
         amount = 0
         valid_amount = true
       end
-      description = "CoughDrop supporter account"
+      description = "LingoLinq supporter account"
     elsif type.match(/^eval_long_term/)
       valid_amount = false unless amount >= Purchasing.extras_supporter_cost
-      description = "CoughDrop evaluator account"
+      description = "LingoLinq evaluator account"
     elsif type.match(/^monthly/)
       valid_amount = false unless amount >= 6
-      description = "CoughDrop communicator monthly subscription"
+      description = "LingoLinq communicator monthly subscription"
     elsif type.match(/^long_term/)
       if user.communicator_role? && user.fully_purchased? && !user.eval_account?
         valid_amount = false unless amount >= Purchasing.communicator_repurchase_cost
         amount = [145, amount].min
-        description = "CoughDrop cloud extras re-purchase"
+        description = "LingoLinq cloud extras re-purchase"
         type = 'refresh_' + type
       else
         valid_amount = false unless amount >= Purchasing.communicator_cost
         valid_amount = true if amount >= Purchasing.communicator_sale_cost && self.active_sale?
-        description = "CoughDrop communicator license purchase"
+        description = "LingoLinq communicator license purchase"
       end
     else
       return {success: false, error: "unrecognized purchase type, #{type}"}
@@ -438,13 +438,13 @@ module Purchasing
             desc = ""
             cosst = 0
             if include_extras && include_n_supporters > 0
-              desc = "CoughDrop premium symbols and #{include_n_supporters} supporter accounts one-time charge"
+              desc = "LingoLinq premium symbols and #{include_n_supporters} supporter accounts one-time charge"
               cost = (self.extras_symbols_cost * 100) + (include_n_supporters * self.extras_supporter_cost * 100)
             elsif include_extras
-              desc = "CoughDrop premium symbols one-time charge"
+              desc = "LingoLinq premium symbols one-time charge"
               cost = (self.extras_symbols_cost * 100)
             else
-              desc = "CoughDrop premium #{include_n_supporters} supporter accounts one-time charge"
+              desc = "LingoLinq premium #{include_n_supporters} supporter accounts one-time charge"
               cost = (include_n_supporters * self.extras_supporter_cost * 100)
             end
             charge_id = nil
@@ -553,7 +553,7 @@ module Purchasing
           :source => token['id'],
           :customer => token['customer_id'],
           :receipt_email => user.settings['email'],
-          :description => "CoughDrop premium symbols access",
+          :description => "LingoLinq premium symbols access",
           :metadata => {
             'user_id' => user.global_id,
             'purchased_symbols' => 'true',
@@ -603,17 +603,17 @@ module Purchasing
 
     if type.match(/^long_term_custom/)
       if gift && gift.settings['amount']
-        description = "#{gift.settings['licenses'] || 1} sponsored CoughDrop license(s)"
+        description = "#{gift.settings['licenses'] || 1} sponsored LingoLinq license(s)"
         if !gift.settings['memo'].blank?
           description += ", #{gift.settings['memo']}"
         end
       else
         valid_amount = false unless amount > cutoff
-        description = "sponsored CoughDrop license"
+        description = "sponsored LingoLinq license"
       end
     elsif type.match(/^long_term/)
       valid_amount = false unless amount >= cutoff
-      description = "sponsored CoughDrop license"
+      description = "sponsored LingoLinq license"
     else
       return {success: false, error: "unrecognized purchase type, #{type}"}
     end   
@@ -733,7 +733,7 @@ module Purchasing
   # then make an API call to verify the latest receipt for the user matching that criteria
   def self.verify_receipt(user, data)
     res = {}
-    prepaid_bundle_ids = ['com.mycoughdrop.paidcoughdrop']
+    prepaid_bundle_ids = ['com.lingolinq.paidlingolinq']
     if user && data && data['receipt'] && data['receipt']['appStoreReceipt']
       product_id = data['product_id']
       user.settings['receipts'] = (user.settings['receipts'] || []).select{|r| (product_id && r['product_id'] != product_id) || (r['data'] && r['data']['receipt'] && r['data']['receipt']['appStoreReceipt'] != data['receipt']['appStoreReceipt'])}
@@ -874,7 +874,7 @@ module Purchasing
             ios_plan_hash = {
 #              'com.mycoughdrop.coughdrop' => 'long_term_ios',
               'AppPrePurchase' => 'long_term_ios',
-              'com.mycoughdrop.paidcoughdrop' => 'long_term_ios',
+              'com.lingolinq.paidlingolinq' => 'long_term_ios',
               'CoughDropiOSPlusExtras' => 'long_term_ios',
               'LingoLinqiOSBundle' => 'long_term_ios',
               'LingoLinqiOSEval' => 'eval_long_term_ios',

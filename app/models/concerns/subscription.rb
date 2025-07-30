@@ -350,7 +350,7 @@ module Subscription
           role = (args['plan_id'] && args['plan_id'].match(/^slp/)) ? 'supporter' : 'communicator'
           self.settings['subscription']['token_summary'] = args['token_summary']
 
-          if ['AppPrePurchase', 'com.mycoughdrop.paidcoughdrop', 'CoughDropiOSPlusExtras', 'LingoLinqiOSBundle', 'LingoLinqiOSEval', 'LingoLinqiOSSLP'].include?(args['token_summary'])
+          if ['AppPrePurchase', 'com.lingolinq.paidlingolinq', 'LingoLinqiOSPlusExtras', 'LingoLinqiOSBundle', 'LingoLinqiOSEval', 'LingoLinqiOSSLP'].include?(args['token_summary'])
             # remember long-term in-app purchases for the user so we don't have to re-validate them every time
             self.settings['subscription']['iap_purchases'] ||= []
             self.settings['subscription']['iap_purchases'] << args['token_summary'] 
