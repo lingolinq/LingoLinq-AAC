@@ -729,7 +729,7 @@ module Purchasing
     cancel_other_subscriptions(user, 'all')
   end
 
-  # TODO: on frontend init, if not iOS but subscription.plan_id == 'CoughDropiOSMonthly'
+  # TODO: on frontend init, if not iOS but subscription.plan_id == 'LingoLinqiOSMonthly'
   # then make an API call to verify the latest receipt for the user matching that criteria
   def self.verify_receipt(user, data)
     res = {}
@@ -791,9 +791,9 @@ module Purchasing
             return {'error' => true, 'error_message' => 'Not a pre-purchase and no in-app receipts to validate'}
           end
           res['customer_id'] = "ios.#{user.global_id}"
-          res['one_time_purchase'] = true if ['CoughDropiOSBundle', 'CoughDropiOSEval', 'CoughDropiOSSLP'].include?(res['product_id']) || res['pre_purchase']
-          res['subscription'] = true if ['CoughDropiOSMonthly'].include?(res['product_id'])
-          res['extras'] = true if ['CoughDropiOSMonthly', 'CoughDropiOSBundle'].include?(res['product_id'])
+          res['one_time_purchase'] = true if ['LingoLinqiOSBundle', 'LingoLinqiOSEval', 'LingoLinqiOSSLP'].include?(res['product_id']) || res['pre_purchase']
+          res['subscription'] = true if ['LingoLinqiOSMonthly'].include?(res['product_id'])
+          res['extras'] = true if ['LingoLinqiOSMonthly', 'LingoLinqiOSBundle'].include?(res['product_id'])
 
           # Make sure if the token has already been used, we're applying it to the right user
           existing_user = nil
@@ -876,9 +876,9 @@ module Purchasing
               'AppPrePurchase' => 'long_term_ios',
               'com.mycoughdrop.paidcoughdrop' => 'long_term_ios',
               'CoughDropiOSPlusExtras' => 'long_term_ios',
-              'CoughDropiOSBundle' => 'long_term_ios',
-              'CoughDropiOSEval' => 'eval_long_term_ios',
-              'CoughDropiOSSLP' => 'slp_long_term_ios'
+              'LingoLinqiOSBundle' => 'long_term_ios',
+              'LingoLinqiOSEval' => 'eval_long_term_ios',
+              'LingoLinqiOSSLP' => 'slp_long_term_ios'
             }
             expected_plan = ios_plan_hash[res['product_id']] || ios_plan_hash[res['bundle_id']]
             if !existing_user && (hash['plan_id'] != expected_plan || !transaction_ids.include?(res['transaction_id']))

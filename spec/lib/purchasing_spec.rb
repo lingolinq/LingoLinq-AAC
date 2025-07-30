@@ -1148,7 +1148,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
             }
@@ -1157,7 +1157,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -1203,7 +1203,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -1212,7 +1212,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3427,7 +3427,7 @@ describe Purchasing do
     #     "in_app": [
     #       {
     #         "quantity": "1",
-    #         "product_id": "CoughDropiOSBundle",
+    #         "product_id": "LingoLinqiOSBundle",
     #         "transaction_id": "1000009318498647",
     #         "original_transaction_id": "1000009318498647",
     #         "purchase_date": "2019-07-18 18:28:26 Etc/GMT",
@@ -3508,7 +3508,7 @@ describe Purchasing do
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3521,7 +3521,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
@@ -3547,7 +3547,7 @@ describe Purchasing do
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3573,7 +3573,7 @@ describe Purchasing do
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3599,7 +3599,7 @@ describe Purchasing do
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3621,7 +3621,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_ios',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3643,7 +3643,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '9',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
                 is_trial_period: 'false',
                 is_in_billing_retry_period: '0',
@@ -3655,7 +3655,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3679,7 +3679,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_6',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3700,7 +3700,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
                 is_trial_period: 'false',
@@ -3713,7 +3713,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3755,7 +3755,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '10',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -3764,7 +3764,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3789,7 +3789,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_ios',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3812,7 +3812,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -3821,7 +3821,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3880,7 +3880,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3890,7 +3890,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3929,7 +3929,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSEval',
+                product_id: 'LingoLinqiOSEval',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3939,7 +3939,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSEval')
+        expect(res['product_id']).to eq('LingoLinqiOSEval')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -3975,7 +3975,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSSLP',
+                product_id: 'LingoLinqiOSSLP',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3985,7 +3985,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSSLP')
+        expect(res['product_id']).to eq('LingoLinqiOSSLP')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -4064,7 +4064,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -4076,7 +4076,7 @@ describe Purchasing do
         Worker.process_queues
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -4125,7 +4125,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '10',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -4135,7 +4135,7 @@ describe Purchasing do
         Worker.process_queues
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -4195,7 +4195,7 @@ describe Purchasing do
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -4205,7 +4205,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -4228,7 +4228,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
@@ -4266,7 +4266,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'purchase_id' => '984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSBundle',
+          'token_summary' => 'LingoLinqiOSBundle',
           'plan_id' => 'long_term_ios',
           'seconds_to_add' => 5.years.to_i,
           'source' => 'new iOS purchase'
@@ -4290,7 +4290,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
             }
@@ -4299,7 +4299,7 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
         expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
