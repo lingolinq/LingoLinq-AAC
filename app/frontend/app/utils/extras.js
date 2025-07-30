@@ -125,14 +125,14 @@ import app_state from './app_state';
     }
   }).create();
   capabilities.device_id = function() {
-    var device_id = stashes.get_raw('coughDropDeviceId');
+    var device_id = stashes.get_raw('lingolinqDeviceId');
     if(!device_id) {
       // http://cordova.apache.org/docs/en/6.x/reference/cordova-plugin-device/index.html#deviceuuid
       device_id = (window.device && window.device.uuid) || ((new Date()).getTime() + Math.random()).toString();
       var readable = capabilities.readable_device_name;
       device_id = device_id + " " + readable;
     }
-    stashes.persist_raw('coughDropDeviceId', device_id);
+    stashes.persist_raw('lingolinqDeviceId', device_id);
     return device_id;
   };
 

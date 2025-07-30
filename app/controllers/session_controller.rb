@@ -547,7 +547,7 @@ class SessionController < ApplicationController
     if @api_user
       params['access_token'] = @token if @token && @tmp_token
       device = Device.find_by_global_id(@api_device_id)
-      valid = device && device.valid_token?(params['access_token'], request.headers['X-CoughDrop-Version'])
+      valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
       expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
       needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[params['access_token']]
       json = {
@@ -615,7 +615,7 @@ class SessionController < ApplicationController
     d.settings['system'] ||= params['system']
     d.settings['system_version'] ||= params['system_version']
     d.settings['mobile'] = params['mobile'] == 'true' if params['mobile'] != nil
-    d.settings['browser'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'false'
+    d.settings['browser'] = true if request.headers['X-INSTALLED-LINGOLINQ'] == 'false'
     long_token = params['long_token'] && params['long_token'] != 'false'
     if installed_app
       long_token = true

@@ -4,7 +4,7 @@ import session from '../utils/session';
 export default {
   name: 'defer_readiness',
   initialize: function(app) {
-    if(!window.cough_drop_readiness) {
+    if(!window.lingolinq_readiness) {
       window.LingoLinqAAC.app = app;
       app.deferReadiness();
     } else {

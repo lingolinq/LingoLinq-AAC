@@ -80,10 +80,10 @@ export default Controller.extend({
     var _this = this;
     // localStorage
     try {
-      localStorage.setItem('cough_drop_test', 'ok');
-      if(localStorage['cough_drop_test'] == 'ok') {
-        localStorage.removeItem('cough_drop_test');
-        if(localStorage['cough_drop_test'] === undefined) {
+      localStorage.setItem('lingolinq_test', 'ok');
+      if(localStorage['lingolinq_test'] == 'ok') {
+        localStorage.removeItem('lingolinq_test');
+        if(localStorage['lingolinq_test'] === undefined) {
           emberSet(test, 'results', {passed: true});
         } else {
           emberSet(test, 'results', {passed: false, reason: "removeItem failed"});
@@ -335,9 +335,9 @@ export default Controller.extend({
 
     _this.set('local_storage', false);
     try {
-      localStorage.setItem('cough_drop_test2', 'nah');
-      if(localStorage['cough_drop_test2'] == 'nah') {
-        localStorage.removeItem('cough_drop_test2');
+      localStorage.setItem('lingolinq_test2', 'nah');
+      if(localStorage['lingolinq_test2'] == 'nah') {
+        localStorage.removeItem('lingolinq_test2');
         _this.set('local_storage', true);
       }
     } catch(e) { }

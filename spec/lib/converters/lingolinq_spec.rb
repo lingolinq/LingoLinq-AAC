@@ -6,7 +6,7 @@ describe Converters::LingoLinq do
       u = User.create
       b = Board.create(:user => u)
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -46,7 +46,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -94,7 +94,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -136,7 +136,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -258,7 +258,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -293,7 +293,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -334,7 +334,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['ext_lingolinq_settings']).to eq({
@@ -416,7 +416,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['default_locale']).to eq('en')
@@ -510,7 +510,7 @@ describe Converters::LingoLinq do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['default_locale']).to eq('en')
@@ -568,7 +568,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.key).to eq('no-name/cool-board')
@@ -579,7 +579,7 @@ describe Converters::LingoLinq do
       shell = OBF::Utils.obf_shell
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
     end
@@ -592,7 +592,7 @@ describe Converters::LingoLinq do
       shell['buttons'] = [
         {'id' => '1', 'load_board' => {'id' => original_board.global_id, 'key' => original_board.key}}
       ]
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['buttons']).not_to be_empty
       expect(b.settings['buttons'][0]['load_board']).not_to eq(nil)
@@ -609,7 +609,7 @@ describe Converters::LingoLinq do
       shell['buttons'] = [
         {'id' => '1', 'load_board' => {'id' => original_board.global_id, 'key' => original_board.key}}
       ]
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['buttons']).not_to be_empty
       expect(b.settings['buttons'][0]['load_board']).to eq(nil)
@@ -633,7 +633,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -658,7 +658,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -719,7 +719,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -781,7 +781,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
@@ -876,7 +876,7 @@ describe Converters::LingoLinq do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
