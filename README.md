@@ -270,8 +270,8 @@ and ask for ideas or pointers. In addition, here are some fairly modular
 components that I haven't had time to develop, and would love a contribution
 on:
 
-- Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]
-- External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]
+- Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/LingoLinq/aac_shim)[aac_shim]
+- External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/LingoLinq/aac_shim)[aac_shim]
 - Core word service to return information on a word including most common part of speech, common variations/tenses, etc.
 - Make mobile/desktop apps able to download the latest version of the javascript code, so 
 the apps can be updated dynamically when all that's changed is the scripts
@@ -290,6 +290,6 @@ I'm happy to provide guidance for any of these projects to help get them underwa
 
 ### License
 
-Copyright (C) 2014-2025 CoughDrop & OpenAAC, Inc.
+Copyright (C) 2014-2025 LingoLinq & OpenAAC, Inc.
 
 Released under the AGPLv3 license or later.
