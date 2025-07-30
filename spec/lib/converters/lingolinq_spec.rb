@@ -1249,12 +1249,12 @@ describe Converters::LingoLinq do
     end
 
     it "should error without a user" do
-      expect{ Converters::CoughDrop.from_external({}, {'user' => nil}) }.to raise_error("user required")
+      expect{ Converters::LingoLinq.from_external({}, {'user' => nil}) }.to raise_error("user required")
     end
 
     it "should error without an id" do
       u = User.create
-      expect{ Converters::CoughDrop.from_external({}, {'user' => u}) }.to raise_error("missing id")
+      expect{ Converters::LingoLinq.from_external({}, {'user' => u}) }.to raise_error("missing id")
     end
 
     it "should raise an error when importing a protected board for the wrong user" do
@@ -1275,7 +1275,7 @@ describe Converters::LingoLinq do
           'protected_user_id' => '1111'
         }
       }
-      expect { Converters::CoughDrop.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
+      expect { Converters::LingoLinq.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
     end
 
     it "should support known boards"
@@ -1292,7 +1292,7 @@ describe Converters::LingoLinq do
         'images' => [],
         'sounds' => []
       }
-      Converters::CoughDrop.from_external_nested(content, {'user' => u})
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
       boards = Board.all.sort_by(&:id)
       expect(boards.count).to eql(2)
       expect(boards[0].key).to eql('alfonso/my-cool-board')
@@ -1303,33 +1303,33 @@ describe Converters::LingoLinq do
 
   describe "to_pdf" do
     it "should convert to pdf, then use the obf-to-pdf converter" do
-      expect(Converters::CoughDrop).to receive(:to_external).and_return("/file.obf")
+      expect(Converters::LingoLinq).to receive(:to_external).and_return("/file.obf")
       expect(OBF::External).to receive(:to_pdf) do |tmp, dest|
         expect(tmp).not_to eq(nil)
         expect(dest).to eq("/file.pdf")
       end.and_return(nil)
-      Converters::CoughDrop.to_pdf(nil, "/file.pdf", {})
+      Converters::LingoLinq.to_pdf(nil, "/file.pdf", {})
     end
     
     it "if specified it should use obz instead of obf as the middle step" do
-      expect(Converters::CoughDrop).to receive(:to_external_nested).and_return("/file.obz")
+      expect(Converters::LingoLinq).to receive(:to_external_nested).and_return("/file.obz")
       expect(OBF::External).to receive(:to_pdf) do |tmp, dest|
         expect(tmp).not_to eq(nil)
         expect(dest).to eq("/file.pdf")
       end
-      Converters::CoughDrop.to_pdf(nil, "/file.pdf", {'packet' => true})
+      Converters::LingoLinq.to_pdf(nil, "/file.pdf", {'packet' => true})
     end
   end
 
   describe "to_png" do
     it "should convert to pdf then use the pdf-to-png converter" do
       hash = {}
-      expect(Converters::CoughDrop).to receive(:to_external).and_return(hash)
+      expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
       expect(OBF::External).to receive(:to_png) do |tmp, dest|
         expect(tmp).to eq(hash)
         expect(dest).to eq("/file.png")
       end
-      Converters::CoughDrop.to_png(nil, "/file.png")
+      Converters::LingoLinq.to_png(nil, "/file.png")
     end
   end
   
@@ -1345,7 +1345,7 @@ describe Converters::LingoLinq do
         {'id' => 5, 'add_to_vocalization' => true}
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(5)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1367,7 +1367,7 @@ describe Converters::LingoLinq do
         {'id' => 1, 'hidden' => true, 'vocalization' => ':back'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1383,7 +1383,7 @@ describe Converters::LingoLinq do
         {'id' => 1, 'hidden' => true, 'vocalization' => ':back && :clear && +a'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1400,7 +1400,7 @@ describe Converters::LingoLinq do
         {'id' => 1, 'hidden' => true, 'vocalization' => 'my && :back && :clear && +a && my'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1422,7 +1422,7 @@ describe Converters::LingoLinq do
       b.instance_variable_set('@buttons_changed', true)
       b.save
       expect(b.known_button_images.count).to eq(1)
-      hash = Converters::CoughDrop.to_external(b, {'user' => u})
+      hash = Converters::LingoLinq.to_external(b, {'user' => u})
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1456,7 +1456,7 @@ describe Converters::LingoLinq do
       expect(b.known_button_images.count).to eq(1)
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
-      json = Converters::CoughDrop.to_external(b.reload, {'for_pdf' => true})
+      json = Converters::LingoLinq.to_external(b.reload, {'for_pdf' => true})
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
