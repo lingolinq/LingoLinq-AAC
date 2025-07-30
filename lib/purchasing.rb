@@ -875,7 +875,7 @@ module Purchasing
 #              'com.mycoughdrop.coughdrop' => 'long_term_ios',
               'AppPrePurchase' => 'long_term_ios',
               'com.lingolinq.paidlingolinq' => 'long_term_ios',
-              'CoughDropiOSPlusExtras' => 'long_term_ios',
+              'LingoLinqiOSPlusExtras' => 'long_term_ios',
               'LingoLinqiOSBundle' => 'long_term_ios',
               'LingoLinqiOSEval' => 'eval_long_term_ios',
               'LingoLinqiOSSLP' => 'slp_long_term_ios'
