@@ -452,7 +452,7 @@ module Purchasing
               meta = {
                 'user_id' => user.global_id,
                 'type' => 'extras',
-                'platform_source' => 'coughdrop'
+                'platform_source' => 'lingolinq'
               }
               meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
               meta['purchased_symbols'] = 'true' if include_extras

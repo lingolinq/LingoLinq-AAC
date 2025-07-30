@@ -26,7 +26,7 @@ module Purchasing2
     email = user.settings && user.settings['email'] if user && user.external_email_allowed?
     session_opts[:payment_intent_data] = {
       receipt_email: email,
-      description: "CoughDrop Purchase",
+      description: "LingoLinq Purchase",
       statement_descriptor: ""
     }
     discountable = false
@@ -100,7 +100,7 @@ module Purchasing2
           currency: 'USD', 
           unit_amount: opts[:dollars] * 100,
           product_data: {
-            name: "CoughDrop Custom Purchase",
+            name: "LingoLinq Custom Purchase",
             description: opts[:description],
             metadata: {temp_product: true}
           }

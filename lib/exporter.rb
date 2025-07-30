@@ -69,7 +69,7 @@ module Exporter
     file = Tempfile.new(['user-data', '.zip'])
     file.close
     OBF::Utils.build_zip(file.path) do |zipper|
-      zipper.add('README.txt', %{This zip file contains multiple resources representing a user export from CoughDrop:
+      zipper.add('README.txt', %{This zip file contains multiple resources representing a user export from LingoLinq:
 
 - logs/aac-logs-something.obl is a full export of the user's data logs
 - logs/aac-logs-something.obla is an anonymized export of the user's data logs
@@ -86,7 +86,7 @@ More information about the file formats being used is available at https://www.o
       export_logs(user.global_id, true, zipper)
       export_boards(user, zipper)
     end
-    Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/coughdrop-export-#{user.user_name}.zip", file.path, "application/zip")
+    Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/lingolinq-export-#{user.user_name}.zip", file.path, "application/zip")
   end
   
   def self.export_boards(user, zipper=nil)
@@ -184,8 +184,8 @@ More information about the file formats being used is available at https://www.o
     user_id = anonymized ? user.anonymized_identifier : user.global_id
     {
       format: 'open-board-log-0.1',
-      user_id: "coughdrop:#{user_id}",
-      source: "coughdrop",
+      user_id: "lingolinq:#{user_id}",
+      source: "lingolinq",
       locale: 'en',
       sessions: []
     }
