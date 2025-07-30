@@ -1,9 +1,9 @@
 module Converters::OBZ
-  def self.to_coughdrop(obz, opts)
+  def self.to_lingolinq(obz, opts)
     Converters::LingoLinq.from_obz(obz, opts)
   end
   
-  def self.from_coughdrop(board, dest_path, opts)
+  def self.from_lingolinq(board, dest_path, opts)
     Converters::LingoLinq.to_obz(board, dest_path, opts)
   end
   

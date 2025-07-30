@@ -19,7 +19,7 @@ module Purchasing2
       cancel_url: opts[:cancel_url],
       customer_email: opts[:contact_email],
       payment_method_types: ['card'], # , 'us_bank_account'
-      metadata: { platform_source: 'coughdrop', purchase_options: opts },
+      metadata: { platform_source: 'lingolinq', purchase_options: opts },
       line_items: []
     }
     email = nil
@@ -37,7 +37,7 @@ module Purchasing2
         price: monthly_price_id, quantity: 1
       }
       session_opts[:mode] = 'subscription'
-      session_opts[:subscription_data] = {metadata: { platform_source: 'coughdrop', user_id: opts[:user_id]}}
+      session_opts[:subscription_data] = {metadata: { platform_source: 'lingolinq', user_id: opts[:user_id]}}
       if opts[:extras]
         session_opts[:line_items] << {
           price: extras_price_id, quantity: 1
@@ -155,7 +155,7 @@ module Purchasing2
       subscription.metadata['user_id'] = user_id
       subscription.save
     end
-    if (customer_meta['user_id'] != user_id) && customer_meta['platform_source'] == 'coughdrop'
+    if (customer_meta['user_id'] != user_id) && customer_meta['platform_source'] == 'lingolinq'
       customer.metadata ||= {}
       customer.metadata['user_id'] = user_id
       customer.save

@@ -150,7 +150,7 @@ describe Purchasing do
           'metadata' => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_100',
-            'platform_source' => 'not_coughdrop'
+            'platform_source' => 'not_lingolinq'
           }
         }
         u.reload
@@ -191,7 +191,7 @@ describe Purchasing do
           'metadata' => {
             'user_id' => u.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'not_coughdrop',
+            'platform_source' => 'not_lingolinq',
             'type' => 'extras'
           }
         }
@@ -346,7 +346,7 @@ describe Purchasing do
         expect(SubscriptionMailer).to_not receive(:schedule_delivery).with(:purchase_bounced, u.global_id)
         res = stripe_event_request 'charge.failed', {
           'customer' => 'qwer',
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         expect(res[:data][:valid]).to eq(false)
       end   
@@ -419,7 +419,7 @@ describe Purchasing do
             'id' => 'monthly_6'
           },
           'metadata' => {
-            'platform_source' => 'not_coughdrop'
+            'platform_source' => 'not_lingolinq'
           }
         }
         u.reload
@@ -497,7 +497,7 @@ describe Purchasing do
           'plan' => {
             'id' => 'monthly_6'
           },
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         u.reload
         expect(u.settings['subscription']).not_to eq(nil)
@@ -540,7 +540,7 @@ describe Purchasing do
         res = stripe_event_request 'customer.subscription.deleted', {
           'customer' => '12345',
           'id' => '23456',
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         
         u.reload
@@ -665,7 +665,7 @@ describe Purchasing do
         :receipt_email => nil,
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => 'slp_long_term_free',
           'purchased_symbols' => 'true',
           'type' => 'license'
@@ -702,7 +702,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -734,7 +734,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -766,7 +766,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -775,7 +775,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -790,7 +790,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'type' => 'extras'
           }
@@ -827,7 +827,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -836,7 +836,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop', 'purchased_supporters' => 3},
+            :metadata => {:platform_source => 'lingolinq', 'purchased_supporters' => 3},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -851,7 +851,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_supporters' => 3,
             'type' => 'extras'
           }
@@ -888,7 +888,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -897,7 +897,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop', 'purchased_supporters' => 2},
+            :metadata => {:platform_source => 'lingolinq', 'purchased_supporters' => 2},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -913,7 +913,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_supporters' => 2,
             'type' => 'extras'
           }
@@ -947,7 +947,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            metadata: {:platform_source => 'coughdrop'},
+            metadata: {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -987,7 +987,7 @@ describe Purchasing do
           subscriptions: subs
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -995,7 +995,7 @@ describe Purchasing do
         expect(cus.subscriptions).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -1020,7 +1020,7 @@ describe Purchasing do
           id: '12345'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => 'testing@example.com'
         }).and_return(cus)
@@ -1046,7 +1046,7 @@ describe Purchasing do
           id: '12345'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -1077,7 +1077,7 @@ describe Purchasing do
           customer: '9876'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -1085,7 +1085,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             plan: 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            metadata: {:platform_source => 'coughdrop'},
+            metadata: {:platform_source => 'lingolinq'},
             source: 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -1266,7 +1266,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1289,7 +1289,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'type' => 'license'
           }
@@ -1314,7 +1314,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 5,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1339,7 +1339,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 3,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'plan_id' => 'long_term_200',
             'type' => 'license'
@@ -1368,7 +1368,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1398,7 +1398,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1428,7 +1428,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 3,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'plan_id' => 'long_term_200',
             'type' => 'license'
@@ -1456,7 +1456,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1482,7 +1482,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'license'
           }
         }).and_return({
@@ -1504,7 +1504,7 @@ describe Purchasing do
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'license'
           }
         }).and_return({
@@ -1537,7 +1537,7 @@ describe Purchasing do
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1574,7 +1574,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1610,7 +1610,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1646,7 +1646,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1672,7 +1672,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1698,7 +1698,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1724,7 +1724,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1747,7 +1747,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'refresh_long_term_50',
             'type' => 'license'
           }
@@ -1790,7 +1790,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1814,7 +1814,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1842,7 +1842,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1866,7 +1866,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1894,7 +1894,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1918,7 +1918,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1946,7 +1946,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1970,7 +1970,7 @@ describe Purchasing do
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -2320,7 +2320,7 @@ describe Purchasing do
         :description => "CoughDrop premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2341,7 +2341,7 @@ describe Purchasing do
         :metadata => {
           'user_id' => u.global_id,
           'purchased_symbols' => 'true',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'extras'
         }
       }).and_return({'id' => '1234', 'customer' => '4567'})
@@ -2369,7 +2369,7 @@ describe Purchasing do
         :description => "CoughDrop premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2399,7 +2399,7 @@ describe Purchasing do
         :description => "CoughDrop premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2492,7 +2492,7 @@ describe Purchasing do
         :description => 'sponsored CoughDrop license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_200'
         }
@@ -2527,7 +2527,7 @@ describe Purchasing do
         :metadata => {
           'giver_id' => u.global_id,
           'giver_email' => 'bob@example.com',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => 'long_term_custom_500'
         }
       }).and_return({
@@ -2561,7 +2561,7 @@ describe Purchasing do
         :description => 'sponsored CoughDrop license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2610,7 +2610,7 @@ describe Purchasing do
         :description => 'sponsored CoughDrop license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_200'
         }
@@ -2641,7 +2641,7 @@ describe Purchasing do
         :description => '4 sponsored CoughDrop license(s), PO #12345',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2683,7 +2683,7 @@ describe Purchasing do
         :description => 'sponsored CoughDrop license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2880,7 +2880,7 @@ describe Purchasing do
         :metadata => {
           'user_id' => u.global_id,
           'plan_id' => 'long_term_200',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'license'
         }
       }).and_return({
@@ -2921,7 +2921,7 @@ describe Purchasing do
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'long_term_200',
         'type' => 'license'
       }
@@ -2998,7 +2998,7 @@ describe Purchasing do
       :expand => ['subscriptions'],
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop'
+        'platform_source' => 'lingolinq'
       },
       :email => nil
     }).and_return(customer)
@@ -3048,7 +3048,7 @@ describe Purchasing do
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'long_term_200',
         'type' => 'license'
       }
@@ -3096,7 +3096,7 @@ describe Purchasing do
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'refresh_long_term_200',
         'type' => 'license'
       }

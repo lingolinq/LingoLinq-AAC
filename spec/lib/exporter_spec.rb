@@ -190,14 +190,14 @@ describe Exporter do
       expect(Exporter.log_json_header(u, true)).to eq({
         format: 'open-board-log-0.1',
         user_id: "coughdrop:#{u.anonymized_identifier}",
-        source: 'coughdrop',
+        source: 'lingolinq',
         locale: 'en',
         sessions: []
       })
       expect(Exporter.log_json_header(u)).to eq({
         format: 'open-board-log-0.1',
         user_id: "coughdrop:#{u.global_id}",
-        source: 'coughdrop',
+        source: 'lingolinq',
         locale: 'en',
         sessions: []
       })

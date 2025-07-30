@@ -7,7 +7,7 @@ module Converters::PNG
     OBF::PNG.from_obf(obf, dest_path)
   end
   
-  def self.from_coughdrop(board, dest_path)
+  def self.from_lingolinq(board, dest_path)
     json = Converters::LingoLinq.to_external(board)
     OBF::PNG.from_external(json, dest_path)
   end

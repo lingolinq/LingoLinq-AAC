@@ -16,9 +16,9 @@ var daily_event_types = ['models', 'modeled', 'remote_models', 'focus_words', 'e
 var stash_capabilities = null;
 var stashes = EmberObject.extend({
   connect: function(application) {
-    application.register('cough_drop:stashes', stashes, { instantiate: false, singleton: true });
+    application.register('lingolinq:stashes', stashes, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'stashes', 'cough_drop:stashes');
+      application.inject(component, 'stashes', 'lingolinq:stashes');
     });
   },
   db_connect: function(cap) {

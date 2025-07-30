@@ -30,12 +30,12 @@ describe('session', function() {
       var registered = false;
       var injections = [];
       app.register = function(key, session, args) {
-        if(key == 'cough_drop:session' && session == session && args.singleton && !args.instantiate) {
+        if(key == 'lingolinq:session' && session == session && args.singleton && !args.instantiate) {
           registered = true;
         }
       };
       app.inject = function(injection, attr, key) {
-        if(attr == 'session' && key == 'cough_drop:session') {
+        if(attr == 'session' && key == 'lingolinq:session') {
           injections.push(injection);
         }
       };

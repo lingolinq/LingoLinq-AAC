@@ -1,9 +1,9 @@
 module Converters::OBF
-  def self.to_coughdrop(obf, opts)
+  def self.to_lingolinq(obf, opts)
     Converters::LingoLinq.from_obf(obf, opts)
   end
   
-  def self.from_coughdrop(board, dest_path)
+  def self.from_lingolinq(board, dest_path)
     Converters::LingoLinq.to_obf(board, dest_path)
   end
   

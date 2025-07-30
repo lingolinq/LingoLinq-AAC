@@ -1,21 +1,21 @@
 require 'spec_helper'
 
 describe Converters::OBF do
-  describe "to_coughdrop" do
-    it "should use the coughdrop-from-obf converter" do
+  describe "to_lingolinq" do
+    it "should use the lingolinq-from-obf converter" do
       obf = "/file.obf"
       opts = {}
       expect(Converters::LingoLinq).to receive(:from_obf).with(obf, opts)
-      Converters::OBF.to_coughdrop(obf, opts)
+      Converters::OBF.to_lingolinq(obf, opts)
     end
   end
   
-  describe "from_coughdrop" do
-    it "should use the coughdrop-to-obf converter" do
+  describe "from_lingolinq" do
+    it "should use the lingolinq-to-obf converter" do
       board = Board.new
       opts = {}
       expect(Converters::LingoLinq).to receive(:to_obf).with(board, opts)
-      Converters::OBF.from_coughdrop(board, opts)
+      Converters::OBF.from_lingolinq(board, opts)
     end
   end
   

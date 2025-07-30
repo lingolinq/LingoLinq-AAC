@@ -7,7 +7,7 @@ module Converters::PDF
     OBF::PDF.from_obz(obz_path, dest_path)
   end
   
-  def self.from_coughdrop(board, dest_path, opts)
+  def self.from_lingolinq(board, dest_path, opts)
     json = nil
     if opts['packet']
       json = Converters::LingoLinq.to_external_nested(board, opts)

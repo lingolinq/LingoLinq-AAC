@@ -40,12 +40,12 @@ describe Converters::PDF do
     end
   end
 
-  describe "from_coughdrop" do
+  describe "from_lingolinq" do
     it "should convert to obz and then render that" do
       hash = {}
       expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
       expect(OBF::PDF).to receive(:from_external).with(hash, "/file.pdf")
-      Converters::PDF.from_coughdrop(nil, "/file.pdf", {})
+      Converters::PDF.from_lingolinq(nil, "/file.pdf", {})
     end
   end  
 

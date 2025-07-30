@@ -54,9 +54,9 @@ import app_state from './app_state';
 
   var extras = EmberObject.extend({
     setup: function(application) {
-      application.register('cough_drop:extras', extras, { instantiate: false, singleton: true });
+      application.register('lingolinq:extras', extras, { instantiate: false, singleton: true });
       $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-        application.inject(component, 'extras', 'cough_drop:extras');
+        application.inject(component, 'extras', 'lingolinq:extras');
       });
     },
     advance: ready,

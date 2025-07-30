@@ -14,9 +14,9 @@ import modal from './modal';
 
 var session = EmberObject.extend({
   setup: function(application) {
-    application.register('cough_drop:session', session, { instantiate: false, singleton: true });
+    application.register('lingolinq:session', session, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'session', 'cough_drop:session');
+      application.inject(component, 'session', 'lingolinq:session');
     });
     LingoLinqAAC.session = session;
   },

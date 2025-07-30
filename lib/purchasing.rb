@@ -15,7 +15,7 @@ module Purchasing
     previous = event['data'] && event['data']['previous_attributes']
     event_result = nil
     if object
-      if object && object['metadata'] && object['metadata']['type'] == 'extras' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+      if object && object['metadata'] && object['metadata']['type'] == 'extras' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
         data = {:extras => true, :purchase_id => object['id'], :valid => true}
         if event['type'] == 'charge.succeeded'
           if object['metadata'] && (object['metadata']['purchased_symbols'] == 'true' || object['metadata']['purchased_supporters'].to_i > 0)
@@ -33,7 +33,7 @@ module Purchasing
           data[:valid] = false
         end
       else
-        if event['type'] == 'charge.succeeded' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        if event['type'] == 'charge.succeeded' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           valid = object['metadata'] && object['metadata']['user_id'] && object['metadata']['plan_id']
           if valid
             time = 5.years.to_i
@@ -72,7 +72,7 @@ module Purchasing
             end
           end
           data = {:purchase => true, :purchase_id => object['id'], :valid => !!valid}
-        elsif event['type'] == 'charge.failed' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'charge.failed' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           valid = false
           if object['customer'] && object['customer'] != 'free'
             customer = Stripe::Customer.retrieve({id: object['customer']})
@@ -113,7 +113,7 @@ module Purchasing
               prior_user.transfer_subscription_to(new_user, true)
             end
           end
-        elsif event['type'] == 'customer.subscription.created' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.created' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id'] && object['plan'] && object['plan']['id']
           if valid
@@ -130,7 +130,7 @@ module Purchasing
             })
           end
           data = {:subscribe => true, :valid => !!valid}
-        elsif event['type'] == 'customer.subscription.updated' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.updated' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id']
           if object['status'] == 'unpaid' || object['status'] == 'canceled'
@@ -174,7 +174,7 @@ module Purchasing
             end
             data = {:subscribe => true, :valid => !!valid}
           end
-        elsif event['type'] == 'customer.subscription.deleted' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.deleted' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id']
           if valid
@@ -343,7 +343,7 @@ module Purchasing
         meta = {
           'user_id' => user.global_id,
           'plan_id' => plan_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'license'
         }
         meta['purchased_symbols'] = 'true' if include_extras
@@ -395,7 +395,7 @@ module Purchasing
         if !customer
           user && user.log_subscription_event({:log => 'creating new customer'})
           customer = Stripe::Customer.create({
-            :metadata => { 'user_id' => user.global_id, 'platform_source' => 'coughdrop' },
+            :metadata => { 'user_id' => user.global_id, 'platform_source' => 'lingolinq' },
             :email => (user && user.external_email_allowed?) ? (user && user.settings && user.settings['email']) : nil,
             :expand => ['subscriptions']
           })
@@ -405,7 +405,7 @@ module Purchasing
           plan_id = Purchasing.plan_map[plan_id] || plan_id
           sub = nil
           if customer.subscriptions.count > 0
-            sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && ['active', 'past_due', 'unpaid'].include?(s.status) }
+            sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && ['active', 'past_due', 'unpaid'].include?(s.status) }
           end
           if sub
             sub.source = token['id']
@@ -420,7 +420,7 @@ module Purchasing
               trial_end = (user.created_at + 60.days).to_i
             end
             meta = {
-              :platform_source => 'coughdrop'
+              :platform_source => 'lingolinq'
             }
             meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
             sub = customer.subscriptions.create({
@@ -431,7 +431,7 @@ module Purchasing
             })
           end
           customer = Stripe::Customer.retrieve({id: customer['id'], expand: ['subscriptions']})
-          any_sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && (s.status == 'active' || s.status == 'trialing') }
+          any_sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && (s.status == 'active' || s.status == 'trialing') }
           if include_extras || include_n_supporters > 0
             one_time_amount += self.extras_symbols_cost if include_extras
             one_time_amount += (include_n_supporters * self.extras_supporter_cost)
@@ -472,7 +472,7 @@ module Purchasing
                 currency: 'usd',
                 customer: customer['id'],
                 description: desc,
-                metadata: {'platform_source' => 'coughdrop'}
+                metadata: {'platform_source' => 'lingolinq'}
               })
             end
             extras_added = {:customer_id => customer.id, :purchase_id => charge_id, :symbols => !!include_extras, :supporters => include_n_supporters}
@@ -557,7 +557,7 @@ module Purchasing
           :metadata => {
             'user_id' => user.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'extras'
           }
         })
@@ -633,7 +633,7 @@ module Purchasing
         :metadata => {
           'giver_id' => user && user.global_id,
           'giver_email' => opts['email'] || (user && user.settings['email']),
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => type
         }
       })
@@ -1090,7 +1090,7 @@ module Purchasing
     customers = Stripe::Customer.search({query: "metadata[\"user_id\"]:\"#{user_id}\""})
     customers.data.each do |cus|
       customer = Stripe::Customer.retrieve(id: cus.id, expand: ['subscriptions'])
-      sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && ['active', 'past_due', 'unpaid'].include?(s.status) }
+      sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && ['active', 'past_due', 'unpaid'].include?(s.status) }
       next if sub && sub.created && timestamp_cutoff && sub.created < timestamp_cutoff
       if sub
         # user has active subscription, make sure it is applied
@@ -1178,7 +1178,7 @@ module Purchasing
       end
       user_id = customer['metadata'] && customer['metadata']['user_id']
       user = user_id && User.find_by_global_id(user_id)
-      customer_subs = customer['subscriptions'].to_a.select{|s| ((s['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop' }
+      customer_subs = customer['subscriptions'].to_a.select{|s| ((s['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq' }
       if !user && cancels[customer['id']].blank? && !customer_subs.blank?
         problems << "#{customer['id']} no user found"
         output "\tuser not found #{user_id} (ROGUE SUBSCRIPTION??)"

@@ -19,13 +19,13 @@ describe Converters::PNG do
     end
   end
   
-  describe "from_coughdrop" do
-    it "should use the coughdrop-to-pdf converter and then call from_pdf" do
+  describe "from_lingolinq" do
+    it "should use the lingolinq-to-pdf converter and then call from_pdf" do
       b = Board.new
       hash = {}
       expect(OBF::PNG).to receive(:from_external).with(hash, "/file.png")
       expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
-      Converters::PNG.from_coughdrop(b, "/file.png")
+      Converters::PNG.from_lingolinq(b, "/file.png")
     end
   end
 end
