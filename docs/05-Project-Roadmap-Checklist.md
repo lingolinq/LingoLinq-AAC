@@ -9,7 +9,7 @@
 **Budget**: $135.9K | **Status**: 🎯 Ready to Start
 
 ### Infrastructure Modernization
-- [ ] **Week 1-2**: Node.js upgrade (8.x → 20.x LTS)
+- [x] **Week 1-2**: Node.js upgrade - ✅ **COMPLETED** (Now requires 18+)
 - [ ] **Week 1-2**: Security vulnerability patches (127 → 0)
 - [ ] **Week 2-3**: Next.js foundation setup
 - [ ] **Week 3-4**: TypeScript integration (gradual)
@@ -180,7 +180,7 @@
 ### Current State
 - Rails 6.1 + Ruby 3.2.8
 - Ember.js 3.12 (outdated)
-- Node.js 8.x (severely outdated)
+- Node.js: ✅ **UPDATED** to require 18+
 - PostgreSQL
 - Basic Google Translate integration
 

@@ -11,7 +11,7 @@ This comprehensive UX/UI modernization plan transforms LingoLinq-AAC from an out
 
 #### Frontend Technology Stack (Critical Issues)
 - **Framework**: Ember.js 3.12 (severely outdated)
-- **Node.js**: Supports 8.x+ (end-of-life versions)
+- **Node.js**: ✅ **UPDATED** - Now requires 18+ (modern LTS)
 - **Design System**: No evidence of systematic design approach
 - **Component Library**: Custom Ember components without modern patterns
 - **Accessibility**: Unknown WCAG compliance status

@@ -90,8 +90,13 @@ LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Embe
 - **Lib**: Shared utilities and converters in `lib/`
 
 ### Environment Setup
+
+## Ruby Version Requirement
+- **Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility
+- **Version Check**: Use `ruby -v` to verify your version  
+- **Version Management**: Use rbenv/rvm if you need to switch versions
+
 - **Required**: Ruby 3.2.8, Node.js, PostgreSQL, Redis, Ember CLI
-- **CRITICAL**: Ruby version MUST be 3.2.8 for Rails 6.1 compatibility - DO NOT update Gemfile to newer Ruby versions
 - **Optional**: ImageMagick, Ghostscript for file processing
 - **Environment**: Copy `.env.example` to `.env` and configure required variables
 - **Dependencies**: AWS credentials needed for file uploads, various API keys for full functionality
@@ -156,10 +161,9 @@ Key recurring tasks that run via Heroku Scheduler:
 - Fixed mixed header references that could cause authentication issues
 - Updated user-facing strings while preserving technical class names
 
-### Critical Environment Notes
-- **Ruby Version**: System MUST use Ruby 3.2.8 for Rails 6.1 compatibility
-- **Gemfile**: DO NOT update Ruby version in Gemfile - this will break Rails compatibility
-- **Local Environment**: If you have Ruby 3.3.x locally, you need to downgrade or use version manager
+### Environment Notes
+- **Ruby Version**: System requires Ruby 3.2.8 for Rails 6.1 compatibility
+- **Local Environment**: Use version managers (rbenv/rvm) to maintain correct Ruby version
 
 ### Code Quality Standards
 - Follow existing patterns for new code

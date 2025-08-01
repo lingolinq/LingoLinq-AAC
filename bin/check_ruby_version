@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+# Ruby Version Validation Script for LingoLinq AAC
+# This script ensures developers are using the correct Ruby version (3.2.8)
+# before attempting to run bundle install or start the application
+
+REQUIRED_RUBY_VERSION = "3.2.8"
+
+def current_ruby_version
+  RUBY_VERSION
+end
+
+def version_matches?
+  current_ruby_version == REQUIRED_RUBY_VERSION
+end
+
+def print_error
+  puts "\n🚨 CRITICAL: Wrong Ruby Version Detected!"
+  puts "=" * 50
+  puts "Current Ruby version: #{current_ruby_version}"
+  puts "Required Ruby version: #{REQUIRED_RUBY_VERSION}"
+  puts ""
+  puts "Rails 6.1 ONLY works with Ruby 3.2.8 exactly."
+  puts "Using Ruby 3.3.x or newer will break the application."
+  puts ""
+  puts "To fix this issue:"
+  puts ""
+  puts "Using rbenv:"
+  puts "  rbenv install 3.2.8"
+  puts "  rbenv local 3.2.8"
+  puts ""
+  puts "Using rvm:"
+  puts "  rvm install 3.2.8"
+  puts "  rvm use 3.2.8"
+  puts ""
+  puts "After switching, run this script again to verify."
+  puts "=" * 50
+end
+
+def print_success
+  puts "✅ Ruby version #{current_ruby_version} is correct!"
+  puts "You can safely run 'bundle install' and start development."
+end
+
+# Main execution
+if version_matches?
+  print_success
+  exit 0
+else
+  print_error
+  exit 1
+end

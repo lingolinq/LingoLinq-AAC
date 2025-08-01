@@ -66,21 +66,25 @@ double-quotes and all other strings should use single quotes.
 
 #### Backend Setup
 
-Dev dependencies: ruby, Postgres, Redis, Node, ember-cli, AWS, Google API, (optionally) ZenDesk
+#### Ruby Version Requirement
+
+**Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility.
+- Check your version: `ruby -v`
+- Use a version manager (rbenv/rvm) if you need to switch versions
+
+Dev dependencies: **Ruby 3.2.8 (REQUIRED)**, Postgres, Redis, **Node.js 18+**, ember-cli, AWS, Google API, (optionally) ZenDesk
 
 The backend relies on Redis and Postgres both being installed. Both are required in
 development and production. If
-you have ruby installed in your environment, you'll need the bundler gem:
+you have Ruby 3.2.8 installed in your environment, you'll need the bundler gem:
 
 ```bash
 gem install bundler
 ```
 
-After that you can install ruby dependencies with:
+Install ruby dependencies:
 
-bundle install
-
-```
+```bash
 bundle install
 ```
 

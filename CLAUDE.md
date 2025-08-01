@@ -86,8 +86,13 @@ LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Embe
 - **Lib**: Shared utilities and converters in `lib/`
 
 ### Environment Setup
-- **Required**: Ruby 3.2.8, Node.js, PostgreSQL, Redis, Ember CLI
-- **CRITICAL**: Ruby version MUST be 3.2.8 for Rails 6.1 compatibility - DO NOT update Gemfile to newer Ruby versions
+
+## Ruby Version Requirement
+- **Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility
+- **Version Check**: Use `ruby -v` to verify your version
+- **Version Management**: Use rbenv/rvm if you need to switch versions
+
+- **Required**: Ruby 3.2.8, **Node.js 18+**, PostgreSQL, Redis, Ember CLI
 - **Optional**: ImageMagick, Ghostscript for file processing
 - **Environment**: Copy `.env.example` to `.env` and configure required variables
 - **Dependencies**: AWS credentials needed for file uploads, various API keys for full functionality

@@ -35,7 +35,7 @@ LingoLinq-AAC is a Ruby on Rails AAC (Augmentative and Alternative Communication
 #### Ember.js Application
 - **Framework**: Ember.js 3.12.0 (severely outdated)
 - **Current Ember Version**: 5.x (major version behind)
-- **Node.js Support**: "8.* || >= 10.*" (dangerously outdated)
+- **Node.js Support**: ✅ **UPDATED** - Now requires ">=18.0.0"
 - **Status**: Critical modernization needed
 
 #### JavaScript Dependencies

@@ -9,7 +9,14 @@
       "Bash(mkdir:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm audit:*)",
+      "Bash(bundle:*)",
+      "Bash(chmod:*)",
+      "Bash(./bin/check_ruby_version:*)",
+      "Bash(ruby:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)"
     ],
     "deny": []
   }

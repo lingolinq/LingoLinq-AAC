@@ -11,7 +11,7 @@ Based on analysis of the current codebase and 2025 AI development landscape, we 
 - **Frontend**: Ember.js 3.12 (significantly outdated)
 - **Database**: PostgreSQL
 - **Authentication**: Custom system with 2FA
-- **Node**: 8.* || >= 10.* (severely outdated)
+- **Node.js**: ✅ **UPDATED** - Now requires 18+ (package.json updated)
 
 ### Core MVP Functionality (Preserve 100%)
 - ✅ Communication board creation and editing
@@ -27,7 +27,7 @@ Based on analysis of the current codebase and 2025 AI development landscape, we 
 ### 🎯 Modernization Scope
 
 **Infrastructure Updates:**
-- [ ] Node.js 8 → Node.js 20 LTS 
+- [x] **Node.js 18+ Required** - ✅ **COMPLETED** (package.json updated) 
 - [ ] Ember.js 3.12 → React 18 with Next.js
 - [ ] Modern build system (Vite/Webpack 5)
 - [ ] Security patches (127 vulnerabilities → 0)
@@ -89,7 +89,7 @@ cursor --performance-optimization
 ## Implementation Phases
 
 ### Phase 1a: Infrastructure (Weeks 1-2)
-- [ ] **Node.js Upgrade**: 8.x → 20.x LTS
+- [x] **Node.js Requirements**: ✅ **COMPLETED** - Now requires 18+ (package.json updated)
 - [ ] **Package Manager**: npm → pnpm for better performance
 - [ ] **Build System**: Ember CLI → Next.js
 - [ ] **TypeScript Setup**: Gradual type adoption
