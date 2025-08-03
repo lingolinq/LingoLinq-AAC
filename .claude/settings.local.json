@@ -16,7 +16,10 @@
       "Bash(./bin/check_ruby_version:*)",
       "Bash(ruby:*)",
       "Bash(git rebase:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(setx:*)",
+      "Bash(powershell:*)",
+      "Bash(set PATH)"
     ],
     "deny": []
   }
