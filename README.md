@@ -1,6 +1,7 @@
 # LingoLinq AAC - Every Voice Should Be Heard
 
 [![OpenAAC](https://www.openaac.org/images//OpenAAC-advocate-blue.svg)](https://www.openaac.org/advocates.html)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/swahlquist/LingoLinq-AAC)
 
 LingoLinq AAC, a fork of the Sweet-Suite AAC app, is an open, web-based AAC (Augmentative and Alternative Communication) app. Basically
 if people struggle getting their words out for whatever reason, they can use
