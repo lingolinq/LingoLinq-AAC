@@ -15,6 +15,7 @@ group :development, :test do
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
+  gem 'tzinfo-data' # Required for Windows
 end
 
 gem 'concurrent-ruby', '1.3.4'

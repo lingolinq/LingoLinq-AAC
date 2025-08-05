@@ -1,0 +1,68 @@
+# Optimized Docker Compose for LingoLinq Development
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: lingolinq_development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Rails Web Application
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/lingolinq_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - bundle_cache:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo '🚀 Starting LingoLinq Rails App...' &&
+        echo '✅ Ruby: $(ruby -v)' &&
+        echo '✅ Node: $(node -v)' &&
+        bundle install &&
+        echo '✅ Rails: $(bundle exec rails -v)' &&
+        bundle exec rails db:create || echo 'Database may already exist' &&
+        bundle exec rails db:migrate &&
+        echo '🎉 Starting Rails server on port 3000...' &&
+        bundle exec rails server -b 0.0.0.0 -p 3000
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
+  bundle_cache:

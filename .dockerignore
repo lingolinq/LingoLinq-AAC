@@ -1,0 +1,54 @@
+# Docker ignore file for LingoLinq AAC
+# Reduces build context size and speeds up builds
+
+# Git files
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Logs
+log/*
+*.log
+tmp/
+
+# Dependencies (will be installed in container)
+node_modules/
+app/frontend/node_modules/
+app/frontend/bower_components/
+
+# Built assets (will be generated in container)
+public/assets/
+app/frontend/dist/
+
+# Environment files
+.env.local
+.env.*.local
+
+# Development files
+.vscode/
+*.code-workspace
+
+# Test files
+coverage/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker files (no need to copy into container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# AI development files (session-specific)
+ai-context/session-context.json
+ai-context/agent-changes.log
+ai-context/shared-state.json

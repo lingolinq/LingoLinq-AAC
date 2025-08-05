@@ -1,0 +1,135 @@
+{
+  "agent_type": "claude_code",
+  "project": "LingoLinq AAC",
+  "initialization": {
+    "required_files_to_read": [
+      "/ai-agents/project-constraints.json",
+      "/CLAUDE.md",
+      "/README.md"
+    ],
+    "startup_commands": [
+      "curl -s http://localhost:4000/api/constraints",
+      "curl -s http://localhost:4000/api/context"
+    ],
+    "environment_verification": "curl -X POST http://localhost:4000/api/verify-environment"
+  },
+  "version_constraints": {
+    "critical_warnings": [
+      "⚠️ NEVER upgrade Node.js beyond 18.x - breaks Ember 3.12",
+      "⚠️ NEVER change Ruby from 3.2.8 - breaks Rails 6.1",
+      "⚠️ ALWAYS verify versions before making changes",
+      "⚠️ USE Docker containers to avoid host system conflicts"
+    ],
+    "forbidden_commands": [
+      "nvm use 20",
+      "nvm use 22",
+      "node --version # if result is not 18.x",
+      "gem install ruby # version changes",
+      "brew upgrade node",
+      "npm install -g node@latest"
+    ],
+    "required_verifications": [
+      "node -v # must show 18.x.x",
+      "ruby -v # must show 3.2.8",
+      "ember --version # must show 3.12.x"
+    ]
+  },
+  "coordination_api": {
+    "base_url": "http://localhost:4000/api",
+    "endpoints": {
+      "register": "POST /agents/register",
+      "log_action": "POST /agents/{agent_id}/action",
+      "get_context": "GET /context",
+      "get_changes": "GET /changes",
+      "get_warnings": "GET /warnings"
+    },
+    "registration_payload": {
+      "agent_id": "claude_code_session_{timestamp}",
+      "agent_type": "claude_code",
+      "capabilities": [
+        "file_editing",
+        "command_execution",
+        "code_generation",
+        "debugging",
+        "testing"
+      ]
+    }
+  },
+  "session_workflow": {
+    "on_session_start": [
+      "Register with coordinator service",
+      "Verify environment constraints",
+      "Read project constraints file",
+      "Check for recent changes by other agents",
+      "Alert user to any version warnings"
+    ],
+    "before_version_changes": [
+      "Check project constraints",
+      "Verify current versions",
+      "Log planned action to coordinator",
+      "Get user confirmation for risky changes"
+    ],
+    "after_changes": [
+      "Log completed action",
+      "Verify environment still meets constraints",
+      "Update shared context if needed"
+    ]
+  },
+  "safe_development_commands": {
+    "docker_commands": [
+      "docker-compose -f docker-compose.dev.yml up",
+      "docker-compose -f docker-compose.dev.yml down",
+      "docker-compose -f docker-compose.dev.yml logs",
+      "docker exec -it lingolinq_backend bash",
+      "docker exec -it lingolinq_frontend bash"
+    ],
+    "container_verification": [
+      "docker exec lingolinq_backend ruby -v",
+      "docker exec lingolinq_frontend node -v",
+      "docker exec lingolinq_backend bundle exec rails -v"
+    ],
+    "development_workflow": [
+      "# Inside backend container:",
+      "bundle install",
+      "rails extras:assert_js",
+      "rails db:create db:migrate db:seed",
+      "bundle exec rspec # run tests",
+      "",
+      "# Inside frontend container:",
+      "npm install",
+      "bower install --allow-root",
+      "ember test # run tests",
+      "ember serve # development server"
+    ]
+  },
+  "error_recovery": {
+    "version_mismatch_detected": [
+      "Stop all processes",
+      "Use Docker containers instead of host system",
+      "Verify containers have correct versions",
+      "Restart development environment"
+    ],
+    "build_failures": [
+      "Check Node.js version first",
+      "Check Ruby version second",
+      "Clear node_modules and reinstall",
+      "Clear bundle cache and reinstall"
+    ]
+  },
+  "multi_agent_coordination": {
+    "shared_resources": [
+      "/ai-context/shared-state.json",
+      "/ai-context/agent-changes.log"
+    ],
+    "communication_protocol": {
+      "before_major_changes": "POST /agents/{agent_id}/action with planned action",
+      "conflict_resolution": "Check recent changes and coordinate via coordinator API",
+      "handoff_procedure": "Log completion and update shared context"
+    }
+  },
+  "templates": {
+    "session_start_message": "🤖 Claude Code initialized for LingoLinq AAC\n✅ Environment verified\n📋 Project constraints loaded\n🔄 Registered with coordinator\n\nReady for development with locked versions:\n- Ruby 3.2.8 (Rails 6.1)\n- Node.js 18.x (Ember 3.12)",
+    "version_warning": "⚠️ VERSION WARNING: Attempted action may affect version constraints\n🔒 Current lock: Ruby 3.2.8, Node.js 18.x\n🚫 Action blocked for safety\n💡 Use Docker containers for version isolation",
+    "coordination_update": "📡 Coordinating with other agents...\n📝 Logging action: {action}\n🔄 Updating shared context\n✅ Coordination complete"
+  }
+}

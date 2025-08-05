@@ -1,0 +1,101 @@
+{
+  "project": "LingoLinq AAC",
+  "description": "AAC (Augmentative and Alternative Communication) application with Rails backend and Ember.js frontend",
+  "critical_constraints": {
+    "ruby_version": {
+      "required": "3.2.8",
+      "reason": "Rails 6.1 compatibility requirement",
+      "do_not_change": true,
+      "verification_command": "ruby -v"
+    },
+    "nodejs_version": {
+      "required": "18.20.4",
+      "minimum": "18.0.0",
+      "maximum": "18.x.x",
+      "reason": "Ember 3.12 compatibility - newer versions break build",
+      "do_not_change": true,
+      "verification_command": "node -v"
+    },
+    "rails_version": {
+      "current": "6.1",
+      "upgrade_target": "7.2",
+      "reason": "Legacy system - upgrade planned but not implemented",
+      "compatibility_notes": "Ruby 3.2.8 required for Rails 6.1"
+    },
+    "ember_version": {
+      "current": "3.12.0",
+      "reason": "Legacy Ember version with specific Node.js 18 requirement",
+      "upgrade_complexity": "high"
+    }
+  },
+  "ai_agent_warnings": {
+    "version_changes": {
+      "forbidden_actions": [
+        "Upgrading Node.js beyond 18.x",
+        "Changing Ruby version from 3.2.8",
+        "Updating Ember CLI without compatibility verification",
+        "Installing newer npm packages that require Node.js 20+"
+      ],
+      "required_checks": [
+        "Always verify Node.js version is 18.x before making changes",
+        "Check Ruby version is 3.2.8 before bundle operations",
+        "Verify Ember CLI version compatibility",
+        "Test build process after any dependency changes"
+      ]
+    },
+    "context_preservation": {
+      "session_requirements": [
+        "Read this file at the start of every AI session",
+        "Store version constraints in persistent context",
+        "Verify environment before making changes",
+        "Document any version-related issues immediately"
+      ]
+    }
+  },
+  "development_environment": {
+    "recommended_setup": "Docker containers with locked versions",
+    "database": "PostgreSQL (any modern version)",
+    "cache": "Redis (any modern version)",
+    "package_managers": {
+      "ruby": "bundler",
+      "node": "npm + bower (legacy requirement)"
+    }
+  },
+  "testing_requirements": {
+    "backend": "rspec (Ruby tests)",
+    "frontend": "ember test (QUnit tests)",
+    "integration": "Rails + Ember API compatibility",
+    "version_verification": [
+      "ruby -v should show 3.2.8",
+      "node -v should show 18.x.x",
+      "ember --version should show 3.12.x"
+    ]
+  },
+  "deployment_considerations": {
+    "asset_compilation": "bin/deploy_prep script handles Rails asset pipeline",
+    "mobile_builds": "rake extras:mobile for Cordova packaging",
+    "desktop_builds": "rake extras:desktop for Electron packaging",
+    "dependencies": [
+      "ImageMagick (convert, identify, montage)",
+      "Ghostscript (gs)",
+      "Node.js 18.x for asset compilation"
+    ]
+  },
+  "breaking_changes_to_avoid": {
+    "node_18_breaking": "Node.js 20+ breaks Ember 3.12 build process",
+    "ruby_version_breaking": "Ruby versions other than 3.2.8 may have Rails 6.1 compatibility issues",
+    "npm_package_updates": "Many packages now require Node.js 20+, causing build failures"
+  },
+  "ai_coordination": {
+    "persistent_context_file": "/ai-agents/session-context.json",
+    "constraint_verification_script": "/ai-agents/verify-environment.sh",
+    "version_lock_enforcement": true,
+    "multi_agent_communication": {
+      "shared_memory": "/ai-context/shared-state.json",
+      "change_log": "/ai-context/agent-changes.log",
+      "version_alerts": "/ai-context/version-warnings.json"
+    }
+  },
+  "last_updated": "2025-01-04",
+  "maintainer_notes": "This constraint file is critical for AI agent coordination. Any changes to version requirements must be documented here and communicated to all development agents."
+}

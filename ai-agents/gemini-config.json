@@ -1,0 +1,172 @@
+{
+  "agent_type": "gemini_cli",
+  "project": "LingoLinq AAC",
+  "initialization": {
+    "required_files_to_read": [
+      "/ai-agents/project-constraints.json",
+      "/GEMINI.md",
+      "/README.md"
+    ],
+    "startup_commands": [
+      "curl -s http://localhost:4000/api/constraints",
+      "curl -s http://localhost:4000/api/context"
+    ],
+    "environment_verification": "curl -X POST http://localhost:4000/api/verify-environment"
+  },
+  "version_constraints": {
+    "critical_warnings": [
+      "🚨 GEMINI AGENT ALERT: Node.js MUST stay 18.x",
+      "🚨 Ruby version LOCKED at 3.2.8 for Rails compatibility",
+      "🚨 Check coordinator API before ANY version changes",
+      "🚨 Use containerized development ONLY"
+    ],
+    "pre_action_checks": [
+      "node -v | grep '^v18\\.' || echo 'ERROR: Node.js not 18.x'",
+      "ruby -v | grep '3\\.2\\.8' || echo 'ERROR: Ruby not 3.2.8'",
+      "curl -s http://localhost:4000/api/warnings | jq '.[-5:]'"
+    ],
+    "forbidden_patterns": [
+      "upgrade.*node",
+      "update.*node",
+      "install.*node@",
+      "nvm use [^1]?[^8]",
+      "gem update ruby",
+      "rbenv install [^3]",
+      "rvm install [^3]"
+    ]
+  },
+  "coordination_api": {
+    "base_url": "http://localhost:4000/api",
+    "agent_registration": {
+      "agent_id": "gemini_cli_session_{timestamp}",
+      "agent_type": "gemini_cli",
+      "capabilities": [
+        "code_analysis",
+        "file_generation",
+        "documentation",
+        "research",
+        "testing_support"
+      ]
+    },
+    "mandatory_logging": [
+      "file_changes",
+      "version_related_actions",
+      "package_installations",
+      "build_process_modifications"
+    ]
+  },
+  "safe_operation_mode": {
+    "container_first": true,
+    "host_system_restrictions": [
+      "No direct Node.js version changes",
+      "No Ruby version modifications",
+      "No global package installations",
+      "No system-level dependency changes"
+    ],
+    "recommended_workflow": [
+      "1. Start Docker development environment",
+      "2. Work within containers exclusively",
+      "3. Verify environment before changes",
+      "4. Log all actions to coordinator",
+      "5. Test in isolated environment"
+    ]
+  },
+  "gemini_specific_config": {
+    "context_window_usage": {
+      "priority_files": [
+        "/ai-agents/project-constraints.json",
+        "/app/frontend/package.json",
+        "/Gemfile"
+      ],
+      "context_preservation": [
+        "Always include version constraints in system prompt",
+        "Reference coordinator API for persistent state",
+        "Maintain awareness of other active agents"
+      ]
+    },
+    "mcp_integration": {
+      "enabled": true,
+      "tools": [
+        "docker_compose",
+        "version_checker",
+        "project_analyzer"
+      ]
+    }
+  },
+  "error_prevention": {
+    "version_change_circuit_breaker": {
+      "enabled": true,
+      "triggers": [
+        "node version",
+        "ruby version",
+        "npm install -g",
+        "gem install bundler"
+      ],
+      "action": "HALT_AND_VERIFY_CONSTRAINTS"
+    },
+    "automatic_rollback": {
+      "enabled": true,
+      "backup_commands": [
+        "docker-compose -f docker-compose.dev.yml down",
+        "docker-compose -f docker-compose.dev.yml up --build"
+      ]
+    }
+  },
+  "multi_agent_awareness": {
+    "claude_code_coordination": {
+      "shared_files": [
+        "/ai-context/shared-state.json",
+        "/ai-context/agent-changes.log"
+      ],
+      "communication_pattern": "API_BASED",
+      "conflict_resolution": "COORDINATOR_MEDIATED"
+    },
+    "session_handoff": {
+      "export_context": "POST /agents/{agent_id}/action with type 'session_end'",
+      "import_context": "GET /context before starting new actions",
+      "state_synchronization": "continuous via coordinator API"
+    }
+  },
+  "templates": {
+    "session_initialization": {
+      "message": "🔷 Gemini CLI initialized for LingoLinq AAC\n🔒 Version constraints loaded\n📡 Coordinator connection established\n🐳 Docker environment preferred\n\nConstraints:\n• Ruby: 3.2.8 (LOCKED)\n• Node.js: 18.x (LOCKED)\n• Rails: 6.1 → 7.2 (planned)\n• Ember: 3.12 (legacy)",
+      "verification_commands": [
+        "curl -s http://localhost:4000/health",
+        "bash /ai-agents/verify-environment.sh"
+      ]
+    },
+    "constraint_violation_warning": {
+      "message": "🚨 CONSTRAINT VIOLATION DETECTED\n\n❌ Action: {action}\n🔒 Constraint: {constraint}\n💡 Recommendation: {recommendation}\n\n🛑 Action BLOCKED for project safety",
+      "escalation": "Log to coordinator and request human review"
+    },
+    "coordination_success": {
+      "message": "✅ Action coordinated successfully\n📝 Logged: {action}\n🤝 Other agents notified\n📊 Context updated",
+      "follow_up": "Continue with safe operation"
+    }
+  },
+  "development_patterns": {
+    "container_commands": {
+      "backend_access": "docker exec -it lingolinq_backend bash",
+      "frontend_access": "docker exec -it lingolinq_frontend bash",
+      "db_access": "docker exec -it lingolinq_postgres psql -U postgres -d lingolinq_development",
+      "redis_access": "docker exec -it lingolinq_redis redis-cli"
+    },
+    "testing_workflow": [
+      "# Backend tests (in container)",
+      "docker exec lingolinq_backend bundle exec rspec",
+      "",
+      "# Frontend tests (in container)",
+      "docker exec lingolinq_frontend ember test",
+      "",
+      "# Integration verification",
+      "curl http://localhost:3000/api/v1/health",
+      "curl http://localhost:8181"
+    ],
+    "safe_package_management": [
+      "# Always use container for package changes",
+      "docker exec lingolinq_backend bundle install",
+      "docker exec lingolinq_frontend npm install",
+      "docker exec lingolinq_frontend bower install --allow-root"
+    ]
+  }
+}

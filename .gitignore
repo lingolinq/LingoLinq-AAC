@@ -39,3 +39,24 @@
 tools/deepwiki-mcp/node_modules/
 tools/deepwiki-mcp/dist/
 .vscode/
+
+# AI Development Environment - Session Data (ignore)
+/ai-context/session-context.json
+/ai-context/agent-changes.log
+/ai-context/shared-state.json
+/ai-agents/coordinator/node_modules/
+/logs/
+
+# AI Development Environment - Config Files (keep for team)
+# These files should be committed so other developers can use AI coordination:
+# /ai-agents/project-constraints.json  
+# /ai-agents/claude-config.json
+# /ai-agents/gemini-config.json
+# /docker-compose.dev.yml
+
+# Docker volumes (always ignore)
+postgres_data/
+redis_data/
+backend_gems/
+frontend_node_modules/
+ai_context_data/
