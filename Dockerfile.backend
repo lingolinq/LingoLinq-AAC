@@ -1,0 +1,87 @@
+# LingoLinq Backend Dockerfile
+# CRITICAL: Node.js 18.x + Ruby 3.2.8 LOCKED for Rails 6.1 + Ember 3.12 compatibility
+
+FROM ruby:3.2.8-slim as base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    libpq-dev \
+    git \
+    imagemagick \
+    ghostscript \
+    postgresql-client \
+    redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# CRITICAL: Install Node.js 18.20.4 (LOCKED VERSION)
+# This version is required for Ember 3.12 compatibility
+ENV NODE_VERSION=18.20.4
+RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJf - -C /usr/local --strip-components=1
+
+# Verify versions (CRITICAL FOR DEBUGGING)
+RUN echo "🔍 VERIFICATION:" && \
+    echo "Ruby version: $(ruby -v)" && \
+    echo "Node version: $(node -v)" && \
+    echo "NPM version: $(npm -v)" && \
+    echo "Expected Ruby: 3.2.8" && \
+    echo "Expected Node: 18.20.4"
+
+# Set working directory
+WORKDIR /app
+
+# Development stage
+FROM base as development
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    vim \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Gemfile and install gems
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler && bundle install
+
+# Install global npm packages needed for Rails
+RUN npm install -g bower@1.8.14
+
+# Copy package.json for any root-level Node dependencies
+COPY package*.json ./
+RUN if [ -f package.json ]; then npm install; fi
+
+# Copy the application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p tmp/pids tmp/cache tmp/sockets log
+
+# Expose ports
+EXPOSE 3000
+
+# Default command
+CMD ["bundle", "exec", "foreman", "start"]
+
+# Production stage (for future use)
+FROM base as production
+
+# Production-specific optimizations
+ENV RAILS_ENV=production
+ENV NODE_ENV=production
+
+# Copy Gemfile and install production gems only
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler && bundle config set --local without 'development test' && bundle install
+
+# Copy application code
+COPY . .
+
+# Precompile assets
+RUN RAILS_ENV=production bundle exec rake assets:precompile
+
+# Expose port
+EXPOSE 3000
+
+# Production command
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]

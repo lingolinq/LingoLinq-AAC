@@ -1,0 +1,134 @@
+services:
+  # Rails Backend (Ruby 3.2.8, Node 18)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: development
+    container_name: lingolinq_backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - backend_gems:/usr/local/bundle
+      - backend_node_modules:/app/node_modules
+    environment:
+      - RAILS_ENV=development
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgres://postgres:password@postgres:5432/lingolinq_development
+      - NODE_VERSION=18.20.4  # LOCKED for Ember compatibility
+      - RUBY_VERSION=3.2.8    # LOCKED for Rails 6.1 compatibility
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      bash -c "
+        echo '🚨 USING NODE $(node -v) - MUST BE 18.x FOR EMBER 3.12' &&
+        echo '🚨 USING RUBY $(ruby -v) - MUST BE 3.2.8 FOR RAILS 6.1' &&
+        bundle install &&
+        rails extras:assert_js &&
+        rails db:create || true &&
+        rails db:migrate &&
+        bundle exec foreman start
+      "
+    networks:
+      - lingolinq_network
+
+  # Ember Frontend (Node 18 specific)
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile.frontend
+      target: development
+    container_name: lingolinq_frontend
+    ports:
+      - "8181:8181"
+      - "7020:7020"  # Live reload
+    volumes:
+      - ./app/frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_bower_components:/app/bower_components
+    environment:
+      - NODE_VERSION=18.20.4  # LOCKED - DO NOT CHANGE
+      - EMBER_CLI_VERSION=3.12.0  # LOCKED - DO NOT CHANGE
+    command: >
+      bash -c "
+        echo '🚨 FRONTEND USING NODE $(node -v) - LOCKED AT 18.x' &&
+        npm install &&
+        bower install --allow-root &&
+        ember serve --host 0.0.0.0 --port 8181 --live-reload-port 7020
+      "
+    networks:
+      - lingolinq_network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: lingolinq_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: lingolinq_development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lingolinq_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: lingolinq_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lingolinq_network
+
+  # AI Agent Coordination Service
+  ai_coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai-coordinator
+    container_name: lingolinq_ai_coordinator
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/workspace
+      - ./ai-agents:/ai-agents
+      - ai_context_data:/ai-context
+    environment:
+      - NODE_VERSION_CONSTRAINT=18.20.4
+      - RUBY_VERSION_CONSTRAINT=3.2.8
+      - PROJECT_CONSTRAINTS_FILE=/workspace/ai-agents/project-constraints.json
+    networks:
+      - lingolinq_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_gems:
+  backend_node_modules:
+  frontend_node_modules:
+  frontend_bower_components:
+  ai_context_data:
+
+networks:
+  lingolinq_network:
+    driver: bridge

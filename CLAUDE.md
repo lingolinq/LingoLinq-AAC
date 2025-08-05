@@ -37,7 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Multi-Framework Structure
-LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Ember.js frontend** (`/app/frontend`), designed as a cloud-based AAC (Augmentative and Alternative Communication) system.
+LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Ember.js frontend** (`/app/frontend`), designed as a cloud-based AAC (Augmentative and Alternative Communication) system. LingoLinq is a fork from OpenAAC's SweetSuite AAC app which is a fork of CoughDrop AAC app. LingoLinq will be rebranding, updating ui/ux, and adding LLMs, ML and more.
 
 ### Backend (Rails)
 - **Models**: Located in `app/models/`, with key models being `User`, `Board`, `Organization`, `LogSession`  

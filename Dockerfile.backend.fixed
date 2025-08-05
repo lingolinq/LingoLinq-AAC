@@ -1,0 +1,53 @@
+# LingoLinq Rails Backend - Production Ready
+FROM ruby:3.2.8-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    git \
+    curl \
+    imagemagick \
+    ghostscript \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 18.x (required for Rails asset pipeline)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Verify versions
+RUN echo "🔍 VERSIONS:" && \
+    echo "Ruby: $(ruby -v)" && \
+    echo "Node: $(node -v)" && \
+    echo "NPM: $(npm -v)"
+
+# Set working directory
+WORKDIR /app
+
+# Install bundler
+RUN gem install bundler
+
+# Copy Gemfile first for better caching
+COPY Gemfile Gemfile.lock ./
+
+# Install Ruby dependencies
+RUN bundle config set --local deployment 'false' && \
+    bundle config set --local without '' && \
+    bundle install
+
+# Copy the rest of the application
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p tmp/pids tmp/cache tmp/sockets log
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Default command
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]

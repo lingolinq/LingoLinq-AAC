@@ -19,7 +19,19 @@
       "Bash(git reset:*)",
       "Bash(setx:*)",
       "Bash(powershell:*)",
-      "Bash(set PATH)"
+      "Bash(set PATH)",
+      "Bash(where claude)",
+      "Bash(ls:*)",
+      "Bash(ln:*)",
+      "Bash(\"C:/Users/skawa/.local/bin/claude.exe\" --version)",
+      "Bash(rm:*)",
+      "Bash(docker-compose:*)",
+      "Bash(curl:*)",
+      "Bash(docker exec:*)",
+      "Bash(cp:*)",
+      "Bash(rails extras:assert_js:*)",
+      "Bash(rails:*)",
+      "Bash(docker logs:*)"
     ],
     "deny": []
   }

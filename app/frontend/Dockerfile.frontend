@@ -1,0 +1,75 @@
+# LingoLinq Frontend Dockerfile
+# CRITICAL: Node.js 18.x LOCKED for Ember 3.12 compatibility
+
+FROM node:18.20.4-slim as base
+
+# Install system dependencies including bzip2 for phantomjs
+RUN apt-get update && apt-get install -y \
+    git \
+    python3 \
+    make \
+    g++ \
+    bzip2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# CRITICAL VERSION VERIFICATION
+RUN echo "🔍 FRONTEND VERIFICATION:" && \
+    echo "Node version: $(node -v)" && \
+    echo "NPM version: $(npm -v)" && \
+    echo "Expected Node: 18.20.4 (LOCKED)"
+
+# Install global dependencies with specific versions
+# Note: PhantomJS is legacy but needed for Ember 3.12 testing
+RUN npm install -g \
+    ember-cli@3.12.0 \
+    bower@1.8.14
+
+# Install PhantomJS separately with better error handling
+RUN npm install -g phantomjs-prebuilt@2.1.16 || \
+    echo "⚠️ PhantomJS install failed - continuing without it (tests may not work)"
+
+# Set working directory
+WORKDIR /app
+
+# Development stage
+FROM base as development
+
+# Copy package files first for better caching
+COPY package*.json ./
+COPY bower.json ./
+
+# Install dependencies
+RUN npm install
+RUN bower install --allow-root
+
+# Copy source code
+COPY . .
+
+# Expose ports
+EXPOSE 8181 7020
+
+# Default development command
+CMD ["ember", "serve", "--host", "0.0.0.0", "--port", "8181", "--live-reload-port", "7020"]
+
+# Production stage
+FROM base as production
+
+# Copy package files
+COPY package*.json ./
+COPY bower.json ./
+
+# Install production dependencies
+RUN npm ci --only=production
+RUN bower install --allow-root --production
+
+# Copy source code
+COPY . .
+
+# Build production assets
+RUN ember build --environment=production
+
+# Expose port
+EXPOSE 8181
+
+# Production command (serve built assets)
+CMD ["ember", "serve", "--environment=production", "--host", "0.0.0.0", "--port", "8181"]

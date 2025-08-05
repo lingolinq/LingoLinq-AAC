@@ -1,0 +1,47 @@
+# AI Agent Coordinator Service
+# Manages persistent context and version constraints for AI development agents
+
+FROM node:18.20.4-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    jq \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create application directory
+WORKDIR /coordinator
+
+# Copy coordinator application files
+COPY ai-agents/coordinator/ ./
+
+# Install coordinator dependencies
+RUN npm install express cors body-parser fs-extra chokidar winston
+
+# Create necessary directories
+RUN mkdir -p /ai-context /workspace
+
+# Copy project constraints
+COPY ai-agents/project-constraints.json /ai-context/
+COPY ai-agents/verify-environment.sh /coordinator/scripts/
+
+# Make scripts executable
+RUN chmod +x /coordinator/scripts/*.sh
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PORT=4000
+ENV WORKSPACE_PATH=/workspace
+ENV CONTEXT_PATH=/ai-context
+
+# Expose coordinator API port
+EXPOSE 4000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:4000/health || exit 1
+
+# Start the coordinator service
+CMD ["node", "index.js"]

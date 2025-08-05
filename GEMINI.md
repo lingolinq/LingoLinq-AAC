@@ -4,7 +4,7 @@ This file provides guidance to Gemini CLI when working with code in this reposit
 
 ## Project Overview
 
-LingoLinq AAC is a complex Rails + Ember.js application designed as a cloud-based AAC (Augmentative and Alternative Communication) system for people with complex communication needs.
+LingoLinq AAC is a complex Rails + Ember.js application designed as a cloud-based AAC (Augmentative and Alternative Communication) system for people with complex communication needs. LingoLinq is a fork from OpenAAC's SweetSuite AAC app which is a fork of CoughDrop AAC app. LingoLinq will be rebranding, updating ui/ux, and adding LLMs, ML and more.
 
 ## Common Development Commands
 
