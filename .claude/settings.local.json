@@ -31,7 +31,12 @@
       "Bash(cp:*)",
       "Bash(rails extras:assert_js:*)",
       "Bash(rails:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(cat:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout:*)",
+      "Bash(./bin/devin:*)"
     ],
     "deny": []
   }

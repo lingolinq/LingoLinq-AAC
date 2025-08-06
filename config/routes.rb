@@ -184,6 +184,8 @@ Coughdrop::Application.routes.draw do
       get 'reachable_core' => 'words#reachable_core', on: :collection
     end
     
+    resources :inflections, only: [:index, :create]
+    
     resources :users do
       get 'stats/daily' => 'users#daily_stats'
       get 'stats/hourly' => 'users#hourly_stats'

@@ -8,7 +8,7 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'native_keyboard', 'inflections_overlay',
               'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages', 
               'app_store_monthly_purchases', 'ios_head_tracking', 'vertical_ios_head_tracking',
-              'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
+              'auto_inflections', 'llm_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
@@ -34,7 +34,8 @@ module FeatureFlags
     'utterance_interruptions' => 'May 15, 2021',
     'utterance_core_access' => 'May 1, 2021',
     'recent_cleared_phrases' => 'Sep 1, 2021',
-    'skin_tones' => 'Feb 14, 2022'
+    'skin_tones' => 'Feb 14, 2022',
+    'llm_inflections' => 'Aug 6, 2025'
   }
   def self.frontend_flags_for(user)
     flags = {}
