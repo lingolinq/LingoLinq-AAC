@@ -34,6 +34,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `rake extras:desktop` - Prepare desktop app releases
 - `rake extras:version` - Update application version
 
+### AI Development Assistant (DeepWiki MCP)
+- `./bin/devin context` - Get current project architecture context
+- `./bin/devin generate` - Generate fresh architecture map
+- `./bin/devin ask "question"` - Ask questions with full project context
+- `./bin/devin analyze repo` - Deep repository analysis
+- **IMPORTANT**: When user asks architectural questions or needs code context, ALWAYS use `./bin/devin context` or `./bin/devin ask` to get current project context before answering. This provides up-to-date architecture information and saves tokens.
+
 ## Architecture Overview
 
 ### Multi-Framework Structure
