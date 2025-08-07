@@ -13,28 +13,7 @@
     ],
     "environment_verification": "curl -X POST http://localhost:4000/api/verify-environment"
   },
-  "version_constraints": {
-    "critical_warnings": [
-      "🚨 GEMINI AGENT ALERT: Node.js MUST stay 18.x",
-      "🚨 Ruby version LOCKED at 3.2.8 for Rails compatibility",
-      "🚨 Check coordinator API before ANY version changes",
-      "🚨 Use containerized development ONLY"
-    ],
-    "pre_action_checks": [
-      "node -v | grep '^v18\\.' || echo 'ERROR: Node.js not 18.x'",
-      "ruby -v | grep '3\\.2\\.8' || echo 'ERROR: Ruby not 3.2.8'",
-      "curl -s http://localhost:4000/api/warnings | jq '.[-5:]'"
-    ],
-    "forbidden_patterns": [
-      "upgrade.*node",
-      "update.*node",
-      "install.*node@",
-      "nvm use [^1]?[^8]",
-      "gem update ruby",
-      "rbenv install [^3]",
-      "rvm install [^3]"
-    ]
-  },
+  
   "coordination_api": {
     "base_url": "http://localhost:4000/api",
     "agent_registration": {

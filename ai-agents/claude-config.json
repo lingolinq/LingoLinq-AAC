@@ -13,27 +13,7 @@
     ],
     "environment_verification": "curl -X POST http://localhost:4000/api/verify-environment"
   },
-  "version_constraints": {
-    "critical_warnings": [
-      "⚠️ NEVER upgrade Node.js beyond 18.x - breaks Ember 3.12",
-      "⚠️ NEVER change Ruby from 3.2.8 - breaks Rails 6.1",
-      "⚠️ ALWAYS verify versions before making changes",
-      "⚠️ USE Docker containers to avoid host system conflicts"
-    ],
-    "forbidden_commands": [
-      "nvm use 20",
-      "nvm use 22",
-      "node --version # if result is not 18.x",
-      "gem install ruby # version changes",
-      "brew upgrade node",
-      "npm install -g node@latest"
-    ],
-    "required_verifications": [
-      "node -v # must show 18.x.x",
-      "ruby -v # must show 3.2.8",
-      "ember --version # must show 3.12.x"
-    ]
-  },
+  
   "coordination_api": {
     "base_url": "http://localhost:4000/api",
     "endpoints": {

@@ -94,12 +94,7 @@ LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Embe
 
 ### Environment Setup
 
-## Ruby Version Requirement
-- **Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility
-- **Version Check**: Use `ruby -v` to verify your version
-- **Version Management**: Use rbenv/rvm if you need to switch versions
-
-- **Required**: Ruby 3.2.8, **Node.js 18+**, PostgreSQL, Redis, Ember CLI
+- **Required**: PostgreSQL, Redis, Ember CLI
 - **Optional**: ImageMagick, Ghostscript for file processing
 - **Environment**: Copy `.env.example` to `.env` and configure required variables
 - **Dependencies**: AWS credentials needed for file uploads, various API keys for full functionality
@@ -136,10 +131,7 @@ Key recurring tasks that run via Heroku Scheduler:
 - Module references use `Coughdrop::Application`
 - **Note**: User-facing branding is "LingoLinq AAC" but internal Rails app name remains "Coughdrop"
 
-### API Headers (Post-Cleanup)
-- **Version Header**: Use `X-LingoLinq-Version` (consistent across frontend/backend)
-- **App Installation**: Use `X-INSTALLED-LINGOLINQ` (not `X-INSTALLED-COUGHDROP`)
-- **Critical**: Ensure header consistency between Ember frontend and Rails backend
+
 
 ### Process Management
 - Uses Procfile for process definitions (web, resque workers, ember development)

@@ -5,7 +5,6 @@
     "ruby_version": {
       "required": "3.2.8",
       "reason": "Rails 6.1 compatibility requirement",
-      "do_not_change": true,
       "verification_command": "ruby -v"
     },
     "nodejs_version": {
@@ -13,7 +12,6 @@
       "minimum": "18.0.0",
       "maximum": "18.x.x",
       "reason": "Ember 3.12 compatibility - newer versions break build",
-      "do_not_change": true,
       "verification_command": "node -v"
     },
     "rails_version": {
@@ -28,30 +26,7 @@
       "upgrade_complexity": "high"
     }
   },
-  "ai_agent_warnings": {
-    "version_changes": {
-      "forbidden_actions": [
-        "Upgrading Node.js beyond 18.x",
-        "Changing Ruby version from 3.2.8",
-        "Updating Ember CLI without compatibility verification",
-        "Installing newer npm packages that require Node.js 20+"
-      ],
-      "required_checks": [
-        "Always verify Node.js version is 18.x before making changes",
-        "Check Ruby version is 3.2.8 before bundle operations",
-        "Verify Ember CLI version compatibility",
-        "Test build process after any dependency changes"
-      ]
-    },
-    "context_preservation": {
-      "session_requirements": [
-        "Read this file at the start of every AI session",
-        "Store version constraints in persistent context",
-        "Verify environment before making changes",
-        "Document any version-related issues immediately"
-      ]
-    }
-  },
+  
   "development_environment": {
     "recommended_setup": "Docker containers with locked versions",
     "database": "PostgreSQL (any modern version)",

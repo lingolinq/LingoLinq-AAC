@@ -9,7 +9,7 @@ LingoLinq AAC is a complex Rails + Ember.js application designed as a cloud-base
 ## Common Development Commands
 
 ### Setup and Development
-- `bundle install` - Install Ruby dependencies (Ruby 3.2.8 REQUIRED)
+- `bundle install` - Install Ruby dependencies
 - `rails extras:assert_js` - Setup symbolic links for JavaScript files (run before database setup)
 - `rails db:create && rails db:migrate && rails db:seed` - Setup database (seed creates example/password login)
 - `foreman start` or `heroku local` - Start all processes (web, resque workers, ember)
@@ -98,12 +98,7 @@ LingoLinq AAC is a complex application with a **Rails backend** (`/`) and **Embe
 
 ### Environment Setup
 
-## Ruby Version Requirement
-- **Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility
-- **Version Check**: Use `ruby -v` to verify your version  
-- **Version Management**: Use rbenv/rvm if you need to switch versions
-
-- **Required**: Ruby 3.2.8, Node.js, PostgreSQL, Redis, Ember CLI
+- **Required**: Node.js, PostgreSQL, Redis, Ember CLI
 - **Optional**: ImageMagick, Ghostscript for file processing
 - **Environment**: Copy `.env.example` to `.env` and configure required variables
 - **Dependencies**: AWS credentials needed for file uploads, various API keys for full functionality
@@ -140,10 +135,7 @@ Key recurring tasks that run via Heroku Scheduler:
 - Module references use `Coughdrop::Application`
 - **Note**: User-facing branding is "LingoLinq AAC" but internal Rails app name remains "Coughdrop"
 
-### API Headers (Post-Cleanup)
-- **Version Header**: Use `X-LingoLinq-Version` (consistent across frontend/backend)
-- **App Installation**: Use `X-INSTALLED-LINGOLINQ` (not `X-INSTALLED-COUGHDROP`)
-- **Critical**: Ensure header consistency between Ember frontend and Rails backend
+
 
 ### Process Management
 - Uses Procfile for process definitions (web, resque workers, ember development)
@@ -168,35 +160,3 @@ Key recurring tasks that run via Heroku Scheduler:
 - Fixed mixed header references that could cause authentication issues
 - Updated user-facing strings while preserving technical class names
 
-### Environment Notes
-- **Ruby Version**: System requires Ruby 3.2.8 for Rails 6.1 compatibility
-- **Local Environment**: Use version managers (rbenv/rvm) to maintain correct Ruby version
-
-### Code Quality Standards
-- Follow existing patterns for new code
-- Use feature flags for new functionality
-- Maintain API compatibility
-- Always test both frontend and backend when making changes
-- Ensure i18n for all user-facing strings
-
-## Troubleshooting Common Issues
-
-### Bundle Install Fails
-- Check Ruby version: `ruby -v` (should be 3.2.8)
-- Ensure PostgreSQL and Redis are running
-- Check `.env` file exists and is configured
-
-### Frontend Build Issues
-- Run `cd app/frontend && npm install && bower install`
-- Check Node.js version compatibility
-- Clear `app/frontend/tmp` directory if needed
-
-### API Authentication Issues
-- Verify headers are using correct LingoLinq format
-- Check frontend/backend header consistency
-- Review recent API changes in CLEANUP.md
-
-### Background Jobs Not Processing
-- Ensure Redis is running
-- Check Resque workers are started
-- Review queue configurations in Procfile
