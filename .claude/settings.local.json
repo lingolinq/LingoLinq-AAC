@@ -41,7 +41,9 @@
       "Bash(git ls-tree:*)",
       "Bash(git submodule:*)",
       "Bash(git rm:*)",
-      "Bash(node server.js)"
+      "Bash(node server.js)",
+      "Bash(bindevin.cmd context)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

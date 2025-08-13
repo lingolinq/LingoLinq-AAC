@@ -10,14 +10,14 @@ $RepoPath = git rev-parse --show-toplevel
 $ContextPath = Join-Path $RepoPath ".ai\context"
 
 function Update-Context {
-    Write-Host "🔄 Updating DeepWiki context..."
+    Write-Host "Updating DeepWiki context..."
     
     try {
         $RecentChangesPath = Join-Path $ContextPath "recent-changes.txt"
         git log --since="7 days ago" --oneline --stat | Out-File -FilePath $RecentChangesPath -Encoding UTF8
-        Write-Host "✅ Context updated successfully"
+        Write-Host "Context updated successfully"
     } catch {
-        Write-Host "⚠️ Failed to update context: $_"
+        Write-Host "Failed to update context: $_"
     }
 }
 
@@ -32,13 +32,13 @@ function Get-ProjectContext {
     } elseif (Test-Path $AIContextPath) {
         Get-Content -Path $AIContextPath -Raw  
     } else {
-        Write-Host "⚠️ No project context found. Run 'devin-simple.ps1 generate' first."
+        Write-Host "No project context found. Run 'devin-simple.ps1 generate' first."
         return $null
     }
 }
 
 function Generate-ProjectMap {
-    Write-Host "🏗️ Generating fresh architecture map..."
+    Write-Host "Generating fresh architecture map..."
     Update-Context
     
     $ProjectMapPath = Join-Path $ContextPath "PROJECT_MAP.md"
@@ -63,7 +63,7 @@ $(git log --since="7 days ago" --oneline | Select-Object -First 10 | Out-String)
 "@
     
     $Content | Out-File -FilePath $ProjectMapPath -Encoding UTF8
-    Write-Host "✅ Architecture map generated at $ProjectMapPath"
+    Write-Host "Architecture map generated at $ProjectMapPath"
 }
 
 # Main command processing
@@ -77,10 +77,32 @@ switch ($Command.ToLower()) {
     "generate" { 
         Generate-ProjectMap 
     }
+    "ask" {
+        $Question = $args[1..$args.Length] -join " "
+        Write-Host "Asking AI with project context: $Question"
+        Update-Context
+        $Context = Get-ProjectContext -Section "all"
+        Write-Host "Project Context: $Context"
+        Write-Host ""
+        Write-Host "Question: $Question"
+        Write-Host ""
+        Write-Host "Use this context with your preferred AI tool"
+    }
+    "analyze" {
+        $Target = if ($args.Length -gt 1) { $args[1] } else { "repo" }
+        Write-Host "Analyzing $Target..."
+        Update-Context
+        $Context = Get-ProjectContext -Section "all"
+        Write-Host "Analysis Context: $Context"
+        Write-Host ""
+        Write-Host "Use this context for analysis with your AI tool"
+    }
     default { 
-        Write-Host "Usage: devin-simple.ps1 [context|update|generate]"
-        Write-Host "  context  - Get project context"  
-        Write-Host "  update   - Update context from recent changes"
-        Write-Host "  generate - Generate fresh architecture map"
+        Write-Host "Usage: devin-simple.ps1 [context|update|generate|ask|analyze]"
+        Write-Host "  context   - Get project context"  
+        Write-Host "  update    - Update context from recent changes"
+        Write-Host "  generate  - Generate fresh architecture map"
+        Write-Host "  ask       - Get context for AI questions"
+        Write-Host "  analyze   - Get context for repository analysis"
     }
 }
