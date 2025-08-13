@@ -1,5 +1,5 @@
 $reportDir = "gemini_reports"
-$outputFile = "docs/summary-all.md"
+$outputFile = "docs/planning/summary-all.md"
 
 $frontmatter = @"
 ---

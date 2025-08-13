@@ -1,122 +1,124 @@
-332cae9bf Add DeepWiki badge to README
- README.md | 1 +
- 1 file changed, 1 insertion(+)
-4cb9133c3 docs: Create technical audit and progress summary documents
- PROGRESS_SUMMARY_2025.md       | 58 +++++++++++++++++++++++++
- TECHNICAL_AUDIT_AND_ROADMAP.md | 96 ++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 154 insertions(+)
-85c961d8c feat: Establish epic branches and planning documents
- docs/epics/01-rebranding-and-ux-ui-plan.md   | 21 +++++++++++++++++++++
- docs/epics/02-tech-debt-and-security-plan.md | 28 ++++++++++++++++++++++++++++
- docs/epics/03-ai-features-plan.md            | 26 ++++++++++++++++++++++++++
- 3 files changed, 75 insertions(+)
-bfe01f91b feat: Finalize Docker environment and AI agent configuration
- .claude/settings.local.json        |  14 +-
- CLAUDE.md                          |   2 +-
- DOCKER_QUICK_START.md              | 132 ++++++++++++++
- Dockerfile.ai-coordinator          |  47 +++++
- Dockerfile.backend                 |  87 +++++++++
- Dockerfile.backend.fixed           |  53 ++++++
- GEMINI.md                          |   2 +-
- Gemfile.lock                       |   8 +
- ai-agents/README.md                | 193 ++++++++++++++++++++
- ai-agents/coordinator/index.js     | 363 +++++++++++++++++++++++++++++++++++++
- ai-agents/setup-dev-environment.sh | 177 ++++++++++++++++++
- app/frontend/Dockerfile.frontend   |  75 ++++++++
- docker-compose.dev.yml             | 134 ++++++++++++++
- docker-compose.production.yml      | 101 +++++++++++
- docker-compose.simple.yml          |  85 +++++++++
- 15 files changed, 1470 insertions(+), 3 deletions(-)
-a0a8ddaeb Add Docker development environment with AI agent coordination
- .dockerignore                      |  54 ++++++++
- .env.docker.example                |  66 +++++++++
- .gitignore                         |  21 +++
- DOCKER_README.md                   | 267 +++++++++++++++++++++++++++++++++++++
- Dockerfile                         |  46 +++++++
- Gemfile                            |   1 +
- ai-agents/claude-config.json       | 135 +++++++++++++++++++
- ai-agents/gemini-config.json       | 172 ++++++++++++++++++++++++
- ai-agents/project-constraints.json | 101 ++++++++++++++
- ai-agents/verify-environment.sh    | 149 +++++++++++++++++++++
- docker-compose.yml                 |  68 ++++++++++
- 11 files changed, 1080 insertions(+)
-1adccd26e Add Windows-specific command permissions to Claude settings
- .claude/settings.local.json | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-6481542ff Update audit documentation and create management progress report
- CLEANUP.md                                 |   5 +-
- MANAGEMENT_UPDATE_2025.md                  | 189 +++++++++++++++++++++++++++++
- tools/ai-context/CLAUDE_TECHNICAL_AUDIT.md |  67 +++++++++-
- 3 files changed, 256 insertions(+), 5 deletions(-)
-0a8df062c Fix frontend security vulnerabilities with npm audit fix
- app/frontend/package-lock.json | 8714 ++++++++++++++++++++++++----------------
- 1 file changed, 5179 insertions(+), 3535 deletions(-)
-42148020c Resolve environment setup issues and update development requirements
- .claude/settings.local.json                    |  9 ++++-
- CLAUDE.md                                      |  9 ++++-
- GEMINI.md                                      | 14 ++++---
- Gemfile                                        |  2 +-
- README.md                                      | 16 +++++---
- SENIOR_DEV_ROADMAP.md                          | 10 ++---
- bin/check_ruby_version                         | 52 ++++++++++++++++++++++++++
- compile example.txt                            | 10 ++---
- docs/03-MVP-Modernization-Plan.md              |  6 +--
- docs/05-Project-Roadmap-Checklist.md           |  4 +-
- docs/summary-all.md                            | 10 ++---
- summary-all.md                                 | 10 ++---
- tools/ai-context/CLAUDE_TECHNICAL_AUDIT.md     |  2 +-
- tools/ai-context/MASTER_IMPLEMENTATION_PLAN.md |  2 +-
- tools/ai-context/UX_MODERNIZATION_PLAN.md      |  2 +-
- 15 files changed, 115 insertions(+), 43 deletions(-)
-de541b37e Add comprehensive API documentation and update README
- API_DOCUMENTATION.md | 750 +++++++++++++++++++++++++++++++++++++++++++++++++++
- README.md            |  10 +-
- 2 files changed, 758 insertions(+), 2 deletions(-)
-b63149111 Update Claude settings to allow additional git operations
- .claude/settings.local.json | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-360488fdd Complete post-merge cleanup with enhanced CLAUDE.md documentation
- .claude/settings.local.json |  4 +++-
- CLEANUP.md                  | 17 +++++++++--------
- 2 files changed, 12 insertions(+), 9 deletions(-)
-048c5077b Setup Gemini CLI tooling and senior dev strategic roadmap
- .gemini/settings.json       |  18 +++++
- .gemini/settings.local.json |  23 ++++++
- GEMINI.md                   | 191 ++++++++++++++++++++++++++++++++++++++++++++
- SENIOR_DEV_ROADMAP.md       | 162 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 394 insertions(+)
-326e2df8f Senior Dev Post-Merge Cleanup: Fix Critical Branding Inconsistencies
- .claude/settings.local.json                     |  4 +-
- CLAUDE.md                                       | 36 +++++++++-
- CLEANUP.md                                      | 92 +++++++++++++++++++++++++
- README.md                                       | 40 ++---------
- app/controllers/api/callbacks_controller.rb     |  2 +-
- app/controllers/api/organizations_controller.rb |  4 +-
- app/controllers/api/users_controller.rb         |  4 +-
- app/controllers/session_controller.rb           |  8 +--
- app/frontend/app/utils/extras.js                |  4 +-
- app/frontend/tests/utils/extras-test.js         |  2 +-
- app/mailers/concerns/general.rb                 |  2 +-
- app/mailers/mailer_helper.rb                    |  4 +-
- app/models/board.rb                             |  2 +-
- app/views/shared/_footer.html.erb               |  2 +-
- app/views/shared/_jobs.html.erb                 | 12 ++--
- spec/controllers/session_controller_spec.rb     |  6 +-
- 16 files changed, 162 insertions(+), 62 deletions(-)
-9a4e400cf Resolve merge conflict in Claude settings
-c5b53c87a Update Claude settings for merge operations
- .claude/settings.local.json | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-129161031 Merge essential LingoLinq branding updates from chore branch
- .claude/settings.local.json                |   3 ++-
- .nvmrc                                     |   1 +
- Gemfile                                    |   2 +-
- app/controllers/api/boards_controller.rb   |   2 +-
- app/controllers/api/messages_controller.rb |   2 +-
- app/controllers/application_controller.rb  |   2 +-
- app/controllers/session_controller.rb      |   2 +-
- config/database.yml.backup                 | Bin 0 -> 534 bytes
- 8 files changed, 8 insertions(+), 6 deletions(-)
-2dc8a6a7c Update Node.js engines requirement from 8/10 to 18+ for Rails 6.1 and Ember CLI compatibility
- app/frontend/package.json | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+1001f5504 fix: Update path references after repository reorganization
+ .ai/README.md                  |   46 +
+ .ai/agents/claude/config.json  |   12 +-
+ .claude/settings.local.json    |    3 +-
+ .gitignore                     |   12 +-
+ Gemfile                        |    1 +
+ Gemfile.lock                   |    4 +
+ README.md                      |   19 +-
+ bin/devin                      |   24 +-
+ compile-docs.ps1               |   33 -
+ docker/README.md               |   37 +-
+ docs/README.md                 |   63 ++
+ docs/development/CLEANUP.md    |   12 +-
+ docs/development/SETUP.md      |    6 +-
+ lingolinq-aac-path-fixes.patch |  496 +++++++++++
+ patch-review.txt               |  496 +++++++++++
+ summary-all.md                 | 1912 ----------------------------------------
+ 16 files changed, 1178 insertions(+), 1998 deletions(-)
+824c6c2c0 refactor: Reorganize repository structure with .ai and docs directories
+ {ai-agents => .ai/agents}/README.md                |  0
+ .../agents/claude/config.json                      |  0
+ .../agents/coordinator}/coordinator/index.js       |  0
+ .../agents/gemini/config.json                      |  0
+ {ai-agents => .ai/agents}/project-constraints.json |  0
+ {tools/ai-context => .ai/context}/AI_CONTEXT.md    |  0
+ .../context}/AI_INTEGRATION_STRATEGY.md            |  0
+ .../context}/ARCHITECTURE_DECISIONS.md             |  0
+ .../context}/CLAUDE_TECHNICAL_AUDIT.md             |  0
+ .../context}/COMPLIANCE_REQUIREMENTS.md            |  0
+ {tools/ai-context => .ai/context}/DEPENDENCIES.md  |  0
+ .../context}/FEATURE_ENHANCEMENT_PLAN.md           |  0
+ .../context}/GEMINI_PROJECT_ANALYSIS.md            |  0
+ .../context}/IMPLEMENTATION_ROADMAP.md             |  0
+ .../context}/MASTER_IMPLEMENTATION_PLAN.md         |  0
+ .../context}/MODERNIZATION_ROADMAP.md              |  0
+ {tools/ai-context => .ai/context}/MVP_READINESS.md |  0
+ {tools/ai-context => .ai/context}/PROJECT_MAP.md   |  0
+ .../ai-context => .ai/context}/RAILS_COMPONENTS.md |  0
+ {tools/ai-context => .ai/context}/README.md        |  0
+ {tools/ai-context => .ai/context}/SESSION_START.md |  0
+ {tools/ai-context => .ai/context}/TEAM_WORKFLOW.md |  0
+ .../context}/UX_MODERNIZATION_PLAN.md              |  0
+ .../ai-context => .ai/context}/recent-changes.txt  |  0
+ {tools/ai-context => .ai/context}/roles/BACKEND.md |  0
+ {tools/ai-context => .ai/context}/roles/DESIGN.md  |  0
+ .../ai-context => .ai/context}/roles/FRONTEND.md   |  0
+ {tools => .ai/tools}/compile-docs.ps1              |  0
+ core_ngrams.rb => .ai/tools/core_ngrams.rb         |  0
+ {tools => .ai/tools}/deepwiki-mcp                  |  0
+ i18n_generator.rb => .ai/tools/i18n_generator.rb   |  0
+ launch-agentic.ps1 => .ai/tools/launch-agentic.ps1 |  0
+ {ai-agents => .ai/tools}/setup-dev-environment.sh  |  0
+ {ai-agents => .ai/tools}/verify-environment.sh     |  0
+ .devcontainer/devcontainer.json                    | 42 ++++++++++++++++++++++
+ .../DOCKER_QUICK_START.md                          |  0
+ Dockerfile => docker/Dockerfile                    |  0
+ .../Dockerfile.ai-coordinator                      |  0
+ Dockerfile.backend => docker/Dockerfile.backend    |  0
+ .../Dockerfile.backend.fixed                       |  0
+ DOCKER_README.md => docker/README.md               |  0
+ .../docker-compose.dev.yml                         |  0
+ .../docker-compose.production.yml                  |  0
+ .../docker-compose.simple.yml                      |  0
+ docker-compose.yml => docker/docker-compose.yml    |  0
+ CHANGELOG.md => docs/CHANGELOG.md                  |  0
+ CLAUDE.md => docs/ai/CLAUDE.md                     |  0
+ GEMINI.md => docs/ai/GEMINI.md                     |  0
+ .../ai/workflows}/Claudecode_subagents.md          |  0
+ .../development/API_DOCUMENTATION.md               |  0
+ CLEANUP.md => docs/development/CLEANUP.md          |  0
+ .../development/CODE_INVESTIGATION.md              |  0
+ .../development/TRANSLATIONS.md                    |  0
+ .../development/compile example.txt                |  0
+ .../planning/MANAGEMENT_UPDATE_2025.md             |  0
+ .../planning/PROGRESS_SUMMARY_2025.md              |  0
+ .../features}/DEVELOPER_BRIEF_LLM_INFLECTIONS.md   |  0
+ .../features}/INFLECTION_PRIVACY_ARCHITECTURE.md   |  0
+ .../features}/LLM_INFLECTIONS_SETUP.md             |  0
+ .../integrations}/OPENAAC_STANDARD_INTEGRATION.md  |  0
+ .../OPENAA_INFLECTION_COLLABORATION.md             |  0
+ .../planning/premium_features.md                   |  0
+ .../roadmaps}/01-Security-Audit-Report.md          |  0
+ .../roadmaps}/02-Compliance-Requirements.md        |  0
+ .../roadmaps}/03-MVP-Modernization-Plan.md         |  0
+ .../roadmaps}/04-Advanced-LLM-Integration-Plan.md  |  0
+ .../roadmaps}/05-Project-Roadmap-Checklist.md      |  0
+ .../roadmaps}/06-Future-AAC-AI-Innovations.md      |  0
+ .../planning/roadmaps/SENIOR_DEV_ROADMAP.md        |  0
+ .../roadmaps/TECHNICAL_AUDIT_AND_ROADMAP.md        |  0
+ docs/{ => planning}/summary-all.md                 |  0
+ 71 files changed, 42 insertions(+)
+f119da801 refactor: Centralize version control in Docker
+ CLAUDE.md                          | 12 ++--------
+ GEMINI.md                          | 46 +++-----------------------------------
+ ai-agents/claude-config.json       | 22 +-----------------
+ ai-agents/gemini-config.json       | 23 +------------------
+ ai-agents/project-constraints.json | 27 +---------------------
+ 5 files changed, 8 insertions(+), 122 deletions(-)
+f208dd8fc docs: Add comprehensive OpenAAC integration architecture
+ docs/INFLECTION_PRIVACY_ARCHITECTURE.md | 207 +++++++++++++++++
+ docs/OPENAAC_STANDARD_INTEGRATION.md    | 399 ++++++++++++++++++++++++++++++++
+ docs/OPENAA_INFLECTION_COLLABORATION.md | 346 +++++++++++++++++++++++++++
+ 3 files changed, 952 insertions(+)
+53904bf89 docs: Add developer brief for LLM inflections feature review
+ docs/DEVELOPER_BRIEF_LLM_INFLECTIONS.md | 135 ++++++++++++++++++++++++++++++++
+ 1 file changed, 135 insertions(+)
+e09cf5020 feat: Add LLM-enhanced inflections system for improved AAC experience
+ .claude/settings.local.json                   |   7 +-
+ app/controllers/api/inflections_controller.rb | 116 +++++++++
+ app/frontend/app/utils/llm_inflections.js     | 168 ++++++++++++
+ config/routes.rb                              |   2 +
+ docs/LLM_INFLECTIONS_SETUP.md                 | 361 ++++++++++++++++++++++++++
+ lib/feature_flags.rb                          |   5 +-
+ lib/llm_inflections.rb                        | 183 +++++++++++++
+ 7 files changed, 839 insertions(+), 3 deletions(-)
+a5d733ec3 docs: Update GEMINI.md with DeepWiki MCP assistant commands
+ GEMINI.md | 7 +++++++
+ 1 file changed, 7 insertions(+)
+cdb0df7a0 feat: Add DeepWiki MCP system for AI development assistance
+ CLAUDE.md                           |   7 ++
+ bin/devin                           | 145 ++++++++++++++++++++++----
+ tools/ai-context/PROJECT_MAP.md     | 196 ++++--------------------------------
+ tools/ai-context/recent-changes.txt | 122 ++++++++++++++++++++++
+ 4 files changed, 277 insertions(+), 193 deletions(-)

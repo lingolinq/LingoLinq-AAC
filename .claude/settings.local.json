@@ -37,7 +37,11 @@
       "Bash(npm install:*)",
       "Bash(timeout:*)",
       "Bash(./bin/devin:*)",
-      "Bash(git clean:*)"
+      "Bash(git clean:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git submodule:*)",
+      "Bash(git rm:*)",
+      "Bash(node server.js)"
     ],
     "deny": []
   }
