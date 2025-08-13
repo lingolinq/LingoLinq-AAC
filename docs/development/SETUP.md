@@ -6,9 +6,9 @@
 3. Run `rails server`
 
 ## AI Assistant Context
-For AI development assistance, see `tools/ai-context/`
+For AI development assistance, see `.ai/context/`
 
 ## Development Tools
-- `tools/deepwiki-mcp/` - Documentation aggregation tool
-- `tools/ai-context/` - AI assistant context files
+- `.ai/tools/deepwiki-mcp/` - Documentation aggregation tool
+- `.ai/context/` - AI assistant context files
 - `tools/scripts/` - Utility scripts

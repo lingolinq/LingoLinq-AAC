@@ -36,7 +36,8 @@
       "Bash(npm init:*)",
       "Bash(npm install:*)",
       "Bash(timeout:*)",
-      "Bash(./bin/devin:*)"
+      "Bash(./bin/devin:*)",
+      "Bash(git clean:*)"
     ],
     "deny": []
   }

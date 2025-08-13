@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 # TODO: https://rails-assets.org/ for bower support
 
 group :development, :test do
+  gem 'bundler-audit', '>= 0.9.1'
   gem 'dotenv'
   gem 'guard'
   gem 'guard-rspec'

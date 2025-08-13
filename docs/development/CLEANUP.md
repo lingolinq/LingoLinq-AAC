@@ -74,12 +74,12 @@ After cleaning up the messy `chore/rebranding-lingolinq` branch and merging esse
 
 ## 🚨 Important Notes
 
-**RUBY VERSION WARNING**: 
-- Current system: Ruby 3.3.7
-- Required (Gemfile): Ruby 3.2.8  
-- **DO NOT UPDATE GEMFILE** - This is a local environment issue
-- User must handle Ruby version management separately
-- Gemfile must remain at 3.2.8 for Rails 6.1 compatibility
+**RUBY VERSION FLEXIBILITY**: 
+- Current system: Ruby 3.3.7+ (upgradeable)
+- Legacy testing: Use Docker (Ruby 3.2.8, Node.js 18.x)
+- Modern development: Ruby/Node.js versions can be upgraded
+- See docker/README.md for containerized legacy testing
+- Gemfile can be updated for newer Ruby versions as needed
 
 ## 💡 Senior Dev Recommendations
 

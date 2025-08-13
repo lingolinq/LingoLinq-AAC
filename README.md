@@ -67,17 +67,22 @@ double-quotes and all other strings should use single quotes.
 
 #### Backend Setup
 
-#### Ruby Version Requirement
+#### Development Setup Options
 
-**Ruby 3.2.8 Required**: This application requires Ruby 3.2.8 for Rails 6.1 compatibility.
-- Check your version: `ruby -v`
-- Use a version manager (rbenv/rvm) if you need to switch versions
+**Option 1: Modern Development (Recommended)**
+- Ruby 3.2.8+ (feel free to upgrade)
+- Node.js 18+ (newer versions welcome) 
+- Postgres, Redis, ember-cli
+- AWS, Google API, (optionally) ZenDesk
 
-Dev dependencies: **Ruby 3.2.8 (REQUIRED)**, Postgres, Redis, **Node.js 18+**, ember-cli, AWS, Google API, (optionally) ZenDesk
+**Option 2: Legacy Testing Environment**
+- Use Docker with locked Ruby 3.2.8 + Node.js 18.x
+- **VS Code**: Open in Dev Container (uses `.devcontainer/`)
+- **Command Line**: See [docker/README.md](./docker/README.md) for containerized development
+- Required only for testing current production compatibility
 
 The backend relies on Redis and Postgres both being installed. Both are required in
-development and production. If
-you have Ruby 3.2.8 installed in your environment, you'll need the bundler gem:
+development and production. You'll need the bundler gem:
 
 ```bash
 gem install bundler

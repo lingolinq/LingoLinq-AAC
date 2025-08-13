@@ -3,7 +3,7 @@
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-MCP_SERVER_PATH="$REPO_PATH/tools/deepwiki-mcp"
+MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
 CLAUDE_CMD="claude" # Update if using a different alias
 GEMINI_CMD="gemini-cli"  # Update if needed
 
@@ -14,7 +14,7 @@ update_context() {
     node -e "
     const { execSync } = require('child_process');
     try {
-        execSync('git log --since=\"7 days ago\" --oneline --stat > ../ai-context/recent-changes.txt', { cwd: '$REPO_PATH' });
+        execSync('git log --since=\"7 days ago\" --oneline --stat > .ai/context/recent-changes.txt', { cwd: '$REPO_PATH' });
         console.log('✅ Context updated successfully');
     } catch (error) {
         console.log('⚠️ Failed to update context:', error.message);
@@ -27,10 +27,10 @@ get_context() {
     local section="${1:-all}"
     echo "📖 Getting project context: $section"
     
-    if [[ -f "$REPO_PATH/tools/ai-context/PROJECT_MAP.md" ]]; then
-        cat "$REPO_PATH/tools/ai-context/PROJECT_MAP.md"
-    elif [[ -f "$REPO_PATH/tools/ai-context/AI_CONTEXT.md" ]]; then
-        cat "$REPO_PATH/tools/ai-context/AI_CONTEXT.md"
+    if [[ -f "$REPO_PATH/.ai/context/PROJECT_MAP.md" ]]; then
+        cat "$REPO_PATH/.ai/context/PROJECT_MAP.md"
+    elif [[ -f "$REPO_PATH/.ai/context/AI_CONTEXT.md" ]]; then
+        cat "$REPO_PATH/.ai/context/AI_CONTEXT.md"
     else
         echo "⚠️ No project context found. Run 'devin generate' first."
     fi
@@ -61,7 +61,7 @@ case "$1" in
     map += '## Recent Activity\\n';
     
     try {
-        const recentChanges = fs.readFileSync(path.join(projectRoot, 'tools/ai-context/recent-changes.txt'), 'utf8');
+        const recentChanges = fs.readFileSync(path.join(projectRoot, '.ai/context/recent-changes.txt'), 'utf8');
         const lines = recentChanges.split('\\n').slice(0, 10);
         map += lines.join('\\n') + '\\n\\n';
     } catch (e) {
@@ -73,9 +73,9 @@ case "$1" in
     map += '- app/controllers/ - Rails controllers\\n';
     map += '- app/frontend/ - Ember.js frontend\\n';
     map += '- lib/ - Shared utilities\\n';
-    map += '- tools/ai-context/ - AI context files\\n';
+    map += '- .ai/context/ - AI context files\\n';
     
-    fs.writeFileSync(path.join(projectRoot, 'tools/ai-context/PROJECT_MAP.md'), map);
+    fs.writeFileSync(path.join(projectRoot, '.ai/context/PROJECT_MAP.md'), map);
     console.log('✅ Architecture map generated');
     " 2>/dev/null || echo "⚠️ Generation timed out, but basic context should be available"
     ;;
@@ -88,7 +88,7 @@ case "$1" in
       COMMIT_HASH=$(echo "$line" | awk '{print $1}')
       MESSAGE=$(echo "$line" | cut -d' ' -f2-)
       echo "🧠 Reviewing $COMMIT_HASH: $MESSAGE"
-      $CLAUDE_CMD "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/tools/ai-context/recent-changes.txt | tr '\n' ' '). Give a roast-style code review of commit: $MESSAGE"
+      $CLAUDE_CMD "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a roast-style code review of commit: $MESSAGE"
     done
     ;;
 
@@ -103,8 +103,8 @@ case "$1" in
       changes)
         echo "📊 Analyzing recent changes..."
         update_context
-        if [[ -f "$REPO_PATH/tools/ai-context/recent-changes.txt" ]]; then
-            RECENT=$(cat "$REPO_PATH/tools/ai-context/recent-changes.txt")
+        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
+            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
             $CLAUDE_CMD "Analyze these recent changes in the LingoLinq AAC codebase and identify patterns, risks, and recommendations: $RECENT"
         else
             echo "❌ No recent changes found."

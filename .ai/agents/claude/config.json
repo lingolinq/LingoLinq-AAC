@@ -3,8 +3,8 @@
   "project": "LingoLinq AAC",
   "initialization": {
     "required_files_to_read": [
-      "/ai-agents/project-constraints.json",
-      "/CLAUDE.md",
+      "/.ai/agents/project-constraints.json",
+      "/docs/ai/CLAUDE.md",
       "/README.md"
     ],
     "startup_commands": [
@@ -98,8 +98,8 @@
   },
   "multi_agent_coordination": {
     "shared_resources": [
-      "/ai-context/shared-state.json",
-      "/ai-context/agent-changes.log"
+      "/.ai/context/shared-state.json",
+      "/.ai/context/agent-changes.log"
     ],
     "communication_protocol": {
       "before_major_changes": "POST /agents/{agent_id}/action with planned action",
@@ -108,8 +108,8 @@
     }
   },
   "templates": {
-    "session_start_message": "🤖 Claude Code initialized for LingoLinq AAC\n✅ Environment verified\n📋 Project constraints loaded\n🔄 Registered with coordinator\n\nReady for development with locked versions:\n- Ruby 3.2.8 (Rails 6.1)\n- Node.js 18.x (Ember 3.12)",
-    "version_warning": "⚠️ VERSION WARNING: Attempted action may affect version constraints\n🔒 Current lock: Ruby 3.2.8, Node.js 18.x\n🚫 Action blocked for safety\n💡 Use Docker containers for version isolation",
+    "session_start_message": "🤖 Claude Code initialized for LingoLinq AAC\n✅ Environment verified\n📋 Project constraints loaded\n🔄 Registered with coordinator\n\nDevelopment environment ready:\n- Use Docker for legacy testing (Ruby 3.2.8, Node.js 18.x)\n- Modern Ruby/Node.js versions welcome for new development",
+    "version_warning": "⚠️ VERSION NOTICE: Version updates are welcome!\n🔧 For legacy testing: Use Docker (Ruby 3.2.8, Node.js 18.x)\n🚀 For modern development: Upgrade Ruby/Node.js as needed\n💡 Use Docker containers to test both environments",
     "coordination_update": "📡 Coordinating with other agents...\n📝 Logging action: {action}\n🔄 Updating shared context\n✅ Coordination complete"
   }
 }

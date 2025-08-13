@@ -36,15 +36,15 @@
 
 
 # Development tools (keep context files for contributors)
-tools/deepwiki-mcp/node_modules/
-tools/deepwiki-mcp/dist/
+.ai/tools/deepwiki-mcp/node_modules/
+.ai/tools/deepwiki-mcp/dist/
 .vscode/
 
 # AI Development Environment - Session Data (ignore)
-/ai-context/session-context.json
-/ai-context/agent-changes.log
-/ai-context/shared-state.json
-/ai-agents/coordinator/node_modules/
+/.ai/context/session-context.json
+/.ai/context/agent-changes.log
+/.ai/context/shared-state.json
+/.ai/agents/coordinator/node_modules/
 /logs/
 
 # AI Development Environment - Config Files (keep for team)

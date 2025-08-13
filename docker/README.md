@@ -1,26 +1,39 @@
 # 🐳 LingoLinq AAC Docker Development Environment
 
-This Docker setup provides a **production-ready containerized environment** for LingoLinq AAC development with **locked Ruby and Node.js versions** to prevent AI agent conflicts.
+This Docker setup provides **multiple development environments** for LingoLinq AAC:
+- **Legacy testing** with Ruby 3.2.8 + Node.js 18.x (current production environment)
+- **Modern development** with updated Ruby and Node.js versions
+- **Production-ready** containerized deployments
 
-## 🎯 Problem Solved
+## 🎯 Use Cases
 
-**Before Docker:**
-- AI agents (Claude Code, Gemini CLI) accidentally upgraded Node.js/Ruby versions
-- Node.js 22+ breaks Ember 3.12 build process  
-- Ruby versions other than 3.2.8 break Rails 6.1 compatibility
-- "Works on my machine" deployment issues
+**Legacy Environment (Ruby 3.2.8 + Node.js 18.x):**
+- Testing current production compatibility
+- AI agent development with version constraints
+- Reproducing production issues locally
 
-**After Docker:**
-- ✅ Locked Ruby 3.2.8 + Node.js 18.x in containers
-- ✅ Impossible for AI agents to break host system
-- ✅ Identical environment locally and in production
-- ✅ One-command cloud deployment ready
+**Modern Development:**
+- Upgrading to newer Ruby/Node.js versions
+- Adding new features with modern tooling
+- Performance improvements and security updates
+
+**Deployment:**
+- Identical environment locally and in production
+- One-command cloud deployment ready
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Docker Desktop installed and running
 - Git repository cloned
+
+### VS Code Dev Container (Recommended)
+**For VS Code users**: Open the project and select "Reopen in Container" when prompted, or:
+1. Install the "Dev Containers" extension
+2. `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+3. Automatically sets up Ruby 3.2.8 + Node.js 18.x environment
+
+### Command Line Setup
 
 ### Start Development Environment
 ```bash
