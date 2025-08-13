@@ -12,6 +12,7 @@ AI assistant instructions and workflows:
 
 ### 📁 development/
 Core development documentation:
+- `AI_DEVELOPMENT_GUIDE.md` - **Comprehensive AI assistant setup and workflows**
 - `API_DOCUMENTATION.md` - Complete API reference
 - `SETUP.md` - Development environment setup
 - `CONTRIBUTING.md` - Contribution guidelines
@@ -44,9 +45,10 @@ System architecture and design:
 3. Check `development/CONTRIBUTING.md` for contribution guidelines
 
 ### For AI Development  
-1. See `ai/CLAUDE.md` or `ai/GEMINI.md` for assistant setup
-2. Review `ai/workflows/` for development coordination
-3. Check `planning/features/` for AI feature planning
+1. **Start here**: `development/AI_DEVELOPMENT_GUIDE.md` - Comprehensive setup and workflows
+2. See `ai/CLAUDE.md` or `ai/GEMINI.md` for assistant-specific setup
+3. Review `ai/workflows/` for development coordination
+4. Check `planning/features/` for AI feature planning
 
 ### For Security and Compliance
 1. Review `planning/roadmaps/01-Security-Audit-Report.md`

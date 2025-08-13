@@ -320,22 +320,33 @@ Released under the AGPLv3 license or later.
 
 ## 🤖 AI-Assisted Development
 
-LingoLinq uses AI development assistants. **All AI sessions should start with:**
+LingoLinq AAC provides comprehensive AI development assistants with deep project understanding to accelerate onboarding and development.
 
+### Quick Start
+```bash
+# Launch both Claude Code and Gemini assistants  
+./.ai/tools/launch-agentic.ps1
+
+# Get comprehensive project context
+./bin/devin context
+
+# Ask questions with full project context
+./bin/devin ask "How does the AAC communication board system work?"
 ```
-Read all files in tools/ai-context/ to understand this LingoLinq project first
-```
 
-### Context Files
-- `tools/ai-context/AI_CONTEXT.md` - Project overview and background
-- `tools/ai-context/MODERNIZATION_ROADMAP.md` - Development priorities
-- `tools/ai-context/TEAM_WORKFLOW.md` - AI agent coordination
-- `tools/ai-context/roles/` - Role-specific context for specialized agents
+### 📖 Complete AI Development Guide
+**[→ AI Development Guide](./docs/development/AI_DEVELOPMENT_GUIDE.md)** - Full setup, commands, and workflows
 
-### Key Documentation
-- **[CLAUDE.md](./CLAUDE.md)** - Development guide for Claude Code sessions
-- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Comprehensive API reference
-- **[SENIOR_DEV_ROADMAP.md](./SENIOR_DEV_ROADMAP.md)** - Strategic development roadmap
-- **[CLEANUP.md](./CLEANUP.md)** - Post-merge cleanup documentation
+**Key Benefits:**
+- 🧠 **Deep AAC Domain Knowledge** - AI understands communication boards, speech synthesis, accessibility
+- 🏗️ **Architecture Awareness** - Knows Rails + Ember structure, API patterns, mobile app coordination  
+- ⚡ **Instant Context** - No explaining project setup every time
+- 🔍 **Smart Code Analysis** - Context-aware debugging and modernization suggestions
 
-**For Contributors**: Start AI sessions with the command above to get instant project understanding.
+### Quick Reference
+- **Setup Guide**: [docs/development/AI_DEVELOPMENT_GUIDE.md](./docs/development/AI_DEVELOPMENT_GUIDE.md)
+- **Command Reference**: [.ai/tools/AI_DEVELOPMENT_COMMANDS.md](./.ai/tools/AI_DEVELOPMENT_COMMANDS.md)
+- **Claude Instructions**: [docs/ai/CLAUDE.md](./docs/ai/CLAUDE.md)
+- **API Documentation**: [docs/development/API_DOCUMENTATION.md](./docs/development/API_DOCUMENTATION.md)
+
+**For New Contributors**: Start with the AI Development Guide for instant project understanding and productive development sessions.

@@ -1,3 +1,34 @@
+6717d54db fix: Create standalone Gemini CLI configuration to prevent MCP coordination loops
+ .ai/agents/gemini/config-simple.json |  49 ++++++++
+ .ai/tools/AI_DEVELOPMENT_COMMANDS.md | 223 +++++++++++++++++++++++++++++++++++
+ .ai/tools/launch-agentic.ps1         |   5 +-
+ bin/devin-gemini                     |  75 ++++++++++++
+ 4 files changed, 351 insertions(+), 1 deletion(-)
+cdf247411 cleanup: Remove duplicate patch documentation files
+ lingolinq-aac-path-fixes.patch | 496 -----------------------------------------
+ patch-review.txt               | 496 -----------------------------------------
+ 2 files changed, 992 deletions(-)
+890d2c340 feat: Complete cross-platform DeepWiki MCP system with senior dev workflows
+ .ai/workflows/integration-examples.sh |  47 ++++++++++
+ .ai/workflows/senior-dev-examples.md  | 162 ++++++++++++++++++++++++++++++++++
+ .claude/settings.local.json           |   4 +-
+ bin/devin-simple.ps1                  |  42 ++++++---
+ bin/devin-universal.js                | 110 +++++++++++++++++++++++
+ 5 files changed, 354 insertions(+), 11 deletions(-)
+311d21744 fix: Add Windows-compatible versions of devin script for Gemini CLI
+ bin/devin-simple.ps1 | 86 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ bin/devin.cmd        | 62 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 148 insertions(+)
+d4ac678b1 fix: Restore DeepWiki MCP functionality after reorganization
+ .ai/context/PROJECT_MAP.md          |  22 ++--
+ .ai/context/recent-changes.txt      | 246 ++++++++++++++++++------------------
+ .ai/tools/compile-docs.ps1          |   2 +-
+ .ai/tools/deepwiki-mcp              |   1 -
+ .ai/tools/deepwiki-mcp/README.md    |  61 +++++++++
+ .ai/tools/deepwiki-mcp/package.json |  35 +++++
+ .ai/tools/deepwiki-mcp/server.js    |  89 +++++++++++++
+ .claude/settings.local.json         |   6 +-
+ 8 files changed, 326 insertions(+), 136 deletions(-)
 1001f5504 fix: Update path references after repository reorganization
  .ai/README.md                  |   46 +
  .ai/agents/claude/config.json  |   12 +-
@@ -101,24 +132,3 @@ f208dd8fc docs: Add comprehensive OpenAAC integration architecture
  docs/OPENAAC_STANDARD_INTEGRATION.md    | 399 ++++++++++++++++++++++++++++++++
  docs/OPENAA_INFLECTION_COLLABORATION.md | 346 +++++++++++++++++++++++++++
  3 files changed, 952 insertions(+)
-53904bf89 docs: Add developer brief for LLM inflections feature review
- docs/DEVELOPER_BRIEF_LLM_INFLECTIONS.md | 135 ++++++++++++++++++++++++++++++++
- 1 file changed, 135 insertions(+)
-e09cf5020 feat: Add LLM-enhanced inflections system for improved AAC experience
- .claude/settings.local.json                   |   7 +-
- app/controllers/api/inflections_controller.rb | 116 +++++++++
- app/frontend/app/utils/llm_inflections.js     | 168 ++++++++++++
- config/routes.rb                              |   2 +
- docs/LLM_INFLECTIONS_SETUP.md                 | 361 ++++++++++++++++++++++++++
- lib/feature_flags.rb                          |   5 +-
- lib/llm_inflections.rb                        | 183 +++++++++++++
- 7 files changed, 839 insertions(+), 3 deletions(-)
-a5d733ec3 docs: Update GEMINI.md with DeepWiki MCP assistant commands
- GEMINI.md | 7 +++++++
- 1 file changed, 7 insertions(+)
-cdb0df7a0 feat: Add DeepWiki MCP system for AI development assistance
- CLAUDE.md                           |   7 ++
- bin/devin                           | 145 ++++++++++++++++++++++----
- tools/ai-context/PROJECT_MAP.md     | 196 ++++--------------------------------
- tools/ai-context/recent-changes.txt | 122 ++++++++++++++++++++++
- 4 files changed, 277 insertions(+), 193 deletions(-)
