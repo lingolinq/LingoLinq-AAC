@@ -32,7 +32,9 @@ services:
 
   # Rails Web Application
   web:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -40,9 +42,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
     env_file:
-      - .env
+      - ../.env
     volumes:
-      - .:/app
+      - ..:/app
       - bundle_cache:/usr/local/bundle
     depends_on:
       db:

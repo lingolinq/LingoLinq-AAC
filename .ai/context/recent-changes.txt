@@ -1,3 +1,29 @@
+a003b4cba security: MAJOR - Upgrade Rails 6.1.0 → 6.1.7.10 (fixes 25+ critical CVEs)
+ Gemfile      |   2 +-
+ Gemfile.lock | 117 +++++++++++++++++++++++++++++------------------------------
+ 2 files changed, 59 insertions(+), 60 deletions(-)
+b34e14b30 security: Apply immediate security patches for Ruby gems
+ Gemfile.lock                   |   19 +-
+ app/frontend/package-lock.json | 7659 ++++++++++++++++++++++++++++++++--------
+ 2 files changed, 6132 insertions(+), 1546 deletions(-)
+1c08d3364 docs: Add comprehensive 2025 security audit report
+ .ai/context/AUDIT_REPORT_2025.md | 215 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 215 insertions(+)
+543f85020 fix: Update Claude Code permissions for git operations
+ .ai/tools/deepwiki-mcp/.claude/settings.local.json | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+254feecca docs: Update documentation and paths after reorganization
+ .ai/context/recent-changes.txt            |  52 +++--
+ README.md                                 |  39 ++--
+ docs/README.md                            |   8 +-
+ docs/development/AI_DEVELOPMENT_GUIDE.md  | 364 ++++++++++++++++++++++++++++++
+ docs/development/CONTRIBUTING.md          |  49 +++-
+ docs/development/SETUP.md                 |  40 +++-
+ repository-reorganization-audit-report.md | 128 +++++++++++
+ 7 files changed, 626 insertions(+), 54 deletions(-)
+4c1f4c6be docs: Update documentation and paths after reorganization
+ .ai/tools/deepwiki-mcp/.claude/settings.local.json | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 6717d54db fix: Create standalone Gemini CLI configuration to prevent MCP coordination loops
  .ai/agents/gemini/config-simple.json |  49 ++++++++
  .ai/tools/AI_DEVELOPMENT_COMMANDS.md | 223 +++++++++++++++++++++++++++++++++++
@@ -127,8 +153,3 @@ f119da801 refactor: Centralize version control in Docker
  ai-agents/gemini-config.json       | 23 +------------------
  ai-agents/project-constraints.json | 27 +---------------------
  5 files changed, 8 insertions(+), 122 deletions(-)
-f208dd8fc docs: Add comprehensive OpenAAC integration architecture
- docs/INFLECTION_PRIVACY_ARCHITECTURE.md | 207 +++++++++++++++++
- docs/OPENAAC_STANDARD_INTEGRATION.md    | 399 ++++++++++++++++++++++++++++++++
- docs/OPENAA_INFLECTION_COLLABORATION.md | 346 +++++++++++++++++++++++++++
- 3 files changed, 952 insertions(+)
