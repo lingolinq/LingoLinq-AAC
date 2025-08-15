@@ -84,7 +84,7 @@ SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
 SweetSuite.embedded = !!location.href.match(/embed=1/);
 SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
 SweetSuite.referrer = document.referrer;
-SweetSuite.app_name = SweetSuite.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "AAC App";
+SweetSuite.app_name = SweetSuite.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
 SweetSuite.company_name = SweetSuite.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
 SweetSuite.remote_url = function(url) {
   return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);

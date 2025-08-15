@@ -1,4 +1,4 @@
-window.default_app_name = <%= (ENV['APP_NAME'] || "AAC App").to_json %>;
+window.default_app_name = <%= (ENV['APP_NAME'] || "LingoLinq AAC").to_json %>;
 window.defualt_company_name = <%= (ENV['COMPANY_NAME'] || "AAC Company").to_json %>;
 window.enabled_frontend_features = <%= FeatureFlags::ENABLED_FRONTEND_FEATURES.to_json %>;
 window.default_host = <%= ENV['DEFAULT_HOST'].to_json %>;
