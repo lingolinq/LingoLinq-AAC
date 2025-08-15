@@ -8,9 +8,13 @@
       "Bash(node:*)",
       "Bash(timeout:*)",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\skawa\\LingoLinq-AAC"
+    ]
   }
 }

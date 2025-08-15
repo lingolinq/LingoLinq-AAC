@@ -43,7 +43,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      - ..:/app
       - bundle_cache:/usr/local/bundle
     environment:
       - RAILS_ENV=development
