@@ -5,7 +5,7 @@
 REPO_PATH="$(git rev-parse --show-toplevel)"
 MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
 CLAUDE_CMD="claude" # Update if using a different alias
-GEMINI_CMD="gemini-cli"  # Update if needed
+GEMINI_CMD="gemini"  # Update if needed
 
 # Function to ensure MCP context is up-to-date
 update_context() {
@@ -131,7 +131,8 @@ case "$1" in
     echo "🧠 Asking Gemini with full project context: $QUESTION"
     update_context
     CONTEXT=$(get_context all)
-    $GEMINI_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    cd "$REPO_PATH"
+    $GEMINI_CMD -p "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
     ;;
 
   review-gemini)
@@ -142,7 +143,7 @@ case "$1" in
       COMMIT_HASH=$(echo "$line" | awk '{print $1}')
       MESSAGE=$(echo "$line" | cut -d' ' -f2-)
       echo "🧠 Gemini reviewing $COMMIT_HASH: $MESSAGE"
-      $GEMINI_CMD "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE"
+      $GEMINI_CMD -p "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE"
     done
     ;;
 
@@ -152,14 +153,14 @@ case "$1" in
         echo "🔍 Deep repo analysis with Gemini + MCP context..."
         update_context
         CONTEXT=$(get_context all)
-        $GEMINI_CMD "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations."
+        $GEMINI_CMD -p "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations."
         ;;
       changes)
         echo "📊 Gemini analyzing recent changes..."
         update_context
         if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
             RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
-            $GEMINI_CMD "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT"
+            $GEMINI_CMD -p "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT"
         else
             echo "❌ No recent changes found."
         fi
@@ -182,7 +183,7 @@ case "$1" in
       echo "📦 Exporting project context as markdown..."
       update_context
       CONTEXT=$(get_context all)
-      $GEMINI_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
+      $GEMINI_CMD -p "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
     else
       echo "❌ Unsupported export target."
     fi
