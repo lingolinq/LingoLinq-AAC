@@ -119,10 +119,55 @@ case "$1" in
   ask)
     shift
     QUESTION="$*"
-    echo "🤖 Asking AI with full project context: $QUESTION"
+    echo "🤖 Asking Claude with full project context: $QUESTION"
     update_context
     CONTEXT=$(get_context all)
     $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    ;;
+
+  gemini)
+    shift
+    QUESTION="$*"
+    echo "🧠 Asking Gemini with full project context: $QUESTION"
+    update_context
+    CONTEXT=$(get_context all)
+    $GEMINI_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    ;;
+
+  review-gemini)
+    echo "🔥 Gemini-powered commit review with context..."
+    update_context
+    CONTEXT=$(get_context architecture)
+    git log "$2" --oneline | while read -r line; do
+      COMMIT_HASH=$(echo "$line" | awk '{print $1}')
+      MESSAGE=$(echo "$line" | cut -d' ' -f2-)
+      echo "🧠 Gemini reviewing $COMMIT_HASH: $MESSAGE"
+      $GEMINI_CMD "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE"
+    done
+    ;;
+
+  analyze-gemini)
+    case "$2" in
+      repo)
+        echo "🔍 Deep repo analysis with Gemini + MCP context..."
+        update_context
+        CONTEXT=$(get_context all)
+        $GEMINI_CMD "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations."
+        ;;
+      changes)
+        echo "📊 Gemini analyzing recent changes..."
+        update_context
+        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
+            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
+            $GEMINI_CMD "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT"
+        else
+            echo "❌ No recent changes found."
+        fi
+        ;;
+      *)
+        echo "Usage: devin analyze-gemini [repo|changes]"
+        ;;
+    esac
     ;;
 
   deepwiki)
@@ -144,16 +189,23 @@ case "$1" in
     ;;
 
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|gemini|review-gemini|analyze-gemini|deepwiki|export] <args>"
     echo ""
     echo "Commands:"
-    echo "  context [section]  - Get project context (architecture, dependencies, etc.)"
-    echo "  update            - Update project context from recent changes"
-    echo "  generate          - Generate fresh architecture map"
-    echo "  review <commit>   - AI code review with project context"
-    echo "  analyze <target>  - Deep analysis (repo, changes)"
-    echo "  ask <question>    - Ask AI with full project context"
-    echo "  deepwiki <url>    - Aggregate DeepWiki content"
-    echo "  export wiki       - Export context as markdown"
+    echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
+    echo "  update               - Update project context from recent changes"
+    echo "  generate             - Generate fresh architecture map"
+    echo "  review <commit>      - Claude code review with project context"
+    echo "  review-gemini <commit> - Gemini code review with project context"
+    echo "  analyze <target>     - Claude deep analysis (repo, changes)"
+    echo "  analyze-gemini <target> - Gemini deep analysis (repo, changes)"
+    echo "  ask <question>       - Ask Claude with full project context"
+    echo "  gemini <question>    - Ask Gemini with full project context"
+    echo "  deepwiki <url>       - Aggregate DeepWiki content"
+    echo "  export wiki          - Export context as markdown"
+    echo ""
+    echo "Multi-model workflow:"
+    echo "  Use 'ask' (Claude) for senior dev decisions"
+    echo "  Use 'gemini' for heavy lifting tasks"
     ;;
 esac
