@@ -5,7 +5,7 @@
 REPO_PATH="$(git rev-parse --show-toplevel)"
 MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
 CLAUDE_CMD="claude" # Update if using a different alias
-GEMINI_CMD="gemini-cli"  # Update if needed
+GEMINI_CMD="$(which gemini 2>/dev/null || echo 'gemini-cli')"  # Update if needed
 
 # Function to ensure MCP context is up-to-date
 update_context() {
