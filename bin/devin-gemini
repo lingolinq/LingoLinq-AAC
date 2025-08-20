@@ -3,7 +3,7 @@
 # Gemini-specific development assistant for LingoLinq AAC (No MCP)
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-GEMINI_CMD="gemini -a"  # Update if needed
+GEMINI_CMD="$(which gemini 2>/dev/null || echo 'gemini-cli') -a"  # Update if needed
 
 # Function to get project context for Gemini
 get_context() {
