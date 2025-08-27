@@ -43,7 +43,9 @@
       "Bash(git rm:*)",
       "Bash(node server.js)",
       "Bash(bindevin.cmd context)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cmd /c \"rmdir /s /q .ai\\tools\\deepwiki-mcp\")",
+      "Bash(claude mcp:*)"
     ],
     "deny": []
   }
