@@ -3,23 +3,16 @@
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
-CLAUDE_CMD="claude" # Update if using a different alias
-GEMINI_CMD="$(which gemini 2>/dev/null || echo 'gemini-cli')"  # Update if needed
+CLAUDE_CMD="/c/Users/skawa/AppData/Roaming/npm/claude" # Full path to avoid PATH issues
+GEMINI_CMD="/c/Users/skawa/AppData/Roaming/npm/gemini"  # Full path to avoid PATH issues
 
 # Function to ensure MCP context is up-to-date
 update_context() {
     echo "🔄 Updating DeepWiki context..."
-    cd "$MCP_SERVER_PATH"
-    node -e "
-    const { execSync } = require('child_process');
-    try {
-        execSync('git log --since=\"7 days ago\" --oneline --stat > .ai/context/recent-changes.txt', { cwd: '$REPO_PATH' });
-        console.log('✅ Context updated successfully');
-    } catch (error) {
-        console.log('⚠️ Failed to update context:', error.message);
-    }
-    "
+    cd "$REPO_PATH"
+    mkdir -p .ai/context
+    git log --since="7 days ago" --oneline --stat > .ai/context/recent-changes.txt 2>/dev/null || echo "⚠️ Could not update git context"
+    echo "✅ Context updated successfully"
 }
 
 # Function to get project context for AI agents
@@ -48,36 +41,35 @@ case "$1" in
   generate)
     echo "🏗️ Generating fresh architecture map..."
     update_context
-    cd "$MCP_SERVER_PATH"
-    timeout 30s node -e "
-    const fs = require('fs');
-    const path = require('path');
+    cd "$REPO_PATH"
     
-    // Generate basic project map
-    const projectRoot = '$REPO_PATH';
-    let map = '# LingoLinq AAC Project Architecture\\n\\n';
-    map += '## Overview\\n';
-    map += 'Rails + Ember.js AAC system with multi-platform support\\n\\n';
-    map += '## Recent Activity\\n';
+    # Generate basic project map without Node.js dependency
+    cat > .ai/context/PROJECT_MAP.md << EOF
+# LingoLinq AAC Project Architecture
+
+## Overview
+Rails + Ember.js AAC system with multi-platform support
+
+## Recent Activity
+EOF
     
-    try {
-        const recentChanges = fs.readFileSync(path.join(projectRoot, '.ai/context/recent-changes.txt'), 'utf8');
-        const lines = recentChanges.split('\\n').slice(0, 10);
-        map += lines.join('\\n') + '\\n\\n';
-    } catch (e) {
-        map += 'No recent changes found\\n\\n';
-    }
+    if [[ -f .ai/context/recent-changes.txt ]]; then
+        head -10 .ai/context/recent-changes.txt >> .ai/context/PROJECT_MAP.md
+    else
+        echo "No recent changes found" >> .ai/context/PROJECT_MAP.md
+    fi
     
-    map += '## Key Directories\\n';
-    map += '- app/models/ - Rails models\\n';
-    map += '- app/controllers/ - Rails controllers\\n';
-    map += '- app/frontend/ - Ember.js frontend\\n';
-    map += '- lib/ - Shared utilities\\n';
-    map += '- .ai/context/ - AI context files\\n';
+    cat >> .ai/context/PROJECT_MAP.md << EOF
+
+## Key Directories
+- app/models/ - Rails models
+- app/controllers/ - Rails controllers
+- app/frontend/ - Ember.js frontend
+- lib/ - Shared utilities
+- .ai/context/ - AI context files
+EOF
     
-    fs.writeFileSync(path.join(projectRoot, '.ai/context/PROJECT_MAP.md'), map);
-    console.log('✅ Architecture map generated');
-    " 2>/dev/null || echo "⚠️ Generation timed out, but basic context should be available"
+    echo "✅ Architecture map generated"
     ;;
 
   review)
@@ -119,10 +111,56 @@ case "$1" in
   ask)
     shift
     QUESTION="$*"
-    echo "🤖 Asking AI with full project context: $QUESTION"
+    echo "🤖 Asking Claude with full project context: $QUESTION"
     update_context
     CONTEXT=$(get_context all)
     $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    ;;
+
+  gemini)
+    shift
+    QUESTION="$*"
+    echo "🧠 Asking Gemini with full project context: $QUESTION"
+    update_context
+    CONTEXT=$(get_context all)
+    cd "$REPO_PATH"
+    $GEMINI_CMD -p "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    ;;
+
+  review-gemini)
+    echo "🔥 Gemini-powered commit review with context..."
+    update_context
+    CONTEXT=$(get_context architecture)
+    git log "$2" --oneline | while read -r line; do
+      COMMIT_HASH=$(echo "$line" | awk '{print $1}')
+      MESSAGE=$(echo "$line" | cut -d' ' -f2-)
+      echo "🧠 Gemini reviewing $COMMIT_HASH: $MESSAGE"
+      $GEMINI_CMD -p "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE"
+    done
+    ;;
+
+  analyze-gemini)
+    case "$2" in
+      repo)
+        echo "🔍 Deep repo analysis with Gemini + MCP context..."
+        update_context
+        CONTEXT=$(get_context all)
+        $GEMINI_CMD -p "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations."
+        ;;
+      changes)
+        echo "📊 Gemini analyzing recent changes..."
+        update_context
+        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
+            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
+            $GEMINI_CMD -p "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT"
+        else
+            echo "❌ No recent changes found."
+        fi
+        ;;
+      *)
+        echo "Usage: devin analyze-gemini [repo|changes]"
+        ;;
+    esac
     ;;
 
   deepwiki)
@@ -137,23 +175,30 @@ case "$1" in
       echo "📦 Exporting project context as markdown..."
       update_context
       CONTEXT=$(get_context all)
-      $GEMINI_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
+      $GEMINI_CMD -p "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
     else
       echo "❌ Unsupported export target."
     fi
     ;;
 
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|gemini|review-gemini|analyze-gemini|deepwiki|export] <args>"
     echo ""
     echo "Commands:"
-    echo "  context [section]  - Get project context (architecture, dependencies, etc.)"
-    echo "  update            - Update project context from recent changes"
-    echo "  generate          - Generate fresh architecture map"
-    echo "  review <commit>   - AI code review with project context"
-    echo "  analyze <target>  - Deep analysis (repo, changes)"
-    echo "  ask <question>    - Ask AI with full project context"
-    echo "  deepwiki <url>    - Aggregate DeepWiki content"
-    echo "  export wiki       - Export context as markdown"
+    echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
+    echo "  update               - Update project context from recent changes"
+    echo "  generate             - Generate fresh architecture map"
+    echo "  review <commit>      - Claude code review with project context"
+    echo "  review-gemini <commit> - Gemini code review with project context"
+    echo "  analyze <target>     - Claude deep analysis (repo, changes)"
+    echo "  analyze-gemini <target> - Gemini deep analysis (repo, changes)"
+    echo "  ask <question>       - Ask Claude with full project context"
+    echo "  gemini <question>    - Ask Gemini with full project context"
+    echo "  deepwiki <url>       - Aggregate DeepWiki content"
+    echo "  export wiki          - Export context as markdown"
+    echo ""
+    echo "Multi-model workflow:"
+    echo "  Use 'ask' (Claude) for senior dev decisions"
+    echo "  Use 'gemini' for heavy lifting tasks"
     ;;
 esac

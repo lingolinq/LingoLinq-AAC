@@ -511,7 +511,8 @@ module Converters::CoughDrop
       end
     end
     
-    sleep 10
+    # Removed sleep 10 - was causing 10+ second delays for multi-board conversions
+    # TODO: Investigate if this was masking a race condition that needs proper fix
     
     content['boards'].each do |board|
       board['images'] = content['images'] || []
