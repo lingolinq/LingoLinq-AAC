@@ -1,9 +1,12 @@
 development:
   adapter: postgresql
   encoding: unicode
-  database: coughdrop-development
+  database: lingolinq_development
   pool: 5
   timeout: 5000
+  <% if ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URL'] %>
+  <% end %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -11,9 +14,12 @@ development:
 test:
   adapter: postgresql
   encoding: unicode
-  database: coughdrop-test
+  database: lingolinq_test
   pool: 5
   timeout: 5000
+  <% if ENV['DATABASE_URL'] %>
+  url: <%= ENV['DATABASE_URL'].gsub('lingolinq_development', 'lingolinq_test') %>
+  <% end %>
 
 production:
   primary: 
