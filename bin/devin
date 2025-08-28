@@ -3,23 +3,16 @@
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
-CLAUDE_CMD="claude" # Update if using a different alias
-GEMINI_CMD="gemini"  # Update if needed
+CLAUDE_CMD="/c/Users/skawa/AppData/Roaming/npm/claude" # Full path to avoid PATH issues
+GEMINI_CMD="/c/Users/skawa/AppData/Roaming/npm/gemini"  # Full path to avoid PATH issues
 
 # Function to ensure MCP context is up-to-date
 update_context() {
     echo "🔄 Updating DeepWiki context..."
-    cd "$MCP_SERVER_PATH"
-    node -e "
-    const { execSync } = require('child_process');
-    try {
-        execSync('git log --since=\"7 days ago\" --oneline --stat > .ai/context/recent-changes.txt', { cwd: '$REPO_PATH' });
-        console.log('✅ Context updated successfully');
-    } catch (error) {
-        console.log('⚠️ Failed to update context:', error.message);
-    }
-    "
+    cd "$REPO_PATH"
+    mkdir -p .ai/context
+    git log --since="7 days ago" --oneline --stat > .ai/context/recent-changes.txt 2>/dev/null || echo "⚠️ Could not update git context"
+    echo "✅ Context updated successfully"
 }
 
 # Function to get project context for AI agents
@@ -48,36 +41,35 @@ case "$1" in
   generate)
     echo "🏗️ Generating fresh architecture map..."
     update_context
-    cd "$MCP_SERVER_PATH"
-    timeout 30s node -e "
-    const fs = require('fs');
-    const path = require('path');
+    cd "$REPO_PATH"
     
-    // Generate basic project map
-    const projectRoot = '$REPO_PATH';
-    let map = '# LingoLinq AAC Project Architecture\\n\\n';
-    map += '## Overview\\n';
-    map += 'Rails + Ember.js AAC system with multi-platform support\\n\\n';
-    map += '## Recent Activity\\n';
+    # Generate basic project map without Node.js dependency
+    cat > .ai/context/PROJECT_MAP.md << EOF
+# LingoLinq AAC Project Architecture
+
+## Overview
+Rails + Ember.js AAC system with multi-platform support
+
+## Recent Activity
+EOF
     
-    try {
-        const recentChanges = fs.readFileSync(path.join(projectRoot, '.ai/context/recent-changes.txt'), 'utf8');
-        const lines = recentChanges.split('\\n').slice(0, 10);
-        map += lines.join('\\n') + '\\n\\n';
-    } catch (e) {
-        map += 'No recent changes found\\n\\n';
-    }
+    if [[ -f .ai/context/recent-changes.txt ]]; then
+        head -10 .ai/context/recent-changes.txt >> .ai/context/PROJECT_MAP.md
+    else
+        echo "No recent changes found" >> .ai/context/PROJECT_MAP.md
+    fi
     
-    map += '## Key Directories\\n';
-    map += '- app/models/ - Rails models\\n';
-    map += '- app/controllers/ - Rails controllers\\n';
-    map += '- app/frontend/ - Ember.js frontend\\n';
-    map += '- lib/ - Shared utilities\\n';
-    map += '- .ai/context/ - AI context files\\n';
+    cat >> .ai/context/PROJECT_MAP.md << EOF
+
+## Key Directories
+- app/models/ - Rails models
+- app/controllers/ - Rails controllers
+- app/frontend/ - Ember.js frontend
+- lib/ - Shared utilities
+- .ai/context/ - AI context files
+EOF
     
-    fs.writeFileSync(path.join(projectRoot, '.ai/context/PROJECT_MAP.md'), map);
-    console.log('✅ Architecture map generated');
-    " 2>/dev/null || echo "⚠️ Generation timed out, but basic context should be available"
+    echo "✅ Architecture map generated"
     ;;
 
   review)
