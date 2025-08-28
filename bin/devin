@@ -303,13 +303,18 @@ EOF
         exit 1
     fi
     cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API (this may take a moment)..."
-    timeout 30s $GEMINI_CMD -p "$QUESTION" || {
-        echo "❌ Gemini CLI timed out or failed. This may be due to:"
+    echo "🔄 Calling Gemini API (15s timeout to prevent loops)..."
+    echo "💡 If this hangs, use './bin/devin gemini-safe' instead"
+    
+    # Enhanced timeout with proper signal handling to kill spinner loops
+    timeout --kill-after=5s 15s bash -c '
+        exec $GEMINI_CMD -p "$1"
+    ' _ "$QUESTION" || {
+        echo "\n❌ Gemini CLI timed out or failed. This may be due to:"
+        echo "   - Gemini CLI spinner loop (common issue)"
         echo "   - Google AI API server issues (500 errors)"
-        echo "   - Invalid API key"
-        echo "   - Network connectivity issues"
-        echo "   Try again in a few minutes or check Google AI API status."
+        echo "   - Invalid API key or network issues"
+        echo "   💡 Use './bin/devin gemini-safe' for more reliable operation"
         exit 1
     }
     ;;
@@ -335,13 +340,19 @@ EOF
     update_context
     CONTEXT=$(get_context all)
     cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API with full context (this may take a moment)..."
-    timeout 60s $GEMINI_CMD -p "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION" || {
-        echo "❌ Gemini CLI timed out or failed. This may be due to:"
+    echo "🔄 Calling Gemini API with full context (30s timeout to prevent loops)..."
+    echo "💡 If this hangs, use './bin/devin gemini-safe' instead"
+    
+    # Enhanced timeout with proper signal handling for full context
+    timeout --kill-after=10s 30s bash -c '
+        exec $GEMINI_CMD -p "$1"
+    ' _ "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION" || {
+        echo "\n❌ Gemini CLI timed out or failed. This may be due to:"
+        echo "   - Gemini CLI spinner loop (common with large context)"
         echo "   - Google AI API server issues (500 errors)"
         echo "   - Large context causing API timeouts"
         echo "   - Invalid API key"
-        echo "   Try using './bin/devin gemini-safe' for lightweight queries."
+        echo "   💡 Use './bin/devin gemini-safe' for more reliable operation"
         exit 1
     }
     ;;
@@ -388,13 +399,23 @@ EOF
     fi
     CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
     cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API (safe mode with timeout)..."
-    timeout 30s $GEMINI_CMD -p "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
-        echo "❌ Gemini CLI timed out or failed. This may be due to:"
-        echo "   - Google AI API server issues (500 errors)"
-        echo "   - Network connectivity issues"
-        echo "   - Invalid API key"
-        echo "   Try again in a few minutes or check Google AI API status."
+    echo "🔄 Safe Gemini call (10s timeout, aggressive kill on loop)..."
+    
+    # Most aggressive timeout with immediate kill to prevent spinner loops
+    timeout --kill-after=2s 10s bash -c '
+        # Set up signal handlers to kill immediately
+        trap "echo \"\\n⚠️ Gemini interrupted to prevent loop\"; exit 130" INT TERM
+        exec $GEMINI_CMD -p "$1"
+    ' _ "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
+        local exit_code=$?
+        echo "\n❌ Gemini CLI stopped (exit code: $exit_code)"
+        case $exit_code in
+            124) echo "   ⏰ Timeout: Gemini took too long (likely spinner loop)" ;;
+            130) echo "   ⚠️  Interrupted: Prevented infinite loop" ;;
+            *) echo "   🔗 API Issue: Server error or network problem" ;;
+        esac
+        echo "   💡 This is normal - Gemini CLI has known loop issues"
+        echo "   💡 Try again or use Claude: './bin/devin ask <question>'"
         exit 1
     }
     ;;
@@ -478,17 +499,67 @@ EOF
     fi
     ;;
 
+  gemini-debug)
+    shift
+    QUESTION="$*"
+    echo "🔧 Gemini Debug Mode - Testing CLI responsiveness"
+    if [[ -z "$GEMINI_CMD" ]]; then
+        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
+        exit 1
+    fi
+    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
+        echo "❌ GOOGLE_AI_API_KEY not set."
+        exit 1
+    fi
+    
+    echo "🧪 Testing Gemini CLI with minimal prompt..."
+    echo "⏱️  Using 5s timeout to quickly detect loops"
+    
+    cd "$REPO_PATH"
+    timeout --kill-after=1s 5s bash -c '
+        echo "Testing: Hello Gemini, respond with just OK"
+        exec $GEMINI_CMD -p "Just respond with: OK"
+    ' || {
+        local exit_code=$?
+        echo ""
+        echo "🚨 Gemini CLI Debug Results:"
+        case $exit_code in
+            124) echo "   ❌ TIMEOUT: CLI is stuck in spinner loop (common issue)" ;;
+            130) echo "   ⚠️  KILLED: Process was terminated to prevent hang" ;;
+            *) echo "   🔗 ERROR: API connection issue (exit code: $exit_code)" ;;
+        esac
+        echo ""
+        echo "🔧 Troubleshooting Suggestions:"
+        echo "   1. Try: npm uninstall -g @google/generative-ai-cli && npm install -g @google/generative-ai-cli"
+        echo "   2. Check API key: https://makersuite.google.com/app/apikey"
+        echo "   3. Use Claude instead: './bin/devin ask <question>'"
+        echo "   4. Check Gemini API status: https://status.google.com"
+        exit 1
+    }
+    
+    if [[ -n "$QUESTION" ]]; then
+        echo "✅ CLI responsive, trying your question with safe timeout..."
+        timeout --kill-after=2s 8s $GEMINI_CMD -p "$QUESTION" || {
+            echo "❌ Your question failed - likely a spinner loop issue"
+            echo "💡 Use './bin/devin ask' with Claude instead"
+        }
+    fi
+    ;;
+
   *)
-    echo "Usage: devin [validate|ask|ask-full|claude|gemini|gemini-safe|gemini-full|context|update|generate|review|analyze|deepwiki|export] <args>"
+    echo "Usage: devin [validate|ask|ask-full|claude|gemini|gemini-safe|gemini-full|gemini-debug|context|update|generate|review|analyze|deepwiki|export] <args>"
     echo ""
     echo "🚀 Quick Commands (Cross-Platform):"
     echo "  validate              - Check AI CLI installation and setup"
     echo "  ask <question>        - Ask Claude (lightweight, ~200 tokens)"
     echo "  ask-full <question>   - Ask Claude with full project context (~4K tokens)"
     echo "  claude <question>     - Direct Claude CLI access"
-    echo "  gemini <question>     - Direct Gemini CLI access (can loop on errors)"
-    echo "  gemini-safe <question> - Safe Gemini with lightweight context (prevents loops)"
-    echo "  gemini-full <question> - Ask Gemini with full project context"
+    echo ""
+    echo "⚠️  Gemini Commands (Known Issues):"
+    echo "  gemini <question>     - Direct Gemini CLI access (can loop - use with caution)"
+    echo "  gemini-safe <question> - Safe Gemini with aggressive timeout (prevents loops)"
+    echo "  gemini-full <question> - Gemini with full context (high loop risk)"
+    echo "  gemini-debug [question] - Test Gemini CLI and diagnose loop issues"
     echo ""
     echo "📋 Context Management:"
     echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
@@ -505,10 +576,10 @@ EOF
     echo "  deepwiki <url>       - Aggregate DeepWiki content"
     echo "  export wiki          - Export context as markdown"
     echo ""
-    echo "💡 Token Optimization:"
-    echo "  Use 'ask' for quick questions (fast, cost-effective)"
-    echo "  Use 'ask-full' for complex analysis requiring full context"
-    echo "  Use 'gemini-safe' instead of 'gemini' to prevent infinite loops"
-    echo "  Use 'claude'/'gemini' for direct CLI access without context"
+    echo "💡 Recommendations:"
+    echo "  🟢 Use 'ask'/'ask-full' (Claude) for reliable AI assistance"
+    echo "  ⚠️  Use 'gemini-safe' if you need Gemini (has timeout protection)"
+    echo "  🔧 Use 'gemini-debug' to diagnose Gemini CLI issues"
+    echo "  ❌ Avoid 'gemini'/'gemini-full' due to known loop problems"
     ;;
 esac
