@@ -64,7 +64,9 @@
       "Bash(\"/c/Users/skawa/AppData/Roaming/npm/claude\" --version)",
       "Read(**)",
       "mcp__deepwiki__ask_question",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git for-each-ref:*)",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": []
   }
