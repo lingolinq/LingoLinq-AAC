@@ -1,0 +1,155 @@
+{
+  "agent_type": "gemini_cli",
+  "project": "LingoLinq AAC",
+  "version": "2025.08.28",
+  
+  "gemini_model_config": {
+    "model": "gemini-2.5-flash",
+    "temperature": 0.1,
+    "max_output_tokens": 8192,
+    "context_window_strategy": "efficient",
+    "agent_mode": "disabled"
+  },
+  
+  "token_optimization": {
+    "prevent_loops": {
+      "enabled": true,
+      "max_consecutive_failures": 3,
+      "failure_timeout": 30,
+      "circuit_breaker": true
+    },
+    "context_management": {
+      "max_context_files": 5,
+      "prioritize_recent_changes": true,
+      "exclude_large_files": true,
+      "max_file_size_kb": 100
+    },
+    "efficient_prompting": {
+      "use_focused_queries": true,
+      "avoid_full_codebase_analysis": true,
+      "prefer_targeted_searches": true
+    }
+  },
+  
+  "initialization": {
+    "mode": "minimal",
+    "required_files_to_read": [
+      "/docs/ai/GEMINI.md"
+    ],
+    "startup_message": "🔷 Gemini CLI optimized for LingoLinq AAC (2025)\n⚡ Flash model for efficiency\n🎯 Loop prevention enabled\n📊 Token usage optimized\n\nReady for focused development tasks.",
+    "skip_network_calls": true,
+    "defer_heavy_analysis": true
+  },
+  
+  "mcp_integration": {
+    "enabled": false,
+    "strategy": "context_provider_only",
+    "tools_mode": "selective",
+    "prevent_recursive_calls": true,
+    "timeout_seconds": 30,
+    "fallback_to_local": true,
+    "disable_reason": "Temporary disable due to rate limiting issues causing infinite loops"
+  },
+  
+  "loop_prevention": {
+    "task_tracking": {
+      "enabled": true,
+      "max_task_duration_minutes": 10,
+      "track_file_changes": true,
+      "prevent_circular_edits": true
+    },
+    "failure_handling": {
+      "max_retries": 2,
+      "exponential_backoff": true,
+      "escalate_to_human": true,
+      "log_failure_patterns": true
+    },
+    "state_management": {
+      "checkpoint_progress": true,
+      "rollback_on_loop_detection": true,
+      "preserve_working_changes": true
+    }
+  },
+  
+  "development_patterns": {
+    "preferred_approach": [
+      "1. Use MCP context for project understanding",
+      "2. Ask specific, targeted questions",
+      "3. Make incremental changes only", 
+      "4. Verify each step before continuing",
+      "5. Exit if encountering repeated failures"
+    ],
+    "container_commands": {
+      "backend_access": "docker exec -it lingolinq_backend bash",
+      "frontend_access": "docker exec -it lingolinq_frontend bash",
+      "db_access": "docker exec -it lingolinq_postgres psql -U postgres -d lingolinq_development",
+      "redis_access": "docker exec -it lingolinq_redis redis-cli"
+    },
+    "efficient_testing": [
+      "# Use targeted tests only",
+      "docker exec lingolinq_backend bundle exec rspec spec/specific_test.rb",
+      "docker exec lingolinq_frontend ember test --filter='specific test'"
+    ]
+  },
+  
+  "safety_constraints": {
+    "version_locks": {
+      "ruby": "3.2.8",
+      "node": "18.x", 
+      "rails": "6.1",
+      "ember": "3.12"
+    },
+    "file_modification_limits": {
+      "max_files_per_session": 10,
+      "require_confirmation_for_major_changes": true,
+      "backup_before_changes": true
+    },
+    "resource_limits": {
+      "max_session_duration_minutes": 30,
+      "token_usage_warning_threshold": 50000,
+      "auto_exit_on_token_limit": true
+    }
+  },
+  
+  "error_recovery": {
+    "auto_recovery": {
+      "enabled": true,
+      "reset_on_loop_detection": true,
+      "preserve_user_intent": true,
+      "simplify_approach": true
+    },
+    "escalation": {
+      "notify_on_repeated_failures": true,
+      "suggest_alternative_approaches": true,
+      "provide_manual_steps": true
+    }
+  },
+  
+  "context_optimization": {
+    "smart_file_selection": {
+      "prioritize_recently_modified": true,
+      "include_test_files": false,
+      "exclude_generated_files": true,
+      "focus_on_relevant_modules": true
+    },
+    "devin_mcp_integration": {
+      "use_for_context_only": true,
+      "avoid_recursive_queries": true,
+      "cache_responses": true,
+      "prefer_targeted_asks": true
+    }
+  },
+  
+  "monitoring": {
+    "token_tracking": {
+      "enabled": true,
+      "log_usage_patterns": true,
+      "alert_on_unusual_consumption": true
+    },
+    "performance_metrics": {
+      "track_task_completion_time": true,
+      "monitor_success_rate": true,
+      "identify_problematic_patterns": true
+    }
+  }
+}

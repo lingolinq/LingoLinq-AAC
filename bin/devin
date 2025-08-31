@@ -36,6 +36,61 @@ get_context() {
     fi
 }
 
+# Safe git operations to prevent interactive editor loops
+safe_git_commit() {
+    local message="$1"
+    if [[ -z "$message" ]]; then
+        message="Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    echo "🔒 Safe git commit with message: $message"
+    git commit -m "$message" || {
+        echo "❌ Git commit failed. Check for conflicts or staging issues."
+        return 1
+    }
+}
+
+safe_git_merge() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "❌ Branch name required for safe merge"
+        return 1
+    fi
+    
+    echo "🔒 Safe git merge of $branch (non-interactive)"
+    # Check for uncommitted changes first
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠️ Uncommitted changes detected. Stashing first..."
+        git stash push -m "Auto-stash before merge $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    
+    # Perform merge with automatic commit message
+    timeout 60s git merge "$branch" --no-edit -m "Merge branch '$branch' into $(git branch --show-current)" || {
+        echo "❌ Git merge failed or timed out. Aborting merge..."
+        git merge --abort 2>/dev/null || true
+        return 1
+    }
+}
+
+safe_git_checkout() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "❌ Branch name required for safe checkout"
+        return 1
+    fi
+    
+    echo "🔒 Safe git checkout to $branch"
+    # Check for uncommitted changes first
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠️ Uncommitted changes detected. Stashing first..."
+        git stash push -m "Auto-stash before checkout $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    
+    git checkout "$branch" || {
+        echo "❌ Git checkout failed. Branch may not exist or have conflicts."
+        return 1
+    }
+}
+
 case "$1" in
   context)
     get_context "$2"
@@ -125,6 +180,78 @@ case "$1" in
     $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
     ;;
 
+  gemini-full)
+    shift
+    QUESTION="$*"
+    if [[ -z "$QUESTION" ]]; then
+        echo "Usage: devin gemini-full 'your question here'"
+        exit 1
+    fi
+    echo "🛡️  Safe Gemini mode (prevents token loops and uses lightweight context)"
+    if [[ -z "$GEMINI_CMD" ]]; then
+        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
+        exit 1
+    fi
+    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
+        echo "❌ GOOGLE_AI_API_KEY environment variable is not set."
+        echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
+        exit 1
+    fi
+    # Ensure lightweight context exists
+    if [[ ! -f "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" ]]; then
+        echo "📝 Creating lightweight context..."
+        mkdir -p "$REPO_PATH/.ai/context"
+        cat > "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" << 'EOF'
+# LingoLinq AAC - Quick Context
+
+## What This Is
+Web-based AAC (Augmentative and Alternative Communication) app for people who need help communicating through speech synthesis and communication boards.
+
+## Architecture
+- **Backend**: Rails API, **Frontend**: Ember.js app, **Database**: PostgreSQL + Redis
+
+## Key Features
+- Cloud-synced communication boards, Multi-device support, Team coordination, Real-time collaboration, Offline capability
+
+## Development Stack
+Ruby 3.2.8+, Node.js 18+, Rails + Ember + PostgreSQL + Redis, Docker support available
+
+Use `ask-full` for detailed context.
+EOF
+    fi
+    CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
+    cd "$REPO_PATH"
+    echo "🔄 Calling Gemini API (safe mode with timeout)..."
+    timeout 30s $GEMINI_CMD -p "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
+        echo "❌ Gemini CLI timed out or failed. This may be due to:"
+        echo "   - Google AI API server issues (500 errors)"
+        echo "   - Network connectivity issues"
+        echo "   - Invalid API key"
+        echo "   Try again in a few minutes or check Google AI API status."
+        exit 1
+    }
+    ;;
+
+  gemini-safe)
+    shift
+    QUESTION="$*"
+    if [[ -z "$QUESTION" ]]; then
+        echo "Usage: devin gemini-safe 'your question here'"
+        exit 1
+    fi
+    echo "🔷 Ultra-safe Gemini mode (minimal context, 15s timeout)"
+    if [[ -z "$GEMINI_CMD" ]]; then
+        echo "❌ Gemini CLI not found."
+        exit 1
+    fi
+    cd "$REPO_PATH"
+    echo "🔄 Calling Gemini API (ultra-safe mode)..."
+    timeout 15s $GEMINI_CMD -p "This is LingoLinq AAC, a Rails+Ember.js communication app. Question: $QUESTION" || {
+        echo "❌ Gemini CLI failed. Try checking your API key and connection."
+        exit 1
+    }
+    ;;
+
   deepwiki)
     DEEPWIKI_URL="${2:-https://deepwiki.com/swahlquist/LingoLinq-AAC}"
     shift $(( $# > 1 ? 1 : 0 ))
@@ -143,8 +270,55 @@ case "$1" in
     fi
     ;;
 
+  git-safe)
+    case "$2" in
+      commit)
+        shift 2
+        MESSAGE="$*"
+        if [[ -z "$MESSAGE" ]]; then
+          MESSAGE="Auto-commit from AI assistant: $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+        safe_git_commit "$MESSAGE"
+        ;;
+      merge)
+        if [[ -z "$3" ]]; then
+          echo "Usage: devin git-safe merge <branch-name>"
+          exit 1
+        fi
+        safe_git_merge "$3"
+        ;;
+      checkout)
+        if [[ -z "$3" ]]; then
+          echo "Usage: devin git-safe checkout <branch-name>"
+          exit 1
+        fi
+        safe_git_checkout "$3"
+        ;;
+      status)
+        echo "📊 Safe git status check..."
+        git status --porcelain
+        ;;
+      stash-clean)
+        echo "🧹 Stashing all changes and cleaning working directory..."
+        git add .
+        git stash push -m "AI cleanup stash: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "✅ Working directory is now clean"
+        ;;
+      *)
+        echo "Usage: devin git-safe [commit|merge|checkout|status|stash-clean]"
+        echo ""
+        echo "Safe Git Commands:"
+        echo "  commit [message]     - Safe commit with automatic message"
+        echo "  merge <branch>       - Safe merge with conflict handling"
+        echo "  checkout <branch>    - Safe checkout with stash protection"
+        echo "  status               - Clean status check"
+        echo "  stash-clean          - Stash all changes and clean working dir"
+        ;;
+    esac
+    ;;
+
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|gemini-full|gemini-safe|git-safe|deepwiki|export] <args>"
     echo ""
     echo "Commands:"
     echo "  context [section]  - Get project context (architecture, dependencies, etc.)"
@@ -153,6 +327,9 @@ case "$1" in
     echo "  review <commit>   - AI code review with project context"
     echo "  analyze <target>  - Deep analysis (repo, changes)"
     echo "  ask <question>    - Ask AI with full project context"
+    echo "  gemini-full <q>   - 🛡️  Safe Gemini mode with lightweight context & timeout"
+    echo "  gemini-safe <q>   - 🔷 Ultra-safe Gemini mode (minimal context, 15s timeout)"
+    echo "  git-safe <cmd>    - 🔒 Safe git operations (commit|merge|checkout|status|stash-clean)"
     echo "  deepwiki <url>    - Aggregate DeepWiki content"
     echo "  export wiki       - Export context as markdown"
     ;;

@@ -1,13 +1,9 @@
 {
-  "mcpServers": {
-    "deepwiki": {
-      "url": "https://mcp.deepwiki.com/sse"
-    }
-  },
+  "mcpServers": {},
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(git:*)",  
+      "Bash(git:*)",
       "Bash(grep:*)",
       "Bash(bundle:*)",
       "Bash(rails:*)",

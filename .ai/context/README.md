@@ -1,24 +1,18 @@
 # LingoLinq-AAC AI Assistant Documentation
 
 ## Quick Start for AI Sessions
-1. Read `AI_CONTEXT.md` first for project overview
-2. Check `PROJECT_MAP.md` for directory structure
-3. Review `RAILS_COMPONENTS.md` for code organization
-4. See `DEPENDENCIES.md` for technology stack
+1. Read `LIGHTWEIGHT_CONTEXT.md` for project overview
+2. Check `../DEVELOPMENT_ROADMAP.md` for current priorities
+3. Review main `README.md` for setup instructions
 
-## Files in this directory:
-AI_CONTEXT.md
-DEPENDENCIES.md
-PROJECT_MAP.md
-RAILS_COMPONENTS.md
+## Key Files for New Team Context
+- `LIGHTWEIGHT_CONTEXT.md` - Quick project summary (~200 tokens)
+- `../DEVELOPMENT_ROADMAP.md` - Single source of truth for planning
+- `../README.md` - Complete project documentation
+- `TEAM_WORKFLOW.md` - AI development tools and commands
 
-## Usage
-At the start of new AI sessions, reference these files to avoid token-heavy project scanning.
+## Development Priorities
+See `../DEVELOPMENT_ROADMAP.md` for current phase and priorities.
+Phase 1 focus: Stabilize current architecture with security fixes.
 
-Generated: Wed Jul 23 16:07:28 UTC 2025
-
-## New Files Added:
-- MODERNIZATION_ROADMAP.md - Development phases and priorities
-- TEAM_WORKFLOW.md - AI agent roles and coordination
-- ARCHITECTURE_DECISIONS.md - Technical decision tracking
-- roles/ - Role-specific context for different AI agents
+Generated: $(date)
