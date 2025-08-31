@@ -82,7 +82,8 @@
       "mcp__deepwiki__read_wiki_structure",
       "Bash(claude-code fix-docker:*)",
       "Bash(claude --doctor)",
-      "Bash(claude doctor)"
+      "Bash(claude doctor)",
+      "Bash(export GOOGLE_AI_API_KEY=\"test\")"
     ],
     "deny": []
   }

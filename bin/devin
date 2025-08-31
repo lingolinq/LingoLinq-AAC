@@ -5,7 +5,6 @@
 REPO_PATH="$(git rev-parse --show-toplevel)"
 MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
 CLAUDE_CMD="claude" # Update if using a different alias
-GEMINI_CMD="$(which gemini 2>/dev/null || echo 'gemini-cli')"  # Update if needed
 
 # Function to ensure MCP context is up-to-date
 update_context() {
@@ -22,25 +21,6 @@ update_context() {
     "
 }
 
-# Token usage monitoring and logging
-log_token_usage() {
-    local command="$1"
-    local estimated_tokens="$2" 
-    local additional_info="$3"
-    
-    mkdir -p "$REPO_PATH/.ai/logs"
-    local log_file="$REPO_PATH/.ai/logs/gemini-token-usage.log"
-    local timestamp=$(date '+%a, %b %d, %Y %l:%M:%S %p')
-    
-    echo "$timestamp: $command | Estimated tokens: $estimated_tokens${additional_info:+ | $additional_info}" >> "$log_file"
-    
-    # Check for potential overuse (more than 10 calls in last hour)
-    local recent_count=$(tail -50 "$log_file" 2>/dev/null | grep "$(date '+%a, %b %d, %Y %l')" | wc -l)
-    if [[ $recent_count -gt 10 ]]; then
-        echo "⚠️  WARNING: High token usage detected ($recent_count calls in last hour)"
-        echo "   Consider using lighter commands like 'gemini-safe' or taking a break"
-    fi
-}
 
 # Function to get project context for AI agents
 get_context() {
@@ -200,90 +180,6 @@ case "$1" in
     $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
     ;;
 
-  gemini-full)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "Usage: devin gemini-full 'your question here'"
-        exit 1
-    fi
-    echo "🛡️  Safe Gemini mode (prevents token loops and uses lightweight context)"
-    
-    # Log the command usage
-    log_token_usage "gemini-full command" "~250" "Question: ${QUESTION:0:50}..."
-    
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY environment variable is not set."
-        echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
-        exit 1
-    fi
-    # Ensure lightweight context exists
-    if [[ ! -f "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" ]]; then
-        echo "📝 Creating lightweight context..."
-        mkdir -p "$REPO_PATH/.ai/context"
-        cat > "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" << 'EOF'
-# LingoLinq AAC - Quick Context
-
-## What This Is
-Web-based AAC (Augmentative and Alternative Communication) app for people who need help communicating through speech synthesis and communication boards.
-
-## Architecture
-- **Backend**: Rails API, **Frontend**: Ember.js app, **Database**: PostgreSQL + Redis
-
-## Key Features
-- Cloud-synced communication boards, Multi-device support, Team coordination, Real-time collaboration, Offline capability
-
-## Development Stack
-Ruby 3.2.8+, Node.js 18+, Rails + Ember + PostgreSQL + Redis, Docker support available
-
-Use `ask-full` for detailed context.
-EOF
-    fi
-    CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
-    cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API (safe mode with timeout)..."
-    timeout 30s $GEMINI_CMD -p "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
-        log_token_usage "gemini-full ERROR" "N/A" "Timeout or API failure"
-        echo "❌ Gemini CLI timed out or failed. This may be due to:"
-        echo "   - Google AI API server issues (500 errors)"
-        echo "   - Network connectivity issues"
-        echo "   - Invalid API key"
-        echo "   Try again in a few minutes or check Google AI API status."
-        exit 1
-    }
-    log_token_usage "gemini-full SUCCESS" "~250" "Completed successfully"
-    ;;
-
-  gemini-safe)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "Usage: devin gemini-safe 'your question here'"
-        exit 1
-    fi
-    echo "🔷 Ultra-safe Gemini mode (minimal context, 15s timeout)"
-    
-    # Log the command usage
-    log_token_usage "gemini-safe command" "~100" "Question: ${QUESTION:0:50}..."
-    
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found."
-        exit 1
-    fi
-    cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API (ultra-safe mode)..."
-    timeout 15s $GEMINI_CMD -p "This is LingoLinq AAC, a Rails+Ember.js communication app. Question: $QUESTION" || {
-        log_token_usage "gemini-safe ERROR" "N/A" "Timeout or API failure"
-        echo "❌ Gemini CLI failed. Try checking your API key and connection."
-        exit 1
-    }
-    log_token_usage "gemini-safe SUCCESS" "~100" "Completed successfully"
-    ;;
-
   deepwiki)
     DEEPWIKI_URL="${2:-https://deepwiki.com/swahlquist/LingoLinq-AAC}"
     shift $(( $# > 1 ? 1 : 0 ))
@@ -296,7 +192,7 @@ EOF
       echo "📦 Exporting project context as markdown..."
       update_context
       CONTEXT=$(get_context all)
-      $GEMINI_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
+      $CLAUDE_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
     else
       echo "❌ Unsupported export target."
     fi
@@ -349,66 +245,8 @@ EOF
     esac
     ;;
 
-  monitor)
-    case "$2" in
-      tokens)
-        echo "📊 Token Usage Monitor"
-        echo "======================"
-        
-        log_file="$REPO_PATH/.ai/logs/gemini-token-usage.log"
-        if [[ ! -f "$log_file" ]]; then
-          echo "No token usage data found yet."
-          echo "Start using 'gemini-full' or 'gemini-safe' commands to begin tracking."
-          exit 0
-        fi
-        
-        echo ""
-        echo "📈 Recent Activity (last 10 entries):"
-        tail -10 "$log_file"
-        echo ""
-        
-        echo "📊 Usage Statistics:"
-        today=$(date '+%a, %b %d, %Y')
-        today_count=$(grep "$today" "$log_file" 2>/dev/null | wc -l)
-        echo "  • Calls today: $today_count"
-        
-        success_count=$(grep "SUCCESS" "$log_file" 2>/dev/null | wc -l)
-        error_count=$(grep "ERROR" "$log_file" 2>/dev/null | wc -l)
-        echo "  • Successful calls: $success_count"
-        echo "  • Failed calls: $error_count"
-        
-        # Check for high usage patterns
-        recent_hour=$(date '+%a, %b %d, %Y %l')
-        recent_count=$(grep "$recent_hour" "$log_file" 2>/dev/null | wc -l)
-        if [[ $recent_count -gt 5 ]]; then
-          echo ""
-          echo "⚠️  HIGH USAGE WARNING: $recent_count calls in the last hour"
-          echo "   Consider taking a break or using lighter 'gemini-safe' mode"
-        fi
-        ;;
-      reset)
-        log_file="$REPO_PATH/.ai/logs/gemini-token-usage.log"
-        if [[ -f "$log_file" ]]; then
-          mv "$log_file" "${log_file}.backup.$(date +%Y%m%d_%H%M%S)"
-          echo "✅ Token usage log reset. Previous log backed up."
-        else
-          echo "No token usage log found to reset."
-        fi
-        ;;
-      *)
-        echo "Usage: devin monitor [tokens|reset]"
-        echo ""
-        echo "Monitor Commands:"
-        echo "  tokens  - Show current token usage statistics and warnings"
-        echo "  reset   - Reset token usage logs (backs up existing log)"
-        echo ""
-        echo "💡 Use this to track Gemini API usage and prevent token exhaustion loops"
-        ;;
-    esac
-    ;;
-
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|gemini-full|gemini-safe|git-safe|monitor|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|git-safe|deepwiki|export] <args>"
     echo ""
     echo "Commands:"
     echo "  context [section]  - Get project context (architecture, dependencies, etc.)"
@@ -417,11 +255,10 @@ EOF
     echo "  review <commit>   - AI code review with project context"
     echo "  analyze <target>  - Deep analysis (repo, changes)"
     echo "  ask <question>    - Ask AI with full project context"
-    echo "  gemini-full <q>   - 🛡️  Safe Gemini mode with lightweight context & timeout"
-    echo "  gemini-safe <q>   - 🔷 Ultra-safe Gemini mode (minimal context, 15s timeout)"
     echo "  git-safe <cmd>    - 🔒 Safe git operations (commit|merge|checkout|status|stash-clean)"
-    echo "  monitor <cmd>     - 📊 Token usage monitoring (tokens|reset)"
     echo "  deepwiki <url>    - Aggregate DeepWiki content"
     echo "  export wiki       - Export context as markdown"
+    echo ""
+    echo "💡 For Gemini AI interactions, use Gemini's native 'all files' feature instead of Devin integration"
     ;;
 esac

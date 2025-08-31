@@ -1,7 +1,0 @@
-Thu, Aug 28, 2025  5:12:36 PM: Monitoring system initialized
-Thu, Aug 28, 2025  5:14:11 PM: Test session - ask command demo
-Thu, Aug 28, 2025  5:23:20 PM: SESSION: Ask with MCP - test question for monitoring...
-Thu, Aug 28, 2025  5:23:20 PM: MCP context request | Estimated tokens: 800
-Thu, Aug 28, 2025  5:24:44 PM: SESSION: Ask with MCP - what is 2+2... | Estimated tokens: 2500
-Thu, Aug 28, 2025  5:24:44 PM: MCP context request | Estimated tokens: 800
-Thu, Aug 28, 2025  5:25:39 PM: SESSION: Ask completed | Estimated tokens: 2500

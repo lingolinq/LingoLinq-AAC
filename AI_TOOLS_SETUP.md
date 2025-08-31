@@ -21,19 +21,7 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 setx ANTHROPIC_API_KEY "your-anthropic-api-key-here"
 ```
 
-### 2. Install Gemini CLI (Optional, Secondary AI)
-```bash
-# Install Gemini CLI
-npm install -g @google/generative-ai-cli
-
-# Get your API key from: https://aistudio.google.com/app/apikey  
-export GOOGLE_AI_API_KEY="your-google-ai-api-key-here"
-
-# Windows users:
-setx GOOGLE_AI_API_KEY "your-google-ai-api-key-here"
-```
-
-### 3. Validate Setup
+### 2. Validate Setup
 ```bash
 ./bin/devin validate
 ```
@@ -41,10 +29,17 @@ setx GOOGLE_AI_API_KEY "your-google-ai-api-key-here"
 **Expected output:**
 ```
 ✅ Claude CLI found: claude
-✅ Gemini CLI found: gemini  
 ✅ ANTHROPIC_API_KEY is set
-✅ GOOGLE_AI_API_KEY is set
+✅ DeepWiki MCP integration ready
 ```
+
+### 3. For Gemini AI (Optional)
+If you want to use Gemini AI, install it separately and use Gemini's native "all files" feature instead of the Devin integration:
+```bash
+npm install -g @google/generative-ai-cli
+export GOOGLE_AI_API_KEY="your-google-ai-api-key-here"
+```
+Then use Gemini directly with its built-in file understanding capabilities.
 
 ## How to Use AI Tools
 
@@ -57,15 +52,15 @@ setx GOOGLE_AI_API_KEY "your-google-ai-api-key-here"
 
 ### Complex Analysis (Full Context)
 ```bash
-./bin/devin ask-full "Explain the complete board sharing architecture"
-./bin/devin ask-full "How should I modernize the Ember.js frontend?"
-./bin/devin ask-full "What's the best approach to fix the npm vulnerabilities?"
+./bin/devin analyze repo
+./bin/devin analyze changes
+./bin/devin review HEAD~5..HEAD
 ```
 
-### Direct CLI Access
+### Code Reviews and Documentation
 ```bash
-./bin/devin claude "Debug this Rails error: [paste error]"
-./bin/devin gemini "Generate tests for this component: [paste code]"
+./bin/devin export wiki    # Generate project documentation
+./bin/devin review abc123  # AI code review of commit
 ```
 
 ## What Makes This Special
