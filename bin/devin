@@ -322,7 +322,7 @@ EOF
         echo "Usage: ./bin/devin gemini-full 'your question here'"
         exit 1
     fi
-    echo "🧠 Asking Gemini with full project context: $QUESTION"
+    echo "🛡️  Safe Gemini mode (prevents token loops and uses lightweight context)"
     if [[ -z "$GEMINI_CMD" ]]; then
         echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
         exit 1
@@ -332,16 +332,37 @@ EOF
         echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
         exit 1
     fi
-    update_context
-    CONTEXT=$(get_context all)
+    # Ensure lightweight context exists
+    if [[ ! -f "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" ]]; then
+        echo "📝 Creating lightweight context..."
+        mkdir -p "$REPO_PATH/.ai/context"
+        cat > "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" << 'EOF'
+# LingoLinq AAC - Quick Context
+
+## What This Is
+Web-based AAC (Augmentative and Alternative Communication) app for people who need help communicating through speech synthesis and communication boards.
+
+## Architecture
+- **Backend**: Rails API, **Frontend**: Ember.js app, **Database**: PostgreSQL + Redis
+
+## Key Features
+- Cloud-synced communication boards, Multi-device support, Team coordination, Real-time collaboration, Offline capability
+
+## Development Stack
+Ruby 3.2.8+, Node.js 18+, Rails + Ember + PostgreSQL + Redis, Docker support available
+
+Use `ask-full` for detailed context.
+EOF
+    fi
+    CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
     cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API with full context (this may take a moment)..."
-    timeout 60s $GEMINI_CMD -p "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION" || {
+    echo "🔄 Calling Gemini API (safe mode with timeout)..."
+    timeout 30s $GEMINI_CMD -p "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
         echo "❌ Gemini CLI timed out or failed. This may be due to:"
         echo "   - Google AI API server issues (500 errors)"
-        echo "   - Large context causing API timeouts"
+        echo "   - Network connectivity issues"
         echo "   - Invalid API key"
-        echo "   Try using './bin/devin gemini-safe' for lightweight queries."
+        echo "   Try again in a few minutes or check Google AI API status."
         exit 1
     }
     ;;

@@ -9,9 +9,17 @@
 
 # Ignore all logfiles and tempfiles.
 /log/*
+/logs/*
 /tmp/*
 !/log/.keep
 !/tmp/.keep
+
+# Ignore database files
+/db/*.sqlite3
+
+# Ignore backups and caches
+/.cleanup-backup/
+/.ruby-lsp/
 
 /coverage/
 
