@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "deepwiki": {
+      "command": "npx",
+      "args": [
+        "--yes",
+        "mcp-deepwiki"
+      ],
+      "env": {
+        "DEEPWIKI_REPO": "swahlquist/LingoLinq-AAC"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "--yes",
+        "@modelcontextprotocol/server-filesystem"
+      ],
+      "env": {
+        "FILESYSTEM_ALLOWED_PATHS": [
+          "/workspace",
+          "/tmp",
+          "."
+        ]
+      }
+    }
+  }
+}

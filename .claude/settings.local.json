@@ -64,7 +64,26 @@
       "Bash(\"/c/Users/skawa/AppData/Roaming/npm/claude\" --version)",
       "Read(**)",
       "mcp__deepwiki__ask_question",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git for-each-ref:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Read(C:\\Users\\skawa\\AppData\\Local\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState/**)",
+      "Read(C:\\Users\\skawa\\.local\\bin/**)",
+      "Bash(for branch in devin/1753718322-updates ember-3-12-to-3-28-upgrade epic/ai-features epic/rebranding-and-ux-ui epic/tech-debt-and-security feature/llm-enhanced-inflections feature/token-optimization-mcp rails-6-to-7-upgrade test/repo-reorganization)",
+      "Bash(do)",
+      "Bash({)",
+      "Bash(continue)",
+      "Bash(done)",
+      "Bash(git show:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(bash:*)",
+      "mcp__deepwiki__read_wiki_structure",
+      "Bash(claude-code fix-docker:*)",
+      "Bash(claude --doctor)",
+      "Bash(claude doctor)",
+      "Bash(export GOOGLE_AI_API_KEY=\"test\")"
     ],
     "deny": []
   }

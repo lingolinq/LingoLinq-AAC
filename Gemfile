@@ -22,7 +22,7 @@ end
 gem 'concurrent-ruby', '1.3.4'
 
 # Rails 5.2 doesn't seem to work on heroku with octopus :-/
-gem 'rails', '6.1' # TODO: upgrade to 7.2
+gem 'rails', '~> 6.1.7' # Allow security patches - TODO: upgrade to 8.0+
 gem 'mimemagic', '~> 0.3.10'
 
 

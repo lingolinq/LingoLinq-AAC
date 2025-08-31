@@ -18,8 +18,8 @@
 # Claude Code (with MCP/DeepWiki integration)
 claude
 
-# Gemini CLI (standalone mode)
-./bin/devin-gemini simple
+# Gemini CLI (native features - full codebase context)
+gemini --all-files
 ```
 
 ---
@@ -37,12 +37,12 @@ claude
 ./bin/devin context backend  # Backend-specific context
 ```
 
-#### `./bin/devin-gemini context`
-**Purpose**: Get basic project context for Gemini  
-**Uses**: Local files only  
+#### `gemini --all-files`
+**Purpose**: Start Gemini with full codebase context  
+**Uses**: Native 1M token context window  
 **Example**:
 ```bash
-./bin/devin-gemini context   # Basic project overview
+gemini --all-files           # Full project context (recommended)
 ```
 
 ### AI Question & Answer
@@ -56,13 +56,13 @@ claude
 ./bin/devin ask "What are the main security vulnerabilities?"
 ```
 
-#### `./bin/devin-gemini ask "your question"`
-**Purpose**: Ask Gemini with basic project context  
-**Best for**: Code explanations, quick questions  
+#### `gemini --all-files --prompt "your question"`
+**Purpose**: Ask Gemini with full codebase context  
+**Best for**: Architecture analysis, code explanations, complex questions  
 **Example**:
 ```bash
-./bin/devin-gemini ask "How do I add a new Rails model?"
-./bin/devin-gemini ask "Explain the Ember.js routing structure"
+gemini --all-files --prompt "How do I add a new Rails model?"
+gemini --all-files --prompt "Explain the Ember.js routing structure"
 ```
 
 ### Code Analysis & Review
@@ -109,11 +109,11 @@ claude
 ./bin/devin generate         # Create new architecture overview
 ```
 
-#### `./bin/devin-gemini generate`
-**Purpose**: Generate basic project overview for Gemini  
+#### `gemini --all-files --prompt "generate project overview"`
+**Purpose**: Generate comprehensive project analysis using full codebase  
 **Example**:
 ```bash
-./bin/devin-gemini generate  # Create Gemini-specific context
+gemini --all-files --prompt "generate a comprehensive project architecture overview"
 ```
 
 ### Documentation & Export
@@ -141,7 +141,7 @@ claude
 
 1. **Quick Question about Code**:
    ```bash
-   ./bin/devin-gemini ask "How does board synchronization work?"
+   gemini --all-files --prompt "How does board synchronization work?"
    ```
 
 2. **Deep Architecture Analysis**:
@@ -162,13 +162,14 @@ claude
 
 ### 🎯 Tool Selection Guide
 
-| Task | Use Claude (`./bin/devin`) | Use Gemini (`./bin/devin-gemini`) |
-|------|---------------------------|-----------------------------------|
-| Architecture analysis | ✅ Better with MCP context | ❌ Limited context |
-| Code reviews | ✅ Roast-style feedback | ⚠️ Basic feedback |
-| Quick code questions | ⚠️ Might be overkill | ✅ Fast and simple |
-| Complex integrations | ✅ Full system awareness | ❌ Limited awareness |
+| Task | Use Claude (`./bin/devin`) | Use Gemini (`gemini --all-files`) |
+|------|---------------------------|----------------------------------|
+| Architecture analysis | ✅ MCP + visual diagrams | ✅ Full codebase context |
+| Code reviews | ✅ Roast-style feedback | ✅ Comprehensive feedback |
+| Quick code questions | ⚠️ Might be overkill | ✅ Fast with full context |
+| Complex integrations | ✅ Full system + external APIs | ✅ Full system awareness |
 | Simple syntax help | ⚠️ Overkill | ✅ Perfect fit |
+| Multi-file operations | ✅ Plan mode | ✅ Native agent mode |
 
 ---
 
@@ -178,21 +179,26 @@ claude
 
 **"Command not found" errors:**
 ```bash
-# Make scripts executable
+# Make devin script executable
 chmod +x ./bin/devin
-chmod +x ./bin/devin-gemini
+
+# Check if Gemini CLI is installed
+gemini --version
 ```
 
 **"No project context found":**
 ```bash
-# Generate fresh context
+# Generate fresh context for Claude
 ./bin/devin generate
-./bin/devin-gemini generate
+
+# For Gemini, use --all-files for automatic context
+gemini --all-files
 ```
 
-**Gemini hanging/looping:**
-- Use `./bin/devin-gemini` commands (standalone mode)
-- Avoid the original `gemini -a` if it loops
+**Gemini issues:**
+- Always use `gemini --all-files` for full project context
+- Use `gemini --model gemini-2.5-flash` for faster responses
+- Native features prevent loops - no wrapper scripts needed
 
 **Claude MCP connection issues:**
 - Check if `.ai/tools/deepwiki-mcp/` exists
@@ -203,8 +209,8 @@ chmod +x ./bin/devin-gemini
 ## Team Guidelines
 
 ### 👥 For New Team Members
-1. Start with `./bin/devin-gemini simple` for basic questions
-2. Use `./bin/devin context` to understand the architecture
+1. Start with `gemini --all-files` for comprehensive codebase understanding
+2. Use `./bin/devin context` for visual architecture diagrams
 3. Ask specific questions rather than open-ended ones
 
 ### 👨‍💻 For Developers  

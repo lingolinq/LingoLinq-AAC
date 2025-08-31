@@ -3,17 +3,24 @@
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-CLAUDE_CMD="/c/Users/skawa/AppData/Roaming/npm/claude" # Full path to avoid PATH issues
-GEMINI_CMD="/c/Users/skawa/AppData/Roaming/npm/gemini"  # Full path to avoid PATH issues
+MCP_SERVER_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp"
+CLAUDE_CMD="claude" # Update if using a different alias
 
 # Function to ensure MCP context is up-to-date
 update_context() {
     echo "🔄 Updating DeepWiki context..."
-    cd "$REPO_PATH"
-    mkdir -p .ai/context
-    git log --since="7 days ago" --oneline --stat > .ai/context/recent-changes.txt 2>/dev/null || echo "⚠️ Could not update git context"
-    echo "✅ Context updated successfully"
+    cd "$MCP_SERVER_PATH"
+    node -e "
+    const { execSync } = require('child_process');
+    try {
+        execSync('git log --since=\"7 days ago\" --oneline --stat > .ai/context/recent-changes.txt', { cwd: '$REPO_PATH' });
+        console.log('✅ Context updated successfully');
+    } catch (error) {
+        console.log('⚠️ Failed to update context:', error.message);
+    }
+    "
 }
+
 
 # Function to get project context for AI agents
 get_context() {
@@ -29,6 +36,61 @@ get_context() {
     fi
 }
 
+# Safe git operations to prevent interactive editor loops
+safe_git_commit() {
+    local message="$1"
+    if [[ -z "$message" ]]; then
+        message="Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    echo "🔒 Safe git commit with message: $message"
+    git commit -m "$message" || {
+        echo "❌ Git commit failed. Check for conflicts or staging issues."
+        return 1
+    }
+}
+
+safe_git_merge() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "❌ Branch name required for safe merge"
+        return 1
+    fi
+    
+    echo "🔒 Safe git merge of $branch (non-interactive)"
+    # Check for uncommitted changes first
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠️ Uncommitted changes detected. Stashing first..."
+        git stash push -m "Auto-stash before merge $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    
+    # Perform merge with automatic commit message
+    timeout 60s git merge "$branch" --no-edit -m "Merge branch '$branch' into $(git branch --show-current)" || {
+        echo "❌ Git merge failed or timed out. Aborting merge..."
+        git merge --abort 2>/dev/null || true
+        return 1
+    }
+}
+
+safe_git_checkout() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "❌ Branch name required for safe checkout"
+        return 1
+    fi
+    
+    echo "🔒 Safe git checkout to $branch"
+    # Check for uncommitted changes first
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠️ Uncommitted changes detected. Stashing first..."
+        git stash push -m "Auto-stash before checkout $(date '+%Y-%m-%d %H:%M:%S')"
+    fi
+    
+    git checkout "$branch" || {
+        echo "❌ Git checkout failed. Branch may not exist or have conflicts."
+        return 1
+    }
+}
+
 case "$1" in
   context)
     get_context "$2"
@@ -41,35 +103,36 @@ case "$1" in
   generate)
     echo "🏗️ Generating fresh architecture map..."
     update_context
-    cd "$REPO_PATH"
+    cd "$MCP_SERVER_PATH"
+    timeout 30s node -e "
+    const fs = require('fs');
+    const path = require('path');
     
-    # Generate basic project map without Node.js dependency
-    cat > .ai/context/PROJECT_MAP.md << EOF
-# LingoLinq AAC Project Architecture
-
-## Overview
-Rails + Ember.js AAC system with multi-platform support
-
-## Recent Activity
-EOF
+    // Generate basic project map
+    const projectRoot = '$REPO_PATH';
+    let map = '# LingoLinq AAC Project Architecture\\n\\n';
+    map += '## Overview\\n';
+    map += 'Rails + Ember.js AAC system with multi-platform support\\n\\n';
+    map += '## Recent Activity\\n';
     
-    if [[ -f .ai/context/recent-changes.txt ]]; then
-        head -10 .ai/context/recent-changes.txt >> .ai/context/PROJECT_MAP.md
-    else
-        echo "No recent changes found" >> .ai/context/PROJECT_MAP.md
-    fi
+    try {
+        const recentChanges = fs.readFileSync(path.join(projectRoot, '.ai/context/recent-changes.txt'), 'utf8');
+        const lines = recentChanges.split('\\n').slice(0, 10);
+        map += lines.join('\\n') + '\\n\\n';
+    } catch (e) {
+        map += 'No recent changes found\\n\\n';
+    }
     
-    cat >> .ai/context/PROJECT_MAP.md << EOF
-
-## Key Directories
-- app/models/ - Rails models
-- app/controllers/ - Rails controllers
-- app/frontend/ - Ember.js frontend
-- lib/ - Shared utilities
-- .ai/context/ - AI context files
-EOF
+    map += '## Key Directories\\n';
+    map += '- app/models/ - Rails models\\n';
+    map += '- app/controllers/ - Rails controllers\\n';
+    map += '- app/frontend/ - Ember.js frontend\\n';
+    map += '- lib/ - Shared utilities\\n';
+    map += '- .ai/context/ - AI context files\\n';
     
-    echo "✅ Architecture map generated"
+    fs.writeFileSync(path.join(projectRoot, '.ai/context/PROJECT_MAP.md'), map);
+    console.log('✅ Architecture map generated');
+    " 2>/dev/null || echo "⚠️ Generation timed out, but basic context should be available"
     ;;
 
   review)
@@ -111,56 +174,10 @@ EOF
   ask)
     shift
     QUESTION="$*"
-    echo "🤖 Asking Claude with full project context: $QUESTION"
+    echo "🤖 Asking AI with full project context: $QUESTION"
     update_context
     CONTEXT=$(get_context all)
     $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
-    ;;
-
-  gemini)
-    shift
-    QUESTION="$*"
-    echo "🧠 Asking Gemini with full project context: $QUESTION"
-    update_context
-    CONTEXT=$(get_context all)
-    cd "$REPO_PATH"
-    $GEMINI_CMD -p "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
-    ;;
-
-  review-gemini)
-    echo "🔥 Gemini-powered commit review with context..."
-    update_context
-    CONTEXT=$(get_context architecture)
-    git log "$2" --oneline | while read -r line; do
-      COMMIT_HASH=$(echo "$line" | awk '{print $1}')
-      MESSAGE=$(echo "$line" | cut -d' ' -f2-)
-      echo "🧠 Gemini reviewing $COMMIT_HASH: $MESSAGE"
-      $GEMINI_CMD -p "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE"
-    done
-    ;;
-
-  analyze-gemini)
-    case "$2" in
-      repo)
-        echo "🔍 Deep repo analysis with Gemini + MCP context..."
-        update_context
-        CONTEXT=$(get_context all)
-        $GEMINI_CMD -p "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations."
-        ;;
-      changes)
-        echo "📊 Gemini analyzing recent changes..."
-        update_context
-        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
-            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
-            $GEMINI_CMD -p "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT"
-        else
-            echo "❌ No recent changes found."
-        fi
-        ;;
-      *)
-        echo "Usage: devin analyze-gemini [repo|changes]"
-        ;;
-    esac
     ;;
 
   deepwiki)
@@ -175,30 +192,73 @@ EOF
       echo "📦 Exporting project context as markdown..."
       update_context
       CONTEXT=$(get_context all)
-      $GEMINI_CMD -p "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
+      $CLAUDE_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
     else
       echo "❌ Unsupported export target."
     fi
     ;;
 
+  git-safe)
+    case "$2" in
+      commit)
+        shift 2
+        MESSAGE="$*"
+        if [[ -z "$MESSAGE" ]]; then
+          MESSAGE="Auto-commit from AI assistant: $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+        safe_git_commit "$MESSAGE"
+        ;;
+      merge)
+        if [[ -z "$3" ]]; then
+          echo "Usage: devin git-safe merge <branch-name>"
+          exit 1
+        fi
+        safe_git_merge "$3"
+        ;;
+      checkout)
+        if [[ -z "$3" ]]; then
+          echo "Usage: devin git-safe checkout <branch-name>"
+          exit 1
+        fi
+        safe_git_checkout "$3"
+        ;;
+      status)
+        echo "📊 Safe git status check..."
+        git status --porcelain
+        ;;
+      stash-clean)
+        echo "🧹 Stashing all changes and cleaning working directory..."
+        git add .
+        git stash push -m "AI cleanup stash: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "✅ Working directory is now clean"
+        ;;
+      *)
+        echo "Usage: devin git-safe [commit|merge|checkout|status|stash-clean]"
+        echo ""
+        echo "Safe Git Commands:"
+        echo "  commit [message]     - Safe commit with automatic message"
+        echo "  merge <branch>       - Safe merge with conflict handling"
+        echo "  checkout <branch>    - Safe checkout with stash protection"
+        echo "  status               - Clean status check"
+        echo "  stash-clean          - Stash all changes and clean working dir"
+        ;;
+    esac
+    ;;
+
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|gemini|review-gemini|analyze-gemini|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|git-safe|deepwiki|export] <args>"
     echo ""
     echo "Commands:"
-    echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
-    echo "  update               - Update project context from recent changes"
-    echo "  generate             - Generate fresh architecture map"
-    echo "  review <commit>      - Claude code review with project context"
-    echo "  review-gemini <commit> - Gemini code review with project context"
-    echo "  analyze <target>     - Claude deep analysis (repo, changes)"
-    echo "  analyze-gemini <target> - Gemini deep analysis (repo, changes)"
-    echo "  ask <question>       - Ask Claude with full project context"
-    echo "  gemini <question>    - Ask Gemini with full project context"
-    echo "  deepwiki <url>       - Aggregate DeepWiki content"
-    echo "  export wiki          - Export context as markdown"
+    echo "  context [section]  - Get project context (architecture, dependencies, etc.)"
+    echo "  update            - Update project context from recent changes"
+    echo "  generate          - Generate fresh architecture map"
+    echo "  review <commit>   - AI code review with project context"
+    echo "  analyze <target>  - Deep analysis (repo, changes)"
+    echo "  ask <question>    - Ask AI with full project context"
+    echo "  git-safe <cmd>    - 🔒 Safe git operations (commit|merge|checkout|status|stash-clean)"
+    echo "  deepwiki <url>    - Aggregate DeepWiki content"
+    echo "  export wiki       - Export context as markdown"
     echo ""
-    echo "Multi-model workflow:"
-    echo "  Use 'ask' (Claude) for senior dev decisions"
-    echo "  Use 'gemini' for heavy lifting tasks"
+    echo "💡 For Gemini AI interactions, use Gemini's native 'all files' feature instead of Devin integration"
     ;;
 esac
