@@ -1,5 +1,17 @@
 # LingoLinq AAC - Every Voice Should Be Heard
 
+---
+
+## **🚀 Getting Started**
+
+**New to the project? Start here!**
+
+> **[➡️ Full Onboarding Guide: GETTING_STARTED.md](./GETTING_STARTED.md)**
+
+This guide provides a 15-minute setup to get your development environment running with Docker.
+
+---
+
 [![OpenAAC](https://www.openaac.org/images//OpenAAC-advocate-blue.svg)](https://www.openaac.org/advocates.html)
 [![Ask DeepWiki](https://deepwiki.com/badge-maker?url=https%3A%2F%2Fdeepwiki.com%2Fswahlquist%2FLingoLinq-AAC)](https://deepwiki.com/swahlquist/LingoLinq-AAC)
 
