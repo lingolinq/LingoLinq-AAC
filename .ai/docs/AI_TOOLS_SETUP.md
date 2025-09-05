@@ -91,7 +91,7 @@ If you want enhanced repository analysis:
 
 ```bash
 # The MCP configuration exists but is optional
-# See .ai/tools/mcp/README.md for advanced setup
+# See .ai/tools/deepwiki-mcp/README.md for advanced setup
 ```
 
 **Note**: MCP setup is more complex and not required for basic AI assistance.

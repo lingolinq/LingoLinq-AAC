@@ -182,7 +182,7 @@ check_project_setup() {
     fi
     
     # Check MCP configuration
-    if [[ -f ".ai/tools/mcp/claude-mcp-config.json" ]]; then
+    if [[ -f ".ai/tools/deepwiki-mcp/claude-mcp-config.json" ]]; then
         echo -e "${SUCCESS} MCP configuration found"
     else
         echo -e "${WARNING} MCP configuration not found"

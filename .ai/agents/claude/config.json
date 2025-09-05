@@ -3,19 +3,27 @@
   "project": "LingoLinq AAC",
   "initialization": {
     "required_files_to_read": [
-      "/.ai/agents/project-constraints.json",
-      "/docs/ai/CLAUDE.md",
-      "/README.md"
+      ".ai/agents/project-constraints.json",
+      "docs/ai/CLAUDE.md",
+      "README.md"
     ],
-    "startup_commands": [
-      "curl -s http://localhost:4000/api/constraints",
-      "curl -s http://localhost:4000/api/context"
-    ],
-    "environment_verification": "curl -X POST http://localhost:4000/api/verify-environment"
+    "startup_commands": {
+      "optional": true,
+      "commands": [
+        "curl -s http://localhost:4000/api/constraints || echo 'Coordination service not available - continuing without it'",
+        "curl -s http://localhost:4000/api/context || echo 'Context service not available - using local files'"
+      ]
+    },
+    "environment_verification": {
+      "optional": true,
+      "command": "curl -X POST http://localhost:4000/api/verify-environment || echo 'Using local environment verification'"
+    }
   },
   
   "coordination_api": {
-    "base_url": "http://localhost:4000/api",
+    "enabled": false,
+    "fallback_mode": "local_files",
+    "base_url": "${COORDINATION_SERVICE_URL:-http://localhost:4000/api}",
     "endpoints": {
       "register": "POST /agents/register",
       "log_action": "POST /agents/{agent_id}/action",
@@ -37,20 +45,20 @@
   },
   "session_workflow": {
     "on_session_start": [
-      "Register with coordinator service",
-      "Verify environment constraints",
       "Read project constraints file",
-      "Check for recent changes by other agents",
+      "Verify environment constraints",
+      "Register with coordinator service (if available)",
+      "Check for recent changes by other agents (if coordination enabled)",
       "Alert user to any version warnings"
     ],
     "before_version_changes": [
       "Check project constraints",
       "Verify current versions",
-      "Log planned action to coordinator",
+      "Log planned action to coordinator (if available)",
       "Get user confirmation for risky changes"
     ],
     "after_changes": [
-      "Log completed action",
+      "Log completed action (if coordination available)",
       "Verify environment still meets constraints",
       "Update shared context if needed"
     ]
@@ -97,18 +105,19 @@
     ]
   },
   "multi_agent_coordination": {
+    "enabled": false,
     "shared_resources": [
-      "/.ai/context/shared-state.json",
-      "/.ai/context/agent-changes.log"
+      ".ai/context/shared-state.json",
+      ".ai/context/agent-changes.log"
     ],
     "communication_protocol": {
-      "before_major_changes": "POST /agents/{agent_id}/action with planned action",
-      "conflict_resolution": "Check recent changes and coordinate via coordinator API",
-      "handoff_procedure": "Log completion and update shared context"
+      "before_major_changes": "Log to local files if coordination API unavailable",
+      "conflict_resolution": "Check recent changes in local files or via coordinator API if available",
+      "handoff_procedure": "Log completion and update shared context (local files as fallback)"
     }
   },
   "templates": {
-    "session_start_message": "🤖 Claude Code initialized for LingoLinq AAC\n✅ Environment verified\n📋 Project constraints loaded\n🔄 Registered with coordinator\n\nDevelopment environment ready:\n- Use Docker for legacy testing (Ruby 3.2.8, Node.js 18.x)\n- Modern Ruby/Node.js versions welcome for new development",
+    "session_start_message": "🤖 Claude Code initialized for LingoLinq AAC\n✅ Environment verified\n📋 Project constraints loaded\n🔄 Agent coordination: {coordination_status}\n\nDevelopment environment ready:\n- Use Docker for legacy testing (Ruby 3.2.8, Node.js 18.x)\n- Modern Ruby/Node.js versions welcome for new development",
     "version_warning": "⚠️ VERSION NOTICE: Version updates are welcome!\n🔧 For legacy testing: Use Docker (Ruby 3.2.8, Node.js 18.x)\n🚀 For modern development: Upgrade Ruby/Node.js as needed\n💡 Use Docker containers to test both environments",
     "coordination_update": "📡 Coordinating with other agents...\n📝 Logging action: {action}\n🔄 Updating shared context\n✅ Coordination complete"
   }

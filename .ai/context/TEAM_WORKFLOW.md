@@ -132,14 +132,14 @@
 ### Team Support
 - **Setup Issues**: Consult `.ai/tools/TEAM_SETUP.md`
 - **Platform Problems**: Use `.ai/tools/validate-setup.sh`
-- **MCP Issues**: Check `.ai/tools/mcp/README.md`
+- **MCP Issues**: Check `.ai/tools/deepwiki-mcp/README.md`
 
 ## Advanced Features
 
 ### MCP Integration
 - **DeepWiki**: Automatic repository analysis
 - **Context Protocol**: Enhanced AI understanding
-- **Configuration**: Team-shared in `.ai/tools/mcp/`
+- **Configuration**: Team-shared in `.ai/tools/deepwiki-mcp/`
 
 ### Team Coordination
 - **Shared Context**: `.ai/context/` files synchronized

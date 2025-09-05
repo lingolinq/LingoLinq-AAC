@@ -83,7 +83,9 @@
       "Bash(claude-code fix-docker:*)",
       "Bash(claude --doctor)",
       "Bash(claude doctor)",
-      "Bash(export GOOGLE_AI_API_KEY=\"test\")"
+      "Bash(export GOOGLE_AI_API_KEY=\"test\")",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:tools.openaac.org)"
     ],
     "deny": []
   }
