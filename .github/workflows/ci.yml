@@ -1,0 +1,38 @@
+# .github/workflows/ci.yml
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, feature/**, epic/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.8' # Match your project's version
+          bundler-cache: true
+      - name: Run RSpec tests
+        run: bundle exec rspec
+
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.20.8' # Match your locked version
+          cache: 'npm'
+          cache-dependency-path: 'app/frontend/package-lock.json'
+      - name: Install npm dependencies
+        run: npm install --prefix app/frontend
+      - name: Run frontend linters/tests
+        run: npm test --prefix app/frontend # Adjust if you have a different test command

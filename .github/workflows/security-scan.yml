@@ -1,0 +1,20 @@
+# .github/workflows/security-scan.yml
+name: Daily Vulnerability Scan
+
+on:
+  schedule:
+    - cron: '0 8 * * 1' # Runs every Monday at 8 AM UTC
+
+jobs:
+  scan-dependencies:
+    name: Scan for Vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan Ruby Gems
+        uses: ruby/actions/gemfile-lock-check@v1
+
+      - name: Scan npm packages
+        run: |
+          cd app/frontend
+          npm audit --audit-level=high
