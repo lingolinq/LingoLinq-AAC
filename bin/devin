@@ -3,48 +3,7 @@
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-
-# Load environment variables from .env file if it exists
-if [[ -f "$REPO_PATH/.env" ]]; then
-    # Export variables from .env file, handling comments and empty lines
-    set -a  # Automatically export all variables
-    source <(grep -E '^[A-Z_].*=' "$REPO_PATH/.env" | sed 's/^/export /')
-    set +a  # Turn off auto-export
-fi
-# Cross-platform CLI detection
-detect_cli() {
-    local cli_name="$1"
-    local cmd_path
-    
-    # Try common global npm paths
-    local npm_paths=(
-        "/c/Users/$USER/AppData/Roaming/npm/$cli_name"      # Windows npm global
-        "$HOME/AppData/Roaming/npm/$cli_name.cmd"           # Windows alternative
-        "/usr/local/bin/$cli_name"                           # macOS/Linux standard
-        "/opt/homebrew/bin/$cli_name"                        # macOS Apple Silicon
-        "$HOME/.local/bin/$cli_name"                         # Linux user local
-        "$HOME/.npm-global/bin/$cli_name"                    # Custom npm prefix
-    )
-    
-    # First try which/where command
-    if command -v "$cli_name" >/dev/null 2>&1; then
-        echo "$cli_name"
-        return 0
-    fi
-    
-    # Try each potential path
-    for path in "${npm_paths[@]}"; do
-        if [[ -x "$path" ]] || [[ -f "$path" ]]; then
-            echo "$path"
-            return 0
-        fi
-    done
-    
-    return 1
-}
-
-CLAUDE_CMD=$(detect_cli "claude")
-GEMINI_CMD=$(detect_cli "gemini")
+CLAUDE_CMD="/c/Users/skawa/AppData/Roaming/npm/claude" # Full path to avoid PATH issues
 
 # Function to ensure MCP context is up-to-date
 update_context() {
@@ -70,136 +29,6 @@ get_context() {
 }
 
 case "$1" in
-  validate)
-    echo "🔍 Validating AI CLI setup..."
-    echo ""
-    
-    # Check Claude CLI
-    if [[ -n "$CLAUDE_CMD" ]]; then
-        echo "✅ Claude CLI found: $CLAUDE_CMD"
-        if command -v "$CLAUDE_CMD" >/dev/null 2>&1; then
-            echo "   Version: $($CLAUDE_CMD --version 2>/dev/null || echo 'Unable to get version')"
-        fi
-    else
-        echo "❌ Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-cli"
-    fi
-    
-    # Check Gemini CLI
-    if [[ -n "$GEMINI_CMD" ]]; then
-        echo "✅ Gemini CLI found: $GEMINI_CMD"
-        if command -v "$GEMINI_CMD" >/dev/null 2>&1; then
-            echo "   Version: $($GEMINI_CMD --version 2>/dev/null || echo 'Unable to get version')"
-        fi
-    else
-        echo "⚠️  Gemini CLI not found. Install with: npm install -g @google/generative-ai-cli"
-    fi
-    
-    # Check environment variables
-    echo ""
-    echo "🔑 Environment variables:"
-    if [[ -n "$ANTHROPIC_API_KEY" ]]; then
-        echo "✅ ANTHROPIC_API_KEY is set"
-    else
-        echo "❌ ANTHROPIC_API_KEY not set"
-    fi
-    
-    if [[ -n "$GOOGLE_AI_API_KEY" ]]; then
-        echo "✅ GOOGLE_AI_API_KEY is set"
-    else
-        echo "⚠️  GOOGLE_AI_API_KEY not set (optional for Gemini)"
-    fi
-    
-    # Check npm global path
-    echo ""
-    echo "📦 npm global configuration:"
-    if command -v npm >/dev/null 2>&1; then
-        npm_prefix=$(npm config get prefix 2>/dev/null || echo "unknown")
-        echo "   npm prefix: $npm_prefix"
-        
-        # Check PATH based on platform - Windows npm global is in prefix directly, Unix uses prefix/bin
-        if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ -n "$WINDIR" ]]; then
-            # Windows - npm global commands are in the prefix directory directly
-            # Convert Windows path to Unix format for Git Bash compatibility
-            npm_prefix_unix=$(echo "$npm_prefix" | sed 's|C:|/c|g' | sed 's|\\|/|g')
-            if echo "$PATH" | grep -q "$npm_prefix" || echo "$PATH" | grep -q "$npm_prefix_unix"; then
-                echo "   PATH includes npm directory: Yes ✅"
-            else
-                echo "   PATH includes npm directory: No ❌"
-                echo "   Add to PATH: export PATH=\"$npm_prefix:\$PATH\""
-            fi
-        else
-            # Unix-like systems use prefix/bin
-            npm_bin="$npm_prefix/bin"
-            if echo "$PATH" | grep -q "$npm_bin"; then
-                echo "   PATH includes npm bin: Yes ✅"
-            else
-                echo "   PATH includes npm bin: No ❌"
-                echo "   Add to PATH: export PATH=\"$npm_bin:\$PATH\""
-            fi
-        fi
-    else
-        echo "❌ npm not found in PATH"
-    fi
-    ;;
-
-  ask)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "❌ Please provide a question"
-        echo "Usage: ./bin/devin ask 'your question here'"
-        exit 1
-    fi
-    echo "🤖 Asking Claude (lightweight context ~200 tokens): $QUESTION"
-    if [[ -z "$CLAUDE_CMD" ]]; then
-        echo "❌ Claude CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    # Ensure lightweight context exists
-    if [[ ! -f "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" ]]; then
-        echo "📝 Creating lightweight context..."
-        mkdir -p "$REPO_PATH/.ai/context"
-        cat > "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" << 'EOF'
-# LingoLinq AAC - Quick Context
-
-## What This Is
-Web-based AAC (Augmentative and Alternative Communication) app for people who need help communicating through speech synthesis and communication boards.
-
-## Architecture
-- **Backend**: Rails API, **Frontend**: Ember.js app, **Database**: PostgreSQL + Redis
-
-## Key Features
-- Cloud-synced communication boards, Multi-device support, Team coordination, Real-time collaboration, Offline capability
-
-## Development Stack
-Ruby 3.2.8+, Node.js 18+, Rails + Ember + PostgreSQL + Redis, Docker support available
-
-Use `ask-full` for detailed context.
-EOF
-    fi
-    CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
-    $CLAUDE_CMD "LingoLinq AAC Context: $CONTEXT. Question: $QUESTION"
-    ;;
-
-  ask-full)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "❌ Please provide a question"
-        echo "Usage: ./bin/devin ask-full 'your question here'"
-        exit 1
-    fi
-    echo "⚠️  Using full context (~4K tokens - higher cost)"
-    echo "🤖 Asking Claude with full project context: $QUESTION"
-    if [[ -z "$CLAUDE_CMD" ]]; then
-        echo "❌ Claude CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    update_context
-    CONTEXT=$(get_context all)
-    $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
-    ;;
-
   context)
     get_context "$2"
     ;;
@@ -278,200 +107,13 @@ EOF
     esac
     ;;
 
-  claude)
+  ask)
     shift
     QUESTION="$*"
-    echo "🤖 Direct Claude access: $QUESTION"
-    if [[ -z "$CLAUDE_CMD" ]]; then
-        echo "❌ Claude CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    $CLAUDE_CMD "$QUESTION"
-    ;;
-
-  gemini)
-    shift
-    QUESTION="$*"
-    echo "🧠 Direct Gemini access: $QUESTION"
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set. Gemini CLI requires this environment variable."
-        echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
-        exit 1
-    fi
-    cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API (15s timeout to prevent loops)..."
-    echo "💡 If this hangs, use './bin/devin gemini-safe' instead"
-    
-    # Enhanced timeout with proper signal handling to kill spinner loops
-    timeout --kill-after=5s 15s bash -c '
-        exec $GEMINI_CMD -p "$1"
-    ' _ "$QUESTION" || {
-        echo "\n❌ Gemini CLI timed out or failed. This may be due to:"
-        echo "   - Gemini CLI spinner loop (common issue)"
-        echo "   - Google AI API server issues (500 errors)"
-        echo "   - Invalid API key or network issues"
-        echo "   💡 Use './bin/devin gemini-safe' for more reliable operation"
-        exit 1
-    }
-    ;;
-
-  gemini-full)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "❌ Please provide a question"
-        echo "Usage: ./bin/devin gemini-full 'your question here'"
-        exit 1
-    fi
-    echo "🧠 Asking Gemini with full project context: $QUESTION"
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set. Gemini CLI requires this environment variable."
-        echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
-        exit 1
-    fi
+    echo "🤖 Asking Claude with full project context: $QUESTION"
     update_context
     CONTEXT=$(get_context all)
-    cd "$REPO_PATH"
-    echo "🔄 Calling Gemini API with full context (30s timeout to prevent loops)..."
-    echo "💡 If this hangs, use './bin/devin gemini-safe' instead"
-    
-    # Enhanced timeout with proper signal handling for full context
-    timeout --kill-after=10s 30s bash -c '
-        exec $GEMINI_CMD -p "$1"
-    ' _ "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION" || {
-        echo "\n❌ Gemini CLI timed out or failed. This may be due to:"
-        echo "   - Gemini CLI spinner loop (common with large context)"
-        echo "   - Google AI API server issues (500 errors)"
-        echo "   - Large context causing API timeouts"
-        echo "   - Invalid API key"
-        echo "   💡 Use './bin/devin gemini-safe' for more reliable operation"
-        exit 1
-    }
-    ;;
-
-  gemini-safe)
-    shift
-    QUESTION="$*"
-    if [[ -z "$QUESTION" ]]; then
-        echo "❌ Please provide a question"
-        echo "Usage: ./bin/devin gemini-safe 'your question here'"
-        exit 1
-    fi
-    echo "🛡️  Safe Gemini mode (prevents token loops and uses lightweight context)"
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set. Gemini CLI requires this environment variable."
-        echo "   Set it with: export GOOGLE_AI_API_KEY='your-key-here'"
-        exit 1
-    fi
-    # Ensure lightweight context exists
-    if [[ ! -f "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" ]]; then
-        echo "📝 Creating lightweight context..."
-        mkdir -p "$REPO_PATH/.ai/context"
-        cat > "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md" << 'EOF'
-# LingoLinq AAC - Quick Context
-
-## What This Is
-Web-based AAC (Augmentative and Alternative Communication) app for people who need help communicating through speech synthesis and communication boards.
-
-## Architecture
-- **Backend**: Rails API, **Frontend**: Ember.js app, **Database**: PostgreSQL + Redis
-
-## Key Features
-- Cloud-synced communication boards, Multi-device support, Team coordination, Real-time collaboration, Offline capability
-
-## Development Stack
-Ruby 3.2.8+, Node.js 18+, Rails + Ember + PostgreSQL + Redis, Docker support available
-
-Use `ask-full` for detailed context.
-EOF
-    fi
-    CONTEXT=$(cat "$REPO_PATH/.ai/context/LIGHTWEIGHT_CONTEXT.md")
-    cd "$REPO_PATH"
-    echo "🔄 Safe Gemini call (10s timeout, aggressive kill on loop)..."
-    
-    # Most aggressive timeout with immediate kill to prevent spinner loops
-    timeout --kill-after=2s 10s bash -c '
-        # Set up signal handlers to kill immediately
-        trap "echo \"\\n⚠️ Gemini interrupted to prevent loop\"; exit 130" INT TERM
-        exec $GEMINI_CMD -p "$1"
-    ' _ "LingoLinq AAC Context: $CONTEXT. Please answer concisely: $QUESTION" || {
-        local exit_code=$?
-        echo "\n❌ Gemini CLI stopped (exit code: $exit_code)"
-        case $exit_code in
-            124) echo "   ⏰ Timeout: Gemini took too long (likely spinner loop)" ;;
-            130) echo "   ⚠️  Interrupted: Prevented infinite loop" ;;
-            *) echo "   🔗 API Issue: Server error or network problem" ;;
-        esac
-        echo "   💡 This is normal - Gemini CLI has known loop issues"
-        echo "   💡 Try again or use Claude: './bin/devin ask <question>'"
-        exit 1
-    }
-    ;;
-
-  review-gemini)
-    echo "🔥 Gemini-powered commit review with context..."
-    update_context
-    CONTEXT=$(get_context architecture)
-    git log "$2" --oneline | while read -r line; do
-      COMMIT_HASH=$(echo "$line" | awk '{print $1}')
-      MESSAGE=$(echo "$line" | cut -d' ' -f2-)
-      echo "🧠 Gemini reviewing $COMMIT_HASH: $MESSAGE"
-      if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set. Skipping Gemini review."
-        continue
-      fi
-      timeout 30s $GEMINI_CMD -p "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a detailed code review of commit: $MESSAGE" || echo "⚠️ Gemini review failed for $COMMIT_HASH"
-    done
-    ;;
-
-  analyze-gemini)
-    case "$2" in
-      repo)
-        echo "🔍 Deep repo analysis with Gemini + MCP context..."
-        update_context
-        CONTEXT=$(get_context all)
-        if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-          echo "❌ GOOGLE_AI_API_KEY not set. Cannot run Gemini analysis."
-          exit 1
-        fi
-        timeout 60s $GEMINI_CMD -p "Here's the current project context: $CONTEXT. Give me a comprehensive architecture analysis including major modules, technical debt hotspots, performance bottlenecks, and legacy code risks with specific recommendations." || {
-          echo "❌ Gemini analysis failed or timed out."
-          exit 1
-        }
-        ;;
-      changes)
-        echo "📊 Gemini analyzing recent changes..."
-        update_context
-        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
-            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
-            if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-              echo "❌ GOOGLE_AI_API_KEY not set. Cannot run Gemini analysis."
-              exit 1
-            fi
-            timeout 45s $GEMINI_CMD -p "Analyze these recent changes in the LingoLinq AAC codebase and provide detailed insights on patterns, risks, refactoring opportunities, and actionable recommendations: $RECENT" || {
-              echo "❌ Gemini analysis failed or timed out."
-              exit 1
-            }
-        else
-            echo "❌ No recent changes found."
-        fi
-        ;;
-      *)
-        echo "Usage: devin analyze-gemini [repo|changes]"
-        ;;
-    esac
+    $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
     ;;
 
   deepwiki)
@@ -486,100 +128,23 @@ EOF
       echo "📦 Exporting project context as markdown..."
       update_context
       CONTEXT=$(get_context all)
-      if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set. Cannot export with Gemini."
-        exit 1
-      fi
-      timeout 30s $GEMINI_CMD -p "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT" || {
-        echo "❌ Gemini export failed or timed out."
-        exit 1
-      }
+      $CLAUDE_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
     else
       echo "❌ Unsupported export target."
     fi
     ;;
 
-  gemini-debug)
-    shift
-    QUESTION="$*"
-    echo "🔧 Gemini Debug Mode - Testing CLI responsiveness"
-    if [[ -z "$GEMINI_CMD" ]]; then
-        echo "❌ Gemini CLI not found. Run './bin/devin validate' for setup help."
-        exit 1
-    fi
-    if [[ -z "$GOOGLE_AI_API_KEY" ]]; then
-        echo "❌ GOOGLE_AI_API_KEY not set."
-        exit 1
-    fi
-    
-    echo "🧪 Testing Gemini CLI with minimal prompt..."
-    echo "⏱️  Using 5s timeout to quickly detect loops"
-    
-    cd "$REPO_PATH"
-    timeout --kill-after=1s 5s bash -c '
-        echo "Testing: Hello Gemini, respond with just OK"
-        exec $GEMINI_CMD -p "Just respond with: OK"
-    ' || {
-        local exit_code=$?
-        echo ""
-        echo "🚨 Gemini CLI Debug Results:"
-        case $exit_code in
-            124) echo "   ❌ TIMEOUT: CLI is stuck in spinner loop (common issue)" ;;
-            130) echo "   ⚠️  KILLED: Process was terminated to prevent hang" ;;
-            *) echo "   🔗 ERROR: API connection issue (exit code: $exit_code)" ;;
-        esac
-        echo ""
-        echo "🔧 Troubleshooting Suggestions:"
-        echo "   1. Try: npm uninstall -g @google/generative-ai-cli && npm install -g @google/generative-ai-cli"
-        echo "   2. Check API key: https://makersuite.google.com/app/apikey"
-        echo "   3. Use Claude instead: './bin/devin ask <question>'"
-        echo "   4. Check Gemini API status: https://status.google.com"
-        exit 1
-    }
-    
-    if [[ -n "$QUESTION" ]]; then
-        echo "✅ CLI responsive, trying your question with safe timeout..."
-        timeout --kill-after=2s 8s $GEMINI_CMD -p "$QUESTION" || {
-            echo "❌ Your question failed - likely a spinner loop issue"
-            echo "💡 Use './bin/devin ask' with Claude instead"
-        }
-    fi
-    ;;
-
   *)
-    echo "Usage: devin [validate|ask|ask-full|claude|gemini|gemini-safe|gemini-full|gemini-debug|context|update|generate|review|analyze|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|deepwiki|export] <args>"
     echo ""
-    echo "🚀 Quick Commands (Cross-Platform):"
-    echo "  validate              - Check AI CLI installation and setup"
-    echo "  ask <question>        - Ask Claude (lightweight, ~200 tokens)"
-    echo "  ask-full <question>   - Ask Claude with full project context (~4K tokens)"
-    echo "  claude <question>     - Direct Claude CLI access"
-    echo ""
-    echo "⚠️  Gemini Commands (Known Issues):"
-    echo "  gemini <question>     - Direct Gemini CLI access (can loop - use with caution)"
-    echo "  gemini-safe <question> - Safe Gemini with aggressive timeout (prevents loops)"
-    echo "  gemini-full <question> - Gemini with full context (high loop risk)"
-    echo "  gemini-debug [question] - Test Gemini CLI and diagnose loop issues"
-    echo ""
-    echo "📋 Context Management:"
+    echo "Commands:"
     echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
     echo "  update               - Update project context from recent changes"
     echo "  generate             - Generate fresh architecture map"
-    echo ""
-    echo "🔍 Analysis Commands:"
     echo "  review <commit>      - Claude code review with project context"
-    echo "  review-gemini <commit> - Gemini code review with project context"
     echo "  analyze <target>     - Claude deep analysis (repo, changes)"
-    echo "  analyze-gemini <target> - Gemini deep analysis (repo, changes)"
-    echo ""
-    echo "🛠️  Advanced:"
+    echo "  ask <question>       - Ask Claude with full project context"
     echo "  deepwiki <url>       - Aggregate DeepWiki content"
     echo "  export wiki          - Export context as markdown"
-    echo ""
-    echo "💡 Recommendations:"
-    echo "  🟢 Use 'ask'/'ask-full' (Claude) for reliable AI assistance"
-    echo "  ⚠️  Use 'gemini-safe' if you need Gemini (has timeout protection)"
-    echo "  🔧 Use 'gemini-debug' to diagnose Gemini CLI issues"
-    echo "  ❌ Avoid 'gemini'/'gemini-full' due to known loop problems"
     ;;
 esac
