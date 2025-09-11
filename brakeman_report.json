@@ -1,0 +1,492 @@
+{
+  "scan_info": {
+    "app_path": "C:/Users/skawa/LingoLinq-AAC",
+    "rails_version": "6.1.7.10",
+    "security_warnings": 18,
+    "start_time": "2025-09-10 17:48:37 -0600",
+    "end_time": "2025-09-10 17:52:37 -0600",
+    "duration": 240.2979259,
+    "checks_performed": [
+      "BasicAuth",
+      "BasicAuthTimingAttack",
+      "CSRFTokenForgeryCVE",
+      "ContentTag",
+      "CookieSerialization",
+      "CreateWith",
+      "CrossSiteScripting",
+      "DefaultRoutes",
+      "Deserialize",
+      "DetailedExceptions",
+      "DigestDoS",
+      "DynamicFinders",
+      "EOLRails",
+      "EOLRuby",
+      "EscapeFunction",
+      "Evaluation",
+      "Execute",
+      "FileAccess",
+      "FileDisclosure",
+      "FilterSkipping",
+      "ForgerySetting",
+      "HeaderDoS",
+      "I18nXSS",
+      "JRubyXML",
+      "JSONEncoding",
+      "JSONEntityEscape",
+      "JSONParsing",
+      "LinkTo",
+      "LinkToHref",
+      "MailTo",
+      "MassAssignment",
+      "MimeTypeDoS",
+      "ModelAttrAccessible",
+      "ModelAttributes",
+      "ModelSerialize",
+      "NestedAttributes",
+      "NestedAttributesBypass",
+      "NumberToCurrency",
+      "PageCachingCVE",
+      "Pathname",
+      "PermitAttributes",
+      "QuoteTableName",
+      "Ransack",
+      "Redirect",
+      "RegexDoS",
+      "Render",
+      "RenderDoS",
+      "RenderInline",
+      "ResponseSplitting",
+      "RouteDoS",
+      "SQL",
+      "SQLCVEs",
+      "SSLVerify",
+      "SafeBufferManipulation",
+      "SanitizeConfigCve",
+      "SanitizeMethods",
+      "SelectTag",
+      "SelectVulnerability",
+      "Send",
+      "SendFile",
+      "SessionManipulation",
+      "SessionSettings",
+      "SimpleFormat",
+      "SingleQuotes",
+      "SkipBeforeFilter",
+      "SprocketsPathTraversal",
+      "StripTags",
+      "SymbolDoSCVE",
+      "TemplateInjection",
+      "TranslateBug",
+      "UnsafeReflection",
+      "UnsafeReflectionMethods",
+      "ValidationRegex",
+      "VerbConfusion",
+      "WeakRSAKey",
+      "WithoutProtection",
+      "XMLDoS",
+      "YAMLParsing"
+    ],
+    "number_of_controllers": 29,
+    "number_of_models": 48,
+    "number_of_templates": 70,
+    "ruby_version": "3.2.8",
+    "brakeman_version": "7.1.0"
+  },
+  "warnings": [
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "04d7e3f9927da18ea3de08b1ab68638c6c86fce47b53c67497b6eff4146234dc",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/api/users_controller.rb",
+      "line": 725,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(ButtonImage.cached_copy_url(request.original_url, user, false))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::UsersController",
+        "method": "protected_image"
+      },
+      "user_input": "ButtonImage.cached_copy_url(request.original_url, user, false)",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "1367b750372d8398d76d420b6a2d9b8a18719632b1c6c175605e64d5fd0fd23a",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "lib/sentence_pic.rb",
+      "line": 40,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "`montage #{\"#{\"-label \\\"#{((button[\"label\"] or (button[\"vocalization\"] or \"\")).gsub(\"\\\"\", \"\\\\\\\"\")[0, (((25 or 20) or 10) - 2)] + \"..\")}\\\" #{images[button[\"image\"]]}\"}\"} -tile #{((6 or (utterance.data[\"button_list\"].length.to_f / 2.0).ceil) or (utterance.data[\"button_list\"].length or 1))}x#{(utterance.data[\"button_list\"].length.to_f / 6.to_f).ceil} -shadow -pointsize 16 -geometry #{(70 or [(420 / (utterance.data[\"button_list\"].length or 1)), 200].min)}x#{(70 or [(420 / (utterance.data[\"button_list\"].length or 1)), 200].min)}+3+10 -border 2 -bordercolor \"#888\" #{(OBF::Utils.temp_path(\"montage\") + \".png\")}`",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SentencePic",
+        "method": "s(:self).generate"
+      },
+      "user_input": "((button[\"label\"] or (button[\"vocalization\"] or \"\")).gsub(\"\\\"\", \"\\\\\\\"\")[0, (((25 or 20) or 10) - 2)] + \"..\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        77
+      ]
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "2fa3d18889953eb2976c68f2fd05b168d405a5a6148866274ebd9e0e652511cf",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/models/concerns/uploadable.rb",
+      "line": 294,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "`convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Uploadable",
+        "method": "convert_image"
+      },
+      "user_input": "path",
+      "confidence": "Medium",
+      "cwe_id": [
+        77
+      ]
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "312fdfd9cf6e6f97d754a5554d375e46b4b6ddb5eda605d7c92f7d91398e2413",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/boards_controller.rb",
+      "line": 116,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(Board.find_by_path(params[\"id\"]).icon_url_or_fallback)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "BoardsController",
+        "method": "icon"
+      },
+      "user_input": "Board.find_by_path(params[\"id\"]).icon_url_or_fallback",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "332716e1b84351c38ab3d74d0e4121b177f5cd6002446b8986d560aea0477950",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "app/models/board_downstream_button_set.rb",
+      "line": 690,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "BoardDownstreamButtonSet.where(\"id > #{start_id}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "BoardDownstreamButtonSet",
+        "method": "BoardDownstreamButtonSet.reconcile"
+      },
+      "user_input": "start_id",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ]
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "4fcb091864e88b5cc04411d75cb39dac1681a848efd8b64f4dfc7bc9d912f7d7",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "lib/sentence_pic.rb",
+      "line": 45,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "`convert #{(OBF::Utils.temp_path(\"montage\") + \".png\")} -gravity center -extent 500x240 #{(OBF::Utils.temp_path(\"preview\") + \".png\")}`",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SentencePic",
+        "method": "s(:self).generate"
+      },
+      "user_input": "(OBF::Utils.temp_path(\"montage\") + \".png\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        77
+      ]
+    },
+    {
+      "warning_type": "Remote Code Execution",
+      "warning_code": 24,
+      "fingerprint": "54621e8ab9bbe5c854538b4cf734414f1ad7cf83997a983b1999dfd622a76f50",
+      "check_name": "UnsafeReflection",
+      "message": "Unsafe reflection method `constantize` called on model attribute",
+      "file": "app/models/progress.rb",
+      "line": 187,
+      "link": "https://brakemanscanner.org/docs/warning_types/remote_code_execution/",
+      "code": "Progress.find_by(:id => progress_id).settings[\"class\"].constantize",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Progress",
+        "method": "Progress.perform_action"
+      },
+      "user_input": "Progress.find_by(:id => progress_id).settings",
+      "confidence": "Medium",
+      "cwe_id": [
+        470
+      ]
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "6102c445216917e58e297354184bc05ac5f4e77e6137845c571169907618e50b",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/boards_controller.rb",
+      "line": 46,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(\"/utterances/#{Utterance.find_by(:reply_nonce => ((params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/) and params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/)[1]))).global_id}x#{Utterance.find_by(:reply_nonce => ((params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/) and params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/)[1]))).reply_nonce}#{params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/)[2]}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "BoardsController",
+        "method": "utterance_redirect"
+      },
+      "user_input": "Utterance.find_by(:reply_nonce => ((params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/) and params[\"reply_code\"].match(/^([0-9a-f]+)([A-Z]+)?$/)[1]))).global_id",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "Cross-Site Request Forgery",
+      "warning_code": 7,
+      "fingerprint": "6f5239fb87c64764d0c209014deb5cf504c2c10ee424bd33590f0a4f22e01d8f",
+      "check_name": "ForgerySetting",
+      "message": "`protect_from_forgery` should be called in `ApplicationController`",
+      "file": "app/controllers/application_controller.rb",
+      "line": 1,
+      "link": "https://brakemanscanner.org/docs/warning_types/cross-site_request_forgery/",
+      "code": null,
+      "render_path": null,
+      "location": {
+        "type": "controller",
+        "controller": "ApplicationController"
+      },
+      "user_input": null,
+      "confidence": "High",
+      "cwe_id": [
+        352
+      ]
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "8972f013df163d0e00ffb2246d7b2803aeb7002a52db54b96c097de5784ba672",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "lib/sentence_pic.rb",
+      "line": 43,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "`convert #{(OBF::Utils.temp_path(\"montage\") + \".png\")} -gravity north -extent 500x240 #{(OBF::Utils.temp_path(\"preview\") + \".png\")}`",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SentencePic",
+        "method": "s(:self).generate"
+      },
+      "user_input": "(OBF::Utils.temp_path(\"montage\") + \".png\")",
+      "confidence": "Medium",
+      "cwe_id": [
+        77
+      ]
+    },
+    {
+      "warning_type": "File Access",
+      "warning_code": 16,
+      "fingerprint": "8b762584f81b1eb71bd06cca50d30114c44c83bf006a43f16972fc58cf73245a",
+      "check_name": "FileAccess",
+      "message": "Model attribute used in file name",
+      "file": "app/controllers/api/boards_controller.rb",
+      "line": 570,
+      "link": "https://brakemanscanner.org/docs/warning_types/file_access/",
+      "code": "File.read(Tempfile.new([\"board-#{Board.find_by_path(params[\"board_id\"]).global_id}\", \".obf\"]).path)",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::BoardsController",
+        "method": "simple_obf"
+      },
+      "user_input": "Board.find_by_path(params[\"board_id\"]).global_id",
+      "confidence": "Weak",
+      "cwe_id": [
+        22
+      ]
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "8d391970dcfaa75a6594f234a90697bd21dd4423c03aa464285bd59e88531eef",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/boards_controller.rb",
+      "line": 66,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(\"/#{Board.find_by_possibly_old_path(params[\"id\"]).key}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "BoardsController",
+        "method": "board"
+      },
+      "user_input": "Board.find_by_possibly_old_path(params[\"id\"]).key",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "9c8a7b0cbc746e0fcfd349b9ffb3093f576636e7df9958f29a471587390ff91e",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/boards_controller.rb",
+      "line": 93,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(\"/#{User.find_by_possibly_old_path(params[\"id\"]).user_name}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "BoardsController",
+        "method": "user"
+      },
+      "user_input": "User.find_by_possibly_old_path(params[\"id\"]).user_name",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "Redirect",
+      "warning_code": 18,
+      "fingerprint": "a4f622e06e01e99845ac18bff0bd4a6a021bbce70c1bae543eac78350e694991",
+      "check_name": "Redirect",
+      "message": "Possible unprotected redirect",
+      "file": "app/controllers/session_controller.rb",
+      "line": 89,
+      "link": "https://brakemanscanner.org/docs/warning_types/redirect/",
+      "code": "redirect_to(\"/saml/init?org_id=#{Organization.external_auth_for(params[\"username\"]).global_id}&device_id=saml_auth&embed=1&oauth_code=#{params[\"code\"]}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "SessionController",
+        "method": "oauth_login"
+      },
+      "user_input": "Organization.external_auth_for(params[\"username\"]).global_id",
+      "confidence": "High",
+      "cwe_id": [
+        601
+      ]
+    },
+    {
+      "warning_type": "SQL Injection",
+      "warning_code": 0,
+      "fingerprint": "b75d29eebf1075929cbc7c47e55c150e47e0ad4239533a5c762585a73a00173a",
+      "check_name": "SQL",
+      "message": "Possible SQL injection",
+      "file": "lib/worker.rb",
+      "line": 40,
+      "link": "https://brakemanscanner.org/docs/warning_types/sql_injection/",
+      "code": "Board.where(:id => record_ids(queue, method_name)[\"Board\"]).having(\"COUNT(user_id) > #{cutoff}\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Worker",
+        "method": "s(:self).user_board_counts"
+      },
+      "user_input": "cutoff",
+      "confidence": "Medium",
+      "cwe_id": [
+        89
+      ]
+    },
+    {
+      "warning_type": "Unmaintained Dependency",
+      "warning_code": 120,
+      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
+      "check_name": "EOLRails",
+      "message": "Support for Rails 6.1.7.10 ended on 2024-10-01",
+      "file": "Gemfile.lock",
+      "line": 294,
+      "link": "https://brakemanscanner.org/docs/warning_types/unmaintained_dependency/",
+      "code": null,
+      "render_path": null,
+      "location": null,
+      "user_input": null,
+      "confidence": "High",
+      "cwe_id": [
+        1104
+      ]
+    },
+    {
+      "warning_type": "Denial of Service",
+      "warning_code": 76,
+      "fingerprint": "e85287fb7529182642f6d24decbf8ba3dbe49bc76e263f61cb61aec35de9eb94",
+      "check_name": "RegexDoS",
+      "message": "Model attribute used in regular expression",
+      "file": "app/models/remote_target.rb",
+      "line": 91,
+      "link": "https://brakemanscanner.org/docs/warning_types/denial_of_service/",
+      "code": "/^\\+#{(nil or (RemoteTarget.canonical_target(type, target_str)[0, 4] or :BRAKEMAN_SAFE_LITERAL))}/",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "RemoteTarget",
+        "method": "RemoteTarget.sources_for"
+      },
+      "user_input": "RemoteTarget.canonical_target(type, target_str)[0, 4]",
+      "confidence": "Medium",
+      "cwe_id": [
+        20,
+        185
+      ]
+    },
+    {
+      "warning_type": "Command Injection",
+      "warning_code": 14,
+      "fingerprint": "ec2fa0349830f2cf08afacd079e8c0fe999e377f00047633d5a890ca15b10de4",
+      "check_name": "Execute",
+      "message": "Possible command injection",
+      "file": "app/models/concerns/uploadable.rb",
+      "line": 231,
+      "link": "https://brakemanscanner.org/docs/warning_types/command_injection/",
+      "code": "`identify -verbose #{Tempfile.new([\"stash\", rasterize ? (\".svg\") : (\"\")]).path}`",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Uploadable",
+        "method": "upload_to_remote"
+      },
+      "user_input": "Tempfile.new([\"stash\", rasterize ? (\".svg\") : (\"\")]).path",
+      "confidence": "Medium",
+      "cwe_id": [
+        77
+      ]
+    }
+  ],
+  "ignored_warnings": [],
+  "errors": [],
+  "obsolete": []
+}

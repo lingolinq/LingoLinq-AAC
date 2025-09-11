@@ -1,120 +1,61 @@
-# Branch-Specific Documentation
+# Branch-Specific Documentation Guidelines
 
-This directory contains documentation that is specific to individual feature branches or epics.
+This document explains where branch-specific documentation should be located and how to organize it.
 
-## **Directory Structure**
+## **Updated Organization**
 
-Each branch gets its own subdirectory named after the branch:
+Branch-specific documentation should now be maintained **within the actual branches**, not in the main branch. This ensures that:
+- Branch documentation stays current with branch development
+- Main branch stays clean and focused on global documentation
+- Each team can maintain their own documentation without conflicts
 
-```
-branches/
-├── feature-llm-enhanced-inflections/
-│   ├── MULTI_LANGUAGE_GRAMMAR_EXPANSION.md
-│   └── MULTI_LANGUAGE_TASKS.md
-├── epic-ai-features/
-│   └── (epic-specific docs)
-├── epic-rebranding-and-ux-ui/
-│   └── (epic-specific docs)
-└── rails-6-to-7-upgrade/
-    └── (upgrade-specific docs)
-```
+## **Where to Put Branch Documentation**
 
-## **What Goes Here**
+### **✅ In Each Branch (Recommended):**
+- Create a `docs/` directory within the branch
+- Add branch-specific requirements and specifications
+- Track implementation progress and decisions
+- Document feature testing plans and results
 
-### **✅ Branch-Specific Content:**
-- Feature requirements and specifications
-- Implementation task breakdowns and tracking
-- Branch-specific research and analysis
-- Feature testing plans and results
-- Progress reports for specific initiatives
+### **✅ Global Documentation (Main Branch):**
+- Project overview and architecture (`/docs/`)
+- Epic planning and roadmaps (`/docs/epics/`)
+- Team onboarding and setup guides (root directory)
+- Cross-cutting development guides (`/docs/development/`)
 
-### **✅ Epic-Level Planning:**
-- Epic roadmaps and timelines  
-- Stakeholder communications
-- Epic-specific architecture decisions
-- Epic success metrics and tracking
+### **❌ Avoid:**
+- Branch-specific docs in main branch
+- Duplicate documentation across branches
+- Conflicting roadmaps and status files
 
-### **❌ What Does NOT Go Here:**
-- Global project documentation (goes in `/docs/`)
-- AI agent configurations (goes in `/.ai/`)
-- Temporary session files (should be gitignored)
-- Personal notes (keep locally)
+## **Best Practices for Branch Documentation**
 
-## **Naming Conventions**
+### **Creating Branch Documentation:**
+1. Create a `docs/` directory in your feature branch
+2. Add a README.md explaining the branch's purpose and status
+3. Document requirements, progress, and decisions within the branch
+4. Link to relevant global documentation in main branch
 
-### **Directory Names:**
-- Use the exact branch name with hyphens instead of slashes
-- Examples:
-  - `feature/llm-enhanced-inflections` → `feature-llm-enhanced-inflections/`
-  - `epic/ai-features` → `epic-ai-features/`
-  - `rails-6-to-7-upgrade` → `rails-6-to-7-upgrade/`
+### **Linking Between Documentation:**
+- **To Global Docs**: Reference main branch docs for shared information
+- **Cross-Branch**: Coordinate through epic documentation in main
+- **From Global**: Reference specific branches when needed
 
-### **File Names:**
-- Use UPPERCASE for major documentation (README, specifications)
-- Use descriptive names that indicate content scope
-- Examples:
-  - `FEATURE_SPECIFICATION.md`
-  - `IMPLEMENTATION_TASKS.md` 
-  - `TESTING_PLAN.md`
-  - `PROGRESS_REPORT.md`
-
-## **Lifecycle Management**
-
-### **Creating New Branch Documentation:**
-1. Create directory when starting significant branch work
-2. Add README.md explaining the branch's purpose
-3. Document initial requirements and scope
-4. Track implementation progress
-
-### **Maintaining During Development:**
-1. Update task lists and progress regularly
-2. Document architectural decisions made
-3. Record testing results and issues
-4. Note any scope changes or pivots
-
-### **After Branch Completion:**
-1. **DO NOT DELETE** - keep for historical reference
-2. Add final status and results summary
-3. Archive any temporary files
-4. Update links from other documentation
-
-## **Cross-Reference Guidelines**
-
-### **Linking to Global Docs:**
-```markdown
-See the global [API Documentation](../development/API_DOCUMENTATION.md)
-```
-
-### **Linking Between Branches:**
-```markdown
-This builds on work from [Epic AI Features](../epic-ai-features/OVERVIEW.md)
-```
-
-### **Linking from Global to Branch:**
-```markdown
-Current implementation in [LLM Inflections branch](branches/feature-llm-enhanced-inflections/)
-```
-
-## **Template Structure**
-
-When creating a new branch directory, consider this template:
+## **Current Main Branch Documentation Structure**
 
 ```
-feature-your-branch-name/
-├── README.md                    # Branch overview and status
-├── FEATURE_SPECIFICATION.md    # Requirements and scope
-├── IMPLEMENTATION_TASKS.md     # Detailed task breakdown
-├── ARCHITECTURE_DECISIONS.md   # Branch-specific design choices
-├── TESTING_PLAN.md            # How to test this feature
-└── PROGRESS_REPORT.md         # Regular status updates
+LingoLinq-AAC/
+├── README.md                     # Project overview
+├── GETTING_STARTED.md           # Setup guide
+├── BRANCH_ASSIGNMENT_STRATEGY.md # Team organization
+├── PROJECT_STATUS.md            # Current status
+├── TEAM_ONBOARDING.md           # Onboarding guide
+└── docs/
+    ├── epics/                   # Epic planning and roadmaps
+    ├── planning/                # Strategic planning
+    ├── development/             # Development guides
+    ├── architecture/            # System architecture
+    └── ai/                      # AI development guides
 ```
 
-## **Getting Help**
-
-- Check the main [Organization Guidelines](../../.ai/ORGANIZATION_GUIDELINES.md)
-- Ask questions in team discussions before creating new structures
-- Follow established patterns from existing branch directories
-
----
-
-*This directory helps keep feature-specific documentation organized and prevents root-level clutter.*
+This organization keeps main branch documentation focused on global concerns while enabling branches to maintain their own specific documentation.

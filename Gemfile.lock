@@ -70,6 +70,7 @@ GEM
       zeitwerk (~> 2.3)
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
+    ast (2.4.3)
     aws-eventstream (1.4.0)
     aws-partitions (1.1158.0)
     aws-record (2.14.0)
@@ -121,6 +122,8 @@ GEM
     benchmark (0.4.1)
     bigdecimal (3.2.3)
     boy_band (0.1.16)
+    brakeman (7.1.0)
+      racc
     bugsnag (6.28.0)
       concurrent-ruby (~> 1.0)
     builder (3.3.0)
@@ -183,6 +186,8 @@ GEM
       reline (>= 0.4.2)
     jmespath (1.6.2)
     json (2.13.2)
+    language_server-protocol (3.17.0.5)
+    lint_roller (1.1.0)
     listen (3.9.0)
       rb-fsevent (~> 0.10, >= 0.10.3)
       rb-inotify (~> 0.9, >= 0.9.10)
@@ -246,6 +251,10 @@ GEM
     paper_trail (16.0.0)
       activerecord (>= 6.1)
       request_store (~> 1.4)
+    parallel (1.27.0)
+    parser (3.3.9.0)
+      ast (~> 2.4.1)
+      racc
     pdf-core (0.9.0)
     permissable-coughdrop (0.3.4)
     pg (1.6.2-x64-mingw-ucrt)
@@ -258,6 +267,7 @@ GEM
       pdf-core (~> 0.9.0)
       ttfunk (~> 1.7)
     prettyprint (0.2.0)
+    prism (1.4.0)
     proxies (0.2.3)
     pry (0.15.2)
       coderay (~> 1.1)
@@ -318,6 +328,7 @@ GEM
       method_source
       rake (>= 12.2)
       thor (~> 1.0)
+    rainbow (3.1.1)
     rake (13.3.0)
     rb-fsevent (0.11.2)
     rb-inotify (0.11.1)
@@ -331,6 +342,7 @@ GEM
       connection_pool
     redis-namespace (1.11.0)
       redis (>= 4)
+    regexp_parser (2.11.2)
     reline (0.6.2)
       io-console (~> 0.5)
     request_store (1.7.0)
@@ -363,6 +375,27 @@ GEM
       rspec-mocks (~> 3.13)
       rspec-support (~> 3.13)
     rspec-support (3.13.5)
+    rubocop (1.80.2)
+      json (~> 2.3)
+      language_server-protocol (~> 3.17.0.2)
+      lint_roller (~> 1.1.0)
+      parallel (~> 1.10)
+      parser (>= 3.3.0.2)
+      rainbow (>= 2.2.2, < 4.0)
+      regexp_parser (>= 2.9.3, < 3.0)
+      rubocop-ast (>= 1.46.0, < 2.0)
+      ruby-progressbar (~> 1.7)
+      unicode-display_width (>= 2.4.0, < 4.0)
+    rubocop-ast (1.46.0)
+      parser (>= 3.3.7.2)
+      prism (~> 1.4)
+    rubocop-rails (2.33.3)
+      activesupport (>= 4.2.0)
+      lint_roller (~> 1.1)
+      rack (>= 1.1)
+      rubocop (>= 1.75.0, < 2.0)
+      rubocop-ast (>= 1.44.0, < 2.0)
+    ruby-progressbar (1.13.0)
     ruby-saml (1.18.1)
       nokogiri (>= 1.13.10)
       rexml
@@ -421,6 +454,9 @@ GEM
       tzinfo (>= 1.0.0)
     uglifier (4.2.1)
       execjs (>= 0.3.0, < 3)
+    unicode-display_width (3.2.0)
+      unicode-emoji (~> 4.1)
+    unicode-emoji (4.1.0)
     websocket-driver (0.8.0)
       base64
       websocket-extensions (>= 0.1.0)
@@ -439,6 +475,7 @@ DEPENDENCIES
   aws-sdk-sns (~> 1)
   benchmark
   boy_band
+  brakeman
   bugsnag
   bundler-audit (>= 0.9.1)
   coffee-rails
@@ -472,6 +509,7 @@ DEPENDENCIES
   resque
   rotp
   rspec-rails
+  rubocop-rails
   ruby-saml
   s3
   sanitize
