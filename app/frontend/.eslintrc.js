@@ -14,6 +14,9 @@ module.exports = {
   env: {
     browser: true
   },
+  globals: {
+    SweetSuite: 'writable'
+  },
   rules: {
     'no-console': 'off',
     'no-unused-vars': 'off',
