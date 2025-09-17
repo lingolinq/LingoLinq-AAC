@@ -11,6 +11,23 @@ jobs:
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: lingolinq_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/lingolinq_test
+      RAILS_ENV: test
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -18,6 +35,10 @@ jobs:
         with:
           ruby-version: '3.2.8' # Match your project's version
           bundler-cache: true
+      - name: Set up database
+        run: |
+          bundle exec rails db:create
+          bundle exec rails db:migrate
       - name: Run RSpec tests
         run: bundle exec rspec
 
@@ -32,7 +53,21 @@ jobs:
           node-version: '18.20.8' # Match your locked version
           cache: 'npm'
           cache-dependency-path: 'app/frontend/package-lock.json'
+      - name: Install global dependencies
+        run: |
+          npm install -g bower@1.8.14
+          npm install -g ember-cli@3.12.0
       - name: Install npm dependencies
         run: npm install --prefix app/frontend
-      - name: Run frontend linters/tests
-        run: npm test --prefix app/frontend # Adjust if you have a different test command
+      - name: Install bower dependencies
+        run: |
+          cd app/frontend
+          bower install
+      - name: Run frontend build
+        run: |
+          cd app/frontend
+          ember build --environment=test
+      - name: Run frontend tests
+        run: |
+          cd app/frontend
+          ember test --silent
