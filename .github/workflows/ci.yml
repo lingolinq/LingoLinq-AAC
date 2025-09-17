@@ -39,28 +39,39 @@ jobs:
         with:
           ruby-version: '3.2.8' # Match your project's version
           bundler-cache: true
-      - name: Debug bundle and database
+      - name: Debug environment
         run: |
           echo "Ruby version: $(ruby -v)"
           echo "Bundle version: $(bundle -v)"
           echo "Database URL: $DATABASE_URL"
+          echo "RAILS_ENV: $RAILS_ENV"
+          echo "PostgreSQL status:"
+          pg_isready -h localhost -p 5432 -U postgres || echo "PostgreSQL not ready"
           bundle config list
+      - name: Install dependencies with debugging
+        run: |
+          echo "Installing bundle dependencies..."
+          bundle install --verbose --jobs 4 --retry 3
       - name: Set up database
         run: |
+          echo "Creating and migrating database..."
           bundle exec rails db:create
           bundle exec rails db:migrate
       - name: Run RSpec tests
-        run: bundle exec rspec
+        run: |
+          echo "Running RSpec tests..."
+          bundle exec rspec --version
+          bundle exec rspec
 
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install system dependencies for PhantomJS
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1 libfreetype6 libjpeg-turbo8 libpng16-16 libx11-6 libxext6 libxrender1 libxtst6 bzip2
+      - name: Set up Chrome for testing
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -71,11 +82,10 @@ jobs:
         run: |
           npm install -g bower@1.8.14
           npm install -g ember-cli@3.12.0
-          npm install -g phantomjs-prebuilt@2.1.16
-      - name: Verify PhantomJS installation
+      - name: Verify Chrome installation
         run: |
-          phantomjs --version
-          which phantomjs
+          google-chrome --version
+          which google-chrome
       - name: Install npm dependencies
         run: npm install --prefix app/frontend
       - name: Install bower dependencies
@@ -86,7 +96,9 @@ jobs:
         run: |
           cd app/frontend
           ember build --environment=test
-      - name: Run frontend tests with PhantomJS
+      - name: Run frontend tests with headless Chrome
         run: |
           cd app/frontend
-          ember test --test-port=0 --launch=PhantomJS
+          ember test --test-port=0 --launch=Chrome --headless
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
