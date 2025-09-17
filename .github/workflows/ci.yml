@@ -38,7 +38,7 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2.8' # Match your project's version
-          bundler-cache: true
+          bundler-cache: false
       - name: Debug environment
         run: |
           echo "Ruby version: $(ruby -v)"
