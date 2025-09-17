@@ -30,11 +30,21 @@ jobs:
       RAILS_ENV: test
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev build-essential libssl-dev libyaml-dev
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2.8' # Match your project's version
           bundler-cache: true
+      - name: Debug bundle and database
+        run: |
+          echo "Ruby version: $(ruby -v)"
+          echo "Bundle version: $(bundle -v)"
+          echo "Database URL: $DATABASE_URL"
+          bundle config list
       - name: Set up database
         run: |
           bundle exec rails db:create
@@ -47,6 +57,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies for PhantomJS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1 libfreetype6 libjpeg-turbo8 libpng16-16 libx11-6 libxext6 libxrender1 libxtst6 bzip2
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -57,6 +71,11 @@ jobs:
         run: |
           npm install -g bower@1.8.14
           npm install -g ember-cli@3.12.0
+          npm install -g phantomjs-prebuilt@2.1.16
+      - name: Verify PhantomJS installation
+        run: |
+          phantomjs --version
+          which phantomjs
       - name: Install npm dependencies
         run: npm install --prefix app/frontend
       - name: Install bower dependencies
@@ -67,7 +86,7 @@ jobs:
         run: |
           cd app/frontend
           ember build --environment=test
-      - name: Run frontend tests
+      - name: Run frontend tests with PhantomJS
         run: |
           cd app/frontend
-          ember test --silent
+          ember test --test-port=0 --launch=PhantomJS
