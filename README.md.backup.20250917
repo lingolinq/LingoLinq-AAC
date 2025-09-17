@@ -336,7 +336,7 @@ LingoLinq AAC provides comprehensive AI development assistants with deep project
 
 ### Quick Start
 ```bash
-# Launch both AI assistants
+# Launch both Claude Code and Gemini assistants  
 ./.ai/tools/launch-agentic.ps1
 
 # Get comprehensive project context

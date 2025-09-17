@@ -91,7 +91,11 @@
       "Read(//c/Users/skawa/.claude/**)",
       "WebFetch(domain:docs.claude.com)",
       "WebFetch(domain:docs.devin.ai)",
-      "Read(//c/Users/skawa/.gemini/**)"
+      "Read(//c/Users/skawa/.gemini/**)",
+      "Bash(C:UsersskawaLingoLinq-AAC.aitoolsdoc-audit.sh)",
+      "Bash(./.ai/tools/doc-audit.sh:*)",
+      "Bash(./.ai/tools/doc-fix.sh:*)",
+      "Bash(./.ai/tools/branch-aware-docs.sh:*)"
     ],
     "deny": []
   }
