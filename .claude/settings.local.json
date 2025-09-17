@@ -85,7 +85,13 @@
       "Bash(claude doctor)",
       "Bash(export GOOGLE_AI_API_KEY=\"test\")",
       "WebFetch(domain:docs.google.com)",
-      "WebFetch(domain:tools.openaac.org)"
+      "WebFetch(domain:tools.openaac.org)",
+      "Bash(claude config set installation-type npm-global)",
+      "Bash(claude config list)",
+      "Read(//c/Users/skawa/.claude/**)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:docs.devin.ai)",
+      "Read(//c/Users/skawa/.gemini/**)"
     ],
     "deny": []
   }

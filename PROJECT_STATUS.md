@@ -1,16 +1,30 @@
 # LingoLinq AAC - Project Status & Development Journal
 
-**Last Updated:** August 14, 2025  
-**Current Branch:** `epic/tech-debt-and-security`  
-**Test Deployment Branch:** `test/repo-reorganization`
+**Last Updated:** January 11, 2025  
+**Current Branch:** `main`  
+**Active Development Branches:** See Branch Status section below
 
 ## 📊 Current Project Status
 
 ### ✅ **COMPLETED (Ready for Production)**
 
+#### **Documentation & Repository Cleanup (COMPLETED - January 2025)**
+- ✅ **Comprehensive documentation audit** - Reviewed 47+ markdown files across repository
+- ✅ **Removed obsolete files** - Eliminated 12+ duplicate/conflicting documentation files
+- ✅ **Consolidated roadmaps** - Merged conflicting timeline documents into branch-specific plans
+- ✅ **Branch-specific organization** - Moved documentation to appropriate branches:
+  - `ember-3-12-to-3-28-upgrade`: EMBER_UPGRADE_ROADMAP.md
+  - `rails-6-to-7-upgrade`: RAILS_UPGRADE_ROADMAP.md
+  - `epic/ai-features`: AI_FEATURES_PLAN.md
+  - `epic/tech-debt-and-security`: TECH_DEBT_AND_SECURITY_PLAN.md
+  - `feature/llm-enhanced-inflections`: Multi-language grammar expansion docs
+- ✅ **Repository structure modernization** - Clear separation of concerns and maintenance guidelines
+- ✅ **All branches synchronized** - Clean working trees, pushed to remote repositories
+
 #### **Security Updates (CRITICAL - DONE)**
 - ✅ **Rails 6.1.0 → 6.1.7.10** - Fixes 25+ critical CVEs (93% security improvement)
 - ✅ **Ruby gems security patches** - Updated all vulnerable dependencies
+- ✅ **Security tooling added** - RuboCop Rails, Brakeman static analysis
 - ✅ **Critical vulnerabilities fixed:**
   - CVE-2022-32224 (ActiveRecord RCE) - FIXED
   - CVE-2024-47887 (ActionPack ReDoS) - FIXED
@@ -25,124 +39,150 @@
   - `app/frontend/app/app.js:87`
   - `lib/json_api/json.rb:98,117`
 
-#### **Repository Organization (DONE)**
-- ✅ **Branch management** - All branches updated to current main
-- ✅ **Test deployment branch** - `test/repo-reorganization` configured
-- ✅ **Documentation structure** - Organized in `.ai/`, `docs/`, `docker/` directories
+#### **Feature Development (COMPLETED)**
+- ✅ **SSO Integration** - Google Workspace & Microsoft 365 Education SSO completed
+- ✅ **Website Translation Widget** - Google Translate integration with privacy fallback
+- ✅ **Testing Infrastructure** - Massive boards controller spec split into 22 focused files
+
+## 🗂️ **ACTIVE DEVELOPMENT BRANCHES**
+
+### **Branch Status & Organization**
+All branches have been cleaned up, synchronized, and pushed to remote repositories:
+
+#### **Framework Upgrades**
+- **`ember-3-12-to-3-28-upgrade`** - Ember.js modernization (4-week timeline)
+- **`rails-6-to-7-upgrade`** - Rails framework upgrade (6-week timeline)
+
+#### **Epic Features**
+- **`epic/ai-features`** - AI integration strategy and implementation
+- **`epic/tech-debt-and-security`** - Security improvements and technical debt cleanup
+- **`epic/rebranding-and-ux-ui`** - UI/UX modernization
+
+#### **Feature Branches**
+- **`feature/sso-google-workspace-integration`** - SSO implementation (completed, ready for review)
+- **`feature/llm-enhanced-inflections`** - Multi-language grammar expansion
+- **`feature/print-performance-optimization`** - Performance improvements
+- **`feature/token-optimization-mcp`** - Token optimization
+- **`feature/website-translation-widget`** - Translation features
+
+#### **Testing & Deployment**
+- **`test/repo-reorganization`** - Testing environment for changes
 
 ### 🚧 **IN PROGRESS (Current Work)**
 
-#### **Docker Development Environment (95% Complete)**
-- ✅ **Multi-platform support** - Windows, Mac, Linux compatibility
-- ✅ **Services configured:**
-  - PostgreSQL 15 (healthy)
-  - Redis 7 (healthy)
-  - Rails backend (95% working)
-- ⚠️ **Current Issue: psych gem dependency conflict**
+#### **Branch Coordination & Planning**
+- 🔄 **Next Phase:** Feature development coordination across branches
+- 🔄 **Planning:** Merge strategy for completed features
+- 🔄 **Documentation:** Branch-specific development guides needed
 
-### ⚠️ **KNOWN ISSUES (Blocking Deployment)**
+### ⚠️ **TECHNICAL DEBT & ISSUES**
 
-#### **Docker Deployment - psych Gem Issue**
-**Problem:** Rails server fails to start due to bundler dependency resolution
-```
-Could not find irb-1.15.2, sass-rails-6.0.0, sdoc-2.6.1, rdoc-6.14.2, sassc-rails-2.1.2, psych-5.2.6 in locally installed gems (Bundler::GemNotFound)
-```
+#### **Development Environment**
+- **Docker Configuration** - May need updates to support latest changes
+- **Dependency Management** - Monitor for conflicts during branch merges
+- **Testing Strategy** - Coordinate testing across multiple active branches
 
-**Impact:** Prevents Rails server from starting in Docker
-**Workaround:** Rails console and commands work via direct bundle exec
-**Priority:** HIGH - Blocks full Docker deployment
+### 🔒 **SECURITY STATUS**
 
-### 🔒 **REMAINING SECURITY ISSUES (Low Priority)**
-
+#### **Remaining Low-Priority Issues**
 Only 2 vulnerabilities remain (down from 30+):
-1. **CVE-2024-54133** (ActionPack CSP bypass) - Requires Rails 7.0+
+1. **CVE-2024-54133** (ActionPack CSP bypass) - Requires Rails 7.0+ (addressed in rails upgrade branch)
 2. **CVE-2024-21510** (Sinatra security) - Requires Sinatra 4.1+
 
-## 🐳 Docker Development Setup
+#### **Security Monitoring**
+- ✅ **RuboCop Rails** - Static analysis configured
+- ✅ **Brakeman** - Security scanning active  
+- ✅ **Bundle Audit** - Dependency vulnerability checking
 
-### **Current Docker Configuration**
-- **File:** `docker/docker-compose.simple.yml`
-- **Services:** PostgreSQL, Redis, Rails backend
-- **Status:** 95% functional, needs psych gem fix
+## 🚀 **GETTING STARTED**
 
 ### **For New Team Members:**
-```bash
-# 1. Clone repository
-git clone <repository-url>
-cd LingoLinq-AAC
+1. **Read the onboarding guide:** [GETTING_STARTED.md](./GETTING_STARTED.md)
+2. **Review branch documentation:** Check branch-specific README files
+3. **Choose your development approach:**
+   - **Docker Development:** Follow GETTING_STARTED.md for containerized setup
+   - **Native Development:** Traditional Rails + Ember setup (see README.md)
 
-# 2. Start Docker environment
-docker-compose -f docker/docker-compose.simple.yml up -d
+### **For AI Development Sessions:**
+1. **Read this PROJECT_STATUS.md** - Understand current project state
+2. **Check branch status** - Review active development branches above
+3. **Use AI development tools:**
+   - Claude Code with MCP integrations
+   - Gemini CLI for project analysis
+   - Commands available in [.ai/tools/AI_DEVELOPMENT_COMMANDS.md](./.ai/tools/AI_DEVELOPMENT_COMMANDS.md)
 
-# 3. Check status
-docker-compose -f docker/docker-compose.simple.yml ps
-
-# 4. Access Rails console (works around psych issue)
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails console
-```
-
-### **For AI Sessions (Claude/Gemini):**
-⚠️ **IMPORTANT:** Always use Docker for testing and deployment on this project
-- Read this file first to understand current status
-- Use commands from `CLAUDE.md`
-- Never run Rails directly on host system
-- Current blocker: psych gem in Docker environment
+### **Development Environment Options**
+- **Docker Setup:** See [GETTING_STARTED.md](./GETTING_STARTED.md) for 15-minute setup
+- **Traditional Setup:** See README.md for Rails + Ember development
+- **AI-Assisted Development:** Comprehensive context available in `.ai/` directory
 
 ## 📋 Next Steps & Priorities
 
 ### **Immediate (This Week)**
-1. **Fix psych gem Docker issue** - Highest priority
-   - Problem: Bundler dependency resolution in container
-   - Solutions to try: Update Gemfile.lock, fix bundler cache, try different Ruby base image
-   
-2. **Complete Docker deployment testing**
-   - Verify Rails server starts successfully
-   - Test application functionality
-   - Validate database connectivity
+1. **Branch Development Coordination**
+   - Prioritize which branches to merge first
+   - Coordinate testing across multiple branches
+   - Plan integration testing strategy
+
+2. **Feature Integration Planning**
+   - Review completed SSO integration for merge readiness
+   - Assess Rails upgrade timeline and dependencies
+   - Plan Ember upgrade coordination with other features
 
 ### **Short Term (Next 2 Weeks)**
-1. **Complete remaining branding cleanup**
-   - Replace "SweetSuite" references in code
-   - Update "coughdrop" URLs to LingoLinq domains
-   
-2. **Team onboarding documentation**
-   - Create developer setup guides
-   - Document workflows and processes
+1. **Development Workflow Optimization**
+   - Create branch-specific development guides
+   - Document merge and testing procedures
+   - Establish CI/CD pipeline for branch coordination
+
+2. **Technical Debt Resolution**
+   - Address any Docker environment issues that surface
+   - Monitor dependency conflicts during feature merges
+   - Update security scanning workflows
 
 ### **Medium Term (Next Month)**
-1. **Consider Rails 7.0+ upgrade** (fixes remaining 2 CVEs)
-2. **Frontend npm security audit** (175 vulnerabilities noted)
-3. **Production deployment planning**
+1. **Major Framework Upgrades**
+   - Execute Rails 7.0+ upgrade (addresses remaining security issues)
+   - Complete Ember modernization 
+   - Frontend dependency security audit and updates
+
+2. **Production Deployment Preparation**
+   - Finalize containerization strategy
+   - Production environment testing
+   - Performance optimization and monitoring setup
 
 ## 🛠️ Development Workflows
 
-### **For Security Updates:**
-- Branch: `epic/tech-debt-and-security`
-- Status: Nearly complete, just monitoring needed
+### **Branch-Specific Development**
+- **Framework Upgrades:** Work in dedicated upgrade branches with timeline tracking
+- **Feature Development:** Use feature branches with clear merge criteria
+- **Security Updates:** Monitor via `epic/tech-debt-and-security` branch
+- **Testing:** Use `test/repo-reorganization` for integration testing
 
-### **For Feature Development:**
-- Use Docker environment (once psych issue fixed)
-- Test on `test/repo-reorganization` branch
-- Follow Docker-only development (see CLAUDE.md)
+### **AI-Assisted Development**
+- **Context Loading:** Use comprehensive project context in `.ai/` directory
+- **Branch Awareness:** Always check current branch status before starting work
+- **Documentation Updates:** Update branch-specific docs as features develop
+- **Cross-Branch Coordination:** Consider impact on other active branches
 
-### **For Deployments:**
-- Docker containers work across all platforms
-- Same environment locally and in production
-- Ready for cloud deployment (AWS, Google Cloud, Heroku)
+### **Quality Assurance**
+- **Security Scanning:** RuboCop Rails, Brakeman, and Bundle Audit active
+- **Testing Strategy:** Coordinate testing across multiple active branches
+- **Documentation Maintenance:** Keep branch-specific documentation current
 
-## 📞 Team Communication
+## 📞 Team Communication & Onboarding
 
-### **When Starting New AI Sessions:**
-1. Read this PROJECT_STATUS.md file
-2. Check CLAUDE.md for Docker commands
-3. Review current branch status
-4. Use Docker for all Rails operations
+### **For New Team Members**
+1. **Start Here:** Read [GETTING_STARTED.md](./GETTING_STARTED.md) for 15-minute setup
+2. **Choose Your Path:** Docker development or traditional Rails + Ember
+3. **Branch Selection:** Review active branches and choose appropriate work area
+4. **AI Tools:** Leverage Claude Code and Gemini CLI for accelerated development
 
-### **When Team Members Join:**
-1. Follow Docker setup instructions above
-2. Review this status document
-3. Ask about psych gem fix if still blocking
-4. Use workarounds (bundle exec commands) until fixed
+### **For AI Development Sessions**
+1. **Read PROJECT_STATUS.md** (this file) for current state
+2. **Check branch documentation** for specific context
+3. **Use AI development commands** from [.ai/tools/AI_DEVELOPMENT_COMMANDS.md](./.ai/tools/AI_DEVELOPMENT_COMMANDS.md)
+4. **Maintain documentation** as you develop features
 
 ## 🎯 Success Metrics
 

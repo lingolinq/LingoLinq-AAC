@@ -1,5 +1,5 @@
 # Simple PowerShell version of devin for Windows compatibility
-# This fixes the Gemini CLI startup issue
+# This provides context management for Claude MCP integration
 
 param(
     [string]$Command = "context",

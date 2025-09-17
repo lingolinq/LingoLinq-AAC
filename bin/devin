@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 # DeepWiki MCP-powered development assistant for LingoLinq AAC
+# This script sets up the MCP environment for Claude Code integration
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-CLAUDE_CMD="/c/Users/skawa/AppData/Roaming/npm/claude" # Full path to avoid PATH issues
+MCP_CONFIG_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp/claude-mcp-config.json"
 
 # Function to ensure MCP context is up-to-date
 update_context() {
@@ -72,34 +73,25 @@ EOF
     ;;
 
   review)
-    echo "🔥 AI-powered commit review with context..."
+    echo "🔥 AI-powered commit review with MCP..."
     update_context
-    CONTEXT=$(get_context architecture)
-    git log "$2" --oneline | while read -r line; do
-      COMMIT_HASH=$(echo "$line" | awk '{print $1}')
-      MESSAGE=$(echo "$line" | cut -d' ' -f2-)
-      echo "🧠 Reviewing $COMMIT_HASH: $MESSAGE"
-      $CLAUDE_CMD "Context: This is a Rails + Ember.js AAC system. Recent changes: $(head -5 $REPO_PATH/.ai/context/recent-changes.txt | tr '\n' ' '). Give a roast-style code review of commit: $MESSAGE"
-    done
+    echo "📝 Commit review prepared. Use Claude Code with MCP:"
+    echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Review this commit: $2\""
     ;;
 
   analyze)
     case "$2" in
       repo)
-        echo "🔍 Deep repo analysis with MCP context..."
+        echo "🔍 Deep repo analysis with MCP..."
         update_context
-        CONTEXT=$(get_context all)
-        $CLAUDE_CMD "Here's the current project context: $CONTEXT. Give me an architecture summary including major modules, hotspots, and legacy code risks."
+        echo "📊 Repository analysis prepared. Use Claude Code with MCP:"
+        echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Analyze this repository architecture and identify major modules, hotspots, and legacy code risks\""
         ;;
       changes)
-        echo "📊 Analyzing recent changes..."
+        echo "📊 Analyzing recent changes with MCP..."
         update_context
-        if [[ -f "$REPO_PATH/.ai/context/recent-changes.txt" ]]; then
-            RECENT=$(cat "$REPO_PATH/.ai/context/recent-changes.txt")
-            $CLAUDE_CMD "Analyze these recent changes in the LingoLinq AAC codebase and identify patterns, risks, and recommendations: $RECENT"
-        else
-            echo "❌ No recent changes found."
-        fi
+        echo "📈 Recent changes analysis prepared. Use Claude Code with MCP:"
+        echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Analyze recent changes in this repository and identify patterns, risks, and recommendations\""
         ;;
       *)
         echo "Usage: devin analyze [repo|changes]"
@@ -110,10 +102,10 @@ EOF
   ask)
     shift
     QUESTION="$*"
-    echo "🤖 Asking Claude with full project context: $QUESTION"
+    echo "🤖 Asking Claude with MCP context: $QUESTION"
     update_context
-    CONTEXT=$(get_context all)
-    $CLAUDE_CMD "LingoLinq AAC Project Context: $CONTEXT. Question: $QUESTION"
+    echo "💬 Question prepared. Use Claude Code with MCP:"
+    echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"$QUESTION\""
     ;;
 
   deepwiki)
@@ -125,10 +117,10 @@ EOF
 
   export)
     if [[ "$2" == "wiki" ]]; then
-      echo "📦 Exporting project context as markdown..."
+      echo "📦 Exporting project context with MCP..."
       update_context
-      CONTEXT=$(get_context all)
-      $CLAUDE_CMD "Convert this LingoLinq AAC project context to well-formatted markdown for documentation: $CONTEXT"
+      echo "📄 Export prepared. Use Claude Code with MCP:"
+      echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Convert this project context to well-formatted markdown for documentation\""
     else
       echo "❌ Unsupported export target."
     fi
