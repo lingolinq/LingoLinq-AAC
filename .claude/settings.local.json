@@ -101,7 +101,8 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(docker system prune:*)",
-      "Bash(docker port:*)"
+      "Bash(docker port:*)",
+      "Bash(gh issue create:*)"
     ],
     "deny": []
   }
