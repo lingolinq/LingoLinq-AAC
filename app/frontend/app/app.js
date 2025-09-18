@@ -16,11 +16,19 @@ import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
-  LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  if(window.SweetSuite && SweetSuite.track_error) {
+    SweetSuite.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  } else {
+    console.error(msg + " (" + url + "-" + line + ":" + col + ")");
+  }
 };
 Ember.onerror = function(err) {
   if(err.stack) {
-    LingoLinqAAC.track_error(err.message, err.stack);
+    if(window.SweetSuite && SweetSuite.track_error) {
+      SweetSuite.track_error(err.message, err.stack);
+    } else {
+      console.error(err.message, err.stack);
+    }
   } else {
     if(err.fakeXHR && (err.fakeXHR.status == 400 || err.fakeXHR.status == 404 || err.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
@@ -29,10 +37,14 @@ Ember.onerror = function(err) {
     } else if(err._result && err._result.fakeXHR && (err._result.fakeXHR.status == 400 || err._result.fakeXHR.status == 404 || err._result.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
     } else {
-      LingoLinqAAC.track_error(JSON.stringify(err), false);
+      if(window.SweetSuite && SweetSuite.track_error) {
+        SweetSuite.track_error(JSON.stringify(err), false);
+      } else {
+        console.error(JSON.stringify(err));
+      }
     }
   }
-  if(Ember.testing || LingoLinqAAC.testing) {
+  if(Ember.testing || (window.LingoLinqAAC && LingoLinqAAC.testing)) {
     throw(err);
   }
 };
@@ -84,8 +96,8 @@ SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
 SweetSuite.embedded = !!location.href.match(/embed=1/);
 SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
 SweetSuite.referrer = document.referrer;
-SweetSuite.app_name = SweetSuite.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
-SweetSuite.company_name = SweetSuite.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
+LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
+LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
 SweetSuite.remote_url = function(url) {
   return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
 };
@@ -97,8 +109,8 @@ SweetSuite.track_error = function(msg, stack) {
   } else {
     console.error(msg, stack || error.stack);
   }
-  SweetSuite.errors = SweetSuite.errors || [];
-  SweetSuite.errors.push({
+  LingoLinqAAC.errors = LingoLinqAAC.errors || [];
+  LingoLinqAAC.errors.push({
     message: msg,
     date: (new Date()),
     stack: stack === false ? null : (stack || error.stack)
@@ -177,7 +189,7 @@ if(capabilities.wait_for_deviceready) {
 }
 
 
-loadInitializers(SweetSuite, config.modulePrefix);
+loadInitializers(LingoLinqAAC, config.modulePrefix);
 
 DS.Model.reopen({
   reload: function(ignore_local) {
@@ -229,7 +241,7 @@ Route.reopen({
     var controller = this.controllerFor(this.routeName);
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
-      SweetSuite.controller.updateTitle(title.toString());
+      LingoLinqAAC.controller.updateTitle(title.toString());
     }
   },
   activate: function() {
@@ -395,9 +407,9 @@ SweetSuite.extra_keyed_colors = [
 ];
 
 SweetSuite.licenseOptions.license_url = function(id) {
-  for(var idx = 0; idx < SweetSuite.licenseOptions.length; idx++) {
-    if(SweetSuite.licenseOptions[idx].id == id) {
-      return SweetSuite.licenseOptions[idx].url;
+  for(var idx = 0; idx < LingoLinqAAC.licenseOptions.length; idx++) {
+    if(LingoLinqAAC.licenseOptions[idx].id == id) {
+      return LingoLinqAAC.licenseOptions[idx].url;
     }
   }
   return "";
@@ -489,29 +501,29 @@ SweetSuite.avatarUrls = [
   {alt: 'zombie', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/zombie.png'},
   {alt: 'stegosaurus', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/stegosaurus.png'}
 ];
-SweetSuite.Lessons = {
+LingoLinqAAC.Lessons = {
   track: function(url) {
     return new RSVP.Promise(function(resolve, reject) {
-      var lesson = SweetSuite.Lessons.assert_lesson();
+      var lesson = LingoLinqAAC.Lessons.assert_lesson();
       lesson.restart(url);
     });
   },
   assert_lesson: function() {
-    SweetSuite.Lessons.lesson = SweetSuite.Lessons.lesson || EmberObject.extend({
+    LingoLinqAAC.Lessons.lesson = LingoLinqAAC.Lessons.lesson || EmberObject.extend({
       restart: function(url) {
         this.set('state', null);
       }
     }).create();
   }
 };
-SweetSuite.Videos = {
+LingoLinqAAC.Videos = {
   players: {},
   track: function(dom_id, callback) {
     return new RSVP.Promise(function(resolve, reject) {
-      SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-      SweetSuite.Videos.waiting[dom_id] = SweetSuite.Videos.waiting[dom_id] || [];
+      LingoLinqAAC.Videos.waiting = LingoLinqAAC.Videos.waiting || {};
+      LingoLinqAAC.Videos.waiting[dom_id] = LingoLinqAAC.Videos.waiting[dom_id] || [];
       var found = false;
-      SweetSuite.Videos.waiting[dom_id].push(function(player) {
+      LingoLinqAAC.Videos.waiting[dom_id].push(function(player) {
         found = true;
         if(callback) {
           player.addListener(callback);
@@ -525,19 +537,19 @@ SweetSuite.Videos = {
     });
   },
   untrack: function(dom_id, callback) {
-    var player = SweetSuite.Videos.players[dom_id];
+    var player = LingoLinqAAC.Videos.players[dom_id];
     if(player) {
       player.removeListener(callback);
     }
   },
   player_ready: function(dom, window) {
     if(!dom.id) { return; }
-    if(SweetSuite.Videos.players[dom.id] && SweetSuite.Videos.players[dom.id]._dom == dom) {
+    if(LingoLinqAAC.Videos.players[dom.id] && LingoLinqAAC.Videos.players[dom.id]._dom == dom) {
       return;
     }
     console.log("initializing player", dom.id);
-    if(SweetSuite.Videos.players[dom.id]) {
-      SweetSuite.Videos.players[dom.id].cleanup();
+    if(LingoLinqAAC.Videos.players[dom.id]) {
+      LingoLinqAAC.Videos.players[dom.id].cleanup();
     }
     var player = EmberObject.extend({
       _target_window: window,
@@ -569,12 +581,12 @@ SweetSuite.Videos = {
         });
       }
     }).create({state: 'initialized'});
-    SweetSuite.Videos.players[dom.id] = player;
-    SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-    (SweetSuite.Videos.waiting[dom.id] || []).forEach(function(callback) {
+    LingoLinqAAC.Videos.players[dom.id] = player;
+    LingoLinqAAC.Videos.waiting = LingoLinqAAC.Videos.waiting || {};
+    (LingoLinqAAC.Videos.waiting[dom.id] || []).forEach(function(callback) {
       callback(player);
     });
-    SweetSuite.Videos.waiting[dom.id] = [];
+    LingoLinqAAC.Videos.waiting[dom.id] = [];
   },
   player_status: function(event) {
     var frame = null;
@@ -590,8 +602,8 @@ SweetSuite.Videos = {
       }
     }
     if(frame && frame.id) {
-      SweetSuite.Videos.player_ready(frame, event.source);
-      var player = SweetSuite.Videos.players[frame.id];
+      LingoLinqAAC.Videos.player_ready(frame, event.source);
+      var player = LingoLinqAAC.Videos.players[frame.id];
       if(player) {
         if(event.data && event.data.time !== undefined) {
           player.set('time', event.data.time);
@@ -629,10 +641,10 @@ window.addEventListener('message', function(event) {
       var dom_id = frame.id;
       var elem = frame;
       event.frameRef = frame;
-      SweetSuite.Videos.player_status(event);
+      LingoLinqAAC.Videos.player_status(event);
     }
   } else if(event.data && event.data.lesson_status) {
-    var lesson = SweetSuite.Lessons.assert_lesson();
+    var lesson = LingoLinqAAC.Lessons.assert_lesson();
     lesson.set('duration', event.data.duration);
     lesson.set('state', event.data.state);
   }
@@ -746,33 +758,33 @@ window.addEventListener('message', function(event) {
 //   RunLater(SweetSuite.YT.poll, 500);
 // }
 
-SweetSuite.Visualizations = {
+LingoLinqAAC.Visualizations = {
   wait: function(name, callback) {
-    if(!SweetSuite.Visualizations.ready) {
-      SweetSuite.Visualizations.callbacks = SweetSuite.Visualizations.callbacks || [];
-//       var found = SweetSuite.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
+    if(!LingoLinqAAC.Visualizations.ready) {
+      LingoLinqAAC.Visualizations.callbacks = LingoLinqAAC.Visualizations.callbacks || [];
+//       var found = LingoLinqAAC.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
 //       if(!found) {
-        SweetSuite.Visualizations.callbacks.push({
+        LingoLinqAAC.Visualizations.callbacks.push({
           name: name,
           callback: callback
         });
 //       }
-      SweetSuite.Visualizations.init();
+      LingoLinqAAC.Visualizations.init();
     } else {
       callback();
     }
   },
   handle_callbacks: function() {
-    SweetSuite.Visualizations.initializing = false;
-    SweetSuite.Visualizations.ready = true;
-    (SweetSuite.Visualizations.callbacks || []).forEach(function(obj) {
+    LingoLinqAAC.Visualizations.initializing = false;
+    LingoLinqAAC.Visualizations.ready = true;
+    (LingoLinqAAC.Visualizations.callbacks || []).forEach(function(obj) {
       obj.callback();
     });
-    SweetSuite.Visualizations.callbacks = [];
+    LingoLinqAAC.Visualizations.callbacks = [];
   },
   init: function() {
-    if(SweetSuite.Visualizations.initializing || SweetSuite.Visualizations.ready) { return; }
-    SweetSuite.Visualizations.initializing = true;
+    if(LingoLinqAAC.Visualizations.initializing || LingoLinqAAC.Visualizations.ready) { return; }
+    LingoLinqAAC.Visualizations.initializing = true;
     if(!window.google || !window.google.visualization || !window.google.maps) {
       var script = document.createElement('script');
       script.type = 'text/javascript';
@@ -785,7 +797,7 @@ SweetSuite.Visualizations = {
               one_done('both');
             }, 500);
           } else {
-            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: SweetSuite.Visualizations.handle_callbacks});
+            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinqAAC.Visualizations.handle_callbacks});
           }
         }
       };
@@ -810,7 +822,7 @@ SweetSuite.Visualizations = {
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {
-      RunLater(SweetSuite.Visualizations.handle_callbacks);
+      RunLater(LingoLinqAAC.Visualizations.handle_callbacks);
     }
 
   }
@@ -827,19 +839,19 @@ SweetSuite.expired = function() {
   var diff = now - version;
   return diff > 30;
 };
-SweetSuite.log = {
+LingoLinqAAC.log = {
   start: function() {
-    SweetSuite.log.started = (new Date()).getTime();
+    LingoLinqAAC.log.started = (new Date()).getTime();
   },
   track: function(msg) {
-    if(!SweetSuite.loggy) { return; }
+    if(!LingoLinqAAC.loggy) { return; }
     var now = (new Date()).getTime();
-    if(SweetSuite.log.started) {
-      console.debug("TRACK:" + msg, now - SweetSuite.log.started);
+    if(LingoLinqAAC.log.started) {
+      console.debug("TRACK:" + msg, now - LingoLinqAAC.log.started);
     }
   }
 };
-window.SweetSuite = SweetSuite;
+window.SweetSuite = LingoLinqAAC;
 window.SweetSuite.VERSION = window.app_version;
 
-export default SweetSuite;
+export default LingoLinqAAC;

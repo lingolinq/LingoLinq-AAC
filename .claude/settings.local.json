@@ -95,7 +95,13 @@
       "Bash(C:UsersskawaLingoLinq-AAC.aitoolsdoc-audit.sh)",
       "Bash(./.ai/tools/doc-audit.sh:*)",
       "Bash(./.ai/tools/doc-fix.sh:*)",
-      "Bash(./.ai/tools/branch-aware-docs.sh:*)"
+      "Bash(./.ai/tools/branch-aware-docs.sh:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker port:*)"
     ],
     "deny": []
   }

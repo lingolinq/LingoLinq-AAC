@@ -3169,7 +3169,7 @@ var persistence = EmberObject.extend({
     }
   }),
   check_for_new_version: observer('refresh_stamp', function() {
-    if(window.SweetSuite.update_version) {
+    if(window.SweetSuite && window.SweetSuite.update_version) {
       persistence.set('app_needs_update', true);
     }
   })

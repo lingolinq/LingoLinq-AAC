@@ -41,6 +41,8 @@ services:
       DATABASE_URL: postgres://postgres:password@db:5432/lingolinq_development
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
+      RACK_TIMEOUT_SERVICE_TIMEOUT: 300
+      RAILS_RELOAD_CLASSES: false
     env_file:
       - ../.env
     volumes:
@@ -54,17 +56,37 @@ services:
     command: >
       bash -c "
         echo '🚀 Starting LingoLinq Rails App...' &&
-        echo '✅ Ruby: $(ruby -v)' &&
-        echo '✅ Node: $(node -v)' &&
         bundle install &&
-        echo '✅ Rails: $(bundle exec rails -v)' &&
-        bundle exec rails db:create || echo 'Database may already exist' &&
-        bundle exec rails db:migrate &&
+        rm -f tmp/pids/server.pid &&
         echo '🎉 Starting Rails server on port 3000...' &&
-        bundle exec rails server -b 0.0.0.0 -p 3000
+        exec bundle exec rails server -b 0.0.0.0 -p 3000
+      "
+
+  # Ember.js Frontend
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8181:8181"
+      - "8182:8182"
+    working_dir: /app/app/frontend
+    volumes:
+      - ../app/frontend:/app/app/frontend
+      - npm_cache:/root/.npm
+      - bower_cache:/root/.cache/bower
+    command: >
+      bash -c "
+        echo '🚀 Starting LingoLinq Ember App...' &&
+        npm install &&
+        ./node_modules/bower/bin/bower install --allow-root &&
+        echo '🎉 Starting Ember server on port 8181...' &&
+        ./node_modules/ember-cli/bin/ember serve --port 8181 --live-reload-port 8182
       "
 
 volumes:
   postgres_data:
   redis_data:
   bundle_cache:
+  npm_cache:
+  bower_cache:
