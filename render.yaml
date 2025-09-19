@@ -1,11 +1,10 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: pserv
-    name: lingolinq-db
+  - name: lingolinq-db
     plan: starter
     region: oregon
-    ipAllowList: []
 
+services:
   # Redis Cache
   - type: redis
     name: lingolinq-redis
