@@ -3,6 +3,10 @@ set -e
 
 echo "🚀 Starting LingoLinq-AAC on Render..."
 
+# Re-enable obf gem for runtime (was disabled during asset compilation)
+unset DISABLE_OBF_GEM
+export DISABLE_OBF_GEM=""
+
 # Wait for database to be ready
 echo "⏳ Waiting for database..."
 until bundle exec rails db:version > /dev/null 2>&1; do

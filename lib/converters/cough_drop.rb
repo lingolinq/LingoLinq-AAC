@@ -1,4 +1,5 @@
-require 'obf'
+# Only require obf gem when not disabled (for asset precompilation)
+require 'obf' unless ENV['DISABLE_OBF_GEM'] == 'true'
 
 module Converters::CoughDrop
   EXT_PARAMS = ['link_disabled', 'add_to_vocalization', 'add_vocalization', 'hide_label', 'home_lock', 'blocking_speech', 'part_of_speech', 'external_id', 'video', 'book']

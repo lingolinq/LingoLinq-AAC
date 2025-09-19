@@ -74,22 +74,22 @@ RUN echo "🏗️  STEP 7: Preparing Rails application..."
 # Return to app directory
 WORKDIR /app
 
-# Set production environment
+# Set production environment for asset compilation
 ENV RAILS_ENV=production
 ENV RACK_ENV=production
 ENV NODE_ENV=production
-# Remove dummy secret - will use real one at runtime
-# ENV SECRET_KEY_BASE will be provided by Render
-ENV SKIP_ASSET_PRECOMPILE=true
+ENV SECRET_KEY_BASE=dummy_secret_for_asset_compilation
+ENV DISABLE_OBF_GEM=true
 
 # Create required directories
 RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
     echo "✅ Directories created"
 
-RUN echo "🏗️  STEP 8: Skipping asset precompilation (will compile at runtime)..."
-# Skip asset precompilation to avoid obf gem issues during build
-# Assets will be compiled at runtime when database is available
-RUN echo "⚠️  Assets will be compiled at runtime to avoid build-time database dependency issues"
+RUN echo "🏗️  STEP 8: Precompiling Rails assets with obf gem disabled..."
+# Precompile assets with obf gem temporarily disabled
+RUN echo "🎨 Starting asset precompilation with obf gem isolation..." && \
+    DISABLE_OBF_GEM=true bundle exec rake assets:precompile && \
+    echo "✅ Assets precompiled successfully"
 
 RUN echo "🏗️  STEP 9: Final setup..."
 # Expose port
