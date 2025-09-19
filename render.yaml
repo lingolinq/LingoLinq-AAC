@@ -2,10 +2,7 @@ services:
   # PostgreSQL Database
   - type: pserv
     name: lingolinq-db
-    env: node
     plan: starter
-    databaseName: lingolinq_production
-    user: lingolinq_user
     region: oregon
 
   # Redis Cache
