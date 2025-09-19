@@ -102,7 +102,12 @@
       "Bash(gh run view:*)",
       "Bash(docker system prune:*)",
       "Bash(docker port:*)",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(mv:*)",
+      "Bash(code:*)",
+      "Bash(EDITOR=\"code --wait\" bundle exec rails credentials:edit)",
+      "WebFetch(domain:docs.render.com)",
+      "WebFetch(domain:render.com)"
     ],
     "deny": []
   }

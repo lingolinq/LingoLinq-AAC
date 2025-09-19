@@ -74,26 +74,30 @@ RUN echo "🏗️  STEP 7: Preparing Rails application..."
 # Return to app directory
 WORKDIR /app
 
-# Set production environment for asset compilation
+# Set production environment
 ENV RAILS_ENV=production
 ENV RACK_ENV=production
 ENV NODE_ENV=production
-ENV SECRET_KEY_BASE=dummy_secret_for_asset_compilation
-ENV SKIP_VALIDATIONS=true
+# Remove dummy secret - will use real one at runtime
+# ENV SECRET_KEY_BASE will be provided by Render
+ENV SKIP_ASSET_PRECOMPILE=true
 
 # Create required directories
 RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
     echo "✅ Directories created"
 
-RUN echo "🏗️  STEP 8: Precompiling Rails assets..."
-# Precompile assets
-RUN echo "🎨 Starting asset precompilation..." && \
-    bundle exec rake assets:precompile && \
-    echo "✅ Assets precompiled successfully"
+RUN echo "🏗️  STEP 8: Skipping asset precompilation (will compile at runtime)..."
+# Skip asset precompilation to avoid obf gem issues during build
+# Assets will be compiled at runtime when database is available
+RUN echo "⚠️  Assets will be compiled at runtime to avoid build-time database dependency issues"
 
 RUN echo "🏗️  STEP 9: Final setup..."
 # Expose port
 EXPOSE 3000
 
-# Default command
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+# Copy startup script
+COPY bin/render-start.sh ./bin/render-start.sh
+RUN chmod +x ./bin/render-start.sh
+
+# Default command - use startup script for runtime asset compilation
+CMD ["./bin/render-start.sh"]

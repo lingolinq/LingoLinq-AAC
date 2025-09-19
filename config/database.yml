@@ -12,14 +12,21 @@ development:
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
+<% if ENV['DATABASE_URL'] && !ENV['DATABASE_URL'].empty? %>
+test:
   adapter: postgresql
   encoding: unicode
   database: lingolinq_test
   pool: 5
   timeout: 5000
-  <% if ENV['DATABASE_URL'] %>
   url: <%= ENV['DATABASE_URL'].gsub('lingolinq_development', 'lingolinq_test') %>
-  <% end %>
+<% else %>
+test:
+  adapter: sqlite3
+  database: ':memory:'
+  pool: 5
+  timeout: 5000
+<% end %>
 
 production:
   primary: 

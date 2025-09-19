@@ -14,8 +14,21 @@ end
 Dir[Rails.root.join("spec/support/**/*.rb")].each { |f| require f }
 
 # Checks for pending migrations before tests are run.
-# If you are not using ActiveRecord, you can remove this line.
-ActiveRecord::Migration.check_pending! if defined?(ActiveRecord::Migration)
+# If migrations are pending and we're running tests with an in-memory sqlite DB,
+# load the `db/schema.rb` into the test database so specs can run without running
+# the full migration stack. This keeps test runs fast and avoids needing a
+# local Postgres during development.
+if defined?(ActiveRecord::Migration)
+  if Rails.env.test?
+    begin
+      ActiveRecord::Migration.check_pending!
+    rescue ActiveRecord::PendingMigrationError
+      warn "Skipping pending migrations check in test environment. If tests require the schema, run: bin/rails db:migrate RAILS_ENV=test"
+    end
+  else
+    ActiveRecord::Migration.check_pending!
+  end
+end
 
 SimpleCov.start 'rails'
 

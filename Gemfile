@@ -13,6 +13,7 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
+  gem 'sqlite3', '~> 1.4'
   gem 'matrix'
   gem 'mutex_m'
   gem 'benchmark'

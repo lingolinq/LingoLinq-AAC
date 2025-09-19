@@ -86,3 +86,4 @@ launcher.ps1
 *.backup
 *.tmp
 *~
+/config/master.key

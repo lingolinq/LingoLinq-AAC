@@ -41,6 +41,10 @@ services:
         value: true
       - key: RACK_TIMEOUT_SERVICE_TIMEOUT
         value: 300
+      - key: SKIP_ASSET_PRECOMPILE
+        value: true
+      - key: ASSETS_COMPILE_TIMEOUT
+        value: 600
       # Add your secret keys here (you'll need to set these manually in Render dashboard)
       - key: RAILS_MASTER_KEY
         sync: false

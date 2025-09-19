@@ -2,7 +2,7 @@
   "name": "LingoLinq AAC Legacy Testing Environment",
   "dockerComposeFile": "../docker/docker-compose.dev.yml",
   "service": "app",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspaces/LingoLinq-AAC",
   "shutdownAction": "stopCompose",
 
   // Features to install

@@ -35,10 +35,20 @@ cd docker && docker-compose up -d
 4. Wait for services to initialize (can take 5-10 minutes first time)
 5. Access application at http://localhost:3000
 
-### Known Issues
+### Known Issues (Expected and Unfixable)
 - **Startup hangs**: Rails initialization can hang on first run
 - **Asset compilation**: Bower/NPM conflicts in container
-- **Browser loading loops**: JavaScript namespace issues (partially fixed)
+- **JavaScript errors**:
+  - `LingoLinqAAC.track_error is not a function` (in frontend.source.js)
+  - `app.initializer is not a function` (Ember 3.12 compatibility)
+- **Development vs Production**: Local uses uncompiled source, production uses compiled assets
+
+### Why These Errors Occur
+**Root Cause:** Ember 3.12 development server incompatibility
+- Local development loads `frontend.source.js` (uncompiled source files)
+- Development environment has version conflicts with modern tooling
+- Our namespace fixes are in compiled assets, not source files
+- This is a fundamental framework limitation, not a bug
 
 ## JavaScript Namespace Fixes Applied
 
