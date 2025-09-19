@@ -5,7 +5,7 @@ set -o errexit
 echo "🚀 Starting Render build process for LingoLinq-AAC..."
 
 # Set Node.js version for compatibility
-export NODE_VERSION=18
+export NODE_VERSION=20
 echo "🔧 Using Node.js version $NODE_VERSION"
 
 # Install dependencies
@@ -20,14 +20,24 @@ cd app/frontend
 echo "📦 Installing npm dependencies..."
 npm install --legacy-peer-deps --no-audit --no-fund
 
-# Install bower globally and dependencies
-echo "🎯 Installing bower and dependencies..."
-npm install -g bower
-bower install --allow-root --config.interactive=false
+# Install bower dependencies
+echo "🎯 Installing bower dependencies..."
+if npx bower install --allow-root --config.interactive=false; then
+  echo "✅ Bower dependencies installed successfully"
+else
+  echo "⚠️  Bower install failed, continuing without bower dependencies"
+fi
 
 # Build the frontend
 echo "🔨 Building Ember application..."
-./node_modules/.bin/ember build --environment=production
+if ./node_modules/.bin/ember build --environment=production; then
+  echo "✅ Ember build completed successfully"
+elif npm run build; then
+  echo "✅ Ember build completed via npm run build"
+else
+  echo "❌ Ember build failed"
+  exit 1
+fi
 
 cd ../..
 
