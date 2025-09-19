@@ -1,0 +1,205 @@
+name: DeployFixer
+
+on:
+  push:
+    branches:
+      - fix/ci-pipeline-test
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      iteration:
+        description: 'Iteration number for automated fixes'
+        required: false
+        default: '1'
+
+jobs:
+  deploy-monitor:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_SECRET_KEY: ${{ secrets.RENDER_SECRET_KEY }}
+      ITERATION: ${{ github.event.inputs.iteration || '1' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create status directory
+        run: |
+          mkdir -p .claude/state
+          echo "📁 Created status tracking directory"
+
+      - name: Check current deployment status
+        run: |
+          echo "🔍 Checking current deployment status..."
+          CURRENT_STATUS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" | \
+            jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Current status: $CURRENT_STATUS"
+          echo "CURRENT_STATUS=$CURRENT_STATUS" >> $GITHUB_ENV
+
+      - name: Trigger Render deploy
+        id: deploy
+        run: |
+          echo "🚀 Triggering deploy for lingolinq-web (srv-d36f26umcj7s73dh0dag)..."
+          DEPLOY_RESPONSE=$(curl -s -X POST "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" | jq -r '.id // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Deploy ID: $DEPLOY_ID"
+          echo "DEPLOY_ID=$DEPLOY_ID" >> $GITHUB_ENV
+
+          if [ "$DEPLOY_ID" = "unknown" ]; then
+            echo "⚠️ Failed to trigger deployment"
+            echo "$DEPLOY_RESPONSE"
+            exit 1
+          fi
+
+      - name: Wait for deploy to start
+        run: |
+          echo "⏳ Waiting for deployment to start..."
+          sleep 30
+
+      - name: Monitor deployment progress
+        timeout-minutes: 15
+        run: |
+          echo "📊 Monitoring deployment progress..."
+          for i in {1..30}; do
+            DEPLOY_STATUS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys/$DEPLOY_ID" \
+              -H "Authorization: Bearer $RENDER_SECRET_KEY" | \
+              jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+
+            echo "[$i/30] Deploy status: $DEPLOY_STATUS ($(date))"
+
+            case "$DEPLOY_STATUS" in
+              "live")
+                echo "✅ Deployment successful!"
+                echo "FINAL_STATUS=success" >> $GITHUB_ENV
+                break
+                ;;
+              "build_failed"|"deploy_failed"|"canceled")
+                echo "❌ Deployment failed: $DEPLOY_STATUS"
+                echo "FINAL_STATUS=failed" >> $GITHUB_ENV
+                break
+                ;;
+              "created"|"building"|"deploying")
+                echo "🔄 Still in progress..."
+                ;;
+              *)
+                echo "❓ Unknown status: $DEPLOY_STATUS"
+                ;;
+            esac
+
+            sleep 30
+          done
+
+          # If we get here without a final status, consider it timeout
+          if [ -z "$FINAL_STATUS" ]; then
+            echo "⏰ Deployment monitoring timed out"
+            echo "FINAL_STATUS=timeout" >> $GITHUB_ENV
+          fi
+
+      - name: Fetch deployment logs
+        if: always()
+        run: |
+          echo "📜 Fetching deployment logs..."
+
+          # Try to get build logs
+          BUILD_LOGS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys/$DEPLOY_ID/logs" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" 2>/dev/null || echo "")
+
+          # Try to get service logs
+          SERVICE_LOGS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/logs" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" 2>/dev/null || echo "")
+
+          # Save logs
+          echo "$BUILD_LOGS" > build-logs.txt
+          echo "$SERVICE_LOGS" > service-logs.txt
+
+          if [ ! -s build-logs.txt ] && [ ! -s service-logs.txt ]; then
+            echo "⚠️ No logs retrieved. May need to wait longer or check API permissions."
+            echo "Empty logs - deployment may still be starting" > deployment-logs.txt
+          else
+            echo "📄 Logs retrieved successfully"
+            cat build-logs.txt service-logs.txt > deployment-logs.txt
+          fi
+
+      - name: Analyze failure patterns
+        if: env.FINAL_STATUS == 'failed'
+        run: |
+          echo "🔍 Analyzing failure patterns..."
+
+          # Extract error patterns from logs
+          ERROR_PATTERN="unknown"
+          if grep -q "obf" deployment-logs.txt; then
+            ERROR_PATTERN="obf_gem_failure"
+          elif grep -q "bundle" deployment-logs.txt; then
+            ERROR_PATTERN="bundle_install_failure"
+          elif grep -q "assets:precompile" deployment-logs.txt; then
+            ERROR_PATTERN="asset_compilation_failure"
+          elif grep -q "Exited with status" deployment-logs.txt; then
+            ERROR_PATTERN="docker_build_failure"
+          elif grep -q "npm" deployment-logs.txt; then
+            ERROR_PATTERN="npm_failure"
+          fi
+
+          echo "Detected error pattern: $ERROR_PATTERN"
+          echo "ERROR_PATTERN=$ERROR_PATTERN" >> $GITHUB_ENV
+
+      - name: Log deployment status
+        if: always()
+        run: |
+          echo "📊 Logging deployment status..."
+
+          # Get commit info
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+
+          # Create status file
+          cat > .claude/state/deployment-status.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "iteration": $ITERATION,
+            "commit": "$COMMIT_SHA",
+            "commit_message": "$COMMIT_MSG",
+            "branch": "fix/ci-pipeline-test",
+            "deploy_id": "$DEPLOY_ID",
+            "status": "${FINAL_STATUS:-pending}",
+            "error_pattern": "${ERROR_PATTERN:-none}",
+            "service_id": "srv-d36f26umcj7s73dh0dag",
+            "logs_available": $([ -s deployment-logs.txt ] && echo "true" || echo "false"),
+            "next_action": "$([ "$FINAL_STATUS" = "failed" ] && echo "generate_fix" || echo "monitor")"
+          }
+          EOF
+
+          echo "Status logged to .claude/state/deployment-status.json"
+          cat .claude/state/deployment-status.json
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs-${{ env.ITERATION }}
+          path: |
+            deployment-logs.txt
+            build-logs.txt
+            service-logs.txt
+            .claude/state/deployment-status.json
+
+      - name: Trigger fix generation (if failed)
+        if: env.FINAL_STATUS == 'failed' && env.ITERATION < '5'
+        run: |
+          echo "🔧 Deployment failed - will trigger automated fix generation"
+          echo "Error pattern: $ERROR_PATTERN"
+          echo "This would trigger Gemini CLI, Manus AI, and other agents for fix generation"
+
+          # Set up for next iteration
+          NEXT_ITERATION=$((ITERATION + 1))
+          echo "Next iteration would be: $NEXT_ITERATION"
+
+      - name: Success notification
+        if: env.FINAL_STATUS == 'success'
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "✅ LingoLinq-AAC is now running on Render"
+          echo "🌐 Service URL: https://lingolinq-web.onrender.com (or your custom domain)"
