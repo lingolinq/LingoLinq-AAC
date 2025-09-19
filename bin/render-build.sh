@@ -4,6 +4,10 @@ set -o errexit
 
 echo "🚀 Starting Render build process for LingoLinq-AAC..."
 
+# Set Node.js version for compatibility
+export NODE_VERSION=18
+echo "🔧 Using Node.js version $NODE_VERSION"
+
 # Install dependencies
 echo "📦 Installing Ruby dependencies..."
 bundle install
@@ -12,23 +16,18 @@ bundle install
 echo "🎨 Building Ember.js frontend assets..."
 cd app/frontend
 
-# Clear any cached dependencies
-echo "🧹 Clearing npm cache..."
-npm cache clean --force
+# Install npm dependencies
+echo "📦 Installing npm dependencies..."
+npm install --legacy-peer-deps --no-audit --no-fund
 
-# Install dependencies with legacy peer deps flag for Ember 3.12
-echo "📦 Installing frontend dependencies..."
-npm install --legacy-peer-deps
-
-# Install bower dependencies if bower.json exists
-if [ -f "bower.json" ]; then
-  echo "🎯 Installing bower dependencies..."
-  npx bower install --allow-root
-fi
+# Install bower globally and dependencies
+echo "🎯 Installing bower and dependencies..."
+npm install -g bower
+bower install --allow-root --config.interactive=false
 
 # Build the frontend
 echo "🔨 Building Ember application..."
-npm run build
+./node_modules/.bin/ember build --environment=production
 
 cd ../..
 
