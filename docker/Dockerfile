@@ -10,6 +10,11 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     libyaml-dev \
     shared-mime-info \
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    libssl-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 18.x (required for Rails asset pipeline and Ember compatibility)
@@ -35,6 +40,16 @@ RUN bundle config set --local deployment 'false' && \
 
 # Copy the application code
 COPY . .
+
+# Build frontend assets
+WORKDIR /app/app/frontend
+RUN npm install --legacy-peer-deps --no-audit --no-fund
+RUN if [ -f "bower.json" ]; then npx bower install --allow-root --config.interactive=false; fi
+RUN npm run build || ./node_modules/.bin/ember build --environment=production
+
+# Return to app directory and precompile Rails assets
+WORKDIR /app
+RUN bundle exec rake assets:precompile
 
 # Create required directories
 RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets
