@@ -15,16 +15,13 @@ services:
   # Rails Web Application
   - type: web
     name: lingolinq-web
-    runtime: ruby
+    runtime: docker
     plan: starter
     region: oregon
-    buildCommand: "./bin/render-build.sh"
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: ./
     startCommand: "bundle exec puma -C config/puma.rb"
     healthCheckPath: /
-    buildFilter:
-      paths:
-      - "**"
-    rootDir: "."
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -54,15 +51,12 @@ services:
   # Background Worker (for Resque/Sidekiq)
   - type: worker
     name: lingolinq-worker
-    runtime: ruby
+    runtime: docker
     plan: starter
     region: oregon
-    buildCommand: "./bin/render-build.sh"
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: ./
     startCommand: "bundle exec resque:work QUEUE=*"
-    buildFilter:
-      paths:
-      - "**"
-    rootDir: "."
     envVars:
       - key: DATABASE_URL
         fromDatabase:
