@@ -1,0 +1,75 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: lingolinq-db
+    env: node
+    plan: starter
+    databaseName: lingolinq_production
+    user: lingolinq_user
+    region: oregon
+
+  # Redis Cache
+  - type: redis
+    name: lingolinq-redis
+    plan: starter
+    region: oregon
+
+  # Rails Web Application
+  - type: web
+    name: lingolinq-web
+    env: ruby
+    plan: starter
+    region: oregon
+    buildCommand: "./bin/render-build.sh"
+    startCommand: "bundle exec puma -C config/puma.rb"
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis
+          property: connectionString
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_SERVE_STATIC_FILES
+        value: true
+      - key: RAILS_LOG_TO_STDOUT
+        value: true
+      - key: RACK_TIMEOUT_SERVICE_TIMEOUT
+        value: 300
+      # Add your secret keys here (you'll need to set these manually in Render dashboard)
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: SECRET_KEY_BASE
+        generateValue: true
+
+  # Background Worker (for Resque/Sidekiq)
+  - type: worker
+    name: lingolinq-worker
+    env: ruby
+    plan: starter
+    region: oregon
+    buildCommand: "./bin/render-build.sh"
+    startCommand: "bundle exec resque:work QUEUE=*"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis
+          property: connectionString
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_MASTER_KEY
+        sync: false
