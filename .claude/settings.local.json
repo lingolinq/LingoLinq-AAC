@@ -107,7 +107,10 @@
       "Bash(code:*)",
       "Bash(EDITOR=\"code --wait\" bundle exec rails credentials:edit)",
       "WebFetch(domain:docs.render.com)",
-      "WebFetch(domain:render.com)"
+      "WebFetch(domain:render.com)",
+      "Bash(claude:*)",
+      "Bash(gh workflow:*)",
+      "Bash(gh run download:*)"
     ],
     "deny": []
   }

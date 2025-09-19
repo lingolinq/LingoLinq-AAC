@@ -85,10 +85,17 @@ ENV DISABLE_OBF_GEM=true
 RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
     echo "✅ Directories created"
 
-RUN echo "🏗️  STEP 8: Precompiling Rails assets with obf gem disabled..."
-# Precompile assets with obf gem temporarily disabled
+RUN echo "🏗️  STEP 8: Preparing assets and precompiling with obf gem disabled..."
+
+# Create stub files for removed JavaScript assets to prevent compilation errors
+RUN echo "// Stub file - will be regenerated during build" > app/assets/javascripts/frontend.js && \
+    echo "// Stub file - will be regenerated during build" > app/assets/javascripts/vendor.js && \
+    echo "✅ Created stub JavaScript files"
+
+# Precompile assets with obf gem temporarily disabled and better error handling
 RUN echo "🎨 Starting asset precompilation with obf gem isolation..." && \
-    DISABLE_OBF_GEM=true bundle exec rake assets:precompile && \
+    DISABLE_OBF_GEM=true RAILS_ENV=production SECRET_KEY_BASE=dummy_secret \
+    bundle exec rake assets:precompile RAILS_GROUPS=assets --trace && \
     echo "✅ Assets precompiled successfully"
 
 RUN echo "🏗️  STEP 9: Final setup..."

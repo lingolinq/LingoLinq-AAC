@@ -562,6 +562,13 @@ class Api::BoardsController < ApplicationController
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])
     return unless allowed?(board, 'view')
+
+    # Skip OBF generation if gem is disabled (during asset compilation)
+    if ENV['DISABLE_OBF_GEM'] == 'true'
+      render json: {error: 'OBF functionality temporarily disabled'}, status: 503
+      return
+    end
+
     file = Tempfile.new(["board-#{board.global_id}", '.obf'])
     path = file.path
     file.close
