@@ -47,9 +47,8 @@ RUN npm install --legacy-peer-deps --no-audit --no-fund
 RUN if [ -f "bower.json" ]; then npx bower install --allow-root --config.interactive=false; fi
 RUN npm run build || ./node_modules/.bin/ember build --environment=production
 
-# Return to app directory and precompile Rails assets
+# Return to app directory
 WORKDIR /app
-RUN bundle exec rake assets:precompile
 
 # Create required directories
 RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets
@@ -58,4 +57,4 @@ RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets
 EXPOSE 3000
 
 # Default command
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+CMD ["./bin/docker-start.sh"]

@@ -20,7 +20,6 @@ services:
     region: oregon
     dockerfilePath: ./docker/Dockerfile
     dockerContext: ./
-    startCommand: "bundle exec puma -C config/puma.rb"
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
