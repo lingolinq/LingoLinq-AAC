@@ -1,7 +1,7 @@
 databases:
   # PostgreSQL Database
   - name: lingolinq-db
-    plan: starter
+    plan: free
     region: oregon
 
 services:
