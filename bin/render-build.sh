@@ -11,8 +11,25 @@ bundle install
 # Build frontend assets
 echo "🎨 Building Ember.js frontend assets..."
 cd app/frontend
-npm install
+
+# Clear any cached dependencies
+echo "🧹 Clearing npm cache..."
+npm cache clean --force
+
+# Install dependencies with legacy peer deps flag for Ember 3.12
+echo "📦 Installing frontend dependencies..."
+npm install --legacy-peer-deps
+
+# Install bower dependencies if bower.json exists
+if [ -f "bower.json" ]; then
+  echo "🎯 Installing bower dependencies..."
+  npx bower install --allow-root
+fi
+
+# Build the frontend
+echo "🔨 Building Ember application..."
 npm run build
+
 cd ../..
 
 # Precompile Rails assets

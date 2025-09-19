@@ -21,6 +21,10 @@ services:
     buildCommand: "./bin/render-build.sh"
     startCommand: "bundle exec puma -C config/puma.rb"
     healthCheckPath: /
+    buildFilter:
+      paths:
+      - "**"
+    rootDir: "."
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -55,6 +59,10 @@ services:
     region: oregon
     buildCommand: "./bin/render-build.sh"
     startCommand: "bundle exec resque:work QUEUE=*"
+    buildFilter:
+      paths:
+      - "**"
+    rootDir: "."
     envVars:
       - key: DATABASE_URL
         fromDatabase:
