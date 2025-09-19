@@ -4,17 +4,19 @@ services:
     name: lingolinq-db
     plan: starter
     region: oregon
+    ipAllowList: []
 
   # Redis Cache
   - type: redis
     name: lingolinq-redis
     plan: starter
     region: oregon
+    ipAllowList: []
 
   # Rails Web Application
   - type: web
     name: lingolinq-web
-    env: ruby
+    runtime: ruby
     plan: starter
     region: oregon
     buildCommand: "./bin/render-build.sh"
@@ -49,7 +51,7 @@ services:
   # Background Worker (for Resque/Sidekiq)
   - type: worker
     name: lingolinq-worker
-    env: ruby
+    runtime: ruby
     plan: starter
     region: oregon
     buildCommand: "./bin/render-build.sh"
