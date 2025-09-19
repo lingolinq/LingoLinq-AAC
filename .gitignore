@@ -17,6 +17,10 @@
 # Ignore database files
 /db/*.sqlite3
 
+# Ignore large generated JavaScript assets (these cause Windows path issues)
+/app/assets/javascripts/frontend.js
+/app/assets/javascripts/vendor.js
+
 # Ignore backups and caches
 /.cleanup-backup/
 /.ruby-lsp/
