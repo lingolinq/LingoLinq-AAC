@@ -55,7 +55,7 @@ services:
     region: oregon
     dockerfilePath: ./docker/Dockerfile
     dockerContext: ./
-    startCommand: "bundle exec resque:work QUEUE=*"
+    startCommand: "./bin/worker-start.sh"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
