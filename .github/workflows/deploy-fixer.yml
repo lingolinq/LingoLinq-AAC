@@ -331,17 +331,17 @@ jobs:
             if [ ! -f ".claude/state/fix-history.json" ]; then
               # Create initial history file
               cat > .claude/state/fix-history.json << EOF
-{
-  "version": "1.0",
-  "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "description": "Tracks all attempted fixes to prevent automation loops",
-  "fixes_attempted": [],
-  "successful_patterns": [],
-  "failed_patterns": [],
-  "blacklisted_approaches": [],
-  "next_fix_id": 1
-}
-EOF
+          {
+            "version": "1.0",
+            "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "description": "Tracks all attempted fixes to prevent automation loops",
+            "fixes_attempted": [],
+            "successful_patterns": [],
+            "failed_patterns": [],
+            "blacklisted_approaches": [],
+            "next_fix_id": 1
+          }
+          EOF
             fi
 
             # Add this attempt to history
