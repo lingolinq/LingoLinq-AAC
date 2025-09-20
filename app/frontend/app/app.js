@@ -854,7 +854,8 @@ LingoLinqAAC.log = {
 window.SweetSuite = LingoLinqAAC;
 window.SweetSuite.VERSION = window.app_version;
 
-// Connect LingoLinqAAC.track_error to SweetSuite.track_error
+// Maintain backward compatibility: LingoLinqAAC.track_error delegates to SweetSuite.track_error
+// This preserves the working SweetSuite backend while supporting LingoLinqAAC frontend calls
 LingoLinqAAC.track_error = function(msg, stack) {
   return SweetSuite.track_error(msg, stack);
 };
