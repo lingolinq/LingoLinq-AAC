@@ -1,10 +1,7 @@
 name: DeployFixer
 
 on:
-  push:
-    branches:
-      - fix/ci-pipeline-test-disabled  # Temporarily disabled
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch: # Manual triggering only for debugging
     inputs:
       iteration:
         description: 'Iteration number for automated fixes'
