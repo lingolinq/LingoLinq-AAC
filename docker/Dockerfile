@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y \
     && echo "✅ System dependencies installed"
 
 RUN echo "🏗️  STEP 2: Installing Node.js..."
-# Install Node.js 18.x (required for Rails asset pipeline and Ember compatibility)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+# Install Node.js 16.x (required for legacy Ember CLI 3.12 compatibility)
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs \
     && echo "✅ Node.js installed"
 
@@ -40,11 +40,11 @@ RUN gem install bundler && echo "✅ Bundler installed"
 COPY Gemfile Gemfile.lock ./
 
 RUN echo "🏗️  STEP 4: Installing Ruby gems..."
-# Install Ruby dependencies (with cache optimization and obf gem disabled)
+# Install Ruby dependencies (with cache optimization)
 RUN bundle config set --local deployment 'false' && \
-    echo "📦 Starting bundle install with obf gem disabled..." && \
-    DISABLE_OBF_GEM=true bundle install --jobs 4 --retry 3 && \
-    echo "✅ Ruby gems installed successfully (obf gem skipped during build)"
+    echo "📦 Starting bundle install..." && \
+    bundle install --jobs 4 --retry 3 && \
+    echo "✅ Ruby gems installed successfully"
 
 RUN echo "🏗️  STEP 5: Copying application code..."
 # Copy the application code

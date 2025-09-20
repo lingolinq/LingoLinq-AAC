@@ -48,10 +48,7 @@ gem 'puma'
 gem 'rack-offline'
 gem 'paper_trail'
 gem 'geokit'
-# OBF gem - conditional loading to prevent build failures
-unless ENV['DISABLE_OBF_GEM'] == 'true'
-  gem 'obf'
-end
+gem 'obf'
 gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'
