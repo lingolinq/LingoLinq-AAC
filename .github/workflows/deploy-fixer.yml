@@ -168,6 +168,41 @@ jobs:
           echo "Detected error pattern: $ERROR_PATTERN"
           echo "ERROR_PATTERN=$ERROR_PATTERN" >> $GITHUB_ENV
 
+          # Log this failure in fix history
+          echo "📝 Recording failure in fix history..."
+
+          # Determine what fix type was attempted based on recent commits
+          FIX_TYPE="unknown"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          if echo "$COMMIT_MSG" | grep -q "conditional.*loading\|obf.*isolation"; then
+            FIX_TYPE="conditional_loading"
+          elif echo "$COMMIT_MSG" | grep -q "runtime.*compilation"; then
+            FIX_TYPE="runtime_compilation"
+          elif echo "$COMMIT_MSG" | grep -q "multi.*stage\|docker.*stage"; then
+            FIX_TYPE="multi_stage_build"
+          elif echo "$COMMIT_MSG" | grep -q "gem.*version\|pin.*version"; then
+            FIX_TYPE="gem_version_pinning"
+          elif echo "$COMMIT_MSG" | grep -q "base.*image"; then
+            FIX_TYPE="base_image_change"
+          fi
+
+          echo "Fix type attempted: $FIX_TYPE"
+          echo "FIX_TYPE=$FIX_TYPE" >> $GITHUB_ENV
+
+          # Create fix history entry
+          cat > .claude/state/fix-attempt.json << EOF
+          {
+            "id": $(date +%s),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error_pattern": "$ERROR_PATTERN",
+            "fix_type": "$FIX_TYPE",
+            "result": "failed",
+            "commit": "$(git rev-parse HEAD)",
+            "iteration": $ITERATION,
+            "commit_message": "$COMMIT_MSG"
+          }
+          EOF
+
       - name: Log deployment status
         if: always()
         run: |
@@ -208,16 +243,119 @@ jobs:
             service-logs.txt
             .claude/state/deployment-status.json
 
-      - name: Trigger fix generation (if failed)
+      - name: Log success in fix history
+        if: env.FINAL_STATUS == 'success'
+        run: |
+          echo "✅ Logging successful deployment..."
+
+          # Determine what fix type led to success
+          FIX_TYPE="unknown"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          if echo "$COMMIT_MSG" | grep -q "conditional.*loading\|obf.*isolation"; then
+            FIX_TYPE="conditional_loading"
+          elif echo "$COMMIT_MSG" | grep -q "runtime.*compilation"; then
+            FIX_TYPE="runtime_compilation"
+          elif echo "$COMMIT_MSG" | grep -q "multi.*stage\|docker.*stage"; then
+            FIX_TYPE="multi_stage_build"
+          elif echo "$COMMIT_MSG" | grep -q "gem.*version\|pin.*version"; then
+            FIX_TYPE="gem_version_pinning"
+          elif echo "$COMMIT_MSG" | grep -q "base.*image"; then
+            FIX_TYPE="base_image_change"
+          fi
+
+          # Create success history entry
+          cat > .claude/state/success-fix.json << EOF
+          {
+            "id": $(date +%s),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error_pattern": "resolved",
+            "fix_type": "$FIX_TYPE",
+            "result": "success",
+            "commit": "$(git rev-parse HEAD)",
+            "iteration": $ITERATION,
+            "commit_message": "$COMMIT_MSG"
+          }
+          EOF
+
+      - name: Check fix history before new attempts
         if: env.FINAL_STATUS == 'failed' && env.ITERATION < '5'
+        run: |
+          echo "🔍 Checking fix history to prevent loops..."
+
+          # Load fix history
+          if [ -f ".claude/state/fix-history.json" ]; then
+            echo "📊 Current fix history:"
+            cat .claude/state/fix-history.json | jq '.fixes_attempted[] | {error_pattern, fix_type, result, iteration}'
+
+            # Check if we've tried the current approach before
+            PREVIOUS_ATTEMPTS=$(cat .claude/state/fix-history.json | \
+              jq --arg pattern "$ERROR_PATTERN" --arg fix "$FIX_TYPE" \
+              '[.fixes_attempted[] | select(.error_pattern == $pattern and .fix_type == $fix)] | length')
+
+            echo "Previous attempts for $ERROR_PATTERN + $FIX_TYPE: $PREVIOUS_ATTEMPTS"
+
+            if [ "$PREVIOUS_ATTEMPTS" -ge 2 ]; then
+              echo "🚫 This fix has been attempted $PREVIOUS_ATTEMPTS times - suggesting alternative"
+              echo "SKIP_AUTOMATION=true" >> $GITHUB_ENV
+
+              # Show successful patterns for this error
+              echo "💡 Successful patterns for similar errors:"
+              cat .claude/state/fix-history.json | \
+                jq --arg pattern "$ERROR_PATTERN" \
+                '.successful_patterns[] | select(.error_pattern == $pattern or .error_pattern == "resolved")'
+            fi
+          else
+            echo "📝 No fix history found - creating new tracking file"
+          fi
+
+      - name: Trigger fix generation (if failed and not skipped)
+        if: env.FINAL_STATUS == 'failed' && env.ITERATION < '5' && env.SKIP_AUTOMATION != 'true'
         run: |
           echo "🔧 Deployment failed - will trigger automated fix generation"
           echo "Error pattern: $ERROR_PATTERN"
-          echo "This would trigger Gemini CLI, Manus AI, and other agents for fix generation"
+          echo "Fix type attempted: $FIX_TYPE"
+
+          # Merge fix attempt into main history
+          if [ -f ".claude/state/fix-attempt.json" ]; then
+            echo "📝 Merging fix attempt into history..."
+
+            if [ ! -f ".claude/state/fix-history.json" ]; then
+              # Create initial history file
+              cat > .claude/state/fix-history.json << EOF
+              {
+                "version": "1.0",
+                "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+                "description": "Tracks all attempted fixes to prevent automation loops",
+                "fixes_attempted": [],
+                "successful_patterns": [],
+                "failed_patterns": [],
+                "blacklisted_approaches": [],
+                "next_fix_id": 1
+              }
+              EOF
+            fi
+
+            # Add this attempt to history
+            NEW_FIX=$(cat .claude/state/fix-attempt.json)
+            cat .claude/state/fix-history.json | \
+              jq --argjson fix "$NEW_FIX" \
+              '.fixes_attempted += [$fix] | .failed_patterns += [$fix] | .next_fix_id += 1' \
+              > .claude/state/fix-history.json.tmp && \
+              mv .claude/state/fix-history.json.tmp .claude/state/fix-history.json
+          fi
 
           # Set up for next iteration
           NEXT_ITERATION=$((ITERATION + 1))
           echo "Next iteration would be: $NEXT_ITERATION"
+
+      - name: Escalate if automation skipped
+        if: env.FINAL_STATUS == 'failed' && env.SKIP_AUTOMATION == 'true'
+        run: |
+          echo "🚨 Automation skipped due to repeated failed attempts"
+          echo "Creating GitHub issue for human intervention..."
+
+          # This would create a GitHub issue with fix history
+          echo "TODO: Implement GitHub issue creation with fix history analysis"
 
       - name: Success notification
         if: env.FINAL_STATUS == 'success'

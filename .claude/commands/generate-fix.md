@@ -49,56 +49,163 @@ ITERATION=$(echo "$ARGUMENTS" | grep -o 'iteration=[^ ]*' | cut -d= -f2)
 
 echo "🔧 Generating fix for pattern: $ERROR_PATTERN (iteration $ITERATION)"
 
+# Check fix history to prevent loops
+echo "🔍 Checking fix history to prevent repeated attempts..."
+
+if [ -f ".claude/state/fix-history.json" ]; then
+  # Get list of previously failed fix types for this pattern
+  FAILED_FIXES=$(cat .claude/state/fix-history.json | \
+    jq -r --arg pattern "$ERROR_PATTERN" \
+    '[.fixes_attempted[] | select(.error_pattern == $pattern and .result == "failed") | .fix_type] | unique | join(",")')
+
+  echo "Previously failed fix types: $FAILED_FIXES"
+
+  # Get successful fix types we should prioritize
+  SUCCESSFUL_FIXES=$(cat .claude/state/fix-history.json | \
+    jq -r '.successful_patterns[] | .fix_type' | sort | uniq | head -3)
+
+  echo "Known successful fix types: $SUCCESSFUL_FIXES"
+else
+  FAILED_FIXES=""
+  SUCCESSFUL_FIXES=""
+  echo "No fix history found - will try standard approaches"
+fi
+
 # Create fix branch
 FIX_BRANCH="auto-fix-$ERROR_PATTERN-iteration-$ITERATION"
 git checkout -b "$FIX_BRANCH"
 
-# Apply pattern-specific fixes
+# Determine which fix strategy to try based on history
+STRATEGY_TO_TRY=""
+
 case "$ERROR_PATTERN" in
   "obf_gem_failure")
-    echo "🔨 Applying obf gem isolation fixes..."
-    # Enhance existing obf isolation or try alternative approaches
-    echo "TODO: Implement enhanced obf gem fixes"
+    echo "🔨 Selecting obf gem fix strategy..."
+
+    # Prioritize based on what hasn't failed before
+    if ! echo "$FAILED_FIXES" | grep -q "conditional_loading"; then
+      STRATEGY_TO_TRY="conditional_loading"
+    elif ! echo "$FAILED_FIXES" | grep -q "multi_stage_build"; then
+      STRATEGY_TO_TRY="multi_stage_build"
+    elif ! echo "$FAILED_FIXES" | grep -q "runtime_compilation"; then
+      STRATEGY_TO_TRY="runtime_compilation"
+    elif ! echo "$FAILED_FIXES" | grep -q "alternative_gems"; then
+      STRATEGY_TO_TRY="alternative_gems"
+    else
+      echo "⚠️ All known obf gem fixes have been attempted!"
+      STRATEGY_TO_TRY="skip_features"
+    fi
     ;;
+
   "bundle_install_failure")
-    echo "🔨 Applying bundle install fixes..."
-    # Update Gemfile.lock, pin versions, etc.
-    echo "TODO: Implement bundle fixes"
+    echo "🔨 Selecting bundle install fix strategy..."
+
+    if ! echo "$FAILED_FIXES" | grep -q "gem_version_pinning"; then
+      STRATEGY_TO_TRY="gem_version_pinning"
+    elif ! echo "$FAILED_FIXES" | grep -q "base_image_change"; then
+      STRATEGY_TO_TRY="base_image_change"
+    else
+      STRATEGY_TO_TRY="multi_stage_build"
+    fi
     ;;
+
   "asset_compilation_failure")
-    echo "🔨 Applying asset compilation fixes..."
-    # Modify asset pipeline configuration
-    echo "TODO: Implement asset compilation fixes"
+    echo "🔨 Selecting asset compilation fix strategy..."
+
+    if ! echo "$FAILED_FIXES" | grep -q "runtime_compilation"; then
+      STRATEGY_TO_TRY="runtime_compilation"
+    elif ! echo "$FAILED_FIXES" | grep -q "skip_features"; then
+      STRATEGY_TO_TRY="skip_features"
+    else
+      STRATEGY_TO_TRY="multi_stage_build"
+    fi
     ;;
+
   "docker_build_failure")
-    echo "🔨 Applying Docker build fixes..."
-    # Modify Dockerfile, build process
-    echo "TODO: Implement Docker build fixes"
+    echo "🔨 Selecting Docker build fix strategy..."
+
+    if ! echo "$FAILED_FIXES" | grep -q "base_image_change"; then
+      STRATEGY_TO_TRY="base_image_change"
+    elif ! echo "$FAILED_FIXES" | grep -q "build_context_reduction"; then
+      STRATEGY_TO_TRY="build_context_reduction"
+    else
+      STRATEGY_TO_TRY="multi_stage_build"
+    fi
     ;;
+
   "npm_failure")
-    echo "🔨 Applying npm/Node fixes..."
-    # Update package.json, Node version, etc.
-    echo "TODO: Implement npm fixes"
+    echo "🔨 Selecting npm/Node fix strategy..."
+
+    if ! echo "$FAILED_FIXES" | grep -q "gem_version_pinning"; then
+      STRATEGY_TO_TRY="gem_version_pinning"  # Node version pinning
+    elif ! echo "$FAILED_FIXES" | grep -q "alternative_gems"; then
+      STRATEGY_TO_TRY="alternative_gems"  # Alternative package manager
+    else
+      STRATEGY_TO_TRY="skip_features"
+    fi
     ;;
+
   *)
     echo "❓ Unknown error pattern: $ERROR_PATTERN"
-    echo "Applying generic troubleshooting fixes..."
+    STRATEGY_TO_TRY="multi_stage_build"  # Safe fallback
+    ;;
+esac
+
+echo "Selected strategy: $STRATEGY_TO_TRY"
+
+# Check if this exact strategy has been tried before
+if echo "$FAILED_FIXES" | grep -q "$STRATEGY_TO_TRY"; then
+  echo "⚠️ WARNING: Strategy $STRATEGY_TO_TRY has failed before for this pattern!"
+  echo "Proceeding anyway with modifications..."
+fi
+
+# Apply the selected strategy
+case "$STRATEGY_TO_TRY" in
+  "conditional_loading")
+    echo "🔨 Implementing conditional loading fix..."
+    echo "TODO: Enhanced conditional loading implementation"
+    ;;
+  "multi_stage_build")
+    echo "🔨 Implementing multi-stage build fix..."
+    echo "TODO: Multi-stage Docker build implementation"
+    ;;
+  "runtime_compilation")
+    echo "🔨 Implementing runtime compilation fix..."
+    echo "TODO: Runtime compilation implementation"
+    ;;
+  "skip_features")
+    echo "🔨 Implementing feature skipping fix..."
+    echo "TODO: Skip problematic features implementation"
+    ;;
+  *)
+    echo "🔨 Implementing $STRATEGY_TO_TRY fix..."
+    echo "TODO: Implement $STRATEGY_TO_TRY strategy"
     ;;
 esac
 
 # Commit and push fix
 git add .
-git commit -m "auto-fix: attempt $ITERATION for $ERROR_PATTERN pattern
+git commit -m "auto-fix: attempt $ITERATION for $ERROR_PATTERN using $STRATEGY_TO_TRY
 
 🤖 Generated automatically by deployment fix system
 
 Previous error: $ERROR_PATTERN
 Iteration: $ITERATION
-Strategy: [describe strategy applied]
+Strategy: $STRATEGY_TO_TRY
+Avoided failed approaches: $FAILED_FIXES
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
 git push -u origin "$FIX_BRANCH"
+
+# Log this attempt BEFORE triggering deployment
+echo "📝 Pre-logging fix attempt..."
+claude -c log-fix-attempt \
+  --error-pattern="$ERROR_PATTERN" \
+  --fix-type="$STRATEGY_TO_TRY" \
+  --result="pending" \
+  --commit="$(git rev-parse HEAD)" \
+  --description="Auto-generated fix for iteration $ITERATION"
 
 # Trigger deployment test
 echo "🚀 Triggering deployment test for fix branch..."
