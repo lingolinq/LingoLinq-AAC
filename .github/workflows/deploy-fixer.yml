@@ -97,11 +97,13 @@ jobs:
               "live")
                 echo "✅ Deployment successful!"
                 echo "FINAL_STATUS=success" >> $GITHUB_ENV
+                echo "🔍 DEBUG: Set FINAL_STATUS to success"
                 break
                 ;;
               "build_failed"|"deploy_failed"|"canceled")
                 echo "❌ Deployment failed: $DEPLOY_STATUS"
                 echo "FINAL_STATUS=failed" >> $GITHUB_ENV
+                echo "🔍 DEBUG: Set FINAL_STATUS to failed"
                 break
                 ;;
               "created"|"building"|"deploying")
@@ -116,9 +118,12 @@ jobs:
           done
 
           # If we get here without a final status, consider it timeout
-          if [ -z "$FINAL_STATUS" ]; then
-            echo "⏰ Deployment monitoring timed out"
+          echo "🔍 DEBUG: Checking FINAL_STATUS environment variable: '${FINAL_STATUS:-EMPTY}'"
+          if [ -z "${FINAL_STATUS:-}" ]; then
+            echo "⏰ Deployment monitoring timed out (no final status detected)"
             echo "FINAL_STATUS=timeout" >> $GITHUB_ENV
+          else
+            echo "✅ Final status already determined: $FINAL_STATUS"
           fi
 
       - name: Fetch deployment logs
@@ -147,7 +152,7 @@ jobs:
           fi
 
       - name: Analyze failure patterns
-        if: env.FINAL_STATUS == 'failed'
+        if: env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout'
         run: |
           echo "🔍 Analyzing failure patterns..."
 
@@ -225,7 +230,7 @@ jobs:
             "error_pattern": "${ERROR_PATTERN:-none}",
             "service_id": "srv-d36f26umcj7s73dh0dag",
             "logs_available": $([ -s deployment-logs.txt ] && echo "true" || echo "false"),
-            "next_action": "$([ "$FINAL_STATUS" = "failed" ] && echo "generate_fix" || echo "monitor")"
+            "next_action": "$([ "$FINAL_STATUS" = "failed" ] || [ "$FINAL_STATUS" = "timeout" ] && echo "generate_fix" || echo "monitor")"
           }
           EOF
 
@@ -278,7 +283,7 @@ jobs:
           EOF
 
       - name: Check fix history before new attempts
-        if: env.FINAL_STATUS == 'failed' && env.ITERATION < '5'
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.ITERATION < '5'
         run: |
           echo "🔍 Checking fix history to prevent loops..."
 
@@ -309,7 +314,7 @@ jobs:
           fi
 
       - name: Trigger fix generation (if failed and not skipped)
-        if: env.FINAL_STATUS == 'failed' && env.ITERATION < '5' && env.SKIP_AUTOMATION != 'true'
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.ITERATION < '5' && env.SKIP_AUTOMATION != 'true'
         run: |
           echo "🔧 Deployment failed - will trigger automated fix generation"
           echo "Error pattern: $ERROR_PATTERN"
@@ -349,7 +354,7 @@ jobs:
           echo "Next iteration would be: $NEXT_ITERATION"
 
       - name: Escalate if automation skipped
-        if: env.FINAL_STATUS == 'failed' && env.SKIP_AUTOMATION == 'true'
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.SKIP_AUTOMATION == 'true'
         run: |
           echo "🚨 Automation skipped due to repeated failed attempts"
           echo "Creating GitHub issue for human intervention..."
