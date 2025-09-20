@@ -854,4 +854,9 @@ LingoLinqAAC.log = {
 window.SweetSuite = LingoLinqAAC;
 window.SweetSuite.VERSION = window.app_version;
 
+// Connect LingoLinqAAC.track_error to SweetSuite.track_error
+LingoLinqAAC.track_error = function(msg, stack) {
+  return SweetSuite.track_error(msg, stack);
+};
+
 export default LingoLinqAAC;
