@@ -3,7 +3,17 @@ set -e
 
 echo "🚀 Starting LingoLinq-AAC on Render..."
 
-# Re-enable obf gem for runtime (was disabled during asset compilation)
+# Install obf gem at runtime (was skipped during build to avoid compilation issues)
+echo "📦 Installing obf gem for runtime..."
+if ! bundle exec gem list obf | grep -q "obf"; then
+  echo "Installing obf gem..."
+  bundle exec gem install obf
+  echo "✅ OBF gem installed"
+else
+  echo "✅ OBF gem already available"
+fi
+
+# Re-enable obf gem for runtime
 unset DISABLE_OBF_GEM
 export DISABLE_OBF_GEM=""
 
