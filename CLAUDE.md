@@ -13,11 +13,11 @@ LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentat
 
 ## 🧪 Current Status
 - Docker container boots and renders startup page
-- Page stuck on "loading" and login route never initializes
+- JavaScript namespace errors fixed with compatibility bridge
 - Rails backend responds with HTTP 200
-- JavaScript namespace errors resolved
-- CI pipeline issues fixed
-- Claude Code has been running tests and debugging in-session
+- Login page previously stuck on "loading" - testing fix in progress
+- CI pipeline automated deployment monitoring implemented
+- Local Docker debugging environment established
 
 ## ⚙️ Environment & Architecture
 
@@ -55,17 +55,29 @@ LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentat
 - **Symlinks**: Large JS files removed from git to avoid GitHub Actions symlink errors
 
 ## ✅ Fixes Completed
-- Namespace errors resolved and committed
-- `.ai/docs/LOCAL_DEVELOPMENT.md` created
-- `.ai/docs/JAVASCRIPT_NAMESPACE_FIXES.md` and `EMBER_UPGRADE_RESEARCH.md` added
-- GitHub issue opened for Ember modernization: https://github.com/swahlquist/LingoLinq-AAC/issues/5
+- **JavaScript Namespace Fix**: `LingoLinqAAC.track_error = SweetSuite.track_error` compatibility bridge (app/frontend/app/app.js:859)
+- **Docker Build Optimization**: Multi-stage build with conditional obf gem loading
+- **CI Pipeline**: GitHub Actions workflow with Render API integration and loop prevention
+- **Symlink Issues**: Large frontend.js/vendor.js files removed from git tracking
+- **Asset Compilation**: Environment variable strategy for obf gem isolation
+- **Documentation**: Comprehensive CLAUDE.md with architectural context
+- **File Structure**: `.ai/docs/` directory with LOCAL_DEVELOPMENT.md, JAVASCRIPT_NAMESPACE_FIXES.md
+- **GitHub Integration**: Issue #5 for Ember modernization tracking
 
 ## 🔜 Next Steps
-- Clarify Node version recommendation from Claude
-- Debug frontend "loading" issue (check console, network tab, API responses)
-- Validate login route and staging functionality
-- Begin Ember upgrade planning
-- Maintain working Docker setup for contributor onboarding
+- Test JavaScript namespace fix resolves login "loading" issue
+- Validate Docker container can access login functionality
+- Apply compatibility bridge pattern to other SweetSuite/LingoLinq conflicts
+- Monitor Render deployment stability with new fixes
+- Document successful local development workflow
+- Plan incremental Ember 3.12 → modern stack migration strategy
+
+## 📊 Key Metrics & Endpoints
+- **Local Container**: http://localhost:3000
+- **Login Page**: http://localhost:3000/login
+- **Health Check**: http://localhost:3000/health
+- **Render Production**: https://lingolinq-web.onrender.com
+- **Service ID**: srv-d36f26umcj7s73dh0dag
 
 ## 🧩 Claude Code Instructions
 
