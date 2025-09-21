@@ -15,8 +15,16 @@ import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
+// COPILOT FIX: Define LingoLinqAAC.track_error BEFORE error handlers
+window.LingoLinqAAC = window.LingoLinqAAC || {};
+window.LingoLinqAAC.track_error = function (msg, src, line, col, err) {
+  console.error('LingoLinqAAC Error:', msg, src, line, col, err);
+};
+
 window.onerror = function(msg, url, line, col, obj) {
-  if(window.SweetSuite && SweetSuite.track_error) {
+  if (typeof LingoLinqAAC?.track_error === 'function') {
+    LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  } else if(window.SweetSuite && SweetSuite.track_error) {
     SweetSuite.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
   } else {
     console.error(msg + " (" + url + "-" + line + ":" + col + ")");
@@ -24,7 +32,9 @@ window.onerror = function(msg, url, line, col, obj) {
 };
 Ember.onerror = function(err) {
   if(err.stack) {
-    if(window.SweetSuite && SweetSuite.track_error) {
+    if (typeof LingoLinqAAC?.track_error === 'function') {
+      LingoLinqAAC.track_error(err.message, err.stack);
+    } else if(window.SweetSuite && SweetSuite.track_error) {
       SweetSuite.track_error(err.message, err.stack);
     } else {
       console.error(err.message, err.stack);
@@ -62,7 +72,7 @@ var customEvents = {
     'select': 'select'
 };
 
-var LingoLinqAAC = EmberApplication.extend({
+var LingoLinqAACClass = EmberApplication.extend({
   modulePrefix: config.modulePrefix,
   podModulePrefix: config.podModulePrefix,
   Resolver: Resolver,
@@ -71,6 +81,21 @@ var LingoLinqAAC = EmberApplication.extend({
     LingoLinqAAC.ready();
   }
 });
+
+var LingoLinqAAC = LingoLinqAACClass.create();
+
+// Make LingoLinqAAC globally available to avoid circular dependency
+window.LingoLinqAAC = LingoLinqAAC;
+
+// Create early SweetSuite stub to prevent ReferenceError during initialization
+window.SweetSuite = window.SweetSuite || {};
+// Add early track_error function for error handlers
+var earlyTrackError = function(msg, stack) {
+  console.error('Early track_error:', msg, stack);
+};
+window.SweetSuite.track_error = earlyTrackError;
+LingoLinqAAC.track_error = earlyTrackError;
+
 LingoLinqAAC.ready = function() {
   if(LingoLinqAAC.readying) { return; }
   LingoLinqAAC.readying = true;
@@ -92,30 +117,50 @@ LingoLinqAAC.ready = function() {
   }
 }
 
-SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
-SweetSuite.embedded = !!location.href.match(/embed=1/);
-SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
-SweetSuite.referrer = document.referrer;
-LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
-LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
-SweetSuite.remote_url = function(url) {
-  return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
-};
+// Defer SweetSuite property assignments until after full initialization
+var deferredSweetSuiteSetup = function() {
+  SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
+  SweetSuite.embedded = !!location.href.match(/embed=1/);
+  SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
+  SweetSuite.referrer = document.referrer;
+  LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
+  LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
+  SweetSuite.remote_url = function(url) {
+    return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
+  };
 
-SweetSuite.track_error = function(msg, stack) {
-  var error = new Error();
-  if(window._trackJs) {
-    window._trackJs.track(msg);
-  } else {
-    console.error(msg, stack || error.stack);
-  }
-  LingoLinqAAC.errors = LingoLinqAAC.errors || [];
-  LingoLinqAAC.errors.push({
-    message: msg,
-    date: (new Date()),
-    stack: stack === false ? null : (stack || error.stack)
-  });
-}
+  // Replace the early track_error with the full implementation
+  var fullTrackError = function(msg, stack) {
+    var error = new Error();
+    if(window._trackJs) {
+      window._trackJs.track(msg);
+    } else {
+      console.error(msg, stack || error.stack);
+    }
+    LingoLinqAAC.errors = LingoLinqAAC.errors || [];
+    LingoLinqAAC.errors.push({
+      message: msg,
+      date: (new Date()),
+      stack: stack === false ? null : (stack || error.stack)
+    });
+  };
+
+  SweetSuite.track_error = fullTrackError;
+  LingoLinqAAC.track_error = fullTrackError;
+
+  // Move additional SweetSuite properties here as well
+  SweetSuite.boxPad = 17;
+  SweetSuite.borderPad = 5;
+  SweetSuite.labelHeight = 15;
+  SweetSuite.customEvents = customEvents;
+  SweetSuite.expired = function() {
+    var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
+    var version = parseInt(keys[1] + keys[2] + keys[3], 10);
+    var now = parseInt(window.moment().format('YYYYMMDD'), 10);
+    var diff = now - version;
+    return diff > 30;
+  };
+};
 
 if(capabilities.wait_for_deviceready) {
   document.addEventListener('deviceready', function() {
@@ -125,7 +170,7 @@ if(capabilities.wait_for_deviceready) {
       if(window.kvstash) {
         console.debug('SWEETSUITE: found native key value store');
       }
-      sweetSuiteExtras.advance('device');
+      lingoLinqExtras.advance('device');
     };
     // Look up the stashed user name, which is needed for bootstrapping session and user data
     // and possibly is getting lost being set just in a cookie and localStorage
@@ -185,11 +230,14 @@ if(capabilities.wait_for_deviceready) {
     }
   });
 } else {
-  sweetSuiteExtras.advance('device');
+  lingoLinqExtras.advance('device');
 }
 
 
 loadInitializers(LingoLinqAAC, config.modulePrefix);
+
+// Call deferred setup after loadInitializers to ensure proper order
+deferredSweetSuiteSetup();
 
 DS.Model.reopen({
   reload: function(ignore_local) {
@@ -828,17 +876,8 @@ LingoLinqAAC.Visualizations = {
   }
 };
 
-SweetSuite.boxPad = 17;
-SweetSuite.borderPad = 5;
-SweetSuite.labelHeight = 15;
-SweetSuite.customEvents = customEvents;
-SweetSuite.expired = function() {
-  var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
-  var version = parseInt(keys[1] + keys[2] + keys[3], 10);
-  var now = parseInt(window.moment().format('YYYYMMDD'), 10);
-  var diff = now - version;
-  return diff > 30;
-};
+// Properties moved to deferredSweetSuiteSetup - removed duplicates
+
 LingoLinqAAC.log = {
   start: function() {
     LingoLinqAAC.log.started = (new Date()).getTime();
@@ -851,13 +890,11 @@ LingoLinqAAC.log = {
     }
   }
 };
+// Final SweetSuite assignment - replace stub with actual LingoLinqAAC instance
 window.SweetSuite = LingoLinqAAC;
 window.SweetSuite.VERSION = window.app_version;
 
-// Maintain backward compatibility: LingoLinqAAC.track_error delegates to SweetSuite.track_error
-// This preserves the working SweetSuite backend while supporting LingoLinqAAC frontend calls
-LingoLinqAAC.track_error = function(msg, stack) {
-  return SweetSuite.track_error(msg, stack);
-};
+// LingoLinqAAC.track_error was already set up in deferredSweetSuiteSetup
+// SweetSuite.track_error was already set up in deferredSweetSuiteSetup
 
 export default LingoLinqAAC;

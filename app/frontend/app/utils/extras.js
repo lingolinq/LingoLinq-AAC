@@ -3,7 +3,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
-import LingoLinqAAC from '../app';
+// Remove circular dependency - LingoLinqAAC will be passed in at runtime
 import stashes from './_stashes';
 import session from './session';
 import i18n from './i18n';
@@ -36,8 +36,8 @@ import app_state from './app_state';
         session.get('isAuthenticated'); // this prevents a flash of unauthenticated content on ios
         $('html,body').scrollTop(0);
         console.log("LINGOLINQ-AAC: ready to start");
-        LingoLinqAAC.app.advanceReadiness();
-        LingoLinqAAC.ready();
+        window.LingoLinqAAC.app.advanceReadiness();
+        window.LingoLinqAAC.ready();
       });
     }
   };
@@ -121,7 +121,7 @@ import app_state from './app_state';
       }
     },
     track_error: function(message) {
-      LingoLinqAAC.track_error(message);
+      window.LingoLinqAAC.track_error(message);
     }
   }).create();
   capabilities.device_id = function() {
