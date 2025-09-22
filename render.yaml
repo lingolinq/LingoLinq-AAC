@@ -41,6 +41,8 @@ services:
         value: true
       - key: RACK_TIMEOUT_SERVICE_TIMEOUT
         value: 300
+      - key: DISABLE_OBF_GEM
+        value: true
       # Add your secret keys here (you'll need to set these manually in Render dashboard)
       - key: RAILS_MASTER_KEY
         sync: false
