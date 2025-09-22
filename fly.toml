@@ -1,0 +1,41 @@
+app = "lingolinq-aac"
+primary_region = "ord"
+
+[build]
+  dockerfile = "docker/Dockerfile"
+
+[env]
+  RAILS_ENV = "production"
+  RACK_ENV = "production"
+  RAILS_SERVE_STATIC_FILES = "true"
+  RAILS_LOG_TO_STDOUT = "true"
+  DISABLE_OBF_GEM = "true"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[http_service.concurrency]
+  type = "requests"
+  hard_limit = 200
+  soft_limit = 100
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[processes]
+  app = "./bin/render-start.sh"
