@@ -14,13 +14,15 @@ group :development, :test do
   gem 'rack-test'
   gem 'rails-controller-testing'
   gem 'sqlite3', '~> 1.4'
-  gem 'matrix'
   gem 'mutex_m'
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
   gem 'tzinfo-data' # Required for Windows
 end
+
+# Required for obf gem compatibility with Ruby 3.2+
+gem 'matrix'
 
 gem 'concurrent-ruby', '1.3.4'
 
