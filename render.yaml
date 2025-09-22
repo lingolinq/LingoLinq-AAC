@@ -20,6 +20,9 @@ services:
     region: oregon
     dockerfilePath: ./docker/Dockerfile
     dockerContext: ./
+    dockerBuildArgs:
+      - key: CACHE_BUST
+        value: "2025-09-22-v4-docker-force"
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
@@ -44,7 +47,13 @@ services:
       - key: DISABLE_OBF_GEM
         value: true
       - key: CACHE_BUST
-        value: "2025-09-22-v3"
+        value: "2025-09-22-v4-docker-force"
+      - key: BUNDLE_FORCE_RUBY_PLATFORM
+        value: "1"
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: DOCKER_BUILDKIT
+        value: "1"
       # Add your secret keys here (you'll need to set these manually in Render dashboard)
       - key: RAILS_MASTER_KEY
         sync: false

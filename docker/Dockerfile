@@ -1,5 +1,9 @@
-# Optimized LingoLinq Rails Dockerfile
+# Optimized LingoLinq Rails Dockerfile with aggressive cache busting
 FROM ruby:3.2.8-slim as base
+
+# Force rebuild - change this value to bust Render's Docker layer cache
+ARG CACHE_BUST=2025-09-22-v4-docker-force
+RUN echo "🚫 CACHE BUST: $CACHE_BUST"
 
 RUN echo "🏗️  STEP 1: Installing system dependencies..."
 # Install essential system dependencies
@@ -39,12 +43,20 @@ RUN echo "🏗️  STEP 3: Setting up Ruby environment..."
 RUN gem install bundler && echo "✅ Bundler installed"
 COPY Gemfile Gemfile.lock ./
 
-RUN echo "🏗️  STEP 4: Installing Ruby gems..."
-# Install Ruby dependencies (with cache optimization)
+RUN echo "🏗️  STEP 4: Installing Ruby gems with cache bypass..."
+# Force complete bundle cache bypass - aggressively avoid any cached dependencies
 RUN bundle config set --local deployment 'false' && \
-    echo "📦 Starting bundle install..." && \
-    bundle install --jobs 4 --retry 3 && \
-    echo "✅ Ruby gems installed successfully"
+    bundle config set --local force_ruby_platform 'true' && \
+    bundle config set --local cache_all_platforms 'false' && \
+    bundle config set --local clean 'true' && \
+    echo "🚫 Cleaning any existing bundle cache..." && \
+    rm -rf ~/.bundle/cache vendor/cache .bundle/cache && \
+    echo "📦 Starting fresh bundle install (no cache)..." && \
+    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 4 --retry 3 --no-cache && \
+    echo "✅ Ruby gems installed successfully without cache" && \
+    echo "🔍 VERIFICATION: Checking for problematic gems..." && \
+    if bundle show obf 2>/dev/null; then echo "❌ ERROR: obf gem detected!"; exit 1; else echo "✅ obf gem NOT found (good)"; fi && \
+    if bundle show matrix 2>/dev/null; then echo "❌ ERROR: matrix gem detected!"; exit 1; else echo "✅ matrix gem NOT found (good)"; fi
 
 RUN echo "🏗️  STEP 5: Copying application code..."
 # Copy the application code
