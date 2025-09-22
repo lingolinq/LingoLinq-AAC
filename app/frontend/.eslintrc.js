@@ -15,6 +15,7 @@ module.exports = {
     browser: true
   },
   globals: {
+    LingoLinqAAC: 'writable',
     SweetSuite: 'writable'
   },
   rules: {

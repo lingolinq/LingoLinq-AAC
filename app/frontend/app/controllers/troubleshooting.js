@@ -368,7 +368,7 @@ export default Controller.extend({
       if(this.get('errors')) {
         this.set('errors', null);
         } else {
-        this.set('errors', SweetSuite.errors || []);
+        this.set('errors', LingoLinqAAC.errors || []);
       }
     },
     show_debugging: function() {

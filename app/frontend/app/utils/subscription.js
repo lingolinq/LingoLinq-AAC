@@ -748,7 +748,7 @@ Subscription.reopenClass({
       if(Subscription.handler.defer) {
       }
       Subscription.handler.open({
-        name: subscription.get('name') || subscription.get('user.name') || SweetSuite.app_name,
+        name: subscription.get('name') || subscription.get('user.name') || LingoLinqAAC.app_name,
         description: subscription.get('description'),
         amount: amount,
         panelLabel: subscription.get('purchase_description'),
@@ -973,6 +973,6 @@ document.addEventListener("deviceready", function() {
   }
 }, false);
 
-SweetSuite.Subscription = Subscription;
+LingoLinqAAC.Subscription = Subscription;
 
 export default Subscription;

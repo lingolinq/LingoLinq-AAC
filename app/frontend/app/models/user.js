@@ -1178,8 +1178,8 @@ LingoLinqAAC.User.find_integration = function(user_name, key) {
     }
   });
 };
-SweetSuite.User.check_integrations = function(user_name, reload) {
-  var integrations_for = SweetSuite.User.integrations_for;
+LingoLinqAAC.User.check_integrations = function(user_name, reload) {
+  var integrations_for = LingoLinqAAC.User.integrations_for;
   if(integrations_for[user_name] && integrations_for[user_name].promise) {
     return integrations_for[user_name].promise;
   }
@@ -1189,18 +1189,18 @@ SweetSuite.User.check_integrations = function(user_name, reload) {
   }
   var promise = Utils.all_pages('integration', {user_id: user_name}, function(partial) {
   }).then(function(res) {
-    SweetSuite.User.integrations_for[user_name] = res;
+    LingoLinqAAC.User.integrations_for[user_name] = res;
     return res;
   }, function(err) {
-    SweetSuite.User.integrations_for[user_name] = {error: true};
+    LingoLinqAAC.User.integrations_for[user_name] = {error: true};
     return RSVP.reject({error: 'error retrieving integrations'});
   });
   promise.then(null, function() { });
-  SweetSuite.User.integrations_for[user_name] = {loading: true, promise: promise};
+  LingoLinqAAC.User.integrations_for[user_name] = {loading: true, promise: promise};
   return promise;
 };
 
-SweetSuite.User.devices = [
+LingoLinqAAC.User.devices = [
   {id: 'grid', name: i18n.t('grid', "Grid Pad, Grid for iOS"), img: 'grid-3.png', vocabs: [
     // podd, supercore, text talker, word power, vocabulary for life, beeline
     {id: 'supercore_30', name: i18n.t('super_core_30', "Super Core 30"), buttons: 30, img: 'super-core.png'},
@@ -1295,4 +1295,4 @@ SweetSuite.User.devices = [
 ];
 
 
-export default SweetSuite.User;
+export default LingoLinqAAC.User;

@@ -24,8 +24,8 @@ window.LingoLinqAAC.track_error = function (msg, src, line, col, err) {
 window.onerror = function(msg, url, line, col, obj) {
   if (typeof LingoLinqAAC?.track_error === 'function') {
     LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
-  } else if(window.SweetSuite && SweetSuite.track_error) {
-    SweetSuite.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  } else if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+    LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
   } else {
     console.error(msg + " (" + url + "-" + line + ":" + col + ")");
   }
@@ -34,8 +34,8 @@ Ember.onerror = function(err) {
   if(err.stack) {
     if (typeof LingoLinqAAC?.track_error === 'function') {
       LingoLinqAAC.track_error(err.message, err.stack);
-    } else if(window.SweetSuite && SweetSuite.track_error) {
-      SweetSuite.track_error(err.message, err.stack);
+    } else if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+      LingoLinqAAC.track_error(err.message, err.stack);
     } else {
       console.error(err.message, err.stack);
     }
@@ -47,8 +47,8 @@ Ember.onerror = function(err) {
     } else if(err._result && err._result.fakeXHR && (err._result.fakeXHR.status == 400 || err._result.fakeXHR.status == 404 || err._result.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
     } else {
-      if(window.SweetSuite && SweetSuite.track_error) {
-        SweetSuite.track_error(JSON.stringify(err), false);
+      if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+        LingoLinqAAC.track_error(JSON.stringify(err), false);
       } else {
         console.error(JSON.stringify(err));
       }
@@ -86,14 +86,11 @@ var LingoLinqAAC = LingoLinqAACClass.create();
 
 // Make LingoLinqAAC globally available to avoid circular dependency
 window.LingoLinqAAC = LingoLinqAAC;
-
-// Create early SweetSuite stub to prevent ReferenceError during initialization
-window.SweetSuite = window.SweetSuite || {};
 // Add early track_error function for error handlers
 var earlyTrackError = function(msg, stack) {
   console.error('Early track_error:', msg, stack);
 };
-window.SweetSuite.track_error = earlyTrackError;
+window.LingoLinqAAC.track_error = earlyTrackError;
 LingoLinqAAC.track_error = earlyTrackError;
 
 LingoLinqAAC.ready = function() {
@@ -117,15 +114,15 @@ LingoLinqAAC.ready = function() {
   }
 }
 
-// Defer SweetSuite property assignments until after full initialization
-var deferredSweetSuiteSetup = function() {
-  SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
-  SweetSuite.embedded = !!location.href.match(/embed=1/);
-  SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
-  SweetSuite.referrer = document.referrer;
+// Defer LingoLinqAAC property assignments until after full initialization
+var deferredLingoLinqAACSetup = function() {
+  LingoLinqAAC.grabRecord = persistence.DSExtend.grabRecord;
+  LingoLinqAAC.embedded = !!location.href.match(/embed=1/);
+  LingoLinqAAC.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
+  LingoLinqAAC.referrer = document.referrer;
   LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
   LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
-  SweetSuite.remote_url = function(url) {
+  LingoLinqAAC.remote_url = function(url) {
     return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
   };
 
@@ -145,15 +142,15 @@ var deferredSweetSuiteSetup = function() {
     });
   };
 
-  SweetSuite.track_error = fullTrackError;
+  LingoLinqAAC.track_error = fullTrackError;
   LingoLinqAAC.track_error = fullTrackError;
 
-  // Move additional SweetSuite properties here as well
-  SweetSuite.boxPad = 17;
-  SweetSuite.borderPad = 5;
-  SweetSuite.labelHeight = 15;
-  SweetSuite.customEvents = customEvents;
-  SweetSuite.expired = function() {
+  // Move additional LingoLinqAAC properties here as well
+  LingoLinqAAC.boxPad = 17;
+  LingoLinqAAC.borderPad = 5;
+  LingoLinqAAC.labelHeight = 15;
+  LingoLinqAAC.customEvents = customEvents;
+  LingoLinqAAC.expired = function() {
     var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
     var version = parseInt(keys[1] + keys[2] + keys[3], 10);
     var now = parseInt(window.moment().format('YYYYMMDD'), 10);
@@ -237,7 +234,7 @@ if(capabilities.wait_for_deviceready) {
 loadInitializers(LingoLinqAAC, config.modulePrefix);
 
 // Call deferred setup after loadInitializers to ensure proper order
-deferredSweetSuiteSetup();
+deferredLingoLinqAACSetup();
 
 DS.Model.reopen({
   reload: function(ignore_local) {
@@ -304,7 +301,7 @@ Route.reopen({
   }
 });
 
-SweetSuite.clean_path = function(str) {
+LingoLinqAAC.clean_path = function(str) {
   str = str.replace(/^\s+/, '').replace(/\s+$/, '');
   if(str.length == 0) { str = "_"; }
   if(str.match(/^\d/)) { str + "_" + str; }
@@ -313,18 +310,18 @@ SweetSuite.clean_path = function(str) {
   return str;  
 };
 
-SweetSuite.licenseOptions = [
+LingoLinqAAC.licenseOptions = [
   {name: i18n.t('private_license', "Private (no reuse allowed)"), id: 'private'},
   {name: i18n.t('cc_by_license', "CC By (attribution only)"), id: 'CC By', url: 'https://creativecommons.org/licenses/by/4.0/'},
   {name: i18n.t('cc_by_sa_license', "CC By-SA (attribution + share-alike)"), id: 'CC By-SA', url: 'https://creativecommons.org/licenses/by-sa/4.0/'},
   {name: i18n.t('public_domain_license', "Public Domain"), id: 'public domain', url: 'https://creativecommons.org/publicdomain/zero/1.0/'}
 ];
-SweetSuite.publicOptions = [
+LingoLinqAAC.publicOptions = [
   {name: i18n.t('private', "Private"), id: 'private'},
   {name: i18n.t('public', "Public"), id: 'public'},
   {name: i18n.t('unlisted', "Unlisted"), id: 'unlisted'}
 ];
-SweetSuite.board_categories = [
+LingoLinqAAC.board_categories = [
   {name: i18n.t('robust_vocabularies', "Robust Vocabularies"), id: 'robust'},
   {name: i18n.t('cause_and_effect', "Cause and Effect"), id: 'cause_effect'},
   {name: i18n.t('simple_starters', "Simple Starters"), id: 'simple_starts'},
@@ -332,7 +329,7 @@ SweetSuite.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
-SweetSuite.registrationTypes = [
+LingoLinqAAC.registrationTypes = [
   {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
   {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
@@ -342,7 +339,7 @@ SweetSuite.registrationTypes = [
   {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
   {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
 ];
-SweetSuite.user_statuses = [
+LingoLinqAAC.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
   {id: 'hourglass', label: i18n.t('waiting_for_evaluation', "Waiting for Evaluation"), on: true},
   {id: 'equalizer', label: i18n.t('waiting_for_results', "Waiting for Recommendation from Eval"), on: true},
@@ -359,7 +356,7 @@ SweetSuite.user_statuses = [
   {id: 'apple'},
   {id: 'blackboard'},
 ];
-SweetSuite.access_methods = {
+LingoLinqAAC.access_methods = {
   touch: 'hand-up',
   axis_scanning: 'screenshot',
   scanning: 'barcode',
@@ -372,7 +369,7 @@ SweetSuite.access_methods = {
 };
 
 
-SweetSuite.board_levels = [
+LingoLinqAAC.board_levels = [
   {name: i18n.t('unspecified_empty', "[  ]"), id: ''},
   {name: i18n.t('level_1', "1 - Minimal Targets"), id: '1'},
   {name: i18n.t('level_2', "2 - Basic Core"), id: '2'},
@@ -385,7 +382,7 @@ SweetSuite.board_levels = [
   {name: i18n.t('level_9', "9 - Robust Core and Fringe"), id: '9'},
   {name: i18n.t('level_10', "10 - Full Vocabulary"), id: '10'},
 ];    
-SweetSuite.parts_of_speech = [
+LingoLinqAAC.parts_of_speech = [
   {name: i18n.t('unspecified', "Unspecified"), id: ''},
   {name: i18n.t('noun', "Noun (dog, Dad)"), id: 'noun'},
   {name: i18n.t('verb', "Verb (jump, fly)"), id: 'verb'},
@@ -409,7 +406,7 @@ SweetSuite.parts_of_speech = [
 
 // derived from http://praacticalaac.org/strategy/communication-boards-colorful-considerations/
 // and http://talksense.weebly.com/cbb-8-colour.html
-SweetSuite.keyed_colors = [
+LingoLinqAAC.keyed_colors = [
   {border: "#ccc", fill: "#fff", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
   {border: "#dd0", fill: "#ffa", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
   {border: "#6d0", fill: "#cfa", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
@@ -423,7 +420,7 @@ SweetSuite.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-SweetSuite.extra_keyed_colors = [
+LingoLinqAAC.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},
   {border: '#1086e9', fill: '#a0cfee', label: 'adjf'},
@@ -454,7 +451,7 @@ SweetSuite.extra_keyed_colors = [
   {border: '#ff2f25', fill: '#f3a4a4', label: 'else'}
 ];
 
-SweetSuite.licenseOptions.license_url = function(id) {
+LingoLinqAAC.licenseOptions.license_url = function(id) {
   for(var idx = 0; idx < LingoLinqAAC.licenseOptions.length; idx++) {
     if(LingoLinqAAC.licenseOptions[idx].id == id) {
       return LingoLinqAAC.licenseOptions[idx].url;
@@ -463,7 +460,7 @@ SweetSuite.licenseOptions.license_url = function(id) {
   return "";
 };
 
-SweetSuite.iconUrls = [
+LingoLinqAAC.iconUrls = [
     {alt: 'house', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/house.svg'},
     {alt: 'food', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/food.svg'},
     {alt: 'verbs', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verbs.png'},
@@ -491,7 +488,7 @@ SweetSuite.iconUrls = [
     {alt: 'phone', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/mobile%20phone.png'},
     {alt: 'board', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'}
 ];
-SweetSuite.avatarUrls = [
+LingoLinqAAC.avatarUrls = [
   {alt: 'happy female', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png'},
   {alt: 'happy', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy%20look_1.png'},
   {alt: 'teacher', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/teacher%20(female).png'},
@@ -699,17 +696,17 @@ window.addEventListener('message', function(event) {
 });
 
 
-// SweetSuite.YT = {
+// LingoLinqAAC.YT = {
 //   track: function(player_id, callback) {
 //     return new RSVP.Promise(function(resolve, reject) {
-//       if(!SweetSuite.YT.ready) {
+//       if(!LingoLinqAAC.YT.ready) {
 //         var tag = document.createElement('script');
 //         tag.src = "https://www.youtube.com/iframe_api";
 //         var firstScriptTag = document.getElementsByTagName('script')[0];
 //         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 //         window.onYouTubeIframeAPIReady = function() {
-//           SweetSuite.YT.ready = true;
-//           SweetSuite.YT.track(player_id, callback).then(function(player) {
+//           LingoLinqAAC.YT.ready = true;
+//           LingoLinqAAC.YT.track(player_id, callback).then(function(player) {
 //             resolve(player);
 //           }, function() { reject('no_player'); });
 //         };
@@ -768,15 +765,15 @@ window.addEventListener('message', function(event) {
 //               }
 //             }
 //           }));
-//           SweetSuite.YT.players = SweetSuite.YT.players || [];
-//           SweetSuite.YT.players.push(player);
+//           LingoLinqAAC.YT.players = LingoLinqAAC.YT.players || [];
+//           LingoLinqAAC.YT.players.push(player);
 //           resolve(player);
 //         }, 200);
 //       }
 //     });
 //   },
 //   poll: function() {
-//     (SweetSuite.YT.players || []).forEach(function(player) {
+//     (LingoLinqAAC.YT.players || []).forEach(function(player) {
 //       if(!player.get('disabled')) {
 //         var p = player.get('_player');
 //         if(p && p.getDuration) {
@@ -799,11 +796,11 @@ window.addEventListener('message', function(event) {
 //         }
 //       }
 //     });
-//     RunLater(SweetSuite.YT.poll, 100);
+//     RunLater(LingoLinqAAC.YT.poll, 100);
 //   }
 // };
 // if(!Ember.testing) {
-//   RunLater(SweetSuite.YT.poll, 500);
+//   RunLater(LingoLinqAAC.YT.poll, 500);
 // }
 
 LingoLinqAAC.Visualizations = {
@@ -876,7 +873,7 @@ LingoLinqAAC.Visualizations = {
   }
 };
 
-// Properties moved to deferredSweetSuiteSetup - removed duplicates
+// Properties moved to deferredLingoLinqAACSetup - removed duplicates
 
 LingoLinqAAC.log = {
   start: function() {
@@ -890,11 +887,11 @@ LingoLinqAAC.log = {
     }
   }
 };
-// Final SweetSuite assignment - replace stub with actual LingoLinqAAC instance
-window.SweetSuite = LingoLinqAAC;
-window.SweetSuite.VERSION = window.app_version;
+// Final LingoLinqAAC assignment - replace stub with actual LingoLinqAAC instance
+window.LingoLinqAAC = LingoLinqAAC;
+window.LingoLinqAAC.VERSION = window.app_version;
 
-// LingoLinqAAC.track_error was already set up in deferredSweetSuiteSetup
-// SweetSuite.track_error was already set up in deferredSweetSuiteSetup
+// LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
+// LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 
 export default LingoLinqAAC;

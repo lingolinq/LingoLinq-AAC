@@ -879,7 +879,7 @@ var sync = EmberObject.extend({
             }
             var update_render = false;
             if(message.data.board_state && full_following) {
-              SweetSuite.store.findRecord('board', message.data.board_state.id).then(function(board) {
+              LingoLinqAAC.store.findRecord('board', message.data.board_state.id).then(function(board) {
                 sync.handle_action({type: 'board_assertion', board: board});
                 if(message.data.current_action) {
                   console.log("OTHER PERSON HIT A BUTTON", message.data);

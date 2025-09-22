@@ -1402,7 +1402,7 @@ var persistence = EmberObject.extend({
       });
       setTimeout(function() {
         if(!done) {
-          SweetSuite.track_error("sync promise took too long:" + msg);
+          LingoLinqAAC.track_error("sync promise took too long:" + msg);
           reject({error: 'promise timed out:' + msg});
         }
       }, ms);  
@@ -1506,7 +1506,7 @@ var persistence = EmberObject.extend({
 
 
       var find_user = prime_caches.then(check_first(function() {
-        return SweetSuite.store.findRecord('user', user_id).then(function(user) {
+        return LingoLinqAAC.store.findRecord('user', user_id).then(function(user) {
           if(sync_reason.match(/supervisee/)) {
             // already reloaded in sync_supervisees
             return user;
@@ -1521,7 +1521,7 @@ var persistence = EmberObject.extend({
       }));
 
       // cache images used for keyboard spelling to work offline
-      if(!ignore_supervisees && (!SweetSuite.testing || SweetSuite.sync_testing)) {
+      if(!ignore_supervisees && (!LingoLinqAAC.testing || LingoLinqAAC.sync_testing)) {
         eventuallies.push(function() {
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
@@ -1535,7 +1535,7 @@ var persistence = EmberObject.extend({
         eventuallies.push(function() {
           window.app_state.check_free_space().then(function(res) {
             if(res && res.too_little) {
-              modal.error(i18n.t('too_little_free_space', "Your device is almost out of free space, you may need to delete some data to make room for SweetSuite"));
+              modal.error(i18n.t('too_little_free_space', "Your device is almost out of free space, you may need to delete some data to make room for LingoLinqAAC"));
             }
           }, function() { });
         });
@@ -1622,9 +1622,9 @@ var persistence = EmberObject.extend({
         }
 
         // Step 0.5: Check for an invalidated token
-        if(SweetSuite.session && !SweetSuite.session.get('invalid_token')) {
+        if(LingoLinqAAC.session && !LingoLinqAAC.session.get('invalid_token')) {
           if(persistence.get('sync_progress.root_user') == user_id) {
-            SweetSuite.session.check_token(false);
+            LingoLinqAAC.session.check_token(false);
             if(user.get('single_org.image_url')) {
               // Store org image url for header rendering
               persistence.store_url(user.get('single_org.image_url'), 'image', false, false).then(function() {
@@ -1880,7 +1880,7 @@ var persistence = EmberObject.extend({
       var next_tag = function() {
         var tag_id = tag_ids.pop();
         if(tag_id) {
-          SweetSuite.store.findRecord('tag', tag_id).then(function(tag) {
+          LingoLinqAAC.store.findRecord('tag', tag_id).then(function(tag) {
             if(tag.get('button.image_url')) {
               store_image_promises.push(persistence.store_url(tag.get('button.image_url'), 'image', false, false));
               runLater(next_tag, 500);
@@ -1911,12 +1911,12 @@ var persistence = EmberObject.extend({
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
       (user.get('supervisors') || []).forEach(function(sup) {
-        if(SweetSuite.remote_url(sup.avatar_url) && !persistence.store_url_quick_check(sup.avatar_url, 'image')) {
+        if(LingoLinqAAC.remote_url(sup.avatar_url) && !persistence.store_url_quick_check(sup.avatar_url, 'image')) {
           all_store_images.push(persistence.store_url_now(sup.avatar_url, 'image'));
         }
       });
       (user.get('contacts') || []).forEach(function(contact) {
-        if(SweetSuite.remote_url(contact.image_url) && !persistence.store_url_quick_check(contact.image_url, 'image')) {
+        if(LingoLinqAAC.remote_url(contact.image_url) && !persistence.store_url_quick_check(contact.image_url, 'image')) {
           all_store_images.push(persistence.store_url_now(contact.image_url, 'image'));
         }
       });
@@ -1932,7 +1932,7 @@ var persistence = EmberObject.extend({
       var fails = [];
       var log_promises = [];
       (res.logs || []).forEach(function(data) {
-        var log = SweetSuite.store.createRecord('log', {
+        var log = LingoLinqAAC.store.createRecord('log', {
           events: data
         });
         log.cleanup();
@@ -1984,7 +1984,7 @@ var persistence = EmberObject.extend({
       var supervisee_promises = [];
       user.get('supervisees').forEach(function(supervisee) {
         var find_supervisee = persistence.queue_sync_action('find_supervisee', sync_id, function() {
-          return SweetSuite.store.findRecord('user', supervisee.id);
+          return LingoLinqAAC.store.findRecord('user', supervisee.id);
         });
         var reload_supervisee = find_supervisee.then(function(record) {
           if(!record.get('fresh') || force) {
@@ -2124,7 +2124,7 @@ var persistence = EmberObject.extend({
     var lookup_id = id;
     if(lookups[id] && !lookups[id].then) { lookup_id = lookups[id].get('id'); }
 
-    var peeked = SweetSuite.store.peekRecord('board', lookup_id);
+    var peeked = LingoLinqAAC.store.peekRecord('board', lookup_id);
     var key_for_id = lookup_id.match(/\//);
     var partial_load = peeked && (!peeked.get('permissions') || !peeked.get('image_urls'));
     if(peeked && (!peeked.get('permissions') || !peeked.get('image_urls'))) { peeked = null; }
@@ -2134,7 +2134,7 @@ var persistence = EmberObject.extend({
     if(lookups[id] && lookups[id].then) {
       find_board = lookups[id];
     } else {
-      find_board = SweetSuite.store.findRecord('board', lookup_id);
+      find_board = LingoLinqAAC.store.findRecord('board', lookup_id);
       find_board = find_board.then(function(record) {
         var cache_mismatch = fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] != record.get('current_revision');
         var fresh = record.get('fresh') && !cache_mismatch;
@@ -2285,14 +2285,14 @@ var persistence = EmberObject.extend({
             if(brd && brd.data && brd.data.id && fresh_revisions[brd.data.id]) {
               delete missing_ids[brd.data.id];
               if(brd.data.raw.current_revision == fresh_revisions[brd.data.id]) {
-                if(!SweetSuite.store.peekRecord('board', brd.data.id)) {
+                if(!LingoLinqAAC.store.peekRecord('board', brd.data.id)) {
                   // push already-cached record to the store
                   var json_api = { data: {
                     id: brd.data.raw.id,
                     type: 'board',
                     attributes: brd.data.raw
                   }};
-                  var board_record = SweetSuite.store.push(json_api);
+                  var board_record = LingoLinqAAC.store.push(json_api);
                   lookups[brd.data.raw.id] = RSVP.resolve(board_record);
                   lookups[brd.data.raw.key] = lookups[brd.data.raw.id]
                   board_statuses.push({id: brd.data.raw.id, key: brd.data.raw.key, status: 'cached'});
@@ -2331,7 +2331,7 @@ var persistence = EmberObject.extend({
                         type: 'board',
                         attributes: board_json
                       }};
-                      var board_record = SweetSuite.store.push(json_api);
+                      var board_record = LingoLinqAAC.store.push(json_api);
                       board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'});
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
@@ -2510,7 +2510,7 @@ var persistence = EmberObject.extend({
               synced_boards.push(board);
               visited_boards.push(id);
 
-              if(SweetSuite.remote_url(board.get('icon_url_with_fallback')) && !persistence.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
+              if(LingoLinqAAC.remote_url(board.get('icon_url_with_fallback')) && !persistence.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
                 // store_url already has a queue, we don't need to fill the sync queue with these
                 content_promises++;
                 visited_board_promises.push(persistence.store_url(board.get('icon_url_with_fallback'), 'image', false, force, sync_id).then(null, function() {
@@ -2519,7 +2519,7 @@ var persistence = EmberObject.extend({
                 }));
                 importantIds.push("dataCache_" + board.get('icon_url_with_fallback'));
               }
-              if(SweetSuite.remote_url(board.get('background.image')) && !persistence.store_url_quick_check(board.get('background.image'), 'image')) {
+              if(LingoLinqAAC.remote_url(board.get('background.image')) && !persistence.store_url_quick_check(board.get('background.image'), 'image')) {
                 content_promises++;
                 visited_board_promises.push(persistence.store_url(board.get('background.image'), 'image', true, force, sync_id).then(null, function() {
                   console.log("bg url failed to sync, " + board.get('background.image'));
@@ -2527,7 +2527,7 @@ var persistence = EmberObject.extend({
                 }));
                 importantIds.push("dataCache_" + board.get('background.image'));
               }
-              if(SweetSuite.remote_url(board.get('background.prompt.sound')) && !persistence.store_url_quick_check(board.get('background.prompt.sound'), 'sound')) {
+              if(LingoLinqAAC.remote_url(board.get('background.prompt.sound')) && !persistence.store_url_quick_check(board.get('background.prompt.sound'), 'sound')) {
                 content_promises++;
                 visited_board_promises.push(persistence.store_url(board.get('background.prompt.sound'), 'sound', true, force, sync_id).then(null, function() {
                   console.log("bg sound url failed to sync, " + board.get('background.prompt.sound'));
@@ -2561,11 +2561,11 @@ var persistence = EmberObject.extend({
               image_map.forEach(function(image) {
                 importantIds.push("image_" + image.id);
                 var keep_big = !!(board.get('grid.rows') < 3 || board.get('grid.columns') < 6);
-                if(SweetSuite.remote_url(image.url)) {
+                if(LingoLinqAAC.remote_url(image.url)) {
                   // TODO: should this be app_state.currentUser instead of the currently-syncing user?
                   var personalized = image.url;
-                  if(SweetSuite.Image && SweetSuite.Image.personalize_url) {
-                    personalized = SweetSuite.Image.personalize_url(image.url, user.get('user_token'), user.get('preferences.skin'));
+                  if(LingoLinqAAC.Image && LingoLinqAAC.Image.personalize_url) {
+                    personalized = LingoLinqAAC.Image.personalize_url(image.url, user.get('user_token'), user.get('preferences.skin'));
                   }
 
                   if(!persistence.store_url_quick_check(personalized, 'image')) {
@@ -2601,7 +2601,7 @@ var persistence = EmberObject.extend({
               board.map_sound_urls(all_sound_urls).forEach(function(sound) {
 //               board.get('local_sounds_with_license').forEach(function(sound) {
                 importantIds.push("sound_" + sound.id);
-                if(SweetSuite.remote_url(sound.url) && !persistence.store_url_quick_check(sound.url, 'sound')) {
+                if(LingoLinqAAC.remote_url(sound.url) && !persistence.store_url_quick_check(sound.url, 'sound')) {
                   visited_board_promises.push(//persistence.queue_sync_action('store_button_sound', sync_id, function() {
                      /*return*/ persistence.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
                       return RSVP.reject({error: "button sound failed to sync, " + sound.url});
@@ -2643,7 +2643,7 @@ var persistence = EmberObject.extend({
                       var necessary_finds = [];
                       // this is probably a protective thing, but I have no idea why anymore,
                       // it may not even be necessary anymore
-                      var tmp_board = SweetSuite.store.createRecord('board', $.extend({}, b, {id: null}));
+                      var tmp_board = LingoLinqAAC.store.createRecord('board', $.extend({}, b, {id: null}));
                       var missing_image_ids = [];
                       var missing_sound_ids = [];
                       // TODO: does this need to be just for the current user, or the whole map?
@@ -2881,7 +2881,7 @@ var persistence = EmberObject.extend({
         list.forEach(function(item) {
           if(item.store == 'deletion') {
             var promise = persistence.queue_sync_action('find_deletion', sync_id, function() {
-              return SweetSuite.store.findRecord(item.data.store, item.data.id).then(function(res) {
+              return LingoLinqAAC.store.findRecord(item.data.store, item.data.id).then(function(res) {
                 res.deleteRecord();
                 return res.save().then(function() {
                   return persistence.remove(item.store, item.data);
@@ -2900,10 +2900,10 @@ var persistence = EmberObject.extend({
             if(object.id && object.id.match(/^tmp_/)) {
               tmp_id = object.id;
               object.id = null;
-              find_record = RSVP.resolve(SweetSuite.store.createRecord(item.store, object));
+              find_record = RSVP.resolve(LingoLinqAAC.store.createRecord(item.store, object));
             } else {
               find_record = persistence.queue_sync_action('find_changed_record', sync_id, function() {
-                return SweetSuite.store.findRecord(item.store, object.id).then(null, function() {
+                return LingoLinqAAC.store.findRecord(item.store, object.id).then(null, function() {
                   return RSVP.reject({error: "failed to retrieve " + item.store + " " + object.id + "for updating"});
                 });
               });
@@ -3058,7 +3058,7 @@ var persistence = EmberObject.extend({
   },
   on_connect: observer('online', function() {
     stashes.set('online', this.get('online'));
-    if(this.get('online') && (!SweetSuite.testing || SweetSuite.sync_testing)) {
+    if(this.get('online') && (!LingoLinqAAC.testing || LingoLinqAAC.sync_testing)) {
       var _this = this;
       runLater(function() {
         // TODO: maybe do a quick xhr to a static asset to make sure we're for reals online?
@@ -3066,8 +3066,8 @@ var persistence = EmberObject.extend({
           _this.check_for_needs_sync(true);
         }
         _this.tokens = {};
-        if(SweetSuite.session) {
-          SweetSuite.session.restore(!persistence.get('browserToken'));
+        if(LingoLinqAAC.session) {
+          LingoLinqAAC.session.restore(!persistence.get('browserToken'));
         }
       }, 500);
     }
@@ -3141,8 +3141,8 @@ var persistence = EmberObject.extend({
             // TODO: if error implies no connection, consider marking as offline and checking for stamp more frequently
             if(err && err.result && err.result.invalid_token) {
               if(stashes.get('auth_settings') && !Ember.testing) {
-                if(SweetSuite.session && !SweetSuite.session.get('invalid_token')) {
-                  SweetSuite.session.check_token(false);
+                if(LingoLinqAAC.session && !LingoLinqAAC.session.get('invalid_token')) {
+                  LingoLinqAAC.session.check_token(false);
                 }
               }
             }
@@ -3169,7 +3169,7 @@ var persistence = EmberObject.extend({
     }
   }),
   check_for_new_version: observer('refresh_stamp', function() {
-    if(window.SweetSuite && window.SweetSuite.update_version) {
+    if(window.LingoLinqAAC && window.LingoLinqAAC.update_version) {
       persistence.set('app_needs_update', true);
     }
   })
@@ -3197,7 +3197,7 @@ setInterval(function() {
     persistence.set('online', false);
   } else if(persistence.get('online') === false) {
     // making an AJAX call when offline should have very little overhead
-    SweetSuite.session.check_token(false).then(function(res) {
+    LingoLinqAAC.session.check_token(false).then(function(res) {
       if(res && res.success === false) {
       } else {
         persistence.set('online', true);

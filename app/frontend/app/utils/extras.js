@@ -214,19 +214,19 @@ import app_state from './app_state';
           options.headers['X-Device-Id'] = capabilities.device_id();
           options.headers['X-LingoLinq-Version'] = window.LingoLinqAAC.VERSION;
         }
-        if(SweetSuite.protected_user || stashes.get('protected_user')) {
+        if(LingoLinqAAC.protected_user || stashes.get('protected_user')) {
           options.headers['X-SILENCE-LOGGER'] = 'true';
         }
         options.headers['X-SUPPORTS-REMOTE-BUTTONSET'] = 'true';
         options.headers['X-SUPPORTS-REMOTE-ENCRYPTION'] = 'true';
-        if(SweetSuite.session && SweetSuite.session.get('as_user_id')) {
-          options.headers['X-As-User-Id'] = SweetSuite.session.get('as_user_id');
+        if(LingoLinqAAC.session && LingoLinqAAC.session.get('as_user_id')) {
+          options.headers['X-As-User-Id'] = LingoLinqAAC.session.get('as_user_id');
         }
         if(window.ApplicationCache) {
           options.headers['X-Has-AppCache'] = "true";
         }
-        if(SweetSuite.session && SweetSuite.session.get('logging_codes')) {
-          var codes = SweetSuite.session.get('logging_codes') || [];
+        if(LingoLinqAAC.session && LingoLinqAAC.session.get('logging_codes')) {
+          var codes = LingoLinqAAC.session.get('logging_codes') || [];
           var too_old = (new Date()).getTime() - (68 * 60 * 1000);
           codes.forEach(function(code) {
             if(code.code && code.user_id && code.timestamp > too_old) {
@@ -266,7 +266,7 @@ import app_state from './app_state';
               // The bowels of ember aren't expecting $.ajax to return a real
               // promise and so they don't catch the rejection properly, which
               // potentially causes all sorts of unexpected uncaught errors.
-              // NOTE: this means that any SweetSuite code should not use the error parameter
+              // NOTE: this means that any LingoLinqAAC code should not use the error parameter
               // if it expects to receive a proper promise.
               // TODO: raise an error somehow if the caller provides an error function
               // and expects a proper promise in response.

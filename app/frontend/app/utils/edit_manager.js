@@ -2019,7 +2019,7 @@ var editManager = EmberObject.extend({
             user.set('preferences.home_board.level', level);
           }
           user.save().then(function() {
-            SweetSuite.store.findRecord('board', user.get('preferences.home_board.id')).then(function(board) {
+            LingoLinqAAC.store.findRecord('board', user.get('preferences.home_board.id')).then(function(board) {
               resolve(board);
             }, function(err) {
               reject(i18n.t('user_home_find_failed', "Failed to retrieve the copied home board"));

@@ -533,7 +533,7 @@ var Button = EmberObject.extend({
       if(_this.get('no_lookups')) {
         return RSVP.reject('no sound lookups');
       } else {
-        var find = SweetSuite.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        var find = LingoLinqAAC.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         });
@@ -661,7 +661,7 @@ var Button = EmberObject.extend({
           _this.set('parts_of_speech_matching_word', res.word);
           res.types.forEach(function(type) {
             if(!found) {
-              SweetSuite.keyed_colors.forEach(function(color) {
+              LingoLinqAAC.keyed_colors.forEach(function(color) {
                 if(!found && color.types && color.types.indexOf(type) >= 0) {
                   _this.set('background_color', color.fill);
                   _this.set('border_color', color.border);
@@ -907,7 +907,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    SweetSuite.track_error("bad image url: " + bad_src);
+    LingoLinqAAC.track_error("bad image url: " + bad_src);
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -917,22 +917,22 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var original_fallback = fallback;
       fallback = image.getAttribute('data-fallback');
       original_error = function() {
-        SweetSuite.track_error("failed to retrieve defined fallback:" + fallback);
+        LingoLinqAAC.track_error("failed to retrieve defined fallback:" + fallback);
         image.src = original_fallback;
         if(find_fallback) {
           find_fallback();
         }
       };
     } else {
-      SweetSuite.track_error("bad data uri or fallback: " + bad_src);
+      LingoLinqAAC.track_error("bad data uri or fallback: " + bad_src);
       original_error = function() {
-        SweetSuite.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        LingoLinqAAC.track_error("failed to retrieve image:" + fallback + " - " + image.src);
       };
     }
     error_listen(image, original_error);
     if(window.cordova && window.cordova.file && window.cordova.file.dataDirectory) {
-      SweetSuite.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
-      SweetSuite.track_error("tried to load:\n" + image.src);
+      LingoLinqAAC.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
+      LingoLinqAAC.track_error("tried to load:\n" + image.src);
     }
     image.src = fallback;
     var find_fallback = function() {
@@ -941,7 +941,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       persistence.find_url(fallback).then(function(data_uri) {
         if(image.src == fallback) {
           error_listen(image, function() {
-            SweetSuite.track_error("failed to render local image fallback");
+            LingoLinqAAC.track_error("failed to render local image fallback");
           });
           image.src = data_uri;
         }
@@ -962,7 +962,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       }, function() {
         if(fallback != original_fallback) {
-          SweetSuite.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
+          LingoLinqAAC.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
         }
       });  
     };
@@ -971,7 +971,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var fb = image.getAttribute('data-fallback');
       error_listen(image, function() {
         if(image.src == fb) {
-          SweetSuite.track_error("failed to load remote alternate after local version failed");
+          LingoLinqAAC.track_error("failed to load remote alternate after local version failed");
           find_fallback();
         }
       });
@@ -989,17 +989,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
       }, function() {
         // Error handling for bad image URLs should be handled
         // by error catches, this is just to note that the file store failed
-        SweetSuite.track_error("failed to store cached local image:\n" + key);
+        LingoLinqAAC.track_error("failed to store cached local image:\n" + key);
       });
     };
     if(bad_src.match(/^file/) || bad_src.match(/^localhost/)) {
-      SweetSuite.track_error("missing expected local image:\n" + bad_src);
+      LingoLinqAAC.track_error("missing expected local image:\n" + bad_src);
       var found = false;
       for(var key in persistence.url_cache) {
         if(!found && bad_src == persistence.url_cache[key] && persistence.get('online')) {
           error_listen(image, function() {
             if(image.src == key) {
-              SweetSuite.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
+              LingoLinqAAC.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
               find_fallback();
             }
           });
@@ -1021,17 +1021,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
         } else {
           if(image.getAttribute('rel') == bad_src) {
             error_listen(image, function() {
-              SweetSuite.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
+              LingoLinqAAC.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
               find_fallback();
             });
             image.src = data_uri;
           } else {
-            SweetSuite.track_error("image changed while looking up fallback");
+            LingoLinqAAC.track_error("image changed while looking up fallback");
             find_fallback();
           }
         }
       }, function() {
-        SweetSuite.track_error("no local copy found, trying fallback", bad_src, fallback);
+        LingoLinqAAC.track_error("no local copy found, trying fallback", bad_src, fallback);
         find_fallback();
       });
     }
@@ -1238,10 +1238,10 @@ var sample = function(range) {
 };
 
 Button.load_actions = function() {
-  if(!SweetSuite || SweetSuite.special_actions) { return; }
-  SweetSuite.find_special_action = function(mod) {
+  if(!LingoLinqAAC || LingoLinqAAC.special_actions) { return; }
+  LingoLinqAAC.find_special_action = function(mod) {
     var res = null;
-    SweetSuite.special_actions.forEach(function(action) {
+    LingoLinqAAC.special_actions.forEach(function(action) {
       if(res || !mod) { return; }
       if(action.action == mod) { 
         res = action;
@@ -1255,7 +1255,7 @@ Button.load_actions = function() {
     });
     return res;
   };
-  SweetSuite.special_actions = [
+  LingoLinqAAC.special_actions = [
     {
       action: ':clear',
       description: i18n.t('clear_utterance', "Clear the current utterance"),
