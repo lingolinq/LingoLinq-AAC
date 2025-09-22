@@ -21,8 +21,7 @@ group :development, :test do
   gem 'tzinfo-data' # Required for Windows
 end
 
-# Required for obf gem compatibility with Ruby 3.2+
-gem 'matrix'
+# Matrix gem removed - was only needed for obf gem which is now disabled
 
 gem 'concurrent-ruby', '1.3.4'
 
@@ -50,7 +49,7 @@ gem 'puma'
 gem 'rack-offline'
 gem 'paper_trail'
 gem 'geokit'
-gem 'obf' unless ENV['DISABLE_OBF_GEM'] == 'true'
+# gem 'obf' # Disabled for production deployment due to Ruby 3.2+ matrix dependency issues
 gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'

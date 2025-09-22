@@ -199,7 +199,6 @@ GEM
       net-pop
       net-smtp
     marcel (1.0.4)
-    matrix (0.4.3)
     method_source (1.1.0)
     mimemagic (0.3.10)
       nokogiri (~> 1)
@@ -474,7 +473,6 @@ DEPENDENCIES
   heroku-deflater
   http-2
   irb
-  matrix
   mimemagic (~> 0.3.10)
   mutex_m
   newrelic_rpm
