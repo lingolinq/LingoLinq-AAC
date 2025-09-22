@@ -2,8 +2,8 @@
 FROM ruby:3.2.8-slim
 
 # Force rebuild - change this value to bust Railway's Docker layer cache
-ARG CACHE_BUST=railway-docker-force
-RUN echo "🚫 RAILWAY DOCKER BUILD: $CACHE_BUST"
+ARG CACHE_BUST=railway-fix-bundler-v2
+RUN echo "🚫 RAILWAY DOCKER BUILD NEW VERSION: $CACHE_BUST"
 
 RUN echo "🏗️  STEP 1: Installing system dependencies..."
 # Install essential system dependencies
