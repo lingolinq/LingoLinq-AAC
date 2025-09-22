@@ -39,22 +39,23 @@ RUN echo "🔍 CONTAINER VERSIONS:" && \
 WORKDIR /app
 RUN echo "🏗️  STEP 3: Setting up Ruby environment..."
 
-# Install bundler and copy Gemfiles
-RUN gem install bundler && echo "✅ Bundler installed"
+# Install specific bundler version to match Gemfile.lock
+RUN gem install bundler:2.7.1 && echo "✅ Bundler 2.7.1 installed"
 COPY Gemfile Gemfile.lock ./
 
 RUN echo "🏗️  STEP 4: Installing Ruby gems with cache bypass..."
-# Force complete bundle cache bypass - aggressively avoid any cached dependencies
-RUN bundle config set --local deployment 'false' && \
-    bundle config set --local force_ruby_platform 'true' && \
-    bundle config set --local cache_all_platforms 'false' && \
-    bundle config set --local clean 'true' && \
-    echo "🚫 Cleaning any existing bundle cache..." && \
-    rm -rf ~/.bundle/cache vendor/cache .bundle/cache && \
-    echo "📦 Starting fresh bundle install (no cache)..." && \
-    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 4 --retry 3 --no-cache && \
-    echo "✅ Ruby gems installed successfully without cache" && \
-    echo "🔍 VERIFICATION: Checking for problematic gems..." && \
+# Simplified gem installation - avoid complex chaining that might timeout
+RUN bundle config set --local deployment 'false'
+RUN bundle config set --local force_ruby_platform 'true'
+RUN bundle config set --local clean 'true'
+RUN echo "🚫 Cleaning any existing bundle cache..." && \
+    rm -rf ~/.bundle/cache vendor/cache .bundle/cache
+
+RUN echo "📦 Starting fresh bundle install (no cache)..." && \
+    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 2 --retry 3 --no-cache && \
+    echo "✅ Ruby gems installed successfully"
+
+RUN echo "🔍 VERIFICATION: Checking for problematic gems..." && \
     if bundle show obf 2>/dev/null; then echo "❌ ERROR: obf gem detected!"; exit 1; else echo "✅ obf gem NOT found (good)"; fi && \
     if bundle show matrix 2>/dev/null; then echo "❌ ERROR: matrix gem detected!"; exit 1; else echo "✅ matrix gem NOT found (good)"; fi
 
