@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y \
     && echo "✅ System dependencies installed"
 
 RUN echo "🏗️  STEP 2: Installing Node.js..."
-# Install Node.js 16.x (required for legacy Ember CLI 3.12 compatibility)
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+# Install Node.js 18.x (required for Render.com compatibility and Ember CLI 3.12)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
     && echo "✅ Node.js installed"
 

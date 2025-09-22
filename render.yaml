@@ -43,6 +43,8 @@ services:
         value: 300
       - key: DISABLE_OBF_GEM
         value: true
+      - key: CACHE_BUST
+        value: "2025-09-22-v3"
       # Add your secret keys here (you'll need to set these manually in Render dashboard)
       - key: RAILS_MASTER_KEY
         sync: false
