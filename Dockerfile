@@ -1,9 +1,8 @@
-# Force Railway to use this Dockerfile at root level
 FROM ruby:3.2.8-slim
 
-# Force rebuild - change this value to bust Railway's Docker layer cache
-ARG CACHE_BUST=railway-fix-bundler-v2
-RUN echo "🚫 RAILWAY DOCKER BUILD NEW VERSION: $CACHE_BUST"
+# Force rebuild
+ARG CACHE_BUST=fixed-clean-issue-v1
+RUN echo "🚫 FIXED DOCKER BUILD VERSION: $CACHE_BUST"
 
 RUN echo "🏗️  STEP 1: Installing system dependencies..."
 # Install essential system dependencies
@@ -43,16 +42,17 @@ RUN echo "🏗️  STEP 3: Setting up Ruby environment..."
 RUN gem install bundler:2.7.1 && echo "✅ Bundler 2.7.1 installed"
 COPY Gemfile Gemfile.lock ./
 
-RUN echo "🏗️  STEP 4: Installing Ruby gems with cache bypass..."
-# Simplified gem installation - avoid complex chaining that might timeout
+RUN echo "🏗️  STEP 4: Installing Ruby gems (FIXED - no clean config)..."
+# Configure bundle without the problematic clean setting
 RUN bundle config set --local deployment 'false'
 RUN bundle config set --local force_ruby_platform 'true'
-RUN bundle config set --local clean 'true'
+# REMOVED: bundle config set --local clean 'true' - this was causing exit code 15
+
 RUN echo "🚫 Cleaning any existing bundle cache..." && \
     rm -rf ~/.bundle/cache vendor/cache .bundle/cache
 
-RUN echo "📦 Starting fresh bundle install (no cache)..." && \
-    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 2 --retry 3 --no-cache && \
+RUN echo "📦 Starting bundle install without --no-cache..." && \
+    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 2 --retry 3 && \
     echo "✅ Ruby gems installed successfully"
 
 RUN echo "🔍 VERIFICATION: Checking for problematic gems..." && \
