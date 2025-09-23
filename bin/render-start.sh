@@ -1,24 +1,22 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting LingoLinq-AAC on Render..."
+echo "🚀 Starting LingoLinq-AAC..."
 
-# Install obf gem at runtime (was skipped during build to avoid compilation issues)
-echo "📦 Installing obf gem for runtime..."
-if ! bundle exec gem list obf | grep -q "obf"; then
-  echo "Installing obf gem..."
-  bundle exec gem install obf
-  echo "✅ OBF gem installed"
-else
-  echo "✅ OBF gem already available"
+# Skip obf gem installation - it's been permanently removed
+echo "🚫 OBF gem disabled (removed from application)"
+
+# Keep obf gem disabled for runtime
+export DISABLE_OBF_GEM=true
+
+# Wait for database to be ready (or create SQLite if needed)
+echo "⏳ Preparing database..."
+if ! bundle exec rails db:version > /dev/null 2>&1; then
+  echo "📄 Creating SQLite database..."
+  bundle exec rails db:create
 fi
 
-# Re-enable obf gem for runtime
-unset DISABLE_OBF_GEM
-export DISABLE_OBF_GEM=""
-
-# Wait for database to be ready
-echo "⏳ Waiting for database..."
+echo "🔍 Checking database connection..."
 until bundle exec rails db:version > /dev/null 2>&1; do
   echo "Database not ready, waiting..."
   sleep 2
