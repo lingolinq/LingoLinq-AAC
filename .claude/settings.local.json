@@ -110,7 +110,26 @@
       "WebFetch(domain:render.com)",
       "Bash(claude:*)",
       "Bash(gh workflow:*)",
-      "Bash(gh run download:*)"
+      "Bash(gh run download:*)",
+      "Bash(xargs:*)",
+      "Bash(DISABLE_OBF_GEM=true bundle install)",
+      "Bash(docker build:*)",
+      "WebFetch(domain:lingolinq-web.onrender.com)",
+      "Bash(DISABLE_OBF_GEM=true bundle update marcel)",
+      "Bash(docker run:*)",
+      "Bash(docker stop:*)",
+      "Bash(railway status:*)",
+      "WebFetch(domain:lingolinqtest-production.up.railway.app)",
+      "Bash(railway logs:*)",
+      "Bash(railway open:*)",
+      "WebFetch(domain:help.railway.app)",
+      "WebFetch(domain:station.railway.com)",
+      "Bash(railway up:*)",
+      "Bash(railway delete:*)",
+      "Bash(./scripts/deploy-flyio.sh:*)",
+      "Bash(sh)",
+      "Bash(export PATH=\"$PATH:/c/Users/skawa/.fly/bin\")",
+      "Bash(flyctl:*)"
     ],
     "deny": []
   }
