@@ -18,11 +18,8 @@ services:
     runtime: docker
     plan: starter
     region: oregon
-    dockerfilePath: ./docker/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./
-    dockerBuildArgs:
-      - key: CACHE_BUST
-        value: "2025-09-22-v4-docker-force"
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL
@@ -66,7 +63,7 @@ services:
     runtime: docker
     plan: starter
     region: oregon
-    dockerfilePath: ./docker/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./
     startCommand: "./bin/worker-start.sh"
     envVars:
