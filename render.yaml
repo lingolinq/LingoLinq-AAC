@@ -65,7 +65,6 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: ./
-    startCommand: "./bin/worker-start.sh"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
