@@ -1,7 +1,7 @@
 # LingoLinq AAC - Fixed Production Dockerfile
 # Addresses bundler path issues and gem resolution problems
 
-FROM ruby:3.2.8-slim
+FROM ruby:3.2
 
 # NUCLEAR CACHE BREAK - Wed, Sep 24, 2025 12:16:27 AM
 ARG CACHE_BREAK_TIMESTAMP=1758694579666623500
