@@ -1,7 +1,7 @@
 FROM ruby:3.2.8-slim
 
 # Force rebuild
-ARG CACHE_BUST=fixed-clean-issue-v1
+ARG CACHE_BUST=marcel-gem-check-v1
 RUN echo "🚫 FIXED DOCKER BUILD VERSION: $CACHE_BUST"
 
 RUN echo "🏗️  STEP 1: Installing system dependencies..."
@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     pkg-config \
+    patch \
     && rm -rf /var/lib/apt/lists/* \
     && echo "✅ System dependencies installed"
 
@@ -63,6 +64,13 @@ RUN echo "🏗️  STEP 5: Copying application code..."
 # Copy the application code
 COPY . .
 RUN echo "✅ Application code copied"
+
+# Check if marcel fix is already applied
+RUN echo "🔍 MARCEL CHECK: Verifying marcel gem is used..." && \
+    grep -n "require 'marcel'" app/models/concerns/uploadable.rb && \
+    echo "✅ Marcel gem correctly required"
+
+RUN echo "🔍 DEBUG: Checking uploadable.rb file content..." && head -5 app/models/concerns/uploadable.rb
 
 RUN echo "🏗️  STEP 6: Building frontend assets..."
 # Build frontend assets
