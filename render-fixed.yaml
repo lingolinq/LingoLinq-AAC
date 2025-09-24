@@ -1,0 +1,106 @@
+# Fixed Render.com deployment configuration for LingoLinq AAC
+# Addresses bundler gem resolution and deployment issues
+
+databases:
+  - name: lingolinq-db
+    plan: free
+    region: oregon
+
+services:
+  # Redis Cache
+  - type: redis
+    name: lingolinq-redis
+    plan: starter
+    region: oregon
+    ipAllowList: []
+
+  # Rails Web Application (Fixed)
+  - type: web
+    name: lingolinq-web
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.fixed  # Use the fixed Dockerfile
+    dockerContext: ./
+    healthCheckPath: /
+    buildCommand: ""  # Let Docker handle the build
+    startCommand: ""  # Let Docker handle the start
+    envVars:
+      # Database connection
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db
+          property: connectionString
+      
+      # Redis connection
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis
+          property: connectionString
+      
+      # Rails environment
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_SERVE_STATIC_FILES
+        value: true
+      - key: RAILS_LOG_TO_STDOUT
+        value: true
+      
+      # Bundle configuration (fix for gem resolution)
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: BUNDLE_PATH
+        value: "/usr/local/bundle"
+      - key: BUNDLE_FORCE_RUBY_PLATFORM
+        value: "true"
+      
+      # Required app configuration
+      - key: DEFAULT_HOST
+        sync: false  # Set manually to your domain
+      - key: DEFAULT_EMAIL_FROM
+        value: noreply@lingolinq.com
+      - key: SYSTEM_ERROR_EMAIL
+        value: errors@lingolinq.com
+      - key: NEW_REGISTRATION_EMAIL
+        value: registrations@lingolinq.com
+      
+      # Security keys (set these manually in Render dashboard)
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: SECURE_ENCRYPTION_KEY
+        generateValue: true
+      - key: SECURE_NONCE_KEY
+        generateValue: true
+      - key: COOKIE_KEY
+        generateValue: true
+      - key: RAILS_MASTER_KEY
+        sync: false  # Upload your master.key manually
+
+  # Background Worker (Optional)
+  - type: worker
+    name: lingolinq-worker
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.fixed
+    dockerContext: ./
+    startCommand: bundle exec rake resque:work
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis
+          property: connectionString
+      - key: RAILS_ENV
+        value: production
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: BUNDLE_PATH
+        value: "/usr/local/bundle"

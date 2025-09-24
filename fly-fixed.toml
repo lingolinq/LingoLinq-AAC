@@ -1,0 +1,75 @@
+# Fixed Fly.io deployment configuration for LingoLinq AAC
+# Addresses bundler and deployment issues
+
+app = "lingolinq-aac"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile.fixed"
+
+[env]
+  # Rails environment
+  RAILS_ENV = "production"
+  RACK_ENV = "production"
+  RAILS_SERVE_STATIC_FILES = "true"
+  RAILS_LOG_TO_STDOUT = "true"
+  
+  # Bundle configuration (fix for gem resolution)
+  BUNDLE_DEPLOYMENT = "false"
+  BUNDLE_PATH = "/usr/local/bundle"
+  BUNDLE_FORCE_RUBY_PLATFORM = "true"
+  
+  # App configuration
+  DEFAULT_EMAIL_FROM = "noreply@lingolinq.com"
+  SYSTEM_ERROR_EMAIL = "errors@lingolinq.com"
+  NEW_REGISTRATION_EMAIL = "registrations@lingolinq.com"
+  
+  # Node environment
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+# Health check
+[[http_service.checks]]
+  grace_period = "60s"  # Increased for Rails startup
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+
+[http_service.concurrency]
+  type = "requests"
+  hard_limit = 100
+  soft_limit = 50
+
+# Machine configuration
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Process configuration
+[processes]
+  app = "./bin/docker-start.sh"
+
+# PostgreSQL Database
+[[services]]
+  protocol = "tcp"
+  internal_port = 5432
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Redis Cache
+[[services]]
+  protocol = "tcp"
+  internal_port = 6379
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
