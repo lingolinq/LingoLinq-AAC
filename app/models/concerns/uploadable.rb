@@ -1,4 +1,4 @@
-require 'mime/types'
+require 'marcel'
 
 module Uploadable
   extend ActiveSupport::Concern

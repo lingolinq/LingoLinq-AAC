@@ -1,4 +1,4 @@
-require 'mime/types'
+require 'marcel'
 class Api::SearchController < ApplicationController
   before_action :require_api_token, :except => [:audio, :focuses]
   def symbols
