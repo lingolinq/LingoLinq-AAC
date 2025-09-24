@@ -1,0 +1,131 @@
+# NUCLEAR Cache Breaking Render Configuration
+# Forces Render to rebuild everything from scratch
+
+databases:
+  - name: lingolinq-db-v2  # NEW NAME to avoid cache
+    plan: free
+    region: oregon
+
+services:
+  # Redis with new name to break cache
+  - type: redis
+    name: lingolinq-redis-v2  # NEW NAME
+    plan: starter
+    region: oregon
+    ipAllowList: []
+
+  # Web service with NUCLEAR cache breaking
+  - type: web
+    name: lingolinq-web-v2  # NEW NAME to force fresh deployment
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.nuclear  # Use nuclear Dockerfile
+    dockerContext: ./
+    healthCheckPath: /
+    
+    # CACHE BREAKING BUILD ARGS
+    dockerBuildArgs:
+      CACHE_BREAK_TIMESTAMP: "${RENDER_DEPLOY_ID:-$(date +%s%N)}"
+      BUILD_ID: "${RENDER_DEPLOY_ID:-nuclear-v1}"
+    
+    # PRE-BUILD CACHE CLEARING (if Render supports it)
+    buildCommand: |
+      echo "🚫 NUCLEAR CACHE BREAK STARTING: $(date)"
+      echo "Deploy ID: ${RENDER_DEPLOY_ID}"
+      echo "Timestamp: $(date +%s%N)"
+    
+    envVars:
+      # Database (NEW NAME)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db-v2
+          property: connectionString
+      
+      # Redis (NEW NAME)  
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis-v2
+          property: connectionString
+      
+      # Rails environment
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_SERVE_STATIC_FILES
+        value: true
+      - key: RAILS_LOG_TO_STDOUT
+        value: true
+      
+      # NUCLEAR CACHE BREAKING ENVIRONMENT VARS
+      - key: CACHE_BREAK_TIMESTAMP
+        generateValue: true  # Forces new value each deploy
+      - key: NUCLEAR_BUILD_VERSION
+        value: "v2-$(date +%s)"
+      - key: FORCE_COMPLETE_REBUILD
+        value: "true"
+      
+      # Bundle configuration (FIXED)
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: BUNDLE_PATH
+        value: "/usr/local/bundle"
+      - key: BUNDLE_FORCE_RUBY_PLATFORM
+        value: "true"
+      
+      # App configuration  
+      - key: DEFAULT_HOST
+        sync: false
+      - key: DEFAULT_EMAIL_FROM
+        value: noreply@lingolinq.com
+      - key: SYSTEM_ERROR_EMAIL
+        value: errors@lingolinq.com
+      - key: NEW_REGISTRATION_EMAIL
+        value: registrations@lingolinq.com
+      
+      # Security (generate fresh values)
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: SECURE_ENCRYPTION_KEY
+        generateValue: true
+      - key: SECURE_NONCE_KEY
+        generateValue: true
+      - key: COOKIE_KEY
+        generateValue: true
+      - key: RAILS_MASTER_KEY
+        sync: false
+
+  # Worker with nuclear cache breaking
+  - type: worker
+    name: lingolinq-worker-v2  # NEW NAME
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.nuclear
+    dockerContext: ./
+    startCommand: bundle exec rake resque:work
+    
+    dockerBuildArgs:
+      CACHE_BREAK_TIMESTAMP: "${RENDER_DEPLOY_ID:-$(date +%s%N)}"
+      BUILD_ID: "${RENDER_DEPLOY_ID:-nuclear-worker-v1}"
+    
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db-v2
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis-v2
+          property: connectionString
+      - key: RAILS_ENV
+        value: production
+      - key: CACHE_BREAK_TIMESTAMP
+        generateValue: true
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: BUNDLE_PATH
+        value: "/usr/local/bundle"

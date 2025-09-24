@@ -1,0 +1,135 @@
+# LingoLinq AAC - NUCLEAR Cache Breaking Dockerfile
+# FORCES complete rebuild by invalidating ALL Docker layer caches
+
+# CACHE BREAKING STRATEGY 1: Timestamp at the very top
+ARG CACHE_BREAK_TIMESTAMP
+ARG BUILD_ID
+RUN echo "🚫 NUCLEAR CACHE BREAK: ${CACHE_BREAK_TIMESTAMP:-$(date +%s%N)} Build: ${BUILD_ID:-$(uuidgen)}"
+
+FROM ruby:3.2.8-slim as cache_destroyer
+
+# CACHE BREAKING STRATEGY 2: Random content generation
+RUN echo "Cache destroyer layer: $(date +%s%N)" > /tmp/destroy_cache_$(date +%s%N).txt && \
+    echo "Random UUID: $(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo 'no-uuid')" >> /tmp/destroy_cache_*.txt && \
+    ls -la /tmp/destroy_cache_*.txt
+
+FROM ruby:3.2.8-slim as production
+
+# CACHE BREAKING STRATEGY 3: Copy random files from destroyer
+COPY --from=cache_destroyer /tmp/destroy_cache_*.txt /tmp/
+
+# CACHE BREAKING STRATEGY 4: System update with timestamp
+RUN echo "🚫 SYSTEM UPDATE CACHE BREAK: $(date)" && \
+    apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    git \
+    curl \
+    postgresql-client \
+    imagemagick \
+    ghostscript \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "✅ System deps installed at: $(date)"
+
+# CACHE BREAKING STRATEGY 5: Node.js with forced timestamp
+RUN echo "🚫 NODE.JS CACHE BREAK: $(date)" && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Node version: $(node -v) installed at: $(date)"
+
+# Verify versions with timestamp
+RUN echo "🔍 VERSION CHECK at $(date):" && \
+    echo "Ruby: $(ruby -v)" && \
+    echo "Node: $(node -v)" && \
+    echo "NPM: $(npm -v)" && \
+    echo "Bundler about to be installed at: $(date)"
+
+WORKDIR /app
+
+# CACHE BREAKING STRATEGY 6: Bundler with timestamp
+RUN echo "🚫 BUNDLER CACHE BREAK: $(date)" && \
+    gem install bundler:2.7.1 && \
+    echo "Bundler installed at: $(date)"
+
+# CACHE BREAKING STRATEGY 7: Bundle config with timestamp  
+RUN echo "🚫 BUNDLE CONFIG CACHE BREAK: $(date)" && \
+    bundle config set --global deployment false && \
+    bundle config set --global path /usr/local/bundle && \
+    bundle config set --global without '' && \
+    bundle config set --global jobs 4 && \
+    bundle config set --global retry 3 && \
+    bundle config set --global force_ruby_platform true && \
+    echo "Bundle configured at: $(date)"
+
+# Copy Gemfiles with cache breaking content
+COPY Gemfile Gemfile.lock ./
+RUN echo "# Cache break: $(date +%s%N)" >> Gemfile.tmp && \
+    cat Gemfile.tmp Gemfile > Gemfile.new && \
+    mv Gemfile.new Gemfile && \
+    rm Gemfile.tmp
+
+# CACHE BREAKING STRATEGY 8: Bundle install with verbose output and timestamp
+RUN echo "🚫 BUNDLE INSTALL CACHE BREAK: $(date)" && \
+    bundle install --verbose && \
+    echo "✅ Gems installed successfully at: $(date)" && \
+    bundle check && \
+    echo "✅ Bundle check passed at: $(date)"
+
+# CACHE BREAKING STRATEGY 9: Copy app code with cache breaking marker
+COPY . .
+RUN echo "🚫 APP CODE CACHE BREAK: $(date +%s%N)" > .app_cache_break && \
+    echo "App copied at: $(date)"
+
+# Create directories with timestamp
+RUN echo "🚫 DIRECTORIES CACHE BREAK: $(date)" && \
+    mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
+    echo "Directories created at: $(date)"
+
+# CACHE BREAKING STRATEGY 10: Frontend build with cache breaking
+WORKDIR /app/app/frontend
+RUN echo "🚫 FRONTEND CACHE BREAK: $(date)" && \
+    if [ -f "package.json" ]; then \
+        echo "# Cache break frontend: $(date +%s%N)" >> package.json.tmp && \
+        cat package.json.tmp package.json > package.json.new && \
+        mv package.json.new package.json && \
+        rm package.json.tmp && \
+        npm install --legacy-peer-deps && \
+        echo "✅ NPM dependencies installed at: $(date)"; \
+    fi
+
+RUN if [ -f "bower.json" ]; then \
+        echo "🎯 Installing bower at: $(date)" && \
+        npx bower install --allow-root && \
+        echo "✅ Bower dependencies installed at: $(date)"; \
+    fi
+
+# Build Ember with timestamp
+RUN echo "🔨 Building Ember at: $(date)" && \
+    (npm run build || ./node_modules/.bin/ember build --environment=production) && \
+    echo "✅ Ember build completed at: $(date)"
+
+WORKDIR /app
+
+# Environment with cache breaking
+ENV RAILS_ENV=production
+ENV RACK_ENV=production  
+ENV NODE_ENV=production
+ENV CACHE_BREAK_TIMESTAMP="$(date +%s)"
+
+# CACHE BREAKING STRATEGY 11: Asset precompilation with timestamp
+RUN echo "🎨 Asset precompilation starting at: $(date)" && \
+    SECRET_KEY_BASE=dummy RAILS_ENV=production bundle exec rails assets:precompile && \
+    echo "✅ Assets precompiled at: $(date)"
+
+EXPOSE 3000
+
+# Copy startup script with cache breaking
+COPY bin/docker-start.sh ./bin/docker-start.sh
+RUN chmod +x ./bin/docker-start.sh && \
+    echo "Startup script ready at: $(date)"
+
+# Final cache break marker
+RUN echo "🎉 NUCLEAR BUILD COMPLETE: $(date +%s%N)" > .nuclear_build_complete
+
+CMD ["./bin/docker-start.sh"]
