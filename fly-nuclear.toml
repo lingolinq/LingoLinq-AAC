@@ -18,22 +18,26 @@ primary_region = "ord"
   RACK_ENV = "production"
   RAILS_SERVE_STATIC_FILES = "true"
   RAILS_LOG_TO_STDOUT = "true"
-  
+
   # NUCLEAR CACHE BREAKING
   NUCLEAR_BUILD_VERSION = "v2"
   FORCE_COMPLETE_REBUILD = "true"
   CACHE_BREAK_TIMESTAMP = "{{timestamp}}"
-  
+
   # Bundle configuration (FIXED)
   BUNDLE_DEPLOYMENT = "false"
   BUNDLE_PATH = "/usr/local/bundle"
   BUNDLE_FORCE_RUBY_PLATFORM = "true"
-  
+  BUNDLE_WITHOUT = "development:test"
+
+  # Use SQLite for simpler deployment
+  DATABASE_URL = "sqlite3:db/production.sqlite3"
+
   # App configuration
   DEFAULT_EMAIL_FROM = "noreply@lingolinq.com"
   SYSTEM_ERROR_EMAIL = "errors@lingolinq.com"
   NEW_REGISTRATION_EMAIL = "registrations@lingolinq.com"
-  
+
   NODE_ENV = "production"
 
 [http_service]

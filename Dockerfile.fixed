@@ -1,9 +1,14 @@
+# NUCLEAR CACHE BREAK - Wed, Sep 24, 2025 12:16:27 AM
+ARG CACHE_BREAK_TIMESTAMP=1758694579666623500
+ARG BUILD_ID=nuclear-1758694579666623500
+RUN echo "🚫 CACHE BREAK: ${CACHE_BREAK_TIMESTAMP} - Build: ${BUILD_ID}"
+
 # LingoLinq AAC - Fixed Production Dockerfile
 # Addresses bundler path issues and gem resolution problems
 
 FROM ruby:3.2.8-slim
 
-# Install system dependencies
+# Install system dependencies + Ruby development headers
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -12,6 +17,9 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     imagemagick \
     ghostscript \
+    ruby-dev \
+    zlib1g-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 18.x (required for Rails asset pipeline and Ember compatibility)
