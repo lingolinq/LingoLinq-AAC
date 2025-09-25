@@ -129,7 +129,18 @@
       "Bash(./scripts/deploy-flyio.sh:*)",
       "Bash(sh)",
       "Bash(export PATH=\"$PATH:/c/Users/skawa/.fly/bin\")",
-      "Bash(flyctl:*)"
+      "Bash(flyctl:*)",
+      "Bash(git fetch:*)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe apps destroy lingolinq-aac)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe launch --config fly-nuclear.toml --name lingolinq-aac-nuclear)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe apps create lingolinq-aac-nuclear)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe postgres create --name lingolinq-nuclear-db)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe postgres create --name lingolinq-nuclear-db --region ord)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.nuclear)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.fixed)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe status --config fly-nuclear.toml)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly-nuclear.toml)",
+      "WebFetch(domain:lingolinq-aac-nuclear.fly.dev)"
     ],
     "deny": []
   }
