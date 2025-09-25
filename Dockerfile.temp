@@ -86,6 +86,7 @@ RUN echo "🔨 Building Ember application..." && \
 WORKDIR /app
 
 # Set environment variables
+ARG DISABLE_OBF_GEM
 ENV RAILS_ENV=production
 ENV RACK_ENV=production
 ENV NODE_ENV=production
