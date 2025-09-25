@@ -22,9 +22,11 @@ services:
       - key: RAILS_LOG_TO_STDOUT
         value: true
 
-      # Cache busting
+      # Cache busting - FORCE DOCKERFILE.TEMP
       - key: CACHE_BUST
-        value: "2025-09-25-simple-test"
+        value: "2025-09-25-dockerfile-temp-fix"
+      - key: FORCE_DOCKERFILE_TEMP
+        value: "true"
 
       # Bundle configuration
       - key: BUNDLE_FORCE_RUBY_PLATFORM
