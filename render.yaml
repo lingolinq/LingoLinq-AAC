@@ -18,7 +18,7 @@ services:
     runtime: docker
     plan: starter
     region: oregon
-    dockerfilePath: ./Dockerfile.github
+    dockerfilePath: ./Dockerfile.temp
     dockerContext: ./
     healthCheckPath: /
     envVars:
@@ -63,7 +63,7 @@ services:
     runtime: docker
     plan: starter
     region: oregon
-    dockerfilePath: ./Dockerfile.github
+    dockerfilePath: ./Dockerfile.temp
     dockerContext: ./
     envVars:
       - key: DATABASE_URL
