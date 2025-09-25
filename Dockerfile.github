@@ -2,7 +2,7 @@
 # Uses GitHub's registry to bypass Docker Hub authentication issues
 # Maintains legacy tech stack isolation (Ember 3.12, Node 18, Ruby 3.2)
 
-FROM ghcr.io/ruby/ruby:3.2
+FROM ghcr.io/ruby/ruby:3.2.8-slim
 
 # NUCLEAR CACHE BREAK - Bypass Docker Hub outage
 ARG CACHE_BREAK_TIMESTAMP=1758694579666623500
