@@ -1,36 +1,18 @@
-databases:
-  # PostgreSQL Database
-  - name: lingolinq-db
-    plan: free
-    region: oregon
+# Simplified Render configuration for existing services
+# This assumes you manually created database and Redis services
 
 services:
-  # Redis Cache
-  - type: redis
-    name: lingolinq-redis
-    plan: starter
-    region: oregon
-    ipAllowList: []
-
-  # Rails Web Application
+  # Rails Web Application Only
   - type: web
-    name: lingolinq-web
+    name: lingolinq-web-simple
     runtime: docker
     plan: starter
     region: oregon
     dockerfilePath: ./Dockerfile.temp
     dockerContext: ./
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: lingolinq-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: lingolinq-redis
-          property: connectionString
+      # Basic Rails configuration
       - key: RAILS_ENV
         value: production
       - key: RACK_ENV
@@ -39,45 +21,32 @@ services:
         value: true
       - key: RAILS_LOG_TO_STDOUT
         value: true
-      - key: RACK_TIMEOUT_SERVICE_TIMEOUT
-        value: 300
-      - key: DISABLE_OBF_GEM
-        value: true
+
+      # Cache busting
       - key: CACHE_BUST
-        value: "2025-09-25-v5-fresh-rebuild"
+        value: "2025-09-25-simple-test"
+
+      # Bundle configuration
       - key: BUNDLE_FORCE_RUBY_PLATFORM
         value: "1"
       - key: BUNDLE_DEPLOYMENT
         value: "false"
       - key: DOCKER_BUILDKIT
         value: "1"
-      # Add your secret keys here (you'll need to set these manually in Render dashboard)
+      - key: DISABLE_OBF_GEM
+        value: true
+
+      # Database - you'll need to set these manually in Render dashboard
+      # Point to your existing manually created database
+      - key: DATABASE_URL
+        sync: false
+
+      # Redis - point to your existing manually created Redis
+      - key: REDIS_URL
+        sync: false
+
+      # Security keys - set manually in dashboard
       - key: RAILS_MASTER_KEY
         sync: false
       - key: SECRET_KEY_BASE
         generateValue: true
-
-  # Background Worker (for Resque/Sidekiq)
-  - type: worker
-    name: lingolinq-worker
-    runtime: docker
-    plan: starter
-    region: oregon
-    dockerfilePath: ./Dockerfile.temp
-    dockerContext: ./
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: lingolinq-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: lingolinq-redis
-          property: connectionString
-      - key: RAILS_ENV
-        value: production
-      - key: RACK_ENV
-        value: production
-      - key: RAILS_MASTER_KEY
-        sync: false
