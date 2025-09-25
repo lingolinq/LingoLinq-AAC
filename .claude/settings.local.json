@@ -145,7 +145,8 @@
       "WebFetch(domain:lingolinq-aac.onrender.com)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.github)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.temp)",
-      "WebFetch(domain:dashboard.render.com)"
+      "WebFetch(domain:dashboard.render.com)",
+      "WebFetch(domain:lingolinq-test-basic.fly.dev)"
     ],
     "deny": []
   }
