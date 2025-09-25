@@ -44,7 +44,7 @@ services:
       - key: DISABLE_OBF_GEM
         value: true
       - key: CACHE_BUST
-        value: "2025-09-22-v4-docker-force"
+        value: "2025-09-25-v5-fresh-rebuild"
       - key: BUNDLE_FORCE_RUBY_PLATFORM
         value: "1"
       - key: BUNDLE_DEPLOYMENT
