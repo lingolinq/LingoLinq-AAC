@@ -1,10 +1,10 @@
-# LingoLinq AAC - GitHub Container Registry Dockerfile
-# Uses GitHub's registry to bypass Docker Hub authentication issues
+# LingoLinq AAC - Production Dockerfile
+# Docker Hub registry working again (Sep 25, 2025) - using standard ruby image
 # Maintains legacy tech stack isolation (Ember 3.12, Node 18, Ruby 3.2)
 
-FROM ghcr.io/ruby/ruby:3.2.8-slim
+FROM ruby:3.2.8-slim
 
-# NUCLEAR CACHE BREAK - Bypass Docker Hub outage
+# NUCLEAR CACHE BREAK - Ensure fresh build
 ARG CACHE_BREAK_TIMESTAMP=1758694579666623500
 ARG BUILD_ID=nuclear-github-1758694579666623500
 RUN echo "🚫 NUCLEAR CACHE BREAK: ${CACHE_BREAK_TIMESTAMP} - Build: ${BUILD_ID}"
