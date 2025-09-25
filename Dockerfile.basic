@@ -1,0 +1,39 @@
+# Ultra-basic Dockerfile for troubleshooting
+FROM ruby:3.2
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    git \
+    curl \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
+
+WORKDIR /app
+
+# Install bundler
+RUN gem install bundler
+
+# Copy Gemfile and install gems
+COPY Gemfile ./
+RUN bundle config set --global force_ruby_platform true && \
+    bundle install
+
+# Copy application
+COPY . .
+
+# Create directories
+RUN mkdir -p tmp/pids tmp/cache log public/assets
+
+# Simple start script with proper port handling
+RUN echo '#!/bin/bash\necho "Starting Rails..."\nPORT=${PORT:-3000}\nbundle exec rails server -b 0.0.0.0 -p $PORT' > start.sh && \
+    chmod +x start.sh
+
+EXPOSE 3000
+
+CMD ["./start.sh"]

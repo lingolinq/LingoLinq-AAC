@@ -1,0 +1,30 @@
+# Basic Fly.io configuration for testing
+app = "lingolinq-test-basic"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile.basic"
+
+[env]
+  RAILS_ENV = "production"
+  RACK_ENV = "production"
+  RAILS_SERVE_STATIC_FILES = "true"
+  RAILS_LOG_TO_STDOUT = "true"
+
+  # Use SQLite for simplicity
+  DATABASE_URL = "sqlite3:db/production.sqlite3"
+
+  # Skip asset precompilation for now
+  SKIP_ASSET_PRECOMPILATION = "true"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
