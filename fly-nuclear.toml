@@ -5,7 +5,7 @@ app = "lingolinq-aac-nuclear"  # NEW APP NAME
 primary_region = "ord"
 
 [build]
-  dockerfile = "Dockerfile.fixed"
+  dockerfile = "Dockerfile.temp"
   
   # CACHE BREAKING BUILD ARGS  
   [build.args]
