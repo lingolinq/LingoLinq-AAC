@@ -140,7 +140,12 @@
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.fixed)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe status --config fly-nuclear.toml)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly-nuclear.toml)",
-      "WebFetch(domain:lingolinq-aac-nuclear.fly.dev)"
+      "WebFetch(domain:lingolinq-aac-nuclear.fly.dev)",
+      "Bash(git pull:*)",
+      "WebFetch(domain:lingolinq-aac.onrender.com)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.github)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.temp)",
+      "WebFetch(domain:dashboard.render.com)"
     ],
     "deny": []
   }
