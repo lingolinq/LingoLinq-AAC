@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
-# DeepWiki MCP-powered development assistant for LingoLinq AAC
-# This script sets up the MCP environment for Claude Code integration
+# Lightweight development assistant for LingoLinq AAC
+# Provides basic project context and commands
 
 REPO_PATH="$(git rev-parse --show-toplevel)"
-MCP_CONFIG_PATH="$REPO_PATH/.ai/tools/deepwiki-mcp/claude-mcp-config.json"
 
 # Function to ensure MCP context is up-to-date
 update_context() {
@@ -73,25 +72,22 @@ EOF
     ;;
 
   review)
-    echo "🔥 AI-powered commit review with MCP..."
-    update_context
-    echo "📝 Commit review prepared. Use Claude Code with MCP:"
-    echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Review this commit: $2\""
+    echo "🔥 Basic commit review suggestions..."
+    echo "📝 Use Claude Code for review:"
+    echo "claude \"Review this commit: $2\""
     ;;
 
   analyze)
     case "$2" in
       repo)
-        echo "🔍 Deep repo analysis with MCP..."
-        update_context
-        echo "📊 Repository analysis prepared. Use Claude Code with MCP:"
-        echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Analyze this repository architecture and identify major modules, hotspots, and legacy code risks\""
+        echo "🔍 Basic repo analysis suggestions..."
+        echo "📊 Use Claude Code:"
+        echo "claude \"Analyze this repository architecture and identify major modules, hotspots, and legacy code risks\""
         ;;
       changes)
-        echo "📊 Analyzing recent changes with MCP..."
-        update_context
-        echo "📈 Recent changes analysis prepared. Use Claude Code with MCP:"
-        echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Analyze recent changes in this repository and identify patterns, risks, and recommendations\""
+        echo "📊 Recent changes suggestions..."
+        echo "📈 Use Claude Code:"
+        echo "claude \"Analyze recent changes in this repository\""
         ;;
       *)
         echo "Usage: devin analyze [repo|changes]"
@@ -102,41 +98,19 @@ EOF
   ask)
     shift
     QUESTION="$*"
-    echo "🤖 Asking Claude with MCP context: $QUESTION"
-    update_context
-    echo "💬 Question prepared. Use Claude Code with MCP:"
-    echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"$QUESTION\""
-    ;;
-
-  deepwiki)
-    DEEPWIKI_URL="${2:-https://deepwiki.com/swahlquist/LingoLinq-AAC}"
-    shift $(( $# > 1 ? 1 : 0 ))
-    echo "🗂️ Aggregating DeepWiki for $DEEPWIKI_URL ..."
-    npx --yes mcp-deepwiki "$DEEPWIKI_URL" --mode aggregate ${@:2}
-    ;;
-
-  export)
-    if [[ "$2" == "wiki" ]]; then
-      echo "📦 Exporting project context with MCP..."
-      update_context
-      echo "📄 Export prepared. Use Claude Code with MCP:"
-      echo "claude --mcp-config \"$MCP_CONFIG_PATH\" \"Convert this project context to well-formatted markdown for documentation\""
-    else
-      echo "❌ Unsupported export target."
-    fi
+    echo "🤖 Use Claude Code directly:"
+    echo "claude \"$QUESTION\""
     ;;
 
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|deepwiki|export] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask] <args>"
     echo ""
     echo "Commands:"
     echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
     echo "  update               - Update project context from recent changes"
     echo "  generate             - Generate fresh architecture map"
-    echo "  review <commit>      - Claude code review with project context"
-    echo "  analyze <target>     - Claude deep analysis (repo, changes)"
-    echo "  ask <question>       - Ask Claude with full project context"
-    echo "  deepwiki <url>       - Aggregate DeepWiki content"
-    echo "  export wiki          - Export context as markdown"
+    echo "  review <commit>      - Basic code review suggestions"
+    echo "  analyze <target>     - Basic analysis suggestions (repo, changes)"
+    echo "  ask <question>       - Get Claude Code command suggestions"
     ;;
 esac
