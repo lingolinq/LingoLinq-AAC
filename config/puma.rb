@@ -5,9 +5,9 @@ threads threads_count, threads_count
 preload_app!
 
 rackup  DefaultRackup if defined?(DefaultRackup)
-port        ENV['PORT']     || 3000
+# port        ENV['PORT']     || 3000
 # for intranet testing, comment out port command and use this instead:
-# bind "tcp://0.0.0.0:3000"
+bind "tcp://0.0.0.0:3000"
 environment ENV['RACK_ENV'] || 'development'
 
 on_worker_boot do
