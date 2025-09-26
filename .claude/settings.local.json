@@ -57,9 +57,7 @@
       "Bash(claude mcp:*)",
       "Bash(\"/c/Users/skawa/.local/bin/claude.exe\" --version)",
       "Bash(echo:*)",
-      "Bash(MCP_CONFIG_PATH=\"$REPO_PATH/.ai/tools/deepwiki-mcp/claude-mcp-config.json\")",
       "Bash(sed:*)",
-      "Bash(claude --mcp-config \"C:\\Users\\skawa\\LingoLinq-AAC\\.ai\\tools\\deepwiki-mcp\\claude-mcp-config.json\" --print \"What is this project about?\")",
       "Bash(cmd.exe /c \"claude --version\")",
       "Bash(\"/c/Users/skawa/AppData/Roaming/npm/claude\" --version)",
       "Read(**)",
@@ -151,7 +149,17 @@
       "Read(//c/Users/skawa/.fly/bin//**)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly.toml)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe status --config fly.toml)",
-      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml)"
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml --tail=20)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml --no-tail)",
+      "WebFetch(domain:lingolinq-aac.fly.dev)",
+      "WebFetch(domain:www.ruby-lang.org)",
+      "Bash(railway --version)",
+      "Bash(railway service:*)",
+      "Bash(railway domain:*)",
+      "Bash(DISABLE_OBF_GEM=true bundle exec rails server -p 3000)",
+      "Bash(psql:*)",
+      "Bash(docker rm:*)"
     ],
     "deny": []
   }

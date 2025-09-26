@@ -1,4 +1,4 @@
-# LingoLinq AAC - Every Voice Should Be Heard
+2# LingoLinq AAC - Every Voice Should Be Heard
 
 ---
 
