@@ -1,5 +1,5 @@
 @echo off
-REM Windows batch version of devin script for Gemini CLI compatibility
+REM Windows batch version of devin script for Claude MCP compatibility
 
 set "REPO_PATH=%cd%"
 set "CONTEXT_PATH=%REPO_PATH%\.ai\context"

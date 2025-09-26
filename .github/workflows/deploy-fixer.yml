@@ -1,0 +1,379 @@
+name: DeployFixer
+
+on:
+  workflow_dispatch: # Manual triggering only for debugging
+    inputs:
+      iteration:
+        description: 'Iteration number for automated fixes'
+        required: false
+        default: '1'
+
+# Prevent overlapping deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel running deployments
+
+jobs:
+  deploy-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25  # Increase timeout for longer builds
+    env:
+      RENDER_SECRET_KEY: ${{ secrets.RENDER_SECRET_KEY }}
+      ITERATION: ${{ github.event.inputs.iteration || '1' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create status directory
+        run: |
+          mkdir -p .claude/state
+          echo "📁 Created status tracking directory"
+
+      - name: Check current deployment status
+        run: |
+          echo "🔍 Checking current deployment status..."
+
+          # Get service status
+          SERVICE_RESPONSE=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY")
+          CURRENT_STATUS=$(echo "$SERVICE_RESPONSE" | jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Service status: $CURRENT_STATUS"
+
+          # Check for any active deployments
+          ACTIVE_DEPLOYS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys?limit=5" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" | \
+            jq -r '[.[] | select(.status == "created" or .status == "building" or .status == "deploying")] | length' 2>/dev/null || echo "0")
+
+          echo "Active deployments: $ACTIVE_DEPLOYS"
+          echo "CURRENT_STATUS=$CURRENT_STATUS" >> $GITHUB_ENV
+          echo "ACTIVE_DEPLOYS=$ACTIVE_DEPLOYS" >> $GITHUB_ENV
+
+          # Wait if there are active deployments
+          if [ "$ACTIVE_DEPLOYS" -gt 0 ]; then
+            echo "⏳ Found $ACTIVE_DEPLOYS active deployment(s). Waiting 2 minutes before proceeding..."
+            sleep 120
+          fi
+
+      - name: Trigger Render deploy
+        id: deploy
+        run: |
+          echo "🚀 Triggering deploy for lingolinq-web (srv-d36f26umcj7s73dh0dag)..."
+          DEPLOY_RESPONSE=$(curl -s -X POST "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" | jq -r '.id // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Deploy ID: $DEPLOY_ID"
+          echo "DEPLOY_ID=$DEPLOY_ID" >> $GITHUB_ENV
+
+          if [ "$DEPLOY_ID" = "unknown" ]; then
+            echo "⚠️ Failed to trigger deployment"
+            echo "$DEPLOY_RESPONSE"
+            exit 1
+          fi
+
+      - name: Wait for deploy to start
+        run: |
+          echo "⏳ Waiting for deployment to start..."
+          sleep 60  # Increased wait time
+
+      - name: Monitor deployment progress
+        timeout-minutes: 20  # Increased timeout for legacy builds
+        run: |
+          echo "📊 Monitoring deployment progress..."
+          for i in {1..40}; do  # Increased iterations
+            DEPLOY_STATUS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys/$DEPLOY_ID" \
+              -H "Authorization: Bearer $RENDER_SECRET_KEY" | \
+              jq -r '.status // "unknown"' 2>/dev/null || echo "unknown")
+
+            echo "[$i/40] Deploy status: $DEPLOY_STATUS ($(date))"
+
+            case "$DEPLOY_STATUS" in
+              "live")
+                echo "✅ Deployment successful!"
+                echo "FINAL_STATUS=success" >> $GITHUB_ENV
+                echo "🔍 DEBUG: Set FINAL_STATUS to success"
+                break
+                ;;
+              "build_failed"|"deploy_failed"|"canceled")
+                echo "❌ Deployment failed: $DEPLOY_STATUS"
+                echo "FINAL_STATUS=failed" >> $GITHUB_ENV
+                echo "🔍 DEBUG: Set FINAL_STATUS to failed"
+                break
+                ;;
+              "created"|"building"|"deploying")
+                echo "🔄 Still in progress..."
+                ;;
+              *)
+                echo "❓ Unknown status: $DEPLOY_STATUS"
+                ;;
+            esac
+
+            sleep 30
+          done
+
+          # If we get here without a final status, consider it timeout
+          echo "🔍 DEBUG: Checking FINAL_STATUS environment variable: '${FINAL_STATUS:-EMPTY}'"
+          if [ -z "${FINAL_STATUS:-}" ]; then
+            echo "⏰ Deployment monitoring timed out (no final status detected)"
+            echo "FINAL_STATUS=timeout" >> $GITHUB_ENV
+          else
+            echo "✅ Final status already determined: $FINAL_STATUS"
+          fi
+
+      - name: Fetch deployment logs
+        if: always()
+        run: |
+          echo "📜 Fetching deployment logs..."
+
+          # Try to get build logs
+          BUILD_LOGS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/deploys/$DEPLOY_ID/logs" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" 2>/dev/null || echo "")
+
+          # Try to get service logs
+          SERVICE_LOGS=$(curl -s "https://api.render.com/v1/services/srv-d36f26umcj7s73dh0dag/logs" \
+            -H "Authorization: Bearer $RENDER_SECRET_KEY" 2>/dev/null || echo "")
+
+          # Save logs
+          echo "$BUILD_LOGS" > build-logs.txt
+          echo "$SERVICE_LOGS" > service-logs.txt
+
+          if [ ! -s build-logs.txt ] && [ ! -s service-logs.txt ]; then
+            echo "⚠️ No logs retrieved. May need to wait longer or check API permissions."
+            echo "Empty logs - deployment may still be starting" > deployment-logs.txt
+          else
+            echo "📄 Logs retrieved successfully"
+            cat build-logs.txt service-logs.txt > deployment-logs.txt
+          fi
+
+      - name: Analyze failure patterns
+        if: env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout'
+        run: |
+          echo "🔍 Analyzing failure patterns..."
+
+          # Extract error patterns from logs
+          ERROR_PATTERN="unknown"
+          if grep -q "obf" deployment-logs.txt 2>/dev/null; then
+            ERROR_PATTERN="obf_gem_failure"
+          elif grep -q "bundle" deployment-logs.txt 2>/dev/null; then
+            ERROR_PATTERN="bundle_install_failure"
+          elif grep -q "assets:precompile" deployment-logs.txt 2>/dev/null; then
+            ERROR_PATTERN="asset_compilation_failure"
+          elif grep -q "Exited with status" deployment-logs.txt 2>/dev/null; then
+            ERROR_PATTERN="docker_build_failure"
+          elif grep -q "npm" deployment-logs.txt 2>/dev/null; then
+            ERROR_PATTERN="npm_failure"
+          else
+            # Default to likely pattern based on this application's history
+            echo "⚠️ No logs available for pattern detection - using default"
+            ERROR_PATTERN="obf_gem_failure"
+          fi
+
+          echo "Detected error pattern: $ERROR_PATTERN"
+          echo "ERROR_PATTERN=$ERROR_PATTERN" >> $GITHUB_ENV
+
+          # Log this failure in fix history
+          echo "📝 Recording failure in fix history..."
+
+          # Determine what fix type was attempted based on recent commits
+          FIX_TYPE="unknown"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          if echo "$COMMIT_MSG" | grep -q "conditional.*loading\|obf.*isolation"; then
+            FIX_TYPE="conditional_loading"
+          elif echo "$COMMIT_MSG" | grep -q "runtime.*compilation"; then
+            FIX_TYPE="runtime_compilation"
+          elif echo "$COMMIT_MSG" | grep -q "multi.*stage\|docker.*stage"; then
+            FIX_TYPE="multi_stage_build"
+          elif echo "$COMMIT_MSG" | grep -q "gem.*version\|pin.*version"; then
+            FIX_TYPE="gem_version_pinning"
+          elif echo "$COMMIT_MSG" | grep -q "base.*image"; then
+            FIX_TYPE="base_image_change"
+          fi
+
+          echo "Fix type attempted: $FIX_TYPE"
+          echo "FIX_TYPE=$FIX_TYPE" >> $GITHUB_ENV
+
+          # Create fix history entry
+          cat > .claude/state/fix-attempt.json << EOF
+          {
+            "id": $(date +%s),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error_pattern": "$ERROR_PATTERN",
+            "fix_type": "$FIX_TYPE",
+            "result": "failed",
+            "commit": "$(git rev-parse HEAD)",
+            "iteration": $ITERATION,
+            "commit_message": "$COMMIT_MSG"
+          }
+          EOF
+
+      - name: Log deployment status
+        if: always()
+        run: |
+          echo "📊 Logging deployment status..."
+
+          # Get commit info
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+
+          # Create status file
+          cat > .claude/state/deployment-status.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "iteration": $ITERATION,
+            "commit": "$COMMIT_SHA",
+            "commit_message": "$COMMIT_MSG",
+            "branch": "fix/ci-pipeline-test",
+            "deploy_id": "$DEPLOY_ID",
+            "status": "${FINAL_STATUS:-pending}",
+            "error_pattern": "${ERROR_PATTERN:-none}",
+            "service_id": "srv-d36f26umcj7s73dh0dag",
+            "logs_available": $([ -s deployment-logs.txt ] && echo "true" || echo "false"),
+            "next_action": "$([ "$FINAL_STATUS" = "failed" ] || [ "$FINAL_STATUS" = "timeout" ] && echo "generate_fix" || echo "monitor")"
+          }
+          EOF
+
+          echo "Status logged to .claude/state/deployment-status.json"
+          cat .claude/state/deployment-status.json
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs-${{ env.ITERATION }}
+          path: |
+            deployment-logs.txt
+            build-logs.txt
+            service-logs.txt
+            .claude/state/deployment-status.json
+
+      - name: Log success in fix history
+        if: env.FINAL_STATUS == 'success'
+        run: |
+          echo "✅ Logging successful deployment..."
+
+          # Determine what fix type led to success
+          FIX_TYPE="unknown"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          if echo "$COMMIT_MSG" | grep -q "conditional.*loading\|obf.*isolation"; then
+            FIX_TYPE="conditional_loading"
+          elif echo "$COMMIT_MSG" | grep -q "runtime.*compilation"; then
+            FIX_TYPE="runtime_compilation"
+          elif echo "$COMMIT_MSG" | grep -q "multi.*stage\|docker.*stage"; then
+            FIX_TYPE="multi_stage_build"
+          elif echo "$COMMIT_MSG" | grep -q "gem.*version\|pin.*version"; then
+            FIX_TYPE="gem_version_pinning"
+          elif echo "$COMMIT_MSG" | grep -q "base.*image"; then
+            FIX_TYPE="base_image_change"
+          fi
+
+          # Create success history entry
+          cat > .claude/state/success-fix.json << EOF
+          {
+            "id": $(date +%s),
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "error_pattern": "resolved",
+            "fix_type": "$FIX_TYPE",
+            "result": "success",
+            "commit": "$(git rev-parse HEAD)",
+            "iteration": $ITERATION,
+            "commit_message": "$COMMIT_MSG"
+          }
+          EOF
+
+      - name: Check fix history before new attempts
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.ITERATION < '5'
+        run: |
+          echo "🔍 Checking fix history to prevent loops..."
+
+          # Load fix history
+          if [ -f ".claude/state/fix-history.json" ]; then
+            echo "📊 Current fix history:"
+            cat .claude/state/fix-history.json | jq '.fixes_attempted[] | {error_pattern, fix_type, result, iteration}'
+
+            # Check if we've tried the current approach before
+            PREVIOUS_ATTEMPTS=$(cat .claude/state/fix-history.json | \
+              jq --arg pattern "$ERROR_PATTERN" --arg fix "$FIX_TYPE" \
+              '[.fixes_attempted[] | select(.error_pattern == $pattern and .fix_type == $fix)] | length')
+
+            echo "Previous attempts for $ERROR_PATTERN + $FIX_TYPE: $PREVIOUS_ATTEMPTS"
+
+            if [ "$PREVIOUS_ATTEMPTS" -ge 2 ]; then
+              echo "🚫 This fix has been attempted $PREVIOUS_ATTEMPTS times - suggesting alternative"
+              echo "SKIP_AUTOMATION=true" >> $GITHUB_ENV
+
+              # Show successful patterns for this error
+              echo "💡 Successful patterns for similar errors:"
+              cat .claude/state/fix-history.json | \
+                jq --arg pattern "$ERROR_PATTERN" \
+                '.successful_patterns[] | select(.error_pattern == $pattern or .error_pattern == "resolved")'
+            fi
+          else
+            echo "📝 No fix history found - creating new tracking file"
+          fi
+
+      - name: Trigger fix generation (if failed and not skipped)
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.ITERATION < '5' && env.SKIP_AUTOMATION != 'true'
+        run: |
+          echo "🔧 Deployment failed - will trigger automated fix generation"
+          echo "Error pattern: $ERROR_PATTERN"
+          echo "Fix type attempted: $FIX_TYPE"
+
+          # Merge fix attempt into main history
+          if [ -f ".claude/state/fix-attempt.json" ]; then
+            echo "📝 Merging fix attempt into history..."
+
+            if [ ! -f ".claude/state/fix-history.json" ]; then
+              # Create initial history file
+              cat > .claude/state/fix-history.json << EOF
+          {
+            "version": "1.0",
+            "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "description": "Tracks all attempted fixes to prevent automation loops",
+            "fixes_attempted": [],
+            "successful_patterns": [],
+            "failed_patterns": [],
+            "blacklisted_approaches": [],
+            "next_fix_id": 1
+          }
+          EOF
+            fi
+
+            # Add this attempt to history
+            NEW_FIX=$(cat .claude/state/fix-attempt.json)
+            cat .claude/state/fix-history.json | \
+              jq --argjson fix "$NEW_FIX" \
+              '.fixes_attempted += [$fix] | .failed_patterns += [$fix] | .next_fix_id += 1' \
+              > .claude/state/fix-history.json.tmp && \
+              mv .claude/state/fix-history.json.tmp .claude/state/fix-history.json
+          fi
+
+          # Set up for next iteration
+          NEXT_ITERATION=$((ITERATION + 1))
+          echo "Next iteration would be: $NEXT_ITERATION"
+
+          echo "🔧 Triggering automated fix generation..."
+          echo "Using error pattern: $ERROR_PATTERN"
+          echo "For iteration: $NEXT_ITERATION"
+
+          # Note: For now, just logging the trigger.
+          # In a full implementation, this would call the generate-fix command
+          echo "✅ Fix generation trigger logged successfully"
+
+      - name: Escalate if automation skipped
+        if: (env.FINAL_STATUS == 'failed' || env.FINAL_STATUS == 'timeout') && env.SKIP_AUTOMATION == 'true'
+        run: |
+          echo "🚨 Automation skipped due to repeated failed attempts"
+          echo "Creating GitHub issue for human intervention..."
+
+          # This would create a GitHub issue with fix history
+          echo "TODO: Implement GitHub issue creation with fix history analysis"
+
+      - name: Success notification
+        if: env.FINAL_STATUS == 'success'
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "✅ LingoLinq-AAC is now running on Render"
+          echo "🌐 Service URL: https://lingolinq-web.onrender.com (or your custom domain)"

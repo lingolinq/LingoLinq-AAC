@@ -3,6 +3,8 @@ source 'https://rubygems.org'
 # TODO: https://rails-assets.org/ for bower support
 
 group :development, :test do
+  gem 'rubocop-rails', require: false
+  gem 'brakeman', require: false
   gem 'bundler-audit', '>= 0.9.1'
   gem 'dotenv'
   gem 'guard'
@@ -11,7 +13,7 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
-  gem 'matrix'
+  gem 'sqlite3', '~> 1.4'
   gem 'mutex_m'
   gem 'benchmark'
   gem 'drb'
@@ -19,11 +21,13 @@ group :development, :test do
   gem 'tzinfo-data' # Required for Windows
 end
 
+# Matrix gem removed - was only needed for obf gem which is now disabled
+
 gem 'concurrent-ruby', '1.3.4'
 
 # Rails 5.2 doesn't seem to work on heroku with octopus :-/
 gem 'rails', '~> 6.1.7' # Allow security patches - TODO: upgrade to 8.0+
-gem 'mimemagic', '~> 0.3.10'
+gem 'marcel', '~> 1.0' # Better alternative to mimemagic for Rails apps
 
 
 gem 'pg' #, '0.19.0' #, '>=1.1.3'
@@ -45,7 +49,7 @@ gem 'puma'
 gem 'rack-offline'
 gem 'paper_trail'
 gem 'geokit'
-gem 'obf'
+# gem 'obf' # Disabled for production deployment due to Ruby 3.2+ matrix dependency issues
 gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'

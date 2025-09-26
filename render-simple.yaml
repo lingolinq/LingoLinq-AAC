@@ -1,0 +1,52 @@
+# Simplified Render configuration for existing services
+# This assumes you manually created database and Redis services
+
+services:
+  # Rails Web Application Only
+  - type: web
+    name: lingolinq-web-simple
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.temp
+    dockerContext: ./
+    healthCheckPath: /health
+    envVars:
+      # Basic Rails configuration
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_SERVE_STATIC_FILES
+        value: true
+      - key: RAILS_LOG_TO_STDOUT
+        value: true
+
+      # Cache busting
+      - key: CACHE_BUST
+        value: "2025-09-25-simple-test"
+
+      # Bundle configuration
+      - key: BUNDLE_FORCE_RUBY_PLATFORM
+        value: "1"
+      - key: BUNDLE_DEPLOYMENT
+        value: "false"
+      - key: DOCKER_BUILDKIT
+        value: "1"
+      - key: DISABLE_OBF_GEM
+        value: true
+
+      # Database - you'll need to set these manually in Render dashboard
+      # Point to your existing manually created database
+      - key: DATABASE_URL
+        sync: false
+
+      # Redis - point to your existing manually created Redis
+      - key: REDIS_URL
+        sync: false
+
+      # Security keys - set manually in dashboard
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: SECRET_KEY_BASE
+        generateValue: true

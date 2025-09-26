@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LingoLinq AAC - JavaScript Test</title>
+</head>
+<body>
+    <h1>LingoLinq AAC JavaScript Test</h1>
+    <div id="status">Loading...</div>
+    <div id="console-output"></div>
+
+    <!-- Load the compiled application JavaScript -->
+    <script src="/assets/application-5aa15354db9ad7b0005aa83364e035b5e7cead75258981380815c89b0b34d197.js"></script>
+
+    <script>
+        // Test our JavaScript namespace fixes
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusDiv = document.getElementById('status');
+            const consoleDiv = document.getElementById('console-output');
+
+            function log(message) {
+                console.log(message);
+                consoleDiv.innerHTML += '<p>' + message + '</p>';
+            }
+
+            // Test 1: Check if SweetSuite namespace exists
+            if (typeof window.SweetSuite !== 'undefined') {
+                log('✅ SUCCESS: SweetSuite namespace is defined');
+                statusDiv.innerHTML = '✅ NAMESPACE TESTS PASSING';
+
+                // Test 2: Check if track_error function exists
+                if (typeof window.SweetSuite.track_error === 'function') {
+                    log('✅ SUCCESS: SweetSuite.track_error function exists');
+
+                    // Test 3: Try calling track_error (should not throw)
+                    try {
+                        window.SweetSuite.track_error('Test error', 'Test stack');
+                        log('✅ SUCCESS: SweetSuite.track_error can be called without errors');
+                    } catch (e) {
+                        log('❌ ERROR: SweetSuite.track_error threw an error: ' + e.message);
+                    }
+                } else {
+                    log('❌ ERROR: SweetSuite.track_error function not found');
+                }
+
+                // Test 4: Check if LingoLinqAAC namespace exists
+                if (typeof window.LingoLinqAAC !== 'undefined') {
+                    log('✅ SUCCESS: LingoLinqAAC namespace is defined');
+                } else {
+                    log('❌ ERROR: LingoLinqAAC namespace not found');
+                }
+
+            } else {
+                log('❌ ERROR: SweetSuite namespace not found');
+                statusDiv.innerHTML = '❌ NAMESPACE TESTS FAILING';
+            }
+        });
+    </script>
+</body>
+</html>

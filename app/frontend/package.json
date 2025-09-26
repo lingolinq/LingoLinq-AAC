@@ -1,4 +1,5 @@
 {
+  "_cache_break": "1758694579666623500",
   "name": "frontend",
   "version": "0.0.2",
   "description": "LingoLinq-AAC frontend",
@@ -18,7 +19,7 @@
     "test": "ember test"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=16.0.0 <17.0.0"
   },
   "devDependencies": {
     "@ember/jquery": "^0.6.0",

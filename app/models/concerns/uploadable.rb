@@ -1,4 +1,4 @@
-require 'mime/types'
+require 'marcel'
 
 module Uploadable
   extend ActiveSupport::Concern
@@ -33,10 +33,9 @@ module Uploadable
   def full_filename
     return self.settings['full_filename'] if self.settings['full_filename']
     extension = ""
-    type = MIME::Types[self.content_type]
-    type = type && type[0]
-    extension = ("." + type.extensions.first) if type && type.extensions && type.extensions.length > 0
-    self.settings['full_filename'] = self.file_path + self.file_prefix + extension
+    extension = Marcel::MimeType.for(name: self.content_type)&.extension
+    extension = "." + extension if extension && !extension.start_with?(".")
+    self.settings['full_filename'] = self.file_path + self.file_prefix + (extension || "")
     self.save
     self.settings['full_filename']
   end

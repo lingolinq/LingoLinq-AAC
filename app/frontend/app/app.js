@@ -15,12 +15,30 @@ import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
+// COPILOT FIX: Define LingoLinqAAC.track_error BEFORE error handlers
+window.LingoLinqAAC = window.LingoLinqAAC || {};
+window.LingoLinqAAC.track_error = function (msg, src, line, col, err) {
+  console.error('LingoLinqAAC Error:', msg, src, line, col, err);
+};
+
 window.onerror = function(msg, url, line, col, obj) {
-  LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  if (typeof LingoLinqAAC?.track_error === 'function') {
+    LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  } else if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+    LingoLinqAAC.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  } else {
+    console.error(msg + " (" + url + "-" + line + ":" + col + ")");
+  }
 };
 Ember.onerror = function(err) {
   if(err.stack) {
-    LingoLinqAAC.track_error(err.message, err.stack);
+    if (typeof LingoLinqAAC?.track_error === 'function') {
+      LingoLinqAAC.track_error(err.message, err.stack);
+    } else if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+      LingoLinqAAC.track_error(err.message, err.stack);
+    } else {
+      console.error(err.message, err.stack);
+    }
   } else {
     if(err.fakeXHR && (err.fakeXHR.status == 400 || err.fakeXHR.status == 404 || err.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
@@ -29,10 +47,14 @@ Ember.onerror = function(err) {
     } else if(err._result && err._result.fakeXHR && (err._result.fakeXHR.status == 400 || err._result.fakeXHR.status == 404 || err._result.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
     } else {
-      LingoLinqAAC.track_error(JSON.stringify(err), false);
+      if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
+        LingoLinqAAC.track_error(JSON.stringify(err), false);
+      } else {
+        console.error(JSON.stringify(err));
+      }
     }
   }
-  if(Ember.testing || LingoLinqAAC.testing) {
+  if(Ember.testing || (window.LingoLinqAAC && LingoLinqAAC.testing)) {
     throw(err);
   }
 };
@@ -50,7 +72,7 @@ var customEvents = {
     'select': 'select'
 };
 
-var LingoLinqAAC = EmberApplication.extend({
+var LingoLinqAACClass = EmberApplication.extend({
   modulePrefix: config.modulePrefix,
   podModulePrefix: config.podModulePrefix,
   Resolver: Resolver,
@@ -59,6 +81,18 @@ var LingoLinqAAC = EmberApplication.extend({
     LingoLinqAAC.ready();
   }
 });
+
+var LingoLinqAAC = LingoLinqAACClass.create();
+
+// Make LingoLinqAAC globally available to avoid circular dependency
+window.LingoLinqAAC = LingoLinqAAC;
+// Add early track_error function for error handlers
+var earlyTrackError = function(msg, stack) {
+  console.error('Early track_error:', msg, stack);
+};
+window.LingoLinqAAC.track_error = earlyTrackError;
+LingoLinqAAC.track_error = earlyTrackError;
+
 LingoLinqAAC.ready = function() {
   if(LingoLinqAAC.readying) { return; }
   LingoLinqAAC.readying = true;
@@ -80,30 +114,50 @@ LingoLinqAAC.ready = function() {
   }
 }
 
-SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
-SweetSuite.embedded = !!location.href.match(/embed=1/);
-SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
-SweetSuite.referrer = document.referrer;
-SweetSuite.app_name = SweetSuite.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
-SweetSuite.company_name = SweetSuite.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
-SweetSuite.remote_url = function(url) {
-  return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
-};
+// Defer LingoLinqAAC property assignments until after full initialization
+var deferredLingoLinqAACSetup = function() {
+  LingoLinqAAC.grabRecord = persistence.DSExtend.grabRecord;
+  LingoLinqAAC.embedded = !!location.href.match(/embed=1/);
+  LingoLinqAAC.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
+  LingoLinqAAC.referrer = document.referrer;
+  LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
+  LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
+  LingoLinqAAC.remote_url = function(url) {
+    return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
+  };
 
-SweetSuite.track_error = function(msg, stack) {
-  var error = new Error();
-  if(window._trackJs) {
-    window._trackJs.track(msg);
-  } else {
-    console.error(msg, stack || error.stack);
-  }
-  SweetSuite.errors = SweetSuite.errors || [];
-  SweetSuite.errors.push({
-    message: msg,
-    date: (new Date()),
-    stack: stack === false ? null : (stack || error.stack)
-  });
-}
+  // Replace the early track_error with the full implementation
+  var fullTrackError = function(msg, stack) {
+    var error = new Error();
+    if(window._trackJs) {
+      window._trackJs.track(msg);
+    } else {
+      console.error(msg, stack || error.stack);
+    }
+    LingoLinqAAC.errors = LingoLinqAAC.errors || [];
+    LingoLinqAAC.errors.push({
+      message: msg,
+      date: (new Date()),
+      stack: stack === false ? null : (stack || error.stack)
+    });
+  };
+
+  LingoLinqAAC.track_error = fullTrackError;
+  LingoLinqAAC.track_error = fullTrackError;
+
+  // Move additional LingoLinqAAC properties here as well
+  LingoLinqAAC.boxPad = 17;
+  LingoLinqAAC.borderPad = 5;
+  LingoLinqAAC.labelHeight = 15;
+  LingoLinqAAC.customEvents = customEvents;
+  LingoLinqAAC.expired = function() {
+    var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
+    var version = parseInt(keys[1] + keys[2] + keys[3], 10);
+    var now = parseInt(window.moment().format('YYYYMMDD'), 10);
+    var diff = now - version;
+    return diff > 30;
+  };
+};
 
 if(capabilities.wait_for_deviceready) {
   document.addEventListener('deviceready', function() {
@@ -113,7 +167,7 @@ if(capabilities.wait_for_deviceready) {
       if(window.kvstash) {
         console.debug('SWEETSUITE: found native key value store');
       }
-      sweetSuiteExtras.advance('device');
+      lingoLinqExtras.advance('device');
     };
     // Look up the stashed user name, which is needed for bootstrapping session and user data
     // and possibly is getting lost being set just in a cookie and localStorage
@@ -173,11 +227,14 @@ if(capabilities.wait_for_deviceready) {
     }
   });
 } else {
-  sweetSuiteExtras.advance('device');
+  lingoLinqExtras.advance('device');
 }
 
 
-loadInitializers(SweetSuite, config.modulePrefix);
+loadInitializers(LingoLinqAAC, config.modulePrefix);
+
+// Call deferred setup after loadInitializers to ensure proper order
+deferredLingoLinqAACSetup();
 
 DS.Model.reopen({
   reload: function(ignore_local) {
@@ -229,7 +286,7 @@ Route.reopen({
     var controller = this.controllerFor(this.routeName);
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
-      SweetSuite.controller.updateTitle(title.toString());
+      LingoLinqAAC.controller.updateTitle(title.toString());
     }
   },
   activate: function() {
@@ -244,7 +301,7 @@ Route.reopen({
   }
 });
 
-SweetSuite.clean_path = function(str) {
+LingoLinqAAC.clean_path = function(str) {
   str = str.replace(/^\s+/, '').replace(/\s+$/, '');
   if(str.length == 0) { str = "_"; }
   if(str.match(/^\d/)) { str + "_" + str; }
@@ -253,18 +310,18 @@ SweetSuite.clean_path = function(str) {
   return str;  
 };
 
-SweetSuite.licenseOptions = [
+LingoLinqAAC.licenseOptions = [
   {name: i18n.t('private_license', "Private (no reuse allowed)"), id: 'private'},
   {name: i18n.t('cc_by_license', "CC By (attribution only)"), id: 'CC By', url: 'https://creativecommons.org/licenses/by/4.0/'},
   {name: i18n.t('cc_by_sa_license', "CC By-SA (attribution + share-alike)"), id: 'CC By-SA', url: 'https://creativecommons.org/licenses/by-sa/4.0/'},
   {name: i18n.t('public_domain_license', "Public Domain"), id: 'public domain', url: 'https://creativecommons.org/publicdomain/zero/1.0/'}
 ];
-SweetSuite.publicOptions = [
+LingoLinqAAC.publicOptions = [
   {name: i18n.t('private', "Private"), id: 'private'},
   {name: i18n.t('public', "Public"), id: 'public'},
   {name: i18n.t('unlisted', "Unlisted"), id: 'unlisted'}
 ];
-SweetSuite.board_categories = [
+LingoLinqAAC.board_categories = [
   {name: i18n.t('robust_vocabularies', "Robust Vocabularies"), id: 'robust'},
   {name: i18n.t('cause_and_effect', "Cause and Effect"), id: 'cause_effect'},
   {name: i18n.t('simple_starters', "Simple Starters"), id: 'simple_starts'},
@@ -272,7 +329,7 @@ SweetSuite.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
-SweetSuite.registrationTypes = [
+LingoLinqAAC.registrationTypes = [
   {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
   {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
@@ -282,7 +339,7 @@ SweetSuite.registrationTypes = [
   {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
   {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
 ];
-SweetSuite.user_statuses = [
+LingoLinqAAC.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
   {id: 'hourglass', label: i18n.t('waiting_for_evaluation', "Waiting for Evaluation"), on: true},
   {id: 'equalizer', label: i18n.t('waiting_for_results', "Waiting for Recommendation from Eval"), on: true},
@@ -299,7 +356,7 @@ SweetSuite.user_statuses = [
   {id: 'apple'},
   {id: 'blackboard'},
 ];
-SweetSuite.access_methods = {
+LingoLinqAAC.access_methods = {
   touch: 'hand-up',
   axis_scanning: 'screenshot',
   scanning: 'barcode',
@@ -312,7 +369,7 @@ SweetSuite.access_methods = {
 };
 
 
-SweetSuite.board_levels = [
+LingoLinqAAC.board_levels = [
   {name: i18n.t('unspecified_empty', "[  ]"), id: ''},
   {name: i18n.t('level_1', "1 - Minimal Targets"), id: '1'},
   {name: i18n.t('level_2', "2 - Basic Core"), id: '2'},
@@ -325,7 +382,7 @@ SweetSuite.board_levels = [
   {name: i18n.t('level_9', "9 - Robust Core and Fringe"), id: '9'},
   {name: i18n.t('level_10', "10 - Full Vocabulary"), id: '10'},
 ];    
-SweetSuite.parts_of_speech = [
+LingoLinqAAC.parts_of_speech = [
   {name: i18n.t('unspecified', "Unspecified"), id: ''},
   {name: i18n.t('noun', "Noun (dog, Dad)"), id: 'noun'},
   {name: i18n.t('verb', "Verb (jump, fly)"), id: 'verb'},
@@ -349,7 +406,7 @@ SweetSuite.parts_of_speech = [
 
 // derived from http://praacticalaac.org/strategy/communication-boards-colorful-considerations/
 // and http://talksense.weebly.com/cbb-8-colour.html
-SweetSuite.keyed_colors = [
+LingoLinqAAC.keyed_colors = [
   {border: "#ccc", fill: "#fff", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
   {border: "#dd0", fill: "#ffa", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
   {border: "#6d0", fill: "#cfa", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
@@ -363,7 +420,7 @@ SweetSuite.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-SweetSuite.extra_keyed_colors = [
+LingoLinqAAC.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},
   {border: '#1086e9', fill: '#a0cfee', label: 'adjf'},
@@ -394,16 +451,16 @@ SweetSuite.extra_keyed_colors = [
   {border: '#ff2f25', fill: '#f3a4a4', label: 'else'}
 ];
 
-SweetSuite.licenseOptions.license_url = function(id) {
-  for(var idx = 0; idx < SweetSuite.licenseOptions.length; idx++) {
-    if(SweetSuite.licenseOptions[idx].id == id) {
-      return SweetSuite.licenseOptions[idx].url;
+LingoLinqAAC.licenseOptions.license_url = function(id) {
+  for(var idx = 0; idx < LingoLinqAAC.licenseOptions.length; idx++) {
+    if(LingoLinqAAC.licenseOptions[idx].id == id) {
+      return LingoLinqAAC.licenseOptions[idx].url;
     }
   }
   return "";
 };
 
-SweetSuite.iconUrls = [
+LingoLinqAAC.iconUrls = [
     {alt: 'house', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/house.svg'},
     {alt: 'food', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/food.svg'},
     {alt: 'verbs', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verbs.png'},
@@ -431,7 +488,7 @@ SweetSuite.iconUrls = [
     {alt: 'phone', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/mobile%20phone.png'},
     {alt: 'board', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'}
 ];
-SweetSuite.avatarUrls = [
+LingoLinqAAC.avatarUrls = [
   {alt: 'happy female', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png'},
   {alt: 'happy', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy%20look_1.png'},
   {alt: 'teacher', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/teacher%20(female).png'},
@@ -489,29 +546,29 @@ SweetSuite.avatarUrls = [
   {alt: 'zombie', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/zombie.png'},
   {alt: 'stegosaurus', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/stegosaurus.png'}
 ];
-SweetSuite.Lessons = {
+LingoLinqAAC.Lessons = {
   track: function(url) {
     return new RSVP.Promise(function(resolve, reject) {
-      var lesson = SweetSuite.Lessons.assert_lesson();
+      var lesson = LingoLinqAAC.Lessons.assert_lesson();
       lesson.restart(url);
     });
   },
   assert_lesson: function() {
-    SweetSuite.Lessons.lesson = SweetSuite.Lessons.lesson || EmberObject.extend({
+    LingoLinqAAC.Lessons.lesson = LingoLinqAAC.Lessons.lesson || EmberObject.extend({
       restart: function(url) {
         this.set('state', null);
       }
     }).create();
   }
 };
-SweetSuite.Videos = {
+LingoLinqAAC.Videos = {
   players: {},
   track: function(dom_id, callback) {
     return new RSVP.Promise(function(resolve, reject) {
-      SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-      SweetSuite.Videos.waiting[dom_id] = SweetSuite.Videos.waiting[dom_id] || [];
+      LingoLinqAAC.Videos.waiting = LingoLinqAAC.Videos.waiting || {};
+      LingoLinqAAC.Videos.waiting[dom_id] = LingoLinqAAC.Videos.waiting[dom_id] || [];
       var found = false;
-      SweetSuite.Videos.waiting[dom_id].push(function(player) {
+      LingoLinqAAC.Videos.waiting[dom_id].push(function(player) {
         found = true;
         if(callback) {
           player.addListener(callback);
@@ -525,19 +582,19 @@ SweetSuite.Videos = {
     });
   },
   untrack: function(dom_id, callback) {
-    var player = SweetSuite.Videos.players[dom_id];
+    var player = LingoLinqAAC.Videos.players[dom_id];
     if(player) {
       player.removeListener(callback);
     }
   },
   player_ready: function(dom, window) {
     if(!dom.id) { return; }
-    if(SweetSuite.Videos.players[dom.id] && SweetSuite.Videos.players[dom.id]._dom == dom) {
+    if(LingoLinqAAC.Videos.players[dom.id] && LingoLinqAAC.Videos.players[dom.id]._dom == dom) {
       return;
     }
     console.log("initializing player", dom.id);
-    if(SweetSuite.Videos.players[dom.id]) {
-      SweetSuite.Videos.players[dom.id].cleanup();
+    if(LingoLinqAAC.Videos.players[dom.id]) {
+      LingoLinqAAC.Videos.players[dom.id].cleanup();
     }
     var player = EmberObject.extend({
       _target_window: window,
@@ -569,12 +626,12 @@ SweetSuite.Videos = {
         });
       }
     }).create({state: 'initialized'});
-    SweetSuite.Videos.players[dom.id] = player;
-    SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-    (SweetSuite.Videos.waiting[dom.id] || []).forEach(function(callback) {
+    LingoLinqAAC.Videos.players[dom.id] = player;
+    LingoLinqAAC.Videos.waiting = LingoLinqAAC.Videos.waiting || {};
+    (LingoLinqAAC.Videos.waiting[dom.id] || []).forEach(function(callback) {
       callback(player);
     });
-    SweetSuite.Videos.waiting[dom.id] = [];
+    LingoLinqAAC.Videos.waiting[dom.id] = [];
   },
   player_status: function(event) {
     var frame = null;
@@ -590,8 +647,8 @@ SweetSuite.Videos = {
       }
     }
     if(frame && frame.id) {
-      SweetSuite.Videos.player_ready(frame, event.source);
-      var player = SweetSuite.Videos.players[frame.id];
+      LingoLinqAAC.Videos.player_ready(frame, event.source);
+      var player = LingoLinqAAC.Videos.players[frame.id];
       if(player) {
         if(event.data && event.data.time !== undefined) {
           player.set('time', event.data.time);
@@ -629,27 +686,27 @@ window.addEventListener('message', function(event) {
       var dom_id = frame.id;
       var elem = frame;
       event.frameRef = frame;
-      SweetSuite.Videos.player_status(event);
+      LingoLinqAAC.Videos.player_status(event);
     }
   } else if(event.data && event.data.lesson_status) {
-    var lesson = SweetSuite.Lessons.assert_lesson();
+    var lesson = LingoLinqAAC.Lessons.assert_lesson();
     lesson.set('duration', event.data.duration);
     lesson.set('state', event.data.state);
   }
 });
 
 
-// SweetSuite.YT = {
+// LingoLinqAAC.YT = {
 //   track: function(player_id, callback) {
 //     return new RSVP.Promise(function(resolve, reject) {
-//       if(!SweetSuite.YT.ready) {
+//       if(!LingoLinqAAC.YT.ready) {
 //         var tag = document.createElement('script');
 //         tag.src = "https://www.youtube.com/iframe_api";
 //         var firstScriptTag = document.getElementsByTagName('script')[0];
 //         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 //         window.onYouTubeIframeAPIReady = function() {
-//           SweetSuite.YT.ready = true;
-//           SweetSuite.YT.track(player_id, callback).then(function(player) {
+//           LingoLinqAAC.YT.ready = true;
+//           LingoLinqAAC.YT.track(player_id, callback).then(function(player) {
 //             resolve(player);
 //           }, function() { reject('no_player'); });
 //         };
@@ -708,15 +765,15 @@ window.addEventListener('message', function(event) {
 //               }
 //             }
 //           }));
-//           SweetSuite.YT.players = SweetSuite.YT.players || [];
-//           SweetSuite.YT.players.push(player);
+//           LingoLinqAAC.YT.players = LingoLinqAAC.YT.players || [];
+//           LingoLinqAAC.YT.players.push(player);
 //           resolve(player);
 //         }, 200);
 //       }
 //     });
 //   },
 //   poll: function() {
-//     (SweetSuite.YT.players || []).forEach(function(player) {
+//     (LingoLinqAAC.YT.players || []).forEach(function(player) {
 //       if(!player.get('disabled')) {
 //         var p = player.get('_player');
 //         if(p && p.getDuration) {
@@ -739,40 +796,40 @@ window.addEventListener('message', function(event) {
 //         }
 //       }
 //     });
-//     RunLater(SweetSuite.YT.poll, 100);
+//     RunLater(LingoLinqAAC.YT.poll, 100);
 //   }
 // };
 // if(!Ember.testing) {
-//   RunLater(SweetSuite.YT.poll, 500);
+//   RunLater(LingoLinqAAC.YT.poll, 500);
 // }
 
-SweetSuite.Visualizations = {
+LingoLinqAAC.Visualizations = {
   wait: function(name, callback) {
-    if(!SweetSuite.Visualizations.ready) {
-      SweetSuite.Visualizations.callbacks = SweetSuite.Visualizations.callbacks || [];
-//       var found = SweetSuite.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
+    if(!LingoLinqAAC.Visualizations.ready) {
+      LingoLinqAAC.Visualizations.callbacks = LingoLinqAAC.Visualizations.callbacks || [];
+//       var found = LingoLinqAAC.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
 //       if(!found) {
-        SweetSuite.Visualizations.callbacks.push({
+        LingoLinqAAC.Visualizations.callbacks.push({
           name: name,
           callback: callback
         });
 //       }
-      SweetSuite.Visualizations.init();
+      LingoLinqAAC.Visualizations.init();
     } else {
       callback();
     }
   },
   handle_callbacks: function() {
-    SweetSuite.Visualizations.initializing = false;
-    SweetSuite.Visualizations.ready = true;
-    (SweetSuite.Visualizations.callbacks || []).forEach(function(obj) {
+    LingoLinqAAC.Visualizations.initializing = false;
+    LingoLinqAAC.Visualizations.ready = true;
+    (LingoLinqAAC.Visualizations.callbacks || []).forEach(function(obj) {
       obj.callback();
     });
-    SweetSuite.Visualizations.callbacks = [];
+    LingoLinqAAC.Visualizations.callbacks = [];
   },
   init: function() {
-    if(SweetSuite.Visualizations.initializing || SweetSuite.Visualizations.ready) { return; }
-    SweetSuite.Visualizations.initializing = true;
+    if(LingoLinqAAC.Visualizations.initializing || LingoLinqAAC.Visualizations.ready) { return; }
+    LingoLinqAAC.Visualizations.initializing = true;
     if(!window.google || !window.google.visualization || !window.google.maps) {
       var script = document.createElement('script');
       script.type = 'text/javascript';
@@ -785,7 +842,7 @@ SweetSuite.Visualizations = {
               one_done('both');
             }, 500);
           } else {
-            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: SweetSuite.Visualizations.handle_callbacks});
+            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinqAAC.Visualizations.handle_callbacks});
           }
         }
       };
@@ -810,36 +867,31 @@ SweetSuite.Visualizations = {
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {
-      RunLater(SweetSuite.Visualizations.handle_callbacks);
+      RunLater(LingoLinqAAC.Visualizations.handle_callbacks);
     }
 
   }
 };
 
-SweetSuite.boxPad = 17;
-SweetSuite.borderPad = 5;
-SweetSuite.labelHeight = 15;
-SweetSuite.customEvents = customEvents;
-SweetSuite.expired = function() {
-  var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
-  var version = parseInt(keys[1] + keys[2] + keys[3], 10);
-  var now = parseInt(window.moment().format('YYYYMMDD'), 10);
-  var diff = now - version;
-  return diff > 30;
-};
-SweetSuite.log = {
+// Properties moved to deferredLingoLinqAACSetup - removed duplicates
+
+LingoLinqAAC.log = {
   start: function() {
-    SweetSuite.log.started = (new Date()).getTime();
+    LingoLinqAAC.log.started = (new Date()).getTime();
   },
   track: function(msg) {
-    if(!SweetSuite.loggy) { return; }
+    if(!LingoLinqAAC.loggy) { return; }
     var now = (new Date()).getTime();
-    if(SweetSuite.log.started) {
-      console.debug("TRACK:" + msg, now - SweetSuite.log.started);
+    if(LingoLinqAAC.log.started) {
+      console.debug("TRACK:" + msg, now - LingoLinqAAC.log.started);
     }
   }
 };
-window.SweetSuite = SweetSuite;
-window.SweetSuite.VERSION = window.app_version;
+// Final LingoLinqAAC assignment - replace stub with actual LingoLinqAAC instance
+window.LingoLinqAAC = LingoLinqAAC;
+window.LingoLinqAAC.VERSION = window.app_version;
 
-export default SweetSuite;
+// LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
+// LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
+
+export default LingoLinqAAC;

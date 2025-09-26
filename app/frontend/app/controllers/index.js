@@ -624,7 +624,7 @@ export default Controller.extend({
     },
     set_goal: function(user) {
       var _this = this;
-      SweetSuite.store.findRecord('user', user.id).then(function(user_model) {
+      LingoLinqAAC.store.findRecord('user', user.id).then(function(user_model) {
         modal.open('new-goal', {user: user_model }).then(function(res) {
           if(res && res.get('id') && res.get('set_badges')) {
             _this.transitionToRoute('user.goal', user_model.get('user_name'), res.get('id'));

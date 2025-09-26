@@ -1,9 +1,14 @@
-require 'obf'
+# Only require obf gem when not disabled (for asset precompilation)
+require 'obf' unless ENV['DISABLE_OBF_GEM'] == 'true'
 
 module Converters::CoughDrop
   EXT_PARAMS = ['link_disabled', 'add_to_vocalization', 'add_vocalization', 'hide_label', 'home_lock', 'blocking_speech', 'part_of_speech', 'external_id', 'video', 'book']
 
   def self.to_obf(board, dest_path, path_hash=nil)
+    # Return early if OBF gem is disabled
+    if ENV['DISABLE_OBF_GEM'] == 'true'
+      raise "OBF functionality disabled during asset compilation"
+    end
     json = nil
     Progress.as_percent(0, 0.1) do
       json = to_external(board, {})
@@ -14,6 +19,11 @@ module Converters::CoughDrop
   end
 
   def self.to_external(board, opts)
+    # Return early if OBF gem is disabled
+    if ENV['DISABLE_OBF_GEM'] == 'true'
+      raise "OBF functionality disabled during asset compilation"
+    end
+
     res = OBF::Utils.obf_shell
     res['id'] = board.global_id
     res['name'] = board.settings['name']

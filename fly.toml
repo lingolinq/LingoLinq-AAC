@@ -1,0 +1,43 @@
+# fly.toml app configuration file
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "lingolinq-aac"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile.minimal"
+  [build.args]
+    DISABLE_OBF_GEM = "true"
+
+[env]
+  RAILS_ENV = "production"
+  RACK_ENV = "production"
+  RAILS_SERVE_STATIC_FILES = "true"
+  RAILS_LOG_TO_STDOUT = "true"
+  DISABLE_OBF_GEM = "true"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+# Temporarily disabled health check to allow app to fully start
+# [[http_service.checks]]
+#   interval = "30s"
+#   grace_period = "300s"
+#   method = "get"
+#   path = "/api/v1/status/heartbeat"
+#   protocol = "http"
+#   timeout = "10s"
+#   tls_skip_verify = false
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 2048

@@ -14,6 +14,12 @@ module.exports = {
   env: {
     browser: true
   },
+  globals: {
+    LingoLinqAAC: 'writable',
+    SweetSuite: 'writable',
+    sweetSuiteExtras: 'writable',
+    lingoLinqExtras: 'writable'
+  },
   rules: {
     'no-console': 'off',
     'no-unused-vars': 'off',

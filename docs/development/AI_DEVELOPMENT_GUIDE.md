@@ -1,3 +1,5 @@
+<!-- Last Updated: September 17, 2025 -->
+
 # LingoLinq AAC - AI Development Assistant Guide
 
 ## 🎯 For Experienced Developers: Why This Matters
@@ -128,7 +130,7 @@ cd ../../..
 #### 5. Make Scripts Executable (Mac/Linux/WSL)
 ```bash
 chmod +x bin/devin
-chmod +x bin/devin-gemini
+# Gemini setup is automatic - no file needed
 chmod +x .ai/tools/launch-agentic.ps1
 ```
 
@@ -141,7 +143,7 @@ npm start
 
 # Test AI assistants
 ./bin/devin context
-./bin/devin-gemini simple
+gemini --all-files
 ```
 
 ### Quick Launch
@@ -172,8 +174,8 @@ npm start
 
 | Command | Usage | When to Use |
 |---------|-------|-------------|
-| `./bin/devin-gemini simple` | Start clean Gemini session | Quick questions, syntax help |
-| `./bin/devin-gemini ask "question"` | Ask Gemini with basic context | Simple how-to questions, syntax checks |
+| `gemini --all-files` | Start clean Gemini session | Quick questions, syntax help |
+| `gemini --all-files "question"` | Ask with full codebase context | Complex development questions |
 
 ### Project Context & Documentation
 
@@ -231,7 +233,7 @@ refactor app/models/board.rb
 ./bin/devin ask "Why might speech synthesis fail for board navigation?"
 
 # For quick syntax issues
-./bin/devin-gemini ask "Rails error: undefined method for Board"
+gemini --all-files "Rails error: undefined method for Board"
 ```
 
 ### 📚 **Learning AAC Development**
@@ -256,7 +258,7 @@ refactor app/models/board.rb
 - Planning major refactoring
 - Understanding accessibility requirements
 
-**Use Gemini (`./bin/devin-gemini`) when:**
+**Use Gemini (`gemini --all-files`) when:**
 - Quick syntax questions
 - Simple debugging
 - Fast iteration on small changes
@@ -302,7 +304,7 @@ refactor app/models/board.rb
 - **Docker alternative**: Use `.env.docker.example` if you prefer containerized development
 
 ### **Usage Tips**
-- **Start with simple questions** to test your setup: `./bin/devin-gemini ask "Hello"`
+- **Start with simple questions** to test your setup: `gemini --all-files "Hello"`
 - **Use specific AAC terminology** - the AI understands communication boards, speech synthesis, accessibility features
 - **Branch awareness**: The AI knows which branch you're on and your recent changes
 - **Session persistence**: Claude Code sessions remember context until you close them
@@ -312,10 +314,10 @@ refactor app/models/board.rb
 | Problem | Solution |
 |---------|----------|
 | "Command not found" | Make sure you're in the project root directory |
-| "Permission denied" | Run `chmod +x bin/devin bin/devin-gemini` on Mac/Linux |
+| "Permission denied" | Run `chmod +x bin/devin` on Mac/Linux |
 | API key errors | Double-check your `.env` file has the correct key names |
 | MCP server won't start | Run `cd .ai/tools/deepwiki-mcp && npm install` |
-| Gemini loops/hangs | Use `./bin/devin-gemini simple` instead of other gemini commands |
+| Gemini loops/hangs | Use `gemini --all-files` instead of other gemini commands |
 | Context seems old | Run `./bin/devin update` to refresh project context |
 
 ### **Pro Tips for Team Collaboration**

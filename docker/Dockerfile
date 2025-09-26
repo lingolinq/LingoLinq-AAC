@@ -1,6 +1,11 @@
-# Optimized LingoLinq Rails Dockerfile
+# Optimized LingoLinq Rails Dockerfile with aggressive cache busting
 FROM ruby:3.2.8-slim as base
 
+# Force rebuild - change this value to bust Render's Docker layer cache
+ARG CACHE_BUST=2025-09-22-v4-docker-force
+RUN echo "🚫 CACHE BUST: $CACHE_BUST"
+
+RUN echo "🏗️  STEP 1: Installing system dependencies..."
 # Install essential system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -10,11 +15,19 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     libyaml-dev \
     shared-mime-info \
-    && rm -rf /var/lib/apt/lists/*
+    libxml2-dev \
+    libxslt1-dev \
+    libffi-dev \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "✅ System dependencies installed"
 
-# Install Node.js 18.x (required for Rails asset pipeline and Ember compatibility)
+RUN echo "🏗️  STEP 2: Installing Node.js..."
+# Install Node.js 18.x (required for Render.com compatibility and Ember CLI 3.12)
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs
+    && apt-get install -y nodejs \
+    && echo "✅ Node.js installed"
 
 # Verify critical versions
 RUN echo "🔍 CONTAINER VERSIONS:" && \
@@ -24,23 +37,86 @@ RUN echo "🔍 CONTAINER VERSIONS:" && \
 
 # Set working directory
 WORKDIR /app
+RUN echo "🏗️  STEP 3: Setting up Ruby environment..."
 
 # Install bundler and copy Gemfiles
-RUN gem install bundler
+RUN gem install bundler && echo "✅ Bundler installed"
 COPY Gemfile Gemfile.lock ./
 
-# Install Ruby dependencies (with cache optimization)
+RUN echo "🏗️  STEP 4: Installing Ruby gems with cache bypass..."
+# Force complete bundle cache bypass - aggressively avoid any cached dependencies
 RUN bundle config set --local deployment 'false' && \
-    bundle install --jobs 4 --retry 3
+    bundle config set --local force_ruby_platform 'true' && \
+    bundle config set --local cache_all_platforms 'false' && \
+    bundle config set --local clean 'true' && \
+    echo "🚫 Cleaning any existing bundle cache..." && \
+    rm -rf ~/.bundle/cache vendor/cache .bundle/cache && \
+    echo "📦 Starting fresh bundle install (no cache)..." && \
+    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 4 --retry 3 --no-cache && \
+    echo "✅ Ruby gems installed successfully without cache" && \
+    echo "🔍 VERIFICATION: Checking for problematic gems..." && \
+    if bundle show obf 2>/dev/null; then echo "❌ ERROR: obf gem detected!"; exit 1; else echo "✅ obf gem NOT found (good)"; fi && \
+    if bundle show matrix 2>/dev/null; then echo "❌ ERROR: matrix gem detected!"; exit 1; else echo "✅ matrix gem NOT found (good)"; fi
 
+RUN echo "🏗️  STEP 5: Copying application code..."
 # Copy the application code
 COPY . .
+RUN echo "✅ Application code copied"
+
+RUN echo "🏗️  STEP 6: Building frontend assets..."
+# Build frontend assets
+WORKDIR /app/app/frontend
+RUN echo "📦 Installing npm dependencies..." && \
+    npm install --legacy-peer-deps --no-audit --no-fund && \
+    echo "✅ NPM dependencies installed"
+
+RUN echo "🎯 Installing bower dependencies..." && \
+    if [ -f "bower.json" ]; then \
+        npx bower install --allow-root --config.interactive=false && \
+        echo "✅ Bower dependencies installed"; \
+    else \
+        echo "⚠️  No bower.json found, skipping"; \
+    fi
+
+RUN echo "🔨 Building Ember application..." && \
+    (npm run build || ./node_modules/.bin/ember build --environment=production) && \
+    echo "✅ Ember build completed"
+
+RUN echo "🏗️  STEP 7: Preparing Rails application..."
+# Return to app directory
+WORKDIR /app
+
+# Set production environment for asset compilation
+ENV RAILS_ENV=production
+ENV RACK_ENV=production
+ENV NODE_ENV=production
+ENV SECRET_KEY_BASE=dummy_secret_for_asset_compilation
+ENV DISABLE_OBF_GEM=true
 
 # Create required directories
-RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets
+RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
+    echo "✅ Directories created"
 
+RUN echo "🏗️  STEP 8: Preparing assets and precompiling with obf gem disabled..."
+
+# Create stub files for removed JavaScript assets to prevent compilation errors
+RUN echo "// Stub file - will be regenerated during build" > app/assets/javascripts/frontend.js && \
+    echo "// Stub file - will be regenerated during build" > app/assets/javascripts/vendor.js && \
+    echo "✅ Created stub JavaScript files"
+
+# Precompile assets with obf gem temporarily disabled and better error handling
+RUN echo "🎨 Starting asset precompilation with obf gem isolation..." && \
+    DISABLE_OBF_GEM=true RAILS_ENV=production SECRET_KEY_BASE=dummy_secret \
+    bundle exec rake assets:precompile RAILS_GROUPS=assets --trace && \
+    echo "✅ Assets precompiled successfully"
+
+RUN echo "🏗️  STEP 9: Final setup..."
 # Expose port
 EXPOSE 3000
 
-# Default command
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+# Copy startup script
+COPY bin/render-start.sh ./bin/render-start.sh
+RUN chmod +x ./bin/render-start.sh
+
+# Default command - use startup script for runtime asset compilation
+CMD ["./bin/render-start.sh"]

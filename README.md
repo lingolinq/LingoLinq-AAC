@@ -1,4 +1,16 @@
-# LingoLinq AAC - Every Voice Should Be Heard
+2# LingoLinq AAC - Every Voice Should Be Heard
+
+---
+
+## **🚀 Getting Started**
+
+**New to the project? Start here!**
+
+> **[➡️ Full Onboarding Guide: GETTING_STARTED.md](./GETTING_STARTED.md)**
+
+This guide provides a 15-minute setup to get your development environment running with Docker.
+
+---
 
 [![OpenAAC](https://www.openaac.org/images//OpenAAC-advocate-blue.svg)](https://www.openaac.org/advocates.html)
 [![Ask DeepWiki](https://deepwiki.com/badge-maker?url=https%3A%2F%2Fdeepwiki.com%2Fswahlquist%2FLingoLinq-AAC)](https://deepwiki.com/swahlquist/LingoLinq-AAC)
@@ -324,7 +336,7 @@ LingoLinq AAC provides comprehensive AI development assistants with deep project
 
 ### Quick Start
 ```bash
-# Launch both Claude Code and Gemini assistants  
+# Launch both AI assistants
 ./.ai/tools/launch-agentic.ps1
 
 # Get comprehensive project context

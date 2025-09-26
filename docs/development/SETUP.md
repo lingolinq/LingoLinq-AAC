@@ -1,3 +1,5 @@
+<!-- Last Updated: September 17, 2025 -->
+
 # LingoLinq AAC Development Setup
 
 ## Quick Start
@@ -33,7 +35,7 @@ cd .ai/tools/deepwiki-mcp && npm install && cd ../../..
 - **Architecture Understanding**: Rails + Ember integration, mobile app coordination
 
 ## Development Tools
-- **AI Assistants**: `./bin/devin` (Claude), `./bin/devin-gemini` (Gemini)
+- **AI Assistants**: `claude` (Claude + MCP), `gemini --all-files` (Gemini with full context)
 - **MCP Server**: `.ai/tools/deepwiki-mcp/` - Documentation aggregation for AI
 - **Launch Script**: `./.ai/tools/launch-agentic.ps1` - Start both AI assistants
 - **Command Reference**: [.ai/tools/AI_DEVELOPMENT_COMMANDS.md](../../.ai/tools/AI_DEVELOPMENT_COMMANDS.md)

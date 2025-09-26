@@ -1,212 +1,102 @@
-# LingoLinq AAC - Claude Code Instructions
+# CLAUDE.md
 
-## 🚨 CRITICAL: Always Use Docker for Testing & Deployment
+## 🧠 Project Overview
+LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentative and Alternative Communication) application. The project uses Docker to isolate the legacy Ember 3.12 + Rails 6.1 stack while maintaining modern host versions.
 
-**This project MUST be run using Docker containers. Never attempt to run Rails commands directly on the host system.**
+### 🏷️ **CRITICAL: SweetSuite → LingoLinq Rename Context**
+- **Original**: Application was called "SweetSuite"
+- **Current**: Rebranding to "LingoLinq" for customer-facing elements
+- **Backend**: Keep SweetSuite names in internal/backend code where it works
+- **Frontend**: Use LingoLinq for user-facing elements only
+- **Compatibility**: Create bridges where both names need to coexist (e.g., `LingoLinqAAC.track_error = SweetSuite.track_error`)
+- **DO NOT**: Break working SweetSuite functionality during rename
 
-### Why Docker is Required:
-- **Version Constraints**: Rails 6.1 requires Ruby 3.2.8 and Node.js 18.x
-- **Database Dependencies**: PostgreSQL 15 and Redis 7 required
-- **Environment Consistency**: Matches production deployment exactly
-- **AI Safety**: Prevents host system conflicts and version mismatches
+## 🧪 Current Status
+- ✅ **DEPLOYMENT SUCCESS**: Fly.io deployment working as of September 26, 2025
+- ✅ Docker container builds and deploys successfully using `Dockerfile.temp`
+- ✅ JavaScript namespace fixes included in compiled assets
+- ✅ Ruby version compatibility resolved (3.2.9)
+- ✅ Database configured with managed PostgreSQL
+- ✅ All required secrets configured (DATABASE_URL, SECRET_KEY_BASE, RAILS_MASTER_KEY)
+- ✅ Application startup process working correctly
 
-## 🐳 Docker Commands Reference
+## ⚙️ Environment & Architecture
 
-### Starting the Application
-```bash
-# Start all services (PostgreSQL, Redis, Rails)
-docker-compose -f docker/docker-compose.simple.yml up
+### Docker Strategy
+- **Why Docker**: Isolates legacy Ember 3.12 + Rails 6.1 stack from modern host tools
+- **Node Version**: Use Node 18.x in container (legacy Ember 3.12 compatible)
+- **Build Context**: Always build from project root, not subdirectories
+- **Asset Pipeline**: Rails asset precompilation with conditional obf gem loading
 
-# Start in background
-docker-compose -f docker/docker-compose.simple.yml up -d
+### Technical Stack
+- **Host OS**: Windows 11
+- **Shell**: Windows Terminal
+- **Frontend**: Ember 3.12 (legacy) with Bower dependencies
+- **Backend**: Rails 6.1.7 with Ruby 3.2.8
+- **Database**: PostgreSQL + Redis
+- **Container**: Docker with multi-stage builds
+- **Deployment**: Render.com with automated CI/CD
 
-# View logs
-docker-compose -f docker/docker-compose.simple.yml logs backend -f
-```
+## ❌ Common Issues & Solutions
 
-### Testing & Development Commands
-```bash
-# Access Rails console
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails console
+### SweetSuite/LingoLinq Namespace Conflicts
+- **Problem**: JavaScript errors like `LingoLinqAAC.track_error is not a function`
+- **Cause**: Incomplete rename from SweetSuite → LingoLinq
+- **Solution**: Create compatibility bridges: `LingoLinqAAC.method = SweetSuite.method`
+- **Pattern**: Keep working SweetSuite backend, bridge to LingoLinq frontend calls
 
-# Run database migrations
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails db:migrate
+### Legacy Dependencies
+- **OBF Gem**: Use `DISABLE_OBF_GEM=true` during Docker builds to avoid compilation issues
+- **Bower**: Required for legacy frontend dependencies, install with `--allow-root` in container
+- **Node 18**: Works despite Ember 3.12 suggesting Node 16 compatibility
 
-# Run tests (if available)
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rspec
+### Docker Build Issues
+- **Context**: Always build from project root, not app subdirectories
+- **File Paths**: Use relative paths from project root in Dockerfile
+- **Symlinks**: Large JS files removed from git to avoid GitHub Actions symlink errors
 
-# Run any Rails command
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails [command]
+## ✅ Fixes Completed
+- **JavaScript Namespace Fix**: `LingoLinqAAC.track_error = SweetSuite.track_error` compatibility bridge (app/frontend/app/app.js:859)
+- **Docker Build Optimization**: Multi-stage build with conditional obf gem loading
+- **CI Pipeline**: GitHub Actions workflow with Render API integration and loop prevention
+- **Symlink Issues**: Large frontend.js/vendor.js files removed from git tracking
+- **Asset Compilation**: Environment variable strategy for obf gem isolation
+- **Documentation**: Comprehensive CLAUDE.md with architectural context
+- **File Structure**: `.ai/docs/` directory with LOCAL_DEVELOPMENT.md, JAVASCRIPT_NAMESPACE_FIXES.md
+- **GitHub Integration**: Issue #5 for Ember modernization tracking
 
-# Access container shell
-docker-compose -f docker/docker-compose.simple.yml exec backend bash
-```
+## 🔜 Next Steps
+- ✅ **COMPLETED**: Production deployment working on Fly.io
+- ✅ **COMPLETED**: JavaScript namespace fixes deployed
+- ✅ **COMPLETED**: Database connectivity established
+- 🔄 **IN PROGRESS**: Database migrations completing automatically
+- 📋 **TODO**: Test login functionality once app is fully ready
+- 📋 **TODO**: Plan incremental Ember 3.12 → modern stack migration strategy
 
-### Database Operations
-```bash
-# Create database
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails db:create
+## 📊 Key Metrics & Endpoints
+- **Production App**: https://lingolinq-aac.fly.dev
+- **Health Check**: https://lingolinq-aac.fly.dev/api/v1/status/heartbeat
+- **Database**: Fly.io Managed PostgreSQL (ey5qn0y96evr8zmw)
+- **Local Container**: http://localhost:3000
+- **Login Page**: http://localhost:3000/login
+- **Local Health**: http://localhost:3000/health
 
-# Reset database
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails db:drop db:create db:migrate db:seed
+## 🧩 Claude Code Instructions
 
-# Database console
-docker-compose -f docker/docker-compose.simple.yml exec postgres psql -U postgres -d lingolinq_development
-```
+### Core Principles
+- **Preserve Working Code**: Never break existing SweetSuite functionality during LingoLinq migration
+- **Compatibility First**: Create bridges between SweetSuite/LingoLinq namespaces rather than mass renaming
+- **Docker Isolation**: Use containerized environment for all legacy stack development
+- **Incremental Updates**: Prioritize stability over modernization until core issues resolved
 
-### Stopping Services
-```bash
-# Stop all services
-docker-compose -f docker/docker-compose.simple.yml down
+### Decision Making Guidelines
+- **SweetSuite vs LingoLinq**: Keep SweetSuite for internal/backend, use LingoLinq for user-facing only
+- **Node Versions**: Use Node 18.x in Docker despite Ember 3.12 legacy constraints
+- **Build Strategy**: Build from project root, use environment variables for conditional compilation
+- **Error Handling**: Create compatibility shims rather than fixing root namespace issues
 
-# Stop and remove all data (fresh start)
-docker-compose -f docker/docker-compose.simple.yml down -v
-```
-
-## 🎯 Test Deployment Branch
-
-**Branch**: `test/repo-reorganization`
-
-This branch is designated for testing deployments and should:
-1. Always use Docker for all operations
-2. Test new features before merging to main
-3. Validate deployment readiness
-4. Ensure Docker setup works correctly
-
-### Deployment Testing Workflow
-```bash
-# 1. Switch to test branch
-git checkout test/repo-reorganization
-
-# 2. Start Docker environment
-docker-compose -f docker/docker-compose.simple.yml up -d
-
-# 3. Wait for health checks (about 30 seconds)
-docker-compose -f docker/docker-compose.simple.yml ps
-
-# 4. Test application
-curl http://localhost:3000/api/v1/users/me
-
-# 5. Run any additional tests
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails test:integration
-
-# 6. Stop when done
-docker-compose -f docker/docker-compose.simple.yml down
-```
-
-## 🔧 Development Environment
-
-### Service URLs
-- **Rails Application**: http://localhost:3000
-- **PostgreSQL Database**: localhost:5432 (postgres/password)
-- **Redis Cache**: localhost:6379
-
-### Environment Variables
-The Docker setup handles all required environment variables:
-- `RAILS_ENV=development`
-- `DATABASE_URL=postgres://postgres:password@postgres:5432/lingolinq_development`
-- `REDIS_URL=redis://redis:6379/0`
-
-## 🚀 Deployment Commands
-
-### Production-Ready Build
-```bash
-# Build for production
-docker build -f docker/Dockerfile -t lingolinq-aac .
-
-# Test production build locally
-docker run -p 3000:3000 -e RAILS_ENV=production lingolinq-aac
-```
-
-### Cloud Deployment
-```bash
-# Google Cloud Run
-gcloud run deploy lingolinq-aac --source docker/ --port 3000
-
-# AWS App Runner (requires apprunner.yaml)
-aws apprunner create-service --cli-input-json file://aws-config.json
-
-# Heroku
-heroku container:push web
-heroku container:release web
-```
-
-## ⚠️ Common Mistakes to Avoid
-
-### ❌ NEVER Do These:
-```bash
-# Don't run Rails directly
-rails server                           # ❌ Will fail - no PostgreSQL
-
-# Don't install gems on host
-bundle install                         # ❌ Wrong Ruby version
-
-# Don't run database commands on host
-rails db:migrate                       # ❌ No database connection
-```
-
-### ✅ ALWAYS Do These:
-```bash
-# Use Docker for everything
-docker-compose -f docker/docker-compose.simple.yml exec backend rails server
-
-# Use Docker for gems
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle install
-
-# Use Docker for database
-docker-compose -f docker/docker-compose.simple.yml exec backend rails db:migrate
-```
-
-## 🛠️ Troubleshooting
-
-### Container Won't Start
-```bash
-# Check logs
-docker-compose -f docker/docker-compose.simple.yml logs backend
-
-# Rebuild container
-docker-compose -f docker/docker-compose.simple.yml build backend --no-cache
-```
-
-### Database Connection Issues
-```bash
-# Verify PostgreSQL is running
-docker-compose -f docker/docker-compose.simple.yml ps postgres
-
-# Check health status
-docker-compose -f docker/docker-compose.simple.yml exec postgres pg_isready -U postgres
-```
-
-### Port Already in Use
-```bash
-# Find what's using port 3000
-netstat -an | grep :3000
-
-# Kill process or change port in docker-compose.simple.yml
-```
-
-## 📁 Key Files
-
-- `docker/docker-compose.simple.yml` - Main Docker configuration
-- `docker/Dockerfile` - Rails application container
-- `docker/README.md` - Detailed Docker documentation
-- `.env` - Environment variables (create if needed)
-
-## 🔍 Health Checks
-
-### Verify Everything is Working
-```bash
-# Check all services are healthy
-docker-compose -f docker/docker-compose.simple.yml ps
-
-# Test Rails application
-curl http://localhost:3000
-
-# Test database connection
-docker-compose -f docker/docker-compose.simple.yml exec backend bundle exec rails runner "puts User.count"
-```
-
-## 🎯 Remember: 
-**ALWAYS use Docker commands prefixed with `docker-compose -f docker/docker-compose.simple.yml exec backend` for any Rails operations on this project.**
-
-This ensures consistency with the production environment and prevents local system conflicts.
+### Session Context
+- Use this file as persistent architectural context across all Claude Code sessions
+- Reference these patterns when encountering similar SweetSuite/LingoLinq conflicts
+- Apply Docker-first approach to development and debugging
+- Document new patterns discovered in this file for future sessions

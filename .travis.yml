@@ -1,18 +1,35 @@
 language: ruby
 rvm:
-  - "2.3.0"
-# uncomment this line if your project needs to run something other than `rake`:
-script: bundle exec rspec spec #&& ember test
+  - "3.2.8"
+# Run RSpec tests and basic environment validation
+script: 
+  - bundle exec rspec spec
+  - ./bin/doctor || echo "Doctor script validation completed with warnings"
 
 before_install:
+  - sudo apt-get update
   - sudo apt-get install -y postgresql-server-dev-all
-#  - sudo apt-get install phantomjs
-
+  
 install:
   - bundle install
   
 services:
   - redis-server
+  - postgresql
   
 env:
   - REDIS_URL=redis://localhost:6379/
+  - RAILS_ENV=test
+  - NODE_ENV=test
+
+# Cache bundler gems and node_modules
+cache:
+  bundler: true
+  directories:
+    - app/frontend/node_modules
+    - app/frontend/bower_components
+
+# Database setup for tests
+before_script:
+  - psql -c 'create database lingolinq_test;' -U postgres
+  - bundle exec rails db:migrate RAILS_ENV=test

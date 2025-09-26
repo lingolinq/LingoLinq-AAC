@@ -1,0 +1,89 @@
+# Fixed Docker Compose for LingoLinq AAC
+# Addresses the psych gem bundler issues with simplified configuration
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: lingolinq_development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Rails Web Application (with fixed bundler config)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    ports:
+      - "3000:3000"
+    environment:
+      # Database configuration
+      DATABASE_URL: postgres://postgres:password@db:5432/lingolinq_development
+      REDIS_URL: redis://redis:6379/0
+      
+      # Rails configuration
+      RAILS_ENV: production
+      RACK_ENV: production
+      RAILS_SERVE_STATIC_FILES: true
+      RAILS_LOG_TO_STDOUT: true
+      
+      # Security (generate proper values for production)
+      SECRET_KEY_BASE: dummy_secret_for_development_only_change_in_production
+      SECURE_ENCRYPTION_KEY: this_is_a_development_key_at_least_24_characters_long_enough_for_testing
+      SECURE_NONCE_KEY: another_random_string_for_nonces_at_least_24_chars_for_development
+      COOKIE_KEY: random_cookie_encryption_key_12345_development
+      
+      # App configuration
+      DEFAULT_HOST: localhost:3000
+      DEFAULT_EMAIL_FROM: test@lingolinq.local
+      SYSTEM_ERROR_EMAIL: errors@lingolinq.local
+      NEW_REGISTRATION_EMAIL: registrations@lingolinq.local
+      USER_KEY: developer@lingolinq.local
+      PORT: 3000
+    
+    volumes:
+      # Only mount source for development, remove for production
+      - .:/app:ro
+    
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    # Start with a delay to ensure services are ready
+    command: >
+      bash -c "
+        echo '⏳ Waiting for services to be ready...' &&
+        sleep 10 &&
+        exec ./bin/docker-start.sh
+      "
+
+volumes:
+  postgres_data:
+  redis_data:

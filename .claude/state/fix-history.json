@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "created": "2025-09-19T23:59:00Z",
+  "description": "Tracks all attempted fixes to prevent automation loops",
+  "fixes_attempted": [],
+  "successful_patterns": [],
+  "failed_patterns": [],
+  "blacklisted_approaches": [],
+  "next_fix_id": 1
+}

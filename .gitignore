@@ -17,6 +17,10 @@
 # Ignore database files
 /db/*.sqlite3
 
+# Ignore large generated JavaScript assets (these cause Windows path issues)
+/app/assets/javascripts/frontend.js
+/app/assets/javascripts/vendor.js
+
 # Ignore backups and caches
 /.cleanup-backup/
 /.ruby-lsp/
@@ -51,6 +55,39 @@ npm-debug.log
 
 config/database.yml.backup
 
-.claude/settings.local.json
+# AI Development Tools
+# Personal Claude settings (team configs should be committed)
+.claude/settings.personal.json
+.claude/session-*
+.claude/temp-*
+
+# AI session and temporary files
+.ai/context/session-*.json
+.ai/context/agent-changes-*.log
+.ai/context/temp-*.json
+.ai/temp/
+.ai/sessions/
+ai-session-*.json
+ai-debug-*.log
+
+# MCP and AI tool temporary files
+.ai/tools/*/node_modules
+.ai/tools/*/temp/
+.ai/tools/*/.npm-cache
+mcp-debug-*.log
+
+# Personal environment overrides
+.env.personal
+.env.local.*
+
+# Docker development
+docker-compose.override.yml
+.docker-build-cache/
+
+# Backups and temporary files
 bin/devin.backup
 launcher.ps1
+*.backup
+*.tmp
+*~
+/config/master.key

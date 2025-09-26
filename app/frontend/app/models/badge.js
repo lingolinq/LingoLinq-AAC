@@ -369,4 +369,4 @@ LingoLinqAAC.Badge.best_earned_badge = function(badges) {
 };
 
 
-export default SweetSuite.Badge;
+export default LingoLinqAAC.Badge;

@@ -3,4 +3,6 @@
 # Add new mime types for use in respond_to blocks:
 # Mime::Type.register "text/richtext", :rtf
 # Mime::Type.register_alias "text/html", :iphone
-MIME::Types.add(MIME::Type.new('audio/mp3'){|c| c.extensions = ['mp3'] })
+# MIME::Types.add(MIME::Type.new('audio/mp3') do |t|
+#   t.extensions = ['mp3']
+# end)
