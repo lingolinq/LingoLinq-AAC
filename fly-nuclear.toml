@@ -1,7 +1,7 @@
 # NUCLEAR Cache Breaking Fly.io Configuration
 # Use entirely new app name to guarantee zero cache
 
-app = "lingolinq-aac-nuclear"  # NEW APP NAME
+app = "lingolinq-aac-fresh"  # FRESH APP NAME
 primary_region = "ord"
 
 [build]

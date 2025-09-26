@@ -143,7 +143,23 @@
       "WebFetch(domain:lingolinq-aac.onrender.com)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.github)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly-nuclear.toml --dockerfile Dockerfile.temp)",
-      "WebFetch(domain:dashboard.render.com)"
+      "WebFetch(domain:dashboard.render.com)",
+      "WebFetch(domain:lingolinq-test-basic.fly.dev)",
+      "Read(//c/Users/skawa/Downloads/**)",
+      "Read(//c/Users/skawa/.fly/bin//**)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --config fly.toml)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe status --config fly.toml)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml --tail=20)",
+      "Bash(/c/Users/skawa/.fly/bin/flyctl.exe logs --config fly.toml --no-tail)",
+      "WebFetch(domain:lingolinq-aac.fly.dev)",
+      "WebFetch(domain:www.ruby-lang.org)",
+      "Bash(railway --version)",
+      "Bash(railway service:*)",
+      "Bash(railway domain:*)",
+      "Bash(DISABLE_OBF_GEM=true bundle exec rails server -p 3000)",
+      "Bash(psql:*)",
+      "Bash(docker rm:*)"
     ],
     "deny": []
   }

@@ -90,7 +90,7 @@ end
 # Use Capistrano for deployment
 # gem 'capistrano', group: :development
 
-ruby "3.2.9"
+ruby "3.2.8"
 
 
 

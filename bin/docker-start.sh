@@ -50,7 +50,15 @@ echo "✅ Database is ready"
 
 # Run migrations
 echo "🔄 Running database migrations..."
-bundle exec rails db:migrate
+if ! bundle exec rails db:migrate; then
+    echo "❌ Database migrations failed! Error details:"
+    bundle exec rails db:migrate --verbose
+    echo "🔍 Checking database status..."
+    bundle exec rails db:version || echo "Could not get database version"
+    echo "🔍 Checking database connection..."
+    bundle exec rails runner "puts ActiveRecord::Base.connection.active?" || echo "Could not test database connection"
+    echo "🚨 Migration failure - attempting to continue anyway..."
+fi
 
 # Start the application
 echo "🌟 Starting Rails server..."

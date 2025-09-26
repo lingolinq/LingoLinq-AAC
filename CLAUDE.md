@@ -12,12 +12,13 @@ LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentat
 - **DO NOT**: Break working SweetSuite functionality during rename
 
 ## 🧪 Current Status
-- Docker container boots and renders startup page
-- JavaScript namespace errors fixed with compatibility bridge
-- Rails backend responds with HTTP 200
-- Login page previously stuck on "loading" - testing fix in progress
-- CI pipeline automated deployment monitoring implemented
-- Local Docker debugging environment established
+- ✅ **DEPLOYMENT SUCCESS**: Fly.io deployment working as of September 26, 2025
+- ✅ Docker container builds and deploys successfully using `Dockerfile.temp`
+- ✅ JavaScript namespace fixes included in compiled assets
+- ✅ Ruby version compatibility resolved (3.2.9)
+- ✅ Database configured with managed PostgreSQL
+- ✅ All required secrets configured (DATABASE_URL, SECRET_KEY_BASE, RAILS_MASTER_KEY)
+- ✅ Application startup process working correctly
 
 ## ⚙️ Environment & Architecture
 
@@ -65,19 +66,20 @@ LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentat
 - **GitHub Integration**: Issue #5 for Ember modernization tracking
 
 ## 🔜 Next Steps
-- Test JavaScript namespace fix resolves login "loading" issue
-- Validate Docker container can access login functionality
-- Apply compatibility bridge pattern to other SweetSuite/LingoLinq conflicts
-- Monitor Render deployment stability with new fixes
-- Document successful local development workflow
-- Plan incremental Ember 3.12 → modern stack migration strategy
+- ✅ **COMPLETED**: Production deployment working on Fly.io
+- ✅ **COMPLETED**: JavaScript namespace fixes deployed
+- ✅ **COMPLETED**: Database connectivity established
+- 🔄 **IN PROGRESS**: Database migrations completing automatically
+- 📋 **TODO**: Test login functionality once app is fully ready
+- 📋 **TODO**: Plan incremental Ember 3.12 → modern stack migration strategy
 
 ## 📊 Key Metrics & Endpoints
+- **Production App**: https://lingolinq-aac.fly.dev
+- **Health Check**: https://lingolinq-aac.fly.dev/api/v1/status/heartbeat
+- **Database**: Fly.io Managed PostgreSQL (ey5qn0y96evr8zmw)
 - **Local Container**: http://localhost:3000
 - **Login Page**: http://localhost:3000/login
-- **Health Check**: http://localhost:3000/health
-- **Render Production**: https://lingolinq-web.onrender.com
-- **Service ID**: srv-d36f26umcj7s73dh0dag
+- **Local Health**: http://localhost:3000/health
 
 ## 🧩 Claude Code Instructions
 

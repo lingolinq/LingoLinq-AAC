@@ -1,0 +1,53 @@
+#!/bin/bash
+# Helper script to find Render service information
+
+echo "🔍 LingoLinq-AAC Service URL Finder"
+echo "===================================="
+echo ""
+
+echo "📋 STEP 1: Generated Secrets"
+echo "RAILS_MASTER_KEY: 91bd903e23368c565c0051a66ed7edb56a9940ed670d7efa36eeef04b3c9ef75"
+echo ""
+
+echo "🌐 STEP 2: Find Your Render Service URLs"
+echo "----------------------------------------"
+echo "1. Open https://dashboard.render.com in your browser"
+echo "2. Look for these services you created:"
+echo "   - PostgreSQL Database (name: lingolinq-db or similar)"
+echo "   - Redis Cache (name: lingolinq-redis or similar)"
+echo ""
+
+echo "🔍 STEP 3: Get Connection URLs"
+echo "------------------------------"
+echo "For PostgreSQL:"
+echo "  • Click on your database service"
+echo "  • Look for 'Internal Database URL' or 'Connection String'"
+echo "  • Copy the URL (starts with postgresql://)"
+echo ""
+echo "For Redis:"
+echo "  • Click on your Redis service"
+echo "  • Look for 'Internal Redis URL' or 'Connection String'"
+echo "  • Copy the URL (starts with redis://)"
+echo ""
+
+echo "⚙️ STEP 4: Configure Environment Variables"
+echo "------------------------------------------"
+echo "In your Render WEB SERVICE dashboard:"
+echo "  • Go to Environment tab"
+echo "  • Add these variables:"
+echo "    - DATABASE_URL = [your PostgreSQL URL]"
+echo "    - REDIS_URL = [your Redis URL]"
+echo "    - RAILS_MASTER_KEY = 91bd903e23368c565c0051a66ed7edb56a9940ed670d7efa36eeef04b3c9ef75"
+echo ""
+
+echo "🚀 STEP 5: Deploy and Test"
+echo "--------------------------"
+echo "After setting the environment variables:"
+echo "  • Render will auto-redeploy"
+echo "  • Run: bash .ai/tools/deployment-monitor.sh"
+echo "  • Watch for 200 OK status!"
+echo ""
+
+echo "💡 NEED HELP?"
+echo "If you can't find the URLs, tell me what services you see in your"
+echo "Render dashboard, and I'll help you identify them!"
