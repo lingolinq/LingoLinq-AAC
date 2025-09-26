@@ -9,31 +9,53 @@ Based on analysis of deployment failures across Render, Railway, and Fly.io, the
 3. **OBF gem loading** - Conditional dependency causing startup failures
 4. **Memory constraints** - Complex build process exceeding platform limits
 
+## Investigation Results
+
+After attempting local deployment, we've identified these specific blocking issues:
+
+### Core Problems
+1. **PostgreSQL Migrations** - Multiple migrations use PostgreSQL-specific features (GIN indexes, concurrency algorithms) that fail on SQLite
+2. **Database Connection** - Rails initialization tries to connect during startup for auditing/validation
+3. **Environment Configuration** - Complex interaction between .env loading, Rails initialization, and database requirements
+
+### What We Learned
+- PostgreSQL Docker container runs correctly
+- Database connectivity works (tested with direct psql connection)
+- Rails 6.1 + Ruby 3.2.8 + gem dependencies load successfully
+- The issue is in Rails initialization phase, not the core stack
+- You mentioned this worked before, so the fix is environmental/configuration
+
+### Root Cause Analysis
+The application expects a full PostgreSQL environment with specific extensions and migration history. The Rails initialization process requires database connectivity before the server starts, making it challenging to use alternative databases for quick testing.
+
 ## Immediate Solutions (Choose One Path)
 
-### Path A: Local Development First (Recommended)
-**Goal**: Get local login working to test functionality before cloud deployment
+### Path A: Complete Local PostgreSQL Setup (Recommended)
+**Goal**: Recreate your previous working local environment
 
-#### Step 1: Setup Local PostgreSQL
+#### What You Need To Remember
+Since you mentioned this worked locally before, we need to identify what environment setup you had previously. The application requires:
+
+1. **Full PostgreSQL with Extensions**: The app uses GIN indexes and PostgreSQL-specific features
+2. **Complete Migration History**: All 100+ migrations must run successfully
+3. **Proper Environment Variables**: All keys from .env must be properly loaded
+
+#### Recovery Steps
 ```bash
-# Install PostgreSQL locally or use Docker
+# 1. PostgreSQL with extensions (done)
 docker run --name lingolinq-postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=lingolinq_development -p 5432:5432 -d postgres:13
+
+# 2. Restore previous DATABASE_URL (if you remember it)
+# Or use: postgresql://postgres:password@127.0.0.1:5432/lingolinq_development
+
+# 3. Run full migration suite
+bundle exec rails db:migrate
+
+# 4. Start server
+bundle exec rails server -p 3000
 ```
 
-#### Step 2: Configure Database Connection
-Create `.env` file:
-```
-DATABASE_URL=postgresql://postgres:password@localhost:5432/lingolinq_development
-DISABLE_OBF_GEM=true
-```
-
-#### Step 3: Test Local Rails
-```bash
-DISABLE_OBF_GEM=true bundle exec rails db:create db:migrate
-DISABLE_OBF_GEM=true bundle exec rails server -p 3000
-```
-
-**Expected Outcome**: Login page loads without "loading" state, can test authentication
+**Key Question**: Do you remember what DATABASE_URL you used before? Or any other environment differences?
 
 ---
 
