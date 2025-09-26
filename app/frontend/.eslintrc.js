@@ -16,7 +16,9 @@ module.exports = {
   },
   globals: {
     LingoLinqAAC: 'writable',
-    SweetSuite: 'writable'
+    SweetSuite: 'writable',
+    sweetSuiteExtras: 'writable',
+    lingoLinqExtras: 'writable'
   },
   rules: {
     'no-console': 'off',

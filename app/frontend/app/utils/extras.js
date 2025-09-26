@@ -388,6 +388,7 @@ import app_state from './app_state';
   extras.meta_push = $.ajax.meta_push;
 
   window.sweetSuiteExtras = extras;
+  window.lingoLinqExtras = extras;
   extras.advance.watch('device', function() {
     capabilities.invoke({type: 'sweetSuiteExtras', method: 'init'}).then(function(res) {
       extras.enable();
@@ -453,4 +454,4 @@ window.time_log = function(str) {
   console.log(str + "  :" + stamp);
 };
 
-export default window.sweetSuiteExtras;
+export default window.lingoLinqExtras;
