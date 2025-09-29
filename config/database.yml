@@ -1,8 +1,13 @@
 development:
-  adapter: sqlite3
-  database: db/development.sqlite3
+  adapter: postgresql
+  encoding: unicode
+  database: lingolinq_development
   pool: 5
   timeout: 5000
+  username: postgres
+  password: password
+  host: 127.0.0.1
+  port: 5432
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -25,17 +30,8 @@ test:
 <% end %>
 
 production:
-  primary: 
+  primary:
     adapter: postgresql
     url: <%= ENV['DATABASE_URL'] || ENV['LEADER_POSTGRES_URL'] %>
     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
     timeout: 5000
-<% if false %>
-  # TODO: see shards.yml for examples of how to process follower
-  primary_replica: 
-    adapter: postgresql
-    url: <%= ENV['DATABASE_URL'] || ENV['LEADER_POSTGRES_URL'] %>
-    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-    timeout: 5000
-    replica: true
-<% end %>

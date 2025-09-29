@@ -159,7 +159,15 @@
       "Bash(railway domain:*)",
       "Bash(DISABLE_OBF_GEM=true bundle exec rails server -p 3000)",
       "Bash(psql:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(railway add:*)",
+      "Bash(railway:*)",
+      "WebFetch(domain:lingolinqtest.up.railway.app)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(docker volume rm:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npm run screenshots:*)",
+      "Bash(./bin/token-status:*)"
     ],
     "deny": []
   }

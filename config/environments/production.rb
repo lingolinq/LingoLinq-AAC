@@ -21,15 +21,15 @@ Coughdrop::Application.configure do
   # For large-scale production use, consider using a caching reverse proxy like nginx, varnish or squid.
   # config.action_dispatch.rack_cache = true
 
-  # Disable Rails's static asset server (Apache or nginx will already do this).
-  config.public_file_server.enabled = false
+  # Enable Rails's static asset server for Docker deployment
+  config.public_file_server.enabled = true
 
   # Compress JavaScripts and CSS.
   config.assets.js_compressor = :uglifier
   config.assets.css_compressor = :sass
 
-  # Do not fallback to assets pipeline if a precompiled asset is missed.
-  config.assets.compile = false
+  # Enable asset compilation in production for Docker deployment
+  config.assets.compile = true
   
   class NoCompression
     def compress(string)
@@ -50,7 +50,7 @@ Coughdrop::Application.configure do
   # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for nginx
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  config.force_ssl = ENV['RAILS_FORCE_SSL'] != 'false'
 
   # Set to :debug to see everything in the log.
   config.log_level = :info

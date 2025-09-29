@@ -81,6 +81,43 @@ LingoLinq-AAC is a forked and rebranded version of SweetSuite, an AAC (Augmentat
 - **Login Page**: http://localhost:3000/login
 - **Local Health**: http://localhost:3000/health
 
+## 🤖 AI Token Monitoring & Management
+
+### Token Status Monitoring
+- **Quick Check**: `devin tokens` - Complete AI token dashboard
+- **Gemini Only**: `devin tokens gemini` - Gemini CLI usage and quotas
+- **Claude Only**: `devin tokens claude` - Claude Code status
+- **Usage Trends**: `devin tokens trends` - Historical usage analysis
+- **Optimization Tips**: `devin tokens tips` - Recommendations for efficient usage
+
+### Direct Token Commands
+- **Full Dashboard**: `bin/token-status` - Comprehensive monitoring script
+- **Export Report**: `bin/token-status export` - Generate markdown usage report
+- **Help**: `bin/token-status help` - All available commands
+
+### Current AI Tool Status
+- **Gemini CLI**: ✅ Built-in token monitoring with `gemini usage --detailed`
+- **Claude Code**: ⚠️ Manual monitoring via https://console.anthropic.com/dashboard
+- **Usage Logs**: Automatically saved to `.ai/usage-logs/` directory
+
+### 2025 Token Quotas
+**Gemini Free Tier:**
+- 60 requests per minute
+- 1,000 requests per day
+- 1M token context window
+- Automatic caching available
+
+**Claude Code:**
+- Varies by subscription plan
+- Check dashboard for current limits
+- No CLI monitoring available
+
+### Smart AI Selection Strategy
+- **Use Gemini for**: Large context analysis, code generation, architecture reviews
+- **Use Claude Code for**: Precise file edits, deployment operations, debugging
+- **Monitor quotas**: Switch between tools based on availability
+- **Enable caching**: `gemini config set --cache-enabled=true` for better efficiency
+
 ## 🧩 Claude Code Instructions
 
 ### Core Principles

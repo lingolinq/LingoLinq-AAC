@@ -7,7 +7,7 @@ REPO_PATH="$(git rev-parse --show-toplevel)"
 
 # Function to ensure MCP context is up-to-date
 update_context() {
-    echo "🔄 Updating DeepWiki context..."
+    echo "🔄 Updating project context..."
     cd "$REPO_PATH"
     mkdir -p .ai/context
     git log --since="7 days ago" --oneline --stat > .ai/context/recent-changes.txt 2>/dev/null || echo "⚠️ Could not update git context"
@@ -102,8 +102,17 @@ EOF
     echo "claude \"$QUESTION\""
     ;;
 
+  tokens)
+    echo "🤖 Checking AI token status..."
+    if [[ -x "$REPO_PATH/bin/token-status" ]]; then
+      "$REPO_PATH/bin/token-status" "$2"
+    else
+      echo "❌ Token status script not found. Please ensure bin/token-status exists and is executable."
+    fi
+    ;;
+
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|tokens] <args>"
     echo ""
     echo "Commands:"
     echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
@@ -112,5 +121,6 @@ EOF
     echo "  review <commit>      - Basic code review suggestions"
     echo "  analyze <target>     - Basic analysis suggestions (repo, changes)"
     echo "  ask <question>       - Get Claude Code command suggestions"
+    echo "  tokens [cmd]         - Check AI token usage status (gemini, claude, trends, tips)"
     ;;
 esac

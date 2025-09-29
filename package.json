@@ -1,0 +1,17 @@
+{
+  "name": "lingolinq-aac",
+  "version": "1.0.0",
+  "description": "LingoLinq AAC Application - Automated Screenshot Tool",
+  "scripts": {
+    "screenshots": "node take-screenshots.js",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "report": "npx playwright show-report"
+  },
+  "dependencies": {
+    "playwright": "^1.55.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1"
+  }
+}

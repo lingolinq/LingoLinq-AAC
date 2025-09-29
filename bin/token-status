@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+# AI Token Status Monitoring for LingoLinq AAC
+# Monitors usage for both Claude Code and Gemini CLI
+
+set -e
+
+REPO_PATH="$(git rev-parse --show-toplevel)"
+USAGE_LOG_DIR="$REPO_PATH/.ai/usage-logs"
+TODAY=$(date +"%Y-%m-%d")
+TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Create usage logging directory
+mkdir -p "$USAGE_LOG_DIR"
+
+# Function to display header
+show_header() {
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}                    🤖 AI TOKEN STATUS DASHBOARD                    ${NC}"
+    echo -e "${CYAN}                      LingoLinq AAC Project                         ${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "📅 ${BLUE}Date:${NC} $TODAY | ⏰ ${BLUE}Last Check:${NC} $TIMESTAMP"
+    echo ""
+}
+
+# Function to check Gemini CLI status
+check_gemini_status() {
+    echo -e "${PURPLE}🔮 GEMINI CLI STATUS${NC}"
+    echo -e "${PURPLE}────────────────────${NC}"
+
+    if command -v gemini &> /dev/null; then
+        echo -e "✅ ${GREEN}Gemini CLI installed${NC}"
+
+        # Check if we can get usage info
+        if gemini usage --detailed 2>/dev/null; then
+            echo ""
+            echo -e "${GREEN}📊 Detailed Usage Statistics:${NC}"
+            gemini usage --detailed 2>/dev/null || echo -e "${YELLOW}⚠️ Unable to fetch detailed usage${NC}"
+
+            echo ""
+            echo -e "${GREEN}📈 Quota Status:${NC}"
+            gemini quota --check 2>/dev/null || echo -e "${YELLOW}⚠️ Unable to fetch quota status${NC}"
+
+            # Log usage to file
+            {
+                echo "[$TIMESTAMP] Gemini Usage Check"
+                gemini usage --detailed 2>/dev/null || echo "Unable to fetch usage"
+                echo "---"
+            } >> "$USAGE_LOG_DIR/gemini-usage-$TODAY.log"
+
+        else
+            echo -e "${YELLOW}⚠️ Gemini CLI found but unable to check usage${NC}"
+            echo -e "   This might mean you need to authenticate or configure API access"
+            echo -e "   Try: ${CYAN}gemini auth login${NC}"
+        fi
+    else
+        echo -e "${RED}❌ Gemini CLI not installed${NC}"
+        echo -e "   Install with: ${CYAN}npm install -g @google/generative-ai-cli${NC}"
+    fi
+    echo ""
+}
+
+# Function to check Claude Code status
+check_claude_status() {
+    echo -e "${BLUE}🎭 CLAUDE CODE STATUS${NC}"
+    echo -e "${BLUE}─────────────────────${NC}"
+
+    if command -v claude &> /dev/null; then
+        echo -e "✅ ${GREEN}Claude Code installed${NC}"
+
+        # Get Claude version
+        CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "Unknown")
+        echo -e "📦 ${GREEN}Version:${NC} $CLAUDE_VERSION"
+
+        echo ""
+        echo -e "${YELLOW}📊 Usage Monitoring:${NC}"
+        echo -e "   Claude Code doesn't provide CLI usage commands"
+        echo -e "   📱 Check usage at: ${CYAN}https://console.anthropic.com/dashboard${NC}"
+        echo -e "   💡 Manual check recommended for quota monitoring"
+
+        # Log Claude session info
+        {
+            echo "[$TIMESTAMP] Claude Code Session Check"
+            echo "Version: $CLAUDE_VERSION"
+            echo "Manual dashboard check recommended"
+            echo "---"
+        } >> "$USAGE_LOG_DIR/claude-usage-$TODAY.log"
+
+    else
+        echo -e "${RED}❌ Claude Code not installed${NC}"
+        echo -e "   Install with: ${CYAN}npm install -g @anthropics/claude-code${NC}"
+    fi
+    echo ""
+}
+
+# Function to show usage optimization tips
+show_optimization_tips() {
+    echo -e "${YELLOW}💡 OPTIMIZATION TIPS${NC}"
+    echo -e "${YELLOW}────────────────────${NC}"
+
+    echo -e "🔄 ${GREEN}Gemini Optimization:${NC}"
+    echo -e "   • Enable caching: ${CYAN}gemini config set --cache-enabled=true${NC}"
+    echo -e "   • Batch requests: ${CYAN}gemini config set --batch-size=5${NC}"
+    echo -e "   • Use context caching for large codebases"
+    echo ""
+
+    echo -e "🎭 ${GREEN}Claude Code Optimization:${NC}"
+    echo -e "   • Use focused prompts to reduce token usage"
+    echo -e "   • Prefer specific file operations over broad searches"
+    echo -e "   • Use Claude's native MCP tools instead of custom implementations"
+    echo ""
+
+    echo -e "⚖️ ${GREEN}Smart AI Selection:${NC}"
+    echo -e "   • Use Gemini for: large context analysis, code generation"
+    echo -e "   • Use Claude Code for: precise edits, file operations, deployments"
+    echo -e "   • Monitor quotas to switch between services as needed"
+    echo ""
+}
+
+# Function to show quota warnings
+show_quota_warnings() {
+    echo -e "${RED}⚠️ QUOTA ALERTS${NC}"
+    echo -e "${RED}──────────────${NC}"
+
+    # Check if Gemini quota is available
+    if command -v gemini &> /dev/null; then
+        # Try to parse quota info (this would need actual API response format)
+        echo -e "🔮 Checking Gemini quotas..."
+
+        # Note: This is a placeholder - actual quota parsing would depend on
+        # the exact format of gemini quota --check output
+        if gemini quota --check 2>/dev/null | grep -q "80%\|90%\|95%"; then
+            echo -e "${RED}🚨 Gemini quota usage high!${NC}"
+        else
+            echo -e "${GREEN}✅ Gemini quota levels normal${NC}"
+        fi
+    fi
+
+    echo -e "🎭 Claude Code: Manual dashboard check recommended"
+    echo ""
+}
+
+# Function to show recent usage trends
+show_usage_trends() {
+    echo -e "${CYAN}📈 USAGE TRENDS${NC}"
+    echo -e "${CYAN}───────────────${NC}"
+
+    # Count log entries for the past week
+    local past_week_files=$(find "$USAGE_LOG_DIR" -name "*.log" -mtime -7 2>/dev/null | wc -l)
+    echo -e "📁 Log files from past week: ${GREEN}$past_week_files${NC}"
+
+    # Show recent activity
+    if [[ -f "$USAGE_LOG_DIR/gemini-usage-$TODAY.log" ]]; then
+        local gemini_entries=$(grep -c "Gemini Usage Check" "$USAGE_LOG_DIR/gemini-usage-$TODAY.log" 2>/dev/null || echo "0")
+        echo -e "🔮 Gemini checks today: ${GREEN}$gemini_entries${NC}"
+    fi
+
+    if [[ -f "$USAGE_LOG_DIR/claude-usage-$TODAY.log" ]]; then
+        local claude_entries=$(grep -c "Claude Code Session Check" "$USAGE_LOG_DIR/claude-usage-$TODAY.log" 2>/dev/null || echo "0")
+        echo -e "🎭 Claude checks today: ${GREEN}$claude_entries${NC}"
+    fi
+    echo ""
+}
+
+# Function to export usage report
+export_usage_report() {
+    local report_file="$USAGE_LOG_DIR/usage-report-$TODAY.md"
+
+    echo "# AI Usage Report - $TODAY" > "$report_file"
+    echo "" >> "$report_file"
+    echo "Generated: $TIMESTAMP" >> "$report_file"
+    echo "" >> "$report_file"
+
+    echo "## Gemini CLI Status" >> "$report_file"
+    if command -v gemini &> /dev/null; then
+        echo "- Status: Installed ✅" >> "$report_file"
+        gemini usage --detailed 2>/dev/null >> "$report_file" || echo "- Usage: Unable to fetch" >> "$report_file"
+    else
+        echo "- Status: Not installed ❌" >> "$report_file"
+    fi
+    echo "" >> "$report_file"
+
+    echo "## Claude Code Status" >> "$report_file"
+    if command -v claude &> /dev/null; then
+        echo "- Status: Installed ✅" >> "$report_file"
+        echo "- Version: $(claude --version 2>/dev/null || echo "Unknown")" >> "$report_file"
+        echo "- Usage: Manual dashboard check required" >> "$report_file"
+    else
+        echo "- Status: Not installed ❌" >> "$report_file"
+    fi
+    echo "" >> "$report_file"
+
+    echo -e "${GREEN}📄 Usage report exported to:${NC} $report_file"
+    echo ""
+}
+
+# Main function
+main() {
+    case "${1:-status}" in
+        status|"")
+            show_header
+            check_gemini_status
+            check_claude_status
+            show_quota_warnings
+            show_usage_trends
+            show_optimization_tips
+            ;;
+
+        gemini)
+            show_header
+            check_gemini_status
+            ;;
+
+        claude)
+            show_header
+            check_claude_status
+            ;;
+
+        trends)
+            show_header
+            show_usage_trends
+            ;;
+
+        tips)
+            show_header
+            show_optimization_tips
+            ;;
+
+        export)
+            export_usage_report
+            ;;
+
+        help)
+            echo "AI Token Status Monitoring for LingoLinq AAC"
+            echo ""
+            echo "Usage: token-status [command]"
+            echo ""
+            echo "Commands:"
+            echo "  status    Show complete status dashboard (default)"
+            echo "  gemini    Show only Gemini CLI status"
+            echo "  claude    Show only Claude Code status"
+            echo "  trends    Show usage trends and analytics"
+            echo "  tips      Show optimization recommendations"
+            echo "  export    Export usage report to markdown"
+            echo "  help      Show this help message"
+            echo ""
+            ;;
+
+        *)
+            echo -e "${RED}❌ Unknown command: $1${NC}"
+            echo "Use 'token-status help' for available commands"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

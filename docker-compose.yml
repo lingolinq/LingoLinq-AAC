@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.minimal
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=production
+      - RACK_ENV=production
+      - RAILS_SERVE_STATIC_FILES=true
+      - RAILS_LOG_TO_STDOUT=true
+      - DISABLE_OBF_GEM=true
+      - RAILS_FORCE_SSL=false
+      - DATABASE_URL=postgresql://postgres:password@db:5432/lingolinq_production
+      - REDIS_URL=redis://redis:6379/0
+      - SECURE_ENCRYPTION_KEY=dev_encryption_key_at_least_24_characters_long_enough
+      - SECURE_NONCE_KEY=dev_nonce_key_at_least_24_characters_long_enough_too
+      - DEFAULT_HOST=localhost:3000
+      - USER_KEY=admin@example.com
+      - COOKIE_KEY=dev_cookie_encryption_key_12345
+      - DEFAULT_EMAIL_FROM=lingolinq@example.com
+      - SYSTEM_ERROR_EMAIL=errors@example.com
+      - NEW_REGISTRATION_EMAIL=registrations@example.com
+    depends_on:
+      - db
+      - redis
+    command: >
+      bash -c "
+        echo 'Waiting for PostgreSQL...' &&
+        while ! pg_isready -h db -p 5432 -U postgres; do
+          echo 'PostgreSQL is unavailable - sleeping'
+          sleep 1
+        done &&
+        echo 'PostgreSQL is up!' &&
+        bundle exec rails db:create &&
+        bundle exec rails db:migrate &&
+        echo 'Precompiling assets...' &&
+        bundle exec rails assets:precompile &&
+        echo 'Skipping db:seed due to OBF gem dependency' &&
+        bundle exec rails server -b 0.0.0.0 -p 3000
+      "
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=lingolinq_production
+      - POSTGRES_USER=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
