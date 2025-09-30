@@ -1,0 +1,35 @@
+FROM ruby:3.2.8-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    postgresql-client \
+    curl \
+    git \
+    libyaml-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy Gemfile and install gems
+COPY Gemfile* ./
+RUN gem install bundler:2.7.1
+RUN bundle config set --global without 'development test'
+ENV DISABLE_OBF_GEM=true
+RUN bundle install --jobs 4 --retry 3
+
+# Copy the application
+COPY . .
+
+# Set production environment
+ENV RAILS_ENV=production
+ENV RACK_ENV=production
+ENV RAILS_SERVE_STATIC_FILES=true
+ENV RAILS_LOG_TO_STDOUT=true
+
+# Expose port
+EXPOSE 3000
+
+# Simple start command - just Rails server, no migrations
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]

@@ -1,53 +1,51 @@
+# LingoLinq-AAC: Docker Compose for Local Development
+# This file is optimized for the "golden path" developer onboarding experience.
+# It uses the canonical Dockerfile at the project root.
+
 version: '3.8'
 
 services:
-  web:
+  app:
     build:
       context: .
-      dockerfile: Dockerfile.minimal
+      # No dockerfile specified, so it defaults to ./Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - RAILS_ENV=production
-      - RACK_ENV=production
-      - RAILS_SERVE_STATIC_FILES=true
+      # --- Rails Settings ---
+      - RAILS_ENV=development
       - RAILS_LOG_TO_STDOUT=true
-      - DISABLE_OBF_GEM=true
-      - RAILS_FORCE_SSL=false
-      - DATABASE_URL=postgresql://postgres:password@db:5432/lingolinq_production
+      - DATABASE_URL=postgresql://postgres:password@db:5432/lingolinq_development
       - REDIS_URL=redis://redis:6379/0
+      # --- Application Secrets (safe for development) ---
+      - SECRET_KEY_BASE=dummy_secret_key_base_for_development_env
       - SECURE_ENCRYPTION_KEY=dev_encryption_key_at_least_24_characters_long_enough
       - SECURE_NONCE_KEY=dev_nonce_key_at_least_24_characters_long_enough_too
+      - COOKIE_KEY=dev_cookie_encryption_key_12345
+      # --- Application Settings ---
       - DEFAULT_HOST=localhost:3000
       - USER_KEY=admin@example.com
-      - COOKIE_KEY=dev_cookie_encryption_key_12345
       - DEFAULT_EMAIL_FROM=lingolinq@example.com
       - SYSTEM_ERROR_EMAIL=errors@example.com
       - NEW_REGISTRATION_EMAIL=registrations@example.com
     depends_on:
       - db
       - redis
-    command: >
-      bash -c "
-        echo 'Waiting for PostgreSQL...' &&
-        while ! pg_isready -h db -p 5432 -U postgres; do
-          echo 'PostgreSQL is unavailable - sleeping'
-          sleep 1
-        done &&
-        echo 'PostgreSQL is up!' &&
-        bundle exec rails db:create &&
-        bundle exec rails db:migrate &&
-        echo 'Precompiling assets...' &&
-        bundle exec rails assets:precompile &&
-        echo 'Skipping db:seed due to OBF gem dependency' &&
-        bundle exec rails server -b 0.0.0.0 -p 3000
-      "
+    # The default command is specified in the Dockerfile.
+    # For development, we can override it to just start the server.
+    command: bundle exec rails server -b 0.0.0.0 -p 3000
+    volumes:
+      # Mount the application code for live reloading
+      - .:/app
+      # Exclude node_modules from the mount to prevent conflicts
+      - /app/node_modules
+      - /app/app/frontend/node_modules
 
   db:
     image: postgres:15
     environment:
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=lingolinq_production
+      - POSTGRES_DB=lingolinq_development
       - POSTGRES_USER=postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data

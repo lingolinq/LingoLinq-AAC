@@ -1,136 +1,88 @@
-# NUCLEAR CACHE BREAK - Wed, Sep 24, 2025 12:16:27 AM
-ARG CACHE_BREAK_TIMESTAMP=1758694579666623500
-ARG BUILD_ID=nuclear-1758694579666623500
-RUN echo "🚫 CACHE BREAK: ${CACHE_BREAK_TIMESTAMP} - Build: ${BUILD_ID}"
+# LingoLinq-AAC Canonical Dockerfile
+# This single file handles development and production builds using multi-stage builds.
+# It consolidates the learnings from 14 previous Dockerfiles.
 
-FROM ruby:3.2.8-slim
+#------------------------------------------------------------------------------
+# BASE STAGE
+# Defines the common environment for all subsequent stages.
+# Using ruby:3.2.8-slim as it's the proven base.
+#------------------------------------------------------------------------------
+FROM ruby:3.2.8-slim as base
 
-# Force rebuild
-ARG CACHE_BUST=marcel-gem-check-v1
-RUN echo "🚫 FIXED DOCKER BUILD VERSION: $CACHE_BUST"
+# Set environment variables for consistent behavior
+ENV LANG C.UTF-8
+ENV RAILS_ENV=production \
+    RACK_ENV=production \
+    NODE_ENV=production
 
-RUN echo "🏗️  STEP 1: Installing system dependencies..."
-# Install essential system dependencies
-RUN apt-get update && apt-get install -y \
+WORKDIR /app
+
+# Install essential system dependencies + Node.js 18.x
+# This combination is required for the Rails 6.1 + Ember 3.12 stack.
+# Added libyaml-dev to fix psych gem build error.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    libyaml-dev \
     git \
     curl \
     postgresql-client \
-    libyaml-dev \
-    shared-mime-info \
-    libxml2-dev \
-    libxslt1-dev \
-    libffi-dev \
-    libssl-dev \
-    pkg-config \
-    patch \
-    && rm -rf /var/lib/apt/lists/* \
-    && echo "✅ System dependencies installed"
-
-RUN echo "🏗️  STEP 2: Installing Node.js..."
-# Install Node.js 18.x (required for Render.com compatibility and Ember CLI 3.12)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    imagemagick \
+    ghostscript \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
-    && echo "✅ Node.js installed"
+    && rm -rf /var/lib/apt/lists/*
 
-# Verify critical versions
-RUN echo "🔍 CONTAINER VERSIONS:" && \
-    echo "Ruby: $(ruby -v)" && \
-    echo "Node: $(node -v)" && \
-    echo "NPM: $(npm -v)"
+#------------------------------------------------------------------------------
+# BUILD STAGE
+# Pre-installs gems and node modules, and builds assets.
+# Layers are structured to maximize Docker cache efficiency.
+#------------------------------------------------------------------------------
+FROM base as build
 
-# Set working directory
-WORKDIR /app
-RUN echo "🏗️  STEP 3: Setting up Ruby environment..."
+# Install bundler
+RUN gem install bundler:2.7.1
 
-# Install specific bundler version to match Gemfile.lock
-RUN gem install bundler:2.7.1 && echo "✅ Bundler 2.7.1 installed"
+# Copy Gemfiles and install gems
 COPY Gemfile Gemfile.lock ./
+RUN bundle config set --global without 'development test' && \
+    bundle install --jobs $(nproc) --retry 3
 
-RUN echo "🏗️  STEP 4: Installing Ruby gems (FIXED - no clean config)..."
-# Configure bundle without the problematic clean setting
-RUN bundle config set --local deployment 'false'
-RUN bundle config set --local force_ruby_platform 'true'
-# REMOVED: bundle config set --local clean 'true' - this was causing exit code 15
+# Copy package.json and install frontend build tools (bower)
+# Note: We copy the package.json from the frontend directory specifically.
+COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
+RUN cd app/frontend && npm install --legacy-peer-deps
 
-RUN echo "🚫 Cleaning any existing bundle cache..." && \
-    rm -rf ~/.bundle/cache vendor/cache .bundle/cache
-
-RUN echo "📦 Starting bundle install without --no-cache..." && \
-    BUNDLE_FORCE_RUBY_PLATFORM=1 DISABLE_OBF_GEM=true bundle install --jobs 2 --retry 3 && \
-    echo "✅ Ruby gems installed successfully"
-
-RUN echo "🔍 VERIFICATION: Checking for problematic gems..." && \
-    if bundle show obf 2>/dev/null; then echo "❌ ERROR: obf gem detected!"; exit 1; else echo "✅ obf gem NOT found (good)"; fi && \
-    if bundle show matrix 2>/dev/null; then echo "❌ ERROR: matrix gem detected!"; exit 1; else echo "✅ matrix gem NOT found (good)"; fi
-
-RUN echo "🏗️  STEP 5: Copying application code..."
-# Copy the application code
+# Copy the rest of the application code
 COPY . .
-RUN echo "✅ Application code copied"
 
-# Check if marcel fix is already applied
-RUN echo "🔍 MARCEL CHECK: Verifying marcel gem is used..." && \
-    grep -n "require 'marcel'" app/models/concerns/uploadable.rb && \
-    echo "✅ Marcel gem correctly required"
+# Build the Ember frontend
+# We need to run bower from the root, but target the frontend directory.
+RUN ./app/frontend/node_modules/.bin/bower install --allow-root --config.interactive=false
+RUN ./app/frontend/node_modules/.bin/ember build --environment=production
 
-RUN echo "🔍 DEBUG: Checking uploadable.rb file content..." && head -5 app/models/concerns/uploadable.rb
+# Precompile Rails assets
+RUN SECRET_KEY_BASE_DUMMY=1 bundle exec rake assets:precompile
 
-RUN echo "🏗️  STEP 6: Building frontend assets..."
-# Build frontend assets
-WORKDIR /app/app/frontend
-RUN echo "📦 Installing npm dependencies..." && \
-    npm install --legacy-peer-deps --no-audit --no-fund && \
-    echo "✅ NPM dependencies installed"
+#------------------------------------------------------------------------------
+# PRODUCTION STAGE
+# Creates the final, lean production image by copying artifacts from the build stage.
+#------------------------------------------------------------------------------
+FROM base as production
 
-RUN echo "🎯 Installing bower dependencies..." && \
-    if [ -f "bower.json" ]; then \
-        npx bower install --allow-root --config.interactive=false && \
-        echo "✅ Bower dependencies installed"; \
-    else \
-        echo "⚠️  No bower.json found, skipping"; \
-    fi
+# Copy installed gems from the build stage
+COPY --from=build /usr/local/bundle /usr/local/bundle
 
-RUN echo "🔨 Building Ember application..." && \
-    (npm run build || ./node_modules/.bin/ember build --environment=production) && \
-    echo "✅ Ember build completed"
+# Copy compiled assets and application code from the build stage
+COPY --from=build /app /app
 
-RUN echo "🏗️  STEP 7: Preparing Rails application..."
-# Return to app directory
-WORKDIR /app
-
-# Set production environment for asset compilation
-ENV RAILS_ENV=production
-ENV RACK_ENV=production
-ENV NODE_ENV=production
-ENV SECRET_KEY_BASE=dummy_secret_for_asset_compilation
-ENV DISABLE_OBF_GEM=true
-
-# Create required directories
-RUN mkdir -p tmp/pids tmp/cache tmp/sockets log public/assets && \
-    echo "✅ Directories created"
-
-RUN echo "🏗️  STEP 8: Preparing assets and precompiling..."
-
-# Create stub files for removed JavaScript assets to prevent compilation errors
-RUN echo "// Stub file - will be regenerated during build" > app/assets/javascripts/frontend.js && \
-    echo "// Stub file - will be regenerated during build" > app/assets/javascripts/vendor.js && \
-    echo "✅ Created stub JavaScript files"
-
-# Precompile assets with better error handling
-RUN echo "🎨 Starting asset precompilation..." && \
-    DISABLE_OBF_GEM=true RAILS_ENV=production SECRET_KEY_BASE=dummy_secret \
-    bundle exec rake assets:precompile RAILS_GROUPS=assets --trace && \
-    echo "✅ Assets precompiled successfully"
-
-RUN echo "🏗️  STEP 9: Final setup..."
-# Expose port
+# Expose port and set the entrypoint
 EXPOSE 3000
-
-# Copy startup script
 COPY bin/render-start.sh ./bin/render-start.sh
 RUN chmod +x ./bin/render-start.sh
 
-# Default command - use startup script for runtime asset compilation
+# Healthcheck to ensure the application is running
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
 CMD ["./bin/render-start.sh"]
