@@ -150,6 +150,7 @@ Coughdrop::Application.routes.draw do
   get 'api/v1/status' => 'session#status'
   get 'api/v1/token_check' => 'session#token_check'
   get 'api/v1/status/heartbeat' => 'session#heartbeat'
+  get 'health' => 'session#heartbeat'  # Simple health check for Docker
   
   scope 'api/v1', module: 'api' do
     post 'forgot_password' => 'users#forgot_password'

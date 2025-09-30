@@ -48,9 +48,6 @@ COPY Gemfile Gemfile.lock ./
 RUN bundle config set --global without 'development test' && \
     bundle install --jobs $(nproc) --retry 3
 
-# Install bower globally and frontend build tools
-RUN npm install -g bower
-
 # Copy package.json and install frontend build tools
 # Note: We copy the package.json from the frontend directory specifically.
 COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
@@ -60,13 +57,20 @@ RUN cd app/frontend && npm install --legacy-peer-deps
 COPY . .
 
 # Build the Ember frontend
-# Run bower install from the frontend directory
-RUN cd app/frontend && bower install --allow-root --config.interactive=false
-# Use npm run script which properly resolves ember
-RUN cd app/frontend && npm run build -- --environment=production
+# Change to frontend directory for all frontend build steps
+WORKDIR /app/app/frontend
+
+# Install bower dependencies
+RUN npx bower install --allow-root --config.interactive=false
+
+# Build Ember app (with fallback for ember-cli path issues)
+RUN npm run build || ./node_modules/.bin/ember build --environment=production
+
+# Return to app root
+WORKDIR /app
 
 # Precompile Rails assets
-RUN SECRET_KEY_BASE_DUMMY=1 bundle exec rake assets:precompile
+RUN SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
 
 #------------------------------------------------------------------------------
 # PRODUCTION STAGE
@@ -86,7 +90,8 @@ COPY bin/render-start.sh ./bin/render-start.sh
 RUN chmod +x ./bin/render-start.sh
 
 # Healthcheck to ensure the application is running
+# Using the Rails heartbeat endpoint that returns {active: true}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD curl -f http://localhost:3000/api/v1/status/heartbeat || curl -f http://localhost:3000/health || exit 1
 
 CMD ["./bin/render-start.sh"]
