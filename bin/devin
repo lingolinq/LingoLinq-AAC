@@ -111,8 +111,38 @@ EOF
     fi
     ;;
 
+  cleanup)
+    case "$2" in
+      gemini|gemini-*)
+        shift 2
+        if [[ -x "$REPO_PATH/bin/repo-cleanup-gemini" ]]; then
+          "$REPO_PATH/bin/repo-cleanup-gemini" "$@"
+        else
+          echo "❌ Gemini cleanup script not found at bin/repo-cleanup-gemini"
+        fi
+        ;;
+      *)
+        echo "Usage: devin cleanup gemini [phase]"
+        echo ""
+        echo "Available cleanup tools:"
+        echo "  gemini [phase]  - Run phased repository cleanup with Gemini CLI"
+        echo ""
+        echo "For Gemini cleanup phases, run: bin/repo-cleanup-gemini help"
+        ;;
+    esac
+    ;;
+
+  gemini-safe)
+    echo "🔒 Checking Gemini quota before execution..."
+    if [[ -x "$REPO_PATH/bin/repo-cleanup-gemini" ]]; then
+      "$REPO_PATH/bin/repo-cleanup-gemini" quota
+    else
+      echo "❌ Gemini cleanup script not found"
+    fi
+    ;;
+
   *)
-    echo "Usage: devin [context|update|generate|review|analyze|ask|tokens] <args>"
+    echo "Usage: devin [context|update|generate|review|analyze|ask|tokens|cleanup|gemini-safe] <args>"
     echo ""
     echo "Commands:"
     echo "  context [section]     - Get project context (architecture, dependencies, etc.)"
@@ -122,5 +152,7 @@ EOF
     echo "  analyze <target>     - Basic analysis suggestions (repo, changes)"
     echo "  ask <question>       - Get Claude Code command suggestions"
     echo "  tokens [cmd]         - Check AI token usage status (gemini, claude, trends, tips)"
+    echo "  cleanup gemini [phase] - Run phased repo cleanup with Gemini (prevents token exhaustion)"
+    echo "  gemini-safe          - Check Gemini API quota status"
     ;;
 esac

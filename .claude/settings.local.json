@@ -175,7 +175,8 @@
       "Bash(NODE_OPTIONS='--trace-warnings --trace-deprecation' time node /c/Users/skawa/AppData/Roaming/npm/node_modules/@google/gemini-cli/dist/index.js --version)",
       "Bash(export NODE_OPTIONS=\"--trace-warnings\")",
       "Bash(npm outdated:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(bin/repo-cleanup-gemini:*)"
     ],
     "deny": []
   }

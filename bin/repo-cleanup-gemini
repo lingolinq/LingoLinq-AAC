@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+
+# Phased Repository Cleanup Orchestrator for Gemini CLI
+# Prevents token exhaustion by breaking cleanup into manageable phases
+
+set -e
+
+REPO_PATH="$(git rev-parse --show-toplevel)"
+CLEANUP_LOG="$REPO_PATH/.ai/cleanup-progress.log"
+RATE_LIMIT_DELAY=3  # seconds between requests
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🧹 LingoLinq Repository Cleanup Orchestrator${NC}"
+echo "================================================"
+echo ""
+
+# Ensure .geminiignore exists
+if [[ ! -f "$REPO_PATH/.geminiignore" ]]; then
+    echo -e "${RED}❌ Error: .geminiignore not found${NC}"
+    echo "Run this script from the repository root with .geminiignore present."
+    exit 1
+fi
+
+# Function to check Gemini quota
+check_quota() {
+    echo -e "${YELLOW}📊 Checking Gemini API quota...${NC}"
+    if command -v gemini &> /dev/null; then
+        # Check if we can make a simple request
+        timeout 10s gemini "hello" --model gemini-2.0-flash-exp > /dev/null 2>&1 || {
+            echo -e "${RED}⚠️  Warning: Gemini API may be rate-limited. Wait 60 seconds.${NC}"
+            return 1
+        }
+        echo -e "${GREEN}✅ Quota available${NC}"
+        return 0
+    else
+        echo -e "${RED}❌ Gemini CLI not found${NC}"
+        exit 1
+    fi
+}
+
+# Function to run Gemini with rate limiting
+run_gemini_safe() {
+    local prompt="$1"
+    local context_files="$2"
+
+    echo -e "${BLUE}🤖 Running Gemini (rate-limited)...${NC}"
+
+    if [[ -n "$context_files" ]]; then
+        # Use specific files as context
+        gemini "$prompt" --model gemini-2.0-flash-exp $(echo "$context_files" | xargs -I {} echo "@{}")
+    else
+        # Use current directory with .geminiignore
+        gemini "$prompt" --model gemini-2.0-flash-exp
+    fi
+
+    # Rate limit between requests
+    echo -e "${YELLOW}⏳ Waiting ${RATE_LIMIT_DELAY}s (rate limiting)...${NC}"
+    sleep $RATE_LIMIT_DELAY
+}
+
+# Phase 1: Identify Duplicate Documentation
+phase_1_duplicates() {
+    echo -e "${GREEN}📋 Phase 1: Identify Duplicate/Redundant Documentation${NC}"
+    echo "---------------------------------------------------"
+
+    # Focus only on root-level and docs/ markdown files
+    local doc_files=$(find "$REPO_PATH" -maxdepth 1 -name "*.md" -o -path "$REPO_PATH/docs/*.md" -o -path "$REPO_PATH/.ai/docs/*.md")
+
+    run_gemini_safe "Analyze these documentation files and identify:
+1. Duplicate content across multiple files
+2. Outdated or superseded documentation
+3. Files that should be consolidated
+4. Recommend specific merge/delete actions
+
+Output a JSON report with:
+{
+  \"duplicates\": [{\"files\": [], \"reason\": \"\"}],
+  \"outdated\": [{\"file\": \"\", \"reason\": \"\"}],
+  \"consolidation\": [{\"target\": \"\", \"sources\": [], \"reason\": \"\"}]
+}
+
+Do NOT make changes, only analyze and report." "$doc_files"
+}
+
+# Phase 2: Review AI Documentation
+phase_2_ai_docs() {
+    echo -e "${GREEN}📋 Phase 2: Review AI Development Documentation${NC}"
+    echo "---------------------------------------------------"
+
+    local ai_docs="$REPO_PATH/.ai/docs/*.md $REPO_PATH/docs/ai/*.md $REPO_PATH/CLAUDE.md $REPO_PATH/GEMINI.md"
+
+    run_gemini_safe "Review AI development documentation for:
+1. Overlapping instructions between CLAUDE.md, GEMINI.md, and .ai/docs/
+2. Redundant onboarding guides
+3. Outdated tool setup instructions
+4. Opportunities to consolidate related guides
+
+Recommend specific consolidation actions." "$ai_docs"
+}
+
+# Phase 3: Clean Development Docs
+phase_3_dev_docs() {
+    echo -e "${GREEN}📋 Phase 3: Review Development Documentation${NC}"
+    echo "---------------------------------------------------"
+
+    local dev_docs="$REPO_PATH/docs/development/*.md $REPO_PATH/docs/planning/*.md"
+
+    run_gemini_safe "Review development and planning documentation for:
+1. Outdated setup instructions
+2. Completed roadmap items that can be archived
+3. Duplicate architecture documentation
+4. Files that belong in different directories
+
+Recommend specific reorganization actions." "$dev_docs"
+}
+
+# Phase 4: Root-Level Markdown Review
+phase_4_root_files() {
+    echo -e "${GREEN}📋 Phase 4: Review Root-Level Documentation${NC}"
+    echo "---------------------------------------------------"
+
+    local root_docs=$(find "$REPO_PATH" -maxdepth 1 -name "*.md" | grep -v node_modules)
+
+    run_gemini_safe "Review root-level markdown files for:
+1. Essential vs. non-essential files
+2. Files that should move to docs/ subdirectories
+3. Outdated status documents
+4. Consolidation opportunities with README.md
+
+Recommend specific actions for each file." "$root_docs"
+}
+
+# Main execution
+case "${1:-all}" in
+    1|phase1|duplicates)
+        check_quota && phase_1_duplicates
+        ;;
+    2|phase2|ai-docs)
+        check_quota && phase_2_ai_docs
+        ;;
+    3|phase3|dev-docs)
+        check_quota && phase_3_dev_docs
+        ;;
+    4|phase4|root-files)
+        check_quota && phase_4_root_files
+        ;;
+    all)
+        echo -e "${YELLOW}⚠️  Running ALL phases will take ~5-10 minutes${NC}"
+        echo -e "${YELLOW}⚠️  Press Ctrl+C to cancel, or wait 5 seconds to continue...${NC}"
+        sleep 5
+
+        check_quota || exit 1
+
+        phase_1_duplicates
+        echo ""
+        phase_2_ai_docs
+        echo ""
+        phase_3_dev_docs
+        echo ""
+        phase_4_root_files
+
+        echo -e "${GREEN}✅ All phases complete!${NC}"
+        ;;
+    status|quota)
+        check_quota
+        ;;
+    help|--help|-h)
+        echo "Usage: repo-cleanup-gemini [phase]"
+        echo ""
+        echo "Phases:"
+        echo "  1, phase1, duplicates  - Identify duplicate documentation"
+        echo "  2, phase2, ai-docs     - Review AI development docs"
+        echo "  3, phase3, dev-docs    - Review development docs"
+        echo "  4, phase4, root-files  - Review root-level markdown"
+        echo "  all                    - Run all phases (default)"
+        echo "  status, quota          - Check Gemini API quota"
+        echo "  help                   - Show this help"
+        echo ""
+        echo "Examples:"
+        echo "  bin/repo-cleanup-gemini 1     # Run only phase 1"
+        echo "  bin/repo-cleanup-gemini all   # Run all phases"
+        echo "  bin/repo-cleanup-gemini quota # Check quota"
+        ;;
+    *)
+        echo -e "${RED}❌ Unknown phase: $1${NC}"
+        echo "Run 'repo-cleanup-gemini help' for usage"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,67 @@
+# Gemini CLI Ignore File
+# Excludes large vendor directories and generated files to prevent token exhaustion
+
+# Vendor Dependencies (massive, not our code)
+app/frontend/bower_components/
+app/frontend/node_modules/
+node_modules/
+vendor/bundle/
+
+# Generated and Compiled Assets
+app/assets/javascripts/
+app/assets/stylesheets/
+app/frontend/dist/
+app/frontend/tmp/
+public/assets/
+
+# Logs and Temporary Files
+log/
+logs/
+tmp/
+coverage/
+.ai/temp/
+.ai/sessions/
+.cleanup-backup/
+.ruby-lsp/
+
+# Docker and Build Artifacts
+.docker-build-cache/
+docker/postgres-data/
+
+# Database Files
+db/*.sqlite3
+public/uploads/
+
+# Backup Files
+*.backup
+*.tmp
+*~
+*.bak
+
+# Large Generated Files (tracked by .gitignore)
+app/assets/javascripts/frontend.js
+app/assets/javascripts/vendor.js
+
+# AI Session Files (transient)
+.claude/session-*
+.claude/temp-*
+.ai/context/session-*.json
+.ai/context/agent-changes-*.log
+ai-session-*.json
+ai-debug-*.log
+mcp-debug-*.log
+
+# Git Internals
+.git/
+
+# IDE and OS Files
+.DS_Store
+.vscode/
+.idea/
+
+# Environment Files (may contain secrets)
+.env
+.env.*
+!.env.example
+!.env.docker.example
+config/master.key
