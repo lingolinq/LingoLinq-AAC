@@ -57,17 +57,10 @@ RUN cd app/frontend && npm install --legacy-peer-deps
 COPY . .
 
 # Build the Ember frontend
-# Change to frontend directory for all frontend build steps
-WORKDIR /app/app/frontend
-
-# Install bower dependencies
-RUN npx bower install --allow-root --config.interactive=false
-
-# Build Ember app (with fallback for ember-cli path issues)
-RUN npm run build || ./node_modules/.bin/ember build --environment=production
-
-# Return to app root
-WORKDIR /app
+# Install bower dependencies globally and build from app root
+RUN cd app/frontend && \
+    npx bower install --allow-root --config.interactive=false && \
+    npm run build --if-present || npx ember build --environment=production
 
 # Precompile Rails assets
 RUN SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
