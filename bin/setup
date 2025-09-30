@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# LingoLinq-AAC Setup Script
+#
+# This script automates the initial setup for a new developer,
+# creating a consistent and easy onboarding experience.
+#
+
+set -e # Exit immediately if a command exits with a non-zero status.
+
+# --- Helper Functions ---
+info() {
+  echo "✅ [INFO] $1"
+}
+
+error() {
+  echo "❌ [ERROR] $1" >&2
+  exit 1
+}
+
+# --- Main Setup Logic ---
+
+# 1. Check for Docker
+info "Checking for Docker..."
+if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+  error "Docker and/or Docker Compose could not be found. Please install them before proceeding: https://www.docker.com/get-started"
+fi
+info "Docker is installed."
+
+# 2. Configure Environment File
+info "Configuring environment file..."
+if [ ! -f .env ]; then
+  cp .env.example .env
+  info ".env file created. You may customize it later if needed."
+else
+  info ".env file already exists."
+fi
+
+# 3. Build and Start Docker Containers
+info "Building Docker images... (This may take several minutes on the first run)"
+docker-compose build
+
+info "Starting Docker containers in the background..."
+docker-compose up -d
+
+# 4. Set Up the Database
+info "Setting up the database..."
+docker-compose exec app bundle exec rails db:prepare
+info "Database created, migrated, and seeded."
+
+# --- Success ---
+echo ""
+info "--------------------------------------------------"
+info "🎉 LingoLinq-AAC setup is complete! 🎉"
+info ""
+info "The application is now running in the background."
+info "  - URL: http://localhost:3000"
+info "  - Default Login: example / password"
+info ""
+info "To stop the application, run: docker-compose down"
+info "--------------------------------------------------"
