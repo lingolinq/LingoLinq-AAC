@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Core Vocabulary Board - LingoLinq AAC</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .board-container {
+      background: rgb(125, 125, 125);
+      box-shadow: 5px 5px 10px rgb(125, 125, 125), -5px -5px 10px rgb(125, 125, 125);
+      width: 510px;
+      height: 610px;
+      position: relative;
+      margin: 0 auto;
+    }
+    .board-header {
+      background: #fff;
+      padding: 15px;
+      border-bottom: 2px solid #ccc;
+      height: 70px;
+    }
+    .board-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .board-description {
+      font-size: 14px;
+      color: #666;
+      margin: 5px 0 0 0;
+    }
+    .button {
+      text-decoration: none;
+    }
+    .button:hover {
+      box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+      transform: scale(1.02);
+      transition: all 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <div class="board-container">
+    <div class="board-header">
+      <h1 class="board-title">Core Vocabulary Board</h1>
+      <p class="board-description">Common core words 3x3 layout</p>
+    </div>
+    
+    <a href="#" class="button" data-id="btn_1" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 20px;
+    top: 120px;
+    background-color: #ffa;
+    border: 2px solid #dd0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/I.png"
+           alt="I"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        I
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_2" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 180px;
+    top: 120px;
+    background-color: #ffa;
+    border: 2px solid #dd0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/you.png"
+           alt="you"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        you
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_3" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 340px;
+    top: 120px;
+    background-color: #cfa;
+    border: 2px solid #6d0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/go.svg"
+           alt="go"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        go
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_4" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 20px;
+    top: 280px;
+    background-color: #cfa;
+    border: 2px solid #6d0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/want.png"
+           alt="want"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        want
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_5" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 180px;
+    top: 280px;
+    background-color: #acf;
+    border: 2px solid #acf;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/more.png"
+           alt="more"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        more
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_6" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 340px;
+    top: 280px;
+    background-color: #cfa;
+    border: 2px solid #6d0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/help.png"
+           alt="help"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        help
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_7" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 20px;
+    top: 440px;
+    background-color: #cfa;
+    border: 2px solid #6d0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/like.png"
+           alt="like"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        like
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_8" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 180px;
+    top: 440px;
+    background-color: #faa;
+    border: 2px solid #faa;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png"
+           alt="not"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        not
+      </div>
+    </a>
+  
+    <a href="#" class="button" data-id="btn_9" style="position: absolute;
+    width: 150px;
+    height: 150px;
+    left: 340px;
+    top: 440px;
+    background-color: #cfa;
+    border: 2px solid #6d0;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    font-family: Arial, sans-serif;">
+      <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/stop.png"
+           alt="stop"
+           style="width: auto;
+    height: 97.5px;
+    max-width: 90%;
+    object-fit: contain;
+    margin-top: 5px;"
+           onerror="this.style.display='none';">
+      <div class="button-label" style="font-size: 18px;
+    font-weight: bold;
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3), -1px -1px 0 rgba(255,255,255,0.3);
+    margin-bottom: 5px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;">
+        stop
+      </div>
+    </a>
+  
+  </div>
+
+  <script>
+    // Wait for all images to load before signaling ready
+    let loadedImages = 0;
+    const images = document.querySelectorAll('img');
+    const totalImages = images.length;
+
+    images.forEach(img => {
+      if (img.complete) {
+        loadedImages++;
+      } else {
+        img.addEventListener('load', () => {
+          loadedImages++;
+          if (loadedImages === totalImages) {
+            document.body.setAttribute('data-images-loaded', 'true');
+          }
+        });
+        img.addEventListener('error', () => {
+          loadedImages++;
+          if (loadedImages === totalImages) {
+            document.body.setAttribute('data-images-loaded', 'true');
+          }
+        });
+      }
+    });
+
+    if (loadedImages === totalImages) {
+      document.body.setAttribute('data-images-loaded', 'true');
+    }
+  </script>
+</body>
+</html>
