@@ -167,7 +167,15 @@
       "Bash(docker volume rm:*)",
       "Bash(npx playwright:*)",
       "Bash(npm run screenshots:*)",
-      "Bash(./bin/token-status:*)"
+      "Bash(./bin/token-status:*)",
+      "Bash(time gemini:*)",
+      "Read(//c/Users/skawa/**)",
+      "Bash(strace:*)",
+      "Bash(time node:*)",
+      "Bash(NODE_OPTIONS='--trace-warnings --trace-deprecation' time node /c/Users/skawa/AppData/Roaming/npm/node_modules/@google/gemini-cli/dist/index.js --version)",
+      "Bash(export NODE_OPTIONS=\"--trace-warnings\")",
+      "Bash(npm outdated:*)",
+      "Bash(npm view:*)"
     ],
     "deny": []
   }
