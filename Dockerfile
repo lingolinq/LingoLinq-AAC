@@ -60,7 +60,7 @@ COPY . .
 # Install bower dependencies globally and build from app root
 RUN cd app/frontend && \
     npx bower install --allow-root --config.interactive=false && \
-    npm run build --if-present || npx ember build --environment=production
+    ./node_modules/.bin/ember-cli build --environment=production
 
 # Precompile Rails assets
 RUN SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
