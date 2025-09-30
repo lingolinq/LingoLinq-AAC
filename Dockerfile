@@ -48,7 +48,10 @@ COPY Gemfile Gemfile.lock ./
 RUN bundle config set --global without 'development test' && \
     bundle install --jobs $(nproc) --retry 3
 
-# Copy package.json and install frontend build tools (bower)
+# Install bower globally and frontend build tools
+RUN npm install -g bower
+
+# Copy package.json and install frontend build tools
 # Note: We copy the package.json from the frontend directory specifically.
 COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
 RUN cd app/frontend && npm install --legacy-peer-deps
@@ -57,9 +60,10 @@ RUN cd app/frontend && npm install --legacy-peer-deps
 COPY . .
 
 # Build the Ember frontend
-# We need to run bower from the root, but target the frontend directory.
-RUN ./app/frontend/node_modules/.bin/bower install --allow-root --config.interactive=false
-RUN ./app/frontend/node_modules/.bin/ember build --environment=production
+# Run bower install from the frontend directory
+RUN cd app/frontend && bower install --allow-root --config.interactive=false
+# Use npm run script which properly resolves ember
+RUN cd app/frontend && npm run build -- --environment=production
 
 # Precompile Rails assets
 RUN SECRET_KEY_BASE_DUMMY=1 bundle exec rake assets:precompile
