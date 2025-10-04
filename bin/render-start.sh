@@ -9,14 +9,8 @@ echo "🚫 OBF gem disabled (removed from application)"
 # Keep obf gem disabled for runtime
 export DISABLE_OBF_GEM=true
 
-# Wait for PostgreSQL database to be ready
-echo "⏳ Waiting for PostgreSQL database..."
-until bundle exec rails db:version > /dev/null 2>&1; do
-  echo "Database not ready, waiting..."
-  sleep 2
-done
-
-echo "✅ Database is ready"
+# Skip database check - the database may not be migrated yet
+echo "⏳ Skipping database check, will run migrations..."
 
 # Compile assets at runtime if they don't exist
 if [ ! -d "public/assets" ] || [ -z "$(ls -A public/assets 2>/dev/null)" ]; then
