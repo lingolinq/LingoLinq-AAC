@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install bundler 2.7.1 (consistent version throughout)
-RUN gem install bundler:2.7.1
+# Remove default bundler and ensure only 2.7.1 is available
+RUN gem uninstall bundler -x -a -I && gem install bundler:2.7.1
 
 # Copy Gemfiles and add the correct platform to the lockfile
 COPY Gemfile Gemfile.lock ./
