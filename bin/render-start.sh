@@ -9,14 +9,8 @@ echo "🚫 OBF gem disabled (removed from application)"
 # Keep obf gem disabled for runtime
 export DISABLE_OBF_GEM=true
 
-# Wait for database to be ready (or create SQLite if needed)
-echo "⏳ Preparing database..."
-if ! bundle exec rails db:version > /dev/null 2>&1; then
-  echo "📄 Creating SQLite database..."
-  bundle exec rails db:create
-fi
-
-echo "🔍 Checking database connection..."
+# Wait for PostgreSQL database to be ready
+echo "⏳ Waiting for PostgreSQL database..."
 until bundle exec rails db:version > /dev/null 2>&1; do
   echo "Database not ready, waiting..."
   sleep 2
