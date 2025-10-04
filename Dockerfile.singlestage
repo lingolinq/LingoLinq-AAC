@@ -33,9 +33,11 @@ RUN gem uninstall bundler -x -a -I && gem install bundler:2.7.1
 COPY Gemfile Gemfile.lock ./
 RUN bundle lock --add-platform x86_64-linux
 
-# Install gems in production environment
+# Install gems in production environment with bundler 2.7.1
+# Force use of bundler 2.7.1 by specifying it explicitly
 RUN bundle config set --local without 'development test' && \
-    DISABLE_OBF_GEM=true bundle install --jobs $(nproc) --retry 3
+    DISABLE_OBF_GEM=true bundle _2.7.1_ install --jobs $(nproc) --retry 3 && \
+    bundle _2.7.1_ binstubs bundler --force
 
 # Copy package.json and install frontend build tools (including devDependencies for ember-cli)
 # Temporarily override NODE_ENV to ensure devDependencies are installed
