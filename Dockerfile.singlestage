@@ -9,7 +9,7 @@ ENV LANG=C.UTF-8 \
     RACK_ENV=production \
     NODE_ENV=production \
     BUNDLER_VERSION=2.7.1 \
-    RAILS_GROUPS=production
+    BUNDLE_WITHOUT=development:test
 
 WORKDIR /app
 
