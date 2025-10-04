@@ -1,0 +1,61 @@
+# LingoLinq AAC - Fly.io Deployment Configuration
+# Uses canonical Dockerfile with health check fixes
+
+app = "lingolinq-aac"
+primary_region = "ord"
+
+[build]
+  # Use single-stage Dockerfile to eliminate bundler version mismatch
+  dockerfile = "Dockerfile.singlestage"
+
+[env]
+  # Rails environment
+  RAILS_ENV = "production"
+  RACK_ENV = "production"
+  RAILS_SERVE_STATIC_FILES = "true"
+  RAILS_LOG_TO_STDOUT = "true"
+
+  # Bundle configuration
+  BUNDLE_DEPLOYMENT = "false"
+  BUNDLE_PATH = "/usr/local/bundle"
+  BUNDLE_FORCE_RUBY_PLATFORM = "true"
+  BUNDLE_WITHOUT = "development:test"
+
+  # App configuration
+  DEFAULT_HOST = "lingolinq-aac.fly.dev"
+  DEFAULT_EMAIL_FROM = "noreply@lingolinq.com"
+  SYSTEM_ERROR_EMAIL = "errors@lingolinq.com"
+  NEW_REGISTRATION_EMAIL = "registrations@lingolinq.com"
+
+  # Node environment
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+# Health check using our new /health endpoint
+[[http_service.checks]]
+  grace_period = "90s"  # Rails + Ember need time to start
+  interval = "30s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"  # Our new health endpoint that returns {"active":true}
+
+[http_service.concurrency]
+  type = "requests"
+  hard_limit = 100
+  soft_limit = 50
+
+# Machine resources
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Note: Database connection via DATABASE_URL secret
+# Set with: flyctl secrets set DATABASE_URL=postgres://...
