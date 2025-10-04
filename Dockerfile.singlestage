@@ -1,0 +1,69 @@
+# LingoLinq-AAC Single-Stage Dockerfile
+# Solution 3: Eliminates bundler version mismatch by using single environment throughout
+
+FROM ruby:3.2.8-slim
+
+# Set environment variables for consistent behavior
+ENV LANG C.UTF-8
+ENV RAILS_ENV=production \
+    RACK_ENV=production \
+    NODE_ENV=production
+
+WORKDIR /app
+
+# Install essential system dependencies + Node.js 18.x
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libyaml-dev \
+    git \
+    curl \
+    postgresql-client \
+    imagemagick \
+    ghostscript \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install bundler 2.7.1 (consistent version throughout)
+RUN gem install bundler:2.7.1
+
+# Copy Gemfiles and add the correct platform to the lockfile
+COPY Gemfile Gemfile.lock ./
+RUN bundle lock --add-platform x86_64-linux
+
+# Install gems in production environment
+RUN bundle config set --local without 'development test' && \
+    DISABLE_OBF_GEM=true bundle install --jobs $(nproc) --retry 3
+
+# Copy package.json and install frontend build tools (including devDependencies for ember-cli)
+# Temporarily override NODE_ENV to ensure devDependencies are installed
+COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
+RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
+
+# Copy the rest of the application code
+COPY . .
+
+
+
+# Build the Ember frontend
+# Install bower dependencies and build from app root
+RUN cd app/frontend && \
+    npx bower install --allow-root --config.interactive=false && \
+    ./node_modules/.bin/ember build --environment=production
+
+# Precompile Rails assets in the same environment where gems are installed
+RUN DISABLE_OBF_GEM=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
+
+# Set up the entrypoint
+COPY bin/render-start.sh ./bin/render-start.sh
+RUN chmod +x ./bin/render-start.sh
+
+# Expose port
+EXPOSE 3000
+
+# Healthcheck to ensure the application is running
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/api/v1/status/heartbeat || curl -f http://localhost:3000/health || exit 1
+
+CMD ["./bin/render-start.sh"]
