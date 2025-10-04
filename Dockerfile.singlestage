@@ -4,10 +4,11 @@
 FROM ruby:3.2.8-slim
 
 # Set environment variables for consistent behavior
-ENV LANG C.UTF-8
-ENV RAILS_ENV=production \
+ENV LANG=C.UTF-8 \
+    RAILS_ENV=production \
     RACK_ENV=production \
-    NODE_ENV=production
+    NODE_ENV=production \
+    BUNDLER_VERSION=2.7.1
 
 WORKDIR /app
 
