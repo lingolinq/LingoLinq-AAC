@@ -6,7 +6,7 @@ primary_region = "ord"
 
 [build]
   # Use single-stage Dockerfile to eliminate bundler version mismatch
-  dockerfile = "Dockerfile.singlestage"
+  dockerfile = "Dockerfile"
 
 [env]
   # Rails environment

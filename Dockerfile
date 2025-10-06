@@ -40,18 +40,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #------------------------------------------------------------------------------
 FROM base as build
 
-# Install bundler
-RUN gem install bundler:2.7.1
+# Install bundler 2.5.6 (2.7.1 has platform resolution bugs)
+RUN gem install bundler:2.5.6
+
+# Force platform-specific gems to avoid multi-platform lockfile issues
+ENV BUNDLE_FORCE_RUBY_PLATFORM=false
 
 # Copy Gemfiles and install gems
 COPY Gemfile Gemfile.lock ./
 RUN bundle config set --global without 'development test' && \
-    bundle install --jobs $(nproc) --retry 3
+    DISABLE_OBF_GEM=true bundle install --jobs $(nproc) --retry 3
 
-# Copy package.json and install frontend build tools
+# Copy package.json and install frontend build tools (including devDependencies for ember-cli)
 # Note: We copy the package.json from the frontend directory specifically.
 COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
-RUN cd app/frontend && npm install --legacy-peer-deps
+RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
 
 # Copy the rest of the application code
 COPY . .

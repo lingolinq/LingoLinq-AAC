@@ -9,6 +9,18 @@ echo "🚫 OBF gem disabled (removed from application)"
 # Keep obf gem disabled for runtime
 export DISABLE_OBF_GEM=true
 
+# Unset bundler-specific variables per official Docker guide
+# https://bundler.io/guides/bundler_docker_guide.html
+echo "🔧 Unsetting BUNDLE_PATH and BUNDLE_BIN for Docker compatibility..."
+unset BUNDLE_PATH
+unset BUNDLE_BIN
+
+# CRITICAL FIX: Force platform-specific gems only (prevent 'ruby' platform fallback)
+# Without this, Bundler tries to resolve BOTH 'ruby' and 'x86_64-linux' platforms
+# pg gem doesn't have a universal 'ruby' version, causing resolution to fail
+echo "🔧 Setting BUNDLE_FORCE_RUBY_PLATFORM=false to use Linux-native gems..."
+export BUNDLE_FORCE_RUBY_PLATFORM=false
+
 # Skip database check - the database may not be migrated yet
 echo "⏳ Skipping database check, will run migrations..."
 
@@ -21,7 +33,7 @@ else
   echo "📁 Assets already exist, skipping compilation"
 fi
 
-# Run database migrations
+# Run database migrations (db:create not needed on Fly.io - DB already exists)
 echo "🔄 Running database migrations..."
 bundle exec rails db:migrate
 
