@@ -66,6 +66,14 @@ RUN cd app/frontend && \
     ./node_modules/.bin/ember build --environment=production
 
 # Precompile Rails assets
+# Set dummy environment variables required during asset compilation
+ENV DISABLE_OBF_GEM=true \
+    MAX_ENCRYPTION_SIZE=25000000 \
+    MAX_FILE_SIZE=25000000 \
+    SECURE_ENCRYPTION_KEY=dummy_key_for_build_at_least_24_chars \
+    SECURE_NONCE_KEY=dummy_nonce_for_build_at_least_24_chars \
+    COOKIE_KEY=dummy_cookie_key_for_build
+
 RUN SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
 
 #------------------------------------------------------------------------------

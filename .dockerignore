@@ -24,8 +24,11 @@ public/assets/
 app/frontend/dist/
 
 # Environment files
+.env
 .env.local
 .env.*.local
+reset_db_password.sh
+reset_password.sql
 
 # Development files
 .vscode/

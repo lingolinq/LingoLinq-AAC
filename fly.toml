@@ -26,6 +26,7 @@ primary_region = "ord"
   DEFAULT_EMAIL_FROM = "noreply@lingolinq.com"
   SYSTEM_ERROR_EMAIL = "errors@lingolinq.com"
   NEW_REGISTRATION_EMAIL = "registrations@lingolinq.com"
+  MAX_FILE_SIZE = "25000000"  # 25MB max upload size
 
   # Node environment
   NODE_ENV = "production"
