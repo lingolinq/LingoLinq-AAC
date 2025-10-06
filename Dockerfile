@@ -57,6 +57,7 @@ COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
 RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
 
 # Copy the rest of the application code
+# CACHE_BUST: Oct 6 2025 - Force rebuild to pick up conditional Redis initializer
 COPY . .
 
 # Build the Ember frontend
