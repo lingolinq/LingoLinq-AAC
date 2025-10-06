@@ -21,6 +21,7 @@ module Permissions
 
   def self.setex(redis, key, timeout, value, required=false)
     return false if ENV['STOP_CACHING']
+    return false unless redis  # Skip caching if Redis not available
     begin
       redis.setex(key, timeout, value)
     rescue Redis::CommandError => e
