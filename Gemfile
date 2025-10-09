@@ -3,27 +3,31 @@ source 'https://rubygems.org'
 # TODO: https://rails-assets.org/ for bower support
 
 group :development, :test do
+  gem 'solargraph'
+  gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
   gem 'brakeman', require: false
   gem 'bundler-audit', '>= 0.9.1'
-  gem 'dotenv'
   gem 'guard'
   gem 'guard-rspec'
   gem 'rspec-rails'
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
-  gem 'sqlite3', '~> 1.4'
+  # sqlite3 removed - production uses PostgreSQL only
+  # Install locally if needed: gem install sqlite3
   gem 'mutex_m'
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
   gem 'tzinfo-data' # Required for Windows
+  gem 'ruby-lsp', require: false
 end
 
 # Matrix gem removed - was only needed for obf gem which is now disabled
 
 gem 'concurrent-ruby', '1.3.4'
+gem 'dotenv' # Moved from dev/test - required by config/application.rb
 
 # Rails 5.2 doesn't seem to work on heroku with octopus :-/
 gem 'rails', '~> 6.1.7' # Allow security patches - TODO: upgrade to 8.0+
@@ -55,7 +59,7 @@ gem 's3'
 gem 'bugsnag'
 gem 'stripe'
 gem 'rack-attack'
-gem 'newrelic_rpm'
+# gem 'newrelic_rpm' # Removed - not needed for LingoLinq
 gem 'rack-timeout'
 gem 'pg_search'
 gem 'silencer'

@@ -1,5 +1,5 @@
 class Api::UsersController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  # extend ::NewRelic::Agent::MethodTracer # Removed - NewRelic not needed
 
   before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
   def show

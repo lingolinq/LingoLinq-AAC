@@ -1,5 +1,5 @@
 class Api::BoardsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  # extend ::NewRelic::Agent::MethodTracer # Removed - NewRelic not needed
   before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download]
 
   def index

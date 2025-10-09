@@ -27,30 +27,36 @@ primary_region = "ord"
   SYSTEM_ERROR_EMAIL = "errors@lingolinq.com"
   NEW_REGISTRATION_EMAIL = "registrations@lingolinq.com"
   MAX_FILE_SIZE = "25000000"  # 25MB max upload size
+  NEW_RELIC_AGENT_ENABLED = "false"
 
   # Node environment
   NODE_ENV = "production"
 
-[http_service]
+[[services]]
+  protocol = "tcp"
   internal_port = 3000
-  force_https = true
-  auto_stop_machines = false
-  auto_start_machines = true
-  min_machines_running = 1
   processes = ["app"]
 
-# Health check using our new /health endpoint
-[[http_service.checks]]
-  grace_period = "90s"  # Rails + Ember need time to start
-  interval = "30s"
-  method = "GET"
-  timeout = "10s"
-  path = "/health"  # Our new health endpoint that returns {"active":true}
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 100
+    soft_limit = 50
 
-[http_service.concurrency]
-  type = "requests"
-  hard_limit = 100
-  soft_limit = 50
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+    
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.http_checks]]
+    grace_period = "90s"
+    interval = "30s"
+    method = "GET"
+    timeout = "10s"
+    path = "/health"
 
 # Machine resources
 [[vm]]

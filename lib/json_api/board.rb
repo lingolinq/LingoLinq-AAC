@@ -1,5 +1,5 @@
 module JsonApi::Board
-  extend ::NewRelic::Agent::MethodTracer
+  # extend ::NewRelic::Agent::MethodTracer # Removed - NewRelic not needed
   extend JsonApi::Json
   
   TYPE_KEY = 'board'
