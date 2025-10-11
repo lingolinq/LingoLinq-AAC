@@ -69,6 +69,14 @@ RUN DISABLE_OBF_GEM=true \
     RAILS_ENV=production \
     bundle exec rake assets:precompile
 
+# DIAGNOSTIC: List generated assets to verify fingerprinting
+RUN echo "=== Generated Assets in /app/public/assets ===" && \
+    ls -lah /app/public/assets/ && \
+    echo "=== application.js files ===" && \
+    ls -lah /app/public/assets/application*.js 2>/dev/null || echo "No application.js files found" && \
+    echo "=== application.css files ===" && \
+    ls -lah /app/public/assets/application*.css 2>/dev/null || echo "No application.css files found"
+
 # Set up the entrypoint
 COPY bin/render-start.sh ./bin/render-start.sh
 RUN chmod +x ./bin/render-start.sh

@@ -66,6 +66,32 @@
   <link href="https://www.mycoughdrop.com/icons/logo-152.png" rel="apple-touch-icon" sizes="152x152" />
 </head>
 <body class="<%= 'pretty_loader' if pretty_loader %>">
+  <noscript>
+    <div style="padding: 1em; background: #fee; color: #900;">
+      JavaScript is disabled or failed to load. Please check your browser settings.
+    </div>
+  </noscript>
+
+  <div id="app-status" style="padding: 1em; background: #fff3cd; color: #856404;">
+    Loading LingoLinq AAC…
+  </div>
+
+  <script>
+    // Fallback timeout if application.js fails silently
+    setTimeout(() => {
+      const status = document.getElementById('app-status');
+      // Check for a global object that the app should have created.
+      // SweetSuite is the legacy name, LingoLinqAAC is the new one. Check both for safety.
+      if (status && !window.SweetSuite && !window.LingoLinqAAC) {
+        status.innerText = "⚠️ Failed to load core application. Please refresh or contact support.";
+        status.style.background = "#f8d7da";
+        status.style.color = "#721c24";
+      } else if (status) {
+        // If the app loaded, hide the status message
+        status.style.display = 'none';
+      }
+    }, 5000); // 5-second timeout
+  </script>
 <% if @meta_record && crawler? %>
   <div id="meta_header">
     <h1><%= @meta_record.title %></h1>
