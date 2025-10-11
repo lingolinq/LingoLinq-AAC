@@ -145,6 +145,13 @@ var deferredLingoLinqAACSetup = function() {
   LingoLinqAAC.track_error = fullTrackError;
   LingoLinqAAC.track_error = fullTrackError;
 
+  // JavaScript Compatibility Bridge
+  // Ensure SweetSuite namespace exists for legacy code compatibility
+  if (typeof window.SweetSuite === 'undefined') {
+    window.SweetSuite = {};
+  }
+  window.SweetSuite.track_error = LingoLinqAAC.track_error;
+
   // Move additional LingoLinqAAC properties here as well
   LingoLinqAAC.boxPad = 17;
   LingoLinqAAC.borderPad = 5;
