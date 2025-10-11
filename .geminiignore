@@ -65,3 +65,12 @@ mcp-debug-*.log
 !.env.example
 !.env.docker.example
 config/master.key
+
+# Large Documentation Files (use GEMINI_START_HERE.md instead)
+COMPLETE_DEPLOYMENT_DIAGNOSTICS_OCT6.md
+DEBUGGING_LOG.md
+NEXT_SESSION_CLAUDE_CODE_PROMPT.md
+NEXT_SESSION_PROMPT_OCT6.md
+REPO_CLEANUP_COMPLETION.md
+SESSION_OCT6_DATABASE_FIX.md
+DEPLOYMENT_SUCCESS.md

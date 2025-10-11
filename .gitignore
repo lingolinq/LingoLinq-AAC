@@ -91,3 +91,73 @@ launcher.ps1
 *.tmp
 *~
 /config/master.key
+
+# Temporary debug logs
+*.log
+docker-build*.log
+fly-deploy*.log
+
+# Session handoff files (document elsewhere if needed)
+DEBUGGING_LOG.md
+HELP_REQUEST.md
+NEXT_SESSION_PROMPT.md
+SESSION_HANDOFF.md
+
+# IDE settings (local only)
+.vscode/
+.claude/settings.local.json
+
+# Gem binstubs (auto-generated)
+bin/_guard-core
+bin/aws_sqs_active_job
+bin/brakeman
+bin/bundle-audit
+bin/bundler-audit
+bin/coderay
+bin/dotenv
+bin/erb
+bin/guard
+bin/htmldiff
+bin/irb
+bin/jmespath.rb
+bin/kramdown
+bin/ldiff
+bin/listen
+bin/newrelic
+bin/newrelic_rpm
+bin/nokogiri
+bin/nrdebug
+bin/pry
+bin/puma
+bin/pumactl
+bin/racc
+bin/rackup
+bin/rbs
+bin/rdoc
+bin/resque
+bin/resque-web
+bin/reverse_markdown
+bin/ri
+bin/rotp
+bin/rspec
+bin/rubocop
+bin/ruby-parse
+bin/ruby-rewrite
+bin/sdoc
+bin/sdoc-merge
+bin/solargraph
+bin/sprockets
+bin/stripe-console
+bin/thor
+bin/tilt
+bin/yard
+bin/yardoc
+bin/yri
+
+# AI tools directory (keep .ai/docs only)
+.ai/archive/
+.ai/GEMINI_HANDOFF.md
+.ai/SETUP_SUMMARY.md
+
+# Development tools
+tools/
