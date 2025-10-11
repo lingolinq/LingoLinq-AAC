@@ -1,20 +1,45 @@
 #!/bin/sh
-# nvm use 14.15
+set -e  # Exit on error
+
+echo "==> Starting deployment preparation..."
+
+# Copy terms and legal templates
+echo "==> Copying terms and legal templates..."
 rake extras:copy_terms
 git add app/frontend/app/templates/terms.hbs
 git add app/frontend/app/templates/privacy.hbs
 git add app/frontend/app/templates/jobs.hbs
 
+# Generate version ID
+echo "==> Generating version ID..."
 version_id=`rake extras:version`
+echo "    Version: $version_id"
 git add app/assets/javascripts/application-preload.js
 
+# Build Ember frontend
+echo "==> Building Ember frontend (production)..."
 cd ./app/frontend
 ember build --environment=production
 cd ../..
+
+# Clean and precompile Rails assets
+echo "==> Cleaning old Rails assets..."
 rake assets:clean RAILS_ENV=production
-rm public/assets/*
-rake assets:precompile RAILS_ENV=production
+rm -f public/assets/*
+
+echo "==> Precompiling Rails assets..."
+DISABLE_OBF_GEM=true rake assets:precompile RAILS_ENV=production
+
+# Stage compiled assets
+echo "==> Staging compiled assets..."
 git add app/frontend/dist/.
 git add public/assets/. --all
+
+# Commit and tag
+echo "==> Creating deployment commit..."
 git commit -m "deployment compilation for $version_id"
 git tag $version_id
+
+echo "==> Deployment preparation complete!"
+echo "    Version: $version_id"
+echo "    Tag: $version_id"
