@@ -9,7 +9,8 @@
     "report": "npx playwright show-report"
   },
   "dependencies": {
-    "playwright": "^1.55.1"
+    "playwright": "^1.55.1",
+    "puppeteer": "^24.23.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1"
