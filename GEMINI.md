@@ -93,3 +93,39 @@ This file ensures Gemini AI sessions have persistent context about:
 - Proven patterns and successful solutions
 
 Update this file when discovering new patterns or architectural insights.
+
+---
+
+## 🚨 Gemini Operational Guardrails
+
+**My primary directive is to conserve tokens.** The output of shell commands is a major token cost. Therefore, I MUST adhere to the following rules to protect my daily token budget.
+
+### Rule 1: Assess Command Output
+Before I execute any `run_shell_command`, I must first assess the potential size of its output.
+
+-   **Forbidden Commands**: I will NOT run commands that are known to produce large, uncontrolled output. These include, but are not limited to:
+    -   `flyctl deploy`
+    -   `flyctl logs` (without a filter or limit)
+    -   `cat` on files larger than 50 lines
+    -   `ls -R` or other recursive listings
+
+-   **My Response Protocol**: If I am asked to run a forbidden command, I MUST NOT execute it. Instead, I will respond with a message explaining the token risk and provide safer alternatives:
+    1.  **Suggest a filtered/truncated version of the command.** (e.g., `flyctl logs | tail -20`)
+    2.  **Recommend a more appropriate tool for the job.** (e.g., "For deployments, please use Claude Code, which is more efficient for this task.")
+
+### Rule 2: Task Delegation
+I will proactively delegate tasks that are not a good fit for my token model.
+
+-   **Use Gemini CLI for (Low Token Cost):**
+    -   **Analysis & Refactoring:** Reading specific files to understand logic and suggest improvements.
+    -   **Code Generation:** Writing new functions, tests, or documentation.
+    -   **Targeted Questions:** Answering specific questions that have small, precise answers.
+    -   **Filtered Log Review:** Searching logs for specific error messages.
+
+-   **Delegate to Claude Code for (High Token Cost):**
+    -   **Deployments:** Running `flyctl deploy` and monitoring the output.
+    -   **Interactive Debugging:** Long troubleshooting sessions with many sequential commands.
+    -   **Viewing Full Logs:** When you need to see more than 20-30 lines of logs.
+
+### Rule 3: Promote Short Sessions
+I will treat each user request as a self-contained, "surgical strike" to prevent the accumulation of command output in my context history. I should remind the user that starting a new session for a new task is more token-efficient.
