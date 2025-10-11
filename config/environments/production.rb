@@ -28,8 +28,8 @@ Coughdrop::Application.configure do
   config.assets.js_compressor = :uglifier
   config.assets.css_compressor = :sass
 
-  # Enable asset compilation in production for Docker deployment
-  config.assets.compile = true
+  # Disable asset compilation in production; assets are precompiled in Docker.
+  config.assets.compile = false
   
   class NoCompression
     def compress(string)
@@ -50,7 +50,8 @@ Coughdrop::Application.configure do
   # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for nginx
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = ENV['RAILS_FORCE_SSL'] != 'false'
+  # config.force_ssl = ENV['RAILS_FORCE_SSL'] != 'false'
+  config.force_ssl = false
 
   # Set to :debug to see everything in the log.
   config.log_level = :info

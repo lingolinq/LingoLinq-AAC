@@ -25,13 +25,13 @@ export BUNDLE_FORCE_RUBY_PLATFORM=false
 echo "⏳ Skipping database check, will run migrations..."
 
 # Compile assets at runtime if they don't exist
-if [ ! -d "public/assets" ] || [ -z "$(ls -A public/assets 2>/dev/null)" ]; then
-  echo "🎨 Compiling assets at runtime..."
-  RAILS_ENV=production bundle exec rake assets:precompile
-  echo "✅ Assets compiled successfully"
-else
-  echo "📁 Assets already exist, skipping compilation"
-fi
+# if [ ! -d "public/assets" ] || [ -z "$(ls -A public/assets 2>/dev/null)" ]; then
+#   echo "🎨 Compiling assets at runtime..."
+#   RAILS_ENV=production bundle exec rake assets:precompile
+#   echo "✅ Assets compiled successfully"
+# else
+#   echo "📁 Assets already exist, skipping compilation"
+# fi
 
 # Run database migrations (db:create not needed on Fly.io - DB already exists)
 echo "🔄 Running database migrations..."
