@@ -8,12 +8,12 @@ services:
   app:
     build:
       context: .
-      # No dockerfile specified, so it defaults to ./Dockerfile
+      dockerfile: Dockerfile.singlestage
     ports:
       - "3000:3000"
     environment:
-      # --- Rails Settings ---
-      - RAILS_ENV=development
+      # --- Rails Settings (aligned with production) ---
+      - RAILS_ENV=production
       - RAILS_LOG_TO_STDOUT=true
       - DATABASE_URL=postgresql://postgres:password@db:5432/lingolinq_development
       - REDIS_URL=redis://redis:6379/0
@@ -28,12 +28,10 @@ services:
       - DEFAULT_EMAIL_FROM=lingolinq@example.com
       - SYSTEM_ERROR_EMAIL=errors@example.com
       - NEW_REGISTRATION_EMAIL=registrations@example.com
+      - RAILS_FORCE_SSL='false'
     depends_on:
       - db
       - redis
-    # The default command is specified in the Dockerfile.
-    # For development, we can override it to just start the server.
-    command: bundle exec rails server -b 0.0.0.0 -p 3000
     volumes:
       # Mount the application code for live reloading
       - .:/app

@@ -4,12 +4,16 @@
 FROM ruby:3.2.8-slim
 
 # Set environment variables for consistent behavior
+# Official Bundler Docker guide: https://bundler.io/guides/bundler_docker_guide.html
 ENV LANG=C.UTF-8 \
     RAILS_ENV=production \
     RACK_ENV=production \
     NODE_ENV=production \
-    BUNDLER_VERSION=2.7.1 \
-    BUNDLE_WITHOUT=development:test
+    BUNDLER_VERSION=2.5.6 \
+    BUNDLE_WITHOUT=development:test \
+    BUNDLE_FORCE_RUBY_PLATFORM=false \
+    GEM_HOME=/usr/local/bundle \
+    PATH=/usr/local/bundle/bin:/usr/local/bundle/gems/bin:$PATH
 
 WORKDIR /app
 
@@ -27,19 +31,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install bundler 2.7.1 (consistent version throughout)
-# Remove default bundler and ensure only 2.7.1 is available
-RUN gem uninstall bundler -x -a -I && gem install bundler:2.7.1
+# Install bundler 2.5.6 (stable version - 2.7.1 has runtime resolution bugs)
+RUN gem install bundler:2.5.6
 
-# Copy Gemfiles and add the correct platform to the lockfile
+# Copy Gemfiles (lockfile will be generated cleanly in Linux environment)
 COPY Gemfile Gemfile.lock ./
-RUN bundle lock --add-platform x86_64-linux
 
-# Install gems in production environment with bundler 2.7.1
-# Force use of bundler 2.7.1 by specifying it explicitly
+# Install gems in production environment with bundler 2.5.6
 RUN bundle config set --local without 'development test' && \
-    DISABLE_OBF_GEM=true bundle _2.7.1_ install --jobs $(nproc) --retry 3 && \
-    bundle _2.7.1_ binstubs bundler --force
+    DISABLE_OBF_GEM=true bundle install --jobs $(nproc) --retry 3
 
 # Copy package.json and install frontend build tools (including devDependencies for ember-cli)
 # Temporarily override NODE_ENV to ensure devDependencies are installed
@@ -56,6 +56,10 @@ COPY . .
 RUN cd app/frontend && \
     npx bower install --allow-root --config.interactive=false && \
     ./node_modules/.bin/ember build --environment=production
+
+# Copy Ember build output to public directory for serving
+RUN mkdir -p /app/public && \
+    cp -r /app/app/frontend/dist/* /app/public/
 
 # Precompile Rails assets in the same environment where gems are installed
 RUN DISABLE_OBF_GEM=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
