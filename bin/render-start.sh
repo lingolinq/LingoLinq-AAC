@@ -37,5 +37,5 @@ echo "⏳ Skipping database check, will run migrations..."
 echo "🔄 Running database migrations..."
 bundle exec rails db:migrate
 
-echo "🌟 Starting Rails server on 0.0.0.0:3000..."
-exec bundle exec puma -C config/puma.rb -b '0.0.0.0'
+echo "🌟 Starting Rails server..."
+exec bundle exec puma -C config/puma.rb

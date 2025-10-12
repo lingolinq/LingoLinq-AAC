@@ -4,11 +4,11 @@ threads threads_count, threads_count
 
 preload_app!
 
-rackup  DefaultRackup if defined?(DefaultRackup)
-port        ENV['PORT']     || 3000
+# rackup  DefaultRackup if defined?(DefaultRackup)
+# port        ENV['PORT']     || 3000
 # for intranet testing, comment out port command and use this instead:
-# bind "tcp://0.0.0.0:3000"
-environment ENV['RACK_ENV'] || 'development'
+bind "tcp://0.0.0.0:#{ENV['PORT'] || 3000}"
+# environment ENV['RACK_ENV'] || 'development'
 
 on_worker_boot do
   # Worker specific setup for Rails 4.1+
