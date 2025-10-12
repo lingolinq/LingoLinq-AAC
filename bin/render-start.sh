@@ -34,8 +34,8 @@ echo "⏳ Skipping database check, will run migrations..."
 # fi
 
 # Run database migrations (db:create not needed on Fly.io - DB already exists)
-echo "🔄 SKIPPING database migrations for diagnostics..."
-# bundle exec rails db:migrate
+echo "🔄 Running database migrations with detailed error logging..."
+bundle exec rails db:migrate --trace || { echo '🚨 MIGRATION FAILED' ; exit 1; }
 
 echo "🌟 Starting Rails server..."
 exec bundle exec puma -C config/puma.rb
