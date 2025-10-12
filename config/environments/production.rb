@@ -21,9 +21,9 @@ Coughdrop::Application.configure do
   # For large-scale production use, consider using a caching reverse proxy like nginx, varnish or squid.
   # config.action_dispatch.rack_cache = true
 
-  # Disable Rails static file serving in production - let the web server handle it
-  # This prevents Sprockets from being invoked when serving precompiled assets
-  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'] == 'true'
+  # Enable Rails's static asset server for Docker deployment
+  # Set to true explicitly (not relying on env var) to ensure static files are served
+  config.public_file_server.enabled = ENV.fetch('RAILS_SERVE_STATIC_FILES') { true }
 
   # Set cache headers for static assets (1 year cache for fingerprinted assets)
   config.public_file_server.headers = {
@@ -36,15 +36,14 @@ Coughdrop::Application.configure do
 
   # Disable asset compilation in production; assets are precompiled in Docker.
   config.assets.compile = false
-
-  # DIAGNOSTIC TEST: NoCompression class commented out to test if it's causing asset serving issues
-  # class NoCompression
-  #   def compress(string)
-  #     # do nothing
-  #     string.gsub(/\/\/\# sourceMappingURL/, '//# xsourceMappingURL')
-  #   end
-  # end
-  # config.assets.js_compressor = NoCompression.new
+  
+  class NoCompression
+    def compress(string)
+      # do nothing
+      string.gsub(/\/\/\# sourceMappingURL/, '//# xsourceMappingURL')
+    end
+  end
+  config.assets.js_compressor = NoCompression.new
 
   # Generate digests for assets URLs.
   config.assets.digest = true
