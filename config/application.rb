@@ -24,8 +24,13 @@ module Coughdrop
     # The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
     # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
     # config.i18n.default_locale = :de
-    
+
     config.eager_load_paths += %W(#{config.root}/lib)
 #    config.autoload_paths += %W(#{config.root}/app/mailers/concerns)
+
+    # Fix for asset serving 500 errors: Use Rack::Deflater for dynamic gzip compression
+    # with proper Content-Encoding headers instead of relying on ActionDispatch::Static
+    # to serve pre-gzipped .gz files (which has a bug where it doesn't set the header)
+    config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
   end
 end

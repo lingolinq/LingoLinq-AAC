@@ -22,7 +22,13 @@ Coughdrop::Application.configure do
   # config.action_dispatch.rack_cache = true
 
   # Enable Rails's static asset server for Docker deployment
-  config.public_file_server.enabled = true
+  # Set to true explicitly (not relying on env var) to ensure static files are served
+  config.public_file_server.enabled = ENV.fetch('RAILS_SERVE_STATIC_FILES') { true }
+
+  # Set cache headers for static assets (1 year cache for fingerprinted assets)
+  config.public_file_server.headers = {
+    'Cache-Control' => 'public, max-age=31536000'
+  }
 
   # Compress JavaScripts and CSS.
   config.assets.js_compressor = :uglifier
