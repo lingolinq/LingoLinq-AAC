@@ -62,12 +62,11 @@ RUN mkdir -p /app/app/assets/javascripts && \
     cp /app/app/frontend/dist/assets/vendor.js /app/app/assets/javascripts/
 
 # Precompile Rails assets in the same environment where gems are installed
+# Precompile assets without initializing the full application
 RUN DISABLE_OBF_GEM=true \
     SECRET_KEY_BASE=dummy \
-    SECURE_ENCRYPTION_KEY=dummy_key_for_build_at_least_24_chars \
-    SECURE_NONCE_KEY=dummy_nonce_for_build_at_least_24_chars \
     RAILS_ENV=production \
-    bundle exec rake assets:precompile
+    bundle exec rake assets:precompile --trace
 
 # DIAGNOSTIC: List generated assets to verify fingerprinting
 RUN echo "=== Generated Assets in /app/public/assets ===" && \
