@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# This script runs BEFORE rake assets:precompile during buildpack deployment
+# It ensures the Ember frontend is built before Rails tries to precompile assets
+
+set -e
+
+echo "=====> Running pre-compile hook"
+echo "=====> This runs BEFORE rake assets:precompile"
+
+# Run the full deploy_prep script to build Ember and prepare assets
+echo "=====> Executing bin/deploy_prep"
+bash bin/deploy_prep
+
+echo "=====> Pre-compile hook completed successfully"
+echo "=====> Rails asset precompilation will now run"
+
