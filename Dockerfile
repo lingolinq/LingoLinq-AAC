@@ -12,7 +12,6 @@ ENV LANG=C.UTF-8 \
     BUNDLER_VERSION=2.5.6 \
     BUNDLE_WITHOUT=development:test \
     BUNDLE_FORCE_RUBY_PLATFORM=false \
-    GEM_HOME=/usr/local/bundle \
     PATH=/usr/local/bundle/bin:/usr/local/bundle/gems/bin:$PATH
 
 WORKDIR /app
@@ -33,6 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install bundler 2.5.6 (stable version - 2.7.1 has runtime resolution bugs)
 RUN gem install bundler:2.5.6
+
+# Configure bundler to use a consistent gem path across all environments
+# This creates a persistent .bundle/config that works in build, release, and run phases
+RUN bundle config set --global path '/usr/local/bundle'
 
 # Copy Gemfiles (lockfile will be generated cleanly in Linux environment)
 COPY Gemfile Gemfile.lock ./
@@ -87,4 +90,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/api/v1/status/heartbeat || curl -f http://localhost:3000/health || exit 1
 
-CMD ["./bin/render-start.sh"]
+# Start the Puma web server directly
+# Migrations are handled by Fly.io's release_command in fly.toml
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]

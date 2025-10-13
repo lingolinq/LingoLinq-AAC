@@ -8,6 +8,11 @@ primary_region = "ord"
   # Use single-stage Dockerfile to eliminate bundler version mismatch
   dockerfile = "Dockerfile"
 
+[deploy]
+  # Run database migrations once during deployment, before starting new containers
+  # This ensures migrations complete successfully before the app starts serving traffic
+  release_command = "bundle exec rake db:migrate"
+
 [env]
   # Rails environment
   RAILS_ENV = "production"
@@ -17,9 +22,13 @@ primary_region = "ord"
 
   # Bundle configuration
   BUNDLE_DEPLOYMENT = "false"
-  BUNDLE_PATH = "/usr/local/bundle"
   BUNDLE_FORCE_RUBY_PLATFORM = "false"
   BUNDLE_WITHOUT = "development:test"
+
+  # OBF gem configuration
+  # Critical: This must be set for release_command (migrations) to work
+  # The obf gem is excluded from production but initializers still check for it
+  DISABLE_OBF_GEM = "true"
 
   # App configuration
   DEFAULT_HOST = "lingolinq-aac.fly.dev"
