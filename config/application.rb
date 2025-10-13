@@ -32,5 +32,13 @@ module Coughdrop
     # with proper Content-Encoding headers instead of relying on ActionDispatch::Static
     # to serve pre-gzipped .gz files (which has a bug where it doesn't set the header)
     config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
+    
+    # Disable Sprockets middleware in production to avoid Ruby 3.2 chomp! error
+    # Assets are precompiled during Docker build and served as static files
+    if Rails.env.production?
+      config.assets.configure do |env|
+        env.export_concurrent = false
+      end
+    end
   end
 end

@@ -5,10 +5,12 @@
 # on a value that can be boolean instead of string.
 # We patch the method that processes directives to ensure the value is a string.
 
-# IMPORTANT: This patch must be applied whenever Sprockets is loaded, including production.
-# Even though assets are precompiled, Rails may still use Sprockets to serve them when
-# RAILS_SERVE_STATIC_FILES=true, which is required for containerized deployments.
-if defined?(Sprockets::DirectiveProcessor)
+# DISABLED: Sprockets middleware is not used in production.
+# Assets are precompiled during Docker build and served as static files.
+# This avoids the Ruby 3.2 chomp! error entirely by not invoking Sprockets at runtime.
+
+# Only apply this patch in development/test where Sprockets is actively used
+if !Rails.env.production? && defined?(Sprockets::DirectiveProcessor)
   module SprocketsChompFix
     def call(input)
       # Call the original implementation
@@ -24,7 +26,7 @@ if defined?(Sprockets::DirectiveProcessor)
   end
 
   Sprockets::DirectiveProcessor.prepend(SprocketsChompFix)
-  Rails.logger.info "✅ Sprockets Ruby 3.2 fix applied (prevents chomp! NoMethodError)"
+  Rails.logger.info "✅ Sprockets Ruby 3.2 fix applied for development/test"
 else
-  Rails.logger.info "⏭️  Sprockets not loaded, fix not needed"
+  Rails.logger.info "⏭️  Sprockets middleware disabled in production - serving static assets"
 end
