@@ -5,10 +5,10 @@
 # on a value that can be boolean instead of string.
 # We patch the method that processes directives to ensure the value is a string.
 
-# IMPORTANT: Only apply this patch during asset precompilation, NOT during production runtime.
-# In production, assets are precompiled and served as static files - Sprockets should not be involved.
-# This patch interferes with static asset serving and causes 500 errors.
-if defined?(Sprockets::DirectiveProcessor) && (Rails.env.development? || Rails.env.test? || ENV['RAILS_GROUPS']&.include?('assets'))
+# IMPORTANT: This patch must be applied whenever Sprockets is loaded, including production.
+# Even though assets are precompiled, Rails may still use Sprockets to serve them when
+# RAILS_SERVE_STATIC_FILES=true, which is required for containerized deployments.
+if defined?(Sprockets::DirectiveProcessor)
   module SprocketsChompFix
     def call(input)
       # Call the original implementation
@@ -24,7 +24,7 @@ if defined?(Sprockets::DirectiveProcessor) && (Rails.env.development? || Rails.e
   end
 
   Sprockets::DirectiveProcessor.prepend(SprocketsChompFix)
-  Rails.logger.info "✅ Sprockets Ruby 3.2 fix applied for asset precompilation"
+  Rails.logger.info "✅ Sprockets Ruby 3.2 fix applied (prevents chomp! NoMethodError)"
 else
-  Rails.logger.info "⏭️  Sprockets Ruby 3.2 fix skipped (production runtime - using precompiled assets)"
+  Rails.logger.info "⏭️  Sprockets not loaded, fix not needed"
 end
