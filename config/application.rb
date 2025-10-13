@@ -32,19 +32,5 @@ module Coughdrop
     # with proper Content-Encoding headers instead of relying on ActionDispatch::Static
     # to serve pre-gzipped .gz files (which has a bug where it doesn't set the header)
     config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
-    
-    # CRITICAL FIX: Remove Sprockets middleware entirely in production to avoid Ruby 3.2 chomp! error
-    # Assets are precompiled during Docker build and served as static files by ActionDispatch::Static
-    # We must explicitly delete Sprockets::Rails::QuietAssets which is auto-loaded by sprockets-rails gem
-    if Rails.env.production?
-      config.after_initialize do
-        Rails.application.config.middleware.delete(Sprockets::Rails::QuietAssets) if defined?(Sprockets::Rails::QuietAssets)
-        Rails.application.config.middleware.delete(ActionDispatch::Static) if defined?(ActionDispatch::Static)
-        
-        # Re-add ActionDispatch::Static without Sprockets
-        Rails.application.config.middleware.use ActionDispatch::Static, Rails.public_path,
-          headers: { 'Cache-Control' => 'public, max-age=31536000' }
-      end
-    end
   end
 end
