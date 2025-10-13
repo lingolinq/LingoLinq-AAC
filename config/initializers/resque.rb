@@ -1,6 +1,37 @@
 # Check if Redis is available before initializing
 # This allows the app to start without Redis for initial deployment
 # Background jobs will be disabled until Redis is configured
+
+# Skip Redis initialization during asset precompilation (buildpack build phase)
+if ENV['RAILS_ENV'] == 'production' && (ENV['ASSETS_PRECOMPILE'] == 'true' || ARGV.join(' ').include?('assets:precompile'))
+  Rails.logger.info "⏭️  Skipping Redis initialization during asset precompilation"
+  
+  # Define stub module to prevent method errors
+  module RedisInit
+    def self.default
+      nil
+    end
+
+    def self.permissions
+      nil
+    end
+
+    def self.redis_uri
+      nil
+    end
+
+    def self.memory
+      nil
+    end
+    
+    def self.cache_token
+      'build'
+    end
+  end
+  
+  return
+end
+
 if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present? || ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS']
   module RedisInit
     cattr_accessor :cache_token
@@ -183,3 +214,4 @@ else
     end
   end
 end
+
