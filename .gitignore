@@ -161,3 +161,4 @@ bin/yri
 
 # Development tools
 tools/
+".claude/settings.local.json" 

@@ -71,13 +71,22 @@ RUN DISABLE_OBF_GEM=true \
     RAILS_ENV=production \
     bundle exec rake assets:precompile --trace
 
+# Copy Ember build output to public directory for serving
+# Rails serves static files from public/, not from the Ember dist directory
+# This is critical for Ember app to load properly
+RUN mkdir -p /app/public && \
+    cp -r /app/app/frontend/dist/* /app/public/
+
 # DIAGNOSTIC: List generated assets to verify fingerprinting
 RUN echo "=== Generated Assets in /app/public/assets ===" && \
     ls -lah /app/public/assets/ && \
     echo "=== application.js files ===" && \
     ls -lah /app/public/assets/application*.js 2>/dev/null || echo "No application.js files found" && \
     echo "=== application.css files ===" && \
-    ls -lah /app/public/assets/application*.css 2>/dev/null || echo "No application.css files found"
+    ls -lah /app/public/assets/application*.css 2>/dev/null || echo "No application.css files found" && \
+    echo "=== Ember frontend files ===" && \
+    ls -lah /app/public/assets/frontend*.js 2>/dev/null || echo "No frontend.js found" && \
+    ls -lah /app/public/assets/vendor*.js 2>/dev/null || echo "No vendor.js found"
 
 # Set up the entrypoint
 COPY bin/render-start.sh ./bin/render-start.sh

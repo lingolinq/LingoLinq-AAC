@@ -1,12 +1,11 @@
 # LingoLinq AAC - Fly.io Deployment Configuration
-# Uses canonical Dockerfile with health check fixes
+# Uses Fly.io buildpacks with health check fixes
 
 app = "lingolinq-aac"
 primary_region = "ord"
 
 [build]
-  # Use single-stage Dockerfile to eliminate bundler version mismatch
-  dockerfile = "Dockerfile"
+  builder = "heroku/buildpacks:20"
 
 [deploy]
   # Run database migrations once during deployment, before starting new containers
