@@ -3,6 +3,13 @@ set -e
 
 echo "🚀 Starting LingoLinq AAC..."
 
+# Display environment information
+echo "🔍 Environment Information:"
+echo "  RAILS_ENV: ${RAILS_ENV}"
+echo "  PORT: ${PORT}"
+echo "  Binding to: 0.0.0.0:${PORT:-3000}"
+echo ""
+
 # Verify bundle configuration
 echo "🔍 Verifying bundle configuration..."
 bundle config list

@@ -20,6 +20,10 @@ primary_region = "ord"
   RAILS_SERVE_STATIC_FILES = "true"
   RAILS_LOG_TO_STDOUT = "true"
 
+  # Explicitly set PORT to match internal_port
+  # This ensures Puma binds to the correct port that Fly.io expects
+  PORT = "3000"
+
   # Bundle configuration
   BUNDLE_DEPLOYMENT = "false"
   BUNDLE_FORCE_RUBY_PLATFORM = "false"
@@ -61,11 +65,16 @@ primary_region = "ord"
     port = 443
 
   [[services.http_checks]]
-    grace_period = "90s"
+    grace_period = "120s"
     interval = "30s"
     method = "GET"
     timeout = "10s"
     path = "/health"
+    
+  [[services.tcp_checks]]
+    grace_period = "30s"
+    interval = "15s"
+    timeout = "5s"
 
 # Machine resources
 [[vm]]

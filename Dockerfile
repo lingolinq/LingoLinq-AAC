@@ -79,9 +79,9 @@ RUN echo "=== Generated Assets in /app/public/assets ===" && \
     echo "=== application.css files ===" && \
     ls -lah /app/public/assets/application*.css 2>/dev/null || echo "No application.css files found"
 
-# Set up the entrypoint
-COPY bin/render-start.sh ./bin/render-start.sh
-RUN chmod +x ./bin/render-start.sh
+# Set up the startup scripts
+COPY bin/docker-start.sh ./bin/docker-start.sh
+RUN chmod +x ./bin/docker-start.sh
 
 # Expose port
 EXPOSE 3000
@@ -90,6 +90,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/api/v1/status/heartbeat || curl -f http://localhost:3000/health || exit 1
 
-# Start the Puma web server directly
+# Start the application using the diagnostic startup script
 # Migrations are handled by Fly.io's release_command in fly.toml
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+# The startup script provides environment diagnostics and ensures proper binding
+CMD ["./bin/docker-start.sh"]
