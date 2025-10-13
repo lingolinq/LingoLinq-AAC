@@ -52,20 +52,49 @@ RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
 # Copy the rest of the application code
 COPY . .
 
-# Build the Ember frontend
-# Install bower dependencies and build from app root
+# ============================================================================
+# ASSET COMPILATION: Match bin/deploy_prep exactly
+# ============================================================================
+# The traditional deployment uses bin/deploy_prep which runs these steps:
+# 1. rake extras:copy_terms - Copy legal templates from ERB to Ember HBS
+# 2. rake extras:version - Generate version ID in application-preload.js
+# 3. ember build - Build Ember frontend
+# 4. rake assets:clean - Clean old Rails assets
+# 5. rake assets:precompile - Precompile Rails assets
+#
+# These steps MUST happen in this exact order for CSS and JS to work correctly.
+# ============================================================================
+
+# Step 1: Copy terms and legal templates from ERB to Ember HBS
+RUN echo "==> Copying terms and legal templates..."
+RUN DISABLE_OBF_GEM=true bundle exec rake extras:copy_terms
+
+# Step 2: Generate version ID and update application-preload.js
+RUN echo "==> Generating version ID..."
+RUN DISABLE_OBF_GEM=true bundle exec rake extras:version
+
+# Step 3: Build the Ember frontend
+RUN echo "==> Building Ember frontend..."
 RUN cd app/frontend && \
     npx bower install --allow-root --config.interactive=false && \
-    ./node_modules/.bin/ember build --environment=production
+    ./node_modules/.bin/ember build --environment=production && \
+    cd ../..
 
-# Copy Ember build output to Rails assets directory instead of using symlinks
-# This approach is more reliable in Docker environments
+# Step 4: Clean old Rails assets (matching deploy_prep)
+RUN echo "==> Cleaning old Rails assets..."
+RUN DISABLE_OBF_GEM=true RAILS_ENV=production bundle exec rake assets:clean || true
+RUN rm -rf /app/public/assets/*
+
+# Step 5: Create symlinks for Ember assets (matching traditional deployment)
+# The Rails asset pipeline expects these symlinks during precompilation
+RUN echo "==> Creating Ember asset symlinks..."
 RUN mkdir -p /app/app/assets/javascripts && \
-    cp /app/app/frontend/dist/assets/frontend.js /app/app/assets/javascripts/ && \
-    cp /app/app/frontend/dist/assets/vendor.js /app/app/assets/javascripts/
+    cd /app/app/assets/javascripts && \
+    ln -sf ../../frontend/dist/assets/frontend.js frontend.js && \
+    ln -sf ../../frontend/dist/assets/vendor.js vendor.js
 
-# Precompile Rails assets in the same environment where gems are installed
-# Precompile assets without initializing the full application
+# Step 6: Precompile Rails assets (matching deploy_prep)
+RUN echo "==> Precompiling Rails assets..."
 RUN DISABLE_OBF_GEM=true \
     SECRET_KEY_BASE=dummy \
     RAILS_ENV=production \
