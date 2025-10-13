@@ -52,20 +52,49 @@ RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
 # Copy the rest of the application code
 COPY . .
 
-# Build the Ember frontend
-# Install bower dependencies and build from app root
+# ============================================================================
+# ASSET COMPILATION: Match bin/deploy_prep exactly
+# ============================================================================
+# The traditional deployment uses bin/deploy_prep which runs these steps:
+# 1. rake extras:copy_terms - Copy legal templates from ERB to Ember HBS
+# 2. rake extras:version - Generate version ID in application-preload.js
+# 3. ember build - Build Ember frontend
+# 4. rake assets:clean - Clean old Rails assets
+# 5. rake assets:precompile - Precompile Rails assets
+#
+# These steps MUST happen in this exact order for CSS and JS to work correctly.
+# ============================================================================
+
+# Step 1: Copy terms and legal templates from ERB to Ember HBS
+# Use standalone script instead of rake task to avoid requiring Rails environment
+RUN chmod +x bin/copy_terms.rb && ruby bin/copy_terms.rb
+
+# Step 2: Generate version ID and update application-preload.js
+# Use standalone script instead of rake task to avoid requiring Rails environment
+RUN chmod +x bin/generate_version.rb && ruby bin/generate_version.rb
+
+# Step 3: Build the Ember frontend
+RUN echo "==> Building Ember frontend..."
 RUN cd app/frontend && \
     npx bower install --allow-root --config.interactive=false && \
-    ./node_modules/.bin/ember build --environment=production
+    ./node_modules/.bin/ember build --environment=production && \
+    cd ../..
 
-# Copy Ember build output to Rails assets directory instead of using symlinks
-# This approach is more reliable in Docker environments
+# Step 4: Clean old Rails assets (matching deploy_prep)
+RUN echo "==> Cleaning old Rails assets..."
+RUN DISABLE_OBF_GEM=true RAILS_ENV=production bundle exec rake assets:clean || true
+RUN rm -rf /app/public/assets/*
+
+# Step 5: Create symlinks for Ember assets (matching traditional deployment)
+# The Rails asset pipeline expects these symlinks during precompilation
+RUN echo "==> Creating Ember asset symlinks..."
 RUN mkdir -p /app/app/assets/javascripts && \
-    cp /app/app/frontend/dist/assets/frontend.js /app/app/assets/javascripts/ && \
-    cp /app/app/frontend/dist/assets/vendor.js /app/app/assets/javascripts/
+    cd /app/app/assets/javascripts && \
+    ln -sf ../../frontend/dist/assets/frontend.js frontend.js && \
+    ln -sf ../../frontend/dist/assets/vendor.js vendor.js
 
-# Precompile Rails assets in the same environment where gems are installed
-# Precompile assets without initializing the full application
+# Step 6: Precompile Rails assets (matching deploy_prep)
+RUN echo "==> Precompiling Rails assets..."
 RUN DISABLE_OBF_GEM=true \
     SECRET_KEY_BASE=dummy \
     RAILS_ENV=production \
@@ -88,9 +117,9 @@ RUN echo "=== Generated Assets in /app/public/assets ===" && \
     ls -lah /app/public/assets/frontend*.js 2>/dev/null || echo "No frontend.js found" && \
     ls -lah /app/public/assets/vendor*.js 2>/dev/null || echo "No vendor.js found"
 
-# Set up the entrypoint
-COPY bin/render-start.sh ./bin/render-start.sh
-RUN chmod +x ./bin/render-start.sh
+# Set up the startup scripts
+COPY bin/docker-start.sh ./bin/docker-start.sh
+RUN chmod +x ./bin/docker-start.sh
 
 # Expose port
 EXPOSE 3000
@@ -99,6 +128,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/api/v1/status/heartbeat || curl -f http://localhost:3000/health || exit 1
 
-# Start the Puma web server directly
+# Start the application using the diagnostic startup script
 # Migrations are handled by Fly.io's release_command in fly.toml
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+# The startup script provides environment diagnostics and ensures proper binding
+CMD ["./bin/docker-start.sh"]

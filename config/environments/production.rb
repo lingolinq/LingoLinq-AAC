@@ -34,7 +34,8 @@ Coughdrop::Application.configure do
   config.assets.js_compressor = :uglifier
   config.assets.css_compressor = :sass
 
-  # Disable asset compilation in production; assets are precompiled in Docker.
+  # Disable asset compilation in production - assets are precompiled during Docker build.
+  # Serve them as static files to avoid Sprockets middleware chomp! error.
   config.assets.compile = false
   
   class NoCompression
