@@ -100,16 +100,4 @@ Coughdrop::Application.configure do
   config.action_mailer.delivery_method = :ses
   
   config.assets.initialize_on_precompile = false
-  
-  # CRITICAL FIX: Remove Sprockets from middleware stack to avoid Ruby 3.2 chomp! error
-  # This must be done after initialization when all middleware is loaded
-  config.after_initialize do |app|
-    # Remove any Sprockets-related middleware
-    app.middleware.delete "Sprockets::Rails::QuietAssets" rescue nil
-    app.middleware.delete "ActionDispatch::Static" rescue nil
-    
-    # Re-add ActionDispatch::Static for serving precompiled assets
-    app.middleware.use ::ActionDispatch::Static, Rails.public_path,
-      headers: { 'Cache-Control' => 'public, max-age=31536000' }
-  end
 end
