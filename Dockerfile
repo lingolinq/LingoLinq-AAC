@@ -66,12 +66,12 @@ COPY . .
 # ============================================================================
 
 # Step 1: Copy terms and legal templates from ERB to Ember HBS
-RUN echo "==> Copying terms and legal templates..."
-RUN DISABLE_OBF_GEM=true bundle exec rake extras:copy_terms
+# Use standalone script instead of rake task to avoid requiring Rails environment
+RUN chmod +x bin/copy_terms.rb && ruby bin/copy_terms.rb
 
 # Step 2: Generate version ID and update application-preload.js
-RUN echo "==> Generating version ID..."
-RUN DISABLE_OBF_GEM=true bundle exec rake extras:version
+# Use standalone script instead of rake task to avoid requiring Rails environment
+RUN chmod +x bin/generate_version.rb && ruby bin/generate_version.rb
 
 # Step 3: Build the Ember frontend
 RUN echo "==> Building Ember frontend..."
