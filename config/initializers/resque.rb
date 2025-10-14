@@ -51,14 +51,26 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
       if !Rails.env.production?
         ns_suffix = "-#{Rails.env}"
       end
-      if defined?(Resque)
-        Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
-        Resque.redis.namespace = "coughdrop#{ns_suffix}"
+      
+      # Wrap Redis connections in begin/rescue to handle connection failures gracefully
+      begin
+        if defined?(Resque)
+          Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 2, :connect_timeout => 2)
+          Resque.redis.namespace = "coughdrop#{ns_suffix}"
+        end
+        @redis_inst = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 5, :connect_timeout => 2)
+        @default = Redis::Namespace.new("coughdrop-stash#{ns_suffix}", :redis => @redis_inst)
+        @permissions = Redis::Namespace.new("coughdrop-permissions#{ns_suffix}", :redis => @redis_inst)
+        self.cache_token = 'abc'
+      rescue Redis::CannotConnectError, Errno::ECONNREFUSED, SocketError => e
+        # Redis connection failed - likely during asset precompilation or initial deployment
+        Rails.logger.warn "⚠️  Redis connection failed: #{e.message}"
+        Rails.logger.warn "   Continuing without Redis (background jobs disabled)"
+        @redis_inst = nil
+        @default = nil
+        @permissions = nil
+        self.cache_token = 'no-redis'
       end
-      @redis_inst = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password, :timeout => 5)
-      @default = Redis::Namespace.new("coughdrop-stash#{ns_suffix}", :redis => @redis_inst)
-      @permissions = Redis::Namespace.new("coughdrop-permissions#{ns_suffix}", :redis => @redis_inst)
-      self.cache_token = 'abc'
     end
 
     def self.memory
@@ -67,6 +79,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.flush_resque_errors
+      return unless @redis_inst
       redis = @redis_inst
       key = 'coughdrop:failed'
       redis.type(key)
@@ -88,6 +101,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.errors
+      return unless @redis_inst
       uri = RedisInit.redis_uri
       redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
       key = 'coughdrop:failed'
@@ -97,6 +111,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.queue_size(queue)
+      return 0 unless defined?(Resque) && Resque.redis
       key = "#{queue}_queue_size"
       size = Resque.redis.get(key)
       if !size
@@ -107,6 +122,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.any_queue_pressure?
+      return false unless defined?(Resque) && Resque.redis
       return @any_queue_pressure['res'] if @any_queue_pressure != nil && @any_queue_pressure['ts'] > 1.minute.ago.to_i
       @any_queue_pressure = {
         'res' => (queue_size('slow') > (ENV['QUEUE_SLOW_BOG'] || 20000)) ||
@@ -118,6 +134,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.queue_pressure?
+      return false unless defined?(Resque) && Resque.redis
       # also true if queue has been half of queue_max for more than 24 hours
       slow_size = queue_size('slow')
       if ENV['QUEUE_MAX'] && slow_size > (ENV['QUEUE_MAX'].to_i / 2)
@@ -134,6 +151,7 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
 
     def self.size_check(verbose=false)
+      return unless @redis_inst
       uri = redis_uri
       redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
       total =  0
@@ -179,13 +197,22 @@ if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS
     end
   end
 
-  RedisInit.init
+  begin
+    RedisInit.init
+    
+    require 'permissable'
+    [ 'read_logs', 'full', 'modeling', 'read_boards', 'read_profile' ].each{|s| Permissable.add_scope(s) }
+    Permissable.set_redis(RedisInit.permissions, RedisInit.cache_token)
 
-  require 'permissable'
-  [ 'read_logs', 'full', 'modeling', 'read_boards', 'read_profile' ].each{|s| Permissable.add_scope(s) }
-  Permissable.set_redis(RedisInit.permissions, RedisInit.cache_token)
-
-  Rails.logger.info "✅ Redis initialized successfully"
+    Rails.logger.info "✅ Redis initialized successfully"
+  rescue Redis::CannotConnectError, Errno::ECONNREFUSED, SocketError => e
+    # Redis connection failed during initialization
+    Rails.logger.warn "=" * 80
+    Rails.logger.warn "⚠️  Redis connection failed during initialization: #{e.message}"
+    Rails.logger.warn "   Continuing without Redis (background jobs disabled)"
+    Rails.logger.warn "   This is expected during asset precompilation"
+    Rails.logger.warn "=" * 80
+  end
 else
   Rails.logger.warn "=" * 80
   Rails.logger.warn "⚠️  REDIS_URL not configured - Redis and Resque disabled"
