@@ -3,9 +3,10 @@
 # Background jobs will be disabled until Redis is configured
 
 # Skip Redis initialization during asset precompilation (buildpack build phase)
-# We detect this by checking for ASSETS_PRECOMPILE flag or missing DATABASE_URL
-if ENV['ASSETS_PRECOMPILE'] == 'true' || (ENV['RAILS_ENV'] == 'production' && ENV['DATABASE_URL'].blank? && !ENV['REDIS_URL'].present?)
-  puts "⏭️  Skipping Redis initialization (asset precompilation phase)"
+# During buildpack build, DATABASE_URL is not yet available
+# This is the most reliable way to detect we're in asset precompilation
+if ENV['DATABASE_URL'].blank?
+  puts "⏭️  Skipping Redis initialization (no DATABASE_URL - likely asset precompilation)"
 
   # Define stub module to prevent method errors
   module RedisInit
