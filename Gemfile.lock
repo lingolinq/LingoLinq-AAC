@@ -207,7 +207,7 @@ GEM
     marcel (1.1.0)
     method_source (1.1.0)
     mini_mime (1.1.5)
-    minitest (5.25.5)
+    minitest (5.26.0)
     mono_logger (1.1.2)
     multi_json (1.17.0)
     mustermann (3.0.4)
@@ -264,7 +264,7 @@ GEM
     puma (7.0.4)
       nio4r (~> 2.0)
     racc (1.8.1)
-    rack (2.2.18)
+    rack (2.2.20)
     rack-attack (6.7.0)
       rack (>= 1.0, < 4)
     rack-offline (0.6.4)
@@ -539,6 +539,7 @@ DEPENDENCIES
   simplecov
   sinatra
   solargraph
+  sprockets-rails (~> 3.5.2)
   stripe
   ttfunk (= 1.7)
   typhoeus
