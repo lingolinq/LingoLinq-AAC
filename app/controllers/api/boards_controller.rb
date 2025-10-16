@@ -32,7 +32,7 @@ class Api::BoardsController < ApplicationController
     other_searchable_board_ids = nil
 
     Rails.logger.warn('checking key')
-    self.class.trace_execution_scoped(['boards/key_check']) do
+    # self.class.trace_execution_scoped(['boards/key_check']) do # NewRelic disabled
       if params['key']
         keys = [params['key']]
         if @api_user
@@ -40,10 +40,10 @@ class Api::BoardsController < ApplicationController
         end
         boards = boards.where(:key => keys).limit(1)
       end
-    end
+    # end # NewRelic disabled
     
     Rails.logger.warn('filtering by user')
-    self.class.trace_execution_scoped(['boards/user_filter']) do
+    # self.class.trace_execution_scoped(['boards/user_filter']) do # NewRelic disabled
       if params['user_id']
         user = User.find_by_path(params['user_id'])
         return unless allowed?(user, 'view_detailed')
@@ -126,11 +126,11 @@ class Api::BoardsController < ApplicationController
       else
         params['public'] = true
       end
-    end
+    # end # NewRelic disabled
     
     Rails.logger.warn('public query')
     ranks = {}
-    self.class.trace_execution_scoped(['boards/public_query']) do
+    # self.class.trace_execution_scoped(['boards/public_query']) do # NewRelic disabled
       if !params['q'].blank? && params['public']
         Rails.logger.warn('public blank lookup')
         q = CGI.unescape(params['q']).downcase
@@ -156,7 +156,7 @@ class Api::BoardsController < ApplicationController
           # ensure
           #   # Always restore the statement_timeout to its initial value
           #   ActiveRecord::Base.connection.execute('set statement_timeout = 10000')
-          # end          
+          # end
         else
           Rails.logger.warn('popularity search')
           locs.search_by_text(q).limit(100).with_pg_search_rank.each do |bl|
@@ -166,7 +166,7 @@ class Api::BoardsController < ApplicationController
         end
         boards = boards.where(id: board_ids)
       end
-    end
+    # end # NewRelic disabled
     if !params['locale'].blank? && params['locale'] != 'any' && (params['q'].blank? || !params['public'])
       if params['public']
         board_ids = []
@@ -194,14 +194,14 @@ class Api::BoardsController < ApplicationController
     end
 
     Rails.logger.warn('public check')
-    self.class.trace_execution_scoped(['boards/public_check']) do
+    # self.class.trace_execution_scoped(['boards/public_check']) do # NewRelic disabled
       if params['public']
         boards = boards.where(:public => true)
       end
-    end
+    # end # NewRelic disabled
 
     Rails.logger.warn('sort board')
-    self.class.trace_execution_scoped(['boards/sort']) do
+    # self.class.trace_execution_scoped(['boards/sort']) do # NewRelic disabled
       if params['sort']
         if params['sort'] == 'popularity'
           boards = boards.order(popularity: :desc, home_popularity: :desc, id: :desc)
@@ -217,7 +217,7 @@ class Api::BoardsController < ApplicationController
       else
         boards = boards.order(popularity: :desc, any_upstream: :asc, id: :desc)
       end
-    end
+    # end # NewRelic disabled
     
     Rails.logger.warn('starred filter')
     if params['exclude_starred']
@@ -231,7 +231,7 @@ class Api::BoardsController < ApplicationController
     end
     
     Rails.logger.warn('category filter')
-    self.class.trace_execution_scoped(['boards/category']) do
+    # self.class.trace_execution_scoped(['boards/category']) do # NewRelic disabled
       if params['category']
         boards = boards.limit(200) if boards.respond_to?(:limit)
         boards = boards[0, 200].select{|b| b.categories.include?(params['category']) }
@@ -243,7 +243,7 @@ class Api::BoardsController < ApplicationController
         end
         boards = boards.limit(100) if boards.respond_to?(:limit)
       end
-    end
+    # end # NewRelic disabled
 
     if params['sort'] && params['sort'] != 'custom_order' && params['locale'] && params['locale'] != 'any'
       # All locale-defined lists should already have been filtered by locale
@@ -259,7 +259,7 @@ class Api::BoardsController < ApplicationController
     # be an issue for search users with very many boards (still problematic, I know)
     Rails.logger.warn('private query')
     progress = nil
-    self.class.trace_execution_scoped(['boards/private_query']) do
+    # self.class.trace_execution_scoped(['boards/private_query']) do # NewRelic disabled
       if params['root']
 #        boards = boards.select{|b| !b.settings['copy_id'] || b.settings['copy_id'] == b.global_id }
         boards = boards.where(['search_string ILIKE ?', "%root%"])
@@ -281,14 +281,14 @@ class Api::BoardsController < ApplicationController
           boards = Board.sort_for_query(limited_boards, params['q'], params['locale'], 0, 25)
         end
       end
-    end
+    # end # NewRelic disabled
     
     json = nil
     Rails.logger.warn('start paginated result')
-    self.class.trace_execution_scoped(['boards/json_paginate']) do
+    # self.class.trace_execution_scoped(['boards/json_paginate']) do # NewRelic disabled
       json = JsonApi::Board.paginate(params, boards, {locale: params['locale'], extra_results: other_boards})
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
-    end
+    # end # NewRelic disabled
     if cache_key
       RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
       json['uncached'] = true
@@ -331,16 +331,16 @@ class Api::BoardsController < ApplicationController
     end
     allowed = false
     Rails.logger.warn('checking permission')
-    self.class.trace_execution_scoped(['boards/board/permission_check']) do
+    # self.class.trace_execution_scoped(['boards/board/permission_check']) do # NewRelic disabled
       allowed = allowed?(board, 'view')
-    end
+    # end # NewRelic disabled
     return unless allowed
     json = {}
     Rails.logger.warn('rendering json')
-    self.class.trace_execution_scoped(['boards/board/json_render']) do
+    # self.class.trace_execution_scoped(['boards/board/json_render']) do # NewRelic disabled
       board.track_usage!
       json = JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user, :skip_subs => true)
-    end
+    # end # NewRelic disabled
     Rails.logger.warn('rails render')
     render json: json.to_json
     Rails.logger.warn('done with controller')
