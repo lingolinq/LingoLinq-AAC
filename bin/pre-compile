@@ -7,10 +7,13 @@ set -e
 echo "=====> Running pre-compile hook"
 echo "=====> This runs BEFORE rake assets:precompile"
 
+# Set flag to skip Redis initialization during asset precompilation
+export ASSETS_PRECOMPILE=true
+
 # Run the full deploy_prep script to build Ember and prepare assets
 echo "=====> Executing bin/deploy_prep"
 bash bin/deploy_prep
 
 echo "=====> Pre-compile hook completed successfully"
-echo "=====> Rails asset precompilation will now run"
+echo "=====> Rails asset precompilation will now run with ASSETS_PRECOMPILE=true"
 
