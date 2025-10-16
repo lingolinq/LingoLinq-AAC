@@ -31,6 +31,6 @@ module Coughdrop
     # Fix for asset serving 500 errors: Use Rack::Deflater for dynamic gzip compression
     # with proper Content-Encoding headers instead of relying on ActionDispatch::Static
     # to serve pre-gzipped .gz files (which has a bug where it doesn't set the header)
-    config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
+    # config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
   end
 end
