@@ -62,7 +62,8 @@ RUN mkdir -p /app/public && \
     cp -r /app/app/frontend/dist/* /app/public/
 
 # Precompile Rails assets in the same environment where gems are installed
-RUN DISABLE_OBF_GEM=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
+# Set ASSETS_PRECOMPILE=true to skip Redis initialization during asset precompilation
+RUN DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
 
 # Set up the entrypoint
 COPY bin/render-start.sh ./bin/render-start.sh
