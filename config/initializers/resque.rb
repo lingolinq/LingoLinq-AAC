@@ -5,15 +5,16 @@
 # Wrap entire initializer in begin/rescue to catch ALL Redis connection errors
 begin
   # Skip Redis initialization during asset precompilation (buildpack build phase)
-  # Check if we're in asset precompilation by looking for the RAILS_GROUPS env var
+  # Check if we're in asset precompilation by looking for ASSETS_PRECOMPILE or RAILS_GROUPS
   # or if REDIS_URL is not set
-  skip_redis = ENV['RAILS_GROUPS'] == 'assets' ||
+  skip_redis = ENV['ASSETS_PRECOMPILE'] == 'true' ||
+                ENV['RAILS_GROUPS'] == 'assets' ||
                 !( ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present() ||
                    ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present() ||
                    ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS'] )
 
   if skip_redis
-    puts "⏭️  Skipping Redis initialization (RAILS_GROUPS: #{ENV['RAILS_GROUPS']}, REDIS_URL: #{ENV['REDIS_URL'].present? ? 'present' : 'missing'})"
+    puts "⏭️  Skipping Redis initialization (ASSETS_PRECOMPILE: #{ENV['ASSETS_PRECOMPILE']}, RAILS_GROUPS: #{ENV['RAILS_GROUPS']}, REDIS_URL: #{ENV['REDIS_URL'].present? ? 'present' : 'missing'})"
 
     # Define stub module to prevent method errors
     module RedisInit
