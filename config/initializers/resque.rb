@@ -3,11 +3,15 @@
 # Background jobs will be disabled until Redis is configured
 
 # Skip Redis initialization during asset precompilation (buildpack build phase)
-# Check if we should skip Redis (no DATABASE_URL or no REDIS_URL)
-skip_redis = ENV['DATABASE_URL'].blank? || !( ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present? || ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS'] )
+# Check if we're in asset precompilation by looking for the RAILS_GROUPS env var
+# or if REDIS_URL is not set
+skip_redis = ENV['RAILS_GROUPS'] == 'assets' ||
+              !( ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? ||
+                 ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present? ||
+                 ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS'] )
 
 if skip_redis
-  puts "⏭️  Skipping Redis initialization (DATABASE_URL: #{ENV['DATABASE_URL'].present? ? 'present' : 'missing'}, REDIS_URL: #{ENV['REDIS_URL'].present? ? 'present' : 'missing'})"
+  puts "⏭️  Skipping Redis initialization (RAILS_GROUPS: #{ENV['RAILS_GROUPS']}, REDIS_URL: #{ENV['REDIS_URL'].present? ? 'present' : 'missing'})"
 
   # Define stub module to prevent method errors
   module RedisInit
