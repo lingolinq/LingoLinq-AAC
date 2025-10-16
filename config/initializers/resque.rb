@@ -66,8 +66,12 @@ if true # Always enter this block if we didn't return above
 
     def self.init
       uri = redis_uri
-      return if !uri && ENV['SKIP_VALIDATIONS']
-      raise "redis URI needed for resque" unless uri
+      # Return early if no Redis URI is available (build phase or Redis not configured)
+      unless uri
+        puts "⏭️  RedisInit.init: No Redis URI available, skipping initialization"
+        return
+      end
+
       ns_suffix = ""
       if !Rails.env.production?
         ns_suffix = "-#{Rails.env}"
