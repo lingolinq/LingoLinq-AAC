@@ -3,10 +3,11 @@
 # Background jobs will be disabled until Redis is configured
 
 # Skip Redis initialization during asset precompilation (buildpack build phase)
-# During buildpack build, DATABASE_URL is not yet available
-# This is the most reliable way to detect we're in asset precompilation
-if ENV['DATABASE_URL'].blank?
-  puts "⏭️  Skipping Redis initialization (no DATABASE_URL - likely asset precompilation)"
+# Check if we should skip Redis (no DATABASE_URL or no REDIS_URL)
+skip_redis = ENV['DATABASE_URL'].blank? || !( ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present? || ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS'] )
+
+if skip_redis
+  puts "⏭️  Skipping Redis initialization (DATABASE_URL: #{ENV['DATABASE_URL'].present? ? 'present' : 'missing'}, REDIS_URL: #{ENV['REDIS_URL'].present? ? 'present' : 'missing'})"
 
   # Define stub module to prevent method errors
   module RedisInit
@@ -35,10 +36,21 @@ if ENV['DATABASE_URL'].blank?
     end
   end
 
+  # Also stub Permissable to prevent errors
+  require 'permissable' rescue nil
+  if defined?(Permissable)
+    begin
+      [ 'read_logs', 'full', 'modeling', 'read_boards', 'read_profile' ].each{|s| Permissable.add_scope(s) }
+      Permissable.set_redis(nil, 'build')
+    rescue => e
+      puts "⚠️  Permissable initialization skipped: #{e.message}"
+    end
+  end
+
   return
 end
 
-if ENV['REDIS_URL'].present? || ENV['REDISCLOUD_URL'].present? || ENV['OPENREDIS_URL'].present? || ENV['REDISGREEN_URL'].present? || ENV['REDISTOGO_URL'].present? || ENV['SKIP_VALIDATIONS']
+if true # Always enter this block if we didn't return above
   module RedisInit
     cattr_accessor :cache_token
 
