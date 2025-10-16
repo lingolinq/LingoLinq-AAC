@@ -5,7 +5,7 @@ app = "lingolinq-aac"
 primary_region = "ord"
 
 [build]
-  builder = "heroku/buildpacks:20"
+  builder = "heroku/builder:22"
 
 [deploy]
   # Run database migrations once during deployment, before starting new containers
