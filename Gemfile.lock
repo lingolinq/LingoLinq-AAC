@@ -68,10 +68,10 @@ GEM
       public_suffix (>= 2.0.2, < 7.0)
     ast (2.4.3)
     aws-eventstream (1.4.0)
-    aws-partitions (1.1168.0)
+    aws-partitions (1.1173.0)
     aws-record (2.14.0)
       aws-sdk-dynamodb (~> 1, >= 1.85.0)
-    aws-sdk-cloudfront (1.129.0)
+    aws-sdk-cloudfront (1.130.0)
       aws-sdk-core (~> 3, >= 3.231.0)
       aws-sigv4 (~> 1.5)
     aws-sdk-core (3.233.0)
@@ -117,7 +117,7 @@ GEM
     backport (1.2.0)
     base64 (0.3.0)
     benchmark (0.4.1)
-    bigdecimal (3.2.3)
+    bigdecimal (3.3.1)
     boy_band (0.1.16)
     brakeman (7.1.0)
       racc
@@ -143,7 +143,7 @@ GEM
     docile (1.4.1)
     dotenv (3.1.8)
     drb (2.2.3)
-    erb (5.0.2)
+    erb (5.1.1)
     erubi (1.13.1)
     ethon (0.15.0)
       ffi (>= 1.15.0)
@@ -184,7 +184,7 @@ GEM
       reline (>= 0.4.2)
     jaro_winkler (1.6.1)
     jmespath (1.6.2)
-    json (2.15.0)
+    json (2.15.1)
     kramdown (2.5.1)
       rexml (>= 3.3.9)
     kramdown-parser-gfm (1.1.0)
@@ -214,7 +214,7 @@ GEM
       ruby2_keywords (~> 0.0.1)
     mutex_m (0.3.0)
     nenv (0.3.0)
-    net-imap (0.5.11)
+    net-imap (0.5.12)
       date
       net-protocol
     net-pop (0.1.2)
@@ -249,10 +249,10 @@ GEM
     pg_search (2.3.7)
       activerecord (>= 6.1)
       activesupport (>= 6.1)
-    pp (0.6.2)
+    pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
-    prism (1.5.1)
+    prism (1.6.0)
     proxies (0.2.3)
     pry (0.15.2)
       coderay (~> 1.1)
@@ -265,7 +265,7 @@ GEM
       nio4r (~> 2.0)
     racc (1.8.1)
     rack (2.2.20)
-    rack-attack (6.7.0)
+    rack-attack (6.8.0)
       rack (>= 1.0, < 4)
     rack-offline (0.6.4)
     rack-protection (3.2.0)
@@ -353,7 +353,7 @@ GEM
     rspec-expectations (3.13.5)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-mocks (3.13.5)
+    rspec-mocks (3.13.6)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-rails (6.1.5)
@@ -455,7 +455,7 @@ GEM
       activesupport (>= 6.1)
       sprockets (>= 3.0.0)
     stringio (3.1.7)
-    stripe (16.0.0)
+    stripe (17.0.0)
     thor (1.4.0)
     tilt (2.6.1)
     timeout (0.4.3)
@@ -539,7 +539,7 @@ DEPENDENCIES
   simplecov
   sinatra
   solargraph
-  sprockets-rails (~> 3.5.2)
+  sprockets-rails
   stripe
   ttfunk (= 1.7)
   typhoeus

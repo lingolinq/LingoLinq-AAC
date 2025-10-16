@@ -2,24 +2,27 @@
 # See: https://github.com/rails/sprockets/issues/716
 #
 # In Ruby 3.2+, String#chomp! returns nil when there's nothing to chomp.
-# Sprockets expects chomp! to always return self (the string).
-# This monkey patch makes String#chomp! behave like it did in Ruby < 3.2
+# This causes issues in Sprockets DirectiveProcessor.
+# We patch Sprockets directly rather than modifying String globally.
 
-if RUBY_VERSION >= '3.2.0'
-  class String
-    # Store the original chomp! method
-    alias_method :original_chomp!, :chomp!
+if defined?(Sprockets::DirectiveProcessor)
+  module SprocketsRuby32Fix
+    # Patch the method that has the chomp! bug
+    def process_source(source)
+      result = super(source)
 
-    # Override chomp! to always return self instead of nil
-    def chomp!(separator = $/)
-      result = original_chomp!(separator)
-      # In Ruby 3.2+, chomp! returns nil if nothing was removed
-      # We need to return self instead for Sprockets compatibility
-      result.nil? ? self : result
+      # Ensure the first element (processed_header) is always a string
+      if result.is_a?(Array) && result.length >= 1
+        result[0] = "" if result[0].nil?
+        result[0] = result[0].to_s unless result[0].is_a?(String)
+      end
+
+      result
     end
   end
 
-  puts "✅ String#chomp! patched for Ruby 3.2+ (Sprockets compatibility)"
+  Sprockets::DirectiveProcessor.prepend(SprocketsRuby32Fix)
+  puts "✅ Sprockets DirectiveProcessor patched for Ruby 3.2+ compatibility"
 else
-  puts "⏭️  Ruby < 3.2, String#chomp! patch not needed"
+  puts "⏭️  Sprockets not loaded, patch not needed"
 end
