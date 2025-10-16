@@ -1,36 +1,25 @@
 # Fix for Sprockets Ruby 3.2+ chomp! error
 # See: https://github.com/rails/sprockets/issues/716
 #
-# The issue is in Sprockets::DirectiveProcessor#process_source where
-# processed_header.chomp! is called on line 157, but processed_header
-# can be a boolean true instead of a string.
+# In Ruby 3.2+, String#chomp! returns nil when there's nothing to chomp.
+# Sprockets expects chomp! to always return self (the string).
+# This monkey patch makes String#chomp! behave like it did in Ruby < 3.2
 
-if defined?(Sprockets::DirectiveProcessor)
-  module SprocketsChompFix
-    def process_source(source)
-      # Call the original method
-      result = super(source)
-      
-      # result is [processed_header, directives]
-      # Ensure processed_header is a string before it's used
-      if result.is_a?(Array) && result.length >= 1
-        processed_header = result[0]
-        
-        # Convert boolean true to empty string
-        if processed_header == true || processed_header == false
-          result[0] = ""
-        elsif !processed_header.is_a?(String)
-          result[0] = processed_header.to_s
-        end
-      end
-      
-      result
+if RUBY_VERSION >= '3.2.0'
+  class String
+    # Store the original chomp! method
+    alias_method :original_chomp!, :chomp!
+
+    # Override chomp! to always return self instead of nil
+    def chomp!(separator = $/)
+      result = original_chomp!(separator)
+      # In Ruby 3.2+, chomp! returns nil if nothing was removed
+      # We need to return self instead for Sprockets compatibility
+      result.nil? ? self : result
     end
   end
-  
-  Sprockets::DirectiveProcessor.prepend(SprocketsChompFix)
-  Rails.logger.info "✅ Sprockets chomp! fix applied (Ruby 3.2+ compatibility)"
-else
-  Rails.logger.info "⏭️  Sprockets not loaded, chomp! fix not needed"
-end
 
+  puts "✅ String#chomp! patched for Ruby 3.2+ (Sprockets compatibility)"
+else
+  puts "⏭️  Ruby < 3.2, String#chomp! patch not needed"
+end
