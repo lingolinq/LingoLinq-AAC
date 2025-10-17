@@ -84,10 +84,14 @@ var LingoLinqAACClass = EmberApplication.extend({
 
 var LingoLinqAAC = LingoLinqAACClass.create();
 
+// Preserve the early track_error function that was set up before error handlers
+var preservedTrackError = window.LingoLinqAAC ? window.LingoLinqAAC.track_error : null;
+
 // Make LingoLinqAAC globally available to avoid circular dependency
 window.LingoLinqAAC = LingoLinqAAC;
+
 // Add early track_error function for error handlers
-var earlyTrackError = function(msg, stack) {
+var earlyTrackError = preservedTrackError || function(msg, stack) {
   console.error('Early track_error:', msg, stack);
 };
 window.LingoLinqAAC.track_error = earlyTrackError;
@@ -901,4 +905,5 @@ window.LingoLinqAAC.VERSION = window.app_version;
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 
-export default LingoLinqAAC;
+// Export the class, not the instance, so the bootstrap code can call .create() on it
+export default LingoLinqAACClass;
