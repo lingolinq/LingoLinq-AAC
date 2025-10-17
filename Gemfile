@@ -48,7 +48,7 @@ gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
 gem 'http-2'
 gem 'resque'
-gem 'rails_12factor', group: :production
+# gem 'rails_12factor', group: :production # Removed - causes chomp! bug with RAILS_SERVE_STATIC_FILES in Rails 6.1+
 gem 'heroku-deflater', :group => :production
 gem 'puma'
 gem 'rack-offline'
