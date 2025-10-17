@@ -121,7 +121,11 @@ import app_state from './app_state';
       }
     },
     track_error: function(message) {
-      window.LingoLinqAAC.track_error(message);
+      if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+        window.LingoLinqAAC.track_error(message);
+      } else {
+        console.error('[extras] track_error called but LingoLinqAAC.track_error not available:', message);
+      }
     }
   }).create();
   capabilities.device_id = function() {
