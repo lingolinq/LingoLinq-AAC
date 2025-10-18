@@ -19,9 +19,10 @@ node_modules/
 app/frontend/node_modules/
 app/frontend/bower_components/
 
-# Built assets (will be generated in container)
+# Built assets
 public/assets/
-app/frontend/dist/
+# IMPORTANT: app/frontend/dist/ is now committed and must be included in build context
+# app/frontend/dist/  # REMOVED - dist/ must be copied to container
 
 # Environment files
 .env
