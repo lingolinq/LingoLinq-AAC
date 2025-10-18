@@ -31,14 +31,33 @@ window.onerror = function(msg, url, line, col, obj) {
   }
 };
 Ember.onerror = function(err) {
-  if(err.stack) {
-    if (typeof LingoLinqAAC?.track_error === 'function') {
-      LingoLinqAAC.track_error(err.message, err.stack);
-    } else if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
-      LingoLinqAAC.track_error(err.message, err.stack);
-    } else {
-      console.error(err.message, err.stack);
+  // Helper function to safely call track_error with defensive checks
+  var safeTrackError = function(msg, stack) {
+    try {
+      // Check multiple possible namespaces in order of preference
+      if (typeof window?.LingoLinqAAC?.track_error === 'function') {
+        window.LingoLinqAAC.track_error(msg, stack);
+        return true;
+      } else if (typeof window?.SweetSuite?.track_error === 'function') {
+        window.SweetSuite.track_error(msg, stack);
+        return true;
+      } else if (typeof LingoLinqAAC?.track_error === 'function') {
+        LingoLinqAAC.track_error(msg, stack);
+        return true;
+      }
+      // If no tracker is ready yet, fallback to console
+      console.error("Error tracker not initialized yet. Error:", msg, stack);
+      return false;
+    } catch (trackError) {
+      // Prevent cascading errors if track_error itself fails
+      console.error("Failed to call track_error:", trackError);
+      console.error("Original error:", msg, stack);
+      return false;
     }
+  };
+
+  if(err.stack) {
+    safeTrackError(err.message, err.stack);
   } else {
     if(err.fakeXHR && (err.fakeXHR.status == 400 || err.fakeXHR.status == 404 || err.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
@@ -47,11 +66,7 @@ Ember.onerror = function(err) {
     } else if(err._result && err._result.fakeXHR && (err._result.fakeXHR.status == 400 || err._result.fakeXHR.status == 404 || err._result.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
     } else {
-      if(window.LingoLinqAAC && LingoLinqAAC.track_error) {
-        LingoLinqAAC.track_error(JSON.stringify(err), false);
-      } else {
-        console.error(JSON.stringify(err));
-      }
+      safeTrackError(JSON.stringify(err), false);
     }
   }
   if(Ember.testing || (window.LingoLinqAAC && LingoLinqAAC.testing)) {
