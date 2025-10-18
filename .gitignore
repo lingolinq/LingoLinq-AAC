@@ -35,7 +35,8 @@
 .env
 .env.test
 
-/app/frontend/dist
+# IMPORTANT: We now commit pre-built Ember assets to ensure consistent deployments
+# /app/frontend/dist  # REMOVED - dist/ is now committed to git
 /app/frontend/tmp
 
 /app/assets/javascripts/app.js

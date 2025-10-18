@@ -1,0 +1,152 @@
+#!/bin/bash
+# Build Ember assets locally for deployment
+# This ensures we deploy exactly what we tested locally
+#
+# STRATEGY: Use Docker with Node 18 to build (host may have incompatible Node version)
+
+set -e  # Exit on error
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+FRONTEND_DIR="app/frontend"
+DIST_DIR="$FRONTEND_DIR/dist"
+
+echo "========================================="
+echo "LingoLinq AAC - Local Ember Build"
+echo "========================================="
+echo ""
+
+# Check if we're in the right directory
+if [ ! -f "$PROJECT_ROOT/Gemfile" ]; then
+  echo "ERROR: This script must be run from the project root or bin/ directory"
+  exit 1
+fi
+
+# Check if Docker is available
+if ! command -v docker &> /dev/null; then
+  echo "ERROR: Docker is not installed or not in PATH"
+  echo "Docker is required to build Ember assets (uses Node 18 container)"
+  exit 1
+fi
+
+echo "📂 Project root: $PROJECT_ROOT"
+echo "📂 Frontend dir: $FRONTEND_DIR"
+echo ""
+
+# Change to project root
+cd "$PROJECT_ROOT"
+
+# Clean previous build
+if [ -d "$DIST_DIR" ]; then
+  echo "🧹 Cleaning previous build..."
+  rm -rf "$DIST_DIR"
+  echo "✓ Previous build cleaned"
+  echo ""
+fi
+
+# Build Ember using Docker with Node 18
+echo "🐳 Building Ember assets using Docker (Node 18)..."
+echo "This may take a few minutes on first run..."
+echo ""
+
+# Convert Windows path to Docker-compatible path if needed
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
+  # Windows Git Bash - convert /c/Users/... to C:/Users/...
+  DOCKER_MOUNT="$(pwd | sed 's|^/\([a-z]\)/|\U\1:/|')/$FRONTEND_DIR"
+else
+  DOCKER_MOUNT="$(pwd)/$FRONTEND_DIR"
+fi
+
+echo "Mounting: $DOCKER_MOUNT"
+echo ""
+
+# Prevent Git Bash from converting Unix paths to Windows paths
+export MSYS_NO_PATHCONV=1
+
+docker run --rm \
+  -v "$DOCKER_MOUNT:/app" \
+  -w /app \
+  node:18-slim \
+  bash -c "
+    set -e
+    echo '📦 Installing npm dependencies...'
+    npm install --legacy-peer-deps --quiet
+    echo '✓ npm dependencies installed'
+    echo ''
+    echo '📦 Installing bower dependencies...'
+    npx bower install --allow-root --config.interactive=false
+    echo '✓ bower dependencies installed'
+    echo ''
+    echo '🔨 Building Ember (production mode)...'
+    ./node_modules/.bin/ember build --environment=production
+    echo '✓ Ember build complete'
+  "
+
+# Unset to avoid affecting other commands
+unset MSYS_NO_PATHCONV
+
+# Verify build output
+echo ""
+echo "========================================="
+echo "Build Verification"
+echo "========================================="
+echo ""
+
+if [ ! -d "$DIST_DIR/assets" ]; then
+  echo "❌ ERROR: Build failed - no assets directory created"
+  exit 1
+fi
+
+# Check for critical files
+VENDOR_JS="$DIST_DIR/assets/vendor.js"
+FRONTEND_JS="$DIST_DIR/assets/frontend.js"
+
+if [ ! -f "$VENDOR_JS" ]; then
+  echo "❌ ERROR: vendor.js not found at $VENDOR_JS"
+  exit 1
+fi
+
+if [ ! -f "$FRONTEND_JS" ]; then
+  echo "❌ ERROR: frontend.js not found at $FRONTEND_JS"
+  exit 1
+fi
+
+echo "✓ Build successful!"
+echo ""
+echo "📊 Asset Summary:"
+echo ""
+
+# Show file sizes
+if command -v du &> /dev/null; then
+  VENDOR_SIZE=$(du -h "$VENDOR_JS" | cut -f1)
+  FRONTEND_SIZE=$(du -h "$FRONTEND_JS" | cut -f1)
+  echo "  vendor.js:   $VENDOR_SIZE"
+  echo "  frontend.js: $FRONTEND_SIZE"
+else
+  echo "  vendor.js:   $(ls -lh "$VENDOR_JS" | awk '{print $5}')"
+  echo "  frontend.js: $(ls -lh "$FRONTEND_JS" | awk '{print $5}')"
+fi
+
+echo ""
+echo "📁 Total assets created:"
+ls -1 "$DIST_DIR/assets" | wc -l | xargs echo "  Files:"
+echo ""
+
+echo "========================================="
+echo "Next Steps"
+echo "========================================="
+echo ""
+echo "1. Test locally (optional but recommended):"
+echo "   docker-compose up"
+echo "   # or"
+echo "   bundle exec rails server"
+echo ""
+echo "2. Commit the built assets:"
+echo "   git add app/frontend/dist/"
+echo "   git commit -m \"build: Update Ember assets\""
+echo ""
+echo "3. Deploy to Fly.io:"
+echo "   flyctl deploy --app lingolinq-aac"
+echo ""
+echo "✨ Build complete!"
+echo ""

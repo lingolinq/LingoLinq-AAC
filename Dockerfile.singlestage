@@ -41,29 +41,51 @@ COPY Gemfile Gemfile.lock ./
 RUN bundle config set --local without 'development test' && \
     DISABLE_OBF_GEM=true bundle install --jobs $(nproc) --retry 3
 
-# Copy package.json and install frontend build tools (including devDependencies for ember-cli)
-# Temporarily override NODE_ENV to ensure devDependencies are installed
-COPY app/frontend/package.json app/frontend/package-lock.json* app/frontend/
-RUN cd app/frontend && NODE_ENV=development npm install --legacy-peer-deps
-
 # Copy the rest of the application code
 COPY . .
 
+# NEW STRATEGY: Copy pre-built Ember assets from local build
+# The Ember assets (vendor.js, frontend.js) should be built locally and committed to git
+# This ensures we deploy EXACTLY what was tested locally
+#
+# Phase 1: Verify pre-built Ember assets exist
+RUN echo "=== Checking for pre-built Ember assets ===" && \
+    if [ -d "/app/app/frontend/dist/assets" ]; then \
+      echo "Found pre-built Ember assets in app/frontend/dist/assets/"; \
+      ls -lh /app/app/frontend/dist/assets/ | head -20; \
+    else \
+      echo "ERROR: No pre-built Ember assets found!"; \
+      echo "Please run 'cd app/frontend && npm install && npx bower install --allow-root && ember build --environment=production' locally"; \
+      echo "and commit the app/frontend/dist/ directory to git."; \
+      exit 1; \
+    fi
 
+# Phase 2: Clean and prepare public/assets directory
+RUN rm -rf /app/public/assets && \
+    echo "=== Cleaned Rails public/assets directory ===" && \
+    mkdir -p /app/public/assets
 
-# Build the Ember frontend
-# Install bower dependencies and build from app root
-RUN cd app/frontend && \
-    npx bower install --allow-root --config.interactive=false && \
-    ./node_modules/.bin/ember build --environment=production
+# Phase 3: Copy pre-built Ember assets DIRECTLY to public/assets
+# This bypasses Sprockets processing entirely for Ember-built files
+RUN echo "=== Copying pre-built Ember assets to public/assets ===" && \
+    cp -rv /app/app/frontend/dist/assets/* /app/public/assets/ && \
+    echo "=== Ember Assets Copied to public/assets ===" && \
+    ls -lh /app/public/assets/ | head -20 && \
+    echo "=== End Asset Copy ==="
 
-# Copy Ember build output to public directory for serving
-RUN mkdir -p /app/public && \
-    cp -r /app/app/frontend/dist/* /app/public/
-
-# Precompile Rails assets in the same environment where gems are installed
+# Phase 4: Precompile Rails assets ONLY
 # Set ASSETS_PRECOMPILE=true to skip Redis initialization during asset precompilation
-RUN DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
+# Rails will compile application.js, application.css and other Rails-managed assets
+# but will NOT reprocess the Ember assets we already placed in public/assets
+RUN echo "=== Running Rails assets:precompile for Rails-only assets ===" && \
+    DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
+
+# Phase 5: Final verification
+RUN echo "=== Final Asset Directory Contents ===" && \
+    ls -lh /app/public/assets/ | head -30 && \
+    echo "=== Checking for critical Ember files ===" && \
+    ls -lh /app/public/assets/vendor.js /app/public/assets/frontend.js || echo "WARNING: Missing vendor.js or frontend.js!" && \
+    echo "=== End Final Asset Directory Contents ==="
 
 # Set up the entrypoint
 COPY bin/render-start.sh ./bin/render-start.sh
