@@ -173,7 +173,6 @@ GEM
       guard (~> 2.1)
       guard-compat (~> 1.1)
       rspec (>= 2.99.0, < 4.0)
-    heroku-deflater (0.7.0)
     http-2 (1.1.1)
     i18n (1.14.7)
       concurrent-ruby (~> 1.0)
@@ -502,7 +501,6 @@ DEPENDENCIES
   go_secure
   guard
   guard-rspec
-  heroku-deflater
   http-2
   irb
   marcel (~> 1.0)
