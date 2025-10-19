@@ -927,5 +927,6 @@ window.LingoLinqAAC.VERSION = window.app_version;
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 
-// Export the class, not the instance, so the bootstrap code can call .create() on it
-export default LingoLinqAACClass;
+// Export the INSTANCE, not the class, so imported modules get access to LingoLinqAAC.remote_url, .log, etc.
+// This fixes the "d.default.remote_url is not a function" error in 198 files
+export default LingoLinqAAC;
