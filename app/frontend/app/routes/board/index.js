@@ -15,7 +15,9 @@ import { computed } from '@ember/object';
 
 export default Route.extend({
   model: function(params) {
-    LingoLinqAAC.log.track('getting model');
+    if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+      LingoLinqAAC.log.track('getting model');
+    }
     var res = this.modelFor('board');
     if((app_state.get('board_reloads') || {})[res.get('id')]) {
       res.set('should_reload', true);
@@ -25,13 +27,17 @@ export default Route.extend({
       delete do_reloads[res.get('id')];
       app_state.set('board_reloads', do_reloads);
       res.set('should_reload', false);
-      LingoLinqAAC.log.track('reloading');
+      if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+        LingoLinqAAC.log.track('reloading');
+      }
       res.reload(!app_state.get('speak_mode'));
     }
     return res;
   },
   setupController: function(controller, model) {
-    LingoLinqAAC.log.track('setting up controller');
+    if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+      LingoLinqAAC.log.track('setting up controller');
+    }
     var _this = this;
     _this.set('board', model);
     controller.set('model', model);
@@ -111,7 +117,9 @@ export default Route.extend({
     });
     contentGrabbers.board_controller = controller;
     var prior_revision = model.get('current_revision');
-    LingoLinqAAC.log.track('processing buttons without lookups');
+    if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+      LingoLinqAAC.log.track('processing buttons without lookups');
+    }
     _this.set('load_state', {retrieved: true});
     model.without_lookups(function() {
       controller.processButtons();
@@ -135,7 +143,9 @@ export default Route.extend({
     }
     if(!model.get('valid_id')) {
     } else if(persistence.get('online') || insufficient_data) {
-      LingoLinqAAC.log.track('considering reload');
+      if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+        LingoLinqAAC.log.track('considering reload');
+      }
       _this.set('load_state', {not_local: true});
       var reload = RSVP.resolve(model);
       // if we're online then we should reload, but do it softly if we're in speak mode
@@ -169,7 +179,9 @@ export default Route.extend({
 
       reload.then(function(updated) {
         if(!controller.get('has_rendered_material') || updated.get('current_revision') != prior_revision || insufficient_data) {
-          LingoLinqAAC.log.track('processing buttons again');
+          if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+            LingoLinqAAC.log.track('processing buttons again');
+          }
           controller.processButtons(true);
         }
       }, function(error) {

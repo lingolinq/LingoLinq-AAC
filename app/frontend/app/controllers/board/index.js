@@ -484,7 +484,9 @@ export default Controller.extend({
     'nothing_visible',
     'app_state.currentUser.preferences.stretch_buttons',
     function(klass, change, redraw_button_id) {
-      LingoLinqAAC.log.track('redrawing');
+      if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+        LingoLinqAAC.log.track('redrawing');
+      }
       var foundy = Math.round(10 * Math.random());
       var draw_id = redraw_button_id ? this.get('last_draw_id') : Math.random();
       this.set('last_draw_id', draw_id);
@@ -565,7 +567,9 @@ export default Controller.extend({
         return res;
       };
 
-      LingoLinqAAC.log.track('computing dimensions');
+      if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+        LingoLinqAAC.log.track('computing dimensions');
+      }
       ob.forEach(function(row, i) {
         row.forEach(function(button, j) {
           var button_height = starting_height - (extra_pad * 2);
@@ -765,7 +769,9 @@ export default Controller.extend({
       });
       app_state.set('board_virtual_dom.ordered_buttons', ob);
       app_state.align_button_list();
-      LingoLinqAAC.log.track('done computing dimensions');
+      if(LingoLinqAAC && LingoLinqAAC.log && LingoLinqAAC.log.track) {
+        LingoLinqAAC.log.track('done computing dimensions');
+      }
     }
   ),
   long_description: computed('model.description', 'model.name', function() {

@@ -880,6 +880,8 @@ var speecher = EmberObject.extend({
     return RSVP.all_wait(promises);
   },
   load_sound: function(attr) {
+    return RSVP.resolve(true);
+    /*
     if(speecher[attr]) {
       if(speecher[attr].match(/^data:/)) { return RSVP.resolve(true); }
       else if(!LingoLinqAAC.remote_url(speecher[attr])) { return RSVP.resolve(true); }
@@ -906,6 +908,7 @@ var speecher = EmberObject.extend({
     } else {
       return RSVP.reject({error: "beep sound not saved: " + attr});
     }
+    */
   },
   oops: function() {
     var oopses = tts_voices.get('oops');

@@ -284,9 +284,9 @@ var i18n = EmberObject.extend({
           str = str.replace(terms[idx], value);
         }
       }
-      str = str.replace(/%app_name%/g, LingoLinqAAC.app_name);
-      str = str.replace(/%app_name_upper%/g, LingoLinqAAC.app_name.toUpperCase());
-      str = str.replace(/%company_name%/g, LingoLinqAAC.company_name);
+      str = str.replace(/%app_name%/g, LingoLinqAAC.app_name || 'LingoLinq AAC');
+      str = str.replace(/%app_name_upper%/g, (LingoLinqAAC.app_name || 'LingoLinq AAC').toUpperCase());
+      str = str.replace(/%company_name%/g, LingoLinqAAC.company_name || 'AAC Company');
     }
 
     if(options && options.hash && options.hash.count !== undefined) {
