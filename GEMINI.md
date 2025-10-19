@@ -83,6 +83,53 @@ LingoLinqAAC.track_error = function(msg, stack) {
 2. **Docker Isolation**: Use containerized environment for legacy stack
 3. **Incremental Updates**: Stability over modernization until core issues resolved
 4. **Pattern Recognition**: Apply SweetSuite/LingoLinq compatibility patterns consistently
+5. **Configuration Review First**: Always read configuration files before suggesting deployment changes
+
+## 🚨 MANDATORY PRE-FLIGHT CHECK: Deployment Questions
+
+**CRITICAL**: When ANY user request involves deployment, configuration, or production issues, you MUST complete this analysis BEFORE suggesting solutions.
+
+**Quick Reference**: See `.ai/DEPLOYMENT_CHECKLIST.md` for detailed examples, red flags, and troubleshooting patterns.
+
+### Phase 1: Read Critical Configuration Files
+
+Read these files in order and summarize key findings:
+
+1. **README.md** - Understand project history (Heroku fork), proven deployment methods, current status
+2. **.env.example** - Identify ALL required environment variables and secrets
+3. **fly.toml** - Analyze deployment config, Dockerfile reference, release commands, health checks
+4. **Dockerfile.singlestage** - Understand build process, dependencies, environment setup
+5. **config/puma.rb** - Verify web server binding configuration (MUST bind to 0.0.0.0)
+6. **bin/render-start.sh** - Check startup command (MUST use `-C config/puma.rb`)
+
+### Phase 2: Verify Current State
+
+Before suggesting changes, verify:
+
+- [ ] Which Dockerfile is `fly.toml` using?
+- [ ] Are all required secrets configured? (DATABASE_URL, SECRET_KEY_BASE, RAILS_MASTER_KEY, DISABLE_OBF_GEM)
+- [ ] Is Puma binding to `0.0.0.0` (not `localhost` or `127.0.0.1`)?
+- [ ] Is the startup script using `-C config/puma.rb`?
+- [ ] What is the current deployment status? (Delegate to Claude Code for `flyctl status` or `flyctl logs`)
+
+### Phase 3: Understand Known Issues
+
+Check CLAUDE.md sections:
+- **Current Status**: What's already working?
+- **Common Issues & Solutions**: Has this been solved before?
+- **Fixes Completed**: What was already attempted?
+
+### Phase 4: Only THEN Suggest Solutions
+
+After completing phases 1-3, provide:
+1. **Summary**: Brief overview of what you found
+2. **Root Cause**: Specific issue identified
+3. **Solution**: Targeted fix with file references and line numbers
+4. **Verification**: How to confirm the fix worked
+
+**DO NOT skip this process.** Many deployment issues are configuration mismatches that only become clear after reviewing all files together.
+
+**Token Conservation Note**: Reading files (Phase 1) is LOW token cost. Running deployment commands without understanding the configuration first is HIGH token cost and often leads to wasted debugging cycles.
 
 ## 🔄 Session Continuity
 
