@@ -36,14 +36,6 @@ echo ""
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Clean previous build
-if [ -d "$DIST_DIR" ]; then
-  echo "🧹 Cleaning previous build..."
-  rm -rf "$DIST_DIR"
-  echo "✓ Previous build cleaned"
-  echo ""
-fi
-
 # Build Ember using Docker with Node 18
 echo "🐳 Building Ember assets using Docker (Node 18)..."
 echo "This may take a few minutes on first run..."
@@ -69,6 +61,10 @@ docker run --rm \
   node:18-slim \
   bash -c "
     set -e
+    echo '🧹 Cleaning previous build...'
+    rm -rf dist
+    echo '✓ Previous build cleaned'
+    echo ''
     echo '📦 Installing npm dependencies...'
     npm install --legacy-peer-deps --quiet
     echo '✓ npm dependencies installed'
