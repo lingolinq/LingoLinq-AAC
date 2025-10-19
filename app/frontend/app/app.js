@@ -112,6 +112,22 @@ var earlyTrackError = preservedTrackError || function(msg, stack) {
 window.LingoLinqAAC.track_error = earlyTrackError;
 LingoLinqAAC.track_error = earlyTrackError;
 
+// CRITICAL FIX: Initialize LingoLinqAAC.log EARLY to prevent race conditions
+// This must be available before any other code tries to call LingoLinqAAC.log.track()
+LingoLinqAAC.log = {
+  started: null,
+  start: function() {
+    LingoLinqAAC.log.started = (new Date()).getTime();
+  },
+  track: function(msg) {
+    if(!LingoLinqAAC.loggy) { return; }
+    var now = (new Date()).getTime();
+    if(LingoLinqAAC.log.started) {
+      console.debug("TRACK:" + msg, now - LingoLinqAAC.log.started);
+    }
+  }
+};
+
 LingoLinqAAC.ready = function() {
   if(LingoLinqAAC.readying) { return; }
   LingoLinqAAC.readying = true;
@@ -901,18 +917,9 @@ LingoLinqAAC.Visualizations = {
 
 // Properties moved to deferredLingoLinqAACSetup - removed duplicates
 
-LingoLinqAAC.log = {
-  start: function() {
-    LingoLinqAAC.log.started = (new Date()).getTime();
-  },
-  track: function(msg) {
-    if(!LingoLinqAAC.loggy) { return; }
-    var now = (new Date()).getTime();
-    if(LingoLinqAAC.log.started) {
-      console.debug("TRACK:" + msg, now - LingoLinqAAC.log.started);
-    }
-  }
-};
+// LingoLinqAAC.log is now initialized EARLY (around line 117) to prevent race conditions
+// Removing duplicate initialization here
+
 // Final LingoLinqAAC assignment - replace stub with actual LingoLinqAAC instance
 window.LingoLinqAAC = LingoLinqAAC;
 window.LingoLinqAAC.VERSION = window.app_version;

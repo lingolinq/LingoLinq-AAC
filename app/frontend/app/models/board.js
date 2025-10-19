@@ -1374,7 +1374,10 @@ LingoLinqAAC.Board = DS.Model.extend({
     this.set('fast_html', fast);
   },
   render_fast_html: function(size) {
-    LingoLinqAAC.log.track('redrawing');
+    // DEFENSIVE: Check if log exists before calling track()
+    if(LingoLinqAAC?.log?.track) {
+      LingoLinqAAC.log.track('redrawing');
+    }
 
     var buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
     var grid = this.get('grid');
@@ -1473,7 +1476,10 @@ LingoLinqAAC.Board = DS.Model.extend({
     var text_position = "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
-    LingoLinqAAC.log.track('computing dimensions');
+    // DEFENSIVE: Check if log exists before calling track()
+    if(LingoLinqAAC?.log?.track) {
+      LingoLinqAAC.log.track('computing dimensions');
+    }
     ob.forEach(function(row, i) {
       html = html + "\n<div class='button_row fast'>";
       row.forEach(function(button, j) {

@@ -1501,11 +1501,16 @@ var editManager = EmberObject.extend({
     this.check_button(id);
   },
   process_for_displaying: function(ignore_fast_html) {
-    LingoLinqAAC.log.track('processing for displaying');
+    // DEFENSIVE: Check if log exists before calling track()
+    if(LingoLinqAAC?.log?.track) {
+      LingoLinqAAC.log.track('processing for displaying');
+    }
     var controller = this.controller;
     if(!controller) { return; }
     if(app_state.get('edit_mode') && controller.get('ordered_buttons')) {
-      LingoLinqAAC.log.track('will not redraw while in edit mode');
+      if(LingoLinqAAC?.log?.track) {
+        LingoLinqAAC.log.track('will not redraw while in edit mode');
+      }
       // return;
     }
     var board = controller.get('model');
