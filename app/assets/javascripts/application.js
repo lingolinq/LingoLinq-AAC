@@ -1,7 +1,8 @@
 //= require application-preload.js
 //= require action_cable
-//= require vendor.js
-//= require frontend.js
+// NOTE: vendor.js and frontend.js are loaded separately as they are Ember-built assets
+// served directly from public/assets/ (not processed by Sprockets)
+// See app/views/boards/index.html.erb for loading logic
 
 window.load_state = window.load_state || {};
 window.load_state.state = "js_loaded";

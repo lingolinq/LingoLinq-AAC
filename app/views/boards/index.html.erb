@@ -77,9 +77,24 @@
     setTimeout(checkState, 500);
     navigator.standalone = navigator.standalone || (navigator.userAgent.match(/android/i) && navigator.userAgent.match(/chrome/i) && (screen.height-document.documentElement.clientHeight<40));
     if(window.FileReader) {
-      var script = document.createElement('script');
-      script.src = "<%= asset_path('application.js') %>";
-      document.body.appendChild(script);
+      // Load Ember-built assets first (vendor.js, frontend.js from public/assets/)
+      // These are NOT processed by Sprockets - they're served as static files
+      var vendor = document.createElement('script');
+      vendor.src = "/assets/vendor.js";
+      document.body.appendChild(vendor);
+
+      vendor.onload = function() {
+        var frontend = document.createElement('script');
+        frontend.src = "/assets/frontend.js";
+        document.body.appendChild(frontend);
+
+        frontend.onload = function() {
+          // Finally load Rails application.js (action_cable + preload scripts)
+          var script = document.createElement('script');
+          script.src = "<%= asset_path('application.js') %>";
+          document.body.appendChild(script);
+        };
+      };
     }
   })();
   </script>
@@ -102,6 +117,9 @@
     <script type="text/javascript">window.sale = "<%= Purchasing.current_sale %>";</script>
   <% end %>
 <% else %>
+  <!-- Development: Load Ember assets first, then Rails application.js -->
+  <script src="/assets/vendor.js"></script>
+  <script src="/assets/frontend.js"></script>
   <%= javascript_include_tag "application", :defer => true %>
 <% end %>
 <!-- folder icon attribution: CD http://www.thenounproject.com/informationarchitect -->
