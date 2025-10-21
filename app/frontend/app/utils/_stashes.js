@@ -256,7 +256,9 @@ var stashes = EmberObject.extend({
     if(include_prefix) { key = stashes.prefix + key; }
     try {
       localStorage[key] = obj.toString();
-    } catch(e) { }
+    } catch(e) { 
+      console.error("LingoLinqAAC: Failed to persist to localStorage", { key: key, error: e });
+    }
   },
   get_object: function(key, include_prefix) {
     var res = null;
@@ -541,6 +543,10 @@ var stashes = EmberObject.extend({
         stashes.persist('last_event', log_event);
         usage_log.push(log_event);
       }
+    }
+    // Truncate the log to prevent localStorage quota errors
+    if (usage_log.length > 250) {
+      usage_log = usage_log.slice(usage_log.length - 250);
     }
     stashes.persist('usage_log', usage_log);
     stashes.push_log(true);
