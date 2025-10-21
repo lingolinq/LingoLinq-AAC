@@ -128,6 +128,12 @@ LingoLinqAAC.log = {
   }
 };
 
+// CRITICAL FIX: Initialize LingoLinqAAC.remote_url EARLY to prevent "d.default.remote_url is not a function" errors
+// This must be available before any other code tries to call LingoLinqAAC.remote_url()
+LingoLinqAAC.remote_url = function(url) {
+  return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
+};
+
 LingoLinqAAC.ready = function() {
   if(LingoLinqAAC.readying) { return; }
   LingoLinqAAC.readying = true;
@@ -157,9 +163,9 @@ var deferredLingoLinqAACSetup = function() {
   LingoLinqAAC.referrer = document.referrer;
   LingoLinqAAC.app_name = LingoLinqAAC.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq AAC";
   LingoLinqAAC.company_name = LingoLinqAAC.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
-  LingoLinqAAC.remote_url = function(url) {
-    return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
-  };
+
+  // LingoLinqAAC.remote_url is now initialized EARLY (around line 133) to prevent race conditions
+  // No need to redefine it here
 
   // Replace the early track_error with the full implementation
   var fullTrackError = function(msg, stack) {
@@ -927,6 +933,6 @@ window.LingoLinqAAC.VERSION = window.app_version;
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 // LingoLinqAAC.track_error was already set up in deferredLingoLinqAACSetup
 
-// Export the INSTANCE, not the class, so imported modules get access to LingoLinqAAC.remote_url, .log, etc.
-// This fixes the "d.default.remote_url is not a function" error in 198 files
-export default LingoLinqAAC;
+// Export the CLASS, not the instance. The Ember build process needs the class to call .create() on.
+// The instance is still created in this file and assigned to window.LingoLinqAAC for legacy modules that need it.
+module.exports = LingoLinqAACClass;

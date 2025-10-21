@@ -188,6 +188,7 @@ Coughdrop::Application.routes.draw do
     resources :inflections, only: [:index, :create]
     
     resources :users do
+      get 'self' => 'users#self', on: :collection
       get 'stats/daily' => 'users#daily_stats'
       get 'stats/hourly' => 'users#hourly_stats'
       get 'alerts' => 'users#alerts'

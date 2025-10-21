@@ -2,6 +2,15 @@ class Api::UsersController < ApplicationController
   # extend ::NewRelic::Agent::MethodTracer # Removed - NewRelic not needed
 
   before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
+  def self
+    user = @api_user
+    return unless exists?(user)
+    
+    user_device = Device.find_by_global_id(@api_device_id)
+    json = JsonApi::User.as_json(user, wrapper: true, permissions: @api_user, device: user_device)
+    render json: json.to_json
+  end
+
   def show
     user = User.find_by_path(params['id'])
     user_device = (user && @api_user && @api_user.global_id == user.global_id) && Device.find_by_global_id(@api_device_id)

@@ -263,7 +263,8 @@
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --help)",
       "Bash(awk:*)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --app lingolinq-aac --detach)",
-      "Bash(lingolinq-aac:test)"
+      "Bash(lingolinq-aac:test)",
+      "Bash(./bin/build-ember-local)"
     ],
     "deny": []
   }
