@@ -169,8 +169,9 @@ module UpstreamDownstream
       @track_downstream_boards = false
       board = nil
       ApplicationRecord.using(:master) do
-        board = Board.find_by_global_id(self.global_id).reload
+        board = Board.find_by_global_id(self.global_id)&.reload
       end
+      return unless board
       changes.each do |key, vals|
         pre, post = vals
         next if pre.to_json == post.to_json
@@ -312,7 +313,7 @@ module UpstreamDownstream
               board.schedule_for(:slow, :complete_stream_checks, new_visited_ids, trigger_stamp)
             end
           else
-            board.reload.schedule_track(notify_upstream_with_visited_ids + ["depth:#{depth + 1}"])
+            board.reload&.schedule_track(notify_upstream_with_visited_ids + ["depth:#{depth + 1}"])
             # board.schedule_once(:track_downstream_boards!, notify_upstream_with_visited_ids, nil, trigger_stamp)
           end
         end
