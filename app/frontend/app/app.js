@@ -333,7 +333,7 @@ Route.reopen({
   update_title_if_present: function() {
     var controller = this.controllerFor(this.routeName);
     var title = this.get('title') || (controller && controller.get('title'));
-    if(title) {
+    if(title && LingoLinqAAC.controller && LingoLinqAAC.controller.updateTitle) {
       LingoLinqAAC.controller.updateTitle(title.toString());
     }
   },
