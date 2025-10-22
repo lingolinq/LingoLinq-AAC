@@ -1,7 +1,7 @@
 //= require simple_state.js
 //= require globals.js
 
-window.app_version = "2025.09.18";
+window.app_version = "2025.10.22a";
 
 // Initialize LingoLinqAAC early to prevent errors
 window.LingoLinqAAC = window.LingoLinqAAC || {

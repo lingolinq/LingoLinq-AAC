@@ -25,6 +25,15 @@ Coughdrop::Application.routes.draw do
   board_id_regex = /[a-zA-Z0-9_-]+\/[a-zA-Z0-9_:%-]+|\d+_\d+(-\d+_\d+)?/
   user_id_regex = /[a-zA-Z0-9_-]+/
 
+  # Constraint to prevent static asset paths from being routed through controllers
+  # This ensures /assets/* and /packs/* are handled by ActionDispatch::Static middleware
+  class NotAssetPathConstraint
+    def matches?(request)
+      !request.path.start_with?('/assets/', '/packs/')
+    end
+  end
+  not_asset_path_constraint = NotAssetPathConstraint.new
+
   # protected_resque = Rack::Auth::Basic.new(Resque::Server) do |username, password|
   #   u = User.find_by(:user_name => username)
   #   u && u.settings['admin'] && u.valid_password?(password)
@@ -135,9 +144,13 @@ Coughdrop::Application.routes.draw do
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
   
-  get 'utterances/:id' => 'boards#utterance'  
-  get ':id' => 'boards#user', :constraints => {:id => user_id_regex}
-  get ':id' => 'boards#board', :constraints => {:id => board_id_regex}
+  get 'utterances/:id' => 'boards#utterance'
+
+  # Routes with constraints to prevent catch-all matching of asset paths
+  constraints not_asset_path_constraint do
+    get ':id' => 'boards#user', :constraints => {:id => user_id_regex}
+    get ':id' => 'boards#board', :constraints => {:id => board_id_regex}
+  end
   get ':id/icon' => 'boards#icon', :constraints => {:id => board_id_regex}
   get ':id/history' => 'boards#board', :constraints => {:id => board_id_regex}
     

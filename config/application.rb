@@ -28,9 +28,21 @@ module Coughdrop
     config.eager_load_paths += %W(#{config.root}/lib)
 #    config.autoload_paths += %W(#{config.root}/app/mailers/concerns)
 
-    # Fix for asset serving 500 errors: Use Rack::Deflater for dynamic gzip compression
-    # with proper Content-Encoding headers instead of relying on ActionDispatch::Static
-    # to serve pre-gzipped .gz files (which has a bug where it doesn't set the header)
-    # config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
+    # Add a simple static file serving middleware at the beginning of the stack
+    # This serves files from public/assets for asset requests before Rails routes are evaluated
+    if ENV['RAILS_SERVE_STATIC_FILES'] == 'true'
+      config.middleware.insert_before 0, Rack::Static,
+        urls: ['/assets'],
+        root: File.join(config.root, 'public'),
+        header_rules: [
+          [['html'], { 'Content-Type' => 'text/html; charset=utf-8' }],
+          [['js'], { 'Content-Type' => 'application/javascript' }],
+          [['css'], { 'Content-Type' => 'text/css' }],
+          [['png'], { 'Content-Type' => 'image/png' }],
+          [['svg'], { 'Content-Type' => 'image/svg+xml' }],
+          [['gif'], { 'Content-Type' => 'image/gif' }],
+          [['jpg', 'jpeg'], { 'Content-Type' => 'image/jpeg' }]
+        ]
+    end
   end
 end
