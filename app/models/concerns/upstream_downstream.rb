@@ -34,9 +34,12 @@ module UpstreamDownstream
     top_board = self
     if @sub_id
       b = Board.find_by_path(self.global_id(true))
-      return b.track_downstream_boards(already_visited_ids, buttons_changed, trigger_stamp)
+      return b.track_downstream_boards(already_visited_ids, buttons_changed, trigger_stamp) if b
+      Rails.logger.warn("Sub-board not found: global_id=#{self.global_id(true).inspect}, _sub_id=#{@sub_id.inspect}")
+      return
     end
     # step 1: travel downstream, for every board id get its immediate children
+    Rails.logger.info("track_downstream_boards START: global_id=#{self.global_id.inspect}, id=#{self.id.inspect}, visited_count=#{already_visited_ids.length}")
     Rails.logger.info('getting all children')
     boards_with_children = {}
     board_edit_stats = {}
@@ -171,7 +174,10 @@ module UpstreamDownstream
       ApplicationRecord.using(:master) do
         board = Board.find_by_global_id(self.global_id)&.reload
       end
-      return unless board
+      unless board
+        Rails.logger.warn("Board lookup failed in track_downstream_boards: global_id=#{self.global_id.inspect}, self.id=#{self.id.inspect}, self.class=#{self.class.name}")
+        return
+      end
       changes.each do |key, vals|
         pre, post = vals
         next if pre.to_json == post.to_json
@@ -313,7 +319,12 @@ module UpstreamDownstream
               board.schedule_for(:slow, :complete_stream_checks, new_visited_ids, trigger_stamp)
             end
           else
-            board.reload&.schedule_track(notify_upstream_with_visited_ids + ["depth:#{depth + 1}"])
+            reloaded_board = board.reload
+            if reloaded_board
+              reloaded_board.schedule_track(notify_upstream_with_visited_ids + ["depth:#{depth + 1}"])
+            else
+              Rails.logger.warn("Board reload failed in complete_stream_checks: global_id=#{board.global_id.inspect}, id=#{board.id.inspect}")
+            end
             # board.schedule_once(:track_downstream_boards!, notify_upstream_with_visited_ids, nil, trigger_stamp)
           end
         end
