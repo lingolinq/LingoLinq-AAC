@@ -21,9 +21,8 @@ unset BUNDLE_BIN
 echo "🔧 Setting BUNDLE_FORCE_RUBY_PLATFORM=false to use Linux-native gems..."
 export BUNDLE_FORCE_RUBY_PLATFORM=false
 
-# Database migrations are handled by Fly.io's release_command in fly.toml
-# This ensures migrations run once during deployment, not on every container start
-echo "✅ Database migrations handled by release_command"
+echo "🔄 Running database migrations..."
+bundle exec rake db:create db:migrate
 
 # Note: Assets are precompiled during Docker build (see Dockerfile)
 # They do not need to be compiled at runtime
