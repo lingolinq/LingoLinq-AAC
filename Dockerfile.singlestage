@@ -65,7 +65,13 @@ RUN echo "=== Checking for pre-built Ember assets ===" && \
 # This creates the public/assets directory with Rails-managed assets (application.js, application.css, etc)
 RUN echo "=== Running Rails assets:precompile for Rails-only assets ===" && \
     rm -rf /app/public/assets && \
-    DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
+    echo "=== Contents of /app/public/ before precompile ===" && \
+    ls -lh /app/public/ && \
+    echo "=== Contents of /app/public/assets/ before precompile (should not exist) ===" && \
+    ls -lh /app/public/assets/ || echo "/app/public/assets/ does not exist yet, which is expected." && \
+    DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile && \
+    echo "=== Contents of /app/public/assets/ after precompile ===" && \
+    ls -lh /app/public/assets/
 
 # Phase 3: Copy pre-built Ember assets AFTER precompilation
 # This ensures Ember assets (vendor.js, frontend.js) are present alongside Rails assets
