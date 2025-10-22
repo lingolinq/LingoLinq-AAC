@@ -935,4 +935,4 @@ window.LingoLinqAAC.VERSION = window.app_version;
 
 // Export the CLASS, not the instance. The Ember build process needs the class to call .create() on.
 // The instance is still created in this file and assigned to window.LingoLinqAAC for legacy modules that need it.
-module.exports = LingoLinqAACClass;
+export default LingoLinqAACClass;
