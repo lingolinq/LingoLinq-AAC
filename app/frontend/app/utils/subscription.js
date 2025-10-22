@@ -975,4 +975,4 @@ document.addEventListener("deviceready", function() {
 
 LingoLinqAAC.Subscription = Subscription;
 
-module.exports = Subscription;
+export default Subscription;

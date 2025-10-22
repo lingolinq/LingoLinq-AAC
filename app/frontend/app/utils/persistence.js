@@ -3022,6 +3022,34 @@ var persistence = EmberObject.extend({
     }
     return null;
   },
+  safe_parse_json: function(text, contentType) {
+    // Check if the response is actually JSON before parsing
+    if(contentType && !contentType.match(/application\/json|text\/json/i)) {
+      // If AWS returned HTML error page (e.g., 500/503), reject gracefully
+      if(contentType.match(/text\/html/i) && text && text.match(/^<html|^<!DOCTYPE/i)) {
+        return RSVP.reject({error: 'Server error: HTML response received', statusCode: 500});
+      }
+      return RSVP.reject({error: 'Invalid content type: ' + contentType});
+    }
+    try {
+      return RSVP.resolve(JSON.parse(text));
+    } catch(e) {
+      return RSVP.reject({error: 'JSON parse failed', parseError: e.message});
+    }
+  },
+  with_timeout: function(promise, timeoutMs, errorMsg) {
+    // Wrap a promise with a timeout to prevent hanging on slow/unavailable servers
+    timeoutMs = timeoutMs || 30000; // Default 30 second timeout
+    errorMsg = errorMsg || 'Request timeout: resource took too long to load';
+
+    var timeoutPromise = new RSVP.Promise(function(resolve, reject) {
+      runLater(function() {
+        reject({error: errorMsg, timeout: true, code: 'ETIMEDOUT'});
+      }, timeoutMs);
+    });
+
+    return RSVP.race([promise, timeoutPromise]);
+  },
   ajax: function() {
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
@@ -3033,6 +3061,11 @@ var persistence = EmberObject.extend({
           run(function() {
             if(data) {
               data.xhr = xhr;
+            }
+            // Validate content-type if JSON is expected and we got HTML error
+            if(data && typeof data === 'string' && data.match(/^<html|^<!DOCTYPE/i)) {
+              reject({error: 'Server returned HTML error page', statusCode: xhr.status, responseText: data});
+              return;
             }
             resolve(data);
           });
