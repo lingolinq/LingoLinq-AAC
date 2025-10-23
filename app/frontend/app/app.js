@@ -331,10 +331,18 @@ DS.Model.reopen({
 
 Route.reopen({
   update_title_if_present: function() {
+    console.log('update_title_if_present: Entering function. LingoLinqAAC:', LingoLinqAAC);
     var controller = this.controllerFor(this.routeName);
     var title = this.get('title') || (controller && controller.get('title'));
     if(title && LingoLinqAAC.controller && LingoLinqAAC.controller.updateTitle) {
+      console.log('update_title_if_present: Condition PASSED. Calling updateTitle. LingoLinqAAC.controller:', LingoLinqAAC.controller);
       LingoLinqAAC.controller.updateTitle(title.toString());
+    } else {
+      console.warn('update_title_if_present: Condition FAILED.', {
+        hasTitle: !!title,
+        hasController: !!LingoLinqAAC.controller,
+        hasUpdateTitleMethod: LingoLinqAAC.controller ? !!LingoLinqAAC.controller.updateTitle : 'N/A'
+      });
     }
   },
   activate: function() {
