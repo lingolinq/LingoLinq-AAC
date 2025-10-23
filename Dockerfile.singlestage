@@ -60,27 +60,23 @@ RUN echo "=== Checking for pre-built Ember assets ===" && \
       exit 1; \
     fi
 
-# Phase 2: Clean and prepare public/assets directory
-RUN rm -rf /app/public/assets && \
-    echo "=== Cleaned Rails public/assets directory ===" && \
-    mkdir -p /app/public/assets
+# Phase 2: Precompile Rails assets ONLY
+# Set ASSETS_PRECOMPILE=true to skip Redis initialization during asset precompilation
+# This creates the public/assets directory with Rails-managed assets (application.js, application.css, etc)
+RUN echo "=== Running Rails assets:precompile for Rails-only assets ===" && \
+    rm -rf /app/public/assets && \
+    DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
 
-# Phase 3: Copy pre-built Ember assets DIRECTLY to public/assets
-# This bypasses Sprockets processing entirely for Ember-built files
+# Phase 3: Copy pre-built Ember assets AFTER precompilation
+# This ensures Ember assets (vendor.js, frontend.js) are present alongside Rails assets
+# Done AFTER precompile so Ember files aren't accidentally deleted by Sprockets
 RUN echo "=== Copying pre-built Ember assets to public/assets ===" && \
     cp -rv /app/app/frontend/dist/assets/* /app/public/assets/ && \
     echo "=== Ember Assets Copied to public/assets ===" && \
     ls -lh /app/public/assets/ | head -20 && \
     echo "=== End Asset Copy ==="
 
-# Phase 4: Precompile Rails assets ONLY
-# Set ASSETS_PRECOMPILE=true to skip Redis initialization during asset precompilation
-# Rails will compile application.js, application.css and other Rails-managed assets
-# but will NOT reprocess the Ember assets we already placed in public/assets
-RUN echo "=== Running Rails assets:precompile for Rails-only assets ===" && \
-    DISABLE_OBF_GEM=true ASSETS_PRECOMPILE=true SECRET_KEY_BASE=dummy SECURE_ENCRYPTION_KEY=dummy RAILS_ENV=production bundle exec rake assets:precompile
-
-# Phase 5: Final verification
+# Phase 4: Final verification
 RUN echo "=== Final Asset Directory Contents ===" && \
     ls -lh /app/public/assets/ | head -30 && \
     echo "=== Checking for critical Ember files ===" && \

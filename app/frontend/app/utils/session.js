@@ -18,7 +18,12 @@ var session = EmberObject.extend({
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'session', 'cough_drop:session');
     });
-    LingoLinqAAC.session = session;
+    // Guard against undefined LingoLinqAAC before setting session
+    if (LingoLinqAAC && typeof LingoLinqAAC === 'object') {
+      LingoLinqAAC.session = session;
+    } else {
+      console.warn('LingoLinqAAC not initialized when setting session');
+    }
   },
   persist: function(data) {
     session.set('auth_settings_fallback_data', data);
