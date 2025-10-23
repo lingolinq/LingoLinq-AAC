@@ -907,7 +907,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    LingoLinqAAC.track_error("bad image url: " + bad_src);
+    window.LingoLinqAAC && window.LingoLinqAAC.track_error("bad image url: " + bad_src);
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -917,22 +917,22 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var original_fallback = fallback;
       fallback = image.getAttribute('data-fallback');
       original_error = function() {
-        LingoLinqAAC.track_error("failed to retrieve defined fallback:" + fallback);
+        window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to retrieve defined fallback:" + fallback);
         image.src = original_fallback;
         if(find_fallback) {
           find_fallback();
         }
       };
     } else {
-      LingoLinqAAC.track_error("bad data uri or fallback: " + bad_src);
+      window.LingoLinqAAC && window.LingoLinqAAC.track_error("bad data uri or fallback: " + bad_src);
       original_error = function() {
-        LingoLinqAAC.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to retrieve image:" + fallback + " - " + image.src);
       };
     }
     error_listen(image, original_error);
     if(window.cordova && window.cordova.file && window.cordova.file.dataDirectory) {
-      LingoLinqAAC.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
-      LingoLinqAAC.track_error("tried to load:\n" + image.src);
+      window.LingoLinqAAC && window.LingoLinqAAC.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
+      window.LingoLinqAAC && window.LingoLinqAAC.track_error("tried to load:\n" + image.src);
     }
     image.src = fallback;
     var find_fallback = function() {
@@ -941,7 +941,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       persistence.find_url(fallback).then(function(data_uri) {
         if(image.src == fallback) {
           error_listen(image, function() {
-            LingoLinqAAC.track_error("failed to render local image fallback");
+            window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to render local image fallback");
           });
           image.src = data_uri;
         }
@@ -962,7 +962,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       }, function() {
         if(fallback != original_fallback) {
-          LingoLinqAAC.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
+          window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
         }
       });  
     };
@@ -971,7 +971,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var fb = image.getAttribute('data-fallback');
       error_listen(image, function() {
         if(image.src == fb) {
-          LingoLinqAAC.track_error("failed to load remote alternate after local version failed");
+          window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to load remote alternate after local version failed");
           find_fallback();
         }
       });
@@ -989,17 +989,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
       }, function() {
         // Error handling for bad image URLs should be handled
         // by error catches, this is just to note that the file store failed
-        LingoLinqAAC.track_error("failed to store cached local image:\n" + key);
+        window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to store cached local image:\n" + key);
       });
     };
     if(bad_src.match(/^file/) || bad_src.match(/^localhost/)) {
-      LingoLinqAAC.track_error("missing expected local image:\n" + bad_src);
+      window.LingoLinqAAC && window.LingoLinqAAC.track_error("missing expected local image:\n" + bad_src);
       var found = false;
       for(var key in persistence.url_cache) {
         if(!found && bad_src == persistence.url_cache[key] && persistence.get('online')) {
           error_listen(image, function() {
             if(image.src == key) {
-              LingoLinqAAC.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
+              window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
               find_fallback();
             }
           });
@@ -1021,17 +1021,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
         } else {
           if(image.getAttribute('rel') == bad_src) {
             error_listen(image, function() {
-              LingoLinqAAC.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
+              window.LingoLinqAAC && window.LingoLinqAAC.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
               find_fallback();
             });
             image.src = data_uri;
           } else {
-            LingoLinqAAC.track_error("image changed while looking up fallback");
+            window.LingoLinqAAC && window.LingoLinqAAC.track_error("image changed while looking up fallback");
             find_fallback();
           }
         }
       }, function() {
-        LingoLinqAAC.track_error("no local copy found, trying fallback", bad_src, fallback);
+        window.LingoLinqAAC && window.LingoLinqAAC.track_error("no local copy found, trying fallback", bad_src, fallback);
         find_fallback();
       });
     }

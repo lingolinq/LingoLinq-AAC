@@ -116,7 +116,8 @@
     window.domain_settings['domain'] = "<%= @domain_overrides['domain'] %>";
   </script>
 <% end %>
-<script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script>
+<!-- Commented out: weblinger.js failing with 503 error - not critical for core functionality -->
+<!-- <script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script> -->
 <script src='/mespeak/mespeak.js' async='true'></script>
 <script type='text/javascript'>
   <% if ENV['SYMBOL_PROXY_KEY'] %>

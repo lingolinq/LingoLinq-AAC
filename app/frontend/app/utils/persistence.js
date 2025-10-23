@@ -676,11 +676,11 @@ var persistence = EmberObject.extend({
             persistence.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
               resolve(json);
             }, function(err) {
-              LingoLinqAAC.track_error("No JSON dataURI");
+              window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("No JSON dataURI");
               reject({error: "No JSON dataURI result"});  
             });
           } catch(e) {
-            LingoLinqAAC.track_error("error parsing JSON data URI", e);
+            window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("error parsing JSON data URI", e);
             reject({error: "Error parsing JSON dataURI"});
           }
         } else if(typeof(uri) == 'string' && uri.match(/^filesystem/) && capabilities.browser == 'Chrome') {
@@ -710,14 +710,14 @@ var persistence = EmberObject.extend({
               persistence.remove('dataCache', url);
               persistence.url_cache[url] = null;
             }
-            LingoLinqAAC.track_error("JSON data retrieval error", (err || {}).error || err);
+            window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("JSON data retrieval error", (err || {}).error || err);
             reject(err);
           });
         } else {
           resolve(uri);
         }
       }, function(err) {
-        LingoLinqAAC.track_error("JSON DATA find_url error", (err || {}).error || err);
+        window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("JSON DATA find_url error", (err || {}).error || err);
         reject(err);
       });
     });
@@ -1402,7 +1402,7 @@ var persistence = EmberObject.extend({
       });
       setTimeout(function() {
         if(!done) {
-          LingoLinqAAC.track_error("sync promise took too long:" + msg);
+          window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("sync promise took too long:" + msg);
           reject({error: 'promise timed out:' + msg});
         }
       }, ms);  

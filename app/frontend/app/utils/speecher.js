@@ -656,7 +656,7 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
-            LingoLinqAAC.track_error("error rendering synthesized voice", opts);
+            window.LingoLinqAAC && window.LingoLinqAAC.track_error("error rendering synthesized voice", opts);
             handle_callback();
           });
           var hit_boundary = null;
