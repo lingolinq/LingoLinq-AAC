@@ -676,11 +676,19 @@ var persistence = EmberObject.extend({
             persistence.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
               resolve(json);
             }, function(err) {
-              window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("No JSON dataURI");
-              reject({error: "No JSON dataURI result"});  
+              if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+                window.LingoLinqAAC.track_error("No JSON dataURI");
+              } else {
+                console.error("track_error function not available", "No JSON dataURI");
+              }
+              reject({error: "No JSON dataURI result"});
             });
           } catch(e) {
-            window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("error parsing JSON data URI", e);
+            if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+              window.LingoLinqAAC.track_error("error parsing JSON data URI", e);
+            } else {
+              console.error("track_error function not available", "error parsing JSON data URI", e);
+            }
             reject({error: "Error parsing JSON dataURI"});
           }
         } else if(typeof(uri) == 'string' && uri.match(/^filesystem/) && capabilities.browser == 'Chrome') {
@@ -710,14 +718,22 @@ var persistence = EmberObject.extend({
               persistence.remove('dataCache', url);
               persistence.url_cache[url] = null;
             }
-            window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("JSON data retrieval error", (err || {}).error || err);
+            if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+              window.LingoLinqAAC.track_error("JSON data retrieval error", (err || {}).error || err);
+            } else {
+              console.error("track_error function not available", "JSON data retrieval error", (err || {}).error || err);
+            }
             reject(err);
           });
         } else {
           resolve(uri);
         }
       }, function(err) {
-        window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("JSON DATA find_url error", (err || {}).error || err);
+        if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+          window.LingoLinqAAC.track_error("JSON DATA find_url error", (err || {}).error || err);
+        } else {
+          console.error("track_error function not available", "JSON DATA find_url error", (err || {}).error || err);
+        }
         reject(err);
       });
     });
@@ -1402,7 +1418,11 @@ var persistence = EmberObject.extend({
       });
       setTimeout(function() {
         if(!done) {
-          window.LingoLinqAAC && window.window.LingoLinqAAC && window.LingoLinqAAC.track_error("sync promise took too long:" + msg);
+          if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+            window.LingoLinqAAC.track_error("sync promise took too long:" + msg);
+          } else {
+            console.error("track_error function not available", "sync promise took too long:" + msg);
+          }
           reject({error: 'promise timed out:' + msg});
         }
       }, ms);  

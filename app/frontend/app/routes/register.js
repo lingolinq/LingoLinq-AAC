@@ -6,7 +6,8 @@ import progress_tracker from '../utils/progress_tracker';
 
 export default Route.extend({
   model: function(params) {
-    var res = this.store.createRecord('user', {preferences: {}, referrer: LingoLinqAAC.referrer, ad_referrer: LingoLinqAAC.ad_referrer});
+    let store = this.store || window.LingoLinqAAC.store;
+    var res = store.createRecord('user', {preferences: {}, referrer: LingoLinqAAC.referrer, ad_referrer: LingoLinqAAC.ad_referrer});
     res.set('watch_user_name_and_cookies', true);
     res.set('reg_params', params);
     return res;

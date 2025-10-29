@@ -121,10 +121,10 @@ import app_state from './app_state';
       }
     },
     track_error: function(message) {
-      if (window.LingoLinqAAC && typeof window.window.LingoLinqAAC && window.LingoLinqAAC.track_error === 'function') {
-        window.window.LingoLinqAAC && window.LingoLinqAAC.track_error(message);
+      if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
+        window.LingoLinqAAC.track_error(message);
       } else {
-        console.error('[extras] track_error called but window.LingoLinqAAC && window.LingoLinqAAC.track_error not available:', message);
+        console.error('[extras] track_error called but window.LingoLinqAAC.track_error not available:', message);
       }
     }
   }).create();

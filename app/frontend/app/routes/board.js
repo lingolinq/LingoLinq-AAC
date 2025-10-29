@@ -12,6 +12,7 @@ import { later as runLater } from '@ember/runloop';
 
 export default Route.extend({
   model: function(params) {
+    let store = this.store || window.LingoLinqAAC.store;
     // TODO: when on the home screen if you have a large board and hit to open
     // it, it takes a while to change views. This does not, however, happen
     // if you hit the same board in the 'popular boards' list since those
@@ -28,11 +29,11 @@ export default Route.extend({
         integration_id = stashes.get('global_integrations.' + integration_id);
       }
       var action = parts.join(':');
-      var obj = LingoLinqAAC.store.createRecord('board');
+      var obj = store.createRecord('board');
       obj.set('integration', true);
       obj.set('key', params.key);
       obj.set('id', 'i' + integration_id);
-      return LingoLinqAAC.store.findRecord('integration', integration_id).then(function(tool) {
+      return store.findRecord('integration', integration_id).then(function(tool) {
         var reload = RSVP.resolve(tool);
         if(!tool.get('render_url')) {
           reload = tool.reload();
@@ -80,7 +81,7 @@ export default Route.extend({
         } else if(app_state.get('referenced_board.key') == key) {
           key = app_state.get('referenced_board.id') || params.key;
         }
-        var obj = _this.store.findRecord('board', key);
+        var obj = store.findRecord('board', key);
         return obj.then(function(data) {
           data.set('lookup_key', params.key);
           return RSVP.resolve(data);
@@ -92,7 +93,7 @@ export default Route.extend({
           if(error.status != '404' && allow_retry) {
             return find_board(false);
           } else {
-            var res = LingoLinqAAC.store.createRecord('board', {id: 'bad', key: params.key});
+            var res = store.createRecord('board', {id: 'bad', key: params.key});
             res.set('lookup_key', params.key);
             res.set('error', error);
             _this.set('error_record', res);

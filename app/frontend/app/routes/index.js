@@ -15,8 +15,9 @@ import progress_tracker from '../utils/progress_tracker';
 
 export default Route.extend({
   model: function() {
+    let store = this.store || window.LingoLinqAAC.store;
     if(session.get('access_token')) {
-      return LingoLinqAAC.store.findRecord('user', 'self').then(function(user) {
+      return store.findRecord('user', 'self').then(function(user) {
         // notifications and logs should show up when you re-visit the dashboard
         if(!user.get('really_fresh') && persistence.get('online')) {
           user.reload();
@@ -30,7 +31,8 @@ export default Route.extend({
     }
   },
   setupController: function(controller, model) {
-    controller.set('user', this.get('store').createRecord('user', {preferences: {}, referrer: LingoLinqAAC.referrer, ad_referrer: LingoLinqAAC.ad_referrer}));
+    let store = this.store || window.LingoLinqAAC.store;
+    controller.set('user', store.createRecord('user', {preferences: {}, referrer: LingoLinqAAC.referrer, ad_referrer: LingoLinqAAC.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
     LingoLinqAAC.sale = LingoLinqAAC.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());
@@ -76,13 +78,13 @@ export default Route.extend({
 
     app_state.clear_mode();
     if(!app_state.get('currentUser.preferences.home_board.id')) {
-      this.store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
+      store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
         controller.set('starting_boards', boards);
       }, function() { });
     }
     if(!session.get('isAuthenticated')) {
       controller.set('homeBoards', {loading: true});
-      controller.store.query('board', {sort: 'home_popularity', per_page: 9}).then(function(data) {
+      store.query('board', {sort: 'home_popularity', per_page: 9}).then(function(data) {
         controller.set('homeBoards', data);
         controller.checkForBlankSlate();
       }, function() {
@@ -91,7 +93,7 @@ export default Route.extend({
       });
 
       controller.set('popularBoards', {loading: true});
-      controller.store.query('board', {sort: 'popularity', per_page: 9}).then(function(data) {
+      store.query('board', {sort: 'popularity', per_page: 9}).then(function(data) {
         controller.set('popularBoards', data);
         controller.checkForBlankSlate();
       }, function() {

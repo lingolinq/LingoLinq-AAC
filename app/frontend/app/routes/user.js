@@ -4,7 +4,8 @@ import persistence from '../utils/persistence';
 
 export default Route.extend({
   model: function(params) {
-    var obj = this.store.findRecord('user', params.user_id);
+    let store = this.store || window.LingoLinqAAC.store;
+    var obj = store.findRecord('user', params.user_id);
     var _this = this;
     return obj.then(function(data) {
       if(!data.get('really_fresh') && persistence.get('online')) {

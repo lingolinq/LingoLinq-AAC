@@ -8,8 +8,9 @@ import RSVP from 'rsvp';
 export default Route.extend({
   title: "Communicator Profile",
   model: function(params) {
+    let store = this.store || window.LingoLinqAAC.store;
     // look up profile by id, get user as well
-    return LingoLinqAAC.store.findRecord('user', params.user_id).then(function(user) {
+    return store.findRecord('user', params.user_id).then(function(user) {
       return profiles.template(params.profile_id).then(function(profile) {
         return {
           user: user,
