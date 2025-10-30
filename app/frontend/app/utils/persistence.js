@@ -676,11 +676,6 @@ var persistence = EmberObject.extend({
             persistence.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
               resolve(json);
             }, function(err) {
-              if (window.LingoLinqAAC && typeof window.LingoLinqAAC.track_error === 'function') {
-                window.LingoLinqAAC.track_error("No JSON dataURI");
-              } else {
-                console.error("track_error function not available", "No JSON dataURI");
-              }
               reject({error: "No JSON dataURI result"});
             });
           } catch(e) {
