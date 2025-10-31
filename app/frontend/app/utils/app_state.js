@@ -1299,6 +1299,10 @@ var app_state = EmberObject.extend({
     }, 1000);
   },
   refresh_session_user: function() {
+    // Guard against store not being initialized yet during app boot
+    if(!LingoLinqAAC.store) {
+      return;
+    }
     LingoLinqAAC.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
         user.reload().then(function(user) {
