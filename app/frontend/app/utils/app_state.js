@@ -226,6 +226,11 @@ var app_state = EmberObject.extend({
       // or has a spotty connection, then looking up the user will not succeed, and
       // the app will force a logout unexpectedly.
       var find_user = function(last_try) {
+        // DEFENSIVE: Ensure store is initialized before calling findRecord
+        if(!LingoLinqAAC.store) {
+          console.warn('Skipping user initialization: Ember Data store not yet initialized');
+          return;
+        }
         var find = LingoLinqAAC.store.findRecord('user', 'self');
 
         find.then(function(user) {

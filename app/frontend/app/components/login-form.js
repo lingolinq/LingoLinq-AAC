@@ -182,11 +182,14 @@ export default Component.extend({
           window.navigator.splashscreen.show();
         }
       }
+      // CRITICAL: Set the access token IMMEDIATELY for all API requests
+      // This must happen before any stashes operations to ensure token is available
+      var auth_settings = stashes.get_object('auth_settings', true) || {};
+      capabilities.access_token = auth_settings.access_token;
+
       var wait = stashes.flush(null, 'auth_').then(function() {
         stashes.setup();
       });
-      var auth_settings = stashes.get_object('auth_settings', true) || {};
-      capabilities.access_token = auth_settings.access_token;
       _this.set('logging_in', false);
       _this.set('login_followup', false);
       _this.set('login_single_assertion', false);
@@ -221,7 +224,38 @@ export default Component.extend({
     },
     login_followup: function(choice) {
       var _this = this;
-      LingoLinqAAC.store.findRecord('user', 'self').then(function(u) {
+      // DEFENSIVE: Ensure store is available before calling findRecord
+      // LingoLinqAAC.store may be undefined during early initialization
+      var store = (window.LingoLinqAAC && window.LingoLinqAAC.store) || (this.store) || (this.container && this.container.lookup('service:store'));
+      if(!store) {
+        // If still no store, make a direct API call instead
+        console.warn('Store not available in login_followup, falling back to direct API call');
+        var url = '/api/v1/users/self?access_token=' + encodeURIComponent(capabilities.access_token);
+        persistence.ajax(url, {
+          type: 'PATCH',
+          data: {
+            user: {
+              preferences: {
+                device: {
+                  long_token: !!choice,
+                  asserted: true
+                }
+              }
+            }
+          }
+        }).then(function() {
+          _this.send('login_success', true);
+        }, function(err) {
+          _this.set('login_followup', false);
+          _this.set('login_single_assertion', false);
+          app_state.set('logging_in', false);
+          _this.set('logging_in', false);
+          _this.set('logged_in', false);
+          _this.set('login_error', i18n.t('user_update_failed', "Updating login preferences failed"));
+        });
+        return;
+      }
+      store.findRecord('user', 'self').then(function(u) {
         u.set('preferences.device.long_token', !!choice);
         u.set('preferences.device.asserted', true);
         u.save().then(function() {
