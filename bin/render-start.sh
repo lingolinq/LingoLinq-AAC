@@ -22,7 +22,7 @@ echo "🔧 Setting BUNDLE_FORCE_RUBY_PLATFORM=false to use Linux-native gems..."
 export BUNDLE_FORCE_RUBY_PLATFORM=false
 
 echo "🔄 Running database migrations..."
-bundle exec rake db:create db:migrate
+bundle exec rake db:create db:migrate db:seed
 
 # Note: Assets are precompiled during Docker build (see Dockerfile)
 # They do not need to be compiled at runtime
