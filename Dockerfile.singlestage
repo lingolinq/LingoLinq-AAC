@@ -44,21 +44,30 @@ RUN bundle config set --local without 'development test' && \
 # Copy the rest of the application code
 COPY . .
 
-# NEW STRATEGY: Copy pre-built Ember assets from local build
-# The Ember assets (vendor.js, frontend.js) should be built locally and committed to git
-# This ensures we deploy EXACTLY what was tested locally
+# --- Frontend Build Phase (NEW - Build Ember inside Docker) ---
+# This ensures Ember assets are built in a stable Linux environment
+# rather than relying on Windows local builds which can timeout
 #
-# Phase 1: Verify pre-built Ember assets exist
-RUN echo "=== Checking for pre-built Ember assets ===" && \
-    if [ -d "/app/app/frontend/dist/assets" ]; then \
-      echo "Found pre-built Ember assets in app/frontend/dist/assets/"; \
-      ls -lh /app/app/frontend/dist/assets/ | head -20; \
-    else \
-      echo "ERROR: No pre-built Ember assets found!"; \
-      echo "Please run 'cd app/frontend && npm install && npx bower install --allow-root && ember build --environment=production' locally"; \
-      echo "and commit the app/frontend/dist/ directory to git."; \
-      exit 1; \
-    fi
+# Install global Ember CLI and bower
+RUN npm install -g ember-cli bower
+
+# Build frontend assets
+WORKDIR /app/app/frontend
+
+# Install npm dependencies
+RUN npm install --verbose
+
+# Install bower dependencies
+RUN npx bower install --allow-root
+
+# Build Ember assets for production
+# Note: Using NODE_OPTIONS to bypass strict engine check for Node 16-17
+RUN echo "=== Building Ember assets for production ===" && \
+    NODE_OPTIONS="--no-warnings" npm run build --environment=production
+
+# Return to main app directory
+WORKDIR /app
+# --- End Frontend Build Phase ---
 
 # Phase 2: Precompile Rails assets ONLY
 # Set ASSETS_PRECOMPILE=true to skip Redis initialization during asset precompilation
@@ -73,10 +82,12 @@ RUN echo "=== Running Rails assets:precompile for Rails-only assets ===" && \
     echo "=== Contents of /app/public/assets/ after precompile ===" && \
     ls -lh /app/public/assets/
 
-# Phase 3: Copy pre-built Ember assets AFTER precompilation
+# Phase 3: Copy Ember assets (built in Docker) AFTER precompilation
 # This ensures Ember assets (vendor.js, frontend.js) are present alongside Rails assets
 # Done AFTER precompile so Ember files aren't accidentally deleted by Sprockets
-RUN echo "=== Copying pre-built Ember assets to public/assets ===" && \
+RUN echo "=== Verifying Ember assets were built ===" && \
+    ls -lh /app/app/frontend/dist/assets/ && \
+    echo "=== Copying Ember assets to public/assets ===" && \
     cp -rv /app/app/frontend/dist/assets/* /app/public/assets/ && \
     echo "=== Ember Assets Copied to public/assets ===" && \
     ls -lh /app/public/assets/ | head -20 && \
