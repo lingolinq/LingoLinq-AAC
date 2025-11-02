@@ -54,11 +54,8 @@ RUN npm install -g ember-cli bower
 # Build frontend assets
 WORKDIR /app/app/frontend
 
-# Install npm dependencies
+# Install npm dependencies (includes addon dependencies from lib/temporary-ember-fix/package.json)
 RUN npm install --verbose
-
-# Install addon dependencies (lib/temporary-ember-fix needs broccoli-replace)
-RUN npm install broccoli-replace --save-dev
 
 # Install bower dependencies
 RUN npx bower install --allow-root
