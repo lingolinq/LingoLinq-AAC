@@ -48,8 +48,8 @@ COPY . .
 # This ensures Ember assets are built in a stable Linux environment
 # rather than relying on Windows local builds which can timeout
 #
-# Install global Ember CLI, bower, and broccoli-replace (needed by temp-ember-fix addon)
-RUN npm install -g ember-cli bower broccoli-replace
+# Install global Ember CLI and bower
+RUN npm install -g ember-cli bower
 
 # Build frontend assets
 WORKDIR /app/app/frontend

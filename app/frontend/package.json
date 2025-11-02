@@ -57,8 +57,6 @@
     "ember-cli-update": "^0.48.2"
   },
   "ember-addon": {
-    "paths": [
-      "lib/temporary-ember-fix"
-    ]
+    "paths": []
   }
 }
