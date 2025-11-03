@@ -5,6 +5,7 @@ import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import { inject as service } from '@ember/service';
+import session from '../utils/session';
 
 // ApplicationRouteMixin.reopen({
 //   actions: {
@@ -27,6 +28,18 @@ import { inject as service } from '@ember/service';
 //   }
 // });
 export default Route.extend({
+  // Force the application to wait for session restoration before proceeding.
+  // This prevents race conditions where routes try to load before the session
+  // service is fully initialized from local storage.
+  beforeModel(transition) {
+    // The session.restore() method synchronously loads auth data from local storage
+    // and checks the token. This ensures the session is in a known state before
+    // any child routes are evaluated.
+    session.restore(true);
+    // Return undefined to allow the transition to proceed
+    return undefined;
+  },
+
   setupController: function(controller) {
     app_state.setup_controller(this, controller);
     speecher.refresh_voices();
