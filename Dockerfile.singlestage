@@ -54,8 +54,8 @@ RUN npm install -g ember-cli bower
 # Build frontend assets
 WORKDIR /app/app/frontend
 
-# Install npm dependencies
-RUN npm install
+# Install npm dependencies including dev dependencies
+RUN npm install --include=dev
 
 # Verify npm install completed correctly
 RUN ls -la node_modules/ | head -20
@@ -67,9 +67,9 @@ RUN npx bower install --allow-root
 RUN npx ember --version || echo "Ember CLI version check"
 
 # Build Ember assets for production
-# Note: Using NODE_OPTIONS to bypass strict engine check for Node 16-17
+# Use npx ember build directly since ember-cli is installed globally
 RUN echo "=== Building Ember assets for production ===" && \
-    NODE_OPTIONS="--no-warnings" npm run build --environment=production
+    NODE_OPTIONS="--no-warnings" npx ember build --environment=production
 
 # Return to main app directory
 WORKDIR /app
