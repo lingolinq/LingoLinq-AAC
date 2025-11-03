@@ -15,8 +15,8 @@ export default Route.extend({
   setupController: function(controller) {
     controller.set('model', {});
     controller.set('locale', this.get('locale'));
-    controller.load_results(this.get('q'));
     controller.set('searchString', this.get('queryString'));
+    controller.load_results(this.get('q') || '');
     app_state.set('hide_search', true);
   }
 });

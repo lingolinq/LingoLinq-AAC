@@ -20,15 +20,11 @@ class Api::UsersController < ApplicationController
       allowed = true
       @include_subscription = true
     end
-    self.class.trace_execution_scoped(['user/permission_check']) do
-      allowed ||= allowed?(user, 'view_existence')
-    end
+    allowed ||= allowed?(user, 'view_existence')
     return unless allowed
     json = {}
-    self.class.trace_execution_scoped(['user/json_render']) do
-      json = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user, :device => user_device, :include_subscription => @include_subscription)
-    end
-    
+    json = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user, :device => user_device, :include_subscription => @include_subscription)
+
     render json: json.to_json
   end
   

@@ -23,6 +23,8 @@ export default Controller.extend({
   }),
   load_results: function(str) {
     var _this = this;
+    // Defensive: ensure str is always a string, never undefined or null
+    str = str || '';
     this.set('online_results', {loading: true, results: []});
     this.set('local_results', {loading: true, results: []});
 
