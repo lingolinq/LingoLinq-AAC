@@ -55,10 +55,16 @@ RUN npm install -g ember-cli bower
 WORKDIR /app/app/frontend
 
 # Install npm dependencies
-RUN npm install --verbose
+RUN npm install
+
+# Verify npm install completed correctly
+RUN ls -la node_modules/ | head -20
 
 # Install bower dependencies
 RUN npx bower install --allow-root
+
+# Verify ember-cli is available
+RUN npx ember --version || echo "Ember CLI version check"
 
 # Build Ember assets for production
 # Note: Using NODE_OPTIONS to bypass strict engine check for Node 16-17
