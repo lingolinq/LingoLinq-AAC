@@ -264,7 +264,14 @@
       "Bash(awk:*)",
       "Bash(/c/Users/skawa/.fly/bin/flyctl.exe deploy --app lingolinq-aac --detach)",
       "Bash(lingolinq-aac:test)",
-      "Bash(./bin/build-ember-local)"
+      "Bash(./bin/build-ember-local)",
+      "Bash(\"./bin/build-ember-local.bat\")",
+      "Bash(cmd /c:*)",
+      "Bash(cmd.exe /c \"bin\\build-ember-local.bat\")",
+      "Bash(pkill:*)",
+      "Bash(touch:*)",
+      "Bash(docker image rm:*)",
+      "Bash(git revert:*)"
     ],
     "deny": []
   }

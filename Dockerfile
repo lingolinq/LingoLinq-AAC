@@ -75,6 +75,7 @@ RUN chmod +x bin/generate_version.rb && ruby bin/generate_version.rb
 
 # Step 3: Build the Ember frontend
 RUN echo "==> Building Ember frontend..."
+RUN rm -rf app/frontend/dist
 RUN cd app/frontend && \
     npx bower install --allow-root --config.interactive=false && \
     ./node_modules/.bin/ember build --environment=production && \
@@ -85,13 +86,12 @@ RUN echo "==> Cleaning old Rails assets..."
 RUN DISABLE_OBF_GEM=true RAILS_ENV=production bundle exec rake assets:clean || true
 RUN rm -rf /app/public/assets/*
 
-# Step 5: Create symlinks for Ember assets (matching traditional deployment)
-# The Rails asset pipeline expects these symlinks during precompilation
-RUN echo "==> Creating Ember asset symlinks..."
-RUN mkdir -p /app/app/assets/javascripts && \
-    cd /app/app/assets/javascripts && \
-    ln -sf ../../frontend/dist/assets/frontend.js frontend.js && \
-    ln -sf ../../frontend/dist/assets/vendor.js vendor.js
+# Remove old symlinks/files that are now being replaced
+RUN rm -f /app/app/assets/javascripts/frontend.js /app/app/assets/javascripts/vendor.js
+
+# Step 5: Explicitly copy Ember assets from the staged directory
+COPY tmp/ember-dist/assets/frontend.js /app/public/assets/
+COPY tmp/ember-dist/assets/vendor.js /app/public/assets/
 
 # Step 6: Precompile Rails assets (matching deploy_prep)
 RUN echo "==> Precompiling Rails assets..."
@@ -99,12 +99,6 @@ RUN DISABLE_OBF_GEM=true \
     SECRET_KEY_BASE=dummy \
     RAILS_ENV=production \
     bundle exec rake assets:precompile --trace
-
-# Copy Ember build output to public directory for serving
-# Rails serves static files from public/, not from the Ember dist directory
-# This is critical for Ember app to load properly
-RUN mkdir -p /app/public && \
-    cp -r /app/app/frontend/dist/* /app/public/
 
 # DIAGNOSTIC: List generated assets to verify fingerprinting
 RUN echo "=== Generated Assets in /app/public/assets ===" && \

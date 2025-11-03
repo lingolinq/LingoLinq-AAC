@@ -11,13 +11,11 @@ vendor/bundle/
 app/assets/javascripts/
 app/assets/stylesheets/
 app/frontend/dist/
-app/frontend/tmp/
 public/assets/
 
 # Logs and Temporary Files
 log/
 logs/
-tmp/
 coverage/
 .ai/temp/
 .ai/sessions/

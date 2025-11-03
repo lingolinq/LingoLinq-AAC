@@ -56,14 +56,18 @@ echo ""
 export MSYS_NO_PATHCONV=1
 
 docker run --rm \
-  -v "$DOCKER_MOUNT:/app" \
-  -w /app \
+  -v "$PROJECT_ROOT:/host_app" \
+  -w /app/frontend \
   node:18-slim \
   bash -c "
     set -e
     echo '🧹 Cleaning previous build...'
     rm -rf dist
     echo '✓ Previous build cleaned'
+    echo ''
+    echo '📦 Copying frontend source...'
+    cp -r /host_app/app/frontend /app/
+    echo '✓ Frontend source copied'
     echo ''
     echo '📦 Installing npm dependencies...'
     npm install --legacy-peer-deps --quiet
@@ -73,13 +77,28 @@ docker run --rm \
     npx bower install --allow-root --config.interactive=false
     echo '✓ bower dependencies installed'
     echo ''
-    echo '🔨 Building Ember (production mode)...'
     ./node_modules/.bin/ember build --environment=production
     echo '✓ Ember build complete'
+    echo ''
+    echo '📦 Listing dist contents inside container...'
+    ls -la dist
+    echo '✓ dist listed'
+    echo ''
+    echo '📝 Copying container-built frontend.js to host for inspection...'
+    cat dist/assets/frontend.js > dist/assets/frontend_output.js
+    echo '✓ frontend.js copied to host'
   "
 
 # Unset to avoid affecting other commands
 unset MSYS_NO_PATHCONV
+
+# Stage assets in tmp/ember-dist
+echo ""
+echo "📦 Staging Ember assets to tmp/ember-dist..."
+rm -rf tmp/ember-dist
+mkdir -p tmp/ember-dist/assets
+cp -r app/frontend/dist/assets/* tmp/ember-dist/assets/
+echo "✓ Assets staged in tmp/ember-dist"
 
 # Verify build output
 echo ""

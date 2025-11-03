@@ -15,10 +15,17 @@ import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
-// COPILOT FIX: Define LingoLinqAAC.track_error BEFORE error handlers
+// CRITICAL FIX: Define LingoLinqAAC.track_error BEFORE error handlers
+// This must be defined early to ensure it's available when error handlers execute
 window.LingoLinqAAC = window.LingoLinqAAC || {};
-window.LingoLinqAAC.track_error = function (msg, src, line, col, err) {
-  console.error('LingoLinqAAC Error:', msg, src, line, col, err);
+window.LingoLinqAAC.track_error = window.LingoLinqAAC.track_error || function (msg, src, line, col, err) {
+  if (console.group) {
+    console.group('LingoLinqAAC Error');
+  }
+  console.error('LingoLinqAAC Tracked Error:', msg, src, line, col, err);
+  if (console.groupEnd) {
+    console.groupEnd();
+  }
 };
 
 window.onerror = function(msg, url, line, col, obj) {

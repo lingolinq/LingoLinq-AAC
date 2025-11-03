@@ -12,7 +12,6 @@ docs/
 # Logs
 log/*
 *.log
-tmp/
 
 # Dependencies (will be installed in container)
 node_modules/
