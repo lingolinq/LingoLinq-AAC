@@ -27,6 +27,18 @@ import { inject as service } from '@ember/service';
 //   }
 // });
 export default Route.extend({
+  session: service(),
+
+  beforeModel() {
+    // Force synchronization: wait for session and IndexedDB to be fully initialized
+    // This prevents the race condition where routes like 'search' try to access
+    // session properties before they're ready, causing "Cannot read properties of undefined" errors
+    if (!this.session.is_ready) {
+      // get_important_ids() returns a promise that resolves when IndexedDB cache is primed
+      return this.session.get_important_ids();
+    }
+  },
+
   setupController: function(controller) {
     app_state.setup_controller(this, controller);
     speecher.refresh_voices();
