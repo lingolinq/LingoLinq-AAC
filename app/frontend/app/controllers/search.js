@@ -38,12 +38,21 @@ export default Controller.extend({
 
     function loadBoards() {
       if(persistence.get('online')) {
+        // DEFENSIVE: Check if the Ember Data store is available before using it
+        // The store may not be initialized if the application route hasn't fully loaded yet
+        if(!LingoLinqAAC.store || !LingoLinqAAC.store.query) {
+          console.warn('Store not available in search controller, skipping board query');
+          _this.set('online_results', {results: []});
+          _this.set('personal_results', {results: []});
+          return;
+        }
+
         _this.set('online_results', {loading: true, results: []});
         _this.set('personal_results', {loading: true, results: []});
         var locale = (_this.get('locale') || (i18n.langs || {}).preferred || window.navigator.language || 'en').split(/-/)[0];
         // TODO: ensure that search results show up localized
         // for translated boards with a different default locale
-        
+
         var query_filter = str + "::" + locale + "::popularity";
         var params = {q: str, locale: locale, sort: 'popularity'};
         var search_key = JSON.stringify(params);

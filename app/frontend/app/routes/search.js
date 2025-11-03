@@ -4,6 +4,13 @@ import i18n from '../utils/i18n';
 
 export default Route.extend({
   title: "Search",
+  // Declare query parameters to ensure they're properly handled by Ember
+  // This prevents undefined access when the controller tries to use these params
+  queryParams: {
+    q: { refreshModel: true },
+    locale: { refreshModel: true },
+    l: { refreshModel: true }  // Alias for locale
+  },
   model: function(params) {
     var q = params.q;
     if(q == '_') { q = ''; }

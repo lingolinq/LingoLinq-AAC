@@ -224,13 +224,25 @@ export default Component.extend({
     },
     login_followup: function(choice) {
       var _this = this;
+      // CRITICAL: Ensure we have the access token available from stashes
+      // The token is persisted asynchronously in confirm_authentication, so we need to get the fresh copy
+      var auth_settings = stashes.get_object('auth_settings', true) || {};
+      var access_token = auth_settings.access_token || capabilities.access_token;
+
+      if(!access_token) {
+        console.error('No access token available in login_followup - authentication may have failed');
+        _this.set('login_error', i18n.t('user_retrieve_failed', "Retrieving login preferences failed"));
+        _this.set('login_followup', false);
+        return;
+      }
+
       // DEFENSIVE: Ensure store is available before calling findRecord
       // LingoLinqAAC.store may be undefined during early initialization
       var store = (window.LingoLinqAAC && window.LingoLinqAAC.store) || (this.store) || (this.container && this.container.lookup('service:store'));
       if(!store) {
         // If still no store, make a direct API call instead
         console.warn('Store not available in login_followup, falling back to direct API call');
-        var url = '/api/v1/users/self?access_token=' + encodeURIComponent(capabilities.access_token);
+        var url = '/api/v1/users/self?access_token=' + encodeURIComponent(access_token);
         persistence.ajax(url, {
           type: 'PATCH',
           data: {
