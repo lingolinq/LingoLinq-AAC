@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "rake"
+
+# Fallback to system yarn if rails-specific yarn stub is missing
+exec "yarn", *ARGV

@@ -31,10 +31,17 @@ rails db:seed  # Optional: creates example user (username: example, password: pa
 
 **Running servers:**
 ```bash
+# Fresh start (kills existing processes, checks dependencies, starts all services)
+bin/fresh_start
+
+# Or manually:
 # Development with all processes (recommended)
 foreman start
 # or
 heroku local
+
+# Stop all running processes
+bin/kill_all
 
 # Single process (backend only, frontend won't work)
 rails server
@@ -88,7 +95,7 @@ bower install
 **Running:**
 ```bash
 cd app/frontend
-ember serve  # Runs on port 8181, auto-compiles on changes
+ember serve  # Runs on port 8184, auto-compiles on changes
 ```
 
 **Testing:**
@@ -258,9 +265,19 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js (server-side asset processing)
+- Node.js (managed via nvm):
+  - Default: Node 20 (for newer tools, deployment)
+  - Frontend: Node 18 (for Ember 3.12)
+  - Automatic switching configured via `.nvmrc` files
+- Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
+
+**Node Version Management:**
+- Root `/.nvmrc`: Node 20 (default)
+- `app/frontend/.nvmrc`: Node 18 (Ember requirement)
+- `foreman start` automatically handles version switching in Procfile
+- For manual work: `cd app/frontend && nvm use` to switch to Node 18
 
 **Environment variables:**
 - Copy `.env.example` to `.env`

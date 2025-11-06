@@ -1,0 +1,15 @@
+{
+  "name": "LingoLinq Ruby Codespace",
+  "image": "mcr.microsoft.com/devcontainers/ruby:3.4",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "castwide.ruby-lsp",
+        "rebornix.ruby",
+        "bung87.ruby-rubocop"
+      ]
+    }
+  },
+  "postCreateCommand": "gem install bundler -v 2.6.8 --conservative || true && bundle _2.6.8_ config set --local path 'vendor/bundle' || true && bundle _2.6.8_ install --jobs 4 || true",
+  "remoteUser": "vscode"
+}

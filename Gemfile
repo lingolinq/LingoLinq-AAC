@@ -15,6 +15,8 @@ group :development, :test do
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
+  gem 'ruby-lsp', require: false
+  gem 'ruby-lsp-rails', require: false
 end
 
 gem 'concurrent-ruby', '1.3.4'
