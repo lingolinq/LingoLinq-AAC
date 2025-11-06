@@ -32,3 +32,12 @@
 /lib/domains.json
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# Ignore local settings for claude
+/.claude
+
+# Ignore node modules
+/node_modules
+
+# Ignore compiled assets
+/public/assets
