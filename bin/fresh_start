@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -e  # Exit on any error
+
+echo "=== SweetSuite Fresh Start ==="
+echo ""
+
+# Kill any existing processes
+echo "1. Stopping any existing processes..."
+/workspaces/LingoLinq-AAC/bin/kill_all
+sleep 2
+
+echo ""
+echo "2. Checking Redis..."
+if ! redis-cli ping > /dev/null 2>&1; then
+    echo "Starting Redis..."
+    sudo service redis-server start
+    sleep 1
+fi
+redis-cli ping > /dev/null && echo "✓ Redis is running" || { echo "✗ Redis failed to start"; exit 1; }
+
+echo ""
+echo "3. Checking PostgreSQL..."
+if ! pg_isready > /dev/null 2>&1; then
+    echo "Starting PostgreSQL..."
+    sudo service postgresql start
+    sleep 1
+fi
+pg_isready > /dev/null && echo "✓ PostgreSQL is running" || { echo "✗ PostgreSQL failed to start"; exit 1; }
+
+echo ""
+echo "4. Checking environment..."
+if [ ! -f .env ]; then
+    echo "✗ .env file not found. Copy .env.example to .env first!"
+    exit 1
+fi
+echo "✓ .env file exists"
+
+echo ""
+echo "5. Starting all services with foreman..."
+echo ""
+echo "=========================================="
+echo "SweetSuite is starting on:"
+echo "  Backend:  http://localhost:5000"
+echo "  Frontend: http://localhost:8184"
+echo "=========================================="
+echo ""
+
+foreman start

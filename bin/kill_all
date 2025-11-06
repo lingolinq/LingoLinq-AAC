@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "Stopping all SweetSuite processes..."
+
+# Kill foreman if running
+pkill -f foreman && echo "✓ Killed foreman" || echo "- No foreman running"
+
+# Kill puma (Rails web server)
+pkill -f puma && echo "✓ Killed puma" || echo "- No puma running"
+
+# Kill resque workers
+pkill -f resque && echo "✓ Killed resque workers" || echo "- No resque running"
+
+# Kill ember server
+pkill -f ember && echo "✓ Killed ember server" || echo "- No ember running"
+
+# Don't kill redis automatically - it might be used by other things
+echo ""
+echo "Redis is still running (use 'sudo service redis-server stop' if needed)"
+
+echo ""
+echo "All SweetSuite processes stopped!"

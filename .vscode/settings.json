@@ -1,0 +1,6 @@
+{
+  // Prefer running the Ruby LSP via the project's Bundler to pick up the correct gems
+  "rubyLsp.useBundler": true,
+  // Some Ruby extensions also respect this setting
+  "ruby.useBundler": true
+}
