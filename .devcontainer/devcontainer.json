@@ -1,15 +1,25 @@
 {
-  "name": "LingoLinq Ruby Codespace",
-  "image": "mcr.microsoft.com/devcontainers/ruby:3.4",
+  "name": "LingoLinq Ruby + Node Codespace",
+  "image": "mcr.microsoft.com/devcontainers/ruby:1-3.4-bookworm",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "nodeGypDependencies": true
+    }
+  },
+
   "customizations": {
     "vscode": {
       "extensions": [
         "castwide.ruby-lsp",
         "rebornix.ruby",
-        "bung87.ruby-rubocop"
+        "bung87.ruby-rubocop",
+        "Anthropic.claude-dev"
       ]
     }
   },
-  "postCreateCommand": ".devcontainer/post-create.sh",
+  
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "vscode"
 }
