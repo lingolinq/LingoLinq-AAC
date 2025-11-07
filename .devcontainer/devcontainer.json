@@ -10,6 +10,6 @@
       ]
     }
   },
-  "postCreateCommand": "gem install bundler -v 2.6.8 --conservative || true && bundle _2.6.8_ config set --local path 'vendor/bundle' || true && bundle _2.6.8_ install --jobs 4 || true",
+  "postCreateCommand": ".devcontainer/post-create.sh",
   "remoteUser": "vscode"
 }
