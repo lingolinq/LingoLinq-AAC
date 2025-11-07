@@ -1,7 +1,7 @@
-## SweetSuite AAC - Every Voice Should Be Heard
+## LingoLinq-AAC - Every Voice Should Be Heard
 [![OpenAAC](https://www.openaac.org/images//OpenAAC-advocate-blue.svg)](https://www.openaac.org/advocates.html)
 
-SweetSuite is an open, web-based AAC (Augmentative and Alternative Communication) app. Basically
+LingoLinq-AAC is an open, web-based AAC (Augmentative and Alternative Communication) app. This project aims to modernize the existing tech stack and user interface, as well as integrate advanced AI features and tools to significantly enhance the AAC experience. Basically
 if people struggle getting their words out for whatever reason, they can use
 the speech synthesis engine on a computing device to "speak" for them. Sometimes
 they'll just type on a keyboard (think Stephen Hawking), but sometimes typing is too slow
@@ -10,8 +10,7 @@ or not a reasonable expectation, so communication
 building these grids and keyboards, optionally tracks their usage, and also offers
 tools for the team supporting the communicator.
 
-SweetSuite is web-based, and will run on most modern browsers. You can try it out
-for free at https://www.mycoughdrop.com. It leverages modern web standards like the
+try it out for free at https://www.lingolinq-aac.com It leverages modern web standards like the
 Web Speech API, the Application Cache, IndexedDB and a bunch of HTML5 to work
 both online and offline. It should run on Windows, Mac, ChromeOS, iOS and Android, and can
 be packaged up for app stores as well.
@@ -20,15 +19,15 @@ Unlike most other AAC apps, which are installed and live on a single device, Swe
 is cloud-based, and syncs edits across multiple devices automatically. This may seem 
 unimportant, but when you spend a lot of time building a very personalized vocabulary,
 you don't want a broken device or a dead battery to prevent you from communicating. With
-SweetSuite you can just log into a different device and keep going.
+LingoLinq-AAC you can just log into a different device and keep going.
 
-Additionally, SweetSuite allows users to add "supervisors", which are administrative
+Additionally, LingoLinq-AAC allows users to add "supervisors", which are administrative
 users that can help modify boards, track usage reports, and coordinate strategy. In the
 past users would have to hand over their device so therapists or parents could make
-changes or review usage logs, but with SweetSuite supervisors can do their thing on their
+changes or review usage logs, but with LingoLinq-AAC supervisors can do their thing on their
 own devices. And permission controls always stay in the hands of the user.
 
-Anyway, that's SweetSuite in a nutshell. There's a lot of extra fun added in, with
+Anyway, that's LingoLinq-AAC in a nutshell. There's a lot of extra fun added in, with
 built-in assessment and profiling tools, real-time following and remote modeling,
 embedded books and videos, two way SMS messaging, modeling ideas and trend reporting,
 focus words mode, goal setting and automated tracking, team coordination, 
@@ -36,13 +35,13 @@ organizational branding and management tools, classroom-level targets and
 goal tracking, continuing education linking and tracking, etc.
 The code is open source so you're free to
 run it yourself. We require a code contributor agreement before accepting changes into
-our repo. Boards created in SweetSuite use the Open Board Format (http://www.openboardformat.org)
-so they should export/import across instances of SweetSuite and a few other systems
+our repo. Boards created in LingoLinq-AAC use the Open Board Format (http://www.openboardformat.org)
+so they should export/import across instances of LingoLinq-AAC and a few other systems
 without having to dig around in the database.
 
 ### Technical Notes
 
-SweetSuite has a Rails backend (`/`) and an Ember frontend (`/app/frontend`), which are 
+LingoLinq-AAC has a Rails backend (`/`) and an Ember frontend (`/app/frontend`), which are 
 both contained in this
 repository. If you're familiar with those frameworks then hopefully nothing here will
 embarrass me too much -- ...I mean, hopefully you'll be able to pick up pretty quickly
@@ -55,7 +54,7 @@ By only using the open API, the mobile apps can easily maintain feature parity
 
 #### Development Considerations
 
-SweetSuite supports multiple locales, so when developing anything on the frontend, whether
+LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
 in templates or modals and alerts, you will need to use the internationalization libraries
 in order to support locales. Do net ever add raw text strings to any user-facing 
 resources, always use the i18n helpers. You can find examples of the helpers 
@@ -139,7 +138,7 @@ automatically regenerate `frontend.js` which is what the Rails app makes sure to
 to the browser.
 
 #### Running the Full System
-SweetSuite has more than one process needed for things to run correctly. You can look in 
+LingoLinq-AAC has more than one process needed for things to run correctly. You can look in 
 `Procfile` for the commands we use to run a web server or a resque (background job) server.
 The ember process is for development. It auto-compiles code as it's written, and shouldn't
 be run in production. The easiest way to get things up and running is with the foreman gem:
@@ -200,7 +199,7 @@ needs an access token for Places, Translate, Maps, & TTS. AWS is a little more c
 you can implement access keys for SES (emails), SNS (notifications, potentially two-way so see api/callbacks_controller), S3 storage (probably required
 at this point), Elastic Transcoder (need pipelines for converting audio & video to standardized formats, also need to configure pipeline callbacks -- see api/callbacks_controller). Additional less-vital integrations are listed in .env.example
 
-When developing code for SweetSuite, make sure to take into consideration that the
+When developing code for LingoLinq-AAC, make sure to take into consideration that the
 codebase is deployed both as a web app, and as a packaged app on mobile and desktop apps.
 All platform-specific code should be extracted from the codebase or encapsulated within
 the `capabilities` library when necessary. Capabilities checks may be used to 
@@ -263,34 +262,36 @@ See also CODE_INVESTIGATION.md
 
 ### Contribution Ideas
 
-SweetSuite is an actively-developed system with an API-driven Rails backend and
-a rather heavy Ember frontend. This can be intimidating, even for people
-who know these frameworks, and prevent people from contributing. If you 
-would like to contribute, you can join the (https://www.openaac.org)[OpenAAC Slack Channel]
-and ask for ideas or pointers. In addition, here are some fairly modular
-components that I haven't had time to develop, and would love a contribution
-on:
+LingoLinq-AAC is undergoing a significant transformation to modernize its tech stack, enhance the UI, and integrate advanced AI features. This is an exciting time to contribute! If you would like to contribute, you can join the (https://www.openaac.org)[OpenAAC Slack Channel] and ask for ideas or pointers.
 
-- Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]
-- External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]
-- Core word service to return information on a word including most common part of speech, common variations/tenses, etc.
-- Make mobile/desktop apps able to download the latest version of the javascript code, so 
-the apps can be updated dynamically when all that's changed is the scripts
-- API documentation (yeah I know, I should have done it along the way)
-- Maintenance Work:
-- Upgrade Rails & Ruby (and ensure everything still works, then bump to latest Heroku stack)
-  - For SweetSuite, CoughDrop-Websocket, presenters.aacconference.com
-- Upgrade Cordova (and ensure everything still works)
-- Upgrade Electron (and re-build dependencies for new version)
-  - Generate a new signing cert or move to Microsoft app store for updates
-- Upgrade Ember (avoided this for a long time because it kept having breaking changes)
-- Remove cache manifests and update offline support for mobile
-- Add support for iOS Personalized Voices (should be easy)
+We are actively seeking contributions in the following areas:
+
+-   **Tech Stack Modernization:**
+    -   Upgrading Rails & Ruby to the latest stable versions.
+    -   Migrating the Ember frontend to a more modern framework (e.g., React, Vue, or a newer Ember version).
+    -   Updating Cordova and Electron for mobile and desktop app releases.
+    -   Refactoring existing code to improve maintainability, performance, and adherence to modern best practices.
+
+-   **UI/UX Enhancements:**
+    -   Redesigning the user interface for a more modern, intuitive, and accessible experience.
+    -   Improving responsiveness and cross-device compatibility.
+    -   Implementing new visual components and interactions.
+
+-   **AI Feature Integration:**
+    -   Exploring and implementing AI models for improved speech synthesis, natural language understanding, and predictive text.
+    -   Developing AI-powered tools for personalized vocabulary suggestions and communication assistance.
+    -   Integrating multimodal AI capabilities for image and context analysis.
+
+-   **General Improvements:**
+    -   Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]).
+    -   External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]).
+    -   Core word service to return information on a word including most common part of speech, common variations/tenses, etc.
+    -   API documentation (yeah I know, I should have done it along the way).
+    -   Add support for iOS Personalized Voices.
 
 I'm happy to provide guidance for any of these projects to help get them underway :-).
-
 ### License
 
-Copyright (C) 2014-2025 CoughDrop & OpenAAC, Inc.
+Copyright (C) 2014-2025 LingoLinq-AAC & OpenAAC, Inc.
 
 Released under the AGPLv3 license or later.
