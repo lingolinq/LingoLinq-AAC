@@ -10,7 +10,6 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
-  gem 'matrix'
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
@@ -20,6 +19,7 @@ end
 
 # Required for Ruby 3.4+ compatibility with Rails 6.1
 gem 'mutex_m'
+gem 'matrix'
 
 gem 'concurrent-ruby', '1.3.4'
 
