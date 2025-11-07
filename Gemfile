@@ -11,13 +11,15 @@ group :development, :test do
   gem 'rack-test'
   gem 'rails-controller-testing'
   gem 'matrix'
-  gem 'mutex_m'
   gem 'benchmark'
   gem 'drb'
   gem 'irb'
   gem 'ruby-lsp', require: false
   gem 'ruby-lsp-rails', require: false
 end
+
+# Required for Ruby 3.4+ compatibility with Rails 6.1
+gem 'mutex_m'
 
 gem 'concurrent-ruby', '1.3.4'
 
