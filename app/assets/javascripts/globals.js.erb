@@ -3,7 +3,9 @@ window.defualt_company_name = <%= (ENV['COMPANY_NAME'] || "AAC Company").to_json
 window.enabled_frontend_features = <%= FeatureFlags::ENABLED_FRONTEND_FEATURES.to_json %>;
 window.default_host = <%= ENV['DEFAULT_HOST'].to_json %>;
 window.user_preferences = <%= User.preference_defaults.to_json %>;
-<% require('dotenv'); Dotenv.load %>
+<% if Rails.env.development? || Rails.env.test? %>
+  <% require('dotenv'); Dotenv.load %>
+<% end %>
 <% if ENV['SYMBOL_PROXY_KEY'] %>
   window.symbol_proxy_key = "<%= ENV['SYMBOL_PROXY_KEY'] %>";
 <% end %>
