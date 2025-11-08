@@ -8,7 +8,6 @@ services:
       bundle install &&
       bundle exec rake extras:assert_js &&
       cd app/frontend &&
-      nvm use &&
       npm install &&
       npx ember build --environment production &&
       cd ../.. &&
