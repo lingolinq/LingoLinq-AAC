@@ -17,15 +17,14 @@ group :development, :test do
   gem 'ruby-lsp-rails', require: false
 end
 
-# Required for Ruby 3.4+ compatibility with Rails 6.1
+# Required for Ruby 3.4+ compatibility with Rails 6.1.7+
 gem 'mutex_m'
 gem 'matrix'
-gem 'rack', '~> 3.1' # Rack 3.x for Ruby 3.4 compatibility
 
 gem 'concurrent-ruby', '1.3.4'
 
-# Rails 5.2 doesn't seem to work on heroku with octopus :-/
-gem 'rails', '6.1' # TODO: upgrade to 7.2
+# Rails 6.1.7+ has Rack 3 and Ruby 3.4 support
+gem 'rails', '~> 6.1.7'
 gem 'pg' #, '0.19.0' #, '>=1.1.3'
 gem 'sass-rails'
 gem 'uglifier', '>= 1.3.0'
