@@ -4,7 +4,16 @@ services:
     runtime: ruby
     plan: starter
     branch: functional-baseline
-    buildCommand: bundle install; bundle exec rake assets:precompile; bundle exec rake assets:clean;
+    buildCommand: |
+      bundle install &&
+      bundle exec rake extras:assert_js &&
+      cd app/frontend &&
+      nvm use &&
+      npm install &&
+      npx ember build --environment production &&
+      cd ../.. &&
+      bundle exec rake assets:precompile &&
+      bundle exec rake assets:clean
     preDeployCommand: bundle exec rails db:migrate
     startCommand: bundle exec puma -C config/puma.rb
     envVars:
@@ -23,6 +32,20 @@ services:
           type: redis
           name: lingolinq-redis
           property: connectionString
+      - key: RAILS_SERVE_STATIC_FILES
+        value: "true"
+      - key: DEFAULT_HOST
+        value: lingolinq-aac.onrender.com
+      - key: DEFAULT_EMAIL_FROM
+        value: noreply@lingolinq-aac.onrender.com
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: SECURE_ENCRYPTION_KEY
+        generateValue: true
+      - key: SECURE_NONCE_KEY
+        generateValue: true
+      - key: COOKIE_KEY
+        generateValue: true
 
 databases:
   - name: lingolinq-db
