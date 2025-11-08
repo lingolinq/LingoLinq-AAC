@@ -9,6 +9,7 @@ services:
       bundle exec rake extras:assert_js &&
       cd app/frontend &&
       npm install &&
+      npx bower install --allow-root &&
       npx ember build --environment production &&
       cd ../.. &&
       bundle exec rake assets:precompile &&
