@@ -20,6 +20,7 @@ end
 # Required for Ruby 3.4+ compatibility with Rails 6.1
 gem 'mutex_m'
 gem 'matrix'
+gem 'rack', '~> 3.1' # Rack 3.x for Ruby 3.4 compatibility
 
 gem 'concurrent-ruby', '1.3.4'
 
