@@ -10,12 +10,13 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
-  gem 'benchmark'
   gem 'drb'
   gem 'irb'
   gem 'ruby-lsp', require: false
   gem 'ruby-lsp-rails', require: false
 end
+
+gem 'benchmark'
 
 # Required for Ruby 3.4+ compatibility with Rails 6.1.7+
 gem 'mutex_m'
@@ -27,6 +28,7 @@ gem 'concurrent-ruby', '1.3.4'
 gem 'rails', '~> 6.1.7'
 gem 'pg' #, '0.19.0' #, '>=1.1.3'
 gem 'sass-rails'
+gem 'sprockets-rails', '~> 3.4.2'
 gem 'uglifier', '>= 1.3.0'
 gem 'mimemagic', '0.4.3'
 
