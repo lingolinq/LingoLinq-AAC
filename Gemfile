@@ -28,6 +28,7 @@ gem 'rails', '~> 6.1.7'
 gem 'pg' #, '0.19.0' #, '>=1.1.3'
 gem 'sass-rails'
 gem 'uglifier', '>= 1.3.0'
+gem 'mimemagic', '0.4.3'
 
 gem 'typhoeus'
 gem 'coffee-rails'
@@ -39,7 +40,7 @@ gem 'aws-sdk-cloudfront', '~> 1'
 gem 'http-2'
 gem 'resque'
 gem 'rails_12factor', group: :production
-gem 'heroku-deflater', :group => :production
+# gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
 gem 'puma'
 gem 'rack-offline'
 gem 'paper_trail'
