@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import session from '../utils/session';
@@ -49,7 +49,7 @@ export default Controller.extend({
         if(_this.get('search_promise.key') == search_key) {
           lookup = _this.get('search_promise.promise');
         } else {
-          lookup = SweetSuite.store.query('board', params);
+          lookup = LingoLinq.store.query('board', params);
           _this.set('search_promise', {promise: lookup, key: search_key});
         }
         lookup.then(function(res) {
@@ -60,7 +60,7 @@ export default Controller.extend({
           _this.set('online_results', {results: []});
         });
         if(app_state.get('currentUser')) {
-          SweetSuite.store.query('board', {q: str, user_id: 'self', locale: locale, allow_job: true}).then(function(res) {
+          LingoLinq.store.query('board', {q: str, user_id: 'self', locale: locale, allow_job: true}).then(function(res) {
             if(res.meta && res.meta.progress) {
               progress_tracker.track(res.meta.progress, function(event) {
                 if(event.status == 'errored') {
@@ -68,7 +68,7 @@ export default Controller.extend({
                 } else if(event.status == 'finished') {
                   var result = [];
                   event.result.board.forEach(function(board) {
-                    result.push(SweetSuite.store.push({ data: {
+                    result.push(LingoLinq.store.push({ data: {
                       id: board.id,
                       type: 'board',
                       attributes: board

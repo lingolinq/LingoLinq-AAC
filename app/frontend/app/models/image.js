@@ -1,13 +1,13 @@
 import RSVP from 'rsvp';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Image = DS.Model.extend({
+LingoLinq.Image = DS.Model.extend({
   didLoad: function() {
     this.checkForDataURL().then(null, function() { });
     this.set('app_state', app_state);
@@ -47,7 +47,7 @@ SweetSuite.Image = DS.Model.extend({
     }
   }),
   skinned: computed('url', function() {
-    return SweetSuite.Board.is_skinned_url(this.get('url'));
+    return LingoLinq.Board.is_skinned_url(this.get('url'));
   }),
   clean_license: function() {
     var _this = this;
@@ -86,7 +86,7 @@ SweetSuite.Image = DS.Model.extend({
     }
   }),
   personalizing_url: function(skip_alternates) {
-    SweetSuite.Image.unskins = SweetSuite.Image.unskins || {};
+    LingoLinq.Image.unskins = LingoLinq.Image.unskins || {};
     var preferred_symbols = this.get('app_state.referenced_user.preferences.preferred_symbols') || 'original';
     var url = this.get('url');
     if(skip_alternates) {
@@ -96,7 +96,7 @@ SweetSuite.Image = DS.Model.extend({
       var alternate = (this.get('alternates') || []).find(function(a) { return a.library == preferred_symbols; });
       if(alternate) { url = alternate.url; }
     }
-    return SweetSuite.Image.personalize_url(url, this.get('app_state.currentUser.user_token'), this.get('app_state.referenced_user.preferences.skin'), SweetSuite.Image.unskins[this.get('id')]);
+    return LingoLinq.Image.personalize_url(url, this.get('app_state.currentUser.user_token'), this.get('app_state.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
   },
   personalized_url: computed('url', 'app_state.currentUser.user_token', 'app_state.referenced_user.preferences.skin', 'app_state.referenced_user.preferences.preferred_symbols', 'app_state.edit_mode', function() {
     return this.personalizing_url();
@@ -121,12 +121,12 @@ SweetSuite.Image = DS.Model.extend({
       }
       return _this;
     };
-    if(!this.get('data_url_no_sym') && SweetSuite.remote_url(this.get('personalized_url_without_preferred_symbols'))) {
+    if(!this.get('data_url_no_sym') && LingoLinq.remote_url(this.get('personalized_url_without_preferred_symbols'))) {
       return persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
         _this.set('data_url_no_sym', data_uri);
       });
     }
-    if(!this.get('data_url') && SweetSuite.remote_url(this.get('personalized_url'))) {
+    if(!this.get('data_url') && LingoLinq.remote_url(this.get('personalized_url'))) {
       return persistence.find_url(this.get('personalized_url'), 'image').then(function(data_uri) {
         // Found as expected!
         return found_one(data_uri);
@@ -157,7 +157,7 @@ SweetSuite.Image = DS.Model.extend({
   })
 });
 
-SweetSuite.Image.reopenClass({
+LingoLinq.Image.reopenClass({
   personalize_url: function(url, token, skin, unskin) {
     url = url || '';
     var res = url;
@@ -165,8 +165,8 @@ SweetSuite.Image.reopenClass({
       res = url + "?user_token=" + token;
     }
     if(skin && skin != 'default') {
-      var which_skin = SweetSuite.Board.which_skinner(skin);
-      res = SweetSuite.Board.skinned_url(url, which_skin, unskin);
+      var which_skin = LingoLinq.Board.which_skinner(skin);
+      res = LingoLinq.Board.skinned_url(url, which_skin, unskin);
     }
     return res;
   },
@@ -179,4 +179,4 @@ SweetSuite.Image.reopenClass({
   }
 });
 
-export default SweetSuite.Image;
+export default LingoLinq.Image;

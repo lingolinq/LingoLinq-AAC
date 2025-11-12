@@ -6,7 +6,7 @@ if people struggle getting their words out for whatever reason, they can use
 the speech synthesis engine on a computing device to "speak" for them. Sometimes
 they'll just type on a keyboard (think Stephen Hawking), but sometimes typing is too slow
 or not a reasonable expectation, so communication
-"boards", which are just grids of labeled pictures, can also be used. SweetSuite supports
+"boards", which are just grids of labeled pictures, can also be used. LingoLinq supports
 building these grids and keyboards, optionally tracks their usage, and also offers
 tools for the team supporting the communicator.
 
@@ -15,7 +15,7 @@ Web Speech API, the Application Cache, IndexedDB and a bunch of HTML5 to work
 both online and offline. It should run on Windows, Mac, ChromeOS, iOS and Android, and can
 be packaged up for app stores as well.
 
-Unlike most other AAC apps, which are installed and live on a single device, SweetSuite
+Unlike most other AAC apps, which are installed and live on a single device, LingoLinq
 is cloud-based, and syncs edits across multiple devices automatically. This may seem 
 unimportant, but when you spend a lot of time building a very personalized vocabulary,
 you don't want a broken device or a dead battery to prevent you from communicating. With
@@ -191,8 +191,8 @@ rake flush_users (run daily)
 rake clean_old_deleted_boards (run daily)
 ```
 
-SweetSuite also utilizes a separate site that it uses for web sockets to track
-online status and support real-time interactions. Additionally, SweetSuite relies on access
+LingoLinq also utilizes a separate site that it uses for web sockets to track
+online status and support real-time interactions. Additionally, LingoLinq relies on access
 to an opensymbols.org-type endpoint for image search. Also there are multiple AWS and Google
 API endpoints that can and probably should be enabled. Google API is straightforward, just
 needs an access token for Places, Translate, Maps, & TTS. AWS is a little more complicated,
@@ -234,7 +234,7 @@ available at [https://tools.openaac.org/inflections/inflections.html](OpenAAC).
 ##### Troubleshooting
 
 Need console access? Normally on Heroku you would just run 'heroku run rails console' to 
-get production access, or just 'rails console' for a local Ruby console. Since SweetSuite
+get production access, or just 'rails console' for a local Ruby console. Since LingoLinq
 needs to ensure user data remains protected, all production requests need to be audited
 (see the model `AuditEvent`), so there are some safeguards to prevent unaudited 
 console access, and you'll need to run `bin/heroku_console` to get yourself a production

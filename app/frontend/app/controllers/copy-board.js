@@ -1,5 +1,5 @@
 import EmberObject from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
@@ -99,7 +99,7 @@ export default modal.ModalController.extend({
       this.set('in_board_set', null);
       this.set('in_sidebar_set', null);
       this.set('home_board', null);
-      var find_user = SweetSuite.store.findRecord('user', for_user_id).then(function(user) {
+      var find_user = LingoLinq.store.findRecord('user', for_user_id).then(function(user) {
         if(!user.get('stats')) {
           return user.reload();
         } else {
@@ -121,7 +121,7 @@ export default modal.ModalController.extend({
           // in any of their board_ids lists
           sidebar_keys.forEach(function(key) {
             if(!key) { return; }
-            SweetSuite.store.findRecord('board', key).then(function(board) {
+            LingoLinq.store.findRecord('board', key).then(function(board) {
               if(_this.get('current_user') == user) {
                 if(board.get('key') == _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
@@ -129,7 +129,7 @@ export default modal.ModalController.extend({
                   user.set('stats.sidebar_board_ids', sidebar_ids.concat([board.get('id')]).uniq());
                 }
               }
-              SweetSuite.Buttonset.load_button_set(board.get('id')).then(function(bs) {
+              LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 var board_ids = bs.board_ids_for(board.get('id'));
                 if(_this.get('current_user') == user) {
                   var sidebar_ids = user.get('stats.sidebar_board_ids') || [];

@@ -3,7 +3,7 @@ import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
 import editManager from '../../utils/edit_manager';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
@@ -109,7 +109,7 @@ export default Controller.extend({
     var state = editManager.process_for_saving();
 
     if(this.get('model.license')) {
-      this.set('model.license.copyright_notice_url', SweetSuite.licenseOptions.license_url(this.get('model.license.type')));
+      this.set('model.license.copyright_notice_url', LingoLinq.licenseOptions.license_url(this.get('model.license.type')));
     }
     var _this = this;
 
@@ -484,7 +484,7 @@ export default Controller.extend({
     'nothing_visible',
     'app_state.currentUser.preferences.stretch_buttons',
     function(klass, change, redraw_button_id) {
-      SweetSuite.log.track('redrawing');
+      LingoLinq.log.track('redrawing');
       var foundy = Math.round(10 * Math.random());
       var draw_id = redraw_button_id ? this.get('last_draw_id') : Math.random();
       this.set('last_draw_id', draw_id);
@@ -565,7 +565,7 @@ export default Controller.extend({
         return res;
       };
 
-      SweetSuite.log.track('computing dimensions');
+      LingoLinq.log.track('computing dimensions');
       ob.forEach(function(row, i) {
         row.forEach(function(button, j) {
           var button_height = starting_height - (extra_pad * 2);
@@ -632,18 +632,18 @@ export default Controller.extend({
               }
             }
           }
-          var image_height = button_height - currentLabelHeight - SweetSuite.boxPad - (inner_pad * 2) + 8;
-          var image_width = button_width - SweetSuite.boxPad - (inner_pad * 2) + 8;
+          var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
+          var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
 
-          var top_margin = currentLabelHeight + SweetSuite.labelHeight - 8;
+          var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
           if(_this.get('model.text_size') == 'really_small_text') {
             if(currentLabelHeight > 0) {
-              image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 25;
+              image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 25;
               top_margin = 0;
             }
           } else if(_this.get('model.text_size') == 'small_text') {
             if(currentLabelHeight > 0) {
-              image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 10;
+              image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 10;
               top_margin = top_margin - 10;
             }
           }
@@ -765,7 +765,7 @@ export default Controller.extend({
       });
       app_state.set('board_virtual_dom.ordered_buttons', ob);
       app_state.align_button_list();
-      SweetSuite.log.track('done computing dimensions');
+      LingoLinq.log.track('done computing dimensions');
     }
   ),
   long_description: computed('model.description', 'model.name', function() {
@@ -1146,7 +1146,7 @@ export default Controller.extend({
         }
         button.set('completion', text);
         if(word.original_image) {
-          button.set('image', SweetSuite.store.createRecord('image'));
+          button.set('image', LingoLinq.store.createRecord('image'));
           button.set('image.url', word.original_image);
         }
         button.set('empty', false);

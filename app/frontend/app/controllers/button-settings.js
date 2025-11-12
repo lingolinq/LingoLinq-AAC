@@ -7,7 +7,7 @@ import editManager from '../utils/edit_manager';
 import contentGrabbers from '../utils/content_grabbers';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
@@ -309,7 +309,7 @@ export default modal.ModalController.extend({
     ];
   }),
   board_levels: computed(function() {
-    return SweetSuite.board_levels;
+    return LingoLinq.board_levels;
   }),
   basic_level_style: computed('model.level_style', function() {
     return this.get('model.level_style') == 'basic';
@@ -490,10 +490,10 @@ export default modal.ModalController.extend({
     }
   ),
   parts_of_speech: computed(function() {
-    return SweetSuite.parts_of_speech;
+    return LingoLinq.parts_of_speech;
   }),
   licenseOptions: computed(function() {
-    return SweetSuite.licenseOptions;
+    return LingoLinq.licenseOptions;
   }),
   board_search_options: computed('board.user_name', function() {
     var res = [];
@@ -600,7 +600,7 @@ export default modal.ModalController.extend({
     var list = [];
     var any_basic = false;
     parts.forEach(function(part) {
-      var special = SweetSuite.find_special_action(part);
+      var special = LingoLinq.find_special_action(part);
       if(special && !special.completion) {
         var description = "unknown";
         if(special.description) {
@@ -634,7 +634,7 @@ export default modal.ModalController.extend({
         var orig = part;
         if(matches.length > 0) {
           matches.forEach(function(match) {
-            var action = SweetSuite.find_special_action(match[0]);
+            var action = LingoLinq.find_special_action(match[0]);
             if(action && action.inline_description) {
               var desc = action.inline_description.toString();
               if(action.inline_description.call) {
@@ -671,7 +671,7 @@ export default modal.ModalController.extend({
   track_video: observer('model.video.popup', 'model.video.test_url', function() {
     if(this.get('model.video.popup') && this.get('model.video.test_url') && !this.get('player')) {
       var _this = this;
-      SweetSuite.Videos.track('link_video_preview').then(function(player) {
+      LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
       });
     }
@@ -1001,7 +1001,7 @@ export default modal.ModalController.extend({
             if(mod.matches) {
               var inline_actions = [];
               mod.matches.forEach(function(match) {
-                var action = SweetSuite.find_special_action(match[0]);
+                var action = LingoLinq.find_special_action(match[0]);
                 if(action) {
                   action = Object.assign({}, action);
                   action.str = match[0];

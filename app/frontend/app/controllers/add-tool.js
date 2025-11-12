@@ -2,7 +2,7 @@ import EmberObject from '@ember/object';
 import $ from 'jquery';
 import modal from '../utils/modal';
 import Utils from '../utils/misc';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { observer } from '@ember/object';
 
 export default modal.ModalController.extend({
@@ -47,7 +47,7 @@ export default modal.ModalController.extend({
       var _this = this;
       _this.set('selected_tool.installing', true);
       _this.set('selected_tool.error', null);
-      var integration = SweetSuite.store.createRecord('integration');
+      var integration = LingoLinq.store.createRecord('integration');
       integration.set('user_id', _this.get('model.user.id'));
       integration.set('integration_key', _this.get('selected_tool.integration_key'));
       var params = [];

@@ -5,7 +5,7 @@ import modal from '../../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default Controller.extend({
   queryParams: ['current_report'],
@@ -59,7 +59,7 @@ export default Controller.extend({
     if(!rep) { return "N/A"; }
     if(rep.match(/^status-/)) {
       var code = rep.replace(/^status-/, '');
-      var status = SweetSuite.user_statuses.find(function(r) { return r.id == code; });
+      var status = LingoLinq.user_statuses.find(function(r) { return r.id == code; });
       return i18n.t('status_colon', "Status: ") + status.label;
     } else if(rep.match(/^access-/)) {
       return i18n.t('access_method_colon', "Access Method: ") + str;

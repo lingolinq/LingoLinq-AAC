@@ -10,7 +10,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -18,7 +18,7 @@ import Button from '../../utils/button';
 describe('Badge', function() {
   describe('progress_out_of_100', function() {
     it('should return correct values', function() {
-      var b = SweetSuite.store.createRecord('badge');
+      var b = LingoLinq.store.createRecord('badge');
       expect(b.get('progress_out_of_100')).toEqual(0);
       b.set('progress', 0.54);
       expect(b.get('progress_out_of_100')).toEqual(54);
@@ -29,7 +29,7 @@ describe('Badge', function() {
 
   describe('progress_style', function() {
     it('should return correct values', function() {
-      var b = SweetSuite.store.createRecord('badge');
+      var b = LingoLinq.store.createRecord('badge');
       expect(b.get('progress_style').string).toEqual('width: 0%');
       b.set('progress', 0.5);
       expect(b.get('progress_style').string).toEqual('width: 50%');
@@ -42,7 +42,7 @@ describe('Badge', function() {
 
   describe('completion_explanation', function() {
     it('should generate correct explanations', function() {
-      var b = SweetSuite.store.createRecord('badge');
+      var b = LingoLinq.store.createRecord('badge');
       expect(b.get('completion_explanation')).toEqual(null);
       b.set('completion_settings', {instance_count: 5, word_instances: 5, consecutive_units: 3});
       expect(b.get('completion_explanation')).toEqual('Use at least 5 words per day for 3 days in a row');

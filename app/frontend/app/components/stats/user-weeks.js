@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 import modal from '../../utils/modal';
@@ -136,7 +136,7 @@ export default Component.extend({
             }
           }
           if(user.org_status) {
-            var state = SweetSuite.user_statuses.find(function(s) { return s.id == user.org_status.state; });
+            var state = LingoLinq.user_statuses.find(function(s) { return s.id == user.org_status.state; });
             if(_this.get('org.status_overrides')) {
               state = _this.get('org.status_overrides').find(function(s) { return s.id == user.org_status.state; });
             }
@@ -298,7 +298,7 @@ export default Component.extend({
   actions: {
     note: function(user) {
       var _this = this;
-      SweetSuite.store.findRecord('user', user.id).then(function(user) {
+      LingoLinq.store.findRecord('user', user.id).then(function(user) {
         var goal_id = 'status';
         if(_this.get('room_goal_id')) {
           goal_id = _this.get('room_goal_id');

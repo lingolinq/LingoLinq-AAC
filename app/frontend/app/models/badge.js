@@ -1,11 +1,11 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import speecher from '../utils/speecher';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
 
-SweetSuite.Badge = DS.Model.extend({
+LingoLinq.Badge = DS.Model.extend({
   name: DS.attr('string'),
   user_id: DS.attr('string'),
   user_name: DS.attr('string'),
@@ -305,7 +305,7 @@ SweetSuite.Badge = DS.Model.extend({
   })
 });
 
-SweetSuite.Badge.best_next_badge = function(badges, goal_id) {
+LingoLinq.Badge.best_next_badge = function(badges, goal_id) {
   var res = null;
   badges = (badges || []).filter(function(b) { return !b.get('earned') && b.get('progress') > 0; });
   res = badges.find(function(b) { return b.get('goal_id') == goal_id; });
@@ -341,7 +341,7 @@ SweetSuite.Badge.best_next_badge = function(badges, goal_id) {
   }
   return badges[0];
 };
-SweetSuite.Badge.best_earned_badge = function(badges) {
+LingoLinq.Badge.best_earned_badge = function(badges) {
   badges = (badges || []).filter(function(b) { return b.get('earned'); })
   badges = badges.sort(function(a, b) {
     // first show non-dismissed badges, then show most-recently-earned
@@ -369,4 +369,4 @@ SweetSuite.Badge.best_earned_badge = function(badges) {
 };
 
 
-export default SweetSuite.Badge;
+export default LingoLinq.Badge;

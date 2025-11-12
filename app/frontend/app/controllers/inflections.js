@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import app_state from '../utils/app_state';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -33,7 +33,7 @@ export default Controller.extend({
     if(_this.get('ref')) {
       opts.word = _this.get('ref');
     }
-    SweetSuite.store.query('word', opts).then(function(data) {
+    LingoLinq.store.query('word', opts).then(function(data) {
       var words = data.map(function(r) { return r; });
       _this.set('antonyms', null);
       if(words[0].get('word') != _this.get('ref') || words[0].get('locale') != _this.get('locale')) {
@@ -155,7 +155,7 @@ export default Controller.extend({
     res.forEach(function(type) {
       type.checked = !!(parts.indexOf(type.id) != -1) || type.id == _this.get('word.primary_part_of_speech');
       type.style = 'float: left; width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 0;';
-      SweetSuite.keyed_colors.forEach(function(color) {
+      LingoLinq.keyed_colors.forEach(function(color) {
         if(color.types.indexOf(type.id) != -1) {
           type.border = color.border;
           type.fill = color.fill;

@@ -7,7 +7,7 @@ import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -119,7 +119,7 @@ export default Component.extend({
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
-    SweetSuite.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), per_page: 20, category: 'layouts'}).then(function(data) {
+    LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), per_page: 20, category: 'layouts'}).then(function(data) {
       var res = data.map(function(b) { return b; });
       if(res && res.length > 0) {
         _this.set('boards', res);
@@ -323,7 +323,7 @@ export default Component.extend({
     },
     set_org_board: function(brd_key) {
       var _this = this;
-      SweetSuite.store.findRecord('board', brd_key).then(function(board) {
+      LingoLinq.store.findRecord('board', brd_key).then(function(board) {
         _this.set('org_board', board)
         runLater(function() {
           _this.send('select');

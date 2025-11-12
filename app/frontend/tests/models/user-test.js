@@ -12,7 +12,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import speecher from '../../utils/speecher';
 import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
@@ -22,11 +22,11 @@ import { run as emberRun } from '@ember/runloop';
 describe('User', function() {
   describe("avatar_url_with_fallback", function() {
     it("should key off avatar_url if defined", function() {
-      var u = SweetSuite.store.createRecord('user', {avatar_url: "http://pic.example.com"});
+      var u = LingoLinq.store.createRecord('user', {avatar_url: "http://pic.example.com"});
       expect(u.get('avatar_url_with_fallback')).toEqual("http://pic.example.com");
     });
     it("should automatically check for locally-stored avatar data-uri on load", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.didLoad();
       expect(user.get('checked_for_data_url')).toEqual(true);
     });
@@ -38,7 +38,7 @@ describe('User', function() {
 
   describe('has_management_responsibility', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('has_management_responsibility')).toEqual(false);
       user.set('managed_orgs', [{}, {}]);
       expect(user.get('has_management_responsibility')).toEqual(true);
@@ -49,7 +49,7 @@ describe('User', function() {
 
   describe('is_sponsored', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('is_sponsored')).toEqual(false);
       user.set('organizations', []);
       expect(user.get('is_sponsored')).toEqual(false);
@@ -62,7 +62,7 @@ describe('User', function() {
 
   describe('is_managed', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('is_managed')).toEqual(false);
       user.set('organizations', []);
       expect(user.get('is_managed')).toEqual(false);
@@ -75,7 +75,7 @@ describe('User', function() {
 
   describe('managing_org', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('managing_org')).toEqual(undefined);
       user.set('organizations', []);
       expect(user.get('managing_org')).toEqual(undefined);
@@ -86,7 +86,7 @@ describe('User', function() {
 
   describe('manages_multiple_orgs', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('manages_multiple_orgs')).toEqual(false);
       user.set('organizations', [{type: 'manager'}]);
       expect(user.get('manages_multiple_orgs')).toEqual(false);
@@ -97,7 +97,7 @@ describe('User', function() {
 
   describe('managed_orgs', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('managed_orgs')).toEqual([]);
       user.set('organizations', [{type: 'user'}, {type: 'manager', id: '123'}]);
       expect(user.get('managed_orgs').length).toEqual(1);
@@ -106,7 +106,7 @@ describe('User', function() {
 
   describe('managing_supervision_orgs', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('managing_supervision_orgs')).toEqual([]);
       user.set('organizations', [{type: 'user'}, {type: 'manager'}, {type: 'supervisor'}, {type: 'supervisor'}]);
       expect(user.get('managing_supervision_orgs').length).toEqual(2);
@@ -115,7 +115,7 @@ describe('User', function() {
 
   describe('pending_org', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('pending_org')).toEqual(undefined);
       user.set('organizations', []);
       expect(user.get('pending_org')).toEqual(undefined);
@@ -128,7 +128,7 @@ describe('User', function() {
 
   describe('pending_supervision_org', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('pending_supervision_org')).toEqual(undefined);
       user.set('organizations', []);
       expect(user.get('pending_supervision_org')).toEqual(undefined);
@@ -139,7 +139,7 @@ describe('User', function() {
 
   describe('supervisor_names', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('supervisor_names')).toEqual("");
       user.set('supervisors', [{name: 'fred'}, {name: 'sam'}]);
       expect(user.get('supervisor_names')).toEqual("fred, sam");
@@ -151,7 +151,7 @@ describe('User', function() {
 
   describe('supervisee_names', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('supervisee_names')).toEqual("");
       user.set('supervisees', [{name: 'susy'}, {name: 'jeb'}]);
       expect(user.get('supervisee_names')).toEqual("susy, jeb");
@@ -160,7 +160,7 @@ describe('User', function() {
 
   describe('parsed_notifications', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('parsed_notifications')).toEqual([]);
       user.set('notifications', [{type: 'friend', occurred_at: '2016-01-01'}, {type: 'hat', occurred_at: '2016-01-02'}]);
       expect(user.get('parsed_notifications')).toEqual([
@@ -172,7 +172,7 @@ describe('User', function() {
 
   describe('using_for_a_while', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('using_for_a_while')).toEqual(false);
       user.set('joined', window.moment('2015-01-01').toISOString().substring(0, 10));
       expect(user.get('using_for_a_while')).toEqual(true);
@@ -181,7 +181,7 @@ describe('User', function() {
 
   describe('currently_premium', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('currently_premium')).toEqual(false);
       user.set('expired', true);
       expect(user.get('currently_premium')).toEqual(false);
@@ -196,7 +196,7 @@ describe('User', function() {
 
   describe('free_premium', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('free_premium')).toEqual(false);
       user.set('subscription', {free_premium: false});
       expect(user.get('free_premium')).toEqual(false);
@@ -207,7 +207,7 @@ describe('User', function() {
 
   describe('expired', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('expired')).toEqual(true);
       user.set('membership_type', 'premium');
       expect(user.get('expired')).toEqual(false);
@@ -220,7 +220,7 @@ describe('User', function() {
 
   describe('expired_or_limited_supervisor', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('expired_or_limited_supervisor')).toEqual(true);
       user.set('expired', false);
       expect(user.get('expired_or_limited_supervisor')).toEqual(false);
@@ -231,7 +231,7 @@ describe('User', function() {
 
   describe('joined_withing_24_hours', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('joined_within_24_hours')).toEqual(false);
       user.set('joined', window.moment());
       expect(user.get('joined_within_24_hours')).toEqual(true);
@@ -240,7 +240,7 @@ describe('User', function() {
 
   describe('really_expired', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('really_expired')).toEqual(false);
       user.set('subscription', {expires: '2015-01-01'});
       expect(user.get('really_expired')).toEqual(true);
@@ -249,7 +249,7 @@ describe('User', function() {
 
   describe('really_really_expired', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('really_really_expired')).toEqual(false);
       user.set('subscription', {expires: '2010-01-01'});
       expect(user.get('really_really_expired')).toEqual(true);
@@ -258,7 +258,7 @@ describe('User', function() {
 
   describe('expired_or_grace_period', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('expired_or_grace_period')).toEqual(true);
       user.set('expired', false);
       expect(user.get('expired_or_grace_period')).toEqual(false);
@@ -269,7 +269,7 @@ describe('User', function() {
 
   describe('supporter_role', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('supporter_role')).toEqual(false);
       user.set('preferences', {role: 'supporter'});
       expect(user.get('supporter_role')).toEqual(true);
@@ -280,14 +280,14 @@ describe('User', function() {
 
   describe('profile_url', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user', {user_name: 'bacon'});
+      var user = LingoLinq.store.createRecord('user', {user_name: 'bacon'});
       expect(user.get('profile_url')).toEqual(location.protocol + "//" + location.host + "/bacon");
     });
   });
 
   describe('multiple_devices', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('multiple_devices')).toEqual(false);
       user.set('devices', []);
       expect(user.get('multiple_devices')).toEqual(false);
@@ -300,7 +300,7 @@ describe('User', function() {
 
   describe('device_count', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('device_count')).toEqual(0);
       user.set('devices', []);
       expect(user.get('device_count')).toEqual(0);
@@ -313,7 +313,7 @@ describe('User', function() {
 
   describe('current_device_name', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('current_device_name')).toEqual('Unknown device');
       user.set('devices', [{current_device: false, id: '123'}, {current_device: true, name: '234'}]);
       expect(user.get('current_device_name')).toEqual('234');
@@ -322,7 +322,7 @@ describe('User', function() {
 
   describe('hide_symbols', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('hide_symbols')).toEqual(false);
       user.set('preferences', {device: {button_text: 'asdf'}});
       expect(user.get('hide_symbols')).toEqual(false);
@@ -333,7 +333,7 @@ describe('User', function() {
 
   describe('remove_device', function() {
     it('should remove correctly', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('user_name', 'bobbyo');
       user.set('devices', [{id: '1234'}, {id: '2345'}, {id: '3456'}]);
       stub(persistence, 'ajax', function(url, args) {
@@ -350,7 +350,7 @@ describe('User', function() {
 
   describe('rename_device', function() {
     it('should rename correctly', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('user_name', 'bobbyo');
       user.set('devices', [{id: '1234'}, {id: '2345'}, {id: '3456'}]);
       stub(persistence, 'ajax', function(url, args) {
@@ -367,7 +367,7 @@ describe('User', function() {
 
   describe('sidebar_boards_with_fallbacks', function() {
     it('should return the correct value', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       expect(user.get('sidebar_boards_with_fallbacks')).toEqual([]);
       var resolves = 0;
       stub(persistence, 'find_url', function(url, type) {
@@ -397,7 +397,7 @@ describe('User', function() {
 
   describe('checkForDataURL', function() {
     it("should check correctly", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       stub(persistence, 'find_url', function(url, type) {
         if(url == 'http://www.example.com' && type == 'image') {
           return RSVP.resolve('data:stuff');
@@ -416,7 +416,7 @@ describe('User', function() {
 
   describe('validate_pin', function() {
     it("should validate correctly", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('preferences', {speak_mode_pin: '1234'});
       expect(user.get('preferences.speak_mode_pin')).toEqual('1234');
       user.set('preferences', {speak_mode_pin: '123456'});
@@ -428,7 +428,7 @@ describe('User', function() {
 
   describe('load_active_goals', function() {
     it("should load correctly", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('id', '1234');
       stub(user.store, 'query', function(type, args) {
         expect(type).toEqual('goal');
@@ -461,7 +461,7 @@ describe('User', function() {
 
   describe('check_user_name', function() {
     it("should check correctly", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('user_name', 'bob');
       user.check_user_name();
       expect(user.get('user_name_check')).toEqual(undefined);
@@ -480,7 +480,7 @@ describe('User', function() {
     });
 
     it("should mark found results as existing", function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('user_name', 'bob');
       user.set('id', '1234');
       user.check_user_name();
@@ -502,7 +502,7 @@ describe('User', function() {
 
   describe('update_voice_uri', function() {
     it('should update correctly', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       stub(speecher, 'get', function() {
         return [{voiceURI: 'happy'}, {voiceURI: 'sad'}];
       });
@@ -512,7 +512,7 @@ describe('User', function() {
     });
 
     it('should update alternate voice correctly', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       stub(speecher, 'get', function() {
         return [{voiceURI: 'happy'}, {voiceURI: 'sad'}];
       });
@@ -528,7 +528,7 @@ describe('User', function() {
 
   describe('load_all_connections', function() {
     it('should not load anything if there are not already records', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('load_all_connections', true);
       waitsFor(function() { return user.get('all_connections.loaded'); });
       runs(function() {
@@ -537,7 +537,7 @@ describe('User', function() {
     });
 
     it('should load supervisors if it is possible there are more', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');
       user.set('supervisors', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
       stub(persistence, 'ajax', function(url, opts) {
@@ -557,7 +557,7 @@ describe('User', function() {
     });
 
     it('should load supervisees if it is possible there are more', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');
       user.set('supervisees', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
       stub(persistence, 'ajax', function(url, opts) {
@@ -577,7 +577,7 @@ describe('User', function() {
     });
 
     it('should flag as errored on any load error', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');
       user.set('supervisees', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
       user.set('supervisors', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
@@ -604,7 +604,7 @@ describe('User', function() {
     });
 
     it('should flag as done when everything is loaded', function() {
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');
       user.set('supervisees', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
       user.set('supervisors', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
@@ -632,7 +632,7 @@ describe('User', function() {
 
   describe("check_integrations", function() {
     it('should do nothing if no supervise permission', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       var called = false;
       stub(Utils, 'all_pages', function() {
         called = true;
@@ -647,7 +647,7 @@ describe('User', function() {
     });
 
     it('should lookup if supervise permission changes', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       var called = false;
       stub(Utils, 'all_pages', function() {
         called = true;
@@ -667,28 +667,28 @@ describe('User', function() {
     });
 
     it('should return the promise if defined', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
-      SweetSuite.User.integrations_for = {asdf: null};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
+      LingoLinq.User.integrations_for = {asdf: null};
       var called = false;
       stub(Utils, 'all_pages', function() {
         called = true;
         return RSVP.reject();
       });
-      SweetSuite.User.integrations_for = {asdf: {promise: 'asdf'}};
+      LingoLinq.User.integrations_for = {asdf: {promise: 'asdf'}};
       var res = u.check_integrations();
       expect(res).toEqual('asdf');
       expect(called).toEqual(false);
     });
 
     it('should return the result if not set to reload and already loaded', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
       u.set('integrations', null);
       var called = false;
       stub(Utils, 'all_pages', function() {
         called = true;
         return RSVP.reject();
       });
-      SweetSuite.User.integrations_for = {asdf: []};
+      LingoLinq.User.integrations_for = {asdf: []};
       var result = null;
       u.check_integrations().then(function(res) { result = res; });
       waitsFor(function() { return result; });
@@ -699,8 +699,8 @@ describe('User', function() {
     });
 
     it('should look up if forced to and data already there', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
-      SweetSuite.User.integrations_for = {asdf: null};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
+      LingoLinq.User.integrations_for = {asdf: null};
       var called = false;
       stub(Utils, 'all_pages', function() {
         called = true;
@@ -714,7 +714,7 @@ describe('User', function() {
       runs(function() {
         expect(called).toEqual(true);
         expect(error).toEqual({error: 'error retrieving integrations'});
-        expect(SweetSuite.User.integrations_for['asdf']).toEqual({error: true});
+        expect(LingoLinq.User.integrations_for['asdf']).toEqual({error: true});
       });
     });
 
@@ -724,8 +724,8 @@ describe('User', function() {
         called = true;
         return RSVP.resolve('asdf');
       });
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
-      SweetSuite.User.integrations_for = {asdf: null};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf', permissions: {supervise: true}});
+      LingoLinq.User.integrations_for = {asdf: null};
       var result = null;
       u.check_integrations().then(function(res) { result = res; });
       waitsFor(function() { return result; });
@@ -733,15 +733,15 @@ describe('User', function() {
         expect(called).toEqual(true);
         expect(result).toEqual('asdf');
       });
-      waitsFor(function() { return SweetSuite.User.integrations_for['asdf'] == 'asdf'; });
+      waitsFor(function() { return LingoLinq.User.integrations_for['asdf'] == 'asdf'; });
       runs();
     });
   });
 
   describe("find_integration", function() {
     it('should wait on the existing promise if defined', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf'});
-      SweetSuite.User.integrations_for = {'asdf': RSVP.reject('no way')};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf'});
+      LingoLinq.User.integrations_for = {'asdf': RSVP.reject('no way')};
       var error = null;
       u.find_integration('bacon').then(null, function(err) { error = err; });
       waitsFor(function() { return error; });
@@ -751,8 +751,8 @@ describe('User', function() {
     });
 
     it('should resolve on found record', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf'});
-      SweetSuite.User.integrations_for = {'asdf': RSVP.resolve([EmberObject.create(), EmberObject.create({template_key: 'bacon'})])};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf'});
+      LingoLinq.User.integrations_for = {'asdf': RSVP.resolve([EmberObject.create(), EmberObject.create({template_key: 'bacon'})])};
       var result = null;
       u.find_integration('bacon').then(function(res) { result = res; });
       waitsFor(function() { return result; });
@@ -762,8 +762,8 @@ describe('User', function() {
     });
 
     it('should error if the waiting promise fails', function() {
-      var u = SweetSuite.store.createRecord('user', {id: 'asdf'});
-      SweetSuite.User.integrations_for = {'asdf': RSVP.reject('no way')};
+      var u = LingoLinq.store.createRecord('user', {id: 'asdf'});
+      LingoLinq.User.integrations_for = {'asdf': RSVP.reject('no way')};
       var error = null;
       u.find_integration('bacon').then(null, function(err) { error = err; });
       waitsFor(function() { return error; });
@@ -773,8 +773,8 @@ describe('User', function() {
     });
 
     it('should error if no integration found', function() {
-      var u = SweetSuite.store.createRecord('user');
-      stub(SweetSuite.User, 'check_integrations', function() {
+      var u = LingoLinq.store.createRecord('user');
+      stub(LingoLinq.User, 'check_integrations', function() {
         return RSVP.resolve([EmberObject.create({template_key: 'chicken'}), EmberObject.create()]);
       });
       var error = null;
@@ -792,7 +792,7 @@ describe('User', function() {
 
   describe('auto_sync', function() {
     it('should set the right values', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       capabilities.installed_app = true;
       expect(u.get('auto_sync')).toEqual(true);
       capabilities.installed_app = false;
@@ -817,16 +817,16 @@ describe('User', function() {
 
   describe('load_button_sets', function() {
     it('should return a promise', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       var res = u.load_button_sets();
       expect(res.then).toNotEqual(undefined);
       res.then(null, function() { });
     });
 
     it('should return all button sets on success', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       u.set('preferences', {home_board: {id: 'asdf'}, sidebar_boards: [{key: 'asdf/qwer'}, {key: 'asdf/zxcv'}]});
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == 'asdf') {
           return RSVP.resolve('one');
         } else if(type == 'buttonset' && id == 'asdf/qwer') {
@@ -846,9 +846,9 @@ describe('User', function() {
     });
 
     it('should error on failing to retrieve any button set', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       u.set('preferences', {home_board: {id: 'asdf'}, sidebar_boards: [{key: 'asdf/qwer'}, {key: 'asdf/zxcv'}]});
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == 'asdf') {
           return RSVP.resolve('one');
         } else if(type == 'buttonset' && id == 'asdf/zxcv') {
@@ -866,7 +866,7 @@ describe('User', function() {
 
   describe('find_button', function() {
     it('should return a promise', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       stub(u, 'load_button_sets', function() { return RSVP.reject(); });
       var res = u.find_button('bacon');
       expect(res.then).toNotEqual(undefined);
@@ -874,7 +874,7 @@ describe('User', function() {
     });
 
     it('should error if load_button_sets fails', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       stub(u, 'load_button_sets', function() { return RSVP.reject(); });
       var res = u.find_button('bacon');
       var error = null;
@@ -884,7 +884,7 @@ describe('User', function() {
     });
 
     it('should return the earliest exact match', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       var list1 = {};
       stub(list1, 'find_buttons', function(label) {
         expect(label).toEqual('bacon');
@@ -916,7 +916,7 @@ describe('User', function() {
     });
 
     it('should error if no matches found', function() {
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       var list1 = {};
       stub(list1, 'find_buttons', function(label) {
         expect(label).toEqual('bacon');

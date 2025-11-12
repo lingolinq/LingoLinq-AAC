@@ -4,7 +4,7 @@ import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import speecher from '../utils/speecher';
@@ -466,7 +466,7 @@ export default Controller.extend({
         _this.set('other_user', {loading: true});
         _this.set('setup_user', null);
         app_state.set('setup_user', null);
-        SweetSuite.store.findRecord('user', _this.get('user_id')).then(function(user) {
+        LingoLinq.store.findRecord('user', _this.get('user_id')).then(function(user) {
           if(user.get('permissions.edit')) {
             _this.set('other_user', null);
             _this.set('setup_user', user);  

@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
@@ -12,7 +12,7 @@ export default Component.extend({
     this.set('model', {loading: true});
     var _this = this;
     if(_this.get('key')) {
-      SweetSuite.store.findRecord('board', _this.get('key')).then(function(board) {
+      LingoLinq.store.findRecord('board', _this.get('key')).then(function(board) {
         if(!board.get('permissions')) {
           board.reload(false).then(function(board) {
             _this.set('model', board);

@@ -1,4 +1,4 @@
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import $ from 'jquery';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
@@ -64,7 +64,7 @@ export default modal.ModalController.extend({
     var _this = this;
     var cats = {};
     (this.get('model.categories') || []).forEach(function(str) { cats[str] = true; });
-    SweetSuite.board_categories.forEach(function(c) {
+    LingoLinq.board_categories.forEach(function(c) {
       var cat = $.extend({}, c);
       if(cats[c.id]) { cat.selected = true; }
       res.push(cat);
@@ -80,9 +80,9 @@ export default modal.ModalController.extend({
     res.push({name: i18n.t('unspecified', "Unspecified"), id: ''});
     return res;
   }),
-  licenseOptions: SweetSuite.licenseOptions,
-  public_options: SweetSuite.publicOptions,
-  iconUrls: SweetSuite.iconUrls,
+  licenseOptions: LingoLinq.licenseOptions,
+  public_options: LingoLinq.publicOptions,
+  iconUrls: LingoLinq.iconUrls,
   bg_style: computed('model.background.color', function() {
     var str = "display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom;";
     if(this.get('model.background.color')) {

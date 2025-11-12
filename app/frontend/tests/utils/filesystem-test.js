@@ -13,8 +13,8 @@ import RSVP from 'rsvp';
 import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import stashes from '../../utils/_stashes';
-import sweetSuiteExtras from '../../utils/extras';
-import SweetSuite from '../../app';
+import lingoLinqExtras from '../../utils/extras';
+import LingoLinq from '../../app';
 import { run as emberRun } from '@ember/runloop';
 
 describe("filesystem", function() {
@@ -22,13 +22,13 @@ describe("filesystem", function() {
     var file = {
       name: name,
       createWriter: function(success, error) {
-        if(SweetSuite.quota_settings.prevent_writer) {
+        if(LingoLinq.quota_settings.prevent_writer) {
           error("writer not allowed");
         } else {
           var writer = {
             write: function(blob) {
               file.blob = blob;
-              if(SweetSuite.quota_settings.error_on_write) {
+              if(LingoLinq.quota_settings.error_on_write) {
                 writer.onerror("write failed");
               } else {
                 writer.onwriteend("done!");
@@ -39,7 +39,7 @@ describe("filesystem", function() {
         }
       },
       remove: function(success, error) {
-        if(SweetSuite.quota_settings.prevent_remove) {
+        if(LingoLinq.quota_settings.prevent_remove) {
           error("remove not allowed");
         } else {
           file.parent.remove_child(file);
@@ -57,7 +57,7 @@ describe("filesystem", function() {
   var make_dir = function(name, children) {
     var dir = {
       getDirectory: function(key, opts, success, error) {
-        if(SweetSuite.quota_settings.prevent_directory_search) {
+        if(LingoLinq.quota_settings.prevent_directory_search) {
           error("lookup not allowed");
         } else {
           var res = null;
@@ -67,7 +67,7 @@ describe("filesystem", function() {
             }
           });
           if(!res && opts && opts.create) {
-            if(SweetSuite.quota_settings.prevent_directory_creation) {
+            if(LingoLinq.quota_settings.prevent_directory_creation) {
               error("creation not allowed");
             } else {
               res = make_dir(key);
@@ -82,7 +82,7 @@ describe("filesystem", function() {
         }
       },
       getFile: function(key, opts, success, error) {
-        if(SweetSuite.quota_settings.prevent_file_search) {
+        if(LingoLinq.quota_settings.prevent_file_search) {
           error("file lookup not allowed");
         } else {
           var res = null;
@@ -92,7 +92,7 @@ describe("filesystem", function() {
             }
           });
           if(!res && opts && opts.create) {
-            if(SweetSuite.quota_settings.prevent_file_creation) {
+            if(LingoLinq.quota_settings.prevent_file_creation) {
               error("file creation not allowed");
             } else {
               res = make_file(key);
@@ -109,7 +109,7 @@ describe("filesystem", function() {
       createReader: function() {
         return {
           readEntries: function(success, error) {
-            if(SweetSuite.quota_settings.prevent_directory_listing) {
+            if(LingoLinq.quota_settings.prevent_directory_listing) {
               error("listing not allowed");
             } else {
               success(dir.children);
@@ -143,7 +143,7 @@ describe("filesystem", function() {
     persistence.set('local_system', null);
   });
   beforeEach(function() {
-    SweetSuite.ignore_filesystem = false;
+    LingoLinq.ignore_filesystem = false;
     capabilities.cached_dirs = null;
     capabilities.root_dir_entry = null;
     persistence.sound_filename_cache = null;
@@ -151,7 +151,7 @@ describe("filesystem", function() {
     persistence.url_cache = null;
     if(window.PERSISTENT === undefined) { window.PERSISTENT = 1; }
     if(window.TEMPORARY === undefined) { window.TEMPORARY = 0; }
-    SweetSuite.quota_settings = {
+    LingoLinq.quota_settings = {
       allow_persistent: true,
       allow_persistent_quota: true,
       allow_temporary: true,
@@ -161,43 +161,43 @@ describe("filesystem", function() {
       allow_quota_check: true
     };
     stub(window, 'cd_request_file_system', function(type, size, success, error) {
-      if(type == window.PERSISTENT && SweetSuite.quota_settings.allow_persistent) {
-        if(size < SweetSuite.quota_settings.allowed_quota) {
-          SweetSuite.quota_settings.root_dir = SweetSuite.quota_settings.root_dir || make_dir('root');
-          success({root: SweetSuite.quota_settings.root_dir});
+      if(type == window.PERSISTENT && LingoLinq.quota_settings.allow_persistent) {
+        if(size < LingoLinq.quota_settings.allowed_quota) {
+          LingoLinq.quota_settings.root_dir = LingoLinq.quota_settings.root_dir || make_dir('root');
+          success({root: LingoLinq.quota_settings.root_dir});
         } else {
-          if(SweetSuite.quota_settings.error_on_too_much_quota) {
+          if(LingoLinq.quota_settings.error_on_too_much_quota) {
             error("too much quota");
           } else {
-            SweetSuite.quota_settings.root_dir = SweetSuite.quota_settings.root_dir || make_dir('root');
-            success({root: SweetSuite.quota_settings.root_dir});
+            LingoLinq.quota_settings.root_dir = LingoLinq.quota_settings.root_dir || make_dir('root');
+            success({root: LingoLinq.quota_settings.root_dir});
           }
         }
-      } else if(type == window.TEMPORARY && SweetSuite.quota_settings.allow_temporary) {
-        SweetSuite.quota_settings.root_dir = SweetSuite.quota_settings.root_dir || make_dir('root');
-        success({root: SweetSuite.quota_settings.root_dir});
+      } else if(type == window.TEMPORARY && LingoLinq.quota_settings.allow_temporary) {
+        LingoLinq.quota_settings.root_dir = LingoLinq.quota_settings.root_dir || make_dir('root');
+        success({root: LingoLinq.quota_settings.root_dir});
       } else {
         error("storage not allowed");
       }
     });
     stub(window, 'cd_persistent_storage', {
       queryUsageAndQuota: function(success, error) {
-        if(SweetSuite.quota_settings.allow_quota_check) {
-          success(SweetSuite.quota_settings.used_quota, SweetSuite.quota_settings.allowed_quota);
+        if(LingoLinq.quota_settings.allow_quota_check) {
+          success(LingoLinq.quota_settings.used_quota, LingoLinq.quota_settings.allowed_quota);
         } else {
           error("quota check not allowed");
         }
       },
       requestQuota: function(size, success, error) {
-        SweetSuite.quota_settings.requested_size = size;
-        if(SweetSuite.quota_settings.allow_persistent_quota) {
-          if(size < SweetSuite.quota_settings.allowed_quota) {
+        LingoLinq.quota_settings.requested_size = size;
+        if(LingoLinq.quota_settings.allow_persistent_quota) {
+          if(size < LingoLinq.quota_settings.allowed_quota) {
             success(size);
           } else {
-            if(SweetSuite.quota_settings.error_on_too_much_quota) {
+            if(LingoLinq.quota_settings.error_on_too_much_quota) {
               error("too much quota");
             } else {
-              success(SweetSuite.quota_settings.allowed_quota);
+              success(LingoLinq.quota_settings.allowed_quota);
             }
           }
         } else {
@@ -218,7 +218,7 @@ describe("filesystem", function() {
       });
 
       it("should require confirmation if nothing allotted", function() {
-        SweetSuite.quota_settings.allowed_quota = 0;
+        LingoLinq.quota_settings.allowed_quota = 0;
         var result = null;
         capabilities.storage.status().then(function(res) { result = res; });
         waitsFor(function() { return result; });
@@ -228,7 +228,7 @@ describe("filesystem", function() {
       });
 
       it("should error gracefully if quota check not allowed", function() {
-        SweetSuite.quota_settings.allow_quota_check = false;
+        LingoLinq.quota_settings.allow_quota_check = false;
         var result = null;
         capabilities.storage.status().then(function(res) { result = res; });
         waitsFor(function() { return result; });
@@ -238,7 +238,7 @@ describe("filesystem", function() {
       });
 
       it("should error gracefully if temporary storage not allowed (implies incognito mode)", function() {
-        SweetSuite.quota_settings.allow_temporary = false;
+        LingoLinq.quota_settings.allow_temporary = false;
         var result = null;
         capabilities.storage.status().then(function(res) { result = res; });
         waitsFor(function() { return result; });
@@ -355,7 +355,7 @@ describe("filesystem", function() {
       });
 
       it("should reject on errors", function() {
-        SweetSuite.quota_settings.prevent_directory_creation = true;
+        LingoLinq.quota_settings.prevent_directory_creation = true;
         stub(capabilities.storage, 'root_entry', function() {
           var promise = capabilities.mini_promise();
           promise.resolve(make_dir("root"));
@@ -371,7 +371,7 @@ describe("filesystem", function() {
           expect(error1).toEqual('creation not allowed');
         });
 
-        SweetSuite.quota_settings.prevent_directory_search = true;
+        LingoLinq.quota_settings.prevent_directory_search = true;
         var error2 = null;
         capabilities.storage.assert_directory('bacon').then(function(res) {
         }, function(err) {
@@ -437,7 +437,7 @@ describe("filesystem", function() {
       });
 
       it("should reject on error", function() {
-        SweetSuite.quota_settings.prevent_directory_listing = true;
+        LingoLinq.quota_settings.prevent_directory_listing = true;
         var f1 = make_file('bob.txt');
         var f2 = make_file('susan.png');
         var sub2 = make_dir('down1', [f2]);
@@ -482,7 +482,7 @@ describe("filesystem", function() {
 
     describe("get_file_url", function() {
       it("should reject when getFile fails", function() {
-        SweetSuite.quota_settings.prevent_file_search = true;
+        LingoLinq.quota_settings.prevent_file_search = true;
         var sub = make_dir('sub');
         var root = make_dir('root', [sub]);
         stub(capabilities.storage, 'root_entry', function() {
@@ -569,7 +569,7 @@ describe("filesystem", function() {
       });
 
       it("should reject on write error", function() {
-        SweetSuite.quota_settings.error_on_write = true;
+        LingoLinq.quota_settings.error_on_write = true;
         var root = make_dir("root");
         stub(capabilities.storage, 'root_entry', function() {
           var promise = capabilities.mini_promise();
@@ -588,7 +588,7 @@ describe("filesystem", function() {
       });
 
       it("should reject on createWriter error", function() {
-        SweetSuite.quota_settings.prevent_writer = true;
+        LingoLinq.quota_settings.prevent_writer = true;
         var root = make_dir("root");
         stub(capabilities.storage, 'root_entry', function() {
           var promise = capabilities.mini_promise();
@@ -651,7 +651,7 @@ describe("filesystem", function() {
       });
 
       it("should reject if removal fails", function() {
-        SweetSuite.quota_settings.prevent_remove = true;
+        LingoLinq.quota_settings.prevent_remove = true;
         var file = make_file("chicken.gif");
         var sub2 = make_dir('chic', [file]);
         var sub = make_dir('image', [sub2]);
@@ -743,7 +743,7 @@ describe("filesystem", function() {
       });
 
       it("should check quota if native support is available", function() {
-        SweetSuite.quota_settings.allow_quota_check = false;
+        LingoLinq.quota_settings.allow_quota_check = false;
         var error = null;
         capabilities.storage.root_entry().then(function(res) {
         }, function(err) { error = err; });
@@ -755,7 +755,7 @@ describe("filesystem", function() {
       });
 
       it("should request more quota if not enough available with native support", function() {
-        SweetSuite.quota_settings.allow_persistent_quota = false;
+        LingoLinq.quota_settings.allow_persistent_quota = false;
         var error = null;
         capabilities.storage.root_entry().then(function(res) {
         }, function(err) { error = err; });
@@ -763,12 +763,12 @@ describe("filesystem", function() {
         waitsFor(function() { return error; });
         runs(function() {
           expect(error).toEqual('persistent storage not allowed');
-          expect(SweetSuite.quota_settings.requested_size).toEqual(1024*1024*100);
+          expect(LingoLinq.quota_settings.requested_size).toEqual(1024*1024*100);
         });
       });
 
       it("should request more quota if not enough available with native support", function() {
-        SweetSuite.quota_settings.allowed_quota = 0;
+        LingoLinq.quota_settings.allowed_quota = 0;
         var error = null;
         capabilities.storage.root_entry().then(function(res) {
         }, function(err) { error = err; });
@@ -776,12 +776,12 @@ describe("filesystem", function() {
         waitsFor(function() { return error; });
         runs(function() {
           expect(error).toEqual({error: "rejected"});
-          expect(SweetSuite.quota_settings.requested_size).toEqual(1024*1024*100);
+          expect(LingoLinq.quota_settings.requested_size).toEqual(1024*1024*100);
         });
       });
 
       it("should use the cached dir if sufficient quota and defined with native support", function() {
-        SweetSuite.quota_settings.allowed_quota = 1024*1024*150;
+        LingoLinq.quota_settings.allowed_quota = 1024*1024*150;
         capabilities.root_dir_entry = {a: 1};
 
         var result = null;
@@ -796,8 +796,8 @@ describe("filesystem", function() {
       });
 
       it("should request the file system with native support and sufficient quota", function() {
-        SweetSuite.quota_settings.allowed_quota = 1024*1024*150;
-        SweetSuite.quota_settings.allow_persistent = false;
+        LingoLinq.quota_settings.allowed_quota = 1024*1024*150;
+        LingoLinq.quota_settings.allow_persistent = false;
 
         var error = null;
         capabilities.storage.root_entry().then(function(res) {
@@ -810,8 +810,8 @@ describe("filesystem", function() {
       });
 
       it("should reject on failure requesting file system", function() {
-        SweetSuite.quota_settings.allowed_quota = 1024*1024*150;
-        SweetSuite.quota_settings.allow_persistent = false;
+        LingoLinq.quota_settings.allowed_quota = 1024*1024*150;
+        LingoLinq.quota_settings.allow_persistent = false;
 
         var error = null;
         capabilities.storage.root_entry().then(function(res) {
@@ -824,7 +824,7 @@ describe("filesystem", function() {
       });
 
       it("should resolve with the root directory when successfully requesting file system", function() {
-        SweetSuite.quota_settings.allowed_quota = 1024*1024*150;
+        LingoLinq.quota_settings.allowed_quota = 1024*1024*150;
 
         var result = null;
         capabilities.storage.root_entry().then(function(res) {
@@ -833,7 +833,7 @@ describe("filesystem", function() {
 
         waitsFor(function() { return result; });
         runs(function() {
-          expect(result).toEqual(SweetSuite.quota_settings.root_dir);
+          expect(result).toEqual(LingoLinq.quota_settings.root_dir);
         });
       });
     });
@@ -845,7 +845,7 @@ describe("filesystem", function() {
         available: true,
         allowed: true
       });
-      stub(sweetSuiteExtras, 'ready', true);
+      stub(lingoLinqExtras, 'ready', true);
       stashes.set('auth_settings', {});
       persistence.url_cache = {
         'http://opensymbols.s3.amazonaws.com/remote/picture.png': 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
@@ -876,7 +876,7 @@ describe("filesystem", function() {
           local_url: 'http://www.example.com/52920000.picture.png.5292.png',
           url: 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
         });
-        var images = SweetSuite.quota_settings.root_dir.children[0];
+        var images = LingoLinq.quota_settings.root_dir.children[0];
         expect(images.name).toEqual('image');
         expect(images.children.length).toEqual(1);
         expect(images.children[0].name).toEqual('5292');
@@ -890,7 +890,7 @@ describe("filesystem", function() {
         available: true,
         allowed: true
       });
-      stub(sweetSuiteExtras, 'ready', true);
+      stub(lingoLinqExtras, 'ready', true);
       stashes.set('auth_settings', {});
       persistence.url_cache = {
         'http://opensymbols.s3.amazonaws.com/remote/picture.png': 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
@@ -922,7 +922,7 @@ describe("filesystem", function() {
           local_url: 'http://www.example.com/whatever.png',
           url: 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
         });
-        var images = SweetSuite.quota_settings.root_dir.children[0];
+        var images = LingoLinq.quota_settings.root_dir.children[0];
         expect(images.name).toEqual('image');
         expect(images.children.length).toEqual(1);
         expect(images.children[0].name).toEqual('what');
@@ -936,7 +936,7 @@ describe("filesystem", function() {
         available: true,
         allowed: true
       });
-      stub(sweetSuiteExtras, 'ready', true);
+      stub(lingoLinqExtras, 'ready', true);
       stashes.set('auth_settings', {});
       persistence.url_cache = {
         'http://opensymbols.s3.amazonaws.com/remote/picture.png': 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
@@ -966,12 +966,12 @@ describe("filesystem", function() {
     });
 
     it("should reject on write error", function() {
-      SweetSuite.quota_settings.error_on_write = true;
+      LingoLinq.quota_settings.error_on_write = true;
       persistence.set('local_system', {
         available: true,
         allowed: true
       });
-      stub(sweetSuiteExtras, 'ready', true);
+      stub(lingoLinqExtras, 'ready', true);
       stashes.set('auth_settings', {});
       persistence.url_cache = {
         'http://opensymbols.s3.amazonaws.com/remote/picture.png': 'http://opensymbols.s3.amazonaws.com/remote/picture.png'
@@ -1025,8 +1025,8 @@ describe("filesystem", function() {
       var sounds = make_dir('sound', [sub2, file4]);
       var images = make_dir('image', [sub1]);
       var root = make_dir('root', [images, sounds]);
-      SweetSuite.quota_settings.root_dir = root;
-      stub(sweetSuiteExtras.storage, 'find_all', function(key) {
+      LingoLinq.quota_settings.root_dir = root;
+      stub(lingoLinqExtras.storage, 'find_all', function(key) {
         if(key == 'dataCache') {
           return RSVP.resolve([
             {data: {raw: {url: "http://www.example.com/remote/a.png", type: 'image', local_filename: 'chicken.png', local_url: 'http://www.example.com/local/a.png'}}},
@@ -1071,8 +1071,8 @@ describe("filesystem", function() {
       var sounds = make_dir('sound', [sub2, file4]);
       var images = make_dir('image', [sub1]);
       var root = make_dir('root', [images, sounds]);
-      SweetSuite.quota_settings.root_dir = root;
-      stub(sweetSuiteExtras.storage, 'find_all', function(key) {
+      LingoLinq.quota_settings.root_dir = root;
+      stub(lingoLinqExtras.storage, 'find_all', function(key) {
         if(key == 'dataCache') {
           return RSVP.resolve([
             {data: {raw: {url: "http://www.example.com/remote/a.png", type: 'image', local_filename: 'chicken.png', local_url: 'http://www.example.com/local/a.png'}}},
@@ -1172,7 +1172,7 @@ describe("filesystem", function() {
       var sounds = make_dir('sound', [sub2]);
       var images = make_dir('image', [sub1]);
       var root = make_dir('root', [images, sounds]);
-      SweetSuite.quota_settings.root_dir = root;
+      LingoLinq.quota_settings.root_dir = root;
 
       stub(persistence, 'find', function(key, id) {
         if(key == 'dataCache' && id == 'http://www.example.com/remote/picture.png') {
@@ -1213,7 +1213,7 @@ describe("filesystem", function() {
       var sounds = make_dir('sound', [sub2]);
       var images = make_dir('image');
       var root = make_dir('root', [images, sounds]);
-      SweetSuite.quota_settings.root_dir = root;
+      LingoLinq.quota_settings.root_dir = root;
 
       stub(persistence, 'find', function(key, id) {
         if(key == 'dataCache' && id == 'http://www.example.com/remote/picture.png') {
@@ -1263,7 +1263,7 @@ describe("filesystem", function() {
         },
         injections: []
       };
-      stub(SweetSuite, 'ignore_filesystem', false);
+      stub(LingoLinq, 'ignore_filesystem', false);
       stub(capabilities.storage, 'status', function() {
         var promise = capabilities.mini_promise();
         promise.resolve({available: true, requires_confirmation: true});
@@ -1303,7 +1303,7 @@ describe("filesystem", function() {
         },
         injections: []
       };
-      stub(SweetSuite, 'ignore_filesystem', false);
+      stub(LingoLinq, 'ignore_filesystem', false);
       stub(capabilities.storage, 'status', function() {
         var promise = capabilities.mini_promise();
         promise.resolve({available: true, requires_confirmation: false});

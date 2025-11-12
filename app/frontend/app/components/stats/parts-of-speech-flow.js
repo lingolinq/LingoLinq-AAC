@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -27,7 +27,7 @@ export default Component.extend({
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('parts_of_speech_combinations')[0];
 
-    SweetSuite.Visualizations.wait('speech-flow', function() {
+    LingoLinq.Visualizations.wait('speech-flow', function() {
       if(elem && stats && stats.get('parts_of_speech_combinations')) {
         var data = new window.google.visualization.DataTable();
         data.addColumn('string', 'From');
@@ -52,7 +52,7 @@ export default Component.extend({
         var split_check = function(label) {
           var type = label.replace(/^\s+/, '').replace(/\s+$/, '');
           if(!colors[label]) {
-            var color = SweetSuite.keyed_colors.find(function(c) { return c.types.indexOf(type) >= 0; });
+            var color = LingoLinq.keyed_colors.find(function(c) { return c.types.indexOf(type) >= 0; });
             colors.push((color || {border: "#ccc"}).border);
             colors[label] = true;
           }

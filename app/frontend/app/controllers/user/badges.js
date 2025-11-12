@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
 import modal from '../../utils/modal';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
 

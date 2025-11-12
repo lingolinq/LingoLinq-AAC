@@ -2,7 +2,7 @@
 
 set -e  # Exit on any error
 
-echo "=== SweetSuite Fresh Start ==="
+echo "=== LingoLinq Fresh Start ==="
 echo ""
 
 # Kill any existing processes
@@ -40,7 +40,7 @@ echo ""
 echo "5. Starting all services with foreman..."
 echo ""
 echo "=========================================="
-echo "SweetSuite is starting on:"
+echo "LingoLinq is starting on:"
 echo "  Backend:  http://localhost:5000"
 echo "  Frontend: http://localhost:8184"
 echo "=========================================="

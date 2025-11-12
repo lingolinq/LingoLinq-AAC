@@ -19,7 +19,7 @@ describe Converters::CoughDrop do
         'order' => [[nil, nil, nil, nil], [nil, nil, nil, nil]]
       })
       expect(json['buttons']).to eq([])
-      expect(json['ext_sweetsuite_settings']).to eq({
+      expect(json['ext_lingolinq_settings']).to eq({
         'key' => b.key,
         'private' => true,
         'protected' => false,
@@ -312,7 +312,7 @@ describe Converters::CoughDrop do
         'border_color' => 'rgb(170, 170, 170)',
         'background_color' => 'rgb(255, 255, 255)',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' =>  {'web' => {'launch_url' => 'http://www.example.com'}}
+        'ext_lingolinq_apps' =>  {'web' => {'launch_url' => 'http://www.example.com'}}
       })
     end
     
@@ -337,7 +337,7 @@ describe Converters::CoughDrop do
       Converters::CoughDrop.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
-      expect(json['ext_sweetsuite_settings']).to eq({
+      expect(json['ext_lingolinq_settings']).to eq({
         'key' => b.key,
         'private' => true,
         'protected' => true,
@@ -365,7 +365,7 @@ describe Converters::CoughDrop do
         'border_color' => 'rgb(170, 170, 170)',
         'background_color' => 'rgb(255, 255, 255)',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' =>  {'web' => {'launch_url' => 'http://www.example.com'}}
+        'ext_lingolinq_apps' =>  {'web' => {'launch_url' => 'http://www.example.com'}}
       })
     end
 
@@ -432,7 +432,7 @@ describe Converters::CoughDrop do
             'nw' => 'catty',
             's' => 'catydid',
             'se' => 'caterpillar',
-            'ext_sweetsuite_defaults' => ['s', 'se']
+            'ext_lingolinq_defaults' => ['s', 'se']
           }
         },
         'fr' => {
@@ -441,7 +441,7 @@ describe Converters::CoughDrop do
           'inflections' => {
             'n' => 'chats',
             'sw' => 'chateau',
-            'ext_sweetsuite_defaults' => ['n']
+            'ext_lingolinq_defaults' => ['n']
           }
         }
       })
@@ -457,7 +457,7 @@ describe Converters::CoughDrop do
           'inflections' => {
             'nw' => 'minus',
             's' => 'bien',
-            'ext_sweetsuite_defaults' => ['s']
+            'ext_lingolinq_defaults' => ['s']
           }
         }
       })
@@ -526,7 +526,7 @@ describe Converters::CoughDrop do
             'nw' => 'catty',
             's' => 'catydid',
             'se' => 'caterpillar',
-            'ext_sweetsuite_defaults' => ['s', 'se']
+            'ext_lingolinq_defaults' => ['s', 'se']
           }
         },
         'fr' => {
@@ -535,7 +535,7 @@ describe Converters::CoughDrop do
           'inflections' => {
             'n' => 'chats',
             'sw' => 'chateau',
-            'ext_sweetsuite_defaults' => ['n']
+            'ext_lingolinq_defaults' => ['n']
           }
         }
       })
@@ -551,7 +551,7 @@ describe Converters::CoughDrop do
           'inflections' => {
             'nw' => 'minus',
             's' => 'bien',
-            'ext_sweetsuite_defaults' => ['s']
+            'ext_lingolinq_defaults' => ['s']
           }
         }
       })
@@ -651,7 +651,7 @@ describe Converters::CoughDrop do
         'id' => '1',
         'label' => 'hardly',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' => {
+        'ext_lingolinq_apps' => {
           'a' => 1
         }
       }]
@@ -676,7 +676,7 @@ describe Converters::CoughDrop do
       shell = OBF::Utils.obf_shell
       shell['id'] = '2345'
       shell['name'] = "Cool Board"
-      shell['ext_sweetsuite_settings'] = {
+      shell['ext_lingolinq_settings'] = {
         'protected' => true,
         'key' => "#{u.user_name}/test"
       }
@@ -685,7 +685,7 @@ describe Converters::CoughDrop do
         'id' => '1',
         'label' => 'hardly',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' => {
+        'ext_lingolinq_apps' => {
           'a' => 1
         }
       }]
@@ -704,7 +704,7 @@ describe Converters::CoughDrop do
       shell['id'] = '2345'
       shell['name'] = "Cool Board"
       shell['protected_content_user_identifier'] = 'fred@example.com'
-      shell['ext_sweetsuite_settings'] = {
+      shell['ext_lingolinq_settings'] = {
         'protected' => true,
         'key' => "#{u.user_name}/test"
       }
@@ -712,7 +712,7 @@ describe Converters::CoughDrop do
         'id' => '1',
         'label' => 'hardly',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' => {
+        'ext_lingolinq_apps' => {
           'a' => 1
         }
       }]
@@ -741,7 +741,7 @@ describe Converters::CoughDrop do
       shell['label_locale'] = 'en'
       shell['vocalization_locale'] = 'en'
       shell['protected_content_user_identifier'] = 'fred@example.com'
-      shell['ext_sweetsuite_settings'] = {
+      shell['ext_lingolinq_settings'] = {
         'protected' => true,
         'key' => "#{u.user_name}/test"
       }
@@ -749,7 +749,7 @@ describe Converters::CoughDrop do
         'id' => '1',
         'label' => 'hardly',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' => {
+        'ext_lingolinq_apps' => {
           'a' => 1
         },
         'translations' => {
@@ -773,7 +773,7 @@ describe Converters::CoughDrop do
             'inflections' => {
               'nw' => 'pomodor',
               's' => 'pomme de terre',
-              'ext_sweetsuite_defaults' => ['nw']
+              'ext_lingolinq_defaults' => ['nw']
             }
           }
         }
@@ -836,7 +836,7 @@ describe Converters::CoughDrop do
       shell['label_locale'] = 'en'
       shell['vocalization_locale'] = 'en'
       shell['protected_content_user_identifier'] = 'fred@example.com'
-      shell['ext_sweetsuite_settings'] = {
+      shell['ext_lingolinq_settings'] = {
         'protected' => true,
         'key' => "#{u.user_name}/test"
       }
@@ -844,7 +844,7 @@ describe Converters::CoughDrop do
         'id' => '1',
         'label' => 'hardly',
         'url' => 'http://www.example.com',
-        'ext_sweetsuite_apps' => {
+        'ext_lingolinq_apps' => {
           'a' => 1
         },
         'translations' => {
@@ -868,7 +868,7 @@ describe Converters::CoughDrop do
             'inflections' => {
               'nw' => 'pomodor',
               's' => 'pomme de terre',
-              'ext_sweetsuite_defaults' => ['nw']
+              'ext_lingolinq_defaults' => ['nw']
             }
           }
         }
@@ -1229,7 +1229,7 @@ describe Converters::CoughDrop do
         ],
         'images' => [
           {'id' => '111', 'url' => 'https://www.example.com/pic.png'},
-          {'id' => '222', 'url' => 'https://www.example.com/pic.png', 'ext_sweetsuite_unskinned_url' => 'https://www.example.com/pic2.png'},
+          {'id' => '222', 'url' => 'https://www.example.com/pic.png', 'ext_lingolinq_unskinned_url' => 'https://www.example.com/pic2.png'},
         ],
         'id' => 'asdfasdf'
       }
@@ -1269,7 +1269,7 @@ describe Converters::CoughDrop do
           {'id' => '222', 'data' => 'data:text/plaintext;base64,YWJj', 'protected' => true, 'protected_source' => 'imagey'},
         ],
         'id' => 'asdfasdf',
-        'ext_sweetsuite_settings' => {
+        'ext_lingolinq_settings' => {
           'protected' => true,
           'key' => 'nobody/else',
           'protected_user_id' => '1111'
@@ -1351,13 +1351,13 @@ describe Converters::CoughDrop do
       expect(hash['buttons'][0]['id']).to eq(1)
       expect(hash['buttons'][0]['hidden']).to eq(true)
       expect(hash['buttons'][1]['id']).to eq(2)
-      expect(hash['buttons'][1]['ext_sweetsuite_link_disabled']).to eq(true)
+      expect(hash['buttons'][1]['ext_lingolinq_link_disabled']).to eq(true)
       expect(hash['buttons'][2]['id']).to eq(3)
-      expect(hash['buttons'][2]['ext_sweetsuite_home_lock']).to eq(true)
+      expect(hash['buttons'][2]['ext_lingolinq_home_lock']).to eq(true)
       expect(hash['buttons'][3]['id']).to eq(4)
-      expect(hash['buttons'][3]['ext_sweetsuite_part_of_speech']).to eq('noun')
+      expect(hash['buttons'][3]['ext_lingolinq_part_of_speech']).to eq('noun')
       expect(hash['buttons'][4]['id']).to eq(5)
-      expect(hash['buttons'][4]['ext_sweetsuite_add_to_vocalization']).to eq(true)
+      expect(hash['buttons'][4]['ext_lingolinq_add_to_vocalization']).to eq(true)
     end
 
     it 'should support vocalization as an action' do
@@ -1430,7 +1430,7 @@ describe Converters::CoughDrop do
       expect(hash['images'][0]).to_not eq(nil)
       expect(hash['images'][0]['id']).to eq(bi.global_id)
       expect(hash['images'][0]['url']).to eq("https://www.example.com/pic-variant-medium.png")
-      expect(hash['images'][0]['ext_sweetsuite_unskinned_url']).to eq("https://www.example.com/pic-varianted-skin.png")
+      expect(hash['images'][0]['ext_lingolinq_unskinned_url']).to eq("https://www.example.com/pic-varianted-skin.png")
     end
 
     it "should use correct raster urls for vector images if available" do

@@ -17,7 +17,7 @@ import stashes from './_stashes';
 import boundClasses from './bound_classes';
 import utterance from './utterance';
 import modal from './modal';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import contentGrabbers from './content_grabbers';
 import editManager from './edit_manager';
 import buttonTracker from './raw_events';
@@ -56,11 +56,11 @@ var app_state = EmberObject.extend({
     this.set('geolocation', geolocation);
     this.set('installed_app', capabilities.installed_app);
     this.set('no_linky', capabilities.installed_app && capabilities.system == 'iOS');
-    this.set('licenseOptions', SweetSuite.licenseOptions);
+    this.set('licenseOptions', LingoLinq.licenseOptions);
     this.set('device_name', capabilities.readable_device_name);
     var settings = window.domain_settings || {};
-    settings.app_name = SweetSuite.app_name || settings.app_name || "SweetSuite";
-    settings.company_name = SweetSuite.company_name || settings.company_name || "SweetSuite";
+    settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
+    settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
     this.set('currentBoardState', null);
     var _this = this;
@@ -212,31 +212,31 @@ var app_state = EmberObject.extend({
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
     contentGrabbers.boardGrabber.transitioner = route;
-    SweetSuite.controller = controller;
+    LingoLinq.controller = controller;
     stashes.controller = controller;
     boundClasses.setup();
 //    controller.set('model', EmberObject.create());
     utterance.setup(controller);
     this.speak_mode_handlers();
     this.dom_changes_on_board_state_change();
-    SweetSuite.session = route.get('session');
+    LingoLinq.session = route.get('session');
     modal.close();
     if(session.get('access_token')) {
       // this shouldn't run until the db is initialized, otherwise if the user is offline
       // or has a spotty connection, then looking up the user will not succeed, and
       // the app will force a logout unexpectedly.
       var find_user = function(last_try) {
-        var find = SweetSuite.store.findRecord('user', 'self');
+        var find = LingoLinq.store.findRecord('user', 'self');
 
         find.then(function(user) {
           console.log("user initialization working..");
           var valid_user = RSVP.resolve(user);
           if(!session.get('as_user_id') && session.get('user_id') && session.get('user_id') != user.get('id')) {
             // mismatch due to a user being renamed
-            valid_user = SweetSuite.store.findRecord('user', session.get('user_id'));
+            valid_user = LingoLinq.store.findRecord('user', session.get('user_id'));
           } else if(session.get('as_user_id') && user.get('user_name') && session.get('as_user_id') != user.get('user_name')) {
             // mismatch due to a user being renamed
-            valid_user = SweetSuite.store.findRecord('user', session.get('as_user_id'));
+            valid_user = LingoLinq.store.findRecord('user', session.get('as_user_id'));
           }
           valid_user.then(function(user) {
             if(!user.get('fresh') && stashes.get('online')) {
@@ -251,7 +251,7 @@ var app_state = EmberObject.extend({
 
             if(stashes.get('speak_mode_user_id') || stashes.get('referenced_speak_mode_user_id')) {
               var ref_id = stashes.get('speak_mode_user_id') || stashes.get('referenced_speak_mode_user_id');
-              SweetSuite.store.findRecord('user', ref_id).then(function(user) {
+              LingoLinq.store.findRecord('user', ref_id).then(function(user) {
                 if(stashes.get('speak_mode_user_id')) {
                   app_state.set('speakModeUser', user);
                 }
@@ -312,7 +312,7 @@ var app_state = EmberObject.extend({
     }
     if(_this.get('currentUser') && _this.get('currentUser').reload) {
       _this.get('currentUser').reload().then(function() {
-        if(capabilities.installed_app && capabilities.system == 'iOS' && _this.get('currentUser.subscription.plan_id') == 'SweetSuiteiOSMonthly' && !_this.get('currentUser.checked_iap')) {
+        if(capabilities.installed_app && capabilities.system == 'iOS' && _this.get('currentUser.subscription.plan_id') == 'LingoLinqiOSMonthly' && !_this.get('currentUser.checked_iap')) {
           _this.set('currentUser.checked_iap', true);
           // TODO: API call that triggers Purchasing.verify_receipt for the user
           // and reloads again on success
@@ -349,7 +349,7 @@ var app_state = EmberObject.extend({
     if(transition.to_route == 'board.index') {
       boundClasses.setup();
       var delay = app_state.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
-      SweetSuite.log.track('global transition handled');
+      LingoLinq.log.track('global transition handled');
       runLater(this, this.check_for_board_readiness, delay, 50);
     }
     var controller = this.controller;
@@ -393,7 +393,7 @@ var app_state = EmberObject.extend({
         }
       } catch(e) { }
     }
-    if(SweetSuite.embedded && !this.get('speak_mode')) {
+    if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
         window.top.location.replace(window.location);
       }
@@ -404,7 +404,7 @@ var app_state = EmberObject.extend({
     if(window._trackJs) {
       window._trackJs.disabled = protect_user;
     }
-    SweetSuite.protected_user = protect_user;
+    LingoLinq.protected_user = protect_user;
     stashes.persist('protected_user', protect_user);
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
@@ -461,7 +461,7 @@ var app_state = EmberObject.extend({
       var _this = this;
       if($integration.length || ($board.length && $board.find(".button_row,canvas").length)) {
         runLater(function() {
-          SweetSuite.log.track('done transitioning');
+          LingoLinq.log.track('done transitioning');
           buttonTracker.transitioning = false;
         }, delay);
         return;
@@ -876,7 +876,7 @@ var app_state = EmberObject.extend({
     editManager.clear_paint_mode();
   },
   toggle_mode: function(mode, opts) {
-    SweetSuite.log.track('setting mode to ' + mode);
+    LingoLinq.log.track('setting mode to ' + mode);
     opts = opts || {};
     utterance.clear({skip_logging: true});
     var current_mode = stashes.get('current_mode');
@@ -1075,7 +1075,7 @@ var app_state = EmberObject.extend({
     $stash_hover.removeClass('on_button').data('button_id', null);
     editManager.clear_paint_mode();
     editManager.clear_preview_levels();
-    SweetSuite.log.track('done setting mode to ' + mode);
+    LingoLinq.log.track('done setting mode to ' + mode);
   },
   assert_lang_override: observer('vocalization_locale', function() {
     if(this.get('vocalization_locale')) {
@@ -1088,9 +1088,9 @@ var app_state = EmberObject.extend({
     }
   }),
   sync_send_utterance: observer('stashes.working_vocalization', function() {
-    if(!SweetSuite || !SweetSuite.store) { return; }
+    if(!LingoLinq || !LingoLinq.store) { return; }
     var shareable_voc = function() {
-      var u = SweetSuite.store.createRecord('utterance', {
+      var u = LingoLinq.store.createRecord('utterance', {
         button_list: stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
         user_id: app_state.get('referenced_user.id')
@@ -1299,7 +1299,7 @@ var app_state = EmberObject.extend({
     }, 1000);
   },
   refresh_session_user: function() {
-    SweetSuite.store.findRecord('user', 'self').then(function(user) {
+    LingoLinq.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
         user.reload().then(function(user) {
           user.set('modeling_session', session.get('modeling_session'));
@@ -1363,7 +1363,7 @@ var app_state = EmberObject.extend({
       // device_key matches across the users
       var _this = this;
 
-      SweetSuite.store.findRecord('user', board_user_id).then(function(u) {
+      LingoLinq.store.findRecord('user', board_user_id).then(function(u) {
         var data = RSVP.resolve(u);
         if(!u.get('preferences') || (!u.get('fresh') && stashes.get('online'))) {
           data = u.reload();
@@ -1646,11 +1646,11 @@ var app_state = EmberObject.extend({
     if(app_state.get('currentUser.all_extra_colors')) {
       list = [].concat(app_state.get('currentUser.all_extra_colors'));
     // } else if(app_state.get('currentUser.preferences.extra_colors')) {
-    //   list = [].concat(SweetSuite.extra_keyed_colors);
+    //   list = [].concat(LingoLinq.extra_keyed_colors);
     } else {
       if(app_state.controller && app_state.controller.get('board.model') && window.tinycolor && editManager.controller.get('ordered_buttons')) {
         var knowns = {};
-        SweetSuite.keyed_colors.forEach(function(clr) {
+        LingoLinq.keyed_colors.forEach(function(clr) {
           var a = window.tinycolor(clr.border);
           var b = window.tinycolor(clr.fill);
           knowns[clr.border + clr.fill] = true;
@@ -1787,8 +1787,8 @@ var app_state = EmberObject.extend({
     }
   },
   on_user_change: observer('currentUser', function() {
-    if(this.get('currentUser') && SweetSuite.Board) {
-      SweetSuite.Board.clear_fast_html();
+    if(this.get('currentUser') && LingoLinq.Board) {
+      LingoLinq.Board.clear_fast_html();
     }
   }),
   speak_mode_handlers: observer(
@@ -1911,7 +1911,7 @@ var app_state = EmberObject.extend({
           }
         }
         this.set('eye_gaze', capabilities.eye_gaze);
-        this.set('embedded', !!(SweetSuite.embedded));
+        this.set('embedded', !!(LingoLinq.embedded));
         this.set('full_screen_capable', capabilities.fullscreen_capable());
         if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
           var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
@@ -1954,8 +1954,8 @@ var app_state = EmberObject.extend({
           app_state.set('manual_modeling', false);
           app_state.set('referenced_speak_mode_user', null);
           stashes.persist('referenced_speak_mode_user_id', null);
-          if(SweetSuite.Board) {
-            SweetSuite.Board.clear_fast_html();
+          if(LingoLinq.Board) {
+            LingoLinq.Board.clear_fast_html();
           }
         }
       }
@@ -2057,7 +2057,7 @@ var app_state = EmberObject.extend({
       tag_id = tag_id || JSON.stringify(tag.id);
       if(tag_id) {
         // check local or remote for matching tag
-        SweetSuite.store.findRecord('tag', tag_id).then(function(tag_object) {
+        LingoLinq.store.findRecord('tag', tag_id).then(function(tag_object) {
           if(tag_object.get('button')) {
             var button = Button.create(tag_object.get('button'));
             app_state.controller.activateButton(button, {board: editManager.controller.get('model'), trigger_source: 'tag'});
@@ -2518,16 +2518,16 @@ var app_state = EmberObject.extend({
       // load recent badges, debounced by ten minutes
       var last_check = (user && _this.get('last_user_badge_load_for_' + user.get('id'))) || 0;
       var now = (new Date()).getTime();
-      if(SweetSuite.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
+      if(LingoLinq.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
         _this.set('last_user_badge_load_for_' + user.get('id'), now);
         runLater(function() {
           _this.set('user_badge_hash', badge_hash);
-          SweetSuite.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
+          LingoLinq.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
             _this.set('user_badge_hash', badge_hash);
             badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
-            var badge = SweetSuite.Badge.best_earned_badge(badges);
+            var badge = LingoLinq.Badge.best_earned_badge(badges);
             if(!badge || badge.get('dismissed')) {
-              var next_badge = SweetSuite.Badge.best_next_badge(badges);
+              var next_badge = LingoLinq.Badge.best_next_badge(badges);
               badge = next_badge || badge;
             }
             _this.set('user_badge', badge);
@@ -2568,7 +2568,7 @@ var app_state = EmberObject.extend({
     }
   }),
   activate_button: function(button, obj) {
-    SweetSuite.log.start();
+    LingoLinq.log.start();
     if(button.apply_level && button.board) {
       button.apply_level(button.board.get('display_level'))
     }
@@ -2864,7 +2864,7 @@ var app_state = EmberObject.extend({
     (voc || '').split(/\s*&&\s*/).forEach(function(mod) {
       if(mod && mod.length > 0) {
         var found = false;
-        SweetSuite.special_actions.forEach(function(action) {
+        LingoLinq.special_actions.forEach(function(action) {
           if(found) { return; }
           if(mod == action.action || (action.match && mod.match(action.match))) {
             found = true;
@@ -3205,8 +3205,8 @@ var app_state = EmberObject.extend({
       },
       trigger: function(event, id, args) {
         if(app_state.get('currentUser.preferences.device.canvas_render')) {
-          if(SweetSuite.customEvents[event]) {
-            dom.sendAction(SweetSuite.customEvents[event], id, {event: args});
+          if(LingoLinq.customEvents[event]) {
+            dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
           }
         }
       },

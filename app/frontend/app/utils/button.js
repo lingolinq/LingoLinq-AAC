@@ -4,7 +4,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import boundClasses from './bound_classes';
 import app_state from './app_state';
 import modal from './modal';
@@ -424,12 +424,12 @@ var Button = EmberObject.extend({
   everything_local: function() {
     if(this.image_id && this.image_url && persistence.url_cache && persistence.url_cache[this.image_url] && (!persistence.url_uncache || !persistence.url_uncache[this.image_url])) {
     } else if(this.image_id && !this.get('image')) {
-      var rec = SweetSuite.store.peekRecord('image', this.image_id);
+      var rec = LingoLinq.store.peekRecord('image', this.image_id);
       if(!rec || !rec.get('isLoaded')) { /* console.log("missing image for", this.get('label')); */ return false; }
     }
     if(this.sound_id && this.sound_url && persistence.url_cache && persistence.url_cache[this.sound_url] && (!persistence.url_uncache || !persistence.url_uncache[this.sound_url])) {
     } else if(this.sound_id && !this.get('sound')) {
-      var rec = SweetSuite.store.peekRecord('sound', this.sound_id);
+      var rec = LingoLinq.store.peekRecord('sound', this.sound_id);
       if(!rec || !rec.get('isLoaded')) { /* console.log("missing sound for", this.get('label')); */ return false; }
     }
     return true;
@@ -437,7 +437,7 @@ var Button = EmberObject.extend({
   load_image: function(preference) {
     var _this = this;
     if(!_this.image_id) { return RSVP.resolve(); }
-    var image = SweetSuite.store.peekRecord('image', _this.image_id);
+    var image = LingoLinq.store.peekRecord('image', _this.image_id);
     if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
     if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
     _this.set('image', image);
@@ -456,7 +456,7 @@ var Button = EmberObject.extend({
       var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
       if(hc) { _this.set('hc_image', true); }
       if(image_urls && image_urls[_this.image_id] && preference != 'remote') {
-        var img = SweetSuite.store.createRecord('image', {
+        var img = LingoLinq.store.createRecord('image', {
           url: image_urls[_this.image_id]
         })
         img.set('id', _this.image_id);
@@ -479,7 +479,7 @@ var Button = EmberObject.extend({
         if(!(_this.image_id || '').match(/^tmp/) && preference != 'remote') {
           console.error("had to revert to image record lookup");
         }
-        var find = SweetSuite.store.findRecord('image', _this.image_id).then(function(image) {
+        var find = LingoLinq.store.findRecord('image', _this.image_id).then(function(image) {
           _this.set('image', image);
           if(image.get('incomplete')) {
             image.reload().then(function() {
@@ -509,7 +509,7 @@ var Button = EmberObject.extend({
   load_sound: function(preference) {
     var _this = this;
     if(!_this.sound_id) { return RSVP.resolve(); }
-    var sound = SweetSuite.store.peekRecord('sound', _this.sound_id);
+    var sound = LingoLinq.store.peekRecord('sound', _this.sound_id);
     if(sound && (!sound.get('isLoaded') || !sound.get('best_url'))) { sound = null; }
     _this.set('sound', sound);
     var check_sound = function(sound) {
@@ -522,7 +522,7 @@ var Button = EmberObject.extend({
     if(!sound) {
       var sound_urls = _this.get('board.sound_urls');
       if(sound_urls && sound_urls[_this.sound_id] && preference != 'remote') {
-        var snd = SweetSuite.store.createRecord('sound', {
+        var snd = LingoLinq.store.createRecord('sound', {
           url: sound_urls[_this.sound_id]
         })
         snd.set('id', _this.sound_id);
@@ -533,7 +533,7 @@ var Button = EmberObject.extend({
       if(_this.get('no_lookups')) {
         return RSVP.reject('no sound lookups');
       } else {
-        var find = SweetSuite.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        var find = LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         });
@@ -661,7 +661,7 @@ var Button = EmberObject.extend({
           _this.set('parts_of_speech_matching_word', res.word);
           res.types.forEach(function(type) {
             if(!found) {
-              SweetSuite.keyed_colors.forEach(function(color) {
+              LingoLinq.keyed_colors.forEach(function(color) {
                 if(!found && color.types && color.types.indexOf(type) >= 0) {
                   _this.set('background_color', color.fill);
                   _this.set('border_color', color.border);
@@ -907,7 +907,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    SweetSuite.track_error("bad image url: " + bad_src);
+    LingoLinq.track_error("bad image url: " + bad_src);
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -917,22 +917,22 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var original_fallback = fallback;
       fallback = image.getAttribute('data-fallback');
       original_error = function() {
-        SweetSuite.track_error("failed to retrieve defined fallback:" + fallback);
+        LingoLinq.track_error("failed to retrieve defined fallback:" + fallback);
         image.src = original_fallback;
         if(find_fallback) {
           find_fallback();
         }
       };
     } else {
-      SweetSuite.track_error("bad data uri or fallback: " + bad_src);
+      LingoLinq.track_error("bad data uri or fallback: " + bad_src);
       original_error = function() {
-        SweetSuite.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
       };
     }
     error_listen(image, original_error);
     if(window.cordova && window.cordova.file && window.cordova.file.dataDirectory) {
-      SweetSuite.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
-      SweetSuite.track_error("tried to load:\n" + image.src);
+      LingoLinq.track_error("image failure on app, current directory:\n" + window.cordova.file.dataDirectory);
+      LingoLinq.track_error("tried to load:\n" + image.src);
     }
     image.src = fallback;
     var find_fallback = function() {
@@ -941,7 +941,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       persistence.find_url(fallback).then(function(data_uri) {
         if(image.src == fallback) {
           error_listen(image, function() {
-            SweetSuite.track_error("failed to render local image fallback");
+            LingoLinq.track_error("failed to render local image fallback");
           });
           image.src = data_uri;
         }
@@ -962,7 +962,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       }, function() {
         if(fallback != original_fallback) {
-          SweetSuite.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
+          LingoLinq.track_error("failed to find local image fallback:\n" + image.getAttribute('rel'));
         }
       });  
     };
@@ -971,7 +971,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
       var fb = image.getAttribute('data-fallback');
       error_listen(image, function() {
         if(image.src == fb) {
-          SweetSuite.track_error("failed to load remote alternate after local version failed");
+          LingoLinq.track_error("failed to load remote alternate after local version failed");
           find_fallback();
         }
       });
@@ -989,17 +989,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
       }, function() {
         // Error handling for bad image URLs should be handled
         // by error catches, this is just to note that the file store failed
-        SweetSuite.track_error("failed to store cached local image:\n" + key);
+        LingoLinq.track_error("failed to store cached local image:\n" + key);
       });
     };
     if(bad_src.match(/^file/) || bad_src.match(/^localhost/)) {
-      SweetSuite.track_error("missing expected local image:\n" + bad_src);
+      LingoLinq.track_error("missing expected local image:\n" + bad_src);
       var found = false;
       for(var key in persistence.url_cache) {
         if(!found && bad_src == persistence.url_cache[key] && persistence.get('online')) {
           error_listen(image, function() {
             if(image.src == key) {
-              SweetSuite.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
+              LingoLinq.track_error("failed on remote source from cached local image:\n" + key + "\n" + bad_src);
               find_fallback();
             }
           });
@@ -1021,17 +1021,17 @@ Button.broken_image = function(image, skip_server_reattempt) {
         } else {
           if(image.getAttribute('rel') == bad_src) {
             error_listen(image, function() {
-              SweetSuite.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
+              LingoLinq.track_error("failed to retrieve cached image:\n" + image.src + "\n" + bad_src);
               find_fallback();
             });
             image.src = data_uri;
           } else {
-            SweetSuite.track_error("image changed while looking up fallback");
+            LingoLinq.track_error("image changed while looking up fallback");
             find_fallback();
           }
         }
       }, function() {
-        SweetSuite.track_error("no local copy found, trying fallback", bad_src, fallback);
+        LingoLinq.track_error("no local copy found, trying fallback", bad_src, fallback);
         find_fallback();
       });
     }
@@ -1238,10 +1238,10 @@ var sample = function(range) {
 };
 
 Button.load_actions = function() {
-  if(!SweetSuite || SweetSuite.special_actions) { return; }
-  SweetSuite.find_special_action = function(mod) {
+  if(!LingoLinq || LingoLinq.special_actions) { return; }
+  LingoLinq.find_special_action = function(mod) {
     var res = null;
-    SweetSuite.special_actions.forEach(function(action) {
+    LingoLinq.special_actions.forEach(function(action) {
       if(res || !mod) { return; }
       if(action.action == mod) { 
         res = action;
@@ -1255,7 +1255,7 @@ Button.load_actions = function() {
     });
     return res;
   };
-  SweetSuite.special_actions = [
+  LingoLinq.special_actions = [
     {
       action: ':clear',
       description: i18n.t('clear_utterance', "Clear the current utterance"),

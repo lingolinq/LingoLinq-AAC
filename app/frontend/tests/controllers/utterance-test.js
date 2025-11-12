@@ -20,7 +20,7 @@ describe('UtteranceController', 'controller:utterance', function() {
 // import speecher from '../utils/speecher';
 // import utterance from '../utils/utterance';
 // import i18n from '../utils/i18n';
-// import sweetSuiteExtras from '../utils/extras';
+// import lingoLinqExtras from '../utils/extras';
 // import modal from '../utils/modal';
 // 
 // export default EmberObjectController.extend({
@@ -30,7 +30,7 @@ describe('UtteranceController', 'controller:utterance', function() {
 //   }.property('sentence'),
 //   show_share: function() {
 //     this.set('speakable', speecher.ready);
-//     sweetSuiteExtras.share.load({link: this.get('link'), text: this.get('sentence')});
+//     lingoLinqExtras.share.load({link: this.get('link'), text: this.get('sentence')});
 //   }.observes('sentence'),
 //   user_showable: function() {
 //     return this.get('show_user') && this.get('user.name') && this.get('user.user_name');

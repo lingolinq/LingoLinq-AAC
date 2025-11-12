@@ -8,7 +8,7 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import { observer } from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -80,7 +80,7 @@ export default modal.ModalController.extend({
                 if(b.sequence) {
                   images = b.steps.map(function(s) { return s.button.image; });
                 }
-                var missing_image = images.find(function(i) { return !i || SweetSuite.remote_url(i); });
+                var missing_image = images.find(function(i) { return !i || LingoLinq.remote_url(i); });
                 if(!missing_image) {
                   new_results.push(b);
                 } else { }

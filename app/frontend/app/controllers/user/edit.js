@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
 import i18n from '../../utils/i18n';
@@ -10,7 +10,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
-  registration_types: SweetSuite.registrationTypes,
+  registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
     {name: i18n.t('email_shares', "Email Me When People I Supervise Share a Message with Me"), id: 'email'},
     {name: i18n.t('text_shares', "Text Me When People I Supervise Share a Message with Me"), id: 'text'},
@@ -54,11 +54,11 @@ export default Controller.extend({
     ];
   }),
   device_options: computed(function() {
-    return [].concat(SweetSuite.User.devices).concat({id: 'other', name: i18n.t('other', "Other")});
+    return [].concat(LingoLinq.User.devices).concat({id: 'other', name: i18n.t('other', "Other")});
   }),
   vocab_options: computed('external_device', function() {
     var str = this.get('external_device');
-    var device = SweetSuite.User.devices.find(function(d) { return d.name == str; });
+    var device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
     var res = [];
     if(device && device.vocabs && device.vocabs.length > 0) {
       res = res.concat(device.vocabs);
@@ -155,7 +155,7 @@ export default Controller.extend({
       if(this.get('allow_external_device')) {
         var str = this.get('external_device');
         var device = {device_name: this.get('external_device')};
-        var found_device = SweetSuite.User.devices.find(function(d) { return d.name == str; });
+        var found_device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
         if(found_device) {
           device.device_id = found_device.id;
         }
@@ -269,7 +269,7 @@ export default Controller.extend({
       });
     },
     message_link: function(contact) {
-      var u = SweetSuite.store.createRecord('utterance', {
+      var u = LingoLinq.store.createRecord('utterance', {
         button_list: [{'label': "You can use this link to message me!"}], 
         sentence: "You can use this link to message me!",
         timestamp: (new Date()).getTime() / 1000,

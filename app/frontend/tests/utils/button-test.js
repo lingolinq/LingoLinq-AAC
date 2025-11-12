@@ -13,7 +13,7 @@ import Button from '../../utils/button';
 import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 
 context('Button', function() {
@@ -349,7 +349,7 @@ context('Button', function() {
 
     it('should not lookup the image if already loaded', function() {
       var b = Button.create();
-      var i = SweetSuite.store.push({ data: {
+      var i = LingoLinq.store.push({ data: {
         id: 'asdf',
         type: 'image',
         attributes: {
@@ -426,7 +426,7 @@ context('Button', function() {
 
     it('should not lookup the sound if already loaded', function() {
       var b = Button.create();
-      var i = SweetSuite.store.push({ data: {
+      var i = LingoLinq.store.push({ data: {
         id: 'asdf',
         type: 'sound',
         attributes: {
@@ -672,7 +672,7 @@ context('Button', function() {
 
   context('update_translations', function() {
     it('should update matching translation in-place when label changes', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('locale', 'en');
       var button = Button.create({board: board});
       button.set('translations_hash', {
@@ -696,7 +696,7 @@ context('Button', function() {
     });
 
     it('should update matching vocalization in-place when vocalization changes', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('locale', 'en');
       var button = Button.create({board: board});
       button.set('translations_hash', {

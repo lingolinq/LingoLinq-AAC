@@ -17,7 +17,7 @@ describe('SearchController', 'controller:search', function() {
   });
 });
 // import Ember from 'ember';
-// import SweetSuite from '../app';
+// import LingoLinq from '../app';
 // import persistence from '../utils/persistence';
 // 
 // export default EmberObjectController.extend({
@@ -40,7 +40,7 @@ describe('SearchController', 'controller:search', function() {
 //     function loadBoards() {
 //       if(persistence.get('online')) {
 //         _this.set('online_results', {loading: true, results: []});
-//         SweetSuite.store.find('board', {q: str}).then(function(res) {
+//         LingoLinq.store.find('board', {q: str}).then(function(res) {
 //           _this.set('online_results', {results: res.content});
 //         }, function() { 
 //           _this.set('online_results', {results: []}); 

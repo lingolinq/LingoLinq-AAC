@@ -1,4 +1,4 @@
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import modal from '../utils/modal';
 import Utils from '../utils/misc';
 import { computed } from '@ember/object';
@@ -7,7 +7,7 @@ export default modal.ModalController.extend({
   opening: function() {
     this.set('error', false);
     this.set('saving', false);
-    var snapshot = SweetSuite.store.createRecord('snapshot', {user_id: this.get('model.user.id')});
+    var snapshot = LingoLinq.store.createRecord('snapshot', {user_id: this.get('model.user.id')});
     this.set('snapshot', snapshot);
     this.set('show_snapshots_status', !this.get('model.usage_stats'));
     this.load_snapshots();

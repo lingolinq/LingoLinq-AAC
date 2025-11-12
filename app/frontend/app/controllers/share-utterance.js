@@ -3,7 +3,7 @@ import capabilities from '../utils/capabilities';
 import app_state from '../utils/app_state';
 import $ from 'jquery';
 import utterance from '../utils/utterance';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/string';
 import { set as emberSet } from '@ember/object';
@@ -18,7 +18,7 @@ export default modal.ModalController.extend({
     controller.set('model', {});
     var settings = modal.settings_for['share-utterance'];
     controller.set('utterance', settings.utterance);
-    var u = SweetSuite.store.createRecord('utterance', {
+    var u = LingoLinq.store.createRecord('utterance', {
       button_list: settings.utterance, 
       timestamp: (new Date()).getTime() / 1000,
       sentence: utterance.sentence(settings.utterance),
@@ -62,7 +62,7 @@ export default modal.ModalController.extend({
         })
       }
       res.forEach(function(contact) {
-        if(SweetSuite.remote_url(contact.avatar_url)) {
+        if(LingoLinq.remote_url(contact.avatar_url)) {
           persistence.find_url(contact.avatar_url, 'image').then(function(uri) {
             emberSet(contact, 'avatar_url', uri);
           }, function() { });

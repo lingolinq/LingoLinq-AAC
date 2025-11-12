@@ -1,6 +1,6 @@
 import Ember from 'ember';
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -28,7 +28,7 @@ export default Component.extend({
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('geo_map')[0];
 
-    SweetSuite.Visualizations.wait('geo', function() {
+    LingoLinq.Visualizations.wait('geo', function() {
       if(elem && stats && stats.get('geo_locations')) {
         var current_info = null;
         if(elem) {

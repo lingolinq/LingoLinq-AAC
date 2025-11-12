@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SweetSuite (formerly CoughDrop) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
+LingoLinq (formerly CoughDrop) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
 
 Key characteristics:
 - Cloud-based with offline support via IndexedDB/SQLite
@@ -211,7 +211,7 @@ rake extras:desktop
 - `app_state.activate_button` - Main button selection handler (sentence box, speech, actions)
 - `persistence.sync` - Offline sync logic
 - `persistence.getJSON` - Encrypted URL processing for extra_data
-- `SweetSuite.Buttonset.load_button_set` - Button set loading with caching
+- `LingoLinq.Buttonset.load_button_set` - Button set loading with caching
 - `User.currently_premium` - Feature access determination
 - `controllers/board/index.js:computeHeight` - Board rendering sizing
 - `initializers/attempt_lang.js` - Language file loading on startup

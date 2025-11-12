@@ -5,7 +5,7 @@ import { computed } from '@ember/object';
 import persistence from '../../utils/persistence';
 import session from '../../utils/session';
 import progress_tracker from '../../utils/progress_tracker';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -27,11 +27,11 @@ export default modal.ModalController.extend({
     ];
   }),
   device_options: computed(function() {
-    return [].concat(SweetSuite.User.devices).concat({id: 'other', name: i18n.t('other', "Other")});
+    return [].concat(LingoLinq.User.devices).concat({id: 'other', name: i18n.t('other', "Other")});
   }),
   vocab_options: computed('external_device', function() {
     var str = this.get('external_device');
-    var device = SweetSuite.User.devices.find(function(d) { return d.name == str; });
+    var device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
     var res = [];
     if(device && device.vocabs && device.vocabs.length > 0) {
       res = res.concat(device.vocabs);
@@ -69,7 +69,7 @@ export default modal.ModalController.extend({
       if(this.get('other_system')) {
         var str = this.get('external_device');
         var device = {device_name: this.get('external_device')};
-        var found_device = SweetSuite.User.devices.find(function(d) { return d.name == str; });
+        var found_device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
         if(found_device) {
           device.device_id = found_device.id;
         }

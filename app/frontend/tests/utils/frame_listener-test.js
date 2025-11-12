@@ -13,7 +13,7 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 import scanner from '../../utils/scanner';
 import frame_listener from '../../utils/frame_listener';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 describe("frame_listener", function() {
   var frame = null;
@@ -268,14 +268,14 @@ describe("frame_listener", function() {
     it('should return ready status', function() {
       var data = null;
       frame_listener.status({respond: function(d) { data = d; }});
-      expect(data).toEqual({status: 'ready', session_id: undefined, user_token: undefined, code: undefined, system_token: 'SweetSuiteAAC'});
+      expect(data).toEqual({status: 'ready', session_id: undefined, user_token: undefined, code: undefined, system_token: 'LingoLinqAAC'});
     });
 
     it('should return the user token if specified', function() {
       var data = null;
       frame.setAttribute('data-user_token', 'token');
       frame_listener.handle_action({action: 'status', session_id: 'asdf', respond: function(d) { data = d; }});
-      expect(data).toEqual({status: 'ready', session_id: 'asdf', user_token: 'token', code: undefined, system_token: 'SweetSuiteAAC'});
+      expect(data).toEqual({status: 'ready', session_id: 'asdf', user_token: 'token', code: undefined, system_token: 'LingoLinqAAC'});
     });
 
     it('should return the action code if specified', function() {
@@ -283,7 +283,7 @@ describe("frame_listener", function() {
       frame.setAttribute('data-user_token', 'token');
       frame.setAttribute('data-code', 'codeness');
       frame_listener.handle_action({action: 'status', session_id: 'asdf', respond: function(d) { data = d; }});
-      expect(data).toEqual({status: 'ready', session_id: 'asdf', user_token: 'token', code: 'codeness', system_token: 'SweetSuiteAAC'});
+      expect(data).toEqual({status: 'ready', session_id: 'asdf', user_token: 'token', code: 'codeness', system_token: 'LingoLinqAAC'});
     });
   });
 
@@ -732,7 +732,7 @@ describe("frame_listener", function() {
       window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
       waitsFor(function() { return response; });
       runs(function() {
-        expect(response).toEqual({callback_id: undefined, aac_shim: true, status: 'ready', session_id: 'asdf', user_token: undefined, code: undefined, system_token: 'SweetSuiteAAC'});
+        expect(response).toEqual({callback_id: undefined, aac_shim: true, status: 'ready', session_id: 'asdf', user_token: undefined, code: undefined, system_token: 'LingoLinqAAC'});
       });
 
     });

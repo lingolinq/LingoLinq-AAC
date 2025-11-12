@@ -5,7 +5,7 @@ import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed, observer, get as emberGet } from '@ember/object';
 
 export default modal.ModalController.extend({
@@ -26,7 +26,7 @@ export default modal.ModalController.extend({
         return app_state.get('sessionUser');
       }
       var u = (app_state.get('sessionUser.known_supervisees') || []).find(function(usr) { return usr.id == id; });
-      u = u || SweetSuite.store.peekRecord('user', id);
+      u = u || LingoLinq.store.peekRecord('user', id);
       u = u || (app_state.get('quick_users') || {})[id];
       return u;
     } else {
@@ -115,7 +115,7 @@ export default modal.ModalController.extend({
       _this.set('status', {copying: true});
       var library = this.get('symbol_library') || 'original';
       var board = _this.get('model.board');
-      SweetSuite.store.findRecord('user', for_user_id).then(function(user) {
+      LingoLinq.store.findRecord('user', for_user_id).then(function(user) {
         editManager.copy_board(board, 'links_copy_as_home', user, false, library).then(function() {
           _this.send('done');
         }, function() {
@@ -138,7 +138,7 @@ export default modal.ModalController.extend({
       var level = parseInt(this.get('board_level'), 10);
       if(!level || level < 1 || level > 10) { level = null; }
 
-      SweetSuite.store.findRecord('user', for_user_id).then(function(user) {
+      LingoLinq.store.findRecord('user', for_user_id).then(function(user) {
         user.set('preferences.home_board', {
           level: level,
           locale: app_state.get('label_locale'),

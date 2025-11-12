@@ -3,7 +3,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import session from '../utils/session';
 import persistence from '../utils/persistence';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { later as runLater } from '@ember/runloop';
 import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
@@ -56,7 +56,7 @@ export default Controller.extend({
       var key = this.get('search_board');
       var _this = this;
       if(key) {
-        SweetSuite.store.findRecord('board', key).then(function(res) {
+        LingoLinq.store.findRecord('board', key).then(function(res) {
           _this.transitionToRoute('board', res.get('key'));
         }, function(err) {
           if(err.deleted && err.key) {
@@ -75,7 +75,7 @@ export default Controller.extend({
         if(!this.get('model.admin')) {
           opts.org_id = this.get('model.id');
         }
-        SweetSuite.store.query('user', opts).then(function(res) {
+        LingoLinq.store.query('user', opts).then(function(res) {
           if(res.content.length === 0) {
             modal.warning(i18n.t('no_user_result', "No results found for \"%{q}\"", {q: q}));
           } else if(res.content.length == 1) {

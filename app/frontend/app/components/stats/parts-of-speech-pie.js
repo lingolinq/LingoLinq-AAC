@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -27,7 +27,7 @@ export default Component.extend({
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('parts_of_speech')[0];
 
-    SweetSuite.Visualizations.wait('pie-chart', function() {
+    LingoLinq.Visualizations.wait('pie-chart', function() {
       var parts = stats && (stats.get('modeling') ? stats.get('modeled_parts_of_speech') : stats.get('parts_of_speech'));
       if(elem && stats && parts) {
         var table = [
@@ -38,7 +38,7 @@ export default Component.extend({
         var color_check = function(c) { return c.types.indexOf(idx) >= 0; };
         for(var idx in parts) {
           table.push([idx, parts[idx]]);
-          var color = SweetSuite.keyed_colors.find(color_check);
+          var color = LingoLinq.keyed_colors.find(color_check);
           slices[slice_idx] = {color: window.tinycolor((color || {fill: "#ccc"}).fill).saturate(10).darken(20).toHexString()};
           slice_idx++;
         }

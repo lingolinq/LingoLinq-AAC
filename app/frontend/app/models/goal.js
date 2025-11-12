@@ -1,13 +1,13 @@
 import DS from 'ember-data';
 import RSVP from 'rsvp';
 import $ from 'jquery';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Goal = DS.Model.extend({
+LingoLinq.Goal = DS.Model.extend({
   didLoad: function() {
     this.check_badges();
     if(this.get('assessment_badge')) {
@@ -294,7 +294,7 @@ SweetSuite.Goal = DS.Model.extend({
   },
   generate_next_template_if_new: function() {
     if(this.get('new_next_template_id')) {
-      var next_template = SweetSuite.store.createRecord('goal');
+      var next_template = LingoLinq.store.createRecord('goal');
       next_template.set('template_header_id', this.get('related.header.id'));
       next_template.set('template', true);
       next_template.set('summary', this.get('new_next_template_summary'));
@@ -308,7 +308,7 @@ SweetSuite.Goal = DS.Model.extend({
   }),
   current_template: computed('currently_running_template', function() {
     if(this.get('currently_running_template')) {
-      return SweetSuite.store.createRecord('goal', this.get('currently_running_template'));
+      return LingoLinq.store.createRecord('goal', this.get('currently_running_template'));
     } else {
       return this;
     }
@@ -370,4 +370,4 @@ SweetSuite.Goal = DS.Model.extend({
   })
 });
 
-export default SweetSuite.Goal;
+export default LingoLinq.Goal;

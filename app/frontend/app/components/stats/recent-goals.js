@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { observer } from '@ember/object';
 
@@ -13,7 +13,7 @@ export default Component.extend({
     var untracked = this.get('goal_set') - tracked; // having goal set but not tracked recently
     var elem = this.get('element').getElementsByClassName('recent_goals')[0];
 
-    SweetSuite.Visualizations.wait('pie-chart', function() {
+    LingoLinq.Visualizations.wait('pie-chart', function() {
       if(elem && total) {
         var table = [
           ['Type', 'Total']

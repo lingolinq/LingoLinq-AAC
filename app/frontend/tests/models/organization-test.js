@@ -10,7 +10,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -18,7 +18,7 @@ import Button from '../../utils/button';
 describe('Organization', function() {
   describe("processed_purchase_history", function() {
     it("should return a processed list", function() {
-      var o = SweetSuite.store.createRecord('organization');
+      var o = LingoLinq.store.createRecord('organization');
       o.set('purchase_history', []);
       expect(o.get('processed_purchase_history')).toEqual([]);
 
@@ -36,7 +36,7 @@ describe('Organization', function() {
     });
 
     it("should not error on no result", function() {
-      var o = SweetSuite.store.createRecord('organization');
+      var o = LingoLinq.store.createRecord('organization');
       o.set('purchase_history', null);
       expect(o.get('processed_purchase_history')).toEqual([]);
     });
@@ -44,7 +44,7 @@ describe('Organization', function() {
 
   describe("processed_org_subscriptions", function() {
     it("should return a processed list", function() {
-      var o = SweetSuite.store.createRecord('organization');
+      var o = LingoLinq.store.createRecord('organization');
       o.set('org_subscriptions', []);
       expect(o.get('processed_org_subscriptions')).toEqual([]);
 
@@ -63,7 +63,7 @@ describe('Organization', function() {
     });
 
     it("should not error on no result", function() {
-      var o = SweetSuite.store.createRecord('organization');
+      var o = LingoLinq.store.createRecord('organization');
       o.set('org_subscriptions', null);
       expect(o.get('processed_org_subscriptions')).toEqual([]);
     });

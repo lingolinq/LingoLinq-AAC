@@ -92,7 +92,7 @@
 - support for CDNs for cached images
 - global trends interface
 - better support for native text-to-speech
-- better support for "login via SweetSuite"
+- better support for "login via LingoLinq"
 
 ### 2017-09-01
 - optional clicking sound when selecting unspoken buttons

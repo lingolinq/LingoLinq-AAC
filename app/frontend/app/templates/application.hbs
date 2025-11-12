@@ -58,7 +58,7 @@
         {{#unless app_state.button_list}}
           {{#if app_state.embedded}}
             <div style='float: left; margin: 5px; opacity: 0.7;'>
-              <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="SweetSuite" style='width: 20px;'/>
+              <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq" style='width: 20px;'/>
               {{t "Powered by %app_name%" key='powered_by_app'}}
             </div>
           {{else if app_state.currentUser.preferences.blank_status}}
@@ -187,7 +187,7 @@
     <h1 class={{app_state.h1_class}} style='position: relative; z-index: 1;'>
 
       <a href="#" {{action "index"}}>
-        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="SweetSuite"/>
+        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq"/>
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>

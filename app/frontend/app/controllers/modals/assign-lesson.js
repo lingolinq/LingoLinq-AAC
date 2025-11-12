@@ -7,14 +7,14 @@ import evaluation from '../../utils/eval';
 import { set as emberSet } from '@ember/object';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
   opening: function() {
     if(this.get('model.lesson.editable')) {
       this.set('lesson', this.get('model.lesson'));
     } else {
-      var lesson = SweetSuite.store.createRecord('lesson');
+      var lesson = LingoLinq.store.createRecord('lesson');
       lesson.set('target_types', ['supervisor']);
       this.set('lesson', lesson);
     }

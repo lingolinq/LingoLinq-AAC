@@ -1,6 +1,6 @@
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
-import sweetSuiteExtras from '../../utils/extras';
+import lingoLinqExtras from '../../utils/extras';
 import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';
 import { later as runLater } from '@ember/runloop';
@@ -10,7 +10,7 @@ export default modal.ModalController.extend({
     var _this = this;
     _this.set('status', null);
     var user_name = app_state.get('currentUser.user_name');
-    sweetSuiteExtras.storage.find_all('board').then(function(list) {
+    lingoLinqExtras.storage.find_all('board').then(function(list) {
       _this.set('local_boards', list.filter(function(i) { return i.data && i.data.raw && i.data.raw.user_name == user_name; }).length);
     }, function() { _this.set('local_boards', null)});
   },

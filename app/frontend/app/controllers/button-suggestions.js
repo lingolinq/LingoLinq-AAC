@@ -9,7 +9,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import i18n from '../utils/i18n';
 import Utils from '../utils/misc';
 import { observer, computed } from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import RSVP from 'rsvp';
 
 export default modal.ModalController.extend({
@@ -101,7 +101,7 @@ export default modal.ModalController.extend({
         if(sup.premium) { _this.set('premium_ideas', true); }
       });
     }
-    user = user || SweetSuite.store.peekRecord('user', _this.get('for_user_id'));
+    user = user || LingoLinq.store.peekRecord('user', _this.get('for_user_id'));
     user = user || (app_state.get('quick_users') || {})[_this.get('for_user_id')];
     _this.set('user', user);
   }),

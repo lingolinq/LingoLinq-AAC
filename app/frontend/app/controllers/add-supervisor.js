@@ -1,5 +1,5 @@
 import RSVP from 'rsvp';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
@@ -11,7 +11,7 @@ export default modal.ModalController.extend({
     this.set('existing_user', true);
     this.set('new_user', false);
     this.set('start_code', false);
-    var sup = SweetSuite.store.createRecord('user', {
+    var sup = LingoLinq.store.createRecord('user', {
       preferences: {
         registration_type: 'manually-added-supervisor'
       }

@@ -16,7 +16,7 @@ import app_state from './app_state';
 import i18n from './i18n';
 import stashes from './_stashes';
 import Utils from './misc';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
 var cloud_locales = ["af-ZA:f","ar-XA:fm","bg-BG:f","bn-IN:fm","ca-ES:f",
@@ -656,7 +656,7 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
-            SweetSuite.track_error("error rendering synthesized voice", opts);
+            LingoLinq.track_error("error rendering synthesized voice", opts);
             handle_callback();
           });
           var hit_boundary = null;
@@ -882,7 +882,7 @@ var speecher = EmberObject.extend({
   load_sound: function(attr) {
     if(speecher[attr]) {
       if(speecher[attr].match(/^data:/)) { return RSVP.resolve(true); }
-      else if(!SweetSuite.remote_url(speecher[attr])) { return RSVP.resolve(true); }
+      else if(!LingoLinq.remote_url(speecher[attr])) { return RSVP.resolve(true); }
       var find = persistence.find_url(speecher[attr], 'sound').then(function(data_uri) {
         if(data_uri) {
           speecher[attr] = data_uri;

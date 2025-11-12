@@ -5,10 +5,10 @@ import capabilities from './capabilities';
 import scanner from './scanner';
 import i18n from './i18n';
 import persistence from './persistence';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import stashes from './_stashes';
 import app_state from './app_state';
-import sweetSuiteExtras from './extras';
+import lingoLinqExtras from './extras';
 
 
 Ember.templateHelpers = Ember.templateHelpers || {};
@@ -99,7 +99,7 @@ Utils.all_pages = function(type, initial_opts, partial_callback) {
       } else {
         var args = $.extend({}, opts);
         var meta_check = persistence.meta;
-        SweetSuite.store.query(type, opts).then(function(list) {
+        LingoLinq.store.query(type, opts).then(function(list) {
           var meta = meta_check(type, list);
           all_results = all_results.concat(list.map(function(i) { return i; }));
           if(partial_callback) {
@@ -128,8 +128,8 @@ RSVP.all_wait = function(promises) {
     var resolutions = [];
     var count = promises.length;
     var done = function() {
-      var really_done = !SweetSuite.testing && failures.length > 0;
-      really_done = really_done || (!SweetSuite.all_wait && failures.length > 0);
+      var really_done = !LingoLinq.testing && failures.length > 0;
+      really_done = really_done || (!LingoLinq.all_wait && failures.length > 0);
       really_done = really_done || (failures.length + resolutions.length == count);
       if(really_done) {
         if(failures.length > 0) {

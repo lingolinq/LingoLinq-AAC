@@ -4,8 +4,8 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
-import SweetSuite from '../app';
-import SweetSuiteImage from '../models/image';
+import LingoLinq from '../app';
+import LingoLinqImage from '../models/image';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
@@ -18,7 +18,7 @@ import { computed } from '@ember/object';
 
 var button_set_cache = {};
 
-SweetSuite.Buttonset = DS.Model.extend({
+LingoLinq.Buttonset = DS.Model.extend({
   key: DS.attr('string'),
   root_url: DS.attr('string'),
   buttons: DS.attr('raw'),
@@ -121,7 +121,7 @@ SweetSuite.Buttonset = DS.Model.extend({
               bs.set('buttons', []);
               regenerate();
             }
-            SweetSuite.track_error("buttons has no find ", buttons);
+            LingoLinq.track_error("buttons has no find ", buttons);
             return reject({error: "not a valid buttonset result"});
           }
           resolve(bs);
@@ -317,12 +317,12 @@ SweetSuite.Buttonset = DS.Model.extend({
     if(include_home_and_sidebar) {
       // add those buttons and uniqify the buttons list
       var add_buttons = function(key, home_lock) {
-        var button_set = key && SweetSuite.store.peekRecord('buttonset', key);
+        var button_set = key && LingoLinq.store.peekRecord('buttonset', key);
         if(button_set) {
           button_set.set('home_lock_set', home_lock);
           button_sets.push(button_set);
         } else if(key) {
-          lookups.push(SweetSuite.Buttonset.load_button_set(key).then(function(button_set) {
+          lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(button_set) {
             button_set.set('home_lock_set', home_lock);
             button_sets.push(button_set);
           }, function() { return RSVP.resolve(); }));
@@ -564,7 +564,7 @@ SweetSuite.Buttonset = DS.Model.extend({
       return combos;
     });
 
-    var images = SweetSuite.store.peekAll('image');
+    var images = LingoLinq.store.peekAll('image');
     var image_lookups = sort_combos.then(function(combos) {
       var image_lookup_promises = [];
       combos.forEach(function(combo) {
@@ -576,12 +576,12 @@ SweetSuite.Buttonset = DS.Model.extend({
               button.image = image.get('best_url');
             }
             emberSet(button, 'image', emberGet(button, 'image') || Ember.templateHelpers.path('images/blank.gif'));
-            if(emberGet(button, 'image') && SweetSuiteImage.personalize_url) {
-              emberSet(button, 'image', SweetSuiteImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin));
+            if(emberGet(button, 'image') && LingoLinqImage.personalize_url) {
+              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin));
             }
             emberSet(button, 'on_same_board', emberGet(button, 'steps') === 0);
   
-            if(SweetSuite.remote_url(button.image)) {
+            if(LingoLinq.remote_url(button.image)) {
               emberSet(button, 'original_image', button.image);
               word_suggestions.fallback_url().then(function(url) {
                 emberSet(button, 'fallback_image', url);
@@ -797,7 +797,7 @@ SweetSuite.Buttonset = DS.Model.extend({
     var matching_buttons = [];
 
     if(str.length === 0) { return RSVP.resolve([]); }
-    var images = SweetSuite.store.peekAll('image');
+    var images = LingoLinq.store.peekAll('image');
     var _this = this;
 
     var traverse_buttons = new RSVP.Promise(function(traverse_resolve, traverse_reject) {
@@ -881,14 +881,14 @@ SweetSuite.Buttonset = DS.Model.extend({
         var button_sets = [];
 
         var lookup = function(key, home_lock) {
-          var button_set = key && (button_set_cache[key] || SweetSuite.store.peekRecord('buttonset', key));
+          var button_set = key && (button_set_cache[key] || LingoLinq.store.peekRecord('buttonset', key));
           if(button_set) {
             button_set.set('home_lock_set', home_lock);
             button_sets.push(button_set);
             button_set_cache[key] = button_set;
           } else if(key) {
             console.log("extra load!");
-            root_button_set_lookups.push(SweetSuite.Buttonset.load_button_set(key).then(function(button_set) {
+            root_button_set_lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(button_set) {
               button_set.set('home_lock_set', home_lock);
               button_sets.push(button_set);
               button_set_cache[key] = button_set;
@@ -972,7 +972,7 @@ SweetSuite.Buttonset = DS.Model.extend({
     var image_lookups = sort_results.then(function() {
       var image_lookup_promises = [];
       matching_buttons.forEach(function(button) {
-        image_lookup_promises.push(SweetSuite.Buttonset.fix_image(button, images));
+        image_lookup_promises.push(LingoLinq.Buttonset.fix_image(button, images));
       });
       return RSVP.all_wait(image_lookup_promises);
     });
@@ -984,9 +984,9 @@ SweetSuite.Buttonset = DS.Model.extend({
   }
 });
 
-SweetSuite.Buttonset.fix_image = function(button, images) {
-  if(button.image && SweetSuiteImage.personalize_url) {
-    button.image = SweetSuiteImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+LingoLinq.Buttonset.fix_image = function(button, images) {
+  if(button.image && LingoLinqImage.personalize_url) {
+    button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
   }
   var image = images.findBy('id', button.image_id);
   if(image) {
@@ -997,7 +997,7 @@ SweetSuite.Buttonset.fix_image = function(button, images) {
   emberSet(button, 'image', emberGet(button, 'image') || Ember.templateHelpers.path('images/blank.gif'));
 
   emberSet(button, 'current_depth', (button.pre_buttons || []).length);
-  if(SweetSuite.remote_url(button.image)) {
+  if(LingoLinq.remote_url(button.image)) {
     word_suggestions.fallback_url().then(function(url) {
       emberSet(button, 'fallback_image', url);
     });
@@ -1010,17 +1010,17 @@ SweetSuite.Buttonset.fix_image = function(button, images) {
   }
   return RSVP.resolve();
 };
-SweetSuite.Buttonset.load_button_set = function(id, force, full_set_revision) {
+LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   // use promises to make this call idempotent
-  SweetSuite.Buttonset.pending_promises = SweetSuite.Buttonset.pending_promises || {};
-  var promise = SweetSuite.Buttonset.pending_promises[id];
+  LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
+  var promise = LingoLinq.Buttonset.pending_promises[id];
   if(promise) { return promise; }
   if(id && (id.match(/^b/) || id.match(/^i/))) {
     return RSVP.reject();
   }
 
-  var button_sets = SweetSuite.store.peekAll('buttonset');
-  var found = SweetSuite.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs.get('key') == id; });
+  var button_sets = LingoLinq.store.peekAll('buttonset');
+  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs.get('key') == id; });
   if(!found) {
     button_sets.forEach(function(bs) {
       // TODO: check board keys in addition to board ids
@@ -1032,7 +1032,7 @@ SweetSuite.Buttonset.load_button_set = function(id, force, full_set_revision) {
     });
   }
   if(found) {
-    var board = SweetSuite.store.peekRecord('board', found.get('id'));
+    var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
       if(found.get('buttons') || found.get('root_url')) {
         found.load_buttons(force); 
@@ -1047,7 +1047,7 @@ SweetSuite.Buttonset.load_button_set = function(id, force, full_set_revision) {
         data: { }
       }).then(function(data) {
         var found_url = function(url) {
-          SweetSuite.store.findRecord('buttonset', id).then(function(button_set) {
+          LingoLinq.store.findRecord('buttonset', id).then(function(button_set) {
             var reload = RSVP.resolve();
             if(!button_set.get('root_url') || button_set.get('root_url') != url) {
               force = true;
@@ -1082,7 +1082,7 @@ SweetSuite.Buttonset.load_button_set = function(id, force, full_set_revision) {
     });
   }
 
-  var res = SweetSuite.store.findRecord('buttonset', id).then(function(button_set) {
+  var res = LingoLinq.store.findRecord('buttonset', id).then(function(button_set) {
     var reload = RSVP.resolve(button_set);
     // Force a reload if the revisions don't match
     var wrong_revision = full_set_revision && button_set.get('full_set_revision') != full_set_revision;
@@ -1118,14 +1118,14 @@ SweetSuite.Buttonset.load_button_set = function(id, force, full_set_revision) {
       return RSVP.reject(err);
     }
   });
-  SweetSuite.Buttonset.pending_promises[id] = res;
-  res.then(function() { delete SweetSuite.Buttonset.pending_promises[id]; }, function() { delete SweetSuite.Buttonset.pending_promises[id]; });
+  LingoLinq.Buttonset.pending_promises[id] = res;
+  res.then(function() { delete LingoLinq.Buttonset.pending_promises[id]; }, function() { delete LingoLinq.Buttonset.pending_promises[id]; });
   runLater(function() {
-    if(SweetSuite.Buttonset.pending_promises[id] == res) {
-      delete SweetSuite.Buttonset.pending_promises[id];
+    if(LingoLinq.Buttonset.pending_promises[id] == res) {
+      delete LingoLinq.Buttonset.pending_promises[id];
     }
   }, 30000);
   return res;
 };
 
-export default SweetSuite.Buttonset;
+export default LingoLinq.Buttonset;

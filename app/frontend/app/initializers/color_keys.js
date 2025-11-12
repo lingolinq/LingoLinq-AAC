@@ -5,7 +5,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 export default {
   name: 'color_keys',
   initialize: function() {
-    window.SweetSuite.keyed_colors.forEach(function(r) {
+    window.LingoLinq.keyed_colors.forEach(function(r) {
       if(!emberGet(r, 'border')) {
         var fill = window.tinycolor(r.fill);
         var border = fill.darken(30);

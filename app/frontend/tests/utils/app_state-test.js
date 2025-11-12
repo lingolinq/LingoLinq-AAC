@@ -24,7 +24,7 @@ import capabilities from '../../utils/capabilities';
 import utterance from '../../utils/utterance';
 import geo from '../../utils/geo';
 import speecher from '../../utils/speecher';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { run as emberRun } from '@ember/runloop';
 
 describe('app_state', function() {
@@ -117,7 +117,7 @@ describe('app_state', function() {
       });
 
       app_state.setup_controller(route, controller);
-      expect(SweetSuite.controller).toEqual(controller);
+      expect(LingoLinq.controller).toEqual(controller);
       expect(app_state.controller).toEqual(controller);
       expect(stashes.controller).toEqual(controller);
       expect(boardGrabber.transitioner).toEqual(route);
@@ -125,7 +125,7 @@ describe('app_state', function() {
       expect(utterance_setup).toEqual(true);
       expect(logging_checked).toEqual(true);
       expect(board_state_checked).toEqual(true);
-      expect(SweetSuite.session).toEqual(session);
+      expect(LingoLinq.session).toEqual(session);
       expect(modal_closed).toEqual(true);
     });
   });
@@ -417,7 +417,7 @@ describe('app_state', function() {
       stub(app_state, 'toggle_mode', function(mode, opts) {
         if(mode == 'speak' && opts.override_state.key == 'qwer/qwer') { called = true; }
       });
-      var user = SweetSuite.store.createRecord('user');
+      var user = LingoLinq.store.createRecord('user');
       user.set('stats', {board_set_ids: ['1_1']});
       user.set('preferences', {home_board: {key: 'qwer/qwer', id: '1_2'}});
       app_state.set('currentBoardState', {key: 'asdf/asdf', id: '1_1'});
@@ -1051,7 +1051,7 @@ describe('app_state', function() {
     it("should clear SpeakModeUser if set to self", function() {
       stashes.set('current_mode', 'speak');
       app_state.set('sessionUser', null);
-      app_state.set('speakModeUser', SweetSuite.store.createRecord('user', {id: '2345'}));
+      app_state.set('speakModeUser', LingoLinq.store.createRecord('user', {id: '2345'}));
       app_state.set_speak_mode_user('self');
       expect(app_state.get('speakModeUser')).toEqual(null);
 
@@ -2500,18 +2500,18 @@ describe('app_state', function() {
   describe('check_for_protected_usage', function() {
     afterEach(function() {
       if(window._trackJs) { window._trackJs.disabled = null; }
-      SweetSuite.protected_user = null;
+      LingoLinq.protected_user = null;
       stashes.persist('protected_user', null);
     });
 
     it('should flag the user as protected in the right spots', function() {
-      SweetSuite.protected_user = null;
-      expect(SweetSuite.protected_user == null).toEqual(true);
+      LingoLinq.protected_user = null;
+      expect(LingoLinq.protected_user == null).toEqual(true);
       app_state.set('currentUser', EmberObject.create({preferences: {protected_usage: false}}));
-      expect(SweetSuite.protected_user).toEqual(false);
+      expect(LingoLinq.protected_user).toEqual(false);
       expect(stashes.get('protected_user')).toEqual(false);
       app_state.set('currentUser', EmberObject.create({preferences: {protected_usage: true}}));
-      expect(SweetSuite.protected_user).toEqual(true);
+      expect(LingoLinq.protected_user).toEqual(true);
       expect(stashes.get('protected_user')).toEqual(true);
     });
   });
@@ -2521,7 +2521,7 @@ describe('app_state', function() {
       stub(window, 'persistence', persistence);
       persistence.set('auto_sync', null);
       capabilities.installed_app = false;
-      var u = SweetSuite.store.createRecord('user');
+      var u = LingoLinq.store.createRecord('user');
       u.set('preferences', {device: {ever_synced: false}});
       expect(u.get('auto_sync')).toEqual(false);
       app_state.set('sessionUser', u);

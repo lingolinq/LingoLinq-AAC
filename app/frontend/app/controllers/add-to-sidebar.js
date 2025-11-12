@@ -4,7 +4,7 @@ import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -22,7 +22,7 @@ export default modal.ModalController.extend({
     }
   },
   board_levels: computed(function() {
-    return SweetSuite.board_levels;
+    return LingoLinq.board_levels;
   }),
   user_board: observer('currently_selected_id', 'model.known_supervisees', function() {
     var for_user_id = this.get('currently_selected_id');
@@ -45,7 +45,7 @@ export default modal.ModalController.extend({
 
       _this.set('loading', true);
 
-      var find_user = SweetSuite.store.findRecord('user', user_id);
+      var find_user = LingoLinq.store.findRecord('user', user_id);
 
       var update_user = find_user.then(function(user) {
         var boards = user.get('preferences.sidebar_boards');

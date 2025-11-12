@@ -1,10 +1,10 @@
 import { later as runLater } from '@ember/runloop';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import { computed, set as emberSet } from '@ember/object';
 
-SweetSuite.Utterance = DS.Model.extend({
+LingoLinq.Utterance = DS.Model.extend({
   button_list: DS.attr('raw'),
   sentence: DS.attr('string'),
   link: DS.attr('string'),
@@ -27,11 +27,11 @@ SweetSuite.Utterance = DS.Model.extend({
       }
       return local;
     };
-    if(this.get('image_url') && !SweetSuite.remote_url(!this.get('image_url'))) {
+    if(this.get('image_url') && !LingoLinq.remote_url(!this.get('image_url'))) {
       this.set('image_url', find_remote(this.get('image_url')));
     }
     (this.get('button_list') || []).forEach(function(btn) {
-      if(btn.image && !SweetSuite.remote_url(!btn.image)) {
+      if(btn.image && !LingoLinq.remote_url(!btn.image)) {
         emberSet(btn, 'image', find_remote(btn.image));
       }
     });
@@ -56,4 +56,4 @@ SweetSuite.Utterance = DS.Model.extend({
   },
 });
 
-export default SweetSuite.Utterance;
+export default LingoLinq.Utterance;

@@ -1,4 +1,4 @@
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import BoardHierarchy from '../../utils/board_hierarchy';
 import i18n from '../../utils/i18n';
@@ -21,7 +21,7 @@ export default modal.ModalController.extend({
   state: computed('model.user.org_status', function() {
     if(!this.get('model.user')) { return null; }
     var user = this.get('model.user');
-    var state = SweetSuite.user_statuses.find(function(s) { return s.id == user.org_status.state; });
+    var state = LingoLinq.user_statuses.find(function(s) { return s.id == user.org_status.state; });
     if(this.get('model.organization.status_overrides')) {
       state = this.get('model.organization.status_overrides').find(function(s) { return s.id == user.org_status.state; });
     }
@@ -29,7 +29,7 @@ export default modal.ModalController.extend({
   }),
   statuses: computed('model.organization.status_overrides', function() {
     var res = [];
-    (this.get('model.organization.status_overrides') || SweetSuite.user_statuses).forEach(function(s) {
+    (this.get('model.organization.status_overrides') || LingoLinq.user_statuses).forEach(function(s) {
       if(s.on && s.label) {
         res.push({
           id: s.id,

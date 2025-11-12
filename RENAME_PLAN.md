@@ -1,6 +1,6 @@
 # LingoLinq Renaming Plan
 
-This document outlines the steps to rename all instances of "SweetSuite" and "AAC App" to "LingoLinq" throughout the codebase. The new website URL will be `LingoLinq.com`.
+This document outlines the steps to rename all instances of "LingoLinq" and "LingoLinq" to "LingoLinq" throughout the codebase. The new website URL will be `LingoLinq.com`.
 
 ## 1. Preparation
 
@@ -8,53 +8,53 @@ This document outlines the steps to rename all instances of "SweetSuite" and "AA
     ```bash
     git checkout -b feature/rename-to-lingolinq
     ```
--   [ ] Perform a global, case-insensitive search for "SweetSuite" and "AAC App" to understand the scope of changes.
+-   [ ] Perform a global, case-insensitive search for "LingoLinq" and "LingoLinq" to understand the scope of changes.
     ```bash
-    grep -ri "sweetsuite" .
+    grep -ri "lingolinq" .
     grep -ri "aac app" .
     ```
 
 ## 2. Backend Renaming (Rails)
 
 -   [ ] **Module Renaming:**
-    -   In `config/application.rb`, rename `module SweetSuite` to `module LingoLinq`.
-    -   Search for `module SweetSuite` in other `.rb` files and replace with `module LingoLinq`.
+    -   In `config/application.rb`, rename `module LingoLinq` to `module LingoLinq`.
+    -   Search for `module LingoLinq` in other `.rb` files and replace with `module LingoLinq`.
 
 -   [ ] **Configuration Files:**
-    -   `config/database.yml`: Rename databases from `sweetsuite-development` and `sweetsuite-test` to `lingolinq-development` and `lingolinq-test`.
+    -   `config/database.yml`: Rename databases from `lingolinq-development` and `lingolinq-test` to `lingolinq-development` and `lingolinq-test`.
     -   `config/initializers/session_store.rb`: Update the session key from `_sweet_suite_session` to `_lingolinq_session`.
-    -   `config/environments/*.rb`: Replace any occurrences of `sweetsuite.test` or similar hostnames with `lingolinq.test`.
+    -   `config/environments/*.rb`: Replace any occurrences of `lingolinq.test` or similar hostnames with `lingolinq.test`.
     -   `.env.example`: Update `DEFAULT_HOST` to `www.lingolinq.com`, `DEFAULT_EMAIL` to `support@lingolinq.com`, and any other relevant variables.
 
 -   [ ] **Codebase Strings & Identifiers:**
-    -   Perform a case-sensitive search and replace for "SweetSuite" to "LingoLinq" in all `.rb` files.
-    -   Perform a case-sensitive search and replace for "AAC App" to "LingoLinq" in all `.rb` files.
+    -   Perform a case-sensitive search and replace for "LingoLinq" to "LingoLinq" in all `.rb` files.
+    -   Perform a case-sensitive search and replace for "LingoLinq" to "LingoLinq" in all `.rb` files.
 
 -   [ ] **Locale Files:**
     -   `config/locales/en.yml`: Update app name and other references.
-    -   `public/locales/*.json`: Search and replace "SweetSuite" and "AAC App" with "LingoLinq".
+    -   `public/locales/*.json`: Search and replace "LingoLinq" and "LingoLinq" with "LingoLinq".
 
 ## 3. Frontend Renaming (Ember)
 
 -   [ ] **Ember App Configuration:**
     -   `app/frontend/app/app.js`:
-        -   Update `modulePrefix` from `'sweet-suite'` to `'lingolinq'`.
-        -   Update `rootElement` from `'#sweet-suite-app'` to `'#lingolinq-app'`.
-        -   Update `loadInitializers(App, 'sweet-suite')` to `loadInitializers(App, 'lingolinq')`.
+        -   Update `modulePrefix` from `'lingolinq'` to `'lingolinq'`.
+        -   Update `rootElement` from `'#lingolinq-app'` to `'#lingolinq-app'`.
+        -   Update `loadInitializers(App, 'lingolinq')` to `loadInitializers(App, 'lingolinq')`.
     -   `app/frontend/app/index.html`:
-        -   Update `<title>` from "SweetSuite" to "LingoLinq".
-        -   Update `<body id="sweet-suite-app">` to `<body id="lingolinq-app">`.
-    -   `app/frontend/app/router.js`: Update `location` from `'sweet-suite-history'` to `'lingolinq-history'`.
-    -   `app/frontend/config/environment.js`: Update `modulePrefix` from `'sweet-suite'` to `'lingolinq'`.
-    -   `app/frontend/ember-cli-build.js`: Update asset paths from `/assets/sweet-suite.css` to `/assets/lingolinq.css` and similar for `.js` files.
+        -   Update `<title>` from "LingoLinq" to "LingoLinq".
+        -   Update `<body id="lingolinq-app">` to `<body id="lingolinq-app">`.
+    -   `app/frontend/app/router.js`: Update `location` from `'lingolinq-history'` to `'lingolinq-history'`.
+    -   `app/frontend/config/environment.js`: Update `modulePrefix` from `'lingolinq'` to `'lingolinq'`.
+    -   `app/frontend/ember-cli-build.js`: Update asset paths from `/assets/lingolinq.css` to `/assets/lingolinq.css` and similar for `.js` files.
 
 -   [ ] **Codebase Strings & Templates:**
-    -   Perform a search and replace for "SweetSuite" and "AAC App" in all `.js` and `.hbs` files.
+    -   Perform a search and replace for "LingoLinq" and "LingoLinq" in all `.js` and `.hbs` files.
 
 ## 4. General Files
 
 -   [ ] **Documentation:**
-    -   Review and update all `.md` files (`CHANGELOG.md`, `CODE_INVESTIGATION.md`, `TRANSLATIONS.md`, etc.) to replace "SweetSuite" and "AAC App" with "LingoLinq".
+    -   Review and update all `.md` files (`CHANGELOG.md`, `CODE_INVESTIGATION.md`, `TRANSLATIONS.md`, etc.) to replace "LingoLinq" and "LingoLinq" with "LingoLinq".
 
 -   [ ] **Public Files:**
     -   `public/manifest.json`: Update `"name"` and `"short_name"` to "LingoLinq".
@@ -81,5 +81,5 @@ This document outlines the steps to rename all instances of "SweetSuite" and "AA
 -   [ ] Once all steps are complete and verification has passed, commit the changes.
     ```bash
     git add .
-    git commit -m "feat: Rename SweetSuite to LingoLinq"
+    git commit -m "feat: Rename LingoLinq to LingoLinq"
     ```

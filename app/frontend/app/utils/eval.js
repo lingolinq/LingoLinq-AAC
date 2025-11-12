@@ -1237,7 +1237,7 @@ evaluation.callback = function(key) {
         console.log("EXCLUSION", word, category, others);
         prompt_text = "Find the one that is not " + category.prompt;
         board.background.image = category.word.urls['photos'] || category.word.urls['default'];
-        board.background.ext_sweetsuite_image_exclusion = true;
+        board.background.ext_lingolinq_image_exclusion = true;
       } else if(step.find == 'association') {
         assert('associations');
         working.ref.association_index = working.ref.association_index || 0;

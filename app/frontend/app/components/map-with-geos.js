@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 
@@ -74,7 +74,7 @@ export default Component.extend({
     elem.innerHTML = "";
     var _this = this;
 
-    SweetSuite.Visualizations.wait('geo', function() {
+    LingoLinq.Visualizations.wait('geo', function() {
       if(elem) {
         _this.set('center', {lat: 40.7608, lng: -111.8910});
         if(elem) {

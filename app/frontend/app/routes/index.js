@@ -7,8 +7,8 @@ import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import capabilities from '../utils/capabilities';
-import SweetSuite from '../app';
-import sweetSuiteExtras from '../utils/extras';
+import LingoLinq from '../app';
+import lingoLinqExtras from '../utils/extras';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
@@ -16,7 +16,7 @@ import progress_tracker from '../utils/progress_tracker';
 export default Route.extend({
   model: function() {
     if(session.get('access_token')) {
-      return SweetSuite.store.findRecord('user', 'self').then(function(user) {
+      return LingoLinq.store.findRecord('user', 'self').then(function(user) {
         // notifications and logs should show up when you re-visit the dashboard
         if(!user.get('really_fresh') && persistence.get('online')) {
           user.reload();
@@ -30,13 +30,13 @@ export default Route.extend({
     }
   },
   setupController: function(controller, model) {
-    controller.set('user', this.get('store').createRecord('user', {preferences: {}, referrer: SweetSuite.referrer, ad_referrer: SweetSuite.ad_referrer}));
+    controller.set('user', this.get('store').createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
-    SweetSuite.sale = SweetSuite.sale || parseInt(window.sale, 10) || null;
+    LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());
     controller.set('model', model);
     // TODO: this seems messy. got to be a cleaner way...
-    controller.set('extras', sweetSuiteExtras);
+    controller.set('extras', lingoLinqExtras);
     var jump_to_speak = !!((stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
 
     var progress = this.get('app_state.sessionUser.preferences.progress') || {};
@@ -123,7 +123,7 @@ export default Route.extend({
       }
     },
     manual_session: function() {
-      SweetSuite.Log.manual_log(app_state.get('currentUser.id'), !!app_state.get('currentUser.external_device'))
+      LingoLinq.Log.manual_log(app_state.get('currentUser.id'), !!app_state.get('currentUser.external_device'))
     },
     home_board: function(key) {
       this.transitionTo('board', key);

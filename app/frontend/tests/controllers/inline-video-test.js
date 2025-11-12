@@ -17,12 +17,12 @@ describe('InlineVideoController', 'controller:inline-video', function() {
   });
 });
 // import modal from '../utils/modal';
-// import SweetSuite from '../app';
+// import LingoLinq from '../app';
 // 
 // export default modal.ModalController.extend({
 //   opening: function() {
 //     var _this = this;
-//     SweetSuite.YT.track('video_preview', function(event_type) {
+//     LingoLinq.YT.track('video_preview', function(event_type) {
 //       if(event_type == 'end') {
 //         _this.send('close');
 //       }

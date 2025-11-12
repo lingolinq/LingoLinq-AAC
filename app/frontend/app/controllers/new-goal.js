@@ -1,5 +1,5 @@
 import modal from '../utils/modal';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
@@ -127,7 +127,7 @@ export default modal.ModalController.extend({
   load_goals: function() {
     var _this = this;
     _this.set('goals', {loading: true});
-    SweetSuite.store.query('goal', {template_header: true}).then(function(data) {
+    LingoLinq.store.query('goal', {template_header: true}).then(function(data) {
       _this.set('goals', data.map(function(i) { return i; }));
       _this.set('goals.meta', data.meta);
     }, function(err) {
@@ -268,7 +268,7 @@ export default modal.ModalController.extend({
         var _this = this;
         _this.set('goals.loading', true);
         _this.set('goals.error', true);
-        SweetSuite.store.query('goal', {template_header: true, per_page: this.get('goals.meta.per_page'), offset: this.get('goals.meta.next_offset')}).then(function(list) {
+        LingoLinq.store.query('goal', {template_header: true, per_page: this.get('goals.meta.per_page'), offset: this.get('goals.meta.next_offset')}).then(function(list) {
           var goals = _this.get('goals') || [];
           goals = goals.concat(list.map(function(i) { return i; }));
           _this.set('goals', goals);

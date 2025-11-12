@@ -1,9 +1,9 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import Utils from '../utils/misc';
 
-SweetSuite.Snapshot = DS.Model.extend({
+LingoLinq.Snapshot = DS.Model.extend({
   user_id: DS.attr('string'),
   name: DS.attr('string'),
   start: DS.attr('string'),
@@ -12,4 +12,4 @@ SweetSuite.Snapshot = DS.Model.extend({
   location_id: DS.attr('string')
 });
 
-export default SweetSuite.Snapshot;
+export default LingoLinq.Snapshot;

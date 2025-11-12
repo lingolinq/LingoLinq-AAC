@@ -2,7 +2,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
 

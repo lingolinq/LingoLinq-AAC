@@ -13,7 +13,7 @@ import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
 import EmberObject from '@ember/object';
-import SweetSuite from 'frontend/app';
+import LingoLinq from 'frontend/app';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
@@ -241,7 +241,7 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      SweetSuite.session = EmberObject.create({'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(1);
 
@@ -272,7 +272,7 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': null, isAuthenticated: false});
+      LingoLinq.session = EmberObject.create({'user_name': null, isAuthenticated: false});
       var logs = queryLog.length;
       stashes.log({action: 'jump'});
       expect(stashes.get('usage_log').length).toEqual(2);
@@ -293,7 +293,7 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(1);
       stashes.log({action: 'jump'});
@@ -326,7 +326,7 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(1);
       stashes.log({action: 'jump'});
@@ -357,7 +357,7 @@ describe('stashes', function() {
           return object.get('events').length == 2;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(1);
       stashes.log({action: 'jump'});
@@ -427,7 +427,7 @@ describe('stashes', function() {
           return false;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(500);
       stashes.log({action: 'jump'});
@@ -459,7 +459,7 @@ describe('stashes', function() {
           return object.get('events').length == 251;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(500);
       stashes.log({action: 'jump'});
@@ -502,7 +502,7 @@ describe('stashes', function() {
           return object.get('events').length == 251;
         }
       });
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(500);
       stashes.push_log();
@@ -579,7 +579,7 @@ describe('stashes', function() {
         }
       });
 
-      SweetSuite.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
+      LingoLinq.session = EmberObject.create({'user_name': 'bob', 'isAuthenticated': true});
       stashes.push_log();
       var pushed = false;
       emberRun.later(function() { pushed = true; }, 200);

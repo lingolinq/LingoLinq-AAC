@@ -1,5 +1,5 @@
 import modal from '../utils/modal';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
@@ -31,7 +31,7 @@ export default modal.ModalController.extend({
     if(_this.get('model.badge.id') && !_this.get('model.badge.completion_settings')) {
       if(!_this.get('model.badge').reload) {
         _this.set('model.badge.loading', true);
-        SweetSuite.store.findRecord('badge', _this.get('model.badge.id')).then(function(b) {
+        LingoLinq.store.findRecord('badge', _this.get('model.badge.id')).then(function(b) {
           _this.set('model.badge', b);
         }, function(err) {
           _this.set('model.badge.error', true);

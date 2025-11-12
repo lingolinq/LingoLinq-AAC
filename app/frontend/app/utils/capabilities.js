@@ -57,8 +57,8 @@ var capabilities;
   var chrome;
 
   function message_client(message) {
-    if(window.sweetSuiteExtras) {
-      window.sweetSuiteExtras.extension_message(message);
+    if(window.lingoLinqExtras) {
+      window.lingoLinqExtras.extension_message(message);
     }
   }
 
@@ -169,7 +169,7 @@ var capabilities;
         capabilities.system = "Mac";
       } else if(navigator.userAgent.match(/windows\snt/i)) {
         capabilities.system = "Windows";
-      } else if(navigator.userAgent.match(/SweetSuite Desktop App/)) {
+      } else if(navigator.userAgent.match(/LingoLinq Desktop App/)) {
         capabilities.system = "Windows";
         capabilities.browser = "App";
       }
@@ -188,7 +188,7 @@ var capabilities;
     capabilities.readable_device_name = capabilities.readable_device_name || (capabilities.browser + " for " + capabilities.system);
   }
   if(capabilities.encryption_enabled) {
-    console_debug("SWEETSUITE: indexedDB encryption is enabled");
+    console_debug("LINGOLINQ: indexedDB encryption is enabled");
   }
   (function() {
     var functions = {
@@ -200,7 +200,7 @@ var capabilities;
         capabilities.host = capabilities.system_host;
         var auth_settings = stashes.get_object('auth_settings', true) || {};
         if(capabilities.api_host) {
-          console_debug("SWEETSUITE: extension connected, pointing requests to " + capabilities.api_host);
+          console_debug("LINGOLINQ: extension connected, pointing requests to " + capabilities.api_host);
         }
         if(window.device && window.device.model) {
           if(capabilities.installed_app && capabilities.system == 'iOS') {
@@ -523,7 +523,7 @@ var capabilities;
               promise.resolve(list);
             }, function(err) {
               promise.reject(err);
-            }, 'SweetSuiteMisc', 'listApps', []);
+            }, 'LingoLinqMisc', 'listApps', []);
           } else { 
             promise.reject({error: 'app list not available on this system'});
           }
@@ -635,7 +635,7 @@ var capabilities;
             promise.resolve(res);
           }, function(err) { 
             promise.reject(err);
-          }, 'SweetSuiteMisc', 'bundleId', []);
+          }, 'LingoLinqMisc', 'bundleId', []);
         } else {
           promise.reject({error: 'no cordova object found'});
         }
@@ -811,7 +811,7 @@ var capabilities;
               }, delay);
             }, function(err) {
               promise.reject({error: 'cordova exec failed'});
-            }, 'SweetSuiteMisc', 'setAudioMode', [target]);
+            }, 'LingoLinqMisc', 'setAudioMode', [target]);
           } else {
             promise.reject({error: 'no target handling defined'});
           }
@@ -846,7 +846,7 @@ var capabilities;
               promise.resolve(res);
             }, function(err) {
               promise.resolve([]);
-            }, 'SweetSuiteMisc', 'getAudioDevices', []);
+            }, 'LingoLinqMisc', 'getAudioDevices', []);
           } else {
             promise.resolve([]);
           }
@@ -1252,7 +1252,7 @@ var capabilities;
               promise.resolve(res);
             }, function(err) {
               promise.reject(err);
-            }, 'SweetSuiteMisc', 'listFiles', [{dir: dir}]);
+            }, 'LingoLinqMisc', 'listFiles', [{dir: dir}]);
             return promise;
           }
           capabilities.storage.assert_directory(dirname).then(function(dir) {
@@ -1802,7 +1802,7 @@ var capabilities;
               capabilities.last_lux = lux;
               stashes.ambient_light = capabilities.last_lux;
             }
-          }, function(err) { }, 'SweetSuiteMisc', 'lux', []);
+          }, function(err) { }, 'LingoLinqMisc', 'lux', []);
         }
         if(window.cordova && window.cordova.plugins && window.cordova.plugins.brightness) {
           // https://www.npmjs.com/package/cordova-plugin-brightness
@@ -1867,7 +1867,7 @@ var capabilities;
               res.resolve(res);
             }, function(err) {
               res.reject(err);
-            }, 'SweetSuiteMisc', 'setSystemVolume', [{volume: vol}]);
+            }, 'LingoLinqMisc', 'setSystemVolume', [{volume: vol}]);
           } else if(window.node_extras && window.node_extras.audio) {
             window.node_extras.audio.speaker.set(Math.round(vol * 100));
             res.resolve({volume: Math.round(vol * 100) });
@@ -1893,7 +1893,7 @@ var capabilities;
       },
       toggle_keyboard_accessory: function(show) {
         if(capabilities.system == 'iOS' && window.cordova) {
-          window.cordova.exec(function(res) { console.log('keyboard accessory toggled', res); }, function(err) { console.error('keyboard accessory error', err); }, 'SweetSuiteMisc', 'toggleKeyboardAccessoryBar', [show])          
+          window.cordova.exec(function(res) { console.log('keyboard accessory toggled', res); }, function(err) { console.error('keyboard accessory error', err); }, 'LingoLinqMisc', 'toggleKeyboardAccessoryBar', [show])          
         }
       },
       fullscreen_capable: function() {

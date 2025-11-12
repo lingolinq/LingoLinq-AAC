@@ -1,4 +1,4 @@
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import { htmlSafe } from '@ember/string';
@@ -336,7 +336,7 @@ export default modal.ModalController.extend({
       var locale = app_state.get('label_locale');
       _this.set('analysis', {loading: true});
       var board = null;
-      var find_board = SweetSuite.store.findRecord('board', _this.get('model.root_board_id'));
+      var find_board = LingoLinq.store.findRecord('board', _this.get('model.root_board_id'));
       var load_buttons = find_board.then(function(brd) {
         board = brd;
         return board.load_button_set();

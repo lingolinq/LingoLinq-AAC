@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { observer } from '@ember/object';
 
@@ -11,7 +11,7 @@ export default Component.extend({
     var goal = this.get('goal');
     var elem = this.get('element').getElementsByClassName('stats')[0];
 
-//     SweetSuite.Visualizations.wait('bar', function() {
+//     LingoLinq.Visualizations.wait('bar', function() {
 //       if(elem && stats) {
 //
 //         var data = new window.google.visualization.DataTable();
@@ -48,7 +48,7 @@ export default Component.extend({
 //       }
 
 
-    SweetSuite.Visualizations.wait('goal-summary', function() {
+    LingoLinq.Visualizations.wait('goal-summary', function() {
       if(elem && goal && goal.get('time_units')) {
         var level = goal.get('best_time_level') || 'weekly';
         var data = new window.google.visualization.DataTable();

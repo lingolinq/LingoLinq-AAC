@@ -7,7 +7,7 @@ import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import { set as emberSet } from '@ember/object';
 import capabilities from '../utils/capabilities';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 

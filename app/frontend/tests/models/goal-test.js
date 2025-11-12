@@ -12,7 +12,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -236,7 +236,7 @@ describe('Goal', function() {
   var empty = $.extend(true, {}, empty);
 
   it("should calculate best_time_level", function() {
-    var goal = SweetSuite.store.createRecord('goal');
+    var goal = LingoLinq.store.createRecord('goal');
     goal.set('stats', empty);
     expect(goal.get('best_time_level')).toEqual('none');
 
@@ -260,7 +260,7 @@ describe('Goal', function() {
   });
 
   it("should calculate time_units", function() {
-    var goal = SweetSuite.store.createRecord('goal');
+    var goal = LingoLinq.store.createRecord('goal');
     goal.get('stats', empty);
     expect(goal.get('time_units')).toEqual([]);
 
@@ -350,7 +350,7 @@ describe('Goal', function() {
   });
 
   it("should return the correct unit_description", function() {
-    var goal = SweetSuite.store.createRecord('goal');
+    var goal = LingoLinq.store.createRecord('goal');
     goal.set('best_time_level', 'none');
     expect(goal.get('unit_description')).toEqual('No Data');
 
@@ -365,7 +365,7 @@ describe('Goal', function() {
   });
 
   it("should return time_unit_measurements", function() {
-    var goal = SweetSuite.store.createRecord('goal');
+    var goal = LingoLinq.store.createRecord('goal');
     goal.set('stats', empty);
     expect(goal.get('time_unit_measurements')).toEqual({});
 
@@ -401,7 +401,7 @@ describe('Goal', function() {
   });
 
   it("should return time_unit_status_rows", function() {
-    var goal = SweetSuite.store.createRecord('goal');
+    var goal = LingoLinq.store.createRecord('goal');
     goal.set('stats', empty);
     expect(goal.get('time_unit_status_rows')).toEqual([]);
 
@@ -476,7 +476,7 @@ describe('Goal', function() {
 
   describe("high_level_summary", function() {
     it("should return the correct value", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       goal.set('summary', 'asdf');
       goal.set('sequence_summary', 'jkl');
       expect(goal.get('high_level_summary')).toEqual('asdf');
@@ -487,7 +487,7 @@ describe('Goal', function() {
 
   describe("high_level_description", function() {
     it("should return the correct value", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       goal.set('description', 'asdf');
       goal.set('sequence_description', 'jkl');
       expect(goal.get('high_level_description')).toEqual('asdf');
@@ -497,7 +497,7 @@ describe('Goal', function() {
   });
   describe("advance_type", function() {
     it("should return the correct value", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       expect(goal.get('advance_type')).toEqual('none');
       expect(goal.get('any_advance')).toEqual(false);
       expect(goal.get('date_advance')).toEqual(false);
@@ -521,7 +521,7 @@ describe('Goal', function() {
   });
   describe('update_advancement', function() {
     it("should generate correct values", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       goal.update_advancement();
       expect(goal.get('advancement')).toEqual('none');
       goal.set('advance_type', 'date');
@@ -547,14 +547,14 @@ describe('Goal', function() {
         expect(res).toEqual(null);
         return "promisey";
       });
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       var res = goal.generate_next_template_if_new();
       expect(res).toEqual('promisey');
     });
     it("should return save promise if new", function() {
       var obj = EmberObject.create();
-      var goal = SweetSuite.store.createRecord('goal');
-      stub(SweetSuite.store, 'createRecord', function(type) {
+      var goal = LingoLinq.store.createRecord('goal');
+      stub(LingoLinq.store, 'createRecord', function(type) {
         expect(type).toEqual('goal');
         return obj;
       });
@@ -578,7 +578,7 @@ describe('Goal', function() {
 
   describe('new_next_template_id', function() {
     it("should return the correct value", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       expect(goal.get('new_next_template_id')).toEqual(false);
       goal.set('next_template_id', '12');
       expect(goal.get('new_next_template_id')).toEqual(false);
@@ -589,7 +589,7 @@ describe('Goal', function() {
 
   describe('current_template', function() {
     it("should return the correct result", function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       goal.set('summary', 'bacon');
       expect(goal.get('current_template')).toEqual(goal);
       expect(goal.get('current_template.summary')).toEqual('bacon');
@@ -601,7 +601,7 @@ describe('Goal', function() {
 
   describe('any_statuses', function() {
     it('should return correct values', function() {
-      var g = SweetSuite.store.createRecord('goal');
+      var g = LingoLinq.store.createRecord('goal');
       expect(g.get('any_statuses')).toEqual(false);
       g.set('time_unit_status_rows', []);
       expect(g.get('any_statuses')).toEqual(false);
@@ -614,7 +614,7 @@ describe('Goal', function() {
 
   describe('remove_badge', function() {
     it('should remove the specified badge', function() {
-      var g = SweetSuite.store.createRecord('goal');
+      var g = LingoLinq.store.createRecord('goal');
       g.remove_badge(null);
       expect(g.get('badges')).toEqual([]);
       var obj = {a: 1};
@@ -626,7 +626,7 @@ describe('Goal', function() {
 
   describe('add_badge_level', function() {
     it('should a badge cloned from the previous level', function() {
-      var g = SweetSuite.store.createRecord('goal');
+      var g = LingoLinq.store.createRecord('goal');
       g.add_badge_level();
       expect(g.get('badges').length).toEqual(1);
       expect(g.get('badges')[0].id).toNotEqual(undefined);
@@ -643,7 +643,7 @@ describe('Goal', function() {
 
   describe('set_zero_badge', function() {
     it('should automatically set up the zero badge', function() {
-      var g = SweetSuite.store.createRecord('goal');
+      var g = LingoLinq.store.createRecord('goal');
       expect(g.get('assessment_badge')).toEqual(undefined);
       expect(g.get('auto_assessment')).toEqual(undefined);
       g.set('auto_assessment', true);
@@ -660,7 +660,7 @@ describe('Goal', function() {
 
   describe('check_badges', function() {
     it('should set enabled only if true', function() {
-      var g = SweetSuite.store.createRecord('goal');
+      var g = LingoLinq.store.createRecord('goal');
       expect(g.get('badges_enabled')).toEqual(undefined);
       g.set('badges', []);
       expect(g.get('badges_enabled')).toEqual(false);

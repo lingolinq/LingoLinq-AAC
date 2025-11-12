@@ -10,14 +10,14 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
 
 describe('Boardversion', function() {
   it("should check recent", function() {
-    var bv = SweetSuite.store.createRecord('boardversion');
+    var bv = LingoLinq.store.createRecord('boardversion');
     var date = window.moment().add(-5, 'day').toDate();
     bv.set('created', date);
     expect(bv.get('recent')).toEqual(true);
@@ -28,7 +28,7 @@ describe('Boardversion', function() {
 
   describe("button_labels_list", function() {
     it("should return correct values", function() {
-      var bv = SweetSuite.store.createRecord('boardversion');
+      var bv = LingoLinq.store.createRecord('boardversion');
       expect(bv.get('button_labels_list')).toEqual('');
       bv.set('button_labels', []);
       expect(bv.get('button_labels_list')).toEqual('');

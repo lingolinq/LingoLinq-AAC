@@ -5,8 +5,8 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
-import SweetSuite from '../app';
-import SweetSuiteImage from '../models/image';
+import LingoLinq from '../app';
+import LingoLinqImage from '../models/image';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import utterance from '../utils/utterance';
@@ -31,9 +31,9 @@ export default Controller.extend({
   updateTitle: function(str) {
     if(!Ember.testing) {
       if(str) {
-        document.title = str + " - " + SweetSuite.app_name;
+        document.title = str + " - " + LingoLinq.app_name;
       } else {
-        document.title = SweetSuite.app_name;
+        document.title = LingoLinq.app_name;
       }
     }
   },
@@ -91,7 +91,7 @@ export default Controller.extend({
     });
   },
   board_levels: computed(function () {
-    return SweetSuite.board_levels.slice(1, 11);
+    return LingoLinq.board_levels.slice(1, 11);
   }),
   level_description: computed('board_levels', 'board.current_level', function() {
     var level = this.get('board.current_level');
@@ -262,7 +262,7 @@ export default Controller.extend({
   ),
   setup_for_other: computed('app_state.currentUser.id', 'setup_user_id', function() {
     if(this.get('setup_user_id') && this.get('setup_user_id') != app_state.get('currentUser.id')) {
-      return SweetSuite.store.peekRecord('user', this.get('setup_user_id'));
+      return LingoLinq.store.peekRecord('user', this.get('setup_user_id'));
     } else {
       return null;
     }
@@ -455,7 +455,7 @@ export default Controller.extend({
       var _this = this;
       user = user || app_state.get('currentUser');
       if(option == 'starting' && app_state.controller.get('setup_user_id') && app_state.controller.get('setup_user_id') != 'self' && user != 'skip_lookup') {
-        SweetSuite.store.findRecord('user', app_state.controller.get('setup_user_id')).then(function(u) {
+        LingoLinq.store.findRecord('user', app_state.controller.get('setup_user_id')).then(function(u) {
           _this.send('setAsHome', option, u);
         }, function(err) {
           _this.send('setAsHome', option, 'skip_lookup');
@@ -1160,8 +1160,8 @@ export default Controller.extend({
       var image_url = button.image;
       if(image && image.get('personalized_url') && !button.no_skin) {
         image_url = image.get('personalized_url');
-      } else if(button.get('original_image_url') && SweetSuiteImage.personalize_url) {
-        image_url = SweetSuiteImage.personalize_url(button.get('original_image_url'), app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+      } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
+        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
       }
       var obj = {
         label: button.label,
@@ -1320,7 +1320,7 @@ export default Controller.extend({
     return htmlSafe('width: ' + width + 'px;');
   }),
   swatches: computed('app_state.colored_keys', 'app_state.extra_colored_keys', function() {
-    var res = [].concat(SweetSuite.keyed_colors);
+    var res = [].concat(LingoLinq.keyed_colors);
     var extras = app_state.get('extra_colored_keys') || [];
     var extras_per_row = Math.ceil(extras.length / (res.length / 2))
     res.forEach(function(swatch, idx) {

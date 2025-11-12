@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import persistence from '../utils/persistence';
 import { computed, observer } from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default Controller.extend({
   setup_tracking: function() {
@@ -12,11 +12,11 @@ export default Controller.extend({
     this.set('player', null);
     this.set('forced_show', false);
     var _this = this;
-    SweetSuite.Lessons.track(this.get('model.url')).then(function(lesson) {
+    LingoLinq.Lessons.track(this.get('model.url')).then(function(lesson) {
       _this.set('lesson', lesson);      
     });
     if(this.get('model.video')) {
-      SweetSuite.Videos.track('lesson_embed').then(function(player) {
+      LingoLinq.Videos.track('lesson_embed').then(function(player) {
         _this.set('player', player);
       });
     }

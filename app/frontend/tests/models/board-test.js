@@ -12,7 +12,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -20,16 +20,16 @@ import Button from '../../utils/button';
 describe('Board', function() {
   describe("icon_url_with_fallback", function() {
     it("should not error on null image_url", function() {
-      var board = SweetSuite.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toNotEqual("");
       expect(board.get('icon_url_with_fallback')).toNotEqual(null);
     });
     it("should return image_url if specified", function() {
-      var board = SweetSuite.store.createRecord('board', {image_url: "http://pics.pic/pic.png"});
+      var board = LingoLinq.store.createRecord('board', {image_url: "http://pics.pic/pic.png"});
       expect(board.get('icon_url_with_fallback')).toEqual("http://pics.pic/pic.png");
     });
     it("should return fallback url if image_url is empty", function() {
-      var board = SweetSuite.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toEqual(board.fallback_image_url);
     });
     it("should automatically check for locally-stored data-uri on load");
@@ -37,7 +37,7 @@ describe('Board', function() {
 
   describe("key_placeholder", function() {
     it("should stay in sync with the name attribute", function() {
-      var board = SweetSuite.store.createRecord('board', {name: "Bacon"});
+      var board = LingoLinq.store.createRecord('board', {name: "Bacon"});
       expect(board.get('key_placeholder')).toEqual("bacon");
       board.set('name', 'Bacon and eggs');
       expect(board.get('key_placeholder')).toEqual("bacon-and-eggs");
@@ -47,7 +47,7 @@ describe('Board', function() {
       expect(board.get('key_placeholder')).toEqual("my-board");
     });
     it("should strip out non-key characters from the name attribute", function() {
-      var board = SweetSuite.store.createRecord('board', {name: "Bacon!"});
+      var board = LingoLinq.store.createRecord('board', {name: "Bacon!"});
       expect(board.get('key_placeholder')).toEqual("bacon");
       board.set('name', '!$%&$#&_$#%$&-$#%&#Bacon and *#$#$^*eggs____---@$%@');
       expect(board.get('key_placeholder')).toEqual("-_-bacon-and-eggs____");
@@ -56,7 +56,7 @@ describe('Board', function() {
 
   describe("create_copy", function() {
     it("should make a copy", function() {
-      var board = SweetSuite.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         id: 'asdf',
         key: 'bob/asdf',
         name: 'cool stuff'
@@ -81,7 +81,7 @@ describe('Board', function() {
     });
 
     it("should use the updated name if provided", function() {
-      var board = SweetSuite.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         id: 'asdf',
         key: 'bob/asdf',
         name: 'cool stuff'
@@ -109,12 +109,12 @@ describe('Board', function() {
 
   describe("labels", function() {
     it("should not error on empty grid or buttons", function() {
-      var board = SweetSuite.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('labels')).toEqual("");
     });
 
     it("should return list of labels on specified buttons", function() {
-      var board = SweetSuite.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         buttons: [
           {id: 1, label: "hat"},
           {id: 2, label: "car"}
@@ -129,7 +129,7 @@ describe('Board', function() {
     });
 
     it("should skip empty buttons", function() {
-      var board = SweetSuite.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         buttons: [
           {id: 1, label: "hat"},
           {id: 2, label: "car"},
@@ -155,7 +155,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return RSVP.resolve({starred: true, stars: 4});
       });
-      var board = SweetSuite.store.createRecord('board', {id: '123'});
+      var board = LingoLinq.store.createRecord('board', {id: '123'});
       expect(board.get('starred')).not.toEqual(true);
       board.star();
       expect(called).toEqual(true);
@@ -175,7 +175,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('DELETE');
         return RSVP.resolve({starred: false, stars: 2});
       });
-      var board = SweetSuite.store.createRecord('board', {id: '1234', starred: true});
+      var board = LingoLinq.store.createRecord('board', {id: '1234', starred: true});
       expect(board.get('starred')).toEqual(true);
       board.unstar();
       expect(called).toEqual(true);
@@ -194,7 +194,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return RSVP.resolve({starred: true, stars: 4});
       });
-      var board = SweetSuite.store.createRecord('board', {id: '12345', stars: 3});
+      var board = LingoLinq.store.createRecord('board', {id: '12345', stars: 3});
       expect(board.get('stars')).toEqual(3);
       board.star();
       expect(called).toEqual(true);
@@ -216,7 +216,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return RSVP.reject();
       });
-      var board = SweetSuite.store.createRecord('board', {id: '123456', stars: 3});
+      var board = LingoLinq.store.createRecord('board', {id: '123456', stars: 3});
       board.star();
       waitsFor(function() { return called; });
       runs(function() {
@@ -227,7 +227,7 @@ describe('Board', function() {
 
   describe("add_button", function() {
     it("should add the button to the list", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.add_button(Button.create({id: 123}));
       expect(board.get('buttons').length).toEqual(1);
       expect(board.get('buttons')[0].id).toEqual(123);
@@ -239,7 +239,7 @@ describe('Board', function() {
     });
 
     it("should generate a new, unique id if an existing button has that id", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
@@ -261,7 +261,7 @@ describe('Board', function() {
     });
 
     it("should return the id of the button as the result", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
@@ -270,7 +270,7 @@ describe('Board', function() {
     });
 
     it("should add to the first empty spot it finds in the grid", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
@@ -286,7 +286,7 @@ describe('Board', function() {
 
   describe("multiple_copies", function() {
     it("should return the correct value", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       expect(board.get('multiple_copies')).toEqual(false);
       board.set('copies', 0);
       expect(board.get('multiple_copies')).toEqual(false);
@@ -301,7 +301,7 @@ describe('Board', function() {
 
   describe("button_visible", function() {
     it("should return true if the id is in the grid order", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: [[1,2,3],[2,3,4],[6,7,8]]
       });
@@ -315,7 +315,7 @@ describe('Board', function() {
     });
 
     it("should return false if the id is not in the grid order", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: [[1,2,3],[2,3,4],[6,7,8]]
       });
@@ -327,7 +327,7 @@ describe('Board', function() {
     });
 
     it("should not error on malformed grid", function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: []
       });
@@ -341,7 +341,7 @@ describe('Board', function() {
 
   describe('find_content_locally', function() {
     it('should not run more than once', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('fetched', true);
       var called = false;
       stub(persistence, 'push_records', function() { called = true; });
@@ -356,7 +356,7 @@ describe('Board', function() {
     });
 
     it('should return the existing pending promise if there is one', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('fetch_promise', 'asdf');
       var called = false;
       var res = board.find_content_locally();
@@ -364,7 +364,7 @@ describe('Board', function() {
     });
 
     it('should push records into the data store when found', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [
         {id: 1, image_id: 'a', sound_id: 'c'},
         {id: 2},
@@ -393,7 +393,7 @@ describe('Board', function() {
     });
 
     it('should enable skipping individual findRecord calls because of batch push to save time', function() {
-      var board = SweetSuite.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [
         {id: 1, image_id: 'a', sound_id: 'c'},
         {id: 2},
@@ -404,10 +404,10 @@ describe('Board', function() {
       persistence.primed = true;
       stub(persistence, 'push_records', function(type, ids) {
         if(type == 'image') {
-          SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/pic.png'}}});
+          LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/pic.png'}}});
         } else if(type == 'sound') {
-          SweetSuite.store.push({data: {type: 'sound', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/sound.mp3'}}});
-          SweetSuite.store.push({data: {type: 'sound', id: 'c', attributes: {id: 'c', url: 'http://www.example.com/sound2.mp3'}}});
+          LingoLinq.store.push({data: {type: 'sound', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/sound.mp3'}}});
+          LingoLinq.store.push({data: {type: 'sound', id: 'c', attributes: {id: 'c', url: 'http://www.example.com/sound2.mp3'}}});
         }
         call_args.push([type, ids]);
         return RSVP.resolve();
@@ -420,7 +420,7 @@ describe('Board', function() {
       expect(board.get('fetch_promise')).not.toEqual(undefined);
 
       var find_called = false;
-      stub(SweetSuite.store, 'findRecord', function(a1, a2, a3) {
+      stub(LingoLinq.store, 'findRecord', function(a1, a2, a3) {
         find_called = true;
         return RSVP.reject();
       });
@@ -448,7 +448,7 @@ describe('Board', function() {
 
   describe("load_button_set", function() {
     it('should return the set value if already set', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('button_set', 'asdf');
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
@@ -459,9 +459,9 @@ describe('Board', function() {
     });
 
     it('should return the peeked value if found', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      stub(SweetSuite.store, 'peekRecord', function(type, id) {
+      stub(LingoLinq.store, 'peekRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return 'asdf';
         }
@@ -475,11 +475,11 @@ describe('Board', function() {
     });
 
     it('should return the peeked value for a linked board if found', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
       var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
       var bs2 = EmberObject.create({board_ids: ['2345'], fresh: true});
-      stub(SweetSuite.store, 'peekAll', function(type) {
+      stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
           return {
             map: function(cb) {
@@ -500,11 +500,11 @@ describe('Board', function() {
     });
 
     it('should not return the peeked value for a linked board if it is not fresh', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
       var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
       var bs2 = EmberObject.create({board_ids: ['2345', '1234'], fresh: true});
-      stub(SweetSuite.store, 'peekAll', function(type) {
+      stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
           return {
             map: function(cb) {
@@ -525,10 +525,10 @@ describe('Board', function() {
     });
 
     it('should try to find the record if not found other ways', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
       var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
@@ -542,13 +542,13 @@ describe('Board', function() {
     });
 
     it('should reload the record if found but not fresh', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
       b.set('fresh', true);
       var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
       var reloaded = false;
       stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
@@ -563,14 +563,14 @@ describe('Board', function() {
     });
 
     it('should reload if force is called, regardless of other factors', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
       b.set('button_set', 'asdf');
-      stub(SweetSuite.store, 'peekRecord', function(type, id) {
+      stub(LingoLinq.store, 'peekRecord', function(type, id) {
         return 'asdf';
       });
       var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
-      stub(SweetSuite.store, 'peekAll', function(type) {
+      stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
           return {
             map: function(cb) {
@@ -583,7 +583,7 @@ describe('Board', function() {
       });
       var reloaded = false;
       stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
@@ -600,7 +600,7 @@ describe('Board', function() {
 
   describe("for_sale", function() {
     it('should return the correct value', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.get('for_sale')).toEqual(false);
       b.set('protected', true);
       expect(b.get('for_sale')).toEqual(false);
@@ -615,7 +615,7 @@ describe('Board', function() {
 
   describe("protected_material", function() {
     it('should return based on protected attribute', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.get('protected_material')).toEqual(false);
       b.set('protected', true);
       expect(b.get('protected_material')).toEqual(true);
@@ -624,7 +624,7 @@ describe('Board', function() {
     });
 
     it('should return true if not protected but content is protected', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.get('protected_material')).toEqual(false);
       b.set('local_images_with_license', [
         EmberObject.create({protected: false})
@@ -644,7 +644,7 @@ describe('Board', function() {
 
   describe("valid_id", function() {
     it('should return the correct value', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.get('valid_id')).toEqual(false);
       b.set('id', '1234');
       expect(b.get('valid_id')).toEqual(true);
@@ -657,7 +657,7 @@ describe('Board', function() {
 
   describe("locales", function() {
     it('should return correct values', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.get('locales')).toEqual([]);
       b.set('translations', {});
       expect(b.get('locales')).toEqual([]);
@@ -677,7 +677,7 @@ describe('Board', function() {
 
   describe("translations_for_button", function() {
     it('should should find matching buttons', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       b.set('translations', {
         '123': {
           'en': {'a': 1}
@@ -693,14 +693,14 @@ describe('Board', function() {
     });
 
     it('should return correctly when no button found', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.translations_for_button('asdf')).toEqual({});
     });
   });
 
   describe("translated_buttons", function() {
     it('should return the original list if no translations defined', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
       b.set('buttons', [{id: '1', label: 'hat'}, {id: '2', label: 'car', vocalization: 'friend'}]);
       expect(b.translated_buttons('en', 'en')).toEqual([
@@ -710,7 +710,7 @@ describe('Board', function() {
     });
 
     it('should return translated for the specified locales', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
       b.set('buttons', [{id: '1', label: 'hat'}, {id: '2', label: 'car', vocalization: 'friend'}]);
       b.set('translations', {
@@ -742,7 +742,7 @@ describe('Board', function() {
     });
 
     it('should return the original list if already in the right locales', function() {
-      var b = SweetSuite.store.createRecord('board');
+      var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
       b.set('buttons', [{id: '1', label: 'hat'}, {id: '2', label: 'car', vocalization: 'friend'}]);
       b.set('translations', {

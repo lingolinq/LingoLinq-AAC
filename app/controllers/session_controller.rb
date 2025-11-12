@@ -260,7 +260,7 @@ class SessionController < ApplicationController
       dn.content = "CoughDrop"
       desc = Nokogiri::XML::Node.new('mdui:Description', xml)
       desc['xml:lang'] = 'en'
-      desc.content = "CoughDrop AAC Application"
+      desc.content = "CoughDrop LingoLinqlication"
       logo = Nokogiri::XML::Node.new('mdui:Logo', xml)
       logo['xml:lang'] = 'en'
       logo['width'] = '64'

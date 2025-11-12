@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { reads } from '@ember/object/computed';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -12,7 +12,7 @@ export default Component.extend({
   init: function() {
     this._super(...arguments);
   },
-  iconUrls: SweetSuite.iconUrls,
+  iconUrls: LingoLinq.iconUrls,
   set_extra_urls: observer('selection', function() {
     if(this.get('selection')) {
       var _this = this;

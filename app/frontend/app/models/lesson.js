@@ -1,14 +1,14 @@
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Lesson = DS.Model.extend({
+LingoLinq.Lesson = DS.Model.extend({
   didLoad: function() {
   },
   title: DS.attr('string'),
@@ -36,4 +36,4 @@ SweetSuite.Lesson = DS.Model.extend({
   })
 });
 
-export default SweetSuite.Lesson;
+export default LingoLinq.Lesson;

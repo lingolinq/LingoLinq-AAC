@@ -11,7 +11,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -19,11 +19,11 @@ import Button from '../../utils/button';
 describe('Video', function() {
   describe('filename', function() {
     it("should not error on empty value", function() {
-      var video = SweetSuite.store.createRecord('video', {});
+      var video = LingoLinq.store.createRecord('video', {});
       expect(video.get('filename')).toEqual('video');
     });
     it("should return filename if found in URL path, ignoring query params", function() {
-      var video = SweetSuite.store.createRecord('video', {url: 'http://www.videos.com/video.avi'});
+      var video = LingoLinq.store.createRecord('video', {url: 'http://www.videos.com/video.avi'});
       expect(video.get('filename')).toEqual('video.avi');
       video.set('url', 'http://www.videos.com/video.mp4?id=1234');
       expect(video.get('filename')).toEqual('video.mp4');
@@ -31,14 +31,14 @@ describe('Video', function() {
       expect(video.get('filename')).toEqual('video');
     });
     it("should provide readable string for data URIs", function() {
-      var video = SweetSuite.store.createRecord('video', {url: 'data:video/avi;abababa'});
+      var video = LingoLinq.store.createRecord('video', {url: 'data:video/avi;abababa'});
       expect(video.get('filename')).toEqual('embedded video');
     });
   });
 
   describe('check_for_editable_license', function() {
     it('should return correct values', function() {
-      var video = SweetSuite.store.createRecord('video');
+      var video = LingoLinq.store.createRecord('video');
       video.check_for_editable_license();
       expect(video.get('license.uneditable')).toEqual(undefined);
       video.set('license', {});
@@ -56,7 +56,7 @@ describe('Video', function() {
 
   describe('clean_license', function() {
     it('should update attributes', function() {
-      var video = SweetSuite.store.createRecord('video');
+      var video = LingoLinq.store.createRecord('video');
       video.set('license', {source_link: 'http://www.example.com'});
       expect(video.get('license.source_url')).toEqual(undefined);
       video.clean_license();
@@ -66,7 +66,7 @@ describe('Video', function() {
 
   describe('best_url', function() {
     it('should return the best url', function() {
-      var video = SweetSuite.store.createRecord('video');
+      var video = LingoLinq.store.createRecord('video');
       expect(video.get('best_url')).toEqual(undefined);
       video.set('url', 'http://www.example.com/video.avi');
       expect(video.get('best_url')).toEqual('http://www.example.com/video.avi');
@@ -85,7 +85,7 @@ describe('Video', function() {
         searched = true;
         return RSVP.resolve('data:stuff');
       });
-      var video = SweetSuite.store.createRecord('video');
+      var video = LingoLinq.store.createRecord('video');
       expect(searched).toEqual(false);
       video.set('url', 'http://www.example.com');
       waitsFor(function() { return searched; });

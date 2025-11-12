@@ -10,7 +10,7 @@ import speecher from '../../utils/speecher';
 import persistence from '../../utils/persistence';
 import Button from '../../utils/button';
 import { set as emberSet } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/string';
@@ -1044,7 +1044,7 @@ export default Controller.extend({
           var arg = key.slice(action.length + 1, key.length - 1);
         }
         var image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/touch_437_g.svg";
-        var special = SweetSuite.find_special_action(key);
+        var special = LingoLinq.find_special_action(key);
         if(special && !special.completion && !special.modifier && !special.inline) {
           add_board({
             name: action.slice(1),

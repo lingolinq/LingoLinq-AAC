@@ -528,14 +528,14 @@ var dbman = {
       try {
         request = capabilities.idb.open(key, version);
       } catch(e) {
-        console.error("SWEETSUITE: unexpected db throw");
+        console.error("LINGOLINQ: unexpected db throw");
         console.log(e);
         errored = true;
       }
       request = request || {};
       request.onerror = function(event) {
         if(!dbman.setup_database.already_tried) {
-          console.log('SWEETSUITE: db failed once, trying again');
+          console.log('LINGOLINQ: db failed once, trying again');
           dbman.setup_database.already_tried = true;
           setTimeout(function() {
             dbman.setup_database(key, version, promise);
@@ -543,7 +543,7 @@ var dbman = {
         } else {
           console.log(event);
           if(!dbman.setup_database.already_tried_deleting) {
-            console.error("SWEETSUITE: db failed to initialize, deleting database..");
+            console.error("LINGOLINQ: db failed to initialize, deleting database..");
             dbman.delete_database(key);
             dbman.setup_database.already_tried_deleting = true;
             setTimeout(function() {
@@ -551,7 +551,7 @@ var dbman = {
             }, 500);
           } else {
             if(!dbman.setup_database.already_tried_deleting_all) {
-              console.error("SWEETSUITE: db failed to initialize even after deleting, deleting other databases");
+              console.error("LINGOLINQ: db failed to initialize even after deleting, deleting other databases");
               dbman.setup_database.already_tried_deleting_all = true;
               if(capabilities.idb.webkitGetDatabaseNames) {
                 capabilities.idb.webkitGetDatabaseNames().onsuccess = function(res) {
@@ -568,17 +568,17 @@ var dbman = {
                         dbman.setup_database(key, version, promise);
                       }, 500);
                     } else {
-                      console.error("SWEETSUITE: db failed to initialize after repeated attempts");
+                      console.error("LINGOLINQ: db failed to initialize after repeated attempts");
                       promise.reject("db failed after repeated attempts");
                     }
                   }
                 };
               } else {
-                console.error("SWEETSUITE: db failed to initialize after repeated attempts");
+                console.error("LINGOLINQ: db failed to initialize after repeated attempts");
                 promise.reject("db failed after repeated attempts");
               }
             } else {
-              console.error("SWEETSUITE: db failed to initialize after repeated attempts");
+              console.error("LINGOLINQ: db failed to initialize after repeated attempts");
               promise.reject("db failed after repeated attempts");
             }
           }
@@ -588,7 +588,7 @@ var dbman = {
         }
       };
       request.onsuccess = function(event) {
-        console.log("SWEETSUITE: db succeeded");
+        console.log("LINGOLINQ: db succeeded");
         dbman.db = request.result;
         capabilities.db = request.result;
         setTimeout(function() {
@@ -650,7 +650,7 @@ var dbman = {
         open_args[0].androidDatabaseProvider = 'system';
       }
       if(!window.sqlitePlugin) {
-        open_args = ["sqlitex:" + key, '1.0', "SweetSuite db " + key, 10*1024*1024];
+        open_args = ["sqlitex:" + key, '1.0', "LingoLinq db " + key, 10*1024*1024];
       }
       var db_res = dbman.sqlite.openDatabase.apply(null, open_args);
       setTimeout(function() {
@@ -667,7 +667,7 @@ var dbman = {
     if(dbman.db_type == 'indexeddb') {
       var indexes_allowed = capabilities.system && capabilities.system != 'iOS';
       var done_after_upgrade = capabilities.system && capabilities.system == 'iOS';
-      console.log("SWEETSUITE: db upgrade needed from " + (old_version || 0));
+      console.log("LINGOLINQ: db upgrade needed from " + (old_version || 0));
 
       var always_check = true;
       if(old_version < 1 || old_version > 99999 || always_check) {
@@ -697,7 +697,7 @@ var dbman = {
             }
           }, 2000);
         } catch(e) {
-          console.error("SWEETSUITE: db migrations failed");
+          console.error("LINGOLINQ: db migrations failed");
           console.error(e);
           db.request.onerror();
           db = null;
@@ -707,14 +707,14 @@ var dbman = {
             if(!dbman.db) {
               dbman.db = db;
               capabilities.db = db;
-              console.log("SWEETSUITE: db succeeded through onupgradeneeded");
+              console.log("LINGOLINQ: db succeeded through onupgradeneeded");
               dbman.use_database(dbman.db, promise);
             }
           }, 100);
         }
       }
     } else if(dbman.db_type == 'sqlite_plugin') {
-      console.log("SWEETSUITE: db upgrade needed from " + (old_version || 0));
+      console.log("LINGOLINQ: db upgrade needed from " + (old_version || 0));
       db.transaction(function(tx) {
         tx.executeSql('CREATE TABLE IF NOT EXISTS version (version VARCHAR)');
         var keys = [];
@@ -743,7 +743,7 @@ var dbman = {
         console.log(err);
         promise.reject({error: err.message});
       }, function() {
-        console.log("SWEETSUITE: db succeeded through upgrade check");
+        console.log("LINGOLINQ: db succeeded through upgrade check");
         dbman.use_database(db, promise);
       });
       // for each index (include 'id'), make sure there's a string column <key>_index
@@ -754,7 +754,7 @@ var dbman = {
   },
   use_database: function(db, promise) {
     if(dbman.db_type == 'indexeddb') {
-      console_debug("SWEETSUITE: using indexedDB for offline sync"); // - " + capabilities.db_name);
+      console_debug("LINGOLINQ: using indexedDB for offline sync"); // - " + capabilities.db_name);
       if(capabilities.mobile && capabilities.installed_app) {
         console.error("should be using sqlite but using indexeddb instead");
       }
@@ -787,7 +787,7 @@ var dbman = {
     } else if(dbman.db_type == 'sqlite_plugin') {
       capabilities.db = db;
       dbman.db = db;
-      console_debug("SWEETSUITE: using sqlite plugin for offline sync");
+      console_debug("LINGOLINQ: using sqlite plugin for offline sync");
       setTimeout(function() {
         promise.resolve({database: db});
       });

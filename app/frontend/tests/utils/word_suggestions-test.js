@@ -17,7 +17,7 @@ import {
   queue_promise
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
-import SweetSuite from 'frontend/app';
+import LingoLinq from 'frontend/app';
 import app_state from '../../utils/app_state';
 import word_suggestions from '../../utils/word_suggestions';
 import persistence from '../../utils/persistence';
@@ -109,7 +109,7 @@ describe('word_suggestions', function() {
           return RSVP.reject();
         }
       };
-      stub(SweetSuite.store, 'findRecord', function(type, id) {
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
         expect(type).toEqual('board');
         expect(id).toEqual('bacon');
         return RSVP.resolve({

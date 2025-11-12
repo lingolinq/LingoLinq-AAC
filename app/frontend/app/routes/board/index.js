@@ -5,7 +5,7 @@ import stashes from '../../utils/_stashes';
 import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
 import speecher from '../../utils/speecher';
@@ -15,7 +15,7 @@ import { computed } from '@ember/object';
 
 export default Route.extend({
   model: function(params) {
-    SweetSuite.log.track('getting model');
+    LingoLinq.log.track('getting model');
     var res = this.modelFor('board');
     if((app_state.get('board_reloads') || {})[res.get('id')]) {
       res.set('should_reload', true);
@@ -25,13 +25,13 @@ export default Route.extend({
       delete do_reloads[res.get('id')];
       app_state.set('board_reloads', do_reloads);
       res.set('should_reload', false);
-      SweetSuite.log.track('reloading');
+      LingoLinq.log.track('reloading');
       res.reload(!app_state.get('speak_mode'));
     }
     return res;
   },
   setupController: function(controller, model) {
-    SweetSuite.log.track('setting up controller');
+    LingoLinq.log.track('setting up controller');
     var _this = this;
     _this.set('board', model);
     controller.set('model', model);
@@ -91,7 +91,7 @@ export default Route.extend({
         app_state.set(loc_type, model.get('locale'));
       }  
     });
-    if(SweetSuite.embedded && !app_state.get('speak_mode')) {
+    if(LingoLinq.embedded && !app_state.get('speak_mode')) {
       // Embedded mode should only operate in Speak Mode, so force it
       var state = app_state.get('currentBoardState');
       app_state.toggle_mode('speak', {override_state: state});
@@ -111,7 +111,7 @@ export default Route.extend({
     });
     contentGrabbers.board_controller = controller;
     var prior_revision = model.get('current_revision');
-    SweetSuite.log.track('processing buttons without lookups');
+    LingoLinq.log.track('processing buttons without lookups');
     _this.set('load_state', {retrieved: true});
     model.without_lookups(function() {
       controller.processButtons();
@@ -135,7 +135,7 @@ export default Route.extend({
     }
     if(!model.get('valid_id')) {
     } else if(persistence.get('online') || insufficient_data) {
-      SweetSuite.log.track('considering reload');
+      LingoLinq.log.track('considering reload');
       _this.set('load_state', {not_local: true});
       var reload = RSVP.resolve(model);
       // if we're online then we should reload, but do it softly if we're in speak mode
@@ -169,7 +169,7 @@ export default Route.extend({
 
       reload.then(function(updated) {
         if(!controller.get('has_rendered_material') || updated.get('current_revision') != prior_revision || insufficient_data) {
-          SweetSuite.log.track('processing buttons again');
+          LingoLinq.log.track('processing buttons again');
           controller.processButtons(true);
         }
       }, function(error) {
@@ -249,7 +249,7 @@ export default Route.extend({
         this.set('load_state.has_permissions', !!this.get('model.permissions'));
         this.set('load_state.error', error);
       }
-      this.get('controller').set('model', SweetSuite.store.createRecord('board', {}));
+      this.get('controller').set('model', LingoLinq.store.createRecord('board', {}));
     },
   }
 });

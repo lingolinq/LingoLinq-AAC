@@ -19,7 +19,7 @@ describe('UserStatsController', 'controller:user-stats', function() {
 // import Ember from 'ember';
 // import i18n from '../../utils/i18n';
 // import persistence from '../../utils/persistence';
-// import SweetSuite from '../../app';
+// import LingoLinq from '../../app';
 // import app_state from '../../utils/app_state';
 // import Stats from '../../utils/stats';
 // 

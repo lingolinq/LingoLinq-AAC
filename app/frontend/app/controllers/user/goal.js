@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import $ from 'jquery';
 import modal from '../../utils/modal';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -52,7 +52,7 @@ export default Controller.extend({
     }
   }),
   assessment_badge_description: computed('model.assessment_badge', function() {
-    var ub = SweetSuite.store.createRecord('badge', {
+    var ub = LingoLinq.store.createRecord('badge', {
       name: this.get('model.badge_name') || this.get('model.summary'),
       level: 0,
       completion_settings: this.get('model.assessment_badge')
@@ -152,7 +152,7 @@ export default Controller.extend({
     badge_popup: function(badge) {
       var ub = badge.user_badge;
       if(!badge.user_badge) {
-        ub = SweetSuite.store.createRecord('badge', {
+        ub = LingoLinq.store.createRecord('badge', {
           name: this.get('model.badge_name') || this.get('model.summary'),
           level: badge.level,
           image_url: badge.image_url,

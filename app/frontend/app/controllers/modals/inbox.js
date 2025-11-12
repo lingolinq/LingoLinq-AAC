@@ -7,7 +7,7 @@ import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -95,7 +95,7 @@ export default modal.ModalController.extend({
         if(board_id && app_state.get('referenced_user.preferences.device.button_text') != 'text_only' && app_state.get('referenced_user.preferences.device.button_text_position') != 'text_only' && !app_state.get('referenced_user.preferences.device.utterance_text_only')) {
           // Make symbolated messages opt-in, see:
           // https://bit.ly/3d0xABA
-          SweetSuite.Buttonset.load_button_set(board_id).then(function(button_set) {
+          LingoLinq.Buttonset.load_button_set(board_id).then(function(button_set) {
             var search = button_set.find_sequence(text, board_id, app_state.get('referenced_user'), false);
             search.then(function(results) {
               var list = (results[0] || {}).steps || [];

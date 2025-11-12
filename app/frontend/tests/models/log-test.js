@@ -10,16 +10,16 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 describe('Log', function() {
   describe("minutes", function() {
     it("should not error on empty value", function() {
-      var log = SweetSuite.store.createRecord('log', {});
+      var log = LingoLinq.store.createRecord('log', {});
       expect(log.get('minutes')).toEqual(0);
     });
     it("should return filename if found in URL path, ignoring query params", function() {
-      var log = SweetSuite.store.createRecord('log', {duration: 100});
+      var log = LingoLinq.store.createRecord('log', {duration: 100});
       expect(log.get('minutes')).toEqual(2);
       log.set('duration', 300);
       expect(log.get('minutes')).toEqual(5);
@@ -28,7 +28,7 @@ describe('Log', function() {
 
   describe("goal_status_class", function() {
     it('should return the correct class', function() {
-      var log = SweetSuite.store.createRecord('log');
+      var log = LingoLinq.store.createRecord('log');
 
       expect(log.get('goal_status_class')).toEqual('');
 
@@ -54,7 +54,7 @@ describe('Log', function() {
 
   describe("daily_use_history", function() {
     it('should return the correct value', function() {
-      var l = SweetSuite.store.createRecord('log');
+      var l = LingoLinq.store.createRecord('log');
       expect(l.get('daily_use_history')).toEqual(null);
       l.set('daily_use', []);
       expect(l.get('daily_use_history')).toEqual(null);

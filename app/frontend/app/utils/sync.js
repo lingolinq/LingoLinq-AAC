@@ -8,7 +8,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // TODO: Classroom mode option that allows a teacher to set focus words
 // or highlight for all users in the classroom
 
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import EmberObject from '@ember/object';
 import stashes from './_stashes';
 import persistence from './persistence';
@@ -105,15 +105,15 @@ var sync = EmberObject.extend({
               sub.last_communicator_access = sub.last_communicator_access || ((new Date()).getTime() / 1000);
             }
             var sup = app_state.get('sessionUser.known_supervisees').find(function(sup) { return sup.id == sub.user_id; });
-            SweetSuite.User.ws_accesses = SweetSuite.User.ws_accesses || {};
+            LingoLinq.User.ws_accesses = LingoLinq.User.ws_accesses || {};
             if(sup) {
               var cutoff = ((new Date()).getTime() - (10 * 60 * 1000)) / 1000;
               // console.log("SUP", sup.user_name, data, cutoff);
               emberSet(sup, 'online', sub.last_communicator_access > cutoff);
             }
-            SweetSuite.User.ws_accesses[sub.user_id] = sub.last_communicator_access;
+            LingoLinq.User.ws_accesses[sub.user_id] = sub.last_communicator_access;
 
-            var user = SweetSuite.store.peekRecord('user', sub.user_id);
+            var user = LingoLinq.store.peekRecord('user', sub.user_id);
             if(user) {
               user.set('last_ws_access', sub.last_communicator_access);
             }
@@ -191,7 +191,7 @@ var sync = EmberObject.extend({
         user.set('sync_connected', now);
         if(sync.pending_connect_for[user.get('id')]) { return sync.pending_connect_for[user.get('id')]; }
         sync.pending_connect_for[user.get('id')] = connect_promise;
-        console.log("SWEETSUITE: ws connect");
+        console.log("LINGOLINQ: ws connect");
         persistence.ajax('/api/v1/users/self/ws_settings', {type: 'GET'}).then(function(res) {
           res.retrieved = (new Date()).getTime();
           var cached_settings = stashes.get('ws_settings');
@@ -376,7 +376,7 @@ var sync = EmberObject.extend({
         pair_code: pair_code
       };
       // set pairing state
-      SweetSuite.store.findRecord('user', other_user.user_id).then(function(u) {
+      LingoLinq.store.findRecord('user', other_user.user_id).then(function(u) {
         var communicator_id = role == 'partner' ? u.get('id') : app_state.get('sessionUser.id');
         if(role == 'partner') {
           speecher.click('partner_start');
@@ -412,7 +412,7 @@ var sync = EmberObject.extend({
           user: user,
           last_update: unfollow ? 0 : now
         };  
-        var user_record = SweetSuite.store.peekRecord('user', user.user_id);
+        var user_record = LingoLinq.store.peekRecord('user', user.user_id);
         if(user_record) {
           user_record.set('last_ws_access', now);
         }
@@ -879,7 +879,7 @@ var sync = EmberObject.extend({
             }
             var update_render = false;
             if(message.data.board_state && full_following) {
-              SweetSuite.store.findRecord('board', message.data.board_state.id).then(function(board) {
+              LingoLinq.store.findRecord('board', message.data.board_state.id).then(function(board) {
                 sync.handle_action({type: 'board_assertion', board: board});
                 if(message.data.current_action) {
                   console.log("OTHER PERSON HIT A BUTTON", message.data);

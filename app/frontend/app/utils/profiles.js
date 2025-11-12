@@ -12,7 +12,7 @@ import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/string';
 import i18n from './i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 // TODO: track locale of response
 // TODO: place to store translations of labels and prompts and placeholders
@@ -798,7 +798,7 @@ var profiles = {
       // } else if(id == 'com-ff') {
       //   resolve(profiles.process(com_forms_funcs)); 
       } else {
-        SweetSuite.store.findRecord('profile', id).then(function(prof) {
+        LingoLinq.store.findRecord('profile', id).then(function(prof) {
           resolve(profiles.process(prof.get('template')));
         }, function(err) {
           reject(err);

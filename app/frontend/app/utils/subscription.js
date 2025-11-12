@@ -3,7 +3,7 @@ import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import i18n from './i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import persistence from './persistence';
 import app_state from './app_state';
 import stashes from './_stashes';
@@ -24,11 +24,11 @@ var obs_properties = [];
 types.forEach(function(type) {
   obs_properties.push('subscription.' + type);
 });
-var one_time_id = 'SweetSuiteiOSBundle';
-var long_term_id = 'SweetSuiteiOSPlusExtras';
-var eval_id = 'SweetSuiteiOSEval';
-var slp_id = 'SweetSuiteiOSSLP';
-var subscription_id = 'SweetSuiteiOSMonthly';
+var one_time_id = 'LingoLinqiOSBundle';
+var long_term_id = 'LingoLinqiOSPlusExtras';
+var eval_id = 'LingoLinqiOSEval';
+var slp_id = 'LingoLinqiOSSLP';
+var subscription_id = 'LingoLinqiOSMonthly';
 
 var obs_func = function() {
   var _this = this;
@@ -70,16 +70,16 @@ var Subscription = EmberObject.extend({
     this.set('user_expiring', false);
 
     var now = window.moment()._d;
-    var sale = new Date(SweetSuite.sale * 1000);
+    var sale = new Date(LingoLinq.sale * 1000);
     if(sale && now && sale > now && !Subscription.product_types) {
-      this.set('sale', !!SweetSuite.sale);
+      this.set('sale', !!LingoLinq.sale);
       this.set('sale_ends', sale);
     }
     var _this = this;
     runLater(function() {
-      var sale = new Date(SweetSuite.sale * 1000);
+      var sale = new Date(LingoLinq.sale * 1000);
       if(sale && now && sale > now && !Subscription.product_types) {
-        _this.set('sale', !!SweetSuite.sale);
+        _this.set('sale', !!LingoLinq.sale);
         _this.set('sale_ends', sale);
       }
     }, 500);
@@ -165,7 +165,7 @@ var Subscription = EmberObject.extend({
         if(this.get('subscription_amount') == 'long_term_custom') {
           var amount = parseInt(this.get('subscription_custom_amount'), 10);
           return this.get('any_subscription_amount') || (amount > 100 && (amount % 50 === 0));
-        } else if(SweetSuite.sale && this.get('subscription_amount') == 'long_term_145') {
+        } else if(LingoLinq.sale && this.get('subscription_amount') == 'long_term_145') {
           return true;
         } else {
           return !!(this.get('email') && ['long_term_150', 'long_term_200', 'long_term_250', 'long_term_295'].indexOf(this.get('subscription_amount')) != -1);
@@ -748,7 +748,7 @@ Subscription.reopenClass({
       if(Subscription.handler.defer) {
       }
       Subscription.handler.open({
-        name: subscription.get('name') || subscription.get('user.name') || SweetSuite.app_name,
+        name: subscription.get('name') || subscription.get('user.name') || LingoLinq.app_name,
         description: subscription.get('description'),
         amount: amount,
         panelLabel: subscription.get('purchase_description'),
@@ -973,6 +973,6 @@ document.addEventListener("deviceready", function() {
   }
 }, false);
 
-SweetSuite.Subscription = Subscription;
+LingoLinq.Subscription = Subscription;
 
 export default Subscription;

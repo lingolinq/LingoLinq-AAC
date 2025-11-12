@@ -1,8 +1,8 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
-SweetSuite.Boardversion = DS.Model.extend({
+LingoLinq.Boardversion = DS.Model.extend({
   modifier: DS.attr('raw'),
   created: DS.attr('date'),
   stats: DS.attr('raw'),
@@ -24,4 +24,4 @@ SweetSuite.Boardversion = DS.Model.extend({
   })
 });
 
-export default SweetSuite.Boardversion;
+export default LingoLinq.Boardversion;

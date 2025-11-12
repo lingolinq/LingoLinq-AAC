@@ -1,7 +1,7 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
-SweetSuite.Word = DS.Model.extend({
+LingoLinq.Word = DS.Model.extend({
   word: DS.attr('string'),
   locale: DS.attr('string'),
   parts_of_speech: DS.attr('raw'),
@@ -11,4 +11,4 @@ SweetSuite.Word = DS.Model.extend({
   skip: DS.attr('boolean')
 });
 
-export default SweetSuite.Word;
+export default LingoLinq.Word;

@@ -1,6 +1,6 @@
 ## Code Investigation
 
-SweetSuite is a large repository at this point, with a lot of moving parts. 
+LingoLinq is a large repository at this point, with a lot of moving parts. 
 Ideally there wouldn't be areas of code that commonly come up when
 troubleshooting/bug fixing, but I'm just not that good of a coder, sorry.
 
@@ -120,7 +120,7 @@ the encrypted results sent as URLs by extra_data objects.
 `persistence.sync` - If users cannot sync or their syncs do not
 actually save data correctly for offline use, this is where to start.
 
-`SweetSuite.Board.skinned_url` - If boards show the original symbols
+`LingoLinq.Board.skinned_url` - If boards show the original symbols
 instead of the user-preferred symbol library or skin tone, there may
 be an issue here.
 
@@ -138,7 +138,7 @@ actions, etc.
 with the correct size of buttons or filling the space correctly, check
 here.
 
-`SweetSuite.Buttonset.load_button_set` - This code occasionally has problems.
+`LingoLinq.Buttonset.load_button_set` - This code occasionally has problems.
 There may be a caching issue somewhere. When users want to load a button set
 the logic is executed here to try to load the button set if the user is online,
 or use the cached version if the user is offline. If the user is online and they
@@ -148,7 +148,7 @@ have a cached version, it can still try to download over an outdated version.
 
 `User.currently_premium` - The logic here is not as straightforward as I 
 would like, but this check is used to decide whether users can see
-*all* features of SweetSuite, or only a limited set. When users pay a
+*all* features of LingoLinq, or only a limited set. When users pay a
 one-time fee or when they cancel their subscription, they can still use the
 app, but they won't have access to all of the "cloud extras" features.
 
@@ -169,10 +169,10 @@ This is a standard Rails app, with a few exceptions. Very little Rails frontend
 support is utilized, as we mostly use it to bootstrap Ember views. The web
 app, as well as all the mobile apps, communicate via the same API for consistency.
 
-To allow for future sharding, I don't use raw database IDs in my apps. SweetSuite
+To allow for future sharding, I don't use raw database IDs in my apps. LingoLinq
 implements a `global_id` attribute which future-proofed for sharding if it
 ever came up. We ended up using for some other helpers along the way, but the
-basic format for IDs in SweetSuite is "#shardnum#_#dbid#".
+basic format for IDs in LingoLinq is "#shardnum#_#dbid#".
 
 JSON generation for the API is all housed in `lib/json_api` rather than
 using the standard Rails JSON generators.
@@ -191,7 +191,7 @@ __board_caching__ - tracking the list of ids available for a user from a given b
 __extra_data__ - helpers for storing large data sets 
 (LogSession and BoardDownstreamButtonSet records) on S3 rather than in the DB.
 
-__global_id__ - helpers for SweetSuite's id lookups. Did this to allow for sharding more
+__global_id__ - helpers for LingoLinq's id lookups. Did this to allow for sharding more
 easily in the future. The most common methods are `find_by_global_id` (looks up
 only by id) and `find_by_path` (looks up by id, or board key or user name, depending).
 Additionally, some records have protected ids, which means they can only be looked 

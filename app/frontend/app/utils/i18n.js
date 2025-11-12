@@ -6,7 +6,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 **/
 import Ember from 'ember';
 import EmberObject from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/string';
 import { assign as emberAssign } from '@ember/polyfills';
@@ -284,9 +284,9 @@ var i18n = EmberObject.extend({
           str = str.replace(terms[idx], value);
         }
       }
-      str = str.replace(/%app_name%/g, SweetSuite.app_name);
-      str = str.replace(/%app_name_upper%/g, SweetSuite.app_name.toUpperCase());
-      str = str.replace(/%company_name%/g, SweetSuite.company_name);
+      str = str.replace(/%app_name%/g, LingoLinq.app_name);
+      str = str.replace(/%app_name_upper%/g, LingoLinq.app_name.toUpperCase());
+      str = str.replace(/%company_name%/g, LingoLinq.company_name);
     }
 
     if(options && options.hash && options.hash.count !== undefined) {
@@ -699,7 +699,7 @@ var i18n = EmberObject.extend({
         })
       }
     } else {
-      console.error("SWEETSUITE: lang override requested an ajax call too soon");
+      console.error("LINGOLINQ: lang override requested an ajax call too soon");
     }
   },
   key_string: function(keyCode) {

@@ -8,7 +8,7 @@ import app_state from '../../utils/app_state';
 import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default Controller.extend({
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
@@ -89,7 +89,7 @@ export default Controller.extend({
     update_logging_code: function() {
       var code = this.get('logging_code');
       var now = (new Date()).getTime();
-      var codes = SweetSuite.session.get('logging_codes') || [];
+      var codes = LingoLinq.session.get('logging_codes') || [];
       var _this = this;
       codes = codes.filter(function(c) { return c.user_id  != _this.get('model.id')});
       codes.push({
@@ -97,7 +97,7 @@ export default Controller.extend({
         code: code,
         timestamp: now
       });
-      SweetSuite.session.set('logging_codes', codes);
+      LingoLinq.session.set('logging_codes', codes);
       this.send('refresh');
     },
     refresh: function() {
@@ -170,7 +170,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('modals/manual-log', {external_device: !!_this.get('model.external_device')}).then(function(res) {
         if(res && res.words && res.words.length > 0 && res.date) {
-          var file = SweetSuite.Log.generate_obf(res.words, res.date);
+          var file = LingoLinq.Log.generate_obf(res.words, res.date);
           _this.send('import', file);
         }
       }, function() { });
@@ -179,7 +179,7 @@ export default Controller.extend({
       var _this = this;
       var log_type = 'unspecified';
       var user_id = _this.get('model.id');
-      SweetSuite.Log.import(file, log_type, user_id).then(function(logs) {
+      LingoLinq.Log.import(file, log_type, user_id).then(function(logs) {
         if(logs.length == 1) {
           _this.transitionToRoute('user.log', _this.get('model.user_name'), logs[0]);
         } else {

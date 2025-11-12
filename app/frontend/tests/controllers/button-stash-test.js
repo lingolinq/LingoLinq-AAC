@@ -18,7 +18,7 @@ describe('ButtonStashController', 'controller:button-stash', function() {
   });
 });
 // import Ember from 'ember';
-// import SweetSuite from '../utils/app';
+// import LingoLinq from '../utils/app';
 // import editManager from '../utils/edit_manager';
 // import modal from '../utils/modal';
 //
@@ -37,11 +37,11 @@ describe('ButtonStashController', 'controller:button-stash', function() {
 //     return "width: 33%; height: 100px; padding: 5px;";
 //   }.property('id'),
 //   inner_button_style: function() {
-//     var height = 100 - SweetSuite.borderPad;
+//     var height = 100 - LingoLinq.borderPad;
 //     return "height: " + height + "px;";
 //   }.property('id'),
 //   image_style: function() {
-//     var height = 100 - SweetSuite.labelHeight - SweetSuite.boxPad;
+//     var height = 100 - LingoLinq.labelHeight - LingoLinq.boxPad;
 //     return "height: " + height + "px;";
 //   }.property('id')
 // });

@@ -10,7 +10,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import speecher from '../../utils/speecher';
 import persistence from '../../utils/persistence';
 

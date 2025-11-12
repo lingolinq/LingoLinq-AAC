@@ -22,8 +22,8 @@ import capabilities from '../../utils/capabilities';
 import utterance from '../../utils/utterance';
 import geo from '../../utils/geo';
 import speecher from '../../utils/speecher';
-import SweetSuite from '../../app';
-import sweetSuiteExtras from '../../utils/extras';
+import LingoLinq from '../../app';
+import lingoLinqExtras from '../../utils/extras';
 import $ from 'jquery';
 
 describe('extras', function() {
@@ -35,7 +35,7 @@ describe('extras', function() {
           called = true;
         }
       });
-      sweetSuiteExtras.track_error('I did something wrong');
+      lingoLinqExtras.track_error('I did something wrong');
       expect(called).toEqual(true);
     });
   });
@@ -65,7 +65,7 @@ describe('extras', function() {
     it('should set the logging silence header if specified', function() {
       db_wait(function() {
         stub(capabilities, 'access_token', 'asdfasdf');
-        stub(SweetSuite, 'protected_user', true);
+        stub(LingoLinq, 'protected_user', true);
         var called = false;
         stub($, 'realAjax', function(opts) {
           expect(opts.url).toEqual('/api/v1/boards/bob/home');
@@ -125,15 +125,15 @@ describe('extras', function() {
 //           options.headers = options.headers || {};
 //           options.headers['Authorization'] = "Bearer " + capabilities.access_token;
 //           options.headers['X-Device-Id'] = device_id;
-//           options.headers['X-SweetSuite-Version'] = window.SweetSuite.VERSION;
+//           options.headers['X-LingoLinq-Version'] = window.LingoLinq.VERSION;
 //         }
-//         if(SweetSuite.protected_user || stashes.get('protected_user')) {
+//         if(LingoLinq.protected_user || stashes.get('protected_user')) {
 //           options.headers = options.headers || {};
 //           options.headers['X-SILENCE-LOGGER'] = 'true';
 //         }
-//         if(SweetSuite.session && SweetSuite.session.get('as_user_id')) {
+//         if(LingoLinq.session && LingoLinq.session.get('as_user_id')) {
 //           options.headers = options.headers || {};
-//           options.headers['X-As-User-Id'] = SweetSuite.session.get('as_user_id');
+//           options.headers['X-As-User-Id'] = LingoLinq.session.get('as_user_id');
 //         }
 //         if(window.ApplicationCache) {
 //           options.headers = options.headers || {};
@@ -156,7 +156,7 @@ describe('extras', function() {
 //             // The bowels of ember aren't expecting $.ajax to return a real
 //             // promise and so they don't catch the rejection properly, which
 //             // potentially causes all sorts of unexpected uncaught errors.
-//             // NOTE: this means that any SweetSuite code should not use the error parameter
+//             // NOTE: this means that any LingoLinq code should not use the error parameter
 //             // if it expects to receive a proper promise.
 //             // TODO: raise an error somehow if the caller provides an error function
 //             // and expects a proper promise in response.

@@ -9,7 +9,7 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import session from '../utils/session';
 import { isEmpty } from '@ember/utils';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -221,7 +221,7 @@ export default Component.extend({
     },
     login_followup: function(choice) {
       var _this = this;
-      SweetSuite.store.findRecord('user', 'self').then(function(u) {
+      LingoLinq.store.findRecord('user', 'self').then(function(u) {
         u.set('preferences.device.long_token', !!choice);
         u.set('preferences.device.asserted', true);
         u.save().then(function() {

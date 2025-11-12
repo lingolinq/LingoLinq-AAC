@@ -11,7 +11,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog, db_wait, queue_promise } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
@@ -23,7 +23,7 @@ describe('Buttonset', function() {
       var result = null;
       var result2 = null;
 
-      var bs = SweetSuite.store.createRecord('buttonset', {});
+      var bs = LingoLinq.store.createRecord('buttonset', {});
       bs.find_buttons('').then(function(res) { result = res; });
       waitsFor(function() { return result; });
       runs(function() {
@@ -41,7 +41,7 @@ describe('Buttonset', function() {
     });
 
     it("should return matching buttons from the current board", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {'label': 'hat', 'depth': 0},
           {'label': 'box', 'depth': 0},
@@ -81,7 +81,7 @@ describe('Buttonset', function() {
     });
 
     it("should return matching buttons from linked boards, including a path to access", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0},
@@ -118,7 +118,7 @@ describe('Buttonset', function() {
     });
 
     it("should ignore hidden buttons by default", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'have', depth: 0, hidden: true},
@@ -139,7 +139,7 @@ describe('Buttonset', function() {
     });
 
     it("should not use paths created by link_disabled buttons", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2', link_disabled: true},
           {label: 'have', depth: 0, board_id: '1', linked_board_id: '2'},
@@ -158,7 +158,7 @@ describe('Buttonset', function() {
     });
 
     it("should default to preferred_link buttons", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'have', depth: 0, board_id: '1', linked_board_id: '2', preferred_link: true},
@@ -177,7 +177,7 @@ describe('Buttonset', function() {
     });
 
     it("should use the shortest viable path", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0, board_id: '1', linked_board_id: '5'},
@@ -198,7 +198,7 @@ describe('Buttonset', function() {
     });
 
     it("should not infinite loop on a matched button that can't be accessed from the current board", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0, board_id: '1', linked_board_id: '5'},
@@ -222,7 +222,7 @@ describe('Buttonset', function() {
     });
 
     it("should not infinite loop on unexpected links", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1'},
           {label: 'can', depth: 1, board_id: '2', linked_board_id: '3'},
@@ -234,7 +234,7 @@ describe('Buttonset', function() {
         expect(res.length).toEqual(0);
       });
 
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'a1', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'b2', depth: 1, board_id: '2', linked_board_id: '3'},
@@ -302,7 +302,7 @@ describe('Buttonset', function() {
         var results = null;
         waitsFor(function() { return stored; });
         runs(function() {
-          var bs = SweetSuite.store.createRecord('buttonset', {
+          var bs = LingoLinq.store.createRecord('buttonset', {
             buttons: [
               {label: 'hat', depth: 0, board_id: '1', image: 'http://www.example.com'}
             ]
@@ -323,7 +323,7 @@ describe('Buttonset', function() {
     });
 
     it("should optionally include buttons accessed via the home board if specified", function() {
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -331,17 +331,17 @@ describe('Buttonset', function() {
           }
         }
       });
-      var home_bs = SweetSuite.store.createRecord('buttonset', {
+      var home_bs = LingoLinq.store.createRecord('buttonset', {
         id: '123',
         buttons: [
           {label: 'hat', depth: 0, board_id: '1'}
         ]
       });
-      var home = SweetSuite.store.createRecord('board', {
+      var home = LingoLinq.store.createRecord('board', {
         id: '123',
         key: 'abc/123'
       });
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: []
       });
 
@@ -354,7 +354,7 @@ describe('Buttonset', function() {
     });
 
     it("should not repeat buttons if they are accessible via the current board and the home board", function() {
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -362,18 +362,18 @@ describe('Buttonset', function() {
           }
         }
       });
-      var home_bs = SweetSuite.store.createRecord('buttonset', {
+      var home_bs = LingoLinq.store.createRecord('buttonset', {
         id: '123',
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'cheese', depth: 1, id: '1', board_id: '2'}
         ]
       });
-      var home = SweetSuite.store.createRecord('board', {
+      var home = LingoLinq.store.createRecord('board', {
         id: '123',
         key: 'abc/123'
       });
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'cheese', depth: 0, id: '1', board_id: '2',}
         ]
@@ -387,7 +387,7 @@ describe('Buttonset', function() {
     });
 
     it("should optionally include buttons accessed via the sidebar if specified", function() {
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -398,26 +398,26 @@ describe('Buttonset', function() {
           ]
         }
       });
-      var home_bs = SweetSuite.store.createRecord('buttonset', {
+      var home_bs = LingoLinq.store.createRecord('buttonset', {
         id: '123',
         buttons: [
           {label: 'chop', depth: 0, id: '1', board_id: '3'}
         ]
       });
-      var home = SweetSuite.store.createRecord('board', {
+      var home = LingoLinq.store.createRecord('board', {
         id: '123',
         key: 'abc/123'
       });
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'cheese', depth: 0, id: '1', board_id: '2',}
         ]
       });
-      var sidebar = SweetSuite.store.createRecord('board', {
+      var sidebar = LingoLinq.store.createRecord('board', {
         id: '234',
         key: '234'
       });
-      var sidebar_bs = SweetSuite.store.createRecord('buttonset', {
+      var sidebar_bs = LingoLinq.store.createRecord('buttonset', {
         id: '234',
         buttons: [
           {label: 'chicken', depth: 0, id: '1', board_id: '1', linked_board_id: '4'},
@@ -440,7 +440,7 @@ describe('Buttonset', function() {
     });
 
     it("should order results first by on-current-board and then alphabetically", function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'alfalfa', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'alabaster', depth: 0, board_id: '1', linked_board_id: '6'},
@@ -469,7 +469,7 @@ describe('Buttonset', function() {
     });
 
     it('should include home board search results if specified', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0},
@@ -480,7 +480,7 @@ describe('Buttonset', function() {
         ]
       });
 
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -572,7 +572,7 @@ describe('Buttonset', function() {
     });
 
     it('should include sidebar board search results if specified', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0},
@@ -583,7 +583,7 @@ describe('Buttonset', function() {
         ]
       });
 
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -680,7 +680,7 @@ describe('Buttonset', function() {
     });
 
     it('should not duplicate results when a linked board matches the home board or sidebar board', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0},
@@ -691,7 +691,7 @@ describe('Buttonset', function() {
         ]
       });
 
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -789,7 +789,7 @@ describe('Buttonset', function() {
     });
 
     it('should show the shortest path to a home-linked button, even after a longer path is found via a sidebar board', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0},
@@ -800,7 +800,7 @@ describe('Buttonset', function() {
         ]
       });
 
-      var user = SweetSuite.store.createRecord('user', {
+      var user = LingoLinq.store.createRecord('user', {
         preferences: {
           home_board: {
             id: '123',
@@ -884,7 +884,7 @@ describe('Buttonset', function() {
     });
 
     it('should correctly handle loading results for a board different than the button_set', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {label: 'hat', depth: 0, board_id: '1', linked_board_id: '2'},
           {label: 'box', depth: 0, board_id: '1'},
@@ -924,7 +924,7 @@ describe('Buttonset', function() {
     });
 
     it('should allow for misspellings', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {'label': 'hat', 'depth': 0},
           {'label': 'box', 'depth': 0},

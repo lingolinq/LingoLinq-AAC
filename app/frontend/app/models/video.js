@@ -1,12 +1,12 @@
 import RSVP from 'rsvp';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Video = DS.Model.extend({
+LingoLinq.Video = DS.Model.extend({
   didLoad: function() {
    this.checkForDataURL().then(null, function() { });
     this.clean_license();
@@ -53,7 +53,7 @@ SweetSuite.Video = DS.Model.extend({
   checkForDataURL: function() {
     this.set('checked_for_data_url', true);
     var _this = this;
-    if(!this.get('data_url') && SweetSuite.remote_url(this.get('url')) && !persistence.online) {
+    if(!this.get('data_url') && LingoLinq.remote_url(this.get('url')) && !persistence.online) {
       return persistence.find_url(this.get('url'), 'video').then(function(data_uri) {
         _this.set('data_url', data_uri);
         return _this;
@@ -68,7 +68,7 @@ SweetSuite.Video = DS.Model.extend({
   })
 });
 
-SweetSuite.Video.reopenClass({
+LingoLinq.Video.reopenClass({
   mimic_server_processing: function(record, hash) {
     if(record.get('data_url')) {
       hash.video.url = record.get('data_url');
@@ -78,4 +78,4 @@ SweetSuite.Video.reopenClass({
   }
 });
 
-export default SweetSuite.Video;
+export default LingoLinq.Video;

@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import image from '../../models/image';
 
 var color_index = 0;
@@ -20,7 +20,7 @@ export default Component.extend({
     var max = 0;
     var statuses = {};
     if(this.get('order') == 'status') {
-      SweetSuite.user_statuses.forEach(function(s, idx) {
+      LingoLinq.user_statuses.forEach(function(s, idx) {
         statuses[s.id] = [idx, s];
       });
     }

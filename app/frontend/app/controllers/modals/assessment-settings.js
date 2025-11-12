@@ -7,7 +7,7 @@ import evaluation from '../../utils/eval';
 import { set as emberSet } from '@ember/object';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -51,7 +51,7 @@ export default modal.ModalController.extend({
             _this.set('settings.for_user.user_name', u.user_name);
           }
         });
-        var u = SweetSuite.store.peekRecord('user', user_id);
+        var u = LingoLinq.store.peekRecord('user', user_id);
         u = u || (app_state.get('quick_users') || {})[user_id];
         if(u) {
           _this.set('settings.for_user.user_name', u.user_name);

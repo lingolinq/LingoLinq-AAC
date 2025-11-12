@@ -1,7 +1,7 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { htmlSafe } from '@ember/string';
 import { computed, observer } from '@ember/object';
 import contentGrabbers from '../utils/content_grabbers';
@@ -10,7 +10,7 @@ import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
-SweetSuite.Log = DS.Model.extend({
+LingoLinq.Log = DS.Model.extend({
   didLoad: function() {
     this.check_for_events();
   },
@@ -278,13 +278,13 @@ SweetSuite.Log = DS.Model.extend({
   }
 });
 
-SweetSuite.Log.manual_log = function(user_id, external_device) {
+LingoLinq.Log.manual_log = function(user_id, external_device) {
   modal.open('modals/manual-log', {external_device: external_device}).then(function(res) {
     if(res && res.words && res.words.length > 0 && res.date) {
-      var file = SweetSuite.Log.generate_obf(res.words, res.date);
+      var file = LingoLinq.Log.generate_obf(res.words, res.date);
 
       var log_type = 'unspecified';
-      SweetSuite.Log.import(file, log_type, user_id).then(function(logs) {
+      LingoLinq.Log.import(file, log_type, user_id).then(function(logs) {
         modal.success(i18n.t('log_imported', "Your log session has been imported!"));
       }, function(err) {
         modal.error(i18n.t('log_import_failed', "There was an unexpected error importing the specified logs"));
@@ -293,7 +293,7 @@ SweetSuite.Log.manual_log = function(user_id, external_device) {
   }, function() { });
 };
 
-SweetSuite.Log.generate_obf = function(text, date) {
+LingoLinq.Log.generate_obf = function(text, date) {
   // manual-entered data by a user, one button label per line, with a date and time field
   // convert it to obl and import it, yo
   var json = {
@@ -329,7 +329,7 @@ SweetSuite.Log.generate_obf = function(text, date) {
   return file;
 };
 
-SweetSuite.Log.import = function(file, log_type, user_id) {
+LingoLinq.Log.import = function(file, log_type, user_id) {
   return new RSVP.Promise(function(resolve, reject) {
     var progressor = EmberObject.create();
     modal.open('modals/importing-logs', progressor);
@@ -346,4 +346,4 @@ SweetSuite.Log.import = function(file, log_type, user_id) {
 
 };
 
-export default SweetSuite.Log;
+export default LingoLinq.Log;

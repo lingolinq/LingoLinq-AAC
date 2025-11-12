@@ -4,7 +4,7 @@ import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
 import capabilities from '../../utils/capabilities';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import evaluation from '../../utils/eval';
 import { observer } from '@ember/object';
@@ -24,7 +24,7 @@ export default Controller.extend({
     var elem = document.getElementsByClassName('geo_map')[0];
     var geo = this.get('model.geo');
     if(user && user.get('preferences.geo_logging') && geo) {
-        SweetSuite.Visualizations.wait('geo', function() {
+        LingoLinq.Visualizations.wait('geo', function() {
           if(elem && geo) {
             var current_info = null;
             if(elem) {

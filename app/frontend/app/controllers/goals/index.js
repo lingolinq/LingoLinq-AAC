@@ -3,7 +3,7 @@ import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import stashes from '../../utils/_stashes';
 
@@ -11,7 +11,7 @@ export default Controller.extend({
   load_goals: function() {
     var _this = this;
     _this.set('goals', {loading: true});
-    SweetSuite.store.query('goal', {template_header: true}).then(function(data) {
+    LingoLinq.store.query('goal', {template_header: true}).then(function(data) {
       _this.set('goals', data.map(function(i) { return i; }));
       _this.set('goals.meta', data.meta);
     }, function(err) {
@@ -19,7 +19,7 @@ export default Controller.extend({
     });
     if(app_state.get('currentUser.permissions.admin_support_actions')) {
       _this.set('global_goals', {loading: true});
-      SweetSuite.store.query('goal', {global: true}).then(function(data) {
+      LingoLinq.store.query('goal', {global: true}).then(function(data) {
         _this.set('global_goals', data.map(function(i) { return i; }));
         _this.set('global_goals.meta', data.meta);
       }, function(err) {
@@ -37,7 +37,7 @@ export default Controller.extend({
   }),
   actions: {
     new_goal: function() {
-      var goal = SweetSuite.store.createRecord('goal');
+      var goal = LingoLinq.store.createRecord('goal');
       goal.set('template_header', true);
       this.set('new_goal', goal);
     },

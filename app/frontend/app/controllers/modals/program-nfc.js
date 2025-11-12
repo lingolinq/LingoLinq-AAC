@@ -1,7 +1,7 @@
 import modal from '../../utils/modal';
 import { later as runLater } from '@ember/runloop';
 import capabilities from '../../utils/capabilities';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
@@ -103,7 +103,7 @@ export default modal.ModalController.extend({
               var tag_uri_id = (tag.uri.match(/^cough:\/\/tag\/([^\/]+)$/) || [])[1];
               if(tag_uri_id) { tag_id = tag_uri_id; }
             }
-            SweetSuite.store.findRecord('tag', tag_id).then(function(tag_object) {
+            LingoLinq.store.findRecord('tag', tag_id).then(function(tag_object) {
               if(tag_object.get('label') || tag_object.get('button')) {
                 // save tag to user and close
                 var tag_ids = [].concact(_this.get('model.user.preferences.tag_ids') || []);

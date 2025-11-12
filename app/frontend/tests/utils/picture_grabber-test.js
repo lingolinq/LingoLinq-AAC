@@ -22,7 +22,7 @@ import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';
 import stashes from '../../utils/_stashes';
 import EmberObject from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import $ from 'jquery';
 
 describe('pictureGrabber', function() {
@@ -814,7 +814,7 @@ describe('pictureGrabber', function() {
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
-          author_name: 'SweetSuite',
+          author_name: 'LingoLinq',
           author_url: 'https://www.mycoughdrop.com',
           uneditable: true
         }
@@ -825,7 +825,7 @@ describe('pictureGrabber', function() {
         license: {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
-          author_name: 'SweetSuite',
+          author_name: 'LingoLinq',
           author_url: 'https://www.mycoughdrop.com',
           uneditable: true
         }
@@ -896,8 +896,8 @@ describe('pictureGrabber', function() {
 
   describe("protected_search", function() {
     it('should make the correct query', function() {
-      var u = SweetSuite.store.createRecord('user', {user_token: 'token'});
-      SweetSuite.store.createRecord('image');
+      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
         expect(url).toEqual("/api/v1/search/protected_symbols?library=somewhere&q=hat&user_name=");
@@ -934,8 +934,8 @@ describe('pictureGrabber', function() {
     });
 
     it('should include user_name if defined', function() {
-      var u = SweetSuite.store.createRecord('user', {user_token: 'token'});
-      SweetSuite.store.createRecord('image');
+      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
         expect(url).toEqual("/api/v1/search/protected_symbols?library=somewhere&q=hat&user_name=jason");
@@ -958,8 +958,8 @@ describe('pictureGrabber', function() {
     });
 
     it('should fall back to the default search on error if fallback is allowed', function() {
-      var u = SweetSuite.store.createRecord('user', {user_token: 'token'});
-      SweetSuite.store.createRecord('image');
+      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
         expect(url).toEqual("/api/v1/search/protected_symbols?library=somewhere&q=hat&user_name=jason");
@@ -984,8 +984,8 @@ describe('pictureGrabber', function() {
     });
 
     it('should not fall back if fallback is not allowed', function() {
-      var u = SweetSuite.store.createRecord('user', {user_token: 'token'});
-      SweetSuite.store.createRecord('image');
+      var u = LingoLinq.store.createRecord('user', {user_token: 'token'});
+      LingoLinq.store.createRecord('image');
       app_state.set('currentUser', u);
       stub(persistence, 'ajax', function(url, opts) {
         expect(url).toEqual("/api/v1/search/protected_symbols?library=somewhere&q=hat&user_name=jason");

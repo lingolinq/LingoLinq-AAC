@@ -13,9 +13,9 @@
       <button class='btn btn-default btn-lg' {{action 'back'}}>{{t "Back to List" key='back_to_list'}}</button>
     {{else}}
       {{#if model.user}}
-        <p>{{t "Start codes are unique codes you can share with users who are new to SweetSuite. When they sign up they can optionally enter a start code, and if they do, then they will automatically see you added as a supervisor. You can also optionally set some preferences for them, like a default starting board." key='start_codes_user_explainer'}}</p>
+        <p>{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically see you added as a supervisor. You can also optionally set some preferences for them, like a default starting board." key='start_codes_user_explainer'}}</p>
       {{else}}
-        <p>{{t "Start codes are unique codes you can share with users who are new to SweetSuite. When they sign up they can optionally enter a start code, and if they do, then they will automatically be added to your organization. You can also optionally set some preferences for them, like a default starting board, and these settings will be set for each user who uses the start code." key='start_codes_org_explainer'}}</p>
+        <p>{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically be added to your organization. You can also optionally set some preferences for them, like a default starting board, and these settings will be set for each user who uses the start code." key='start_codes_org_explainer'}}</p>
       {{/if}}
       <h4>{{t "Existing Codes" key='existing_codes'}}</h4>
       {{#if org_or_user.start_codes}}

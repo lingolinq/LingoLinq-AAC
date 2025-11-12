@@ -5,10 +5,10 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import i18n from './i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import editManager from './edit_manager';
 import persistence from './persistence';
-import sweetSuiteExtras from './extras';
+import lingoLinqExtras from './extras';
 import modal from './modal';
 import stashes from './_stashes';
 import capabilities from './capabilities';
@@ -531,7 +531,7 @@ var pictureGrabber = EmberObject.extend({
       var url = res.url;
       if(type == 'avatar' || type == 'badge') {
         var content_type = (url.split(/:/)[1] || "").split(/;/)[0];
-        var image = SweetSuite.store.createRecord('image', {
+        var image = LingoLinq.store.createRecord('image', {
           url: url,
           content_type: content_type,
           width: res.width || pictureGrabber.default_size,
@@ -700,16 +700,16 @@ var pictureGrabber = EmberObject.extend({
       var which_skin = null;
       if((skin && skin != 'default') || app_state.get('currentUser.preferences.skin')) {
         var s = (skin && skin != 'default') ? skin : app_state.get('currentUser.preferences.skin');
-        which_skin = SweetSuite.Board.which_skinner(s);
+        which_skin = LingoLinq.Board.which_skinner(s);
       }
       data.forEach(function(img) {
         if(img.skins) {
           if(skin && skin != 'default') {
-            img.image_url = SweetSuite.Board.skinned_url(img.image_url, which_skin);
+            img.image_url = LingoLinq.Board.skinned_url(img.image_url, which_skin);
           } else if(app_state.get('currentUser.preferences.skin')) {
             // show the skinned url, but when saving, save the original_url
             img.to_save_url = img.image_url;
-            img.image_url = SweetSuite.Board.skinned_url(img.image_url, which_skin);
+            img.image_url = LingoLinq.Board.skinned_url(img.image_url, which_skin);
           }
           img.thumbnail_url = img.image_url;
           // show the personalized url
@@ -724,7 +724,7 @@ var pictureGrabber = EmberObject.extend({
     return persistence.ajax('/api/v1/search/protected_symbols?library=' + encodeURIComponent(library) + '&q=' + encodeURIComponent(text) + '&user_name=' + encodeURIComponent(user_name), { type: 'GET'
     }).then(function(data) {
       data.forEach(function(img) {
-        img.image_url = SweetSuite.Image.personalize_url(img.image_url, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'));
+        img.image_url = LingoLinq.Image.personalize_url(img.image_url, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'));
       });
       return data;
     }, function(xhr, message) {
@@ -953,7 +953,7 @@ var pictureGrabber = EmberObject.extend({
       license: {
         type: 'CC By',
         copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
-        author_name: SweetSuite.app_name,
+        author_name: LingoLinq.app_name,
         author_url: 'https://www.mycoughdrop.com',
         uneditable: true
       }
@@ -980,7 +980,7 @@ var pictureGrabber = EmberObject.extend({
     });
 
     var save_image = image_load.then(function(data) {
-      var image = SweetSuite.store.createRecord('image', {
+      var image = LingoLinq.store.createRecord('image', {
         url: data_url,
         content_type: content_type,
         width: data.width,
@@ -1002,7 +1002,7 @@ var pictureGrabber = EmberObject.extend({
     if(!preview.license || !preview.license.copyright_notice_url) {
       emberSet(preview, 'license', preview.license || {});
       var license_url = null;
-      var licenses = SweetSuite.licenseOptions;
+      var licenses = LingoLinq.licenseOptions;
       for(var idx = 0; idx < licenses.length; idx++) {
         if(licenses[idx].id == preview.license.type) {
           license_url = licenses[idx].url;
@@ -1029,7 +1029,7 @@ var pictureGrabber = EmberObject.extend({
     var label = button && button.label;
     var save_image = image_load.then(function(data) {
       var url = preview.save_url || preview.url;
-      var image = SweetSuite.store.createRecord('image', {
+      var image = LingoLinq.store.createRecord('image', {
         url: persistence.normalize_url(url),
         content_type: preview.content_type,
         width: data.width,
@@ -1098,7 +1098,7 @@ var pictureGrabber = EmberObject.extend({
     }).then(null, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
-      sweetSuiteExtras.track_error("upload failed: " + err.error);
+      lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
       _this.controller.set('model.pending_image', false);
     });
@@ -1671,7 +1671,7 @@ var videoGrabber = EmberObject.extend({
     if(!preview.license || !preview.license.copyright_notice_url) {
       var preview_license = preview.license || {};
       var license_url = null;
-      var licenses = SweetSuite.licenseOptions;
+      var licenses = LingoLinq.licenseOptions;
       for(var idx = 0; idx < licenses.length; idx++) {
         if(licenses[idx].id == preview_license.type) {
           license_url = licenses[idx].url;
@@ -1684,7 +1684,7 @@ var videoGrabber = EmberObject.extend({
     var video_load = _this.measure_duration(preview.local_url || preview.url, preview.duration);
 
     var save_video = video_load.then(function(data) {
-      var video = SweetSuite.store.createRecord('video', {
+      var video = LingoLinq.store.createRecord('video', {
         content_type: preview.content_type || '',
         url: preview.url,
         blob: preview.blob,
@@ -1702,7 +1702,7 @@ var videoGrabber = EmberObject.extend({
     }, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
-      sweetSuiteExtras.track_error("upload failed: " + err.error);
+      lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
       _this.controller.set('video_preview.saving', false);
       _this.controller.sendAction('video_not_ready');
@@ -2018,7 +2018,7 @@ var soundGrabber = EmberObject.extend({
     if(!preview.license || !preview.license.copyright_notice_url) {
       var preview_license = preview.license || {};
       var license_url = null;
-      var licenses = SweetSuite.licenseOptions;
+      var licenses = LingoLinq.licenseOptions;
       for(var idx = 0; idx < licenses.length; idx++) {
         if(licenses[idx].id == preview_license.type) {
           license_url = licenses[idx].url;
@@ -2047,7 +2047,7 @@ var soundGrabber = EmberObject.extend({
 
     var user_id = this.controller && this.controller.get('user_id');
     var save_sound = sound_load.then(function(data) {
-      var sound = SweetSuite.store.createRecord('sound', {
+      var sound = LingoLinq.store.createRecord('sound', {
         content_type: preview.content_type || '',
         url: preview.url,
         name: preview.name,
@@ -2082,7 +2082,7 @@ var soundGrabber = EmberObject.extend({
     }, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
-      sweetSuiteExtras.track_error("upload failed: " + err.error);
+      lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
       if(_this.controller) {
         _this.controller.set('model.pending_sound', false);
@@ -2177,14 +2177,14 @@ var boardGrabber = EmberObject.extend({
       // match by key and then by query string. It'd be better if it were only
       // one lookup..
       var keyed_find_args = $.extend({}, find_args, {key: key});
-      keyed_find = SweetSuite.store.query('board', keyed_find_args).then(null, function() { return RSVP.resolve([]); });
+      keyed_find = LingoLinq.store.query('board', keyed_find_args).then(null, function() { return RSVP.resolve([]); });
     }
     keyed_find.then(function(data) {
       var board = data.find(function() { return true; });
       if(!board || !_this.controller.get('linkedBoardName')) {
         find_args.q = q;
         _this.controller.set('foundBoards.locale', find_args.preferred_locale);
-        SweetSuite.store.query('board', find_args).then(function(data) {
+        LingoLinq.store.query('board', find_args).then(function(data) {
           if(data.meta && data.meta.progress) {
             progress_tracker.track(data.meta.progress, function(event) {
               if(event.status == 'errored') {
@@ -2192,7 +2192,7 @@ var boardGrabber = EmberObject.extend({
               } else if(event.status == 'finished') {
                 var result = [];
                 event.result.board.forEach(function(board) {
-                  result.push(SweetSuite.store.push({ data: {
+                  result.push(LingoLinq.store.push({ data: {
                     id: board.id,
                     type: 'board',
                     attributes: board
@@ -2213,7 +2213,7 @@ var boardGrabber = EmberObject.extend({
     }, function() { });
   },
   build_board: function() {
-    var board = SweetSuite.store.createRecord('board', {
+    var board = LingoLinq.store.createRecord('board', {
       name: this.controller.get('linkedBoardName'),
       copy_access: true,
       grid: {}
@@ -2276,7 +2276,7 @@ var boardGrabber = EmberObject.extend({
     board.set('sharing_status', null);
     board.reload().then(function() {
       board.set('copy_status', {copying: true});
-      SweetSuite.store.findRecord('user', new_author).then(function(user) {
+      LingoLinq.store.findRecord('user', new_author).then(function(user) {
         editManager.copy_board(board, 'copy_only', user).then(function(copy) {
           board.set('copy_status', null);
           _this.pick_board(copy, true);

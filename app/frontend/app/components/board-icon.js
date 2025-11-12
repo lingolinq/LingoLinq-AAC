@@ -1,6 +1,6 @@
 import { htmlSafe } from '@ember/string';
 import Component from '@ember/component';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import { observer } from '@ember/object';
@@ -19,7 +19,7 @@ export default Component.extend({
     }
     if(!board.reload && board.key) {
       var _this = this;
-      var b = SweetSuite.store.peekRecord('board', board.id);
+      var b = LingoLinq.store.peekRecord('board', board.id);
       var found_board = function() {
           // If specified as a hash {key: '', locale: ''}
           // then use that locale to set the display name
@@ -30,7 +30,7 @@ export default Component.extend({
           _this.set('board_record', b);
       };
       if(!b) {
-        SweetSuite.store.findRecord('board', board.id || board.key).then(function(brd) {
+        LingoLinq.store.findRecord('board', board.id || board.key).then(function(brd) {
           b = brd;
           found_board();
         }, function() { });  

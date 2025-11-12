@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import $ from 'jquery';
-import sweetSuiteExtras from '../utils/extras';
+import lingoLinqExtras from '../utils/extras';
 import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';

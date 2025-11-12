@@ -3,7 +3,7 @@ import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import persistence from '../../utils/persistence';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
@@ -31,7 +31,7 @@ export default Controller.extend({
       var _this = this;
       _this.set('daily_use', {loading: true});
       persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/daily_use', {type: 'GET'}).then(function(data) {
-        var log = SweetSuite.store.push({ data: {
+        var log = LingoLinq.store.push({ data: {
           id: data.log.id,
           type: 'log',
           attributes: data.log
@@ -218,7 +218,7 @@ export default Controller.extend({
         for(var id in copies) {
           if(cluster_orphans) {
             var obj = {
-              board: SweetSuite.store.createRecord('board', {name: "Orphan Boards id:" + id}),
+              board: LingoLinq.store.createRecord('board', {name: "Orphan Boards id:" + id}),
               children: [],
               orphan: true
             };
@@ -408,7 +408,7 @@ export default Controller.extend({
         this.set('home_board_pref', this.get('model.preferences.home_board'));
       }
       var _this = this;
-      SweetSuite.store.findRecord('board', this.get('model.preferences.home_board.key')).then(function(brd) {
+      LingoLinq.store.findRecord('board', this.get('model.preferences.home_board.key')).then(function(brd) {
         _this.set('home_board_pref', brd);
       }, function(err) { });
     }
@@ -669,7 +669,7 @@ export default Controller.extend({
 
         var _this = this;
         var new_key = _this.get('new_user_name.value');
-        new_key = SweetSuite.clean_path(new_key);
+        new_key = LingoLinq.clean_path(new_key);
         var old_key = _this.get('new_user_name.old_value');
         if(old_key != _this.get('model.user_name')) { return; }
 
@@ -739,7 +739,7 @@ export default Controller.extend({
       }
     },
     manual_log: function() {
-      SweetSuite.Log.manual_log(this.get('model.id'), !!this.get('model.external_device'));
+      LingoLinq.Log.manual_log(this.get('model.id'), !!this.get('model.external_device'));
     },
     profile_preview: function() {
       modal.open('modals/profiles', {user: this.get('model')});

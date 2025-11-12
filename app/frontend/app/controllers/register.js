@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed, observer } from '@ember/object';
 import persistence from '../utils/persistence';
 
@@ -8,7 +8,7 @@ import persistence from '../utils/persistence';
 export default Controller.extend({
   title: "Register",
   queryParams: ['code', 'v'],
-  registration_types: SweetSuite.registrationTypes,
+  registration_types: LingoLinq.registrationTypes,
   triedToSave: false,
   badEmail: computed('model.email', 'triedToSave', function() {
     var email = this.get('model.email');

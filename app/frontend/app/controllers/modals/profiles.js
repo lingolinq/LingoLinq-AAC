@@ -8,7 +8,7 @@ import stashes from '../../utils/_stashes';
 import app_state from '../../utils/app_state';
 import utterance from '../../utils/utterance';
 import i18n from '../../utils/i18n';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { set as emberSet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -25,13 +25,13 @@ export default modal.ModalController.extend({
     if(_this.get('model.profile_id')) {
       _this.set('profile', {loading: true});
       
-      // SweetSuite.store.findRecord('profile', _this.get('model.profile_id')).then(function(pt) {
+      // LingoLinq.store.findRecord('profile', _this.get('model.profile_id')).then(function(pt) {
       //   _this.set('profile', pt);
       // }, function(err) {
       //   _this.set('profile', {error: true});
       // });
       var load_template = function(profile_results) {
-        SweetSuite.store.findRecord('profile', _this.get('model.profile_id')).then(function(pt) {
+        LingoLinq.store.findRecord('profile', _this.get('model.profile_id')).then(function(pt) {
           var template = pt.get('template');
           if(profile_results) {
             template.name = profile_results.name;
@@ -179,7 +179,7 @@ export default modal.ModalController.extend({
         var _this = this;
         _this.set('lookup_state', {loading: true});
         _this.set('browse_state', null);
-        SweetSuite.store.findRecord('profile', _this.get('find_profile_id')).then(function(pt) {
+        LingoLinq.store.findRecord('profile', _this.get('find_profile_id')).then(function(pt) {
           _this.set('lookup_state', null);
           _this.transitionToRoute('profile', _this.get('model.user.user_name'), pt.id);
         }, function(err) {

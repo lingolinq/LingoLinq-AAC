@@ -5,13 +5,13 @@ import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
-import sweetSuiteExtras from '../utils/extras';
+import lingoLinqExtras from '../utils/extras';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
 import contentGrabbers from '../utils/content_grabbers';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
@@ -29,7 +29,7 @@ export default Controller.extend({
     {key: 'canvas', name: i18n.t('canvas', "HTML5 Canvas"), description: i18n.t('canvas_info', "%app_name% lets you crop and colorize images to better match your board requirements, and it uses something called the Canvas element to make that happen.")},
     {key: 'audio_playback', name: i18n.t('audio_playback', "Audio Playback"), description: i18n.t('audio_playback_info', "If you record your own sounds you'll want to be able to play them back, but not all browsers support audio playback, or don't always support the file types %app_name% uses."), tests: ['1', '2', '3']},
     {key: 'drag_and_drop', name: i18n.t('drag_and_drop', "Drag and Drop"), description: i18n.t('drag_and_drop_info', "It doesn't make sense on a mobile device, but on a desktop browser dragging and dropping images and sounds onto buttons while editing can save a lot of time.")},
-    {key: 'file_reader', name: i18n.t('file_reader', "FileReader"), description: i18n.t('file_reader_info', "The FileReader tool is a required component if you're uploading images or audio from your computer to use in SweetSuite.")},
+    {key: 'file_reader', name: i18n.t('file_reader', "FileReader"), description: i18n.t('file_reader_info', "The FileReader tool is a required component if you're uploading images or audio from your computer to use in LingoLinq.")},
     {key: 'geolocation', name: i18n.t('geolocation', "Geolocation"), description: i18n.t('geolocation_info', "%app_name% optionally uses geolocation to track usage and build reports that can compare communication across multiple locations.")},
     {key: 'speech_to_text', name: i18n.t('speech_to_text', "Speech to Text"), description: i18n.t('speech_to_text_info', "Some browsers allow you speak and have your words converted to text. This can make it easier to do things like make a list of buttons to add to a newly-created board.")},
     {key: 'online', name: i18n.t('online', "Online/Offline Status"), description: i18n.t('online_info', "Some browsers allow checking for online/offline status. %app_name% can use this to function more effectively offline, and to automatically sync changes and logs when an Internet connection is re-established.")},
@@ -53,7 +53,7 @@ export default Controller.extend({
     }
   },
   error_count: computed('load_stamp', 'app_state.medium_refresh_stamp', function() {
-    return (SweetSuite.errors || []).length;
+    return (LingoLinq.errors || []).length;
   }),
   run_speech_synthesis_voices_test: function(test) {
     if(speecher.scope.speechSynthesis) {
@@ -351,9 +351,9 @@ export default Controller.extend({
       }
     }
 
-    if(sweetSuiteExtras.storage) {
+    if(lingoLinqExtras.storage) {
       var user_name = app_state.get('currentUser.user_name');
-      sweetSuiteExtras.storage.find_all('board').then(function(list) {
+      lingoLinqExtras.storage.find_all('board').then(function(list) {
         _this.set('local_boards', list.filter(function(d) { return d.data && d.data.raw && d.data.raw.user_name == user_name; }).length);
       }, function(err) {
         _this.set('local_boards', null);
@@ -368,7 +368,7 @@ export default Controller.extend({
       if(this.get('errors')) {
         this.set('errors', null);
         } else {
-        this.set('errors', SweetSuite.errors || []);
+        this.set('errors', LingoLinq.errors || []);
       }
     },
     show_debugging: function() {

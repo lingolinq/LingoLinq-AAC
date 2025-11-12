@@ -1,7 +1,7 @@
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import editManager from '../../utils/edit_manager';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
@@ -16,7 +16,7 @@ export default modal.ModalController.extend({
   level_select: computed('paint_type', function() {
     return this.get('paint_type') == 'hidden' || this.get('paint_type') == 'link_disabled';
   }),
-  paint_levels: SweetSuite.board_levels,
+  paint_levels: LingoLinq.board_levels,
   actions: {
     paint: function() {
       if(this.get('paint_type') && (!this.get('level_select') || this.get('paint_level'))) {

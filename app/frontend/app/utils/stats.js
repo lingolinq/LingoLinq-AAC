@@ -1,11 +1,11 @@
 import Ember from 'ember';
 import EmberObject from '@ember/object';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from './i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Stats = EmberObject.extend({
+LingoLinq.Stats = EmberObject.extend({
   no_data: computed('total_sessions', function() {
     return this.get('total_sessions') === undefined || this.get('total_sessions') === 0;
   }),
@@ -254,4 +254,4 @@ SweetSuite.Stats = EmberObject.extend({
   }),
 });
 
-export default SweetSuite.Stats;
+export default LingoLinq.Stats;

@@ -16,7 +16,7 @@ import modal from '../../utils/modal';
 import editManager from '../../utils/edit_manager';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 describe('boardGrabber', function() {
   var boardGrabber = contentGrabbers.boardGrabber;
@@ -161,7 +161,7 @@ describe('boardGrabber', function() {
         }
       });
       boardGrabber.setup(null, controller);
-      controller.set('pending_board', SweetSuite.store.createRecord('board', {name: 'cookie'}));
+      controller.set('pending_board', LingoLinq.store.createRecord('board', {name: 'cookie'}));
       boardGrabber.create_board();
       waitsFor(function() { return called === true; });
       runs(function() {

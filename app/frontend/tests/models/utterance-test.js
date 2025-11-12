@@ -11,14 +11,14 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
 
 describe('Utterance', function() {
   it('should return best_image_url', function() {
-    var u = SweetSuite.store.createRecord('utterance');
+    var u = LingoLinq.store.createRecord('utterance');
 
     expect(u.get('best_image_url')).toEqual(undefined);
 
@@ -36,7 +36,7 @@ describe('Utterance', function() {
   });
 
   it('should correctly check_for_large_image_url', function() {
-    var u = SweetSuite.store.createRecord('utterance');
+    var u = LingoLinq.store.createRecord('utterance');
     var called = false;
     stub(u, 'reload', function() {
       if(u.get('large_image_attempt') > 2) {

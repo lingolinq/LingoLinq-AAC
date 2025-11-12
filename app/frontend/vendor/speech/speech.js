@@ -237,8 +237,8 @@ function polyfillSpeechSynthesis(scope) {
     var voice = scope.speechSynthesis.voiceList.find(function(v) { v.voiceURI == utterance.voiceURI; });
     if((voice && voice.voiceURI == "voice:speak_js") || scope.speechSynthesis.voiceList.length == 1) {
       defaultUtteranceHandler(utterance);
-    } else if(sweetSuiteExtras.ready) {
-      sweetSuiteExtras.tts.speak(utterance);
+    } else if(lingoLinqExtras.ready) {
+      lingoLinqExtras.tts.speak(utterance);
     } else {
       console.log("vocalized: " + utterance.text);
       utterance.endSpeaking();

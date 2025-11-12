@@ -1,7 +1,7 @@
 import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import app_state from '../../utils/app_state';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
@@ -12,7 +12,7 @@ export default modal.ModalController.extend({
     if(app_state.get('pairing.model')) {
       _this.set('modeling_type', 'model');
     }
-    SweetSuite.store.findRecord('user', this.get('model.user_id')).then(function(user) {
+    LingoLinq.store.findRecord('user', this.get('model.user_id')).then(function(user) {
       _this.set('model.user', user);
     }, function(err) {
       _this.set('model.user_error', true);

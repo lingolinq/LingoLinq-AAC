@@ -12,15 +12,15 @@ import config from './config/environment';
 import capabilities from './utils/capabilities';
 import i18n from './utils/i18n';
 import persistence from './utils/persistence';
-import sweetSuiteExtras from './utils/extras';
+import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
-  SweetSuite.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
+  LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
 Ember.onerror = function(err) {
   if(err.stack) {
-    SweetSuite.track_error(err.message, err.stack);
+    LingoLinq.track_error(err.message, err.stack);
   } else {
     if(err.fakeXHR && (err.fakeXHR.status == 400 || err.fakeXHR.status == 404 || err.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
@@ -29,10 +29,10 @@ Ember.onerror = function(err) {
     } else if(err._result && err._result.fakeXHR && (err._result.fakeXHR.status == 400 || err._result.fakeXHR.status == 404 || err._result.fakeXHR.status === 0)) {
       // should already be logged via "ember ajax error"
     } else {
-      SweetSuite.track_error(JSON.stringify(err), false);
+      LingoLinq.track_error(JSON.stringify(err), false);
     }
   }
-  if(Ember.testing || SweetSuite.testing) {
+  if(Ember.testing || LingoLinq.testing) {
     throw(err);
   }
 };
@@ -50,18 +50,18 @@ var customEvents = {
     'select': 'select'
 };
 
-var SweetSuite = EmberApplication.extend({
+var LingoLinq = EmberApplication.extend({
   modulePrefix: config.modulePrefix,
   podModulePrefix: config.podModulePrefix,
   Resolver: Resolver,
   customEvents: customEvents,
   ready: function() {
-    SweetSuite.ready();
+    LingoLinq.ready();
   }
 });
-SweetSuite.ready = function() {
-  if(SweetSuite.readying) { return; }
-  SweetSuite.readying = true;
+LingoLinq.ready = function() {
+  if(LingoLinq.readying) { return; }
+  LingoLinq.readying = true;
   // remove the splash screen if showing
   if(capabilities.installed_app || (navigator && navigator.splashscreen && navigator.splashscreen.hide)) {
     var checkForFooter = function() {
@@ -80,25 +80,25 @@ SweetSuite.ready = function() {
   }
 }
 
-SweetSuite.grabRecord = persistence.DSExtend.grabRecord;
-SweetSuite.embedded = !!location.href.match(/embed=1/);
-SweetSuite.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
-SweetSuite.referrer = document.referrer;
-SweetSuite.app_name = SweetSuite.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "AAC App";
-SweetSuite.company_name = SweetSuite.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "AAC Company";
-SweetSuite.remote_url = function(url) {
+LingoLinq.grabRecord = persistence.DSExtend.grabRecord;
+LingoLinq.embedded = !!location.href.match(/embed=1/);
+LingoLinq.ad_referrer = (location.href.match(/\?ref=([^#]+)/) || [])[1];
+LingoLinq.referrer = document.referrer;
+LingoLinq.app_name = LingoLinq.app_name || (window.domain_settings || {}).app_name || window.default_app_name || "LingoLinq";
+LingoLinq.company_name = LingoLinq.company_name || (window.domain_settings || {}).company_name || window.defualt_company_name || "LingoLinq";
+LingoLinq.remote_url = function(url) {
   return url && url.match(/^http/) && !url.match(/^http:\/\/localhost/);
 };
 
-SweetSuite.track_error = function(msg, stack) {
+LingoLinq.track_error = function(msg, stack) {
   var error = new Error();
   if(window._trackJs) {
     window._trackJs.track(msg);
   } else {
     console.error(msg, stack || error.stack);
   }
-  SweetSuite.errors = SweetSuite.errors || [];
-  SweetSuite.errors.push({
+  LingoLinq.errors = LingoLinq.errors || [];
+  LingoLinq.errors.push({
     message: msg,
     date: (new Date()),
     stack: stack === false ? null : (stack || error.stack)
@@ -111,9 +111,9 @@ if(capabilities.wait_for_deviceready) {
       if(done.completed) { return; }
       done.completed = true;
       if(window.kvstash) {
-        console.debug('SWEETSUITE: found native key value store');
+        console.debug('LINGOLINQ: found native key value store');
       }
-      sweetSuiteExtras.advance('device');
+      lingoLinqExtras.advance('device');
     };
     // Look up the stashed user name, which is needed for bootstrapping session and user data
     // and possibly is getting lost being set just in a cookie and localStorage
@@ -166,18 +166,18 @@ if(capabilities.wait_for_deviceready) {
         }, function(err) {
           make_stash(null);
         }, klass, 'getString', ['user_name']);
-      }, done, klass, 'getSharedPreferences', ['sweetsuite_prefs', 'MODE_PRIVATE']);
+      }, done, klass, 'getSharedPreferences', ['lingolinq_prefs', 'MODE_PRIVATE']);
       RunLater(done, 500);
     } else {
       done();
     }
   });
 } else {
-  sweetSuiteExtras.advance('device');
+  lingoLinqExtras.advance('device');
 }
 
 
-loadInitializers(SweetSuite, config.modulePrefix);
+loadInitializers(LingoLinq, config.modulePrefix);
 
 DS.Model.reopen({
   reload: function(ignore_local) {
@@ -229,7 +229,7 @@ Route.reopen({
     var controller = this.controllerFor(this.routeName);
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
-      SweetSuite.controller.updateTitle(title.toString());
+      LingoLinq.controller.updateTitle(title.toString());
     }
   },
   activate: function() {
@@ -244,7 +244,7 @@ Route.reopen({
   }
 });
 
-SweetSuite.clean_path = function(str) {
+LingoLinq.clean_path = function(str) {
   str = str.replace(/^\s+/, '').replace(/\s+$/, '');
   if(str.length == 0) { str = "_"; }
   if(str.match(/^\d/)) { str + "_" + str; }
@@ -253,18 +253,18 @@ SweetSuite.clean_path = function(str) {
   return str;  
 };
 
-SweetSuite.licenseOptions = [
+LingoLinq.licenseOptions = [
   {name: i18n.t('private_license', "Private (no reuse allowed)"), id: 'private'},
   {name: i18n.t('cc_by_license', "CC By (attribution only)"), id: 'CC By', url: 'https://creativecommons.org/licenses/by/4.0/'},
   {name: i18n.t('cc_by_sa_license', "CC By-SA (attribution + share-alike)"), id: 'CC By-SA', url: 'https://creativecommons.org/licenses/by-sa/4.0/'},
   {name: i18n.t('public_domain_license', "Public Domain"), id: 'public domain', url: 'https://creativecommons.org/publicdomain/zero/1.0/'}
 ];
-SweetSuite.publicOptions = [
+LingoLinq.publicOptions = [
   {name: i18n.t('private', "Private"), id: 'private'},
   {name: i18n.t('public', "Public"), id: 'public'},
   {name: i18n.t('unlisted', "Unlisted"), id: 'unlisted'}
 ];
-SweetSuite.board_categories = [
+LingoLinq.board_categories = [
   {name: i18n.t('robust_vocabularies', "Robust Vocabularies"), id: 'robust'},
   {name: i18n.t('cause_and_effect', "Cause and Effect"), id: 'cause_effect'},
   {name: i18n.t('simple_starters', "Simple Starters"), id: 'simple_starts'},
@@ -272,7 +272,7 @@ SweetSuite.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
-SweetSuite.registrationTypes = [
+LingoLinq.registrationTypes = [
   {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
   {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
@@ -282,7 +282,7 @@ SweetSuite.registrationTypes = [
   {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
   {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
 ];
-SweetSuite.user_statuses = [
+LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
   {id: 'hourglass', label: i18n.t('waiting_for_evaluation', "Waiting for Evaluation"), on: true},
   {id: 'equalizer', label: i18n.t('waiting_for_results', "Waiting for Recommendation from Eval"), on: true},
@@ -299,7 +299,7 @@ SweetSuite.user_statuses = [
   {id: 'apple'},
   {id: 'blackboard'},
 ];
-SweetSuite.access_methods = {
+LingoLinq.access_methods = {
   touch: 'hand-up',
   axis_scanning: 'screenshot',
   scanning: 'barcode',
@@ -312,7 +312,7 @@ SweetSuite.access_methods = {
 };
 
 
-SweetSuite.board_levels = [
+LingoLinq.board_levels = [
   {name: i18n.t('unspecified_empty', "[  ]"), id: ''},
   {name: i18n.t('level_1', "1 - Minimal Targets"), id: '1'},
   {name: i18n.t('level_2', "2 - Basic Core"), id: '2'},
@@ -325,7 +325,7 @@ SweetSuite.board_levels = [
   {name: i18n.t('level_9', "9 - Robust Core and Fringe"), id: '9'},
   {name: i18n.t('level_10', "10 - Full Vocabulary"), id: '10'},
 ];    
-SweetSuite.parts_of_speech = [
+LingoLinq.parts_of_speech = [
   {name: i18n.t('unspecified', "Unspecified"), id: ''},
   {name: i18n.t('noun', "Noun (dog, Dad)"), id: 'noun'},
   {name: i18n.t('verb', "Verb (jump, fly)"), id: 'verb'},
@@ -349,7 +349,7 @@ SweetSuite.parts_of_speech = [
 
 // derived from http://praacticalaac.org/strategy/communication-boards-colorful-considerations/
 // and http://talksense.weebly.com/cbb-8-colour.html
-SweetSuite.keyed_colors = [
+LingoLinq.keyed_colors = [
   {border: "#ccc", fill: "#fff", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
   {border: "#dd0", fill: "#ffa", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
   {border: "#6d0", fill: "#cfa", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
@@ -363,7 +363,7 @@ SweetSuite.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-SweetSuite.extra_keyed_colors = [
+LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},
   {border: '#1086e9', fill: '#a0cfee', label: 'adjf'},
@@ -394,16 +394,16 @@ SweetSuite.extra_keyed_colors = [
   {border: '#ff2f25', fill: '#f3a4a4', label: 'else'}
 ];
 
-SweetSuite.licenseOptions.license_url = function(id) {
-  for(var idx = 0; idx < SweetSuite.licenseOptions.length; idx++) {
-    if(SweetSuite.licenseOptions[idx].id == id) {
-      return SweetSuite.licenseOptions[idx].url;
+LingoLinq.licenseOptions.license_url = function(id) {
+  for(var idx = 0; idx < LingoLinq.licenseOptions.length; idx++) {
+    if(LingoLinq.licenseOptions[idx].id == id) {
+      return LingoLinq.licenseOptions[idx].url;
     }
   }
   return "";
 };
 
-SweetSuite.iconUrls = [
+LingoLinq.iconUrls = [
     {alt: 'house', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/house.svg'},
     {alt: 'food', url: 'https://opensymbols.s3.amazonaws.com/libraries/mulberry/food.svg'},
     {alt: 'verbs', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verbs.png'},
@@ -431,7 +431,7 @@ SweetSuite.iconUrls = [
     {alt: 'phone', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/mobile%20phone.png'},
     {alt: 'board', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'}
 ];
-SweetSuite.avatarUrls = [
+LingoLinq.avatarUrls = [
   {alt: 'happy female', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png'},
   {alt: 'happy', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy%20look_1.png'},
   {alt: 'teacher', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/teacher%20(female).png'},
@@ -489,29 +489,29 @@ SweetSuite.avatarUrls = [
   {alt: 'zombie', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/zombie.png'},
   {alt: 'stegosaurus', url: 'https://opensymbols.s3.amazonaws.com/libraries/language-craft/stegosaurus.png'}
 ];
-SweetSuite.Lessons = {
+LingoLinq.Lessons = {
   track: function(url) {
     return new RSVP.Promise(function(resolve, reject) {
-      var lesson = SweetSuite.Lessons.assert_lesson();
+      var lesson = LingoLinq.Lessons.assert_lesson();
       lesson.restart(url);
     });
   },
   assert_lesson: function() {
-    SweetSuite.Lessons.lesson = SweetSuite.Lessons.lesson || EmberObject.extend({
+    LingoLinq.Lessons.lesson = LingoLinq.Lessons.lesson || EmberObject.extend({
       restart: function(url) {
         this.set('state', null);
       }
     }).create();
   }
 };
-SweetSuite.Videos = {
+LingoLinq.Videos = {
   players: {},
   track: function(dom_id, callback) {
     return new RSVP.Promise(function(resolve, reject) {
-      SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-      SweetSuite.Videos.waiting[dom_id] = SweetSuite.Videos.waiting[dom_id] || [];
+      LingoLinq.Videos.waiting = LingoLinq.Videos.waiting || {};
+      LingoLinq.Videos.waiting[dom_id] = LingoLinq.Videos.waiting[dom_id] || [];
       var found = false;
-      SweetSuite.Videos.waiting[dom_id].push(function(player) {
+      LingoLinq.Videos.waiting[dom_id].push(function(player) {
         found = true;
         if(callback) {
           player.addListener(callback);
@@ -525,19 +525,19 @@ SweetSuite.Videos = {
     });
   },
   untrack: function(dom_id, callback) {
-    var player = SweetSuite.Videos.players[dom_id];
+    var player = LingoLinq.Videos.players[dom_id];
     if(player) {
       player.removeListener(callback);
     }
   },
   player_ready: function(dom, window) {
     if(!dom.id) { return; }
-    if(SweetSuite.Videos.players[dom.id] && SweetSuite.Videos.players[dom.id]._dom == dom) {
+    if(LingoLinq.Videos.players[dom.id] && LingoLinq.Videos.players[dom.id]._dom == dom) {
       return;
     }
     console.log("initializing player", dom.id);
-    if(SweetSuite.Videos.players[dom.id]) {
-      SweetSuite.Videos.players[dom.id].cleanup();
+    if(LingoLinq.Videos.players[dom.id]) {
+      LingoLinq.Videos.players[dom.id].cleanup();
     }
     var player = EmberObject.extend({
       _target_window: window,
@@ -569,12 +569,12 @@ SweetSuite.Videos = {
         });
       }
     }).create({state: 'initialized'});
-    SweetSuite.Videos.players[dom.id] = player;
-    SweetSuite.Videos.waiting = SweetSuite.Videos.waiting || {};
-    (SweetSuite.Videos.waiting[dom.id] || []).forEach(function(callback) {
+    LingoLinq.Videos.players[dom.id] = player;
+    LingoLinq.Videos.waiting = LingoLinq.Videos.waiting || {};
+    (LingoLinq.Videos.waiting[dom.id] || []).forEach(function(callback) {
       callback(player);
     });
-    SweetSuite.Videos.waiting[dom.id] = [];
+    LingoLinq.Videos.waiting[dom.id] = [];
   },
   player_status: function(event) {
     var frame = null;
@@ -590,8 +590,8 @@ SweetSuite.Videos = {
       }
     }
     if(frame && frame.id) {
-      SweetSuite.Videos.player_ready(frame, event.source);
-      var player = SweetSuite.Videos.players[frame.id];
+      LingoLinq.Videos.player_ready(frame, event.source);
+      var player = LingoLinq.Videos.players[frame.id];
       if(player) {
         if(event.data && event.data.time !== undefined) {
           player.set('time', event.data.time);
@@ -629,27 +629,27 @@ window.addEventListener('message', function(event) {
       var dom_id = frame.id;
       var elem = frame;
       event.frameRef = frame;
-      SweetSuite.Videos.player_status(event);
+      LingoLinq.Videos.player_status(event);
     }
   } else if(event.data && event.data.lesson_status) {
-    var lesson = SweetSuite.Lessons.assert_lesson();
+    var lesson = LingoLinq.Lessons.assert_lesson();
     lesson.set('duration', event.data.duration);
     lesson.set('state', event.data.state);
   }
 });
 
 
-// SweetSuite.YT = {
+// LingoLinq.YT = {
 //   track: function(player_id, callback) {
 //     return new RSVP.Promise(function(resolve, reject) {
-//       if(!SweetSuite.YT.ready) {
+//       if(!LingoLinq.YT.ready) {
 //         var tag = document.createElement('script');
 //         tag.src = "https://www.youtube.com/iframe_api";
 //         var firstScriptTag = document.getElementsByTagName('script')[0];
 //         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 //         window.onYouTubeIframeAPIReady = function() {
-//           SweetSuite.YT.ready = true;
-//           SweetSuite.YT.track(player_id, callback).then(function(player) {
+//           LingoLinq.YT.ready = true;
+//           LingoLinq.YT.track(player_id, callback).then(function(player) {
 //             resolve(player);
 //           }, function() { reject('no_player'); });
 //         };
@@ -708,15 +708,15 @@ window.addEventListener('message', function(event) {
 //               }
 //             }
 //           }));
-//           SweetSuite.YT.players = SweetSuite.YT.players || [];
-//           SweetSuite.YT.players.push(player);
+//           LingoLinq.YT.players = LingoLinq.YT.players || [];
+//           LingoLinq.YT.players.push(player);
 //           resolve(player);
 //         }, 200);
 //       }
 //     });
 //   },
 //   poll: function() {
-//     (SweetSuite.YT.players || []).forEach(function(player) {
+//     (LingoLinq.YT.players || []).forEach(function(player) {
 //       if(!player.get('disabled')) {
 //         var p = player.get('_player');
 //         if(p && p.getDuration) {
@@ -739,40 +739,40 @@ window.addEventListener('message', function(event) {
 //         }
 //       }
 //     });
-//     RunLater(SweetSuite.YT.poll, 100);
+//     RunLater(LingoLinq.YT.poll, 100);
 //   }
 // };
 // if(!Ember.testing) {
-//   RunLater(SweetSuite.YT.poll, 500);
+//   RunLater(LingoLinq.YT.poll, 500);
 // }
 
-SweetSuite.Visualizations = {
+LingoLinq.Visualizations = {
   wait: function(name, callback) {
-    if(!SweetSuite.Visualizations.ready) {
-      SweetSuite.Visualizations.callbacks = SweetSuite.Visualizations.callbacks || [];
-//       var found = SweetSuite.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
+    if(!LingoLinq.Visualizations.ready) {
+      LingoLinq.Visualizations.callbacks = LingoLinq.Visualizations.callbacks || [];
+//       var found = LingoLinq.Visualizations.callbacks.find(function(cb) { return cb.name == name; });
 //       if(!found) {
-        SweetSuite.Visualizations.callbacks.push({
+        LingoLinq.Visualizations.callbacks.push({
           name: name,
           callback: callback
         });
 //       }
-      SweetSuite.Visualizations.init();
+      LingoLinq.Visualizations.init();
     } else {
       callback();
     }
   },
   handle_callbacks: function() {
-    SweetSuite.Visualizations.initializing = false;
-    SweetSuite.Visualizations.ready = true;
-    (SweetSuite.Visualizations.callbacks || []).forEach(function(obj) {
+    LingoLinq.Visualizations.initializing = false;
+    LingoLinq.Visualizations.ready = true;
+    (LingoLinq.Visualizations.callbacks || []).forEach(function(obj) {
       obj.callback();
     });
-    SweetSuite.Visualizations.callbacks = [];
+    LingoLinq.Visualizations.callbacks = [];
   },
   init: function() {
-    if(SweetSuite.Visualizations.initializing || SweetSuite.Visualizations.ready) { return; }
-    SweetSuite.Visualizations.initializing = true;
+    if(LingoLinq.Visualizations.initializing || LingoLinq.Visualizations.ready) { return; }
+    LingoLinq.Visualizations.initializing = true;
     if(!window.google || !window.google.visualization || !window.google.maps) {
       var script = document.createElement('script');
       script.type = 'text/javascript';
@@ -785,7 +785,7 @@ SweetSuite.Visualizations = {
               one_done('both');
             }, 500);
           } else {
-            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: SweetSuite.Visualizations.handle_callbacks});
+            window.google.charts.load('current', {packages:["corechart", "sankey"], callback: LingoLinq.Visualizations.handle_callbacks});
           }
         }
       };
@@ -810,36 +810,36 @@ SweetSuite.Visualizations = {
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {
-      RunLater(SweetSuite.Visualizations.handle_callbacks);
+      RunLater(LingoLinq.Visualizations.handle_callbacks);
     }
 
   }
 };
 
-SweetSuite.boxPad = 17;
-SweetSuite.borderPad = 5;
-SweetSuite.labelHeight = 15;
-SweetSuite.customEvents = customEvents;
-SweetSuite.expired = function() {
+LingoLinq.boxPad = 17;
+LingoLinq.borderPad = 5;
+LingoLinq.labelHeight = 15;
+LingoLinq.customEvents = customEvents;
+LingoLinq.expired = function() {
   var keys = window.app_version.match(/(\d+)\.(\d+)\.(\d+)/);
   var version = parseInt(keys[1] + keys[2] + keys[3], 10);
   var now = parseInt(window.moment().format('YYYYMMDD'), 10);
   var diff = now - version;
   return diff > 30;
 };
-SweetSuite.log = {
+LingoLinq.log = {
   start: function() {
-    SweetSuite.log.started = (new Date()).getTime();
+    LingoLinq.log.started = (new Date()).getTime();
   },
   track: function(msg) {
-    if(!SweetSuite.loggy) { return; }
+    if(!LingoLinq.loggy) { return; }
     var now = (new Date()).getTime();
-    if(SweetSuite.log.started) {
-      console.debug("TRACK:" + msg, now - SweetSuite.log.started);
+    if(LingoLinq.log.started) {
+      console.debug("TRACK:" + msg, now - LingoLinq.log.started);
     }
   }
 };
-window.SweetSuite = SweetSuite;
-window.SweetSuite.VERSION = window.app_version;
+window.LingoLinq = LingoLinq;
+window.LingoLinq.VERSION = window.app_version;
 
-export default SweetSuite;
+export default LingoLinq;

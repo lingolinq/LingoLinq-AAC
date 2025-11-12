@@ -3,8 +3,8 @@ import stashes from "./_stashes";
 
 export function redirect_to_modern_view(loginData = {}) {
   let { user_name, access_token } = loginData;
-  if (window.sweetsuite_modern_view_host) {
-    const betaDomainURL = window.sweetsuite_modern_view_host + "/new-login";
+  if (window.lingolinq_modern_view_host) {
+    const betaDomainURL = window.lingolinq_modern_view_host + "/new-login";
     if (!user_name) {
       user_name = session.user_name;
     }
@@ -21,8 +21,8 @@ export function redirect_to_modern_view(loginData = {}) {
 }
 
 export function isModernViewURL(current_web_version) {
-  if (window.sweetsuite_modern_view_host) {
-    if (current_web_version === window.sweetsuite_modern_view_host) {
+  if (window.lingolinq_modern_view_host) {
+    if (current_web_version === window.lingolinq_modern_view_host) {
       return true;
     }
   }

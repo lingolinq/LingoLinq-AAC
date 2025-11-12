@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Stopping all SweetSuite processes..."
+echo "Stopping all LingoLinq processes..."
 
 # Kill foreman if running
 pkill -f foreman && echo "✓ Killed foreman" || echo "- No foreman running"
@@ -19,4 +19,4 @@ echo ""
 echo "Redis is still running (use 'sudo service redis-server stop' if needed)"
 
 echo ""
-echo "All SweetSuite processes stopped!"
+echo "All LingoLinq processes stopped!"

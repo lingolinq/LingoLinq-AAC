@@ -4,7 +4,7 @@ import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import { computed } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import editManager from '../../utils/edit_manager';
 
 export default modal.ModalController.extend({

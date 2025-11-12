@@ -6,7 +6,7 @@ import {
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import modal from '../utils/modal';
@@ -27,7 +27,7 @@ import { set as emberSet } from '@ember/object';
 import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 
-SweetSuite.Board = DS.Model.extend({
+LingoLinq.Board = DS.Model.extend({
   didLoad: function() {
     this.checkForDataURL().then(null, function() { });
     this.check_for_copy();
@@ -157,19 +157,19 @@ SweetSuite.Board = DS.Model.extend({
     });
     if(!skin || skin == 'default') { return local_map; }
 
-    var which_skin = SweetSuite.Board.which_skinner(skin);
+    var which_skin = LingoLinq.Board.which_skinner(skin);
 
     var res = {};
     for(var key in local_map) {
       if(key && local_map[key]) {
-        var url = SweetSuite.Board.skinned_url(local_map[key], which_skin);
+        var url = LingoLinq.Board.skinned_url(local_map[key], which_skin);
         // Use the un-skinned address if it's all that's in the cache
         if(!persistence.url_cache[url] && persistence.url_cache[local_map[key]] && (!persistence.url_uncache || !persistence.url_uncache[local_map[key]])) {
           url = local_map[key];
         }
         res[key] = url;
         if(unskins[key]) {
-          url = SweetSuite.Board.skinned_url(local_map[key], which_skin, true);
+          url = LingoLinq.Board.skinned_url(local_map[key], which_skin, true);
           if(!persistence.url_cache[url] && persistence.url_cache[local_map[key]] && (!persistence.url_uncache || !persistence.url_uncache[local_map[key]])) {
             url = local_map[key];
           }
@@ -233,7 +233,7 @@ SweetSuite.Board = DS.Model.extend({
     return res;
   },
   local_images_with_license: computed('grid', 'buttons', function() {
-    var images = SweetSuite.store.peekAll('image');
+    var images = LingoLinq.store.peekAll('image');
     var result = [];
     var missing = false;
     var fallbacks = this.get('fallback_images') || [];
@@ -246,7 +246,7 @@ SweetSuite.Board = DS.Model.extend({
             if(fb && fb.license) {
               image.set('license', fb.license);
             } else {
-              SweetSuite.store.findRecord('image', button.image_id).then(function(img) {
+              LingoLinq.store.findRecord('image', button.image_id).then(function(img) {
                 image.set('license', img.get('license'));
               });    
             }
@@ -254,7 +254,7 @@ SweetSuite.Board = DS.Model.extend({
           result.push(image);
           var need_reload = [];
           (image.get('alternates') || []).forEach(function(alternate) {
-            var img = SweetSuite.store.createRecord('image')
+            var img = LingoLinq.store.createRecord('image')
             img.set('url', alternate.url);
             img.set('library', alternate.library);
             if(!alternate.license) {
@@ -311,7 +311,7 @@ SweetSuite.Board = DS.Model.extend({
     return res;
   },
   local_sounds_with_license: computed('grid', 'buttons', function() {
-    var sounds = SweetSuite.store.peekAll('sound');
+    var sounds = LingoLinq.store.peekAll('sound');
     var result = [];
     var missing = false;
     var fallbacks = this.get('fallback_sounds') || [];
@@ -324,7 +324,7 @@ SweetSuite.Board = DS.Model.extend({
             if(fb && fb.license) {
               sound.set('license', fb.license);
             } else {
-              SweetSuite.store.findRecord('sound', button.sound_id).then(function(snd) {
+              LingoLinq.store.findRecord('sound', button.sound_id).then(function(snd) {
                 sound.set('license', snd.get('license'));
               });    
 
@@ -808,7 +808,7 @@ SweetSuite.Board = DS.Model.extend({
       if(this.get('editable_source_key') && this.get('editable_source.key') != this.get('editable_source_key')) {
         var _this = this;
         var key = _this.get('editable_source_key');
-        SweetSuite.store.findRecord('board', key).then(function(board) {
+        LingoLinq.store.findRecord('board', key).then(function(board) {
           if(_this.get('editable_source_key') == key) {
             _this.set('editable_source', board);
           }
@@ -824,7 +824,7 @@ SweetSuite.Board = DS.Model.extend({
     return false;
   }),
   create_copy: function(user, make_public, swap_library, new_owner, disconnect) {
-    var board = SweetSuite.store.createRecord('board', {
+    var board = LingoLinq.store.createRecord('board', {
       parent_board_id: this.get('id'),
       key: this.get('key').split(/\//)[1],
       name: this.get('copy_name') || this.get('name'),
@@ -931,7 +931,7 @@ SweetSuite.Board = DS.Model.extend({
     // reload or fetch them remotely to get the latest, updated version,
     // which will include the "my copy" information.
     var do_reloads = app_state.get('board_reloads') || {};
-    SweetSuite.store.peekAll('board').map(function(i) { return i; }).forEach(function(brd) {
+    LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(brd) {
       if(brd && affected_board_ids && affected_board_ids.indexOf(brd.get('id')) != -1) {
         if(!brd.get('isLoading') && !brd.get('isNew') && !brd.get('isDeleted')) {
           do_reloads[brd.get('id')] = true;
@@ -967,7 +967,7 @@ SweetSuite.Board = DS.Model.extend({
     this.set('checked_for_data_url', true);
     var url = this.get('icon_url_with_fallback');
     var _this = this;
-    if(!this.get('image_data_uri') && SweetSuite.remote_url(url)) {
+    if(!this.get('image_data_uri') && LingoLinq.remote_url(url)) {
       return persistence.find_url(url, 'image').then(function(data_uri) {
         _this.set('image_data_uri', data_uri);
         return _this;
@@ -976,14 +976,14 @@ SweetSuite.Board = DS.Model.extend({
       return RSVP.resolve(this);
     }
     var url = this.get('background.image');
-    if(!this.get('background_image_data_uri') && SweetSuite.remote_url(url)) {
+    if(!this.get('background_image_data_uri') && LingoLinq.remote_url(url)) {
       persistence.find_url(url, 'image').then(function(data_uri) {
         _this.set('background_image_data_uri', data_uri);
         return _this;
       });
     }
     var url = this.get('background.prompt.sound');
-    if(!this.get('background_sound_data_uri') && SweetSuite.remote_url(url)) {
+    if(!this.get('background_sound_data_uri') && LingoLinq.remote_url(url)) {
       persistence.find_url(url, 'sound').then(function(data_uri) {
         _this.set('background_sound_data_uri', data_uri);
         return _this;
@@ -1118,14 +1118,14 @@ SweetSuite.Board = DS.Model.extend({
       return res;
     }
     if(!this.get('id')) { return RSVP.reject({error: 'board has no id'}); }
-    var button_set = SweetSuite.store.peekRecord('buttonset', this.get('id'));
+    var button_set = LingoLinq.store.peekRecord('buttonset', this.get('id'));
     if(button_set && !force && (button_set.get('buttons') || button_set.get('root_url'))) {
       this.set('button_set', button_set);
       return button_set.load_buttons();
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
-      SweetSuite.store.peekAll('buttonset').map(function(i) { return i; }).forEach(function(bs) {
+      LingoLinq.store.peekAll('buttonset').map(function(i) { return i; }).forEach(function(bs) {
         if(bs && (bs.get('board_ids') || []).indexOf(_this.get('id')) != -1) {
           if(bs.get('buttons') || bs.get('root_url')) {
             if(bs.get('fresh') || !valid_button_set) {
@@ -1141,7 +1141,7 @@ SweetSuite.Board = DS.Model.extend({
         } else{
         }
       }
-      var res = SweetSuite.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision')).then(function(button_set) {
+      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision')).then(function(button_set) {
         _this.set('button_set', button_set);
         if((_this.get('fresh') || force) && !button_set.get('fresh')) {
           return button_set.reload().then(function(bs) { return bs.load_buttons(force); });
@@ -1217,7 +1217,7 @@ SweetSuite.Board = DS.Model.extend({
     var history = stashes.get('working_vocalization') || [];
     var known_buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), history, false, null) || [];
     var inflections = [];
-    SweetSuite.special_actions.forEach(function(act) {
+    LingoLinq.special_actions.forEach(function(act) {
       if(act.types) {
         inflections.push(act.action);
       }
@@ -1255,7 +1255,7 @@ SweetSuite.Board = DS.Model.extend({
     }
     if(suggested_buttons.length == 0 && inflectors.length == 0) { return null; }
     inflectors.forEach(function(infl) {
-      var act = SweetSuite.special_actions.find(function(act) { return act.action == infl.vocalization; });
+      var act = LingoLinq.special_actions.find(function(act) { return act.action == infl.vocalization; });
       var last_button = working[working.length - 1];
       if(last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
         var res = {};
@@ -1374,7 +1374,7 @@ SweetSuite.Board = DS.Model.extend({
     this.set('fast_html', fast);
   },
   render_fast_html: function(size) {
-    SweetSuite.log.track('redrawing');
+    LingoLinq.log.track('redrawing');
 
     var buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
     var grid = this.get('grid');
@@ -1473,7 +1473,7 @@ SweetSuite.Board = DS.Model.extend({
     var text_position = "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
-    SweetSuite.log.track('computing dimensions');
+    LingoLinq.log.track('computing dimensions');
     ob.forEach(function(row, i) {
       html = html + "\n<div class='button_row fast'>";
       row.forEach(function(button, j) {
@@ -1514,18 +1514,18 @@ SweetSuite.Board = DS.Model.extend({
         var top = extra_pad + (i * starting_height);
         var left = extra_pad + (j * starting_width) - 2;
 
-        var image_height = button_height - currentLabelHeight - SweetSuite.boxPad - (inner_pad * 2) + 8;
-        var image_width = button_width - SweetSuite.boxPad - (inner_pad * 2) + 8;
+        var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
+        var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
 
-        var top_margin = currentLabelHeight + SweetSuite.labelHeight - 8;
+        var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
         if(_this.get('text_size') == 'really_small_text') {
           if(currentLabelHeight > 0) {
-            image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 25;
+            image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 25;
             top_margin = 0;
           }
         } else if(_this.get('text_size') == 'small_text') {
           if(currentLabelHeight > 0) {
-            image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 10;
+            image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 10;
             top_margin = top_margin - 10;
           }
         }
@@ -1568,9 +1568,9 @@ SweetSuite.Board = DS.Model.extend({
   }
 });
 
-SweetSuite.Board.reopenClass({
+LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
-    SweetSuite.store.peekAll('board').forEach(function(b) {
+    LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
     });
     if(app_state.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
@@ -1587,17 +1587,17 @@ SweetSuite.Board.reopenClass({
     // shortcoming.
     var _this = this;
     runLater(function() {
-      SweetSuite.store.peekAll('board').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      SweetSuite.store.peekAll('image').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('image').map(function(i) { return i; }).forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
       });
-      SweetSuite.store.peekAll('sound').map(function(i) { return i; }).forEach(function(i) {
+      LingoLinq.store.peekAll('sound').map(function(i) { return i; }).forEach(function(i) {
         if(i) {
           i.checkForDataURL().then(null, function() { });
         }
@@ -1646,7 +1646,7 @@ var skin_unis = {
   'medium-dark': '1f3fe',
   'dark': '1f3ff',
 };
-SweetSuite.Board.which_skinner = function(skin) {
+LingoLinq.Board.which_skinner = function(skin) {
   var which_skin = function() { return skin; };
   if(skin == 'original') {
     which_skin = function() { return 'default'; }
@@ -1679,7 +1679,7 @@ SweetSuite.Board.which_skinner = function(skin) {
   }
   return which_skin;
 };
-SweetSuite.Board.is_skinned_url = function(url) {
+LingoLinq.Board.is_skinned_url = function(url) {
   if(url.match(/varianted-skin\.\w+$/)) {
     return true;
   } else if(url.match(/\/libraries\/twemoji\//) && url.match(/-var\w+UNI/)) {
@@ -1688,12 +1688,12 @@ SweetSuite.Board.is_skinned_url = function(url) {
     return false;
   }
 };
-SweetSuite.Board.skinned_url = function(url, which_skin, unskin) {
+LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
   var which_override = null;
   if(unskin) {
     which_override = "unskinned";
   }
-  if(!SweetSuite.Board.is_skinned_url(url)) { return url; }
+  if(!LingoLinq.Board.is_skinned_url(url)) { return url; }
   if(url.match(/varianted-skin\.\w+$/)) {
     var which = which_skin(which_override || url);
     if(which != 'default') {
@@ -1714,4 +1714,4 @@ SweetSuite.Board.skinned_url = function(url, which_skin, unskin) {
   }
 };
 
-export default SweetSuite.Board;
+export default LingoLinq.Board;

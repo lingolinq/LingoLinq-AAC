@@ -2,7 +2,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import capabilities from '../utils/capabilities';
 import Button from '../utils/button';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -41,7 +41,7 @@ export default modal.ModalController.extend({
         _this.set('player', {error: true, embed_error: true});
       }
     });
-    SweetSuite.Videos.track('video_preview', this.get('video_callback')).then(function(player) {
+    LingoLinq.Videos.track('video_preview', this.get('video_callback')).then(function(player) {
       _this.set('player', player);
     });
   },
@@ -49,7 +49,7 @@ export default modal.ModalController.extend({
     if(this.get('player') && this.get('player').cleanup) {
       this.get('player').cleanup();
     }
-    SweetSuite.Videos.untrack('video_preview', this.get('video_callback'));
+    LingoLinq.Videos.untrack('video_preview', this.get('video_callback'));
   },
   actions: {
     toggle_video: function() {

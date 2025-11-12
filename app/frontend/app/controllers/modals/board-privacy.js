@@ -1,4 +1,4 @@
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import BoardHierarchy from '../../utils/board_hierarchy';
 import i18n from '../../utils/i18n';
@@ -20,7 +20,7 @@ export default modal.ModalController.extend({
     });
   },
   privacy_levels: computed(function(){
-    return SweetSuite.publicOptions;
+    return LingoLinq.publicOptions;
   }),
   actions: {
     update: function() {

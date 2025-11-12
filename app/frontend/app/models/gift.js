@@ -1,10 +1,10 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-SweetSuite.Gift = DS.Model.extend({
+LingoLinq.Gift = DS.Model.extend({
   didLoad: function() {
     this.update_gift_types();
   },
@@ -44,5 +44,5 @@ SweetSuite.Gift = DS.Model.extend({
   })
 });
 
-export default SweetSuite.Gift;
+export default LingoLinq.Gift;
 

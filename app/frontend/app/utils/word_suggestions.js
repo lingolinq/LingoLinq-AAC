@@ -9,7 +9,7 @@ import utterance from './utterance';
 import app_state from './app_state';
 import Utils from './misc';
 import i18n from './i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 var helpers = {
   "I": ['really', 'have', 'did'],
@@ -363,18 +363,18 @@ var word_suggestions = EmberObject.extend({
         // search for button images for any words in the specified vocab
         if(options.board_ids) {
           var words = {};
-          var images = SweetSuite.store.peekAll('image');
+          var images = LingoLinq.store.peekAll('image');
           result.forEach(function(w) { words[w.word.toLowerCase()] = w; w.depth = 999; });
           options.board_ids.forEach(function(board_id) {
             if(!board_id) { return; }
-            SweetSuite.store.findRecord('board', board_id).then(function(board) {
+            LingoLinq.store.findRecord('board', board_id).then(function(board) {
               board.load_button_set().then(function(button_set) {
                 var buttons = button_set.redepth(board_id);
                 buttons.forEach(function(button) {
                   var word = words[button.label] || words[button.vocalization];
                   if(word && button.depth < word.depth) {
                     word.depth = button.depth;
-                    SweetSuite.Buttonset.fix_image(button, images).then(function() {
+                    LingoLinq.Buttonset.fix_image(button, images).then(function() {
                       if(!emberGet(word, 'original_image') && button.image) {
                         emberSet(word, 'original_image', button.original_image);
                         emberSet(word, 'safe_image', emberGet(word, 'image'));

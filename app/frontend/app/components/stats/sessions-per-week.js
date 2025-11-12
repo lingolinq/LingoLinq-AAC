@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { observer } from '@ember/object';
 
@@ -11,7 +11,7 @@ export default Component.extend({
     var elem = this.get('element').getElementsByClassName('sessions_per_week')[0];
     var stats = this.get('weekly_stats');
 
-    SweetSuite.Visualizations.wait('bar', function() {
+    LingoLinq.Visualizations.wait('bar', function() {
       if(elem && stats) {
 
         var data = new window.google.visualization.DataTable();

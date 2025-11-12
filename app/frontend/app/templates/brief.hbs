@@ -32,7 +32,7 @@
     <span id="nav_header">
     <h1 class={{if app_state.currentBoardState 'with_board'}}>
       <a href="#" {{action "index"}}>
-        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="SweetSuite"/>
+        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq"/>
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
@@ -445,7 +445,7 @@
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
           {{#unless app_state.installed_app}}
-            <a href="https://github.com/SweetSuite" target="_blank">{{t "Developers" key='developers'}}</a> <span class='text-muted'>|</span>
+            <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key='developers'}}</a> <span class='text-muted'>|</span>
           {{/unless}}
           {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}} <span class='text-muted'>|</span>
           {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}

@@ -1,9 +1,9 @@
 import modal from '../utils/modal';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
   opening: function() {
-    var integration = SweetSuite.store.createRecord('integration', {
+    var integration = LingoLinq.store.createRecord('integration', {
       custom_integration: true,
       user_id: this.get('model.user.id')
     });

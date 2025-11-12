@@ -14,7 +14,7 @@ import Utils from '../../utils/misc';
 import modal from '../../utils/modal';
 import persistence from '../../utils/persistence';
 import scanner from '../../utils/scanner';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 describe("misc", function() {
   describe("handlebars helpers", function() {
@@ -108,7 +108,7 @@ describe("misc", function() {
           return obj.meta;
         });
 
-        stub(SweetSuite.store, 'query', function(type, opts) {
+        stub(LingoLinq.store, 'query', function(type, opts) {
           expect(type).toEqual('user');
           expect(opts.a).toEqual(1);
           attempt++;
@@ -168,7 +168,7 @@ describe("misc", function() {
           return obj.meta;
         });
 
-        stub(SweetSuite.store, 'query', function(type, opts) {
+        stub(LingoLinq.store, 'query', function(type, opts) {
           expect(type).toEqual('user');
           expect(opts.a).toEqual(1);
           attempt++;
@@ -307,7 +307,7 @@ describe("misc", function() {
           return obj.meta;
         });
 
-        stub(SweetSuite.store, 'query', function(type, opts) {
+        stub(LingoLinq.store, 'query', function(type, opts) {
           expect(type).toEqual('user');
           expect(opts.a).toEqual(1);
           return RSVP.reject({error: 'asdf'});
@@ -329,7 +329,7 @@ describe("misc", function() {
           return obj.meta;
         });
 
-        stub(SweetSuite.store, 'query', function(type, opts) {
+        stub(LingoLinq.store, 'query', function(type, opts) {
           expect(type).toEqual('user');
           expect(opts.a).toEqual(1);
           attempt++;
@@ -383,7 +383,7 @@ describe("misc", function() {
         });
 
         var intermediate = null;
-        stub(SweetSuite.store, 'query', function(type, opts) {
+        stub(LingoLinq.store, 'query', function(type, opts) {
           expect(type).toEqual('user');
           expect(opts.a).toEqual(1);
           attempt++;

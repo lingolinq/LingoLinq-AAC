@@ -18,7 +18,7 @@ import stashes from '../../utils/_stashes';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 import $ from 'jquery';
 
@@ -116,7 +116,7 @@ describe('editManager', function() {
         }
       });
       editManager.Button.attributes = Button.attributes;
-      var image = SweetSuite.store.push({data: {type: 'image', id: 9, attributes: {
+      var image = LingoLinq.store.push({data: {type: 'image', id: 9, attributes: {
         id: 9,
         url: 'http://www.example.com/pic.png'
       }}});
@@ -397,7 +397,7 @@ describe('editManager', function() {
       expect(called).toEqual(true);
     });
     it("should retrieve image and sound records when a stash is applied", function() {
-      var image = SweetSuite.store.push({data: {type: 'image', id: 9, attributes: {
+      var image = LingoLinq.store.push({data: {type: 'image', id: 9, attributes: {
         id: 9,
         url: 'http://www.example.com/pic.png'
       }}});
@@ -2000,10 +2000,10 @@ describe('editManager', function() {
       runs();
     });
     it("should retrieve local image and sound records", function() {
-      SweetSuite.store.push({data: {type: 'image', id: 123, attributes: {
+      LingoLinq.store.push({data: {type: 'image', id: 123, attributes: {
         id: 123, url: 'http://www.example.com/pic.png'
       }}});
-      SweetSuite.store.push({data: {type: 'sound', id: 123, attributes: {
+      LingoLinq.store.push({data: {type: 'sound', id: 123, attributes: {
         id: 123, url: 'http://www.example.com/pic.png'
       }}});
       board.set('model.buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
@@ -2136,10 +2136,10 @@ describe('editManager', function() {
     });
 
     it("should use the board's image_urls hash if defined", function() {
-      SweetSuite.store.push({data: {type: 'image', id: 123, attributes: {
+      LingoLinq.store.push({data: {type: 'image', id: 123, attributes: {
         id: 123, url: 'http://www.example.com/pic.png'
       }}});
-      SweetSuite.store.push({data: {type: 'sound', id: 123, attributes: {
+      LingoLinq.store.push({data: {type: 'sound', id: 123, attributes: {
         id: 123, url: 'http://www.example.com/sound.mp3'
       }}});
       board.set('model.buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
@@ -2175,7 +2175,7 @@ describe('editManager', function() {
     it('should pull the correct translations', function() {
       app_state.set('label_locale', 'es');
       app_state.set('vocalization_locale', 'fr');
-      var model = SweetSuite.store.createRecord('board');
+      var model = LingoLinq.store.createRecord('board');
       model.set('buttons', [
         {id: 1, label: 'fast'},
         {id: 2, label: 'jump', vocalization: 'jumping'}
@@ -2274,7 +2274,7 @@ describe('editManager', function() {
   describe("copy_board", function() {
     it("should create a new board using the old board's settings", function() {
       stub(modal, 'flash', function() { });
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2311,7 +2311,7 @@ describe('editManager', function() {
         buttons: [{id: 1, load_board: {key: 'asdf', id: '1_2'}}],
         grid: {}
       };
-      var b = SweetSuite.store.createRecord('board', model);
+      var b = LingoLinq.store.createRecord('board', model);
       var found = false;
       var promise = RSVP.resolve({board: model2});
       queryLog.defineFixture({
@@ -2346,7 +2346,7 @@ describe('editManager', function() {
         buttons: [{id: 1, load_board: {key: 'asdf', id: '1_2'}}],
         grid: {}
       };
-      var b = SweetSuite.store.createRecord('board', model2);
+      var b = LingoLinq.store.createRecord('board', model2);
       var found = false;
       var promise = RSVP.resolve({board: model});
       queryLog.defineFixture({
@@ -2386,7 +2386,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2434,7 +2434,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2486,7 +2486,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2527,7 +2527,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2584,7 +2584,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2613,7 +2613,7 @@ describe('editManager', function() {
     it("should not replace in the user's communication set even if specified unless in the user's set", function() {
       expect(app_state.get('board_in_current_user_set')).toEqual(false);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2657,7 +2657,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2701,7 +2701,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2742,7 +2742,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2783,7 +2783,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2827,7 +2827,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -2872,7 +2872,7 @@ describe('editManager', function() {
       });
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
-      var b = SweetSuite.store.createRecord('board', {
+      var b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}

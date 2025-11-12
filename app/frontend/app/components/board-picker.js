@@ -4,7 +4,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import app_state from '../utils/app_state';
 import word_suggestions from '../utils/word_suggestions';
 import Utils from '../utils/misc';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 
@@ -27,7 +27,7 @@ export default Component.extend({
       }
       res.push(cat);
     }
-    SweetSuite.board_categories.forEach(function(c) {
+    LingoLinq.board_categories.forEach(function(c) {
       var cat = $.extend({}, c);
       if(_this.get('current_category') == c.id) {
         cat.selected = true;
@@ -46,13 +46,13 @@ export default Component.extend({
       this.set('category_boards', {loading: true});
       var _this = this;
       if(str == 'mine') {
-        SweetSuite.store.query('board', {user_id: app_state.get('domain_board_user_name'), include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
+        LingoLinq.store.query('board', {user_id: app_state.get('domain_board_user_name'), include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});
         });  
       } else {
-        SweetSuite.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
+        LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});

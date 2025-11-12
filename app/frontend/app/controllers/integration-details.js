@@ -1,5 +1,5 @@
 import modal from '../utils/modal';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
   opening: function() {

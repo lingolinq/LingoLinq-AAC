@@ -21,7 +21,7 @@ describe('BoardController', 'controller:board', function() {
 // import boundClasses from '../utils/bound_classes';
 // import word_suggestions from '../utils/word_suggestions';
 // import editManager from '../utils/edit_manager';
-// import SweetSuite from '../app';
+// import LingoLinq from '../app';
 // import app_state from '../utils/app_state';
 // import capabilities from '../utils/capabilities';
 // import i18n from '../utils/i18n';
@@ -80,7 +80,7 @@ describe('BoardController', 'controller:board', function() {
 //     var state = editManager.process_for_saving();
 //
 //     if(this.get('license')) {
-//       this.set('license.copyright_notice_url', SweetSuite.licenseOptions.license_url(this.get('license.type')));
+//       this.set('license.copyright_notice_url', LingoLinq.licenseOptions.license_url(this.get('license.type')));
 //     }
 //
 //     this.set('buttons', state.buttons);
@@ -104,7 +104,7 @@ describe('BoardController', 'controller:board', function() {
 //     var width = window.innerWidth;
 //     this.set('window_inner_width', window.innerWidth);
 //     var show_description = !app_state.get('edit_mode') && !app_state.get('speak_mode') && this.get('long_description');
-//     var topHeight = SweetSuite.headerHeight + 5;
+//     var topHeight = LingoLinq.headerHeight + 5;
 //     this.set('show_word_suggestions', this.get('word_suggestions') && app_state.get('speak_mode'));
 //     if(this.get('show_word_suggestions')) {
 //       topHeight = topHeight + 50;
@@ -236,16 +236,16 @@ describe('BoardController', 'controller:board', function() {
 //             }
 //           }
 //         }
-//         var image_height = button_height - currentLabelHeight - SweetSuite.boxPad - (inner_pad * 2);
-//         var image_width = button_width - SweetSuite.boxPad - (inner_pad * 2);
+//         var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2);
+//         var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2);
 //
 //         if(_this.get('text_size') == 'really_small_text') {
 //           if(currentLabelHeight > 0) {
-//             image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 25;
+//             image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 25;
 //           }
 //         } else if(_this.get('text_size') == 'small_text') {
 //           if(currentLabelHeight > 0) {
-//             image_height = image_height + currentLabelHeight - SweetSuite.labelHeight + 10;
+//             image_height = image_height + currentLabelHeight - LingoLinq.labelHeight + 10;
 //           }
 //         }
 //

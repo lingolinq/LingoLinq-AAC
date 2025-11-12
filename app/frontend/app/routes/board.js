@@ -6,7 +6,7 @@ import stashes from '../utils/_stashes';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import session from '../utils/session';
 import { later as runLater } from '@ember/runloop';
 
@@ -28,11 +28,11 @@ export default Route.extend({
         integration_id = stashes.get('global_integrations.' + integration_id);
       }
       var action = parts.join(':');
-      var obj = SweetSuite.store.createRecord('board');
+      var obj = LingoLinq.store.createRecord('board');
       obj.set('integration', true);
       obj.set('key', params.key);
       obj.set('id', 'i' + integration_id);
-      return SweetSuite.store.findRecord('integration', integration_id).then(function(tool) {
+      return LingoLinq.store.findRecord('integration', integration_id).then(function(tool) {
         var reload = RSVP.resolve(tool);
         if(!tool.get('render_url')) {
           reload = tool.reload();
@@ -92,7 +92,7 @@ export default Route.extend({
           if(error.status != '404' && allow_retry) {
             return find_board(false);
           } else {
-            var res = SweetSuite.store.createRecord('board', {id: 'bad', key: params.key});
+            var res = LingoLinq.store.createRecord('board', {id: 'bad', key: params.key});
             res.set('lookup_key', params.key);
             res.set('error', error);
             _this.set('error_record', res);

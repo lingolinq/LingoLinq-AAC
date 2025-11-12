@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { observer } from '@ember/object';
 
@@ -12,7 +12,7 @@ export default Component.extend({
     var recent = this.get('recent');
     var elem = this.get('element').getElementsByClassName('recent_sessions')[0];
 
-    SweetSuite.Visualizations.wait('pie-chart', function() {
+    LingoLinq.Visualizations.wait('pie-chart', function() {
       if(elem && total) {
         var table = [
           ['Type', 'Total']

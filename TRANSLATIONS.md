@@ -1,19 +1,19 @@
 ## Translations
 
-Thanks for your interest in helping us share SweetSuite with as many people as possible!
-SweetSuite is an open source AAC system that is used by AAC communicators around the
+Thanks for your interest in helping us share LingoLinq with as many people as possible!
+LingoLinq is an open source AAC system that is used by AAC communicators around the
 world. We are grateful for any help you can provide in increasing its access to others,
 and will happily give you credit for your translation work!
 
 As you translate, please try to keep the same tone of voice we use in the existing
-SweetSuite app. We try to remain positive and friendly, but not too informal. Please
+LingoLinq app. We try to remain positive and friendly, but not too informal. Please
 try to keep labels and buttons as clear and concise as possible. Paragraphs of text
 can adjust freely, but buttons and labels often have limited space in which to be
 shown. Also please try to match capitalization where posssible.
 
 ### Translation Files
 
-SweetSuite supports displaying the app interface in multiple languages. Each language must
+LingoLinq supports displaying the app interface in multiple languages. Each language must
 be manually enabled once an acceptable preliminary translation file has been generated.
 Translation files are contained in this repository under the [public/locales](public/locales) directory.
 
@@ -43,7 +43,7 @@ so be sure to place it correctly in your string.
 #### Special Characters
 
 Some strings will have special characters that will be auto-replaced by the app.
-For example, the string `"I love %app_name%!"` will be replaced by `"I love SweetSuite!"`
+For example, the string `"I love %app_name%!"` will be replaced by `"I love LingoLinq!"`
 when it is rendered in the app. Additionally the string `"Send a message to %{user_name}"`
 will be replaced with `"Send a message to susan"` when it is rendered in the app.
 These special characters need to be included in your translation in the appropriate
@@ -76,7 +76,7 @@ your translation file with other translators or experts to ensure it is up to ou
 professional standards. Please be patient as we do this.
 
 Also note that by submitting your translations, you are agreeing to have them included
-in the SweetSuite code repository, and you transfer ownership of the updated text
+in the LingoLinq code repository, and you transfer ownership of the updated text
 to the copyright holders listed in this repository.
 
 ### New Translations

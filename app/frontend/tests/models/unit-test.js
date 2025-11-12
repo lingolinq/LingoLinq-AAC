@@ -10,14 +10,14 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { } from 'frontend/tests/helpers/ember_helper';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import speecher from '../../utils/speecher';
 import persistence from '../../utils/persistence';
 
 describe('Unit', function() {
   describe("supervisor_count", function() {
     it("should return the correct count", function() {
-      var u = SweetSuite.store.createRecord('unit');
+      var u = LingoLinq.store.createRecord('unit');
       expect(u.get('supervisor_count')).toEqual(0);
       u.set('supervisors', []);
       expect(u.get('supervisor_count')).toEqual(0);
@@ -30,7 +30,7 @@ describe('Unit', function() {
 
   describe("communicator_count", function() {
     it("should return the correct count", function() {
-      var u = SweetSuite.store.createRecord('unit');
+      var u = LingoLinq.store.createRecord('unit');
       expect(u.get('communicator_count')).toEqual(0);
       u.set('communicators', []);
       expect(u.get('communicator_count')).toEqual(0);

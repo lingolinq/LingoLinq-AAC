@@ -3,7 +3,7 @@ import stashes from '../../utils/_stashes';
 import app_state from '../../utils/app_state';
 import utterance from '../../utils/utterance';
 import i18n from '../../utils/i18n';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { set as emberSet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';

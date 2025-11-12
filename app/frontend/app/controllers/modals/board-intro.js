@@ -4,7 +4,7 @@ import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import { computed } from '@ember/object';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -114,7 +114,7 @@ export default modal.ModalController.extend({
               if(b.sequence) {
                 images = b.steps.map(function(s) { return s.button.image; });
               }
-              var missing_image = images.find(function(i) { return !i || SweetSuite.remote_url(i); });
+              var missing_image = images.find(function(i) { return !i || LingoLinq.remote_url(i); });
               if(!missing_image) {
                 new_results.push(b);
               } else { }

@@ -11,11 +11,11 @@ import {
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import contentGrabbers from '../../utils/content_grabbers';
 import BoardHierarchy from '../../utils/board_hierarchy';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 
 describe('boardHierarchy', function() {
   it('should generate a valid hierarchy', function() {
-    var bs = SweetSuite.store.createRecord('buttonset', {
+    var bs = LingoLinq.store.createRecord('buttonset', {
       buttons: [
         {board_id: '123', linked_board_id: '234', linked_board_key: 'asdf/234'},
         {board_id: '234', linked_board_id: '345', linked_board_key: 'asdf/345'},
@@ -24,7 +24,7 @@ describe('boardHierarchy', function() {
         {board_id: '567'},
       ]
     });
-    var brd = SweetSuite.store.createRecord('board', {
+    var brd = LingoLinq.store.createRecord('board', {
       id: '123', key: 'asdf/123'
     });
     var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {}});
@@ -57,7 +57,7 @@ describe('boardHierarchy', function() {
   });
   describe('options', function() {
     it('should apply options.deselect_on_different', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {board_id: '123', linked_board_id: '234', linked_board_key: 'asdf/234'},
           {board_id: '234', linked_board_id: '345', linked_board_key: 'jkl/345'},
@@ -66,7 +66,7 @@ describe('boardHierarchy', function() {
           {board_id: '567'},
         ]
       });
-      var brd = SweetSuite.store.createRecord('board', {
+      var brd = LingoLinq.store.createRecord('board', {
         id: '123', key: 'asdf/123'
       });
       var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {deselect_on_different: true}});
@@ -98,7 +98,7 @@ describe('boardHierarchy', function() {
       expect(bh.get('all_boards').length).toEqual(5);
     });
     it('should apply options.prevent_different', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {board_id: '123', linked_board_id: '234', linked_board_key: 'asdf/234'},
           {board_id: '234', linked_board_id: '345', linked_board_key: 'jkl/345'},
@@ -107,7 +107,7 @@ describe('boardHierarchy', function() {
           {board_id: '567'},
         ]
       });
-      var brd = SweetSuite.store.createRecord('board', {
+      var brd = LingoLinq.store.createRecord('board', {
         id: '123', key: 'asdf/123'
       });
       var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {deselect_on_different: true, prevent_different: true}});
@@ -144,7 +144,7 @@ describe('boardHierarchy', function() {
   });
   describe('disabled', function() {
     it('should mark all boards under a disabled board as disabled', function() {
-      var bs = SweetSuite.store.createRecord('buttonset', {
+      var bs = LingoLinq.store.createRecord('buttonset', {
         buttons: [
           {board_id: '123', linked_board_id: '234', linked_board_key: 'asdf/234'},
           {board_id: '234', linked_board_id: '345', linked_board_key: 'jkl/345'},
@@ -153,7 +153,7 @@ describe('boardHierarchy', function() {
           {board_id: '567'},
         ]
       });
-      var brd = SweetSuite.store.createRecord('board', {
+      var brd = LingoLinq.store.createRecord('board', {
         id: '123', key: 'asdf/123'
       });
       var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {deselect_on_different: true, prevent_different: true}});

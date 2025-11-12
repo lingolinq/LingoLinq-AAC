@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -27,7 +27,7 @@ export default Component.extend({
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('core_words')[0];
 
-    SweetSuite.Visualizations.wait('pie-chart', function() {
+    LingoLinq.Visualizations.wait('pie-chart', function() {
       var parts = stats && (stats.get('modeling') ? stats.get('modeled_core_words') : stats.get('core_words'));
       if(elem && stats && parts) {
         var table = [

@@ -14,7 +14,7 @@ import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import persistence from '../../utils/persistence';
 import speecher from '../../utils/speecher';
-import sweetSuiteExtras from '../../utils/extras';
+import lingoLinqExtras from '../../utils/extras';
 import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import stashes from '../../utils/_stashes';
@@ -22,7 +22,7 @@ import session from '../../utils/session';
 import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import { run as emberRun } from '@ember/runloop';
 import $ from 'jquery';
 
@@ -60,12 +60,12 @@ describe("persistence", function() {
   var board = null;
   function push_board(callback) {
     db_wait(function() {
-      SweetSuite.store.push({data: {type: 'board', id: '1234', attributes: {
+      LingoLinq.store.push({data: {type: 'board', id: '1234', attributes: {
         id: '1234',
         name: 'Best Board'
       }}});
       var record = null;
-      SweetSuite.store.find('board', '1234').then(function(res) {
+      LingoLinq.store.find('board', '1234').then(function(res) {
         record = res;
       });
       var _this = this;
@@ -89,8 +89,8 @@ describe("persistence", function() {
         persistence.remove('settings', {storageId: 'lastSync'}, 'lastSync').then(function() {
           setTimeout(function() {
             persistence.setup(app);
-            sweetSuiteExtras.set('ready', false);
-            sweetSuiteExtras.set('ready', true);
+            lingoLinqExtras.set('ready', false);
+            lingoLinqExtras.set('ready', true);
           }, 10);
         });
         waitsFor(function() { return persistence.get('last_sync_at') === 1; });
@@ -113,18 +113,18 @@ describe("persistence", function() {
 
   describe("find", function() {
     it("should error if db isn't ready", function() {
-      var ready = sweetSuiteExtras.get('ready');
-      sweetSuiteExtras.set('ready', false);
+      var ready = lingoLinqExtras.get('ready');
+      lingoLinqExtras.set('ready', false);
       var res = persistence.find('bob', 'ok');
-      sweetSuiteExtras.advance('all');
-      sweetSuiteExtras.set('ready', false);
+      lingoLinqExtras.advance('all');
+      lingoLinqExtras.set('ready', false);
       var error = null;
       res.then(function() { dbg(); }, function(err) {
         error = err;
       });
       waitsFor(function() { return error; });
       runs(function() {
-        sweetSuiteExtras.set('ready', ready);
+        lingoLinqExtras.set('ready', ready);
         expect(error.error).toEqual("extras not ready");
       });
     });
@@ -155,7 +155,7 @@ describe("persistence", function() {
           raw: {hat: rnd},
           storageId: 'hat'
         };
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
             persistence.find('settings', 'hat').then(function(res) {
               record = res;
@@ -181,9 +181,9 @@ describe("persistence", function() {
           storageId: 'hat',
           persisted: 1234
         };
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
-            sweetSuiteExtras.storage.store('settings', ids, 'importantIds').then(function() {
+            lingoLinqExtras.storage.store('settings', ids, 'importantIds').then(function() {
               setTimeout(function() {
                 persistence.find('settings', 'hat').then(function(res) {
                   record = res;
@@ -212,9 +212,9 @@ describe("persistence", function() {
           storageId: 'importantIds'
         };
         persistence.important_ids = null;
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
-            sweetSuiteExtras.storage.store('settings', ids, 'importantIds').then(function() {
+            lingoLinqExtras.storage.store('settings', ids, 'importantIds').then(function() {
               setTimeout(function() {
                 persistence.find('settings', 'hat').then(function(res) {
                   record = res;
@@ -239,7 +239,7 @@ describe("persistence", function() {
           raw: {hat: rnd, retrieved: (new Date()).getTime()},
           storageId: 'hat'
         };
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
             persistence.find('settings', 'hat').then(function(res) {
               record = res;
@@ -248,7 +248,7 @@ describe("persistence", function() {
         });
         waitsFor(function() { return record; });
         runs(function() {
-          var rec = SweetSuite.store.createRecord('board', record);
+          var rec = LingoLinq.store.createRecord('board', record);
           expect(record.hat).toEqual(rnd);
           expect(rec.get('fresh')).toEqual(true);
         });
@@ -262,7 +262,7 @@ describe("persistence", function() {
           raw: {hat: rnd, retrieved: ((new Date()).getTime() - (5*60*1000 - 300))},
           storageId: 'hat'
         };
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
             persistence.find('settings', 'hat').then(function(res) {
               record = res;
@@ -273,7 +273,7 @@ describe("persistence", function() {
         var board = null;
         waitsFor(function() { return record; });
         runs(function() {
-          board = SweetSuite.store.createRecord('board', record);
+          board = LingoLinq.store.createRecord('board', record);
           expect(record.hat).toEqual(rnd);
           expect(board.get('fresh')).toEqual(true);
           emberRun.later(function() {
@@ -295,7 +295,7 @@ describe("persistence", function() {
           raw: {hat: rnd, retrieved: 1459871157678},
           storageId: 'hat'
         };
-        sweetSuiteExtras.storage.store('settings', obj, 'hat').then(function() {
+        lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
           setTimeout(function() {
             persistence.find('settings', 'hat').then(function(res) {
               record = res;
@@ -304,7 +304,7 @@ describe("persistence", function() {
         });
         waitsFor(function() { return record; });
         runs(function() {
-          var rec = SweetSuite.store.createRecord('board', record);
+          var rec = LingoLinq.store.createRecord('board', record);
           expect(record.hat).toEqual(rnd);
           expect(rec.get('fresh')).toEqual(false);
         });
@@ -326,7 +326,7 @@ describe("persistence", function() {
             return RSVP.reject({});
           }
         });
-        SweetSuite.store.findRecord('board', '1234').then(function(res) {
+        LingoLinq.store.findRecord('board', '1234').then(function(res) {
           record = res;
         });
         waitsFor(function() { return record; });
@@ -355,14 +355,14 @@ describe("persistence", function() {
             return RSVP.reject({});
           }
         });
-        SweetSuite.store.findRecord('board', '1234').then(function(res) {
+        LingoLinq.store.findRecord('board', '1234').then(function(res) {
           record = res;
         });
         waitsFor(function() { return record; });
         runs(function() {
           expect(record.get('name')).toEqual('Cool Board');
           expect(record.get('fresh')).toEqual(true);
-          var img = SweetSuite.store.peekRecord('image', '1111');
+          var img = LingoLinq.store.peekRecord('image', '1111');
           expect(img).toNotEqual(null);
           expect(img.get('url')).toEqual('http://www.image.com');
           expect(img.get('fresh')).toEqual(true);
@@ -387,7 +387,7 @@ describe("persistence", function() {
     it("should look up local copies of recent boards", function() {
       var found = [];
       var stored = [];
-      stub(sweetSuiteExtras.storage, 'find_all', function(store, keys) {
+      stub(lingoLinqExtras.storage, 'find_all', function(store, keys) {
         var res = [];
         keys.forEach(function(key) {
           found.push(key);
@@ -395,7 +395,7 @@ describe("persistence", function() {
         });
         return RSVP.resolve(res);
       });
-      stub(SweetSuite.store, 'push', function(obj) {
+      stub(LingoLinq.store, 'push', function(obj) {
         stored.push(obj);
         return obj;
       });
@@ -431,7 +431,7 @@ describe("persistence", function() {
     it("should call extras.find_changed", function() {
       db_wait(function() {
         var called = false;
-        stub(sweetSuiteExtras.storage, 'find_changed', function() {
+        stub(lingoLinqExtras.storage, 'find_changed', function() {
           called = true;
         });
         persistence.find_changed();
@@ -439,10 +439,10 @@ describe("persistence", function() {
       });
     });
     it("should return an empty list of db isn't initialized", function() {
-      var ready = sweetSuiteExtras.get('ready');
-      sweetSuiteExtras.set('ready', false);
+      var ready = lingoLinqExtras.get('ready');
+      lingoLinqExtras.set('ready', false);
       var called = false;
-      stub(sweetSuiteExtras.storage, 'find_changed', function() {
+      stub(lingoLinqExtras.storage, 'find_changed', function() {
         called = true;
       });
       var list = null;
@@ -452,7 +452,7 @@ describe("persistence", function() {
         expect(list).toEqual([]);
         expect(called).toEqual(false);
       });
-      sweetSuiteExtras.set('ready', ready);
+      lingoLinqExtras.set('ready', ready);
     });
     it("should return the list of changed, added and deleted records");
   });
@@ -508,7 +508,7 @@ describe("persistence", function() {
 
     it("should not reject (but log an error) on a failed storage attempt", function() {
       db_wait(function() {
-        stub(sweetSuiteExtras.storage, 'store', function(store, record, key) {
+        stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
           return RSVP.reject({});
         });
         var rnd = Math.random() + "_" + (new Date()).toString();
@@ -762,8 +762,8 @@ describe("persistence", function() {
   });
   describe("convert_model_to_json", function() {
     it("should serialize a record", function() {
-      var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"})._createSnapshot();
-      var json = persistence.convert_model_to_json(SweetSuite.store, 'board', board);
+      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"})._createSnapshot();
+      var json = persistence.convert_model_to_json(LingoLinq.store, 'board', board);
       expect(json).not.toEqual(null);
       expect(json.board).not.toEqual(null);
       expect(!!json.board.key.match(/^tmp_.+\/cool/)).toEqual(true);
@@ -772,14 +772,14 @@ describe("persistence", function() {
     });
     it("should call mimic_server_processing if defined", function() {
       var called = false;
-      var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"})._createSnapshot();
-      var type = SweetSuite.store.modelFor('board');
+      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"})._createSnapshot();
+      var type = LingoLinq.store.modelFor('board');
       stub(type, 'mimic_server_processing', function(record, data) {
         called = true;
         data.cookie = true;
         return data;
       });
-      var json = persistence.convert_model_to_json(SweetSuite.store, 'board', board);
+      var json = persistence.convert_model_to_json(LingoLinq.store, 'board', board);
       expect(json).not.toEqual(null);
       expect(json.board).not.toEqual(null);
       expect(json.board.key).toEqual('ok/cool');
@@ -869,7 +869,7 @@ describe("persistence", function() {
   describe("DSAdapter", function() {
     describe("findRecord", function() {
       it("should return a promise", function() {
-        var res = SweetSuite.store.find('board', '1234');
+        var res = LingoLinq.store.find('board', '1234');
         expect(res.then).not.toEqual(null);
       });
       it("should make an ajax query and find the record", function() {
@@ -884,7 +884,7 @@ describe("persistence", function() {
           id: "987"
         });
         var result = null;
-        SweetSuite.store.find('board', '987').then(function(res) {
+        LingoLinq.store.find('board', '987').then(function(res) {
           result = res;
         });
         waitsFor(function() { return result; });
@@ -912,7 +912,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          SweetSuite.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.find('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -940,7 +940,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          SweetSuite.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.find('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -971,7 +971,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          SweetSuite.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.find('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -986,7 +986,7 @@ describe("persistence", function() {
           waitsFor(function() { return defer; });
           runs(function() {
             expect(ajax_called).toEqual(true);
-            SweetSuite.store.findRecord('board', '9876').then(function(res) {
+            LingoLinq.store.findRecord('board', '9876').then(function(res) {
               second_result = res;
               expect(res.get('name')).toEqual('Cool Board');
               defer.resolve({board: {
@@ -1022,7 +1022,7 @@ describe("persistence", function() {
 
           var result = null;
           var reload_result = null;
-          SweetSuite.store.findRecord('board', '9876').then(function(res) {
+          LingoLinq.store.findRecord('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1058,7 +1058,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          SweetSuite.store.find('board', 'tmp_abcd').then(function(res) {
+          LingoLinq.store.find('board', 'tmp_abcd').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1084,7 +1084,7 @@ describe("persistence", function() {
           });
 
           var result = null;
-          SweetSuite.store.find('board', '8765').then(null, function(res) {
+          LingoLinq.store.find('board', '8765').then(null, function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -1102,7 +1102,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1129,7 +1129,7 @@ describe("persistence", function() {
             return RSVP.reject({});
           });
           var result = null;
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function() { dbg(); }, function(res) {
             result = true;
           });
@@ -1148,7 +1148,7 @@ describe("persistence", function() {
             });
           });
           var result = null;
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           persistence.log = [];
           board.save().then(function(res) {
             result = res;
@@ -1158,7 +1158,7 @@ describe("persistence", function() {
           runs(function() {
             setTimeout(function() {
               expect(result.get('name')).toEqual("My Awesome Board" + rnd);
-              sweetSuiteExtras.storage.find('board', 'ok/cool').then(function(res) {
+              lingoLinqExtras.storage.find('board', 'ok/cool').then(function(res) {
                 raw = res;
               });
             }, 10);
@@ -1180,7 +1180,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1209,7 +1209,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1219,7 +1219,7 @@ describe("persistence", function() {
           runs(function() {
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             setTimeout(function() {
-              sweetSuiteExtras.storage.find('board', record.get('key')).then(function(res) {
+              lingoLinqExtras.storage.find('board', record.get('key')).then(function(res) {
                 raw = res;
               });
             }, 50);
@@ -1338,7 +1338,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1375,7 +1375,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1389,7 +1389,7 @@ describe("persistence", function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 setTimeout(function() {
-                  sweetSuiteExtras.storage.find('board', record.id).then(function(res) {
+                  lingoLinqExtras.storage.find('board', record.id).then(function(res) {
                     final_record = res;
                   });
                 }, 50);
@@ -1412,7 +1412,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1460,7 +1460,7 @@ describe("persistence", function() {
           var updated_record = null;
           var final_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1523,7 +1523,7 @@ describe("persistence", function() {
           var final_record = null;
           var deleted_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1586,7 +1586,7 @@ describe("persistence", function() {
           var final_record = null;
           var deleted_record = null;
 
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1698,7 +1698,7 @@ describe("persistence", function() {
           var deleted = null;
 
           persistence.removals = [];
-          var board = SweetSuite.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1744,7 +1744,7 @@ describe("persistence", function() {
           waitsFor(function() { return deleted && persistence.removals.length > 0; });
           runs(function() {
             emberRun.later(function() {
-              sweetSuiteExtras.storage.find('deletion', 'board_1234').then(function() {
+              lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
                 found_deletion = true;
               });
             }, 10);
@@ -1782,7 +1782,7 @@ describe("persistence", function() {
           waitsFor(function() { return deleted && persistence.removals.length > 0; });
           runs(function() {
             setTimeout(function() {
-              sweetSuiteExtras.storage.find('deletion', 'board_1234').then(function() {
+              lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
                 found_deletion = true;
               });
             }, 50);
@@ -1837,7 +1837,7 @@ describe("persistence", function() {
             {id: '134'}
           ]});
         });
-        SweetSuite.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           done = res.content && res.content[0] && res.content[0].id === '134';
         }, function() {
           dbg();
@@ -1852,7 +1852,7 @@ describe("persistence", function() {
         stub($, 'realAjax', function(options) {
           return RSVP.reject({});
         });
-        SweetSuite.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           dbg();
         }, function() {
           done = true;
@@ -1871,7 +1871,7 @@ describe("persistence", function() {
           ajaxed = true;
         });
         var done;
-        SweetSuite.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.query('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           done = res.content && res.content[0] && res.content[0].id === '134';
         }, function() {
           rejected = true;
@@ -1883,11 +1883,11 @@ describe("persistence", function() {
   });
   describe('push_records', function() {
     it('should not call find if all ids already pushed', function() {
-      var a = SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
-      var b = SweetSuite.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
+      var a = LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
+      var b = LingoLinq.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
       var records = null;
       var called = false;
-      stub(sweetSuiteExtras.storage, 'find_all', function() {
+      stub(lingoLinqExtras.storage, 'find_all', function() {
         called = true;
         return RSVP.reject();
       });
@@ -1905,11 +1905,11 @@ describe("persistence", function() {
     });
 
     it('should return combination of already-pushed and newly-retrieved records in the result', function() {
-      var a = SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
-      var b = SweetSuite.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
+      var a = LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
+      var b = LingoLinq.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
       var records = null;
       var called = false;
-      stub(sweetSuiteExtras.storage, 'find_all', function() {
+      stub(lingoLinqExtras.storage, 'find_all', function() {
         called = true;
         return RSVP.resolve([
           {data: {id: 'c', raw: {id: 'c', url: 'http://www.example.com/c.png'}}},
@@ -1930,12 +1930,12 @@ describe("persistence", function() {
     });
 
     it('should do a bulk lookup with the provided ids', function() {
-      var a = SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
-      var b = SweetSuite.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
+      var a = LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
+      var b = LingoLinq.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
       var records = null;
       var called = false;
       var called_keys = null;
-      stub(sweetSuiteExtras.storage, 'find_all', function(store, keys) {
+      stub(lingoLinqExtras.storage, 'find_all', function(store, keys) {
         called = true;
         called_keys = keys;
         return RSVP.resolve([
@@ -1958,10 +1958,10 @@ describe("persistence", function() {
     });
 
     it('should reject on find error', function() {
-      var a = SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
-      var b = SweetSuite.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
+      var a = LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
+      var b = LingoLinq.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
       var called_keys = null;
-      stub(sweetSuiteExtras.storage, 'find_all', function(store, keys) {
+      stub(lingoLinqExtras.storage, 'find_all', function(store, keys) {
         called_keys = keys;
         return RSVP.reject();
       });
@@ -1976,11 +1976,11 @@ describe("persistence", function() {
     });
 
     it('should not include extra records returned via find_all', function() {
-      var a = SweetSuite.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
-      var b = SweetSuite.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
+      var a = LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/a.png'}}});
+      var b = LingoLinq.store.push({data: {type: 'image', id: 'b', attributes: {id: 'b', url: 'http://www.example.com/b.png'}}});
       var records = null;
       var called = false;
-      stub(sweetSuiteExtras.storage, 'find_all', function() {
+      stub(lingoLinqExtras.storage, 'find_all', function() {
         called = true;
         return RSVP.resolve([
           {data: {id: 'c', raw: {id: 'c', url: 'http://www.example.com/c.png'}}},
@@ -2029,7 +2029,7 @@ describe("persistence", function() {
       var done = false;
       var queried = false;
       persistence.known_missing = {image: {asdf: true}};
-      stub(sweetSuiteExtras.storage, 'find', function(store, id) {
+      stub(lingoLinqExtras.storage, 'find', function(store, id) {
         if(store == 'image' && id == 'asdf') {
           queried = true;
         }
@@ -2080,7 +2080,7 @@ describe("persistence", function() {
 
     it("should get called when online status changes", function() {
       persistence.set('online', false);
-      stub(SweetSuite, 'sync_testing', true);
+      stub(LingoLinq, 'sync_testing', true);
       stashes.set('auth_settings', {});
       var called = false;
       stub(persistence, 'check_for_needs_sync', function(force) { called = !!force; });
@@ -2108,7 +2108,7 @@ describe("persistence", function() {
     });
 
     it("should sync if force is true", function() {
-      sweetSuiteExtras.ready = true;
+      lingoLinqExtras.ready = true;
       stub(session, 'restore', function() { });
       persistence.set('online');
       stub(persistence, 'sync', function() {

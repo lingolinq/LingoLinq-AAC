@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -27,7 +27,7 @@ export default Component.extend({
     var stats = this.get('usage_stats');
     var elem = this.get('element').getElementsByClassName('touch_locations')[0];
 
-    SweetSuite.Visualizations.wait('heat-map', function() {
+    LingoLinq.Visualizations.wait('heat-map', function() {
       if(elem && stats && stats.get('touch_locations')) {
         var touch_locations = {};
         var max = 0;

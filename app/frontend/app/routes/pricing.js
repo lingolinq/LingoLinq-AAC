@@ -1,7 +1,7 @@
 import Subscription from '../utils/subscription';
 import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 
 export default app_state.ScrollTopRoute.extend({
   setupController: function(controller, model) {
@@ -21,12 +21,12 @@ export default app_state.ScrollTopRoute.extend({
       type: 'GET'
     }).then(function(data) {
       if(data.sale !== undefined) {
-        SweetSuite.sale = parseInt(data.sale, 10) || false;
+        LingoLinq.sale = parseInt(data.sale, 10) || false;
         controller.get('subscription').reset();
       }
     }, function(data) {
       if(data.sale !== undefined) {
-        SweetSuite.sale = parseInt(data.sale, 10) || false;
+        LingoLinq.sale = parseInt(data.sale, 10) || false;
         controller.get('subscription').reset();
       }
     });

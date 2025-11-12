@@ -97,7 +97,7 @@ var frame_listener = EmberObject.extend({
       status: 'ready',
       session_id: session_id,
       code: $elem.attr('data-code'),
-      system_token: 'SweetSuiteAAC',
+      system_token: 'LingoLinqAAC',
       user_token: $elem.attr('data-user_token')
     });
   },

@@ -5,7 +5,7 @@ export default {
   name: 'defer_readiness',
   initialize: function(app) {
     if(!window.cough_drop_readiness) {
-      window.SweetSuite.app = app;
+      window.LingoLinq.app = app;
       app.deferReadiness();
     } else {
       session.restore();

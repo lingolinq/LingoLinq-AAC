@@ -1,9 +1,9 @@
 import DS from 'ember-data';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
 
-SweetSuite.Integration = DS.Model.extend({
+LingoLinq.Integration = DS.Model.extend({
   name: DS.attr('string'),
   user_id: DS.attr('string'),
   custom_integration: DS.attr('boolean'),
@@ -45,4 +45,4 @@ SweetSuite.Integration = DS.Model.extend({
   }),
 });
 
-export default SweetSuite.Integration;
+export default LingoLinq.Integration;

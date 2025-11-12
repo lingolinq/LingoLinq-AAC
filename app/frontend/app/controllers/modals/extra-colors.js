@@ -1,4 +1,4 @@
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import { htmlSafe } from '@ember/string';

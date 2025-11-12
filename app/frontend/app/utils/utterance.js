@@ -10,7 +10,7 @@ import speecher from './speecher';
 import app_state from './app_state';
 import persistence from './persistence';
 import $ from 'jquery';
-import SweetSuite from '../app';
+import LingoLinq from '../app';
 import { observer } from '@ember/object';
 import word_suggestions from './word_suggestions';
 
@@ -166,7 +166,7 @@ var utterance = EmberObject.extend({
               }
               last = {};
             }
-            var action = SweetSuite.find_special_action(text);
+            var action = LingoLinq.find_special_action(text);
             if(action && (action.modifier || action.completion) && !added) {
               var altered = _this.modify_button(last || {}, button);
               added = true;                           
@@ -178,7 +178,7 @@ var utterance = EmberObject.extend({
         }
         if(inlines.length > 0) {
           inlines.forEach(function(arr) {
-            var action = SweetSuite.find_special_action(arr[0]);
+            var action = LingoLinq.find_special_action(arr[0]);
             if(action && action.inline) {
               inline_actions = inline_actions || [];
               action = Object.assign({}, action);
@@ -486,7 +486,7 @@ var utterance = EmberObject.extend({
       if(text && text.length > 0) {
         var prior_text = (altered.vocalization || altered.label || '');
         var prior_label = (altered.label || '');
-        var action = SweetSuite.find_special_action(text);
+        var action = LingoLinq.find_special_action(text);
     
         if(text.match(/^\+/) && (altered.in_progress || !prior_text || text.match(punctuation_at_start))) {
           altered.vocalization = prior_text + text.substring(1);
@@ -514,7 +514,7 @@ var utterance = EmberObject.extend({
     var specialty = null;
     var has_action = false, has_non_action = false;
     vocs.forEach(function(voc) {
-      var action = SweetSuite.find_special_action(voc);
+      var action = LingoLinq.find_special_action(voc);
       if(action && !action.completion && !action.modifier && !action.inline) {
         if(action.has_sound) {
           button.has_sound = true;

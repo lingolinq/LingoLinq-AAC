@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -27,7 +27,7 @@ export default Component.extend({
     var trends = this.get('trends');
     var elem = this.get('element').getElementsByClassName('core_usage')[0];
 
-    SweetSuite.Visualizations.wait('word-graph', function() {
+    LingoLinq.Visualizations.wait('word-graph', function() {
       if(elem && trends && trends.weeks) {
         var weeks = [];
         for(var idx in trends.weeks) {

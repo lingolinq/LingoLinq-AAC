@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import SweetSuite from '../../app';
+import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
@@ -29,7 +29,7 @@ export default Component.extend({
     var elem = this.get('element').getElementsByClassName('daily_stats')[0];
     var _this = this;
 
-    SweetSuite.Visualizations.wait('word-graph', function() {
+    LingoLinq.Visualizations.wait('word-graph', function() {
       if(elem && stats && stats.get('days')) {
         var raw_data = [[i18n.t('day', "Day"), i18n.t('total_words', "Total Words"), i18n.t('unique_words', "Unique Words")]];
         if(stats.get('modeled_words')) {
