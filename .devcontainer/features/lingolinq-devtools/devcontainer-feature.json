@@ -1,0 +1,10 @@
+{
+  "id": "lingolinq-devtools",
+  "version": "1.0.0",
+  "name": "LingoLinq DevTools",
+  "description": "Installs Gemini CLI, Claude SDK, and Ruby LSP setup for LingoLinq Codespaces.",
+  "install": {
+    "shell": "bash",
+    "script": "./install.sh"
+  }
+}
