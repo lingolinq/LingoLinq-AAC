@@ -201,7 +201,7 @@ class LibraryCache < ApplicationRecord
           end
           if self.data[cat][word]['added'] > self.invalidated_at.to_i
             found[orig] = {}.merge(self.data[cat][word]['data'])
-            found[orig]['coughdrop_image_id'] = self.data[cat][word]['image_id']
+            found[orig]['lingolinq_image_id'] = self.data[cat][word]['image_id']
           end
         end
       end

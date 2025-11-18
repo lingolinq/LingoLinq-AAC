@@ -11,7 +11,7 @@ if !ENV['SECURE_ENCRYPTION_KEY'] || !Rails.env.production?
   Dotenv.load if defined?(Dotenv)
 end
 
-module Coughdrop
+module LingoLinq
   class Application < Rails::Application
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers

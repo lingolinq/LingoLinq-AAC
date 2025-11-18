@@ -2,7 +2,7 @@ describe('utterance', function() {
   var controller = null;
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     stashes.flush();
     stashes.setup();
     controller = Ember.Object.extend({

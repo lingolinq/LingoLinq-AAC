@@ -242,7 +242,7 @@ describe LibraryCache, :type => :model do
       expect(res).to_not eq(nil)
       expect(res['bacon']).to_not eq(nil)
       expect(res['bacon']['a']).to eq(1)
-      expect(res['bacon']['coughdrop_image_id']).to eq('aaa')
+      expect(res['bacon']['lingolinq_image_id']).to eq('aaa')
     end
     
     it "should use expired results" do
@@ -253,7 +253,7 @@ describe LibraryCache, :type => :model do
       expect(res).to_not eq(nil)
       expect(res['bacon']).to_not eq(nil)
       expect(res['bacon']['a']).to eq(1)
-      expect(res['bacon']['coughdrop_image_id']).to eq('aaa')
+      expect(res['bacon']['lingolinq_image_id']).to eq('aaa')
     end
 
     it "should not use invalidated results" do
@@ -281,7 +281,7 @@ describe LibraryCache, :type => :model do
       expect(res['bacon']).to_not eq(nil)
     end
 
-    it "should return coughdrop_image_id in the results" do
+    it "should return lingolinq_image_id in the results" do
       cache = LibraryCache.create
       cache.data['defaults']['bacon'] = {'url' => 'http://www.example.com/bacon.png', 'image_id' => 'aaa', 'added' => 24.months.ago.to_i, 'data' => {'a' => 1}}
       cache.data['fallbacks']['bacon'] = {'url' => 'http://www.example.com/bacon2.png', 'image_id' => 'bbb', 'added' => 12.days.ago.to_i, 'data' => {'b' => 1}}
@@ -289,7 +289,7 @@ describe LibraryCache, :type => :model do
       expect(res).to_not eq(nil)
       expect(res['bacon']).to_not eq(nil)
       expect(res['bacon']['a']).to eq(1)
-      expect(res['bacon']['coughdrop_image_id']).to eq('aaa')
+      expect(res['bacon']['lingolinq_image_id']).to eq('aaa')
     end
 
     it "should pruen words that haven't been searched in a while" do
@@ -300,7 +300,7 @@ describe LibraryCache, :type => :model do
       expect(res).to_not eq(nil)
       expect(res['bacon']).to_not eq(nil)
       expect(res['bacon']['a']).to eq(1)
-      expect(res['bacon']['coughdrop_image_id']).to eq('aaa')
+      expect(res['bacon']['lingolinq_image_id']).to eq('aaa')
       expect(cache.data['defaults']['bacon']).to_not eq(nil)
       expect(cache.data['defaults']['cheddar']).to eq(nil)
     end

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LingoLinq (formerly CoughDrop) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
+LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
 
 Key characteristics:
 - Cloud-based with offline support via IndexedDB/SQLite
@@ -290,8 +290,8 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 **Database setup:**
 - Update `config/database.yml` for your Postgres config
-- Development DB: `coughdrop-development`
-- Test DB: `coughdrop-test`
+- Development DB: `lingolinq-development`
+- Test DB: `lingolinq-test`
 
 ## Troubleshooting
 

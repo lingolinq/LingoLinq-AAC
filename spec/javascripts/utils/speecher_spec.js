@@ -1,7 +1,7 @@
 describe('speecher', function() {
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     speecher.audio = {};
     speecher.scope = window;
   });

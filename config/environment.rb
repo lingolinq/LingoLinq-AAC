@@ -17,7 +17,7 @@ require File.expand_path('../application', __FILE__)
 require 'go_secure'
 
 # Initialize the Rails application.
-Coughdrop::Application.initialize!
+LingoLinq::Application.initialize!
 
 unless ENV['SKIP_VALIDATIONS']
   GoSecure.validate_encryption_key

@@ -135,11 +135,11 @@
               <td colspan={{if subscription.app_pricing_override '1' '2'}} class='separator semi_dim'></td>
             {{else}}
               <td colspan={{if subscription.app_pricing_override_no_monthly '1' '2'}}>
-                <img src="https://coughdrop.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
                 {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key='add_premium_symbols'}}
               </td>
               <td colspan={{if subscription.app_pricing_override '1' '2'}} class='separator semi_dim'>
-                <img src="https://coughdrop.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
                 {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key='add_premium_symbols'}}
               </td>
             {{/if}}
@@ -161,17 +161,17 @@
         {{/if}}
         <tr>
           {{#unless subscription.app_pricing_override_no_monthly}}
-            <td>{{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> included in subscription" key='included_in_subscription'}}</td>
+            <td>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> included in subscription" key='included_in_subscription'}}</td>
           {{/unless}}
           <td>
             {{#if subscription.user.lapsed}}
-              {{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>added" key='5_years_added'}}
+              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>added" key='5_years_added'}}
             {{else}}
-              {{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>included" key='5_years_included'}}
+              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>included" key='5_years_included'}}
             {{/if}}
           </td>
-          <td colspan='1' class='separator semi_dim'>{{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> for communicators" key='for_supported_communicators'}}</td>
-          <td colspan='1' class='semi_dim'>{{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> reset after every eval" key='for_supported_communicators2'}}</td>
+          <td colspan='1' class='separator semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> for communicators" key='for_supported_communicators'}}</td>
+          <td colspan='1' class='semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> reset after every eval" key='for_supported_communicators2'}}</td>
         </tr>
         {{#if pricing_only}}
           <tr>
@@ -411,7 +411,7 @@
       {{#if app_state.domain_settings.full_domain}}
         <div class="form-group">
           <div class="col-sm-12">
-            {{#link-to 'register' class='btn btn-lg btn-primary'}}{{t "Sign Up for a Free Trial of %app_name%" key='sign_up_for_trial_coughdrop'}}{{/link-to}}
+            {{#link-to 'register' class='btn btn-lg btn-primary'}}{{t "Sign Up for a Free Trial of %app_name%" key='sign_up_for_trial_lingolinq'}}{{/link-to}}
             {{#unless subscription.app_pricing_override}}
               {{#link-to 'gift_purchase' class='btn btn-lg btn-default'}}{{t "Purchase as a Gift" key='purchase_as_a_Gift'}}{{/link-to}}
             {{/unless}}

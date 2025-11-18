@@ -15,7 +15,7 @@ module Purchasing
     previous = event['data'] && event['data']['previous_attributes']
     event_result = nil
     if object
-      if object && object['metadata'] && object['metadata']['type'] == 'extras' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+      if object && object['metadata'] && object['metadata']['type'] == 'extras' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
         data = {:extras => true, :purchase_id => object['id'], :valid => true}
         if event['type'] == 'charge.succeeded'
           if object['metadata'] && (object['metadata']['purchased_symbols'] == 'true' || object['metadata']['purchased_supporters'].to_i > 0)
@@ -33,7 +33,7 @@ module Purchasing
           data[:valid] = false
         end
       else
-        if event['type'] == 'charge.succeeded' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        if event['type'] == 'charge.succeeded' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           valid = object['metadata'] && object['metadata']['user_id'] && object['metadata']['plan_id']
           if valid
             time = 5.years.to_i
@@ -72,7 +72,7 @@ module Purchasing
             end
           end
           data = {:purchase => true, :purchase_id => object['id'], :valid => !!valid}
-        elsif event['type'] == 'charge.failed' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'charge.failed' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           valid = false
           if object['customer'] && object['customer'] != 'free'
             customer = Stripe::Customer.retrieve({id: object['customer']})
@@ -113,7 +113,7 @@ module Purchasing
               prior_user.transfer_subscription_to(new_user, true)
             end
           end
-        elsif event['type'] == 'customer.subscription.created' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.created' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id'] && object['plan'] && object['plan']['id']
           if valid
@@ -130,7 +130,7 @@ module Purchasing
             })
           end
           data = {:subscribe => true, :valid => !!valid}
-        elsif event['type'] == 'customer.subscription.updated' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.updated' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id']
           if object['status'] == 'unpaid' || object['status'] == 'canceled'
@@ -174,7 +174,7 @@ module Purchasing
             end
             data = {:subscribe => true, :valid => !!valid}
           end
-        elsif event['type'] == 'customer.subscription.deleted' && (((object['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop')
+        elsif event['type'] == 'customer.subscription.deleted' && (((object['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq')
           customer = Stripe::Customer.retrieve({id: object['customer']})
           valid = customer && customer['metadata'] && customer['metadata']['user_id']
           if valid
@@ -287,30 +287,30 @@ module Purchasing
     description = type
     if type.match(/^slp_monthly/)
       valid_amount = false
-      description = "CoughDrop supporter account"
+      description = "LingoLinq supporter account"
     elsif type.match(/^slp_long_term/)
       valid_amount = false unless amount >= Purchasing.extras_supporter_cost
       if type.match(/free/)
         amount = 0
         valid_amount = true
       end
-      description = "CoughDrop supporter account"
+      description = "LingoLinq supporter account"
     elsif type.match(/^eval_long_term/)
       valid_amount = false unless amount >= Purchasing.extras_supporter_cost
-      description = "CoughDrop evaluator account"
+      description = "LingoLinq evaluator account"
     elsif type.match(/^monthly/)
       valid_amount = false unless amount >= 6
-      description = "CoughDrop communicator monthly subscription"
+      description = "LingoLinq communicator monthly subscription"
     elsif type.match(/^long_term/)
       if user.communicator_role? && user.fully_purchased? && !user.eval_account?
         valid_amount = false unless amount >= Purchasing.communicator_repurchase_cost
         amount = [145, amount].min
-        description = "CoughDrop cloud extras re-purchase"
+        description = "LingoLinq cloud extras re-purchase"
         type = 'refresh_' + type
       else
         valid_amount = false unless amount >= Purchasing.communicator_cost
         valid_amount = true if amount >= Purchasing.communicator_sale_cost && self.active_sale?
-        description = "CoughDrop communicator license purchase"
+        description = "LingoLinq communicator license purchase"
       end
     else
       return {success: false, error: "unrecognized purchase type, #{type}"}
@@ -343,7 +343,7 @@ module Purchasing
         meta = {
           'user_id' => user.global_id,
           'plan_id' => plan_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'license'
         }
         meta['purchased_symbols'] = 'true' if include_extras
@@ -395,7 +395,7 @@ module Purchasing
         if !customer
           user && user.log_subscription_event({:log => 'creating new customer'})
           customer = Stripe::Customer.create({
-            :metadata => { 'user_id' => user.global_id, 'platform_source' => 'coughdrop' },
+            :metadata => { 'user_id' => user.global_id, 'platform_source' => 'lingolinq' },
             :email => (user && user.external_email_allowed?) ? (user && user.settings && user.settings['email']) : nil,
             :expand => ['subscriptions']
           })
@@ -405,7 +405,7 @@ module Purchasing
           plan_id = Purchasing.plan_map[plan_id] || plan_id
           sub = nil
           if customer.subscriptions.count > 0
-            sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && ['active', 'past_due', 'unpaid'].include?(s.status) }
+            sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && ['active', 'past_due', 'unpaid'].include?(s.status) }
           end
           if sub
             sub.source = token['id']
@@ -420,7 +420,7 @@ module Purchasing
               trial_end = (user.created_at + 60.days).to_i
             end
             meta = {
-              :platform_source => 'coughdrop'
+              :platform_source => 'lingolinq'
             }
             meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
             sub = customer.subscriptions.create({
@@ -431,20 +431,20 @@ module Purchasing
             })
           end
           customer = Stripe::Customer.retrieve({id: customer['id'], expand: ['subscriptions']})
-          any_sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && (s.status == 'active' || s.status == 'trialing') }
+          any_sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && (s.status == 'active' || s.status == 'trialing') }
           if include_extras || include_n_supporters > 0
             one_time_amount += self.extras_symbols_cost if include_extras
             one_time_amount += (include_n_supporters * self.extras_supporter_cost)
             desc = ""
             cosst = 0
             if include_extras && include_n_supporters > 0
-              desc = "CoughDrop premium symbols and #{include_n_supporters} supporter accounts one-time charge"
+              desc = "LingoLinq premium symbols and #{include_n_supporters} supporter accounts one-time charge"
               cost = (self.extras_symbols_cost * 100) + (include_n_supporters * self.extras_supporter_cost * 100)
             elsif include_extras
-              desc = "CoughDrop premium symbols one-time charge"
+              desc = "LingoLinq premium symbols one-time charge"
               cost = (self.extras_symbols_cost * 100)
             else
-              desc = "CoughDrop premium #{include_n_supporters} supporter accounts one-time charge"
+              desc = "LingoLinq premium #{include_n_supporters} supporter accounts one-time charge"
               cost = (include_n_supporters * self.extras_supporter_cost * 100)
             end
             charge_id = nil
@@ -452,7 +452,7 @@ module Purchasing
               meta = {
                 'user_id' => user.global_id,
                 'type' => 'extras',
-                'platform_source' => 'coughdrop'
+                'platform_source' => 'lingolinq'
               }
               meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
               meta['purchased_symbols'] = 'true' if include_extras
@@ -472,7 +472,7 @@ module Purchasing
                 currency: 'usd',
                 customer: customer['id'],
                 description: desc,
-                metadata: {'platform_source' => 'coughdrop'}
+                metadata: {'platform_source' => 'lingolinq'}
               })
             end
             extras_added = {:customer_id => customer.id, :purchase_id => charge_id, :symbols => !!include_extras, :supporters => include_n_supporters}
@@ -553,11 +553,11 @@ module Purchasing
           :source => token['id'],
           :customer => token['customer_id'],
           :receipt_email => user.settings['email'],
-          :description => "CoughDrop premium symbols access",
+          :description => "LingoLinq premium symbols access",
           :metadata => {
             'user_id' => user.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'extras'
           }
         })
@@ -603,17 +603,17 @@ module Purchasing
 
     if type.match(/^long_term_custom/)
       if gift && gift.settings['amount']
-        description = "#{gift.settings['licenses'] || 1} sponsored CoughDrop license(s)"
+        description = "#{gift.settings['licenses'] || 1} sponsored LingoLinq license(s)"
         if !gift.settings['memo'].blank?
           description += ", #{gift.settings['memo']}"
         end
       else
         valid_amount = false unless amount > cutoff
-        description = "sponsored CoughDrop license"
+        description = "sponsored LingoLinq license"
       end
     elsif type.match(/^long_term/)
       valid_amount = false unless amount >= cutoff
-      description = "sponsored CoughDrop license"
+      description = "sponsored LingoLinq license"
     else
       return {success: false, error: "unrecognized purchase type, #{type}"}
     end   
@@ -633,7 +633,7 @@ module Purchasing
         :metadata => {
           'giver_id' => user && user.global_id,
           'giver_email' => opts['email'] || (user && user.settings['email']),
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => type
         }
       })
@@ -729,11 +729,11 @@ module Purchasing
     cancel_other_subscriptions(user, 'all')
   end
 
-  # TODO: on frontend init, if not iOS but subscription.plan_id == 'CoughDropiOSMonthly'
+  # TODO: on frontend init, if not iOS but subscription.plan_id == 'LingoLinqiOSMonthly'
   # then make an API call to verify the latest receipt for the user matching that criteria
   def self.verify_receipt(user, data)
     res = {}
-    prepaid_bundle_ids = ['com.mycoughdrop.paidcoughdrop']
+    prepaid_bundle_ids = ['com.mylingolinq.paidlingolinq']
     if user && data && data['receipt'] && data['receipt']['appStoreReceipt']
       product_id = data['product_id']
       user.settings['receipts'] = (user.settings['receipts'] || []).select{|r| (product_id && r['product_id'] != product_id) || (r['data'] && r['data']['receipt'] && r['data']['receipt']['appStoreReceipt'] != data['receipt']['appStoreReceipt'])}
@@ -791,9 +791,9 @@ module Purchasing
             return {'error' => true, 'error_message' => 'Not a pre-purchase and no in-app receipts to validate'}
           end
           res['customer_id'] = "ios.#{user.global_id}"
-          res['one_time_purchase'] = true if ['CoughDropiOSBundle', 'CoughDropiOSEval', 'CoughDropiOSSLP'].include?(res['product_id']) || res['pre_purchase']
-          res['subscription'] = true if ['CoughDropiOSMonthly'].include?(res['product_id'])
-          res['extras'] = true if ['CoughDropiOSMonthly', 'CoughDropiOSBundle'].include?(res['product_id'])
+          res['one_time_purchase'] = true if ['LingoLinqiOSBundle', 'LingoLinqiOSEval', 'LingoLinqiOSSLP'].include?(res['product_id']) || res['pre_purchase']
+          res['subscription'] = true if ['LingoLinqiOSMonthly'].include?(res['product_id'])
+          res['extras'] = true if ['LingoLinqiOSMonthly', 'LingoLinqiOSBundle'].include?(res['product_id'])
 
           # Make sure if the token has already been used, we're applying it to the right user
           existing_user = nil
@@ -872,13 +872,13 @@ module Purchasing
           elsif res['one_time_purchase']
             transaction_ids = (user.settings['subscription']['prior_purchase_ids'] || []) + [user.settings['subscription']['last_purchase_id'] || 'xx']
             ios_plan_hash = {
-#              'com.mycoughdrop.coughdrop' => 'long_term_ios',
+#              'com.mylingolinq.lingolinq' => 'long_term_ios',
               'AppPrePurchase' => 'long_term_ios',
-              'com.mycoughdrop.paidcoughdrop' => 'long_term_ios',
-              'CoughDropiOSPlusExtras' => 'long_term_ios',
-              'CoughDropiOSBundle' => 'long_term_ios',
-              'CoughDropiOSEval' => 'eval_long_term_ios',
-              'CoughDropiOSSLP' => 'slp_long_term_ios'
+              'com.mylingolinq.paidlingolinq' => 'long_term_ios',
+              'LingoLinqiOSPlusExtras' => 'long_term_ios',
+              'LingoLinqiOSBundle' => 'long_term_ios',
+              'LingoLinqiOSEval' => 'eval_long_term_ios',
+              'LingoLinqiOSSLP' => 'slp_long_term_ios'
             }
             expected_plan = ios_plan_hash[res['product_id']] || ios_plan_hash[res['bundle_id']]
             if !existing_user && (hash['plan_id'] != expected_plan || !transaction_ids.include?(res['transaction_id']))
@@ -1090,7 +1090,7 @@ module Purchasing
     customers = Stripe::Customer.search({query: "metadata[\"user_id\"]:\"#{user_id}\""})
     customers.data.each do |cus|
       customer = Stripe::Customer.retrieve(id: cus.id, expand: ['subscriptions'])
-      sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'coughdrop') == 'coughdrop' && ['active', 'past_due', 'unpaid'].include?(s.status) }
+      sub = customer.subscriptions.data.detect{|s| ((s.metadata || {})['platform_source'] || 'lingolinq') == 'lingolinq' && ['active', 'past_due', 'unpaid'].include?(s.status) }
       next if sub && sub.created && timestamp_cutoff && sub.created < timestamp_cutoff
       if sub
         # user has active subscription, make sure it is applied
@@ -1178,7 +1178,7 @@ module Purchasing
       end
       user_id = customer['metadata'] && customer['metadata']['user_id']
       user = user_id && User.find_by_global_id(user_id)
-      customer_subs = customer['subscriptions'].to_a.select{|s| ((s['metadata'] || {})['platform_source'] || 'coughdrop') == 'coughdrop' }
+      customer_subs = customer['subscriptions'].to_a.select{|s| ((s['metadata'] || {})['platform_source'] || 'lingolinq') == 'lingolinq' }
       if !user && cancels[customer['id']].blank? && !customer_subs.blank?
         problems << "#{customer['id']} no user found"
         output "\tuser not found #{user_id} (ROGUE SUBSCRIPTION??)"

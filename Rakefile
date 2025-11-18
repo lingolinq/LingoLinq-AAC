@@ -8,5 +8,5 @@ ENV['SKIP_VALIDATIONS'] = "true"
 
 require File.expand_path('../config/application', __FILE__)
 
-Coughdrop::Application.load_tasks
+LingoLinq::Application.load_tasks
 

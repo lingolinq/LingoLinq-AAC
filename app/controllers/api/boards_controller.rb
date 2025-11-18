@@ -460,7 +460,7 @@ class Api::BoardsController < ApplicationController
     if processed_params['button']
       res = board.process_button(processed_params['button'])
     else
-      version_date = Date.parse(request.headers['X-CoughDrop-Version']) rescue nil
+      version_date = Date.parse(request.headers['X-LingoLinq-Version']) rescue nil
       add_voc_error = version_date && version_date < Date.parse('August 3, 2021')
       new_board = board.process(processed_params['board'], {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
       board = new_board if new_board.is_a?(Board)
@@ -565,7 +565,7 @@ class Api::BoardsController < ApplicationController
     file = Tempfile.new(["board-#{board.global_id}", '.obf'])
     path = file.path
     file.close
-    json = Converters::CoughDrop.to_external(board, {'simple' => true})
+    json = Converters::LingoLinq.to_external(board, {'simple' => true})
     OBF::External.to_obf(json, path, nil, {image_urls: true, sound_urls: true})
     send_data File.read(path), :type => 'application/obf', :disposition => 'attachment', :filename => "board-#{board.global_id}.obf"
   end

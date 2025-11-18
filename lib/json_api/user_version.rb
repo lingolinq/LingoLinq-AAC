@@ -35,14 +35,14 @@ module JsonApi::UserVersion
         end
       elsif version.whodunnit.match(/^admin:/)
         json['modifier'] = {
-          'description' => 'CoughDrop Admin',
-          'image' => "https://www.mycoughdrop.com/images/logo-big.png"
+          'description' => 'LingoLinq Admin',
+          'image' => "https://www.mylingolinq.com/images/logo-big.png"
         }
       end
     end
     json['modifier'] ||= {
       'description' => 'Unknown User',
-      'image' => "https://#{ENV['STATIC_S3_BUCKET'] || "coughdrop"}.s3.amazonaws.com/avatars/avatar-0.png"
+      'image' => "https://#{ENV['STATIC_S3_BUCKET'] || "lingolinq"}.s3.amazonaws.com/avatars/avatar-0.png"
     }
 
     json

@@ -433,7 +433,7 @@ module Uploadable
           library: parts[2],
           image_id: parts[3],
           original_url: url,
-          url: "coughdrop://protected_image/#{parts[2]}/#{parts[3]}"
+          url: "lingolinq://protected_image/#{parts[2]}/#{parts[3]}"
         }
         return res
       end

@@ -25,9 +25,9 @@ module.exports = function(environment) {
   };
 
 //   ENV['simple-auth'] = {
-//     store: 'simple-auth-session-store:coughdrop-local-storage',
-//     session: 'simple-auth-session:coughdrop',
-//     authenticator: 'authenticator:coughdrop'
+//     store: 'simple-auth-session-store:lingolinq-local-storage',
+//     session: 'simple-auth-session:lingolinq',
+//     authenticator: 'authenticator:lingolinq'
 //   }
 
   if (environment === 'development') {

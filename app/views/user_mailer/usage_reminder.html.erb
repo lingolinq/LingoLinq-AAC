@@ -4,7 +4,7 @@ access to with your <%= app_name %> account, so you can get the most out of
 your experience. This is a one-time email that you'll hopefully find helpful.<br/><br/>
 <% if @supporter_no_supervisees %>
   <h3>Supervising</h3>
-  <img src="https://coughdrop.s3.amazonaws.com/email/supervisor.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="supervisor screen shot"/>
+  <img src="https://lingolinq.s3.amazonaws.com/email/supervisor.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="supervisor screen shot"/>
   It looks like you've signed up as a supervisor, but you don't have anybody to supervise.
   Once you've been added by communicators as a supervisor, you'll see their information
   show up on your dashboard, including notifications, recent logs, and quick actions for
@@ -14,7 +14,7 @@ your experience. This is a one-time email that you'll hopefully find helpful.<br
   <br/><br/>
 <% elsif @no_recent_activity || @no_home_board %>
   <h3>Getting Started</h3>
-  <img src="https://coughdrop.s3.amazonaws.com/email/board.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="board screen shot"/>
+  <img src="https://lingolinq.s3.amazonaws.com/email/board.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="board screen shot"/>
   If you haven't had much chance to use <%= app_name %> yet, remember that it's a
   simple, flexible communication app that gives you unique insights into what's working.
   It's easy to get started, just pick a home board, open it in Speak Mode and start
@@ -25,7 +25,7 @@ your experience. This is a one-time email that you'll hopefully find helpful.<br
   <br/><br/>
 <% else %>
   <h3>Doing More</h3>
-  <img src="https://coughdrop.s3.amazonaws.com/email/board.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="board screen shot"/>
+  <img src="https://lingolinq.s3.amazonaws.com/email/board.png" style="float: right; width: 300px; border: 1px solid #888; padding: 2px; margin-left: 10px; margin-right: 5px;" alt="board screen shot"/>
   <%= app_name %> is more than just a communication app, it's a movement. We're trying to show
   everyone just how much of a different flexible, team-enabled resources can be
   in helping communicators make their voices heard. Your
@@ -39,7 +39,7 @@ your experience. This is a one-time email that you'll hopefully find helpful.<br
 
 <% if @logging_disabled %>
   <h3>Logging</h3>
-  <img src="https://coughdrop.s3.amazonaws.com/email/reporting.png" style="float: left; width: 300px; border: 1px solid #888; padding: 2px; margin-right: 10px; margin-left: 5px;" alt="reporting screen shot"/>
+  <img src="https://lingolinq.s3.amazonaws.com/email/reporting.png" style="float: left; width: 300px; border: 1px solid #888; padding: 2px; margin-right: 10px; margin-left: 5px;" alt="reporting screen shot"/>
   <%= app_name %> has powerful reporting and logging built-in. Once you 
   <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/stats">turn on logging</a> 
   then any usage that happens will be automatically gathered into detailed

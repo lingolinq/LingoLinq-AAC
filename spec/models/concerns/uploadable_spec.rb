@@ -385,22 +385,22 @@ describe Uploadable, :type => :model do
     
     it "should not error if cached button_image is found, but no result on it yet" do
       bi = ButtonImage.new
-      bi2 = ButtonImage.create(url: 'coughdrop://something.png', settings: {'error_pending_url' => 'coughdrop://something.png', 'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
+      bi2 = ButtonImage.create(url: 'lingolinq://something.png', settings: {'error_pending_url' => 'lingolinq://something.png', 'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
       u = User.create
       expect(bi.assert_cached_copy).to eq(false)
       bi.url = "http://www.example.com/pic.png"
       bi.save
       expect(Uploader).to receive(:protected_remote_url?).with("http://www.example.com/pic.png").and_return(true)
       expect(Uploader).to receive(:protected_remote_url?).with("http://www.example.com/uploads/pic.png").and_return(false).at_least(1).times
-      expect(Uploader).to receive(:protected_remote_url?).with("coughdrop://something.png").and_return(false).at_least(1).times
+      expect(Uploader).to receive(:protected_remote_url?).with("lingolinq://something.png").and_return(false).at_least(1).times
       expect(ButtonImage).to receive(:cached_copy_identifiers).with("http://www.example.com/pic.png").and_return({
         library: 'lessonpix',
         user_id: u.global_id,
         image_id: '12345',
-        url: 'coughdrop://something.png'
+        url: 'lingolinq://something.png'
       })
       expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
-      expect(ButtonImage).to receive(:find_by).with(url: 'coughdrop://something.png').and_return(bi2)
+      expect(ButtonImage).to receive(:find_by).with(url: 'lingolinq://something.png').and_return(bi2)
       expect(bi2).to receive(:upload_to_remote){|url|
         expect(url).to eq('http://www.example.com/pics/pic.png')
         bi2.url = 'http://www.example.com/uploads/pic.png'
@@ -409,7 +409,7 @@ describe Uploadable, :type => :model do
       expect(bi.settings['errored_pending_url']).to eq(nil)
       expect(bi.assert_cached_copy).to eq(true)
       bi2.reload
-      expect(bi2.url).to eq("coughdrop://something.png")
+      expect(bi2.url).to eq("lingolinq://something.png")
       expect(bi2.settings['cached_copy_url']).to eq('http://www.example.com/uploads/pic.png')
       expect(bi2.settings['copy_attempts']).to eq([])
     end
@@ -423,12 +423,12 @@ describe Uploadable, :type => :model do
       bi.save
       expect(Uploader).to receive(:protected_remote_url?).with("http://www.example.com/pic.png").and_return(true)
       expect(Uploader).to receive(:protected_remote_url?).with("http://www.example.com/uploads/pic.png").and_return(false).at_least(1).times
-      expect(Uploader).to receive(:protected_remote_url?).with("coughdrop://something.png").and_return(false).at_least(1).times
+      expect(Uploader).to receive(:protected_remote_url?).with("lingolinq://something.png").and_return(false).at_least(1).times
       expect(ButtonImage).to receive(:cached_copy_identifiers).with("http://www.example.com/pic.png").and_return({
         library: 'lessonpix',
         user_id: u.global_id,
         image_id: '12345',
-        url: 'coughdrop://something.png'
+        url: 'lingolinq://something.png'
       })
       expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
       expect(ButtonImage).to receive(:create).and_return(bi2)
@@ -439,7 +439,7 @@ describe Uploadable, :type => :model do
       }.and_return(true)
       expect(bi.assert_cached_copy).to eq(true)
       bi2.reload
-      expect(bi2.url).to eq("coughdrop://something.png")
+      expect(bi2.url).to eq("lingolinq://something.png")
       expect(bi2.settings['cached_copy_url']).to eq('http://www.example.com/uploads/pic.png')
     end
     
@@ -454,7 +454,7 @@ describe Uploadable, :type => :model do
         library: 'lessonpix',
         user_id: u.global_id,
         image_id: '12345',
-        url: 'coughdrop://something.png'
+        url: 'lingolinq://something.png'
       })
       expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
       expect(ButtonImage).to receive(:create).and_return(bi2)
@@ -476,7 +476,7 @@ describe Uploadable, :type => :model do
       u = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'coughdrop://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq('http://www.example.com/pic.png')
     end
@@ -487,7 +487,7 @@ describe Uploadable, :type => :model do
       u2 = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'coughdrop://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u2).and_return({})
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u2)).to eq('http://www.example.com/pic.png')
     end
@@ -498,7 +498,7 @@ describe Uploadable, :type => :model do
       u2 = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'coughdrop://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u2).and_return(nil)
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u2)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
     end
@@ -837,7 +837,7 @@ describe Uploadable, :type => :model do
           library: 'lessonpix',
           image_id: '12345',
           original_url: 'http://www.example.com/api/v1/users/bob/protected_image/lessonpix/12345?a=1234',
-          url: 'coughdrop://protected_image/lessonpix/12345'
+          url: 'lingolinq://protected_image/lessonpix/12345'
         })
       end
       

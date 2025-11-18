@@ -3,7 +3,7 @@ describe('modal', function() {
   beforeEach(function() {
     Ember.testing = true;
     modal.last_promise = null;
-    CoughDrop.reset();
+    LingoLinq.reset();
     route = Ember.Object.extend({
       render: function() {
         this.lastRender = arguments;

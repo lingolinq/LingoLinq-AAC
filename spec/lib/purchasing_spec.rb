@@ -150,7 +150,7 @@ describe Purchasing do
           'metadata' => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_100',
-            'platform_source' => 'not_coughdrop'
+            'platform_source' => 'not_lingolinq'
           }
         }
         u.reload
@@ -191,7 +191,7 @@ describe Purchasing do
           'metadata' => {
             'user_id' => u.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'not_coughdrop',
+            'platform_source' => 'not_lingolinq',
             'type' => 'extras'
           }
         }
@@ -346,7 +346,7 @@ describe Purchasing do
         expect(SubscriptionMailer).to_not receive(:schedule_delivery).with(:purchase_bounced, u.global_id)
         res = stripe_event_request 'charge.failed', {
           'customer' => 'qwer',
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         expect(res[:data][:valid]).to eq(false)
       end   
@@ -419,7 +419,7 @@ describe Purchasing do
             'id' => 'monthly_6'
           },
           'metadata' => {
-            'platform_source' => 'not_coughdrop'
+            'platform_source' => 'not_lingolinq'
           }
         }
         u.reload
@@ -497,7 +497,7 @@ describe Purchasing do
           'plan' => {
             'id' => 'monthly_6'
           },
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         u.reload
         expect(u.settings['subscription']).not_to eq(nil)
@@ -540,7 +540,7 @@ describe Purchasing do
         res = stripe_event_request 'customer.subscription.deleted', {
           'customer' => '12345',
           'id' => '23456',
-          'metadata' => {'platform_source' => 'not_coughdrop'}
+          'metadata' => {'platform_source' => 'not_lingolinq'}
         }
         
         u.reload
@@ -661,11 +661,11 @@ describe Purchasing do
         :amount => 2500,
         :currency => 'usd',
         :source => 'token',
-        :description => 'CoughDrop supporter account (plus premium symbols)',
+        :description => 'LingoLinq supporter account (plus premium symbols)',
         :receipt_email => nil,
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => 'slp_long_term_free',
           'purchased_symbols' => 'true',
           'type' => 'license'
@@ -702,7 +702,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -734,7 +734,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -766,7 +766,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -775,7 +775,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -786,11 +786,11 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium symbols one-time charge',
+          :description => 'LingoLinq premium symbols one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'type' => 'extras'
           }
@@ -827,7 +827,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -836,7 +836,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop', 'purchased_supporters' => 3},
+            :metadata => {:platform_source => 'lingolinq', 'purchased_supporters' => 3},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -847,11 +847,11 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium 3 supporter accounts one-time charge',
+          :description => 'LingoLinq premium 3 supporter accounts one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_supporters' => 3,
             'type' => 'extras'
           }
@@ -888,7 +888,7 @@ describe Purchasing do
         })
         expect(cus).to receive(:id).and_return('12345')
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -897,7 +897,7 @@ describe Purchasing do
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
             :source => 'token',
-            :metadata => {:platform_source => 'coughdrop', 'purchased_supporters' => 2},
+            :metadata => {:platform_source => 'lingolinq', 'purchased_supporters' => 2},
             trial_end: (u.created_at + 60.days).to_i
           })
           subs.data.push(new_sub)
@@ -908,12 +908,12 @@ describe Purchasing do
           :currency => 'usd',
           :source => 'deftoken',
           :customer => '12345',
-          :description => 'CoughDrop premium symbols and 2 supporter accounts one-time charge',
+          :description => 'LingoLinq premium symbols and 2 supporter accounts one-time charge',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'purchased_symbols' => 'true',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_supporters' => 2,
             'type' => 'extras'
           }
@@ -947,7 +947,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            metadata: {:platform_source => 'coughdrop'},
+            metadata: {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -987,7 +987,7 @@ describe Purchasing do
           subscriptions: subs
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -995,7 +995,7 @@ describe Purchasing do
         expect(cus.subscriptions).to receive(:create){|opts|
           expect(opts).to eq({
             :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            :metadata => {:platform_source => 'coughdrop'},
+            :metadata => {:platform_source => 'lingolinq'},
             :source => 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -1020,7 +1020,7 @@ describe Purchasing do
           id: '12345'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => 'testing@example.com'
         }).and_return(cus)
@@ -1046,7 +1046,7 @@ describe Purchasing do
           id: '12345'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop','user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq','user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -1077,7 +1077,7 @@ describe Purchasing do
           customer: '9876'
         })
         expect(Stripe::Customer).to receive(:create).with({
-          :metadata => {'platform_source' => 'coughdrop', 'user_id' => u.global_id},
+          :metadata => {'platform_source' => 'lingolinq', 'user_id' => u.global_id},
           :expand => ['subscriptions'],
           :email => nil
         }).and_return(cus)
@@ -1085,7 +1085,7 @@ describe Purchasing do
         expect(subs).to receive(:create){|opts|
           expect(opts).to eq({
             plan: 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
-            metadata: {:platform_source => 'coughdrop'},
+            metadata: {:platform_source => 'lingolinq'},
             source: 'token',
             trial_end: (u.created_at + 60.days).to_i
           })
@@ -1142,13 +1142,13 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
             }
@@ -1157,10 +1157,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -1197,13 +1197,13 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -1212,10 +1212,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -1262,11 +1262,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1284,12 +1284,12 @@ describe Purchasing do
           :amount => 22500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus premium symbols)',
+          :description => 'LingoLinq communicator license purchase (plus premium symbols)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'type' => 'license'
           }
@@ -1309,12 +1309,12 @@ describe Purchasing do
           :amount => 32500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus 5 premium supporters)',
+          :description => 'LingoLinq communicator license purchase (plus 5 premium supporters)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 5,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1334,12 +1334,12 @@ describe Purchasing do
           :amount => 30000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus premium symbols) (plus 3 premium supporters)',
+          :description => 'LingoLinq communicator license purchase (plus premium symbols) (plus 3 premium supporters)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 3,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'plan_id' => 'long_term_200',
             'type' => 'license'
@@ -1364,11 +1364,11 @@ describe Purchasing do
           :amount => 10000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1394,11 +1394,11 @@ describe Purchasing do
           :amount => 10000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1423,12 +1423,12 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase (plus premium symbols) (plus 3 premium supporters)',
+          :description => 'LingoLinq communicator license purchase (plus premium symbols) (plus 3 premium supporters)',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'purchased_supporters' => 3,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'purchased_symbols' => 'true',
             'plan_id' => 'long_term_200',
             'type' => 'license'
@@ -1452,11 +1452,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1477,12 +1477,12 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'license'
           }
         }).and_return({
@@ -1499,12 +1499,12 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
             'plan_id' => 'long_term_200',
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'type' => 'license'
           }
         }).and_return({
@@ -1533,11 +1533,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => nil,
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1570,11 +1570,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop supporter account',
+          :description => 'LingoLinq supporter account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1606,11 +1606,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop evaluator account',
+          :description => 'LingoLinq evaluator account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1642,11 +1642,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop evaluator account',
+          :description => 'LingoLinq evaluator account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1668,11 +1668,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop supporter account',
+          :description => 'LingoLinq supporter account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1694,11 +1694,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop supporter account',
+          :description => 'LingoLinq supporter account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1720,11 +1720,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1743,11 +1743,11 @@ describe Purchasing do
           :amount => 5000,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop cloud extras re-purchase',
+          :description => 'LingoLinq cloud extras re-purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'refresh_long_term_50',
             'type' => 'license'
           }
@@ -1786,11 +1786,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop supporter account',
+          :description => 'LingoLinq supporter account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1810,11 +1810,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1838,11 +1838,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop evaluator account',
+          :description => 'LingoLinq evaluator account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -1862,11 +1862,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1890,11 +1890,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1914,11 +1914,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop supporter account',
+          :description => 'LingoLinq supporter account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'slp_long_term_25',
             'type' => 'license'
           }
@@ -1942,11 +1942,11 @@ describe Purchasing do
           :amount => 20000,
           :currency => 'usd',
           :source => 'token',
-          :description => 'CoughDrop communicator license purchase',
+          :description => 'LingoLinq communicator license purchase',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'long_term_200',
             'type' => 'license'
           }
@@ -1966,11 +1966,11 @@ describe Purchasing do
           :amount => 2500,
           :currency => 'usd',
           :source => 'token2',
-          :description => 'CoughDrop evaluator account',
+          :description => 'LingoLinq evaluator account',
           :receipt_email => 'testing@example.com',
           :metadata => {
             'user_id' => u.global_id,
-            'platform_source' => 'coughdrop',
+            'platform_source' => 'lingolinq',
             'plan_id' => 'eval_long_term_25',
             'type' => 'license'
           }
@@ -2317,10 +2317,10 @@ describe Purchasing do
         :source => 'token',
         :customer => nil,
         :receipt_email => u.settings['email'],
-        :description => "CoughDrop premium symbols access",
+        :description => "LingoLinq premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2337,11 +2337,11 @@ describe Purchasing do
         :source => 'token',
         :customer => nil,
         :receipt_email => u.settings['email'],
-        :description => "CoughDrop premium symbols access",
+        :description => "LingoLinq premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
           'purchased_symbols' => 'true',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'extras'
         }
       }).and_return({'id' => '1234', 'customer' => '4567'})
@@ -2366,10 +2366,10 @@ describe Purchasing do
         :source => 'token',
         :customer => nil,
         :receipt_email => u.settings['email'],
-        :description => "CoughDrop premium symbols access",
+        :description => "LingoLinq premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2396,10 +2396,10 @@ describe Purchasing do
         :source => 'tokenny',
         :customer => '1234qwer',
         :receipt_email => u.settings['email'],
-        :description => "CoughDrop premium symbols access",
+        :description => "LingoLinq premium symbols access",
         :metadata => {
           'user_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'purchased_symbols' => 'true',
           'type' => 'extras'
         }
@@ -2489,10 +2489,10 @@ describe Purchasing do
         :currency => 'usd',
         :receipt_email=>"bob@example.com",
         :source => 'token',
-        :description => 'sponsored CoughDrop license',
+        :description => 'sponsored LingoLinq license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_200'
         }
@@ -2523,11 +2523,11 @@ describe Purchasing do
         :currency => 'usd',
         :source => 'token',
         :receipt_email=>"bob@example.com",
-        :description => 'sponsored CoughDrop license',
+        :description => 'sponsored LingoLinq license',
         :metadata => {
           'giver_id' => u.global_id,
           'giver_email' => 'bob@example.com',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'plan_id' => 'long_term_custom_500'
         }
       }).and_return({
@@ -2558,10 +2558,10 @@ describe Purchasing do
         :currency => 'usd',
         :source => 'token',
         :receipt_email=>"bob@example.com",
-        :description => 'sponsored CoughDrop license',
+        :description => 'sponsored LingoLinq license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2607,10 +2607,10 @@ describe Purchasing do
         :currency => 'usd',
         :receipt_email=>"bob@example.com",
         :source => 'token',
-        :description => 'sponsored CoughDrop license',
+        :description => 'sponsored LingoLinq license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_200'
         }
@@ -2638,10 +2638,10 @@ describe Purchasing do
         :currency => 'usd',
         :receipt_email=>"bob@example.com",
         :source => 'token',
-        :description => '4 sponsored CoughDrop license(s), PO #12345',
+        :description => '4 sponsored LingoLinq license(s), PO #12345',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2680,10 +2680,10 @@ describe Purchasing do
         :currency => 'usd',
         :source => 'token',
         :receipt_email=>"bob@example.com",
-        :description => 'sponsored CoughDrop license',
+        :description => 'sponsored LingoLinq license',
         :metadata => {
           'giver_id' => u.global_id,
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'giver_email' => 'bob@example.com',
           'plan_id' => 'long_term_custom_500'
         }
@@ -2876,11 +2876,11 @@ describe Purchasing do
         :currency => 'usd',
         :source => 'token',
         :receipt_email => nil,
-        :description => 'CoughDrop communicator license purchase',
+        :description => 'LingoLinq communicator license purchase',
         :metadata => {
           'user_id' => u.global_id,
           'plan_id' => 'long_term_200',
-          'platform_source' => 'coughdrop',
+          'platform_source' => 'lingolinq',
           'type' => 'license'
         }
       }).and_return({
@@ -2917,11 +2917,11 @@ describe Purchasing do
       :amount => 20000,
       :currency => 'usd',
       :source => 'tokenasdfasdf',
-      :description => 'CoughDrop communicator license purchase',
+      :description => 'LingoLinq communicator license purchase',
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'long_term_200',
         'type' => 'license'
       }
@@ -2998,14 +2998,14 @@ describe Purchasing do
       :expand => ['subscriptions'],
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop'
+        'platform_source' => 'lingolinq'
       },
       :email => nil
     }).and_return(customer)
     expect(customer.subscriptions).to receive(:create).with({
       :plan => 'price_1NQzXZBoyWVHHEVPoaYXBeyy',
       :source => 'tokenasdfasdf',
-      :metadata => {:platform_source => 'coughdrop'},
+      :metadata => {:platform_source => 'lingolinq'},
       trial_end: (u.created_at + 60.days).to_i
     }).and_raise("You cannot use a Stripe token more than once")
     Purchasing.purchase(u, {'id' => 'tokenasdfasdf',}, 'monthly_6')
@@ -3044,11 +3044,11 @@ describe Purchasing do
       :amount => 20000,
       :currency => 'usd',
       :source => 'tokenasdfasdf',
-      :description => 'CoughDrop communicator license purchase',
+      :description => 'LingoLinq communicator license purchase',
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'long_term_200',
         'type' => 'license'
       }
@@ -3092,11 +3092,11 @@ describe Purchasing do
       :amount => 14500,
       :currency => 'usd',
       :source => 'tokenasdfasdfjkl',
-      :description => 'CoughDrop cloud extras re-purchase',
+      :description => 'LingoLinq cloud extras re-purchase',
       :receipt_email => nil,
       :metadata => {
         'user_id' => u.global_id,
-        'platform_source' => 'coughdrop',
+        'platform_source' => 'lingolinq',
         'plan_id' => 'refresh_long_term_200',
         'type' => 'license'
       }
@@ -3410,7 +3410,7 @@ describe Purchasing do
     #     "receipt_type": "ProductionSandbox",
     #     "adam_id": 0,
     #     "app_item_id": 0,
-    #     "bundle_id": "com.mycoughdrop.coughdrop",
+    #     "bundle_id": "com.mylingolinq.lingolinq",
     #     "application_version": "2019.07.18",
     #     "download_id": 0,
     #     "version_external_identifier": 0,
@@ -3427,7 +3427,7 @@ describe Purchasing do
     #     "in_app": [
     #       {
     #         "quantity": "1",
-    #         "product_id": "CoughDropiOSBundle",
+    #         "product_id": "LingoLinqiOSBundle",
     #         "transaction_id": "1000009318498647",
     #         "original_transaction_id": "1000009318498647",
     #         "purchase_date": "2019-07-18 18:28:26 Etc/GMT",
@@ -3504,11 +3504,11 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3521,9 +3521,9 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2010-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3543,11 +3543,11 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3569,11 +3569,11 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3595,11 +3595,11 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2010').iso8601,
                 is_trial_period: 'false',
@@ -3621,7 +3621,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_ios',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3637,13 +3637,13 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '9',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
                 is_trial_period: 'false',
                 is_in_billing_retry_period: '0',
@@ -3655,10 +3655,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3679,7 +3679,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_6',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3695,12 +3695,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
                 is_trial_period: 'false',
@@ -3713,10 +3713,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3742,7 +3742,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3834g',
@@ -3755,7 +3755,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '10',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -3764,10 +3764,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3789,7 +3789,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'subscription_id' => 'x984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSMonthly',
+          'token_summary' => 'LingoLinqiOSMonthly',
           'plan_id' => 'monthly_ios',
           'cancel_others_on_update' => true,
           'source' => 'new iOS subscription'
@@ -3806,13 +3806,13 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -3821,10 +3821,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -3852,7 +3852,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: []
             }
           }.to_json
@@ -3875,12 +3875,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3890,10 +3890,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -3924,12 +3924,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSEval',
+                product_id: 'LingoLinqiOSEval',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3939,10 +3939,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSEval')
+        expect(res['product_id']).to eq('LingoLinqiOSEval')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -3970,12 +3970,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSSLP',
+                product_id: 'LingoLinqiOSSLP',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -3985,10 +3985,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSSLP')
+        expect(res['product_id']).to eq('LingoLinqiOSSLP')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4016,7 +4016,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.paidcoughdrop',
+              bundle_id: 'com.mylingolinq.paidlingolinq',
               in_app: []
             }
           }.to_json
@@ -4027,7 +4027,7 @@ describe Purchasing do
         expect(res['product_id']).to eq('AppPrePurchase')
         expect(res['transaction_id']).to eq('pre.asdfqwer')
         expect(res['subscription_id']).to eq(nil)
-        expect(res['bundle_id']).to eq('com.mycoughdrop.paidcoughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.paidlingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq(nil)
         expect(res['one_time_purchase']).to eq(true)
@@ -4059,12 +4059,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -4076,10 +4076,10 @@ describe Purchasing do
         Worker.process_queues
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4112,7 +4112,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3834g',
@@ -4125,7 +4125,7 @@ describe Purchasing do
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
                 purchase_date_ms: '10',
-                product_id: 'CoughDropiOSMonthly',
+                product_id: 'LingoLinqiOSMonthly',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,
               }]
             }
@@ -4135,10 +4135,10 @@ describe Purchasing do
         Worker.process_queues
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSMonthly')
+        expect(res['product_id']).to eq('LingoLinqiOSMonthly')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(nil)
@@ -4167,7 +4167,7 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.mycoughdrop',
+              bundle_id: 'com.mylingolinq.mylingolinq',
               in_app: []
             }
           }.to_json
@@ -4190,12 +4190,12 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 purchase_date_ms: '9',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
@@ -4205,10 +4205,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4228,10 +4228,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)
@@ -4266,7 +4266,7 @@ describe Purchasing do
           'user_id' => u.global_id,
           'purchase_id' => '984h3ag834g',
           'customer_id' => "ios.#{u.global_id}",
-          'token_summary' => 'CoughDropiOSBundle',
+          'token_summary' => 'LingoLinqiOSBundle',
           'plan_id' => 'long_term_ios',
           'seconds_to_add' => 5.years.to_i,
           'source' => 'new iOS purchase'
@@ -4284,13 +4284,13 @@ describe Purchasing do
           body: {
             status: 0,
             receipt: {
-              bundle_id: 'com.mycoughdrop.coughdrop',
+              bundle_id: 'com.mylingolinq.lingolinq',
               in_app: [{
                 quantity: 1,
                 transaction_id: '984h3ag834g',
                 purchase_date_ms: '9',
                 original_transaction_id: 'x984h3ag834g',
-                product_id: 'CoughDropiOSBundle',
+                product_id: 'LingoLinqiOSBundle',
                 expiration_date: Date.parse('Jan 2, 2020').iso8601,  
               }]
             }
@@ -4299,10 +4299,10 @@ describe Purchasing do
         res = Purchasing.verify_receipt(u, {'ios' => true, 'receipt' => {'appStoreReceipt' => 'asdf'}})
         expect(res['success']).to eq(true)
         expect(res['quantity']).to eq(1)
-        expect(res['product_id']).to eq('CoughDropiOSBundle')
+        expect(res['product_id']).to eq('LingoLinqiOSBundle')
         expect(res['transaction_id']).to eq('984h3ag834g')
         expect(res['subscription_id']).to eq('x984h3ag834g')
-        expect(res['bundle_id']).to eq('com.mycoughdrop.coughdrop')
+        expect(res['bundle_id']).to eq('com.mylingolinq.lingolinq')
         expect(res['customer_id']).to eq("ios.#{u.global_id}")
         expect(res['expires']).to eq('2020-01-02')
         expect(res['one_time_purchase']).to eq(true)

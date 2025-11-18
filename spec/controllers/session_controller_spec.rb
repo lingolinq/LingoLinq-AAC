@@ -1095,9 +1095,9 @@ describe SessionController, :type => :controller do
       expect(json['scopes']).to eq(['none'])
       expect(json['valid_2fa']).to eq(false)
       expect(json['token']).to_not eq(nil)
-      expect(json['token']['set_2fa']).to eq("otpauth://totp/CoughDrop:#{@user.user_name}:?secret=#{@user.settings['2fa']['secret']}&issuer=CoughDrop")
+      expect(json['token']['set_2fa']).to eq("otpauth://totp/LingoLinq:#{@user.user_name}:?secret=#{@user.settings['2fa']['secret']}&issuer=LingoLinq")
 
-      totp = ROTP::TOTP.new(@user.settings['2fa']['secret'], issuer: 'CoughDrop')
+      totp = ROTP::TOTP.new(@user.settings['2fa']['secret'], issuer: 'LingoLinq')
       code = totp.at(Time.now)
       get :token_check, params: {:access_token => @device.tokens[0], '2fa_code' => code, :include_token => true}
       json = assert_success_json
@@ -1388,7 +1388,7 @@ describe SessionController, :type => :controller do
     
         get 'saml_metadata', params: {org_id: org.global_id}
         xml = Nokogiri(response.body)
-        expect(xml.css('mdui|DisplayName')[0].content).to eq('CoughDrop')
+        expect(xml.css('mdui|DisplayName')[0].content).to eq('LingoLinq')
         expect(xml.css('md|AssertionConsumerService')[0]['Location']).to eq("http://test.host/saml/consume?org_id=#{org.global_id}")
       end
     end
@@ -1504,7 +1504,7 @@ describe SessionController, :type => :controller do
       end
 
 
-      it "should error if no coughdrop user matches" do
+      it "should error if no lingolinq user matches" do
         o = Organization.create
         o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
         o.save

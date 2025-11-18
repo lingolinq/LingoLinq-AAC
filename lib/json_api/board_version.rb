@@ -14,7 +14,7 @@ module JsonApi::BoardVersion
     json['action'] = 'updated' if json['action'] == 'update'
     json['created'] = version.created_at.iso8601
 
-    bucket = ENV['STATIC_S3_BUCKET'] || "coughdrop"
+    bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
     
     if version.whodunnit
       if version.whodunnit.match(/^user:/)
@@ -37,8 +37,8 @@ module JsonApi::BoardVersion
         end
       elsif version.whodunnit.match(/^admin:/)
         json['modifier'] = {
-          'description' => 'CoughDrop Admin',
-          'image' => "https://www.mycoughdrop.com/images/logo-big.png"
+          'description' => 'LingoLinq Admin',
+          'image' => "https://www.mylingolinq.com/images/logo-big.png"
         }
       end
       later_object = version.instance_variable_get('@later_object')

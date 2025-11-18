@@ -545,7 +545,7 @@ class User < ActiveRecord::Base
   end
   
   def generated_avatar_url(override_url=nil)
-    bucket = ENV['STATIC_S3_BUCKET'] || "coughdrop"
+    bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
     id = self.id || 0
     fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
     url = self.settings && self.settings['avatar_url']
@@ -1037,7 +1037,7 @@ class User < ActiveRecord::Base
             contact_type = action['value']['contact'].match(/\@/) ? 'email' : 'sms'
             image_url = action['value']['image_url']
             if !image_url
-              bucket = ENV['STATIC_S3_BUCKET'] || "coughdrop"
+              bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
               id = hash.hex.to_i
               image_url = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
             end

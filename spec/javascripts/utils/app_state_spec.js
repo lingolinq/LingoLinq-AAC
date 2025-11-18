@@ -1,7 +1,7 @@
 describe('app_state', function() {
   var app = null;
   beforeEach(function() {
-    CoughDrop.reset();
+    LingoLinq.reset();
     app = {
       register: function(key, obj, args) {
         app.registered = (key == 'cough_drop:app_state' && obj == app_state && args.singleton == true);
@@ -14,7 +14,7 @@ describe('app_state', function() {
       injections: []
     };
     Ember.run(function() {
-      CoughDrop.advanceReadiness();
+      LingoLinq.advanceReadiness();
     });
   });
 
@@ -66,7 +66,7 @@ describe('app_state', function() {
       });
       
       app_state.setup_controller(route, controller);
-      expect(CoughDrop.controller).toEqual(controller);
+      expect(LingoLinq.controller).toEqual(controller);
       expect(app_state.controller).toEqual(controller);
       expect(stashes.controller).toEqual(controller);
       expect(boardGrabber.transitioner).toEqual(route);
@@ -75,7 +75,7 @@ describe('app_state', function() {
       expect(utterance_setup).toEqual(true);
       expect(logging_checked).toEqual(true);
       expect(board_state_checked).toEqual(true);
-      expect(CoughDrop.session).toEqual(session);
+      expect(LingoLinq.session).toEqual(session);
       expect(modal_closed).toEqual(true);
     });
   });
@@ -142,7 +142,7 @@ describe('app_state', function() {
       stub(app_state, 'refresh_session_user', function() {
         refresh_called = true;
       });
-      CoughDrop.session.set('isAuthenticated', true);
+      LingoLinq.session.set('isAuthenticated', true);
       app_state.global_transition({});
       expect(refresh_called).toEqual(true);
     });
@@ -672,7 +672,7 @@ describe('app_state', function() {
       }});
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: promise,
         id: "self"
       });
@@ -689,7 +689,7 @@ describe('app_state', function() {
     it("should clear SpeakModeUser if set to self", function() {
       stashes.set('current_mode', 'speak');
       app_state.set('sessionUser', null);
-      app_state.set('speakModeUser', CoughDrop.store.createRecord('user', {id: '2345'}));
+      app_state.set('speakModeUser', LingoLinq.store.createRecord('user', {id: '2345'}));
       app_state.set_speak_mode_user('self');
       expect(app_state.get('speakModeUser')).toEqual(null);
 
@@ -707,7 +707,7 @@ describe('app_state', function() {
       }});
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: promise,
         id: "1234"
       });
@@ -727,7 +727,7 @@ describe('app_state', function() {
       var promise = Ember.RSVP.reject({stub: true});
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: promise,
         id: "1234"
       });

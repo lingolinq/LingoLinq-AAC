@@ -4,7 +4,7 @@ This file provides guidance to the Gemini CLI when working with code in this rep
 
 ## Project Overview
 
-LingoLinq (formerly CoughDrop) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
+LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
 
 Key characteristics:
 - Cloud-based with offline support via IndexedDB/SQLite

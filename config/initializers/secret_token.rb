@@ -10,4 +10,4 @@ require 'oj'
 
 # Make sure your secret_key_base is kept private
 # if you're sharing your code publicly.
-Coughdrop::Application.config.secret_key_base = ENV['COOKIE_KEY']
+LingoLinq::Application.config.secret_key_base = ENV['COOKIE_KEY']

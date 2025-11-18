@@ -4938,8 +4938,8 @@ describe Board, :type => :model do
         {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
       ], nil)
       expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
-        'cat' => {'coughdrop_image_id' => bi2.global_id},
-        'hat' => {'coughdrop_image_id' => bi2.global_id},
+        'cat' => {'lingolinq_image_id' => bi2.global_id},
+        'hat' => {'lingolinq_image_id' => bi2.global_id},
       })
       b.settings['images_not_mapped'] = true
       res = b.swap_images('twemoji', u, [], nil)
@@ -4962,7 +4962,7 @@ describe Board, :type => :model do
         'url' => 'https://www.example.com/cat2.png'
       }])
       expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
-        'cat' => {'coughdrop_image_id' => bi2.global_id},
+        'cat' => {'lingolinq_image_id' => bi2.global_id},
       })
       
       b.settings['images_not_mapped'] = true
@@ -4999,7 +4999,7 @@ describe Board, :type => :model do
     it "should not swap images for user-uploaded buttons" do
       u = User.create
       bi = ButtonImage.create
-      bi2 = ButtonImage.create(url: 'https://www.example.com/coughdrop-usercontent/pic.png')
+      bi2 = ButtonImage.create(url: 'https://www.example.com/lingolinq-usercontent/pic.png')
       b = Board.create(user: u)
       b.instance_variable_set('@map_later', true)
       b.process_buttons([

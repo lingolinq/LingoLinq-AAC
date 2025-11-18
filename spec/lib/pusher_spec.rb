@@ -8,7 +8,7 @@ describe Pusher do
     expect(Aws::SNS::Client).to receive(:new).and_return(sms)
     expect(sms).to receive(:publish).with({
       phone_number: '+11234567890',
-      message: "CoughDrop: hello friend",
+      message: "LingoLinq: hello friend",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -16,7 +16,7 @@ describe Pusher do
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         }
       }
     }).and_return(OpenStruct.new(message_id: 'asdf'))
@@ -30,7 +30,7 @@ describe Pusher do
     expect(Aws::SNS::Client).to receive(:new).and_return(sms)
     expect(sms).to receive(:publish).with({
       phone_number: '+15558675309',
-      message: "CoughDrop: hello friend",
+      message: "LingoLinq: hello friend",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -38,7 +38,7 @@ describe Pusher do
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         }
       }
     }).and_return(OpenStruct.new(message_id: 'asdf'))
@@ -52,7 +52,7 @@ describe Pusher do
     expect(Aws::SNS::Client).to receive(:new).and_return(sms)
     expect(sms).to receive(:publish).with({
       phone_number: '+15558675309',
-      message: "CoughDrop: hello friend",
+      message: "LingoLinq: hello friend",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -60,7 +60,7 @@ describe Pusher do
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         },
         "AWS.MM.SMS.OriginationNumber" => {
           data_type: "String",
@@ -78,7 +78,7 @@ describe Pusher do
     expect(Aws::SNS::Client).to receive(:new).and_return(sms).at_least(1).times
     expect(sms).to receive(:publish).with({
       phone_number: '+15558675309',
-      message: "CoughDrop: hello friend",
+      message: "LingoLinq: hello friend",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -86,13 +86,13 @@ describe Pusher do
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         }
       }
     }).and_return(OpenStruct.new(message_id: 'asdf'))
     expect(sms).to receive(:publish).with({
       phone_number: '+15551234567',
-      message: "CoughDrop: hello friend",
+      message: "LingoLinq: hello friend",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -100,7 +100,7 @@ describe Pusher do
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         }
       }
     }).and_return(OpenStruct.new(message_id: 'jkl'))

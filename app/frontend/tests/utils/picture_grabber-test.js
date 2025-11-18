@@ -815,7 +815,7 @@ describe('pictureGrabber', function() {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
           author_name: 'LingoLinq',
-          author_url: 'https://www.mycoughdrop.com',
+          author_url: 'https://www.mylingolinq.com',
           uneditable: true
         }
       });
@@ -826,7 +826,7 @@ describe('pictureGrabber', function() {
           type: 'CC By',
           copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
           author_name: 'LingoLinq',
-          author_url: 'https://www.mycoughdrop.com',
+          author_url: 'https://www.mylingolinq.com',
           uneditable: true
         }
       });

@@ -257,10 +257,10 @@ class SessionController < ApplicationController
       uiinf = Nokogiri::XML::Node.new('mdui:UIInfo', xml)
       dn = Nokogiri::XML::Node.new('mdui:DisplayName', xml)
       dn['xml:lang'] = 'en'
-      dn.content = "CoughDrop"
+      dn.content = "LingoLinq"
       desc = Nokogiri::XML::Node.new('mdui:Description', xml)
       desc['xml:lang'] = 'en'
-      desc.content = "CoughDrop LingoLinqlication"
+      desc.content = "LingoLinq LingoLinqlication"
       logo = Nokogiri::XML::Node.new('mdui:Logo', xml)
       logo['xml:lang'] = 'en'
       logo['width'] = '64'
@@ -547,7 +547,7 @@ class SessionController < ApplicationController
     if @api_user
       params['access_token'] = @token if @token && @tmp_token
       device = Device.find_by_global_id(@api_device_id)
-      valid = device && device.valid_token?(params['access_token'], request.headers['X-CoughDrop-Version'])
+      valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
       expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
       needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[params['access_token']]
       json = {

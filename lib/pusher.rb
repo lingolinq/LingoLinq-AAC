@@ -19,7 +19,7 @@ module Pusher
     publish_opts = {
       phone_number: phone,
       # TODO: support app_name
-      message: "CoughDrop: #{message}",
+      message: "LingoLinq: #{message}",
       message_attributes: {
         "AWS.SNS.SMS.MaxPrice" => {
           data_type: "Number",
@@ -27,7 +27,7 @@ module Pusher
         },
         "AWS.SNS.SMS.SenderID" => {
           data_type: "String",
-          string_value: "CoughDrop"
+          string_value: "LingoLinq"
         }
       }
     }

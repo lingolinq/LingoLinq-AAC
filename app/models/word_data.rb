@@ -161,7 +161,7 @@ class WordData < ActiveRecord::Base
       bs.assert_extra_data
       buttons = bs.buttons
     end
-    req = Typhoeus.get("https://coughdrop.s3.amazonaws.com/language/english_with_counts.txt")
+    req = Typhoeus.get("https://lingolinq.s3.amazonaws.com/language/english_with_counts.txt")
     lines = req.body.split(/\n/)
     counts = lines.map{|s| s.split(/\t/)[0] }
     cores = WordData.core_lists.select{|l| l['locale'] == 'en' }
@@ -207,7 +207,7 @@ class WordData < ActiveRecord::Base
       # download word frequency list
       counts = opts && opts['counts']
       if !opts
-        req = Typhoeus.get("https://coughdrop.s3.amazonaws.com/language/english_with_counts.txt") 
+        req = Typhoeus.get("https://lingolinq.s3.amazonaws.com/language/english_with_counts.txt") 
         lines = req.body.split(/\n/)
         counts = lines.map{|s| s.split(/\t/)[0] }
       end
@@ -603,7 +603,7 @@ class WordData < ActiveRecord::Base
         buttons << button if button['part_of_speech']
       end
     end
-    f = URI.parse("https://coughdrop.s3.amazonaws.com/language/ngrams.arpa.json").open
+    f = URI.parse("https://lingolinq.s3.amazonaws.com/language/ngrams.arpa.json").open
     json = Oj.load(f.read); 0
     buttons.each do |button|
       if json[button['label']]

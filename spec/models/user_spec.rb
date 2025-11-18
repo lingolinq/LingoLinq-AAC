@@ -2374,9 +2374,9 @@ describe User, :type => :model do
       it "should use the fallback if specified" do
         u = User.new
         u.id = 199
-        expect(u.generated_avatar_url('fallback')).to eq('https://coughdrop.s3.amazonaws.com/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('fallback')).to eq('https://lingolinq.s3.amazonaws.com/avatars/avatar-9.png')
         u.settings = {'email' => 'bob@example.com'}
-        expect(u.generated_avatar_url('fallback')).to eq('https://coughdrop.s3.amazonaws.com/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('fallback')).to eq('https://lingolinq.s3.amazonaws.com/avatars/avatar-9.png')
         u.settings['avatar_url'] = 'http://www.example.com/pic.png'
       end
       
@@ -2384,9 +2384,9 @@ describe User, :type => :model do
         u = User.new
         u.id = 199
         u.settings = {'email' => 'bob@example.com'}
-        expect(u.generated_avatar_url('default')).to eq('https://coughdrop.s3.amazonaws.com/avatars/avatar-9.png');
+        expect(u.generated_avatar_url('default')).to eq('https://lingolinq.s3.amazonaws.com/avatars/avatar-9.png');
         u.settings['avatar_url'] = 'http://www.example.com/pic.png'
-        expect(u.generated_avatar_url('default')).to eq('https://coughdrop.s3.amazonaws.com/avatars/avatar-9.png');
+        expect(u.generated_avatar_url('default')).to eq('https://lingolinq.s3.amazonaws.com/avatars/avatar-9.png');
       end
       
       it "should use the passed-in url if specified" do
@@ -3248,9 +3248,9 @@ describe User, :type => :model do
       it "should return a provisioning URI if secret is set" do
         u = User.create
         u.assert_2fa!
-        expect(u.uri_2fa).to eq("otpauth://totp/CoughDrop:#{u.user_name}:?secret=#{u.settings['2fa']['secret']}&issuer=CoughDrop")
+        expect(u.uri_2fa).to eq("otpauth://totp/LingoLinq:#{u.user_name}:?secret=#{u.settings['2fa']['secret']}&issuer=LingoLinq")
         u.assert_2fa!(true)
-        expect(u.uri_2fa).to eq("otpauth://totp/CoughDrop:#{u.user_name}:?secret=#{u.settings['tmp_2fa']['secret']}&issuer=CoughDrop")
+        expect(u.uri_2fa).to eq("otpauth://totp/LingoLinq:#{u.user_name}:?secret=#{u.settings['tmp_2fa']['secret']}&issuer=LingoLinq")
       end
 
       it "should return nil without a secret" do
@@ -3271,7 +3271,7 @@ describe User, :type => :model do
 
       it "should return true for a valid code" do
         u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "CoughDrop")  
+        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
         code = totp.at(Time.now)
         expect(u.settings['2fa']['last_otp']).to eq(nil)
         ts = u.valid_2fa?(code)
@@ -3283,7 +3283,7 @@ describe User, :type => :model do
 
       it "should return false for an old code" do
         u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "CoughDrop")  
+        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
         code = totp.at(90.seconds.ago)
         ts = u.valid_2fa?(code)
         expect(ts).to eq(false)
@@ -3291,7 +3291,7 @@ describe User, :type => :model do
 
       it "should return false for a code older than the last one" do
         u = User.create(settings: {'2fa' => {'secret' => 'asdf', 'last_otp' => 60.seconds.from_now.to_i}})
-        totp = ROTP::TOTP.new('asdf', issuer: "CoughDrop")  
+        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
         code = totp.at(Time.now)
         ts = u.valid_2fa?(code)
         expect(ts).to eq(false)
@@ -3299,7 +3299,7 @@ describe User, :type => :model do
 
       it "should return false for a replayed code" do
         u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "CoughDrop")  
+        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
         code = totp.at(Time.now)
         ts = u.valid_2fa?(code)
         expect(ts).to_not eq(false)

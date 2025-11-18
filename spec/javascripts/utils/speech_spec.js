@@ -2,7 +2,7 @@ describe('speech', function() {
   var scope = {};
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     polyfillSpeechSynthesis(scope);
   });
   

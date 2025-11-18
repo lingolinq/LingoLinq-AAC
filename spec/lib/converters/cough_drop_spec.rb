@@ -1,12 +1,12 @@
 require 'spec_helper'
 
-describe Converters::CoughDrop do
+describe Converters::LingoLinq do
   describe "to_obf" do
     it "should render a basic board" do
       u = User.create
       b = Board.create(:user => u)
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -46,7 +46,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -94,7 +94,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -136,7 +136,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -214,7 +214,7 @@ describe Converters::CoughDrop do
       expect(b.known_button_images.count).to eq(1)
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b.reload, file.path)
+      Converters::LingoLinq.to_obf(b.reload, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -258,7 +258,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -293,7 +293,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -334,7 +334,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['ext_lingolinq_settings']).to eq({
@@ -416,7 +416,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['default_locale']).to eq('en')
@@ -510,7 +510,7 @@ describe Converters::CoughDrop do
       }
       b.save
       file = Tempfile.new("stash")
-      Converters::CoughDrop.to_obf(b, file.path)
+      Converters::LingoLinq.to_obf(b, file.path)
       json = JSON.parse(file.read)
       file.unlink
       expect(json['default_locale']).to eq('en')
@@ -568,7 +568,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.key).to eq('no-name/cool-board')
@@ -579,7 +579,7 @@ describe Converters::CoughDrop do
       shell = OBF::Utils.obf_shell
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
     end
@@ -592,7 +592,7 @@ describe Converters::CoughDrop do
       shell['buttons'] = [
         {'id' => '1', 'load_board' => {'id' => original_board.global_id, 'key' => original_board.key}}
       ]
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['buttons']).not_to be_empty
       expect(b.settings['buttons'][0]['load_board']).not_to eq(nil)
@@ -609,7 +609,7 @@ describe Converters::CoughDrop do
       shell['buttons'] = [
         {'id' => '1', 'load_board' => {'id' => original_board.global_id, 'key' => original_board.key}}
       ]
-      b = Converters::CoughDrop.from_obf(shell, {'user' => u})
+      b = Converters::LingoLinq.from_obf(shell, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['buttons']).not_to be_empty
       expect(b.settings['buttons'][0]['load_board']).to eq(nil)
@@ -633,7 +633,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -658,7 +658,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -692,7 +692,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      expect{ Converters::CoughDrop.from_obf(path, {'user' => u2}) }.to raise_error("can't import protected boards to a different user")
+      expect{ Converters::LingoLinq.from_obf(path, {'user' => u2}) }.to raise_error("can't import protected boards to a different user")
     end
     
     it "should allow importing a protected board to the same user" do
@@ -719,7 +719,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       button = b.settings['buttons'][0]
@@ -781,7 +781,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
@@ -876,7 +876,7 @@ describe Converters::CoughDrop do
       File.open(path, 'w') do |f|
         f.puts shell.to_json
       end
-      b = Converters::CoughDrop.from_obf(path, {'user' => u})
+      b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
@@ -934,7 +934,7 @@ describe Converters::CoughDrop do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
     end
@@ -953,7 +953,7 @@ describe Converters::CoughDrop do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
@@ -988,7 +988,7 @@ describe Converters::CoughDrop do
       expect(b2.reload.allows?(u, 'view')).to eq(false)
       
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
@@ -1040,7 +1040,7 @@ describe Converters::CoughDrop do
       expect(b.button_sounds.count).to eq(1)
 
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b.reload, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
       
       OBF::Utils.load_zip(path) do |zipper|
         manifest = JSON.parse(zipper.read('manifest.json'))
@@ -1093,11 +1093,11 @@ describe Converters::CoughDrop do
       }
       b.save!
       path = OBF::Utils.temp_path("stash")
-      Converters::CoughDrop.to_obz(b, path, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
       expect(File.exist?(path)).to eq(true)
       expect(File.size(path)).to be > 10
       
-      boards = Converters::CoughDrop.from_obz(path, {'user' => u})
+      boards = Converters::LingoLinq.from_obz(path, {'user' => u})
       expect(boards).not_to eq(nil)
       expect(boards.length).to eq(2)
       expect(boards[0].id).not_to eq(b.id)
@@ -1119,7 +1119,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1136,7 +1136,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1151,7 +1151,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1166,7 +1166,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
@@ -1188,7 +1188,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
@@ -1211,7 +1211,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
@@ -1233,7 +1233,7 @@ describe Converters::CoughDrop do
         ],
         'id' => 'asdfasdf'
       }
-      board = Converters::CoughDrop.from_external(json, {'user' => u})
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
       expect(board).to_not eq(nil)
       expect(board.settings['buttons'].length).to eq(2)
       expect(board.settings['buttons'][0]['label']).to eq('cat')
@@ -1249,12 +1249,12 @@ describe Converters::CoughDrop do
     end
 
     it "should error without a user" do
-      expect{ Converters::CoughDrop.from_external({}, {'user' => nil}) }.to raise_error("user required")
+      expect{ Converters::LingoLinq.from_external({}, {'user' => nil}) }.to raise_error("user required")
     end
 
     it "should error without an id" do
       u = User.create
-      expect{ Converters::CoughDrop.from_external({}, {'user' => u}) }.to raise_error("missing id")
+      expect{ Converters::LingoLinq.from_external({}, {'user' => u}) }.to raise_error("missing id")
     end
 
     it "should raise an error when importing a protected board for the wrong user" do
@@ -1275,7 +1275,7 @@ describe Converters::CoughDrop do
           'protected_user_id' => '1111'
         }
       }
-      expect { Converters::CoughDrop.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
+      expect { Converters::LingoLinq.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
     end
 
     it "should support known boards"
@@ -1292,7 +1292,7 @@ describe Converters::CoughDrop do
         'images' => [],
         'sounds' => []
       }
-      Converters::CoughDrop.from_external_nested(content, {'user' => u})
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
       boards = Board.all.sort_by(&:id)
       expect(boards.count).to eql(2)
       expect(boards[0].key).to eql('alfonso/my-cool-board')
@@ -1303,33 +1303,33 @@ describe Converters::CoughDrop do
 
   describe "to_pdf" do
     it "should convert to pdf, then use the obf-to-pdf converter" do
-      expect(Converters::CoughDrop).to receive(:to_external).and_return("/file.obf")
+      expect(Converters::LingoLinq).to receive(:to_external).and_return("/file.obf")
       expect(OBF::External).to receive(:to_pdf) do |tmp, dest|
         expect(tmp).not_to eq(nil)
         expect(dest).to eq("/file.pdf")
       end.and_return(nil)
-      Converters::CoughDrop.to_pdf(nil, "/file.pdf", {})
+      Converters::LingoLinq.to_pdf(nil, "/file.pdf", {})
     end
     
     it "if specified it should use obz instead of obf as the middle step" do
-      expect(Converters::CoughDrop).to receive(:to_external_nested).and_return("/file.obz")
+      expect(Converters::LingoLinq).to receive(:to_external_nested).and_return("/file.obz")
       expect(OBF::External).to receive(:to_pdf) do |tmp, dest|
         expect(tmp).not_to eq(nil)
         expect(dest).to eq("/file.pdf")
       end
-      Converters::CoughDrop.to_pdf(nil, "/file.pdf", {'packet' => true})
+      Converters::LingoLinq.to_pdf(nil, "/file.pdf", {'packet' => true})
     end
   end
 
   describe "to_png" do
     it "should convert to pdf then use the pdf-to-png converter" do
       hash = {}
-      expect(Converters::CoughDrop).to receive(:to_external).and_return(hash)
+      expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
       expect(OBF::External).to receive(:to_png) do |tmp, dest|
         expect(tmp).to eq(hash)
         expect(dest).to eq("/file.png")
       end
-      Converters::CoughDrop.to_png(nil, "/file.png")
+      Converters::LingoLinq.to_png(nil, "/file.png")
     end
   end
   
@@ -1345,7 +1345,7 @@ describe Converters::CoughDrop do
         {'id' => 5, 'add_to_vocalization' => true}
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(5)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1367,7 +1367,7 @@ describe Converters::CoughDrop do
         {'id' => 1, 'hidden' => true, 'vocalization' => ':back'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1383,7 +1383,7 @@ describe Converters::CoughDrop do
         {'id' => 1, 'hidden' => true, 'vocalization' => ':back && :clear && +a'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1400,7 +1400,7 @@ describe Converters::CoughDrop do
         {'id' => 1, 'hidden' => true, 'vocalization' => 'my && :back && :clear && +a && my'},
       ]
       b.save
-      hash = Converters::CoughDrop.to_external(b, nil)
+      hash = Converters::LingoLinq.to_external(b, nil)
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1422,7 +1422,7 @@ describe Converters::CoughDrop do
       b.instance_variable_set('@buttons_changed', true)
       b.save
       expect(b.known_button_images.count).to eq(1)
-      hash = Converters::CoughDrop.to_external(b, {'user' => u})
+      hash = Converters::LingoLinq.to_external(b, {'user' => u})
       expect(hash['id']).to eq(b.global_id)
       expect(hash['buttons'].length).to eq(1)
       expect(hash['buttons'][0]['id']).to eq(1)
@@ -1456,7 +1456,7 @@ describe Converters::CoughDrop do
       expect(b.known_button_images.count).to eq(1)
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
-      json = Converters::CoughDrop.to_external(b.reload, {'for_pdf' => true})
+      json = Converters::LingoLinq.to_external(b.reload, {'for_pdf' => true})
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
