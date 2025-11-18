@@ -374,7 +374,7 @@ class Api::OrganizationsController < ApplicationController
             dn = u.settings['external_device']['device_name']
             dn = "Unnamed" if dn.blank?
           elsif u.settings['preferences']['home_board']
-            dn = 'CoughDrop'
+            dn = 'LingoLinq'
           end
           lookup == dn
         elsif type == 'vocab'
@@ -549,7 +549,7 @@ class Api::OrganizationsController < ApplicationController
           brd = boards_hash[user.settings['preferences']['home_board']['id']]
           if brd
             grid = BoardContent.load_content(brd, 'grid')
-            devices['CoughDrop'] = (devices['CoughDrop'] || 0) + 1
+            devices['LingoLinq'] = (devices['LingoLinq'] || 0) + 1
             vn = Board.vocab_name(brd)
             vocabs[vn] = (vocabs[vn] || 0) + 1 if vn
             sizes << (grid['rows'] || 3) * (grid['columns'] || 4)

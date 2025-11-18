@@ -1,16 +1,16 @@
 describe('Board', function() {
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
   });
   
   describe("user_name", function() {
     it("should not error on null user_name", function() {
-      var board = CoughDrop.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('user_name')).toEqual("");
     });
     it("should pull user_name from the key attribute", function() {
-      var board = CoughDrop.store.createRecord('board', {key: "hat"});
+      var board = LingoLinq.store.createRecord('board', {key: "hat"});
       expect(board.get('user_name')).toEqual("hat");
       board.set('key', 'hat/bacon');
       expect(board.get('user_name')).toEqual("hat");
@@ -21,16 +21,16 @@ describe('Board', function() {
   
   describe("icon_url_with_fallback", function() {
     it("should not error on null image_url", function() {
-      var board = CoughDrop.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toNotEqual("");
       expect(board.get('icon_url_with_fallback')).toNotEqual(null);
     });
     it("should return image_url if specified", function() {
-      var board = CoughDrop.store.createRecord('board', {image_url: "http://pics.pic/pic.png"});
+      var board = LingoLinq.store.createRecord('board', {image_url: "http://pics.pic/pic.png"});
       expect(board.get('icon_url_with_fallback')).toEqual("http://pics.pic/pic.png");
     });
     it("should return fallback url if image_url is empty", function() {
-      var board = CoughDrop.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toEqual(board.fallback_image_url);
     });
     it("should automatically check for locally-stored data-uri on load");
@@ -38,7 +38,7 @@ describe('Board', function() {
   
   describe("key_placeholder", function() {
     it("should stay in sync with the name attribute", function() {
-      var board = CoughDrop.store.createRecord('board', {name: "Bacon"});
+      var board = LingoLinq.store.createRecord('board', {name: "Bacon"});
       expect(board.get('key_placeholder')).toEqual("bacon");
       board.set('name', 'Bacon and eggs');
       expect(board.get('key_placeholder')).toEqual("bacon-and-eggs");
@@ -48,7 +48,7 @@ describe('Board', function() {
       expect(board.get('key_placeholder')).toEqual("my-board");
     });
     it("should strip out non-key characters from the name attribute", function() {
-      var board = CoughDrop.store.createRecord('board', {name: "Bacon!"});
+      var board = LingoLinq.store.createRecord('board', {name: "Bacon!"});
       expect(board.get('key_placeholder')).toEqual("bacon");
       board.set('name', '!$%&$#&_$#%$&-$#%&#Bacon and *#$#$^*eggs____---@$%@');
       expect(board.get('key_placeholder')).toEqual("-_-bacon-and-eggs____");
@@ -57,12 +57,12 @@ describe('Board', function() {
   
   describe("labels", function() {
     it("should not error on empty grid or buttons", function() {
-      var board = CoughDrop.store.createRecord('board', {});
+      var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('labels')).toEqual("");
     });
     
     it("should return list of labels on specified buttons", function() {
-      var board = CoughDrop.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         buttons: [
           {id: 1, label: "hat"},
           {id: 2, label: "car"}
@@ -77,7 +77,7 @@ describe('Board', function() {
     });
     
     it("should skip empty buttons", function() {
-      var board = CoughDrop.store.createRecord('board', {
+      var board = LingoLinq.store.createRecord('board', {
         buttons: [
           {id: 1, label: "hat"},
           {id: 2, label: "car"},
@@ -124,7 +124,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return Ember.RSVP.resolve({starred: true, stars: 4});
       });
-      var board = CoughDrop.store.createRecord('board', {id: '123'});
+      var board = LingoLinq.store.createRecord('board', {id: '123'});
       expect(board.get('starred')).not.toEqual(true);
       board.star();
       expect(called).toEqual(true);
@@ -144,7 +144,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('DELETE');
         return Ember.RSVP.resolve({starred: false, stars: 2});
       });
-      var board = CoughDrop.store.createRecord('board', {id: '1234', starred: true});
+      var board = LingoLinq.store.createRecord('board', {id: '1234', starred: true});
       expect(board.get('starred')).toEqual(true);
       board.unstar();
       expect(called).toEqual(true);
@@ -163,7 +163,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return Ember.RSVP.resolve({starred: true, stars: 4});
       });
-      var board = CoughDrop.store.createRecord('board', {id: '12345', stars: 3});
+      var board = LingoLinq.store.createRecord('board', {id: '12345', stars: 3});
       expect(board.get('stars')).toEqual(3);
       board.star();
       expect(called).toEqual(true);
@@ -184,7 +184,7 @@ describe('Board', function() {
         expect(opts.data._method).toEqual('POST');
         return Ember.RSVP.reject();
       });
-      var board = CoughDrop.store.createRecord('board', {id: '123456', stars: 3});
+      var board = LingoLinq.store.createRecord('board', {id: '123456', stars: 3});
       board.star();
       waitsFor(function() { return called; });
     });
@@ -192,30 +192,30 @@ describe('Board', function() {
   
   describe("add_button", function() {
     it("should add the button to the list", function() {
-      var board = CoughDrop.store.createRecord('board');
-      board.add_button(CoughDrop.Button.create({id: 123}));
+      var board = LingoLinq.store.createRecord('board');
+      board.add_button(LingoLinq.Button.create({id: 123}));
       expect(board.get('buttons').length).toEqual(1);
       expect(board.get('buttons')[0].id).toEqual(123);
       
-      board.add_button(CoughDrop.Button.create({id: 1234}));
+      board.add_button(LingoLinq.Button.create({id: 1234}));
       expect(board.get('buttons').length).toEqual(2);
       expect(board.get('buttons')[0].id).toEqual(123);
       expect(board.get('buttons')[1].id).toEqual(1234);
     });
     
     it("should generate a new, unique id if an existing button has that id", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
-      board.add_button(CoughDrop.Button.create({id: 123, label: 'cat'}));
+      board.add_button(LingoLinq.Button.create({id: 123, label: 'cat'}));
       expect(board.get('buttons').length).toEqual(2);
       expect(board.get('buttons')[0].id).toEqual(123);
       expect(board.get('buttons')[0].label).toEqual('hat');
       expect(board.get('buttons')[1].id).toEqual(124);
       expect(board.get('buttons')[1].label).toEqual('cat');
       
-      board.add_button(CoughDrop.Button.create({id: 123, label: 'rat'}));
+      board.add_button(LingoLinq.Button.create({id: 123, label: 'rat'}));
       expect(board.get('buttons').length).toEqual(3);
       expect(board.get('buttons')[0].id).toEqual(123);
       expect(board.get('buttons')[0].label).toEqual('hat');
@@ -226,32 +226,32 @@ describe('Board', function() {
     });
     
     it("should return the id of the button as the result", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
-      expect(board.add_button(CoughDrop.Button.create({id: 123, label: 'cat'}))).toEqual(124);
-      expect(board.add_button(CoughDrop.Button.create({id: 129, label: 'cat'}))).toEqual(129);
+      expect(board.add_button(LingoLinq.Button.create({id: 123, label: 'cat'}))).toEqual(124);
+      expect(board.add_button(LingoLinq.Button.create({id: 129, label: 'cat'}))).toEqual(129);
     });
     
     it("should add to the first empty spot it finds in the grid", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('buttons', [{
         id: 123, label: 'hat'
       }]);
       board.set('grid', {
         order: [[1,2,null],[2,null,null]]
       });
-      expect(board.add_button(CoughDrop.Button.create({id: 123, label: 'cat'}))).toEqual(124);
+      expect(board.add_button(LingoLinq.Button.create({id: 123, label: 'cat'}))).toEqual(124);
       expect(board.get('grid').order).toEqual([[1,2,124],[2,null,null]]);
-      expect(board.add_button(CoughDrop.Button.create({id: 129, label: 'cat'}))).toEqual(129);
+      expect(board.add_button(LingoLinq.Button.create({id: 129, label: 'cat'}))).toEqual(129);
       expect(board.get('grid').order).toEqual([[1,2,124],[2,129,null]]);
     });
   });
   
   describe("button_visible", function() {
     it("should return true if the id is in the grid order", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: [[1,2,3],[2,3,4],[6,7,8]]
       });
@@ -265,7 +265,7 @@ describe('Board', function() {
     });
     
     it("should return false if the id is not in the grid order", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: [[1,2,3],[2,3,4],[6,7,8]]
       });
@@ -277,7 +277,7 @@ describe('Board', function() {
     });
     
     it("should not error on malformed grid", function() {
-      var board = CoughDrop.store.createRecord('board');
+      var board = LingoLinq.store.createRecord('board');
       board.set('grid', {
         order: []
       });

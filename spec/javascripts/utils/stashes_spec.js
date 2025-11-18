@@ -2,7 +2,7 @@ describe('stashes', function() {
   beforeEach(function() {
     localStorage.root_board_state = null;
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
   });
   
   describe("setup", function() {
@@ -185,13 +185,13 @@ describe('stashes', function() {
       }]);
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Log,
+        type: LingoLinq.Log,
         response: Ember.RSVP.resolve({log: {id: '134'}}),
         compare: function(object) {
           return object.get('events').length == 2;
         }
       });
-      CoughDrop.session = Ember.Object.create({'user_name': 'bob'});
+      LingoLinq.session = Ember.Object.create({'user_name': 'bob'});
       var logs = queryLog.length;
       expect(stashes.get('usage_log').length).toEqual(1);
       stashes.log({action: 'jump'});
@@ -202,7 +202,7 @@ describe('stashes', function() {
         expect(stashes.get('usage_log').length).toEqual(0);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
-        expect(req.type).toEqual(CoughDrop.Log);
+        expect(req.type).toEqual(LingoLinq.Log);
       });
     });
     it("should not try to push to the server if there is no authenticated user", function() {
@@ -214,13 +214,13 @@ describe('stashes', function() {
       }]);
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Log,
+        type: LingoLinq.Log,
         response: Ember.RSVP.reject(''),
         compare: function(object) {
           return object.get('events').length == 2;
         }
       });
-      CoughDrop.session = Ember.Object.create({'user_name': null});
+      LingoLinq.session = Ember.Object.create({'user_name': null});
       var logs = queryLog.length;
       stashes.log({action: 'jump'});
       expect(stashes.get('usage_log').length).toEqual(2);
@@ -235,13 +235,13 @@ describe('stashes', function() {
       }]);
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Log,
+        type: LingoLinq.Log,
         response: Ember.RSVP.reject(''),
         compare: function(object) {
           return object.get('events').length == 2;
         }
       });
-      CoughDrop.session = Ember.Object.create({'user_name': 'bob'});
+      LingoLinq.session = Ember.Object.create({'user_name': 'bob'});
       var logs = queryLog.length;
       stashes.log({action: 'jump'});
       expect(stashes.get('usage_log').length).toEqual(0);
@@ -251,7 +251,7 @@ describe('stashes', function() {
         expect(stashes.get('usage_log').length).toEqual(2);
         var req = queryLog[queryLog.length - 1];
         expect(req.method).toEqual('POST');
-        expect(req.type).toEqual(CoughDrop.Log);
+        expect(req.type).toEqual(LingoLinq.Log);
       });
     });
   });

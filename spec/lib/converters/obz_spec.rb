@@ -1,21 +1,21 @@
 require 'spec_helper'
 
 describe Converters::OBZ do
-  describe "to_coughdrop" do
-    it "should use the coughdrop-from-obz converter" do
+  describe "to_lingolinq" do
+    it "should use the lingolinq-from-obz converter" do
       obz = "/file.obz"
       opts = {}
-      expect(Converters::CoughDrop).to receive(:from_obz).with(obz, opts)
-      Converters::OBZ.to_coughdrop(obz, opts)
+      expect(Converters::LingoLinq).to receive(:from_obz).with(obz, opts)
+      Converters::OBZ.to_lingolinq(obz, opts)
     end
   end
   
-  describe "from_coughdrop" do
-    it "should use the coughdrop-to-obz converter" do
+  describe "from_lingolinq" do
+    it "should use the lingolinq-to-obz converter" do
       obz = "/file.obz"
       path = "/output.obz"
-      expect(Converters::CoughDrop).to receive(:to_obz).with(obz, path, {'user' => nil})
-      Converters::OBZ.from_coughdrop(obz, path, {'user' => nil})
+      expect(Converters::LingoLinq).to receive(:to_obz).with(obz, path, {'user' => nil})
+      Converters::OBZ.from_lingolinq(obz, path, {'user' => nil})
     end
   end
   

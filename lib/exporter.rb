@@ -69,7 +69,7 @@ module Exporter
     file = Tempfile.new(['user-data', '.zip'])
     file.close
     OBF::Utils.build_zip(file.path) do |zipper|
-      zipper.add('README.txt', %{This zip file contains multiple resources representing a user export from CoughDrop:
+      zipper.add('README.txt', %{This zip file contains multiple resources representing a user export from LingoLinq:
 
 - logs/aac-logs-something.obl is a full export of the user's data logs
 - logs/aac-logs-something.obla is an anonymized export of the user's data logs
@@ -86,7 +86,7 @@ More information about the file formats being used is available at https://www.o
       export_logs(user.global_id, true, zipper)
       export_boards(user, zipper)
     end
-    Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/coughdrop-export-#{user.user_name}.zip", file.path, "application/zip")
+    Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/lingolinq-export-#{user.user_name}.zip", file.path, "application/zip")
   end
   
   def self.export_boards(user, zipper=nil)
@@ -100,7 +100,7 @@ More information about the file formats being used is available at https://www.o
         file = Tempfile.new(['home-board', '.obz'])
         path = file.path
         file.close
-        Converters::CoughDrop.to_obz(home_board, path, {'user' => user})
+        Converters::LingoLinq.to_obz(home_board, path, {'user' => user})
         file = File.open(path, 'rb')
         zipper.add('boards/home.obz', file.read)
         file.close
@@ -108,7 +108,7 @@ More information about the file formats being used is available at https://www.o
         file = Tempfile.new(['home-board', '.pdf'])
         path = file.path
         file.close
-        Converters::CoughDrop.to_pdf(home_board, path, {'user' => user, 'packet' => true})
+        Converters::LingoLinq.to_pdf(home_board, path, {'user' => user, 'packet' => true})
         file = File.open(path, 'rb')
         zipper.add('boards/home.pdf', file.read)
         file.close
@@ -123,7 +123,7 @@ More information about the file formats being used is available at https://www.o
         file = Tempfile.new(['sidebar-board', '.obz'])
         path = file.path
         file.close
-        Converters::CoughDrop.to_obz(sidebar_board, path, {'user' => user})
+        Converters::LingoLinq.to_obz(sidebar_board, path, {'user' => user})
         file = File.open(path, 'rb')
         zipper.add("boards/sidebar-#{idx.to_s.rjust(2, '0')}.obz", file.read)
         file.close
@@ -135,7 +135,7 @@ More information about the file formats being used is available at https://www.o
         file = Tempfile.new(['board', '.obf'])
         path = file.path
         file.close
-        Converters::CoughDrop.to_obf(board, path)
+        Converters::LingoLinq.to_obf(board, path)
         file = File.open(path, 'rb')
         zipper.add("boards/personal/board-#{board.global_id}.obf", file.read)
         file.close
@@ -184,8 +184,8 @@ More information about the file formats being used is available at https://www.o
     user_id = anonymized ? user.anonymized_identifier : user.global_id
     {
       format: 'open-board-log-0.1',
-      user_id: "coughdrop:#{user_id}",
-      source: "coughdrop",
+      user_id: "lingolinq:#{user_id}",
+      source: "lingolinq",
       locale: 'en',
       sessions: []
     }

@@ -1113,7 +1113,7 @@ var persistence = EmberObject.extend({
       }
 
       var trusted_not_to_change = url.match(/opensymbols\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/opensymbols/) ||
-                  url.match(/coughdrop-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/coughdrop-usercontent/) ||
+                  url.match(/lingolinq-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/lingolinq-usercontent/) ||
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
       var cors_match = trusted_not_to_change || url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {

@@ -2,7 +2,7 @@ describe("contentGrabbers", function() {
   var button, controller;
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     stashes.flush();
     
     var obj = Ember.Object.create({

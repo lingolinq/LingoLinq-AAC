@@ -3,7 +3,7 @@ describe('editManager', function() {
   
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     board = Ember.Object.extend({
       'controllers': {
         'application': Ember.Object.create({
@@ -54,7 +54,7 @@ describe('editManager', function() {
     it("should create a deep copy of state on clone_state", function() {
       expect(editManager.clone_state()).toEqual(undefined);
       
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -72,9 +72,9 @@ describe('editManager', function() {
       expect(clone_button.get('label')).toEqual('ham and cheese');
     });
     it("should not include image and sound in deep copy, but they should be retrieved anyway", function() {
-      var old = CoughDrop.Button;
+      var old = LingoLinq.Button;
       var called = false;
-      CoughDrop.Button = old.extend({
+      LingoLinq.Button = old.extend({
         findContentLocally: function() {
           called = true;
           expect(this.get('image')).toEqual(null);
@@ -82,12 +82,12 @@ describe('editManager', function() {
           this._super();
         }
       });
-      CoughDrop.Button.attributes = old.attributes;
-      var image = CoughDrop.store.push('image', {
+      LingoLinq.Button.attributes = old.attributes;
+      var image = LingoLinq.store.push('image', {
         id: 9,
         url: 'http://www.example.com/pic.png'
       });
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese",
         image_id: 9
@@ -105,12 +105,12 @@ describe('editManager', function() {
       expect(clone_button).not.toEqual(button);
       expect(clone_button.get('image')).not.toEqual(null);
       expect(clone_button.get('image.id')).toEqual('9');
-      CoughDrop.Button = old;
+      LingoLinq.Button = old;
     });
 
     it("should allow saving the current board state", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -134,7 +134,7 @@ describe('editManager', function() {
     it("should clear future edits (redo) on state change", function() {
       editManager.setup(board);
       editManager.set('future', [{}]);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -147,7 +147,7 @@ describe('editManager', function() {
     
     it("should not save the same edit to history more than once", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -266,7 +266,7 @@ describe('editManager', function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
       editManager.clear_button(1);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 123, label: 'happen', chicken: true
       });
       board.set('ordered_buttons', [[button]]);
@@ -286,7 +286,7 @@ describe('editManager', function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
       editManager.clear_button(1);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 123, label: 'happen'
       });
       board.set('ordered_buttons', [[button]]);
@@ -299,7 +299,7 @@ describe('editManager', function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
       editManager.clear_button(1);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 123, label: 'happen'
       });
       board.set('ordered_buttons', [[button]]);
@@ -317,7 +317,7 @@ describe('editManager', function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
       editManager.clear_button(1);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 123, label: 'happen', chicken: true
       });
       board.set('ordered_buttons', [[button]]);
@@ -330,7 +330,7 @@ describe('editManager', function() {
     it("should allow stashing a button", function() {
       stashes.persist('stashed_buttons', []);
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 333, label: 'heel'});
+      var b = LingoLinq.Button.create({id: 333, label: 'heel'});
       board.set('ordered_buttons', [[b]]);
       editManager.stash_button(333);
       expect(stashes.get('stashed_buttons').length).toEqual(1);
@@ -347,7 +347,7 @@ describe('editManager', function() {
     
     it("should retrieve button's raw attributes when preparing to apply", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({label: 'mighty', yearling: 'water'});
+      var button = LingoLinq.Button.create({label: 'mighty', yearling: 'water'});
       expect(board.get('finding_target')).not.toEqual(true);
       editManager.get_ready_to_apply_stashed_button(button);
       expect(board.get('finding_target')).toEqual(true);
@@ -361,16 +361,16 @@ describe('editManager', function() {
       expect(called).toEqual(true);
     });
     it("should retrieve image and sound records when a stash is applied", function() {
-      var image = CoughDrop.store.push('image', {
+      var image = LingoLinq.store.push('image', {
         id: 9,
         url: 'http://www.example.com/pic.png'
       });
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese",
         image_id: 9
       });
-      var button2 = CoughDrop.Button.create({id: 1483});
+      var button2 = LingoLinq.Button.create({id: 1483});
       board.set('ordered_buttons', [[button, button2]]);
       editManager.setup(board);
       editManager.stash_button(1482);
@@ -386,7 +386,7 @@ describe('editManager', function() {
     });
     it("should apply a stashed button properly", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 'cat', vocalization: 'meow'});
+      var b = LingoLinq.Button.create({id: 'cat', vocalization: 'meow'});
       board.set('ordered_buttons', [[b]]);
       editManager.stashedButtonToApply = {label: 'hiss'};
       editManager.apply_stashed_button('cat');
@@ -448,7 +448,7 @@ describe('editManager', function() {
     
     it("should properly initialize swap process", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 123});
+      var b = LingoLinq.Button.create({id: 123});
       board.set('ordered_buttons', [[b]]);
       editManager.prep_for_swap(123);
       expect(editManager.swapId).toEqual(123);
@@ -465,8 +465,8 @@ describe('editManager', function() {
     });
     
     it("should properly switch buttons", function() {
-      var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-      var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true});
+      var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+      var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true});
       editManager.setup(board);
       editManager.swapId = 888;
       board.set('ordered_buttons', [[a, b]]);
@@ -486,8 +486,8 @@ describe('editManager', function() {
       expect(state[0][1].id).toEqual(987);
     });
     it("should fail gracefully if either of the buttons isn't found", function() {
-      var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-      var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true});
+      var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+      var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true});
       editManager.setup(board);
       editManager.swapId = 888;
       board.set('ordered_buttons', [[a, b]]);
@@ -520,8 +520,8 @@ describe('editManager', function() {
         template = t;
         opts = o;
       });
-      var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-      var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+      var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+      var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
       editManager.setup(board);
       editManager.swapId = 888;
       board.set('ordered_buttons', [[a, b]]);
@@ -542,8 +542,8 @@ describe('editManager', function() {
     });
     
     it("should not ask when swapping onto a folder button if decision is specified", function() {
-      var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-      var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+      var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+      var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
       editManager.setup(board);
       editManager.swapId = 888;
       board.set('ordered_buttons', [[a, b]]);
@@ -569,8 +569,8 @@ describe('editManager', function() {
         editManager.move_button(1, 2).then(null, function() { });
         expect(cleared).toEqual(false);
         
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         
@@ -605,8 +605,8 @@ describe('editManager', function() {
         editManager.move_button(1, 2).then(null, function() { });
         expect(cleared).toEqual(false);
         
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         
@@ -639,13 +639,13 @@ describe('editManager', function() {
         });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           id: 'a/b',
           response: Ember.RSVP.resolve(res)
         });
         queryLog.defineFixture({
           method: 'PUT',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve(res),
           compare: function(object) {
             var grid = object.get('grid');
@@ -661,8 +661,8 @@ describe('editManager', function() {
         });
         
 
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         var success = false;
@@ -694,14 +694,14 @@ describe('editManager', function() {
         });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           id: 'a/b',
           response: Ember.RSVP.resolve(res)
         });
         
 
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         var error = false;
@@ -733,13 +733,13 @@ describe('editManager', function() {
         });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           id: 'a/b',
           response: Ember.RSVP.resolve(res)
         });
 
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         var error = false;
@@ -780,13 +780,13 @@ describe('editManager', function() {
         });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           id: 'a/b',
           response: Ember.RSVP.resolve(res)
         });
         queryLog.defineFixture({
           method: 'POST',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve(res2),
           compare: function(object) {
             var grid = object.get('grid');
@@ -801,7 +801,7 @@ describe('editManager', function() {
         });
         queryLog.defineFixture({
           method: 'PUT',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve(res2),
           compare: function(object) {
             var grid = object.get('grid');
@@ -817,8 +817,8 @@ describe('editManager', function() {
         });
         
 
-        var a = CoughDrop.Button.create({id: 123, label: 'peanut butter', for_swap: true});
-        var b = CoughDrop.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
+        var a = LingoLinq.Button.create({id: 123, label: 'peanut butter', for_swap: true});
+        var b = LingoLinq.Button.create({id: 987, label: 'jelly', for_swap: true, load_board: {key: 'a/b'}});
         board.set('buttons', [a.raw(), b.raw()]);
         board.set('ordered_buttons', [[a, b]]);
         var success = false;
@@ -839,7 +839,7 @@ describe('editManager', function() {
   describe("multiple edits", function() {
     it("should aggregate multiple edits into a single undo", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -855,7 +855,7 @@ describe('editManager', function() {
     });
     it("should aggregate multiple paints into a single undo", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -873,7 +873,7 @@ describe('editManager', function() {
     });
     it("shouldn't aggregate edits on different buttons", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -887,7 +887,7 @@ describe('editManager', function() {
     });
     it("shouldn't aggregate edits on the same button for different attributes", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -903,7 +903,7 @@ describe('editManager', function() {
     });
     it("should aggregate edits on the same button for different edits to the same attributes", function() {
       editManager.setup(board);
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         id: 1482,
         label: "ham and cheese"
       });
@@ -968,7 +968,7 @@ describe('editManager', function() {
     it("should allow redoing an edit after undo", function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
-      var b = CoughDrop.Button.create({id: 133});
+      var b = LingoLinq.Button.create({id: 133});
       editManager.set('future', [[[b]]]);
       editManager.redo();
       expect(editManager.get('future').length).toEqual(0);
@@ -994,7 +994,7 @@ describe('editManager', function() {
     
     it("should clear redo history after undo and then another edit", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9124});
+      var b = LingoLinq.Button.create({id: 9124});
       board.set('ordered_buttons', [[]]);
       editManager.set('history', [[[b]]]);
       editManager.undo();
@@ -1020,7 +1020,7 @@ describe('editManager', function() {
   describe("rows and columns", function() {
     it("should properly add a new row of fake buttons whose size matches the grid", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
 
@@ -1041,7 +1041,7 @@ describe('editManager', function() {
     
     it("should properly add a new column of fake buttons whose size matches the grid", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
 
@@ -1064,7 +1064,7 @@ describe('editManager', function() {
     
     it("should force at least one row", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
       
@@ -1083,7 +1083,7 @@ describe('editManager', function() {
     
     it("should properly remove a row", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
       
@@ -1110,7 +1110,7 @@ describe('editManager', function() {
     
     it("should force at least one column", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
       
@@ -1129,7 +1129,7 @@ describe('editManager', function() {
     
     it("should properly remove a column", function() {
       editManager.setup(board);
-      var b = CoughDrop.Button.create({id: 9});
+      var b = LingoLinq.Button.create({id: 9});
       board.set('ordered_buttons', [[b]]);
       expect(editManager.get('history').length).toEqual(0);
       
@@ -1203,8 +1203,8 @@ describe('editManager', function() {
     });
     
     it("should appropriately update buttons using the current stroke", function() {
-      var b1 = CoughDrop.Button.create({id: 123});
-      var b2 = CoughDrop.Button.create({id: 234});
+      var b1 = LingoLinq.Button.create({id: 123});
+      var b2 = LingoLinq.Button.create({id: 234});
       board.set('ordered_buttons', [[b1, b2]]);
       editManager.setup(board);
       editManager.set_paint_mode('rgba(255, 0, 0, 0.5)');
@@ -1235,8 +1235,8 @@ describe('editManager', function() {
     });
     
     it("should create a new undo event when the stroke is reset", function() {
-      var b1 = CoughDrop.Button.create({id: 123});
-      var b2 = CoughDrop.Button.create({id: 234});
+      var b1 = LingoLinq.Button.create({id: 123});
+      var b2 = LingoLinq.Button.create({id: 234});
       board.set('ordered_buttons', [[b1, b2]]);
       editManager.setup(board);
       editManager.set_paint_mode('rgba(255, 0, 0, 0.5)');
@@ -1291,7 +1291,7 @@ describe('editManager', function() {
     it("should search for and set a searched image based on the label", function() {
       editManager.setup(board);
       app_state.set('edit_mode', true);
-      var button = CoughDrop.Button.create({id: 1, label: "ham"});
+      var button = LingoLinq.Button.create({id: 1, label: "ham"});
       board.set('ordered_buttons', [[
         button
       ]]);
@@ -1314,7 +1314,7 @@ describe('editManager', function() {
 
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         response: Ember.RSVP.resolve({image: {id: '134', url: "http://www.example.com/pic2.png"}}),
         compare: function(object) {
           return object.get('license.type') == 'LGPL' &&
@@ -1345,7 +1345,7 @@ describe('editManager', function() {
     it("should search for parts of speech data", function() {
       editManager.setup(board);
       app_state.set('edit_mode', true);
-      var button = CoughDrop.Button.create({id: 1, label: "ham"});
+      var button = LingoLinq.Button.create({id: 1, label: "ham"});
       board.set('ordered_buttons', [[
         button
       ]]);
@@ -1366,7 +1366,7 @@ describe('editManager', function() {
 
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         response: Ember.RSVP.resolve({image: {id: '134', url: "http://www.example.com/pic2.png"}}),
         compare: function(object) {
           return object.get('license.type') == 'LGPL' &&
@@ -1393,7 +1393,7 @@ describe('editManager', function() {
     it("should fail gracefully if the button doesn't have a label", function() {
       editManager.setup(board);
       app_state.set('edit_mode', true);
-      var button = CoughDrop.Button.create({id: 1});
+      var button = LingoLinq.Button.create({id: 1});
       board.set('ordered_buttons', [[
         button
       ]]);
@@ -1410,7 +1410,7 @@ describe('editManager', function() {
     it("should fail gracefully on ajax error", function() {
       editManager.setup(board);
       app_state.set('edit_mode', true);
-      var button = CoughDrop.Button.create({id: 1, label: "onward"});
+      var button = LingoLinq.Button.create({id: 1, label: "onward"});
       board.set('ordered_buttons', [[
         button
       ]]);
@@ -1436,7 +1436,7 @@ describe('editManager', function() {
   
   describe("process_for_saving", function() {
     it("should update attributes for buttons", function() {
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         label: 'hat',
         image_id: 1,
         sound_id: 2,
@@ -1445,7 +1445,7 @@ describe('editManager', function() {
         border_color: '#88aabbff',
         id: 245
       });
-      var button2 = CoughDrop.Button.create({
+      var button2 = LingoLinq.Button.create({
         label: 'happen',
         image_id: 1,
         sound_id: 3,
@@ -1453,7 +1453,7 @@ describe('editManager', function() {
         background_color: 'rgb(255, 0, 0)',
         border_color: 'rbg(300, 100, 0)'
       });
-      var button3 = CoughDrop.Button.create({
+      var button3 = LingoLinq.Button.create({
         label: 'cheese',
         background_color: '#abf',
         border_color: 'hsv(320, 100%, 59%)'
@@ -1496,14 +1496,14 @@ describe('editManager', function() {
       });
     });
     it("should clear removed buttons", function() {
-      var button = CoughDrop.Button.create({
+      var button = LingoLinq.Button.create({
         sound_id: 2,
         vocalization: 'hat',
         background_color: 'mahogany',
         border_color: '#88aabbff',
         id: 245
       });
-      var button2 = CoughDrop.Button.create({
+      var button2 = LingoLinq.Button.create({
         label: 'happen',
         image_id: 1,
         sound_id: 3,
@@ -1511,7 +1511,7 @@ describe('editManager', function() {
         background_color: 'rgb(255, 0, 0)',
         border_color: 'rbg(300, 100, 0)'
       });
-      var button3 = CoughDrop.Button.create({
+      var button3 = LingoLinq.Button.create({
         label: 'cheese',
         background_color: '#abf',
         border_color: 'hsv(320, 100%, 59%)'
@@ -1589,10 +1589,10 @@ describe('editManager', function() {
       });
     });
     it("should retrieve local image and sound records", function() {
-      CoughDrop.store.push('image', {
+      LingoLinq.store.push('image', {
         id: 123, url: 'http://www.example.com/pic.png'
       });
-      CoughDrop.store.push('sound', {
+      LingoLinq.store.push('sound', {
         id: 123, url: 'http://www.example.com/pic.png'
       });
       board.set('buttons', [{id: 1, label: 'pic', image_id: 123, sound_id: 123}]);
@@ -1619,13 +1619,13 @@ describe('editManager', function() {
       var defer2 = Ember.RSVP.defer();
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         id: 125,
         response: defer1.promise
       });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Sound,
+        type: LingoLinq.Sound,
         id: 125,
         response: defer2.promise
       });
@@ -1653,13 +1653,13 @@ describe('editManager', function() {
       var defer2 = Ember.RSVP.defer();
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         id: 126,
         response: defer1.promise
       });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Sound,
+        type: LingoLinq.Sound,
         id: 126,
         response: defer2.promise
       });
@@ -1738,7 +1738,7 @@ describe('editManager', function() {
   
   describe("copy_board", function() {
     it("should create a new board using the old board's settings", function() {
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1748,7 +1748,7 @@ describe('editManager', function() {
       promise.then(null, function() { });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: promise,
         compare: function(object) {
           found = true;
@@ -1769,7 +1769,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1778,7 +1778,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),
@@ -1811,7 +1811,7 @@ describe('editManager', function() {
     it("should not replace in the user's communication set even if specified unless in the user's set", function() {
       expect(app_state.get('board_in_current_user_set')).toEqual(false);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1820,7 +1820,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),
@@ -1856,7 +1856,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1865,7 +1865,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),
@@ -1901,7 +1901,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1910,7 +1910,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),
@@ -1943,7 +1943,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1952,7 +1952,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),
@@ -1985,7 +1985,7 @@ describe('editManager', function() {
       app_state.set('sessionUser', user);
       expect(app_state.get('board_in_current_user_set')).toEqual(true);
 
-      b = CoughDrop.store.createRecord('board', {
+      b = LingoLinq.store.createRecord('board', {
         key: 'example/fred',
         buttons: [],
         grid: {}
@@ -1994,7 +1994,7 @@ describe('editManager', function() {
       var found = false;
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '1_2'
         }}),

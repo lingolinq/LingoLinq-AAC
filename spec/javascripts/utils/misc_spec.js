@@ -1,7 +1,7 @@
 describe("misc", function() {
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
   });
   
   describe("handlebars helpers", function() {

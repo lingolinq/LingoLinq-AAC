@@ -118,7 +118,7 @@ var word_suggestions = EmberObject.extend({
         previous.then(function() {
           var store_key = "arpa-." + idx + "." + _this.pieces + ".json";
           // TODO: CDN
-          var remote_url = "https://coughdrop.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
+          var remote_url = "https://lingolinq.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
           var find_or_store = persistence.find('settings', store_key).then(null, function() {
             return $.ajax({
               url: remote_url,

@@ -31,7 +31,7 @@ class Api::CallbacksController < ApplicationController
         else
           api_error 400, {error: 'event not handled'}
         end
-      elsif topic_arn.match(/CoughDropSMSInbound/) || topic_arn.match(/sms_inbound/)
+      elsif topic_arn.match(/LingoLinqSMSInbound/) || topic_arn.match(/sms_inbound/)
         Rails.logger.warn("INBOUND SMS NOTIFICATION")
         Rails.logger.warn(json_body.to_json)
         verifier = Aws::SNS::MessageVerifier.new

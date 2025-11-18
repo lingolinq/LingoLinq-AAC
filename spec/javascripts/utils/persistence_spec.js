@@ -3,7 +3,7 @@ describe("persistence", function() {
   var dbman;
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     app = {
       register: function(key, obj, args) {
         app.registered = (key == 'cough_drop:persistence' && obj == persistence && args.singleton == true);
@@ -30,12 +30,12 @@ describe("persistence", function() {
   var board = null;
   function push_board(callback) {
     db_wait(function() {
-      CoughDrop.store.push('board', {
+      LingoLinq.store.push('board', {
         id: '1234',
         name: 'Best Board'
       });
       var record = null;
-      CoughDrop.store.find('board', '1234').then(function(res) {
+      LingoLinq.store.find('board', '1234').then(function(res) {
         record = res;
       });
       var _this = this;
@@ -219,7 +219,7 @@ describe("persistence", function() {
         found.push(key);
         return Ember.RSVP.resolve({raw: {id: key}});
       });
-      stub(CoughDrop.store, 'push', function(store, obj) {
+      stub(LingoLinq.store, 'push', function(store, obj) {
         stored.push(obj);
         return obj;
       });
@@ -527,8 +527,8 @@ describe("persistence", function() {
   });
   describe("convert_model_to_json", function() {
     it("should serialize a record", function() {
-      var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
-      var json = persistence.convert_model_to_json(CoughDrop.store, CoughDrop.Board, board);
+      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      var json = persistence.convert_model_to_json(LingoLinq.store, LingoLinq.Board, board);
       expect(json).not.toEqual(null);
       expect(json.board).not.toEqual(null);
       expect(!!json.board.key.match(/^tmp_.+\/cool/)).toEqual(true);
@@ -537,13 +537,13 @@ describe("persistence", function() {
     });
     it("should call mimic_server_processing if defined", function() {
       var called = false;
-      var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
-      stub(CoughDrop.Board, 'mimic_server_processing', function(record, data) {
+      var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+      stub(LingoLinq.Board, 'mimic_server_processing', function(record, data) {
         called = true;
         data.cookie = true;
         return data;
       });
-      var json = persistence.convert_model_to_json(CoughDrop.store, CoughDrop.Board, board);
+      var json = persistence.convert_model_to_json(LingoLinq.store, LingoLinq.Board, board);
       expect(json).not.toEqual(null);
       expect(json.board).not.toEqual(null);
       expect(json.board.key).toEqual('ok/cool');
@@ -612,7 +612,7 @@ describe("persistence", function() {
       expect(persistence.get('online')).toEqual(true);
     });
     it("should call sync when changing to online", function() {
-      CoughDrop.sync_testing = true;
+      LingoLinq.sync_testing = true;
       var online = persistence.get('online');
       var called = false;
       stub(persistence, 'sync', function() {
@@ -623,7 +623,7 @@ describe("persistence", function() {
       persistence.set('online', true);
       waitsFor(function() { return called; })
       persistence.set('online', online);
-      CoughDrop.sync_testing = false;
+      LingoLinq.sync_testing = false;
     });
 //     it("should set to offline on event", function() {
 //       var online = persistence.get('online');
@@ -644,7 +644,7 @@ describe("persistence", function() {
   describe("DSAdapter", function() {
     describe("find", function() {
       it("should return a promise", function() {
-        var res = CoughDrop.store.find('board', '1234');
+        var res = LingoLinq.store.find('board', '1234');
         expect(res.then).not.toEqual(null);
       });
       it("should make an ajax query and find the record", function() {
@@ -654,12 +654,12 @@ describe("persistence", function() {
         }});
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: promise,
           id: "987"
         });
         var result = null;
-        CoughDrop.store.find('board', '987').then(function(res) {
+        LingoLinq.store.find('board', '987').then(function(res) {
           result = res;
         });
         waitsFor(function() { return result; });
@@ -687,7 +687,7 @@ describe("persistence", function() {
           });
           
           var result = null;
-          CoughDrop.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.find('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -715,7 +715,7 @@ describe("persistence", function() {
           });
           
           var result = null;
-          CoughDrop.store.find('board', '9876').then(function(res) {
+          LingoLinq.store.find('board', '9876').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -743,7 +743,7 @@ describe("persistence", function() {
           });
           
           var result = null;
-          CoughDrop.store.find('board', 'tmp_abcd').then(function(res) {
+          LingoLinq.store.find('board', 'tmp_abcd').then(function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -769,7 +769,7 @@ describe("persistence", function() {
           });
           
           var result = null;
-          CoughDrop.store.find('board', '8765').then(null, function(res) {
+          LingoLinq.store.find('board', '8765').then(null, function(res) {
             result = res;
           });
           waitsFor(function() { return result; });
@@ -787,7 +787,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -813,7 +813,7 @@ describe("persistence", function() {
             return Ember.RSVP.reject({});
           });
           var result = null;
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function() { debugger; }, function(res) {
             result = true;
           });
@@ -831,7 +831,7 @@ describe("persistence", function() {
             });
           });
           var result = null;
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           persistence.log = [];
           board.save().then(function(res) {
             result = res;
@@ -863,7 +863,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -892,7 +892,7 @@ describe("persistence", function() {
           var record = null;
           var found_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1023,7 +1023,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1059,7 +1059,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1096,7 +1096,7 @@ describe("persistence", function() {
           var record = null;
           var final_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1144,7 +1144,7 @@ describe("persistence", function() {
           var updated_record = null;
           var final_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1207,7 +1207,7 @@ describe("persistence", function() {
           var final_record = null;
           var deleted_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1267,7 +1267,7 @@ describe("persistence", function() {
           var final_record = null;
           var deleted_record = null;
 
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1378,7 +1378,7 @@ describe("persistence", function() {
           var deleted = null;
 
           persistence.removals = [];
-          var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
           });
@@ -1517,7 +1517,7 @@ describe("persistence", function() {
             {id: '134'}
           ]});
         });
-        CoughDrop.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           done = res.content && res.content[0] && res.content[0].id == '134'
         }, function() {
           debugger
@@ -1531,7 +1531,7 @@ describe("persistence", function() {
         stub(Ember.$, 'realAjax', function(options) {
           return Ember.RSVP.reject({});
         });
-        CoughDrop.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           debugger
         }, function() {
           done = true
@@ -1548,7 +1548,7 @@ describe("persistence", function() {
         stub(Ember.$, 'realAjax', function(options) {
           ajaxed = true;
         });
-        CoughDrop.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
+        LingoLinq.store.find('board', {user_id: 'example', starred: true, public: true}).then(function(res) {
           done = res.content && res.content[0] && res.content[0].id == '134'
         }, function() {
           rejected = true;
@@ -1579,7 +1579,7 @@ describe("persistence", function() {
         });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.User,
+          type: LingoLinq.User,
           response: promise,
           id: "134"
         });
@@ -1607,7 +1607,7 @@ describe("persistence", function() {
       });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: promise,
         id: "134"
       });
@@ -1624,7 +1624,7 @@ describe("persistence", function() {
       });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: Ember.RSVP.resolve({user: {id: '134', user_name: 'fred'}}),
         id: "134"
       });
@@ -1635,7 +1635,7 @@ describe("persistence", function() {
     
     
     it("should save the specified user's avatar as a data-uri", function() {
-      CoughDrop.all_wait = true;
+      LingoLinq.all_wait = true;
       var called = false;
       stub(persistence, 'store_url', function(url, type) {
         called = (url == "http://example.com/pic.png" && type == 'image');
@@ -1644,7 +1644,7 @@ describe("persistence", function() {
       stub(persistence, 'find_changed', function() { return Ember.RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: Ember.RSVP.resolve({user: {id: '134', user_name: 'fred', avatar_url: 'http://example.com/pic.png'}}),
         id: "134"
       });
@@ -1663,7 +1663,7 @@ describe("persistence", function() {
       stub(persistence, 'find_changed', function() { return Ember.RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: Ember.RSVP.resolve({user: {
           id: '134', 
           user_name: 'fred', 
@@ -1674,7 +1674,7 @@ describe("persistence", function() {
       });
       queryLog.defineFixture({
         method: 'GET', 
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '145',
           image_url: 'http://example.com/board.png',
@@ -1698,7 +1698,7 @@ describe("persistence", function() {
       })
       queryLog.defineFixture({
         method: 'GET', 
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '167',
           image_url: 'http://example.com/board.png',
@@ -1739,7 +1739,7 @@ describe("persistence", function() {
       stub(persistence, 'find_changed', function() { return Ember.RSVP.resolve([]); });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.User,
+        type: LingoLinq.User,
         response: Ember.RSVP.resolve({user: {
           id: '134', 
           user_name: 'fred', 
@@ -1750,7 +1750,7 @@ describe("persistence", function() {
       });
       queryLog.defineFixture({
         method: 'GET', 
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '145',
           image_url: 'http://example.com/board.png',
@@ -1774,7 +1774,7 @@ describe("persistence", function() {
       })
       queryLog.defineFixture({
         method: 'GET', 
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {
           id: '167',
           image_url: 'http://example.com/board.png',
@@ -1817,7 +1817,7 @@ describe("persistence", function() {
 
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.User,
+          type: LingoLinq.User,
           response: Ember.RSVP.resolve({user: {
             id: '1340', 
             user_name: 'fred', 
@@ -1828,7 +1828,7 @@ describe("persistence", function() {
         });
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '145',
             image_url: 'http://example.com/board.png',
@@ -1852,7 +1852,7 @@ describe("persistence", function() {
         })
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '167',
             image_url: 'http://example.com/board.png',
@@ -1910,7 +1910,7 @@ describe("persistence", function() {
         stub(persistence, 'find_changed', function() { return Ember.RSVP.resolve([]); });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.User,
+          type: LingoLinq.User,
           response: Ember.RSVP.resolve({user: {
             id: '1340', 
             user_name: 'fred', 
@@ -1921,7 +1921,7 @@ describe("persistence", function() {
         });
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '145',
             image_url: 'http://example.com/board.png',
@@ -1945,7 +1945,7 @@ describe("persistence", function() {
         })
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '167',
             image_url: 'http://example.com/board.png',
@@ -1990,7 +1990,7 @@ describe("persistence", function() {
         stub(persistence, 'find_changed', function() { return Ember.RSVP.resolve([]); });
         queryLog.defineFixture({
           method: 'GET',
-          type: CoughDrop.User,
+          type: LingoLinq.User,
           response: Ember.RSVP.resolve({user: {
             id: '1340', 
             user_name: 'fred', 
@@ -2001,7 +2001,7 @@ describe("persistence", function() {
         });
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '145',
             image_url: 'http://example.com/board.png',
@@ -2025,7 +2025,7 @@ describe("persistence", function() {
         })
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '167',
             image_url: 'http://example.com/board.png',
@@ -2046,7 +2046,7 @@ describe("persistence", function() {
         })
         queryLog.defineFixture({
           method: 'GET', 
-          type: CoughDrop.Board,
+          type: LingoLinq.Board,
           response: Ember.RSVP.resolve({board: {
             id: '178',
             image_url: 'http://example.com/board.png',
@@ -2075,7 +2075,7 @@ describe("persistence", function() {
     
     it("should create any newly-created records from find_changed", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         persistence.set('online', false);
         var record = null;
@@ -2100,7 +2100,7 @@ describe("persistence", function() {
           return Ember.RSVP.reject({});
         });
 
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           record = res;
         });
@@ -2145,13 +2145,13 @@ describe("persistence", function() {
     
     it("should update any changed records from find_changed", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         var record = null;
         var updated_record = null;
         var remote_updated = null;
 
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           record = res;
         });
@@ -2227,7 +2227,7 @@ describe("persistence", function() {
 
     it("should delete from the server when sync is finally called 2", function() {
       push_board(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         persistence.set('online', false);
         var deleted = null;
@@ -2282,13 +2282,13 @@ describe("persistence", function() {
 
     it("should error on failure updating a changed record", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         var record = null;
         var updated_record = null;
         var remote_updated = null;
 
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           record = res;
         });
@@ -2376,7 +2376,7 @@ describe("persistence", function() {
     
     it("should error on failure creating a changed record", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         persistence.set('online', false);
         var record = null;
@@ -2405,7 +2405,7 @@ describe("persistence", function() {
           ]);
         });
 
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           record = res;
         });
@@ -2633,13 +2633,13 @@ describe("persistence", function() {
     
     it("should clear changed status of successfully-updated records on partial sync", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         var record = null;
         var updated_record = null;
         var remote_updated = null;
 
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           record = res;
         });
@@ -2715,7 +2715,7 @@ describe("persistence", function() {
     });
     it("should update all board links to sub-boards, images and sounds containing temporary identifiers as part of sync", function() {
       db_wait(function() {
-        CoughDrop.all_wait = true;
+        LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         
 
@@ -2775,7 +2775,7 @@ describe("persistence", function() {
         var server_board, tmp_board, tmp_image, tmp_sound;
         var new_image, new_board, new_sound;
         // create a server-side board
-        var board = CoughDrop.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
         board.save().then(function(res) {
           server_board = res;
         });
@@ -2792,12 +2792,12 @@ describe("persistence", function() {
             expect(server_board.get('name')).toEqual("Righteous Board");
             persistence.set('online', false);
             
-            var board2 = CoughDrop.store.createRecord('board', {key: 'ok/cool2', name: 'Temp Board'});
+            var board2 = LingoLinq.store.createRecord('board', {key: 'ok/cool2', name: 'Temp Board'});
             board2.save().then(function(res) { 
               tmp_board = res; 
             });
             
-            var image = CoughDrop.store.createRecord('image', {});
+            var image = LingoLinq.store.createRecord('image', {});
             image.save().then(function(res) { 
               setTimeout(function() {
                 persistence.find('image', res.get('id')).then(function(res) {
@@ -2806,7 +2806,7 @@ describe("persistence", function() {
               }, 50);
             });
             
-            var sound = CoughDrop.store.createRecord('sound', {});
+            var sound = LingoLinq.store.createRecord('sound', {});
             sound.save().then(function(res) { 
               setTimeout(function() {
                 persistence.find('sound', res.get('id')).then(function(res) {

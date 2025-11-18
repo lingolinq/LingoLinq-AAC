@@ -283,8 +283,8 @@ We are actively seeking contributions in the following areas:
     -   Integrating multimodal AI capabilities for image and context analysis.
 
 -   **General Improvements:**
-    -   Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]).
-    -   External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/CoughDrop/aac_shim)[aac_shim]).
+    -   Dynamic Scene Displays framework to build photo-based interfaces for activating objects on a scene (consider using (https://github.com/LingoLinq/aac_shim)[aac_shim]).
+    -   External API Integrations (recent news, movie tickets, etc.) (consider using (https://github.com/LingoLinq/aac_shim)[aac_shim]).
     -   Core word service to return information on a word including most common part of speech, common variations/tenses, etc.
     -   API documentation (yeah I know, I should have done it along the way).
     -   Add support for iOS Personalized Voices.

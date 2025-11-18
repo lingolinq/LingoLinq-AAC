@@ -20,11 +20,11 @@
       </div>
     {{else if subscription.no_purchasing}}
       <p style="margin: 50px 0; font-size: 18px;">
-        {{t "To purchase as a gift, please <b>visiting coughdrop.com</b> in your web browser." key='gift_go_to_web_site'}}
+        {{t "To purchase as a gift, please <b>visiting lingolinq.com</b> in your web browser." key='gift_go_to_web_site'}}
       </p>
     {{else if subscription.app_pricing_override}}
       <p style="margin: 50px 0; font-size: 18px;">
-        {{t "To purchase as a gift, please <b>visiting coughdrop.com</b> in your web browser." key='gift_go_to_web_site'}}
+        {{t "To purchase as a gift, please <b>visiting lingolinq.com</b> in your web browser." key='gift_go_to_web_site'}}
       </p>
     {{else}}
       <form {{action "purchase" on="submit"}}>
@@ -74,13 +74,13 @@
                 {{else}}
                   $295
                 {{/if}}
-                <br/><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "<a href='https://blog.mycoughdrop.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>credit included" key='5_years_cloud_extras'}}</span>
+                <br/><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>credit included" key='5_years_cloud_extras'}}</span>
               </button>
             </div>
             <div>
               <label style='margin-top: 15px; font-size: 20px;'>
                 {{input type='checkbox' checked=subscription.extras}}
-                <img src="https://coughdrop.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" />
                 {{t "Add LessonPix, SymbolStix & PCS (BoardMaker) by Tobii Dynavox ($25)" key='include_extras'}}
               </label>
               <label style='margin-top: 15px; font-size: 20px;'>

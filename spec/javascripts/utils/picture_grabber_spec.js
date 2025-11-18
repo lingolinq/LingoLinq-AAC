@@ -3,7 +3,7 @@ describe('pictureGrabber', function() {
   beforeEach(function() {
     Ember.testing = true;
     contentGrabbers.unlink();
-    CoughDrop.reset();
+    LingoLinq.reset();
 
     var obj = Ember.Object.create({
       'controllers': {'application': {
@@ -184,7 +184,7 @@ describe('pictureGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { return s.get('url') == '/logo.png' },
         response: Ember.RSVP.resolve({image: {id: '123', url: '/logo.png'}})
       });
@@ -209,7 +209,7 @@ describe('pictureGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA==' },
         response: Ember.RSVP.resolve({image: {id: '123', url: null, pending: true}})
       });
@@ -237,7 +237,7 @@ describe('pictureGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA==' },
         response: Ember.RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
@@ -260,7 +260,7 @@ describe('pictureGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,MA==' },
         response: Ember.RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
@@ -285,7 +285,7 @@ describe('pictureGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { return s.get('data_url') == 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' },
         response: Ember.RSVP.resolve({image: {id: '123', url: null, pending: true}, meta: {remote_upload: {data_url: "/api", upload_url: "http://upload.com/", success_url: "/success", upload_params: {a: "1", b: "2"}}}})
       });
@@ -315,7 +315,7 @@ describe('pictureGrabber', function() {
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { 
           correct_license = s.get('license.type') == 'Uncool' && s.get('license.author_name') == "Bob";
           return s.get('url') == '/logo.png' 
@@ -332,7 +332,7 @@ describe('pictureGrabber', function() {
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Image,
+        type: LingoLinq.Image,
         compare: function(s) { 
           correct_license = s.get('license.type') == 'private' && s.get('license.author_name') == 'bob';
           return s.get('url') == '/logo.png' 

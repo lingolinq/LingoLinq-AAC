@@ -1,8 +1,8 @@
 # USAGE: core_ngrams.rb [optional_word]
 # Outputs a list of words that may come after the specified word
 require 'json'
-cores = JSON.parse(File.read('../coughdrop/lib/core_lists.json'))
-commons = JSON.parse(File.read('../coughdrop_mobile/www/ngrams.arpa.json'))
+cores = JSON.parse(File.read('../lingolinq/lib/core_lists.json'))
+commons = JSON.parse(File.read('../lingolinq_mobile/www/ngrams.arpa.json'))
 ngrams = {}
 cores.detect{|l| l['id'] == 'default' }['words'].each do |word|
   if commons[word]

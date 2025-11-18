@@ -204,7 +204,7 @@ puts "==== Addings Parts-of-Speech Data ===="
 MobyParser.import_words
 WordData.import_suggestions
 
-#     CoughDrop.Board.FIXTURES = [
+#     LingoLinq.Board.FIXTURES = [
 #       {
 #         format: "open-board-0.1",
 #         id: 1,

@@ -406,7 +406,7 @@ module Uploader
           'width' => obj['width'],
           'height' => obj['height'],
           'external_id' => obj['id'],
-          'coughdrop_image_id' => image_id,
+          'lingolinq_image_id' => image_id,
           'public' => true,
           'protected' => !!protected_source,
           'protected_source' => protected_source,

@@ -3072,7 +3072,7 @@ describe Subscription, :type => :model do
       b2.save
 
       expect(Uploader).to receive(:default_images).with('twemoji', ['frog'], 'en', u, true, false).and_return({
-        'frog' => {'coughdrop_image_id' => bi.global_id}
+        'frog' => {'lingolinq_image_id' => bi.global_id}
       })
 
       u.settings['subscription'] = {'eval_account' => true}
@@ -3106,7 +3106,7 @@ describe Subscription, :type => :model do
       b2.save
 
       expect(Uploader).to receive(:default_images).with('twemoji', ['frog'], 'en', u, true, false).and_return({
-        'frog' => {'coughdrop_image_id' => bi.global_id}
+        'frog' => {'lingolinq_image_id' => bi.global_id}
       })
 
       u.settings['subscription'] = {'eval_account' => true}

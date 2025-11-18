@@ -2,7 +2,7 @@ describe('boardGrabber', function() {
   var controller = null;
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     controller = Ember.Object.create({id: 1234});
   });
   
@@ -35,7 +35,7 @@ describe('boardGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         query: {key: "hat"},
         response: Ember.RSVP.resolve({board: [{id: '123', key: 'hippo'}]})
       });
@@ -53,7 +53,7 @@ describe('boardGrabber', function() {
     it('should show search results if no exact board found', function() {
       queryLog.defineFixture({
         method: 'GET',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         query: {q: "hat"},
         response: Ember.RSVP.resolve({board: [{id: '123', key: 'hippo'}]})
       });
@@ -96,20 +96,20 @@ describe('boardGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Board,
+        type: LingoLinq.Board,
         response: Ember.RSVP.resolve({board: {id: '134', key: 'cookie'}}),
         compare: function(object) {
           return object.get('name') == 'cookie';
         }
       });
       boardGrabber.setup(null, controller);
-      controller.set('pending_board', CoughDrop.store.createRecord('board', {name: 'cookie'}));
+      controller.set('pending_board', LingoLinq.store.createRecord('board', {name: 'cookie'}));
       boardGrabber.create_board();
       waitsFor(function() { return called == true; });
       runs(function() {
         var event = queryLog[queryLog.length - 1];
         expect(event.method).toEqual('POST');
-        expect(event.type).toEqual(CoughDrop.Board);
+        expect(event.type).toEqual(LingoLinq.Board);
         expect(called).toEqual(true);
         expect(controller.get('pending_board')).toEqual(null);
         expect(controller.get('linkedBoardName')).toEqual(null);

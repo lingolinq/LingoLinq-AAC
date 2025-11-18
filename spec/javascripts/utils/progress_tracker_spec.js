@@ -3,7 +3,7 @@ describe('progress_tracker', function() {
   var old_error_wait = progress_tracker.error_wait;
   beforeEach(function() {
     Ember.testing = true;
-    CoughDrop.reset();
+    LingoLinq.reset();
     progress_tracker.success_wait = 1;
     progress_tracker.error_wait = 1;
   });

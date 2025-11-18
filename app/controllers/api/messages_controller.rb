@@ -7,7 +7,7 @@ class Api::MessagesController < ApplicationController
     m = params['message'] && ContactMessage.process_new(params['message'], {
       'ip_address' => request.remote_ip,
       'user_agent' => request.headers['User-Agent'],
-      'version' => request.headers['X-CoughDrop-Version'],
+      'version' => request.headers['X-LingoLinq-Version'],
       'api_user' => @api_user
     })
     if !m || m.errored?

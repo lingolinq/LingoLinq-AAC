@@ -164,14 +164,14 @@
       {{#if missing_library}}
         <div style="margin: 10px 0 10px 0;">
           {{#if missing_library.lessonpix}}
-            <img src="https://coughdrop.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
+            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
             {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key='lessonpix_detailer'}}
           {{else if missing_library.pcs}}
-            <img src="https://coughdrop.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
+            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
             {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key='pcs_explainer'}}
             {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else if missing_library.symbolstix}}
-            <img src="https://coughdrop.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
+            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
             {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key='symbolstix_explainer'}}
             {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else}}

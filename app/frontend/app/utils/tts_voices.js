@@ -28,28 +28,28 @@ var voices = EmberObject.extend({
       if(voice.voice_id.match(/^acap/)) {
         voice.name = voice.name || voice.voice_id.split(/:/)[1];
         if(voice.voice_dir) {
-          voice.voice_url = "https://coughdrop.s3.amazonaws.com/voices/" + voice.voice_dir + ".zip";
+          voice.voice_url = "https://lingolinq.s3.amazonaws.com/voices/" + voice.voice_dir + ".zip";
         }
         var simple_voice_dir = voice.voice_dir_v2018 || voice.voice_dir;
         if(!capabilities.installed_app || (capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android') && voice.voice_dir_v2018)) {
-          voice.voice_url = "https://coughdrop.s3.amazonaws.com/voices/v2018/" + voice.voice_dir_v2018 + ".zip";
+          voice.voice_url = "https://lingolinq.s3.amazonaws.com/voices/v2018/" + voice.voice_dir_v2018 + ".zip";
           voice.available = !!(capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android') && voice.voice_dir_v2018);
         }
-        voice.voice_sample = voice.voice_sample || "https://coughdrop.s3.amazonaws.com/voices/" + voice.name.toLowerCase().replace(/\s+/g, '-') + "-sample.mp3";
+        voice.voice_sample = voice.voice_sample || "https://lingolinq.s3.amazonaws.com/voices/" + voice.name.toLowerCase().replace(/\s+/g, '-') + "-sample.mp3";
         voice.language_dir = (simple_voice_dir || "").split(/-/)[2];
         voice.windows_available = !!(voice.language_dir && voice.language_dir !== "");
-        voice.windows_language_url = "https://coughdrop.s3.amazonaws.com/voices/" + voice.language_dir + ".zip";
-        voice.windows_binary_url = "https://coughdrop.s3.amazonaws.com/voices/aca-bin.zip";
+        voice.windows_language_url = "https://lingolinq.s3.amazonaws.com/voices/" + voice.language_dir + ".zip";
+        voice.windows_binary_url = "https://lingolinq.s3.amazonaws.com/voices/aca-bin.zip";
         if(voice.language_version && voice.language_version !== "") {
-          voice.windows_language_url = "https://coughdrop.s3.amazonaws.com/voices/" + voice.language_dir + "-" + voice.language_version + ".zip";
+          voice.windows_language_url = "https://lingolinq.s3.amazonaws.com/voices/" + voice.language_dir + "-" + voice.language_version + ".zip";
         }
         if(voice.voice_url && capabilities.installed_app && capabilities.system == 'Windows') {
           voice.windows_voice_url = voice.voice_url.replace(/\.zip/, '.win.zip');
         }
         if(voice.language_version2018) {
-          voice.windows_voice_url = "https://coughdrop.s3.amazonaws.com/voices/v2018/" + voice.name + "22k_HQ.zip";
-          voice.windows_language_url = "https://coughdrop.s3.amazonaws.com/voices/v2018/" + voice.language_dir + "-" + voice.language_version2018 + ".zip";
-          voice.windows_binary_url = "https://coughdrop.s3.amazonaws.com/voices/v2018/aca-bin.zip";
+          voice.windows_voice_url = "https://lingolinq.s3.amazonaws.com/voices/v2018/" + voice.name + "22k_HQ.zip";
+          voice.windows_language_url = "https://lingolinq.s3.amazonaws.com/voices/v2018/" + voice.language_dir + "-" + voice.language_version2018 + ".zip";
+          voice.windows_binary_url = "https://lingolinq.s3.amazonaws.com/voices/v2018/aca-bin.zip";
         }
         voice.hq = true;
       }

@@ -71,7 +71,7 @@ module ExternalTracker
     }
     if user && (user.settings['activations'] || []).length > 0
       json[:properties] << {
-        property: 'coughdrop_start_code', value: user.settings['activations'].map{|a| a['code'] }.compact[-1]
+        property: 'lingolinq_start_code', value: user.settings['activations'].map{|a| a['code'] }.compact[-1]
       }
     end
   

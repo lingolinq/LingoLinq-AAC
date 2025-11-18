@@ -6,7 +6,7 @@ describe('soundGrabber', function() {
   beforeEach(function() {
     Ember.testing = true;
     contentGrabbers.unlink();
-    CoughDrop.reset();
+    LingoLinq.reset();
     var obj = Ember.Object.create({
       'controllers': {'application': {
         'currentUser': Ember.Object.create({user_name: 'bob'})
@@ -182,7 +182,7 @@ describe('soundGrabber', function() {
       });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Sound,
+        type: LingoLinq.Sound,
         compare: function(s) { return s.get('url') == '/beep.mp3' },
         response: Ember.RSVP.resolve({sound: {id: '123', url: '/beep.mp3'}})
       });
@@ -203,7 +203,7 @@ describe('soundGrabber', function() {
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Sound,
+        type: LingoLinq.Sound,
         compare: function(s) { 
           correct_license = s.get('license.type') == 'Cool' && s.get('license.author_name') == "Bob";
           return s.get('url') == '/beep.mp3' 
@@ -220,7 +220,7 @@ describe('soundGrabber', function() {
       stub(editManager, 'change_button', function(id, args) { });
       queryLog.defineFixture({
         method: 'POST',
-        type: CoughDrop.Sound,
+        type: LingoLinq.Sound,
         compare: function(s) {
           correct_license = s.get('license.type') == 'private' && s.get('license.author_name') == 'bob';
           return s.get('url') == '/beep.mp3' 

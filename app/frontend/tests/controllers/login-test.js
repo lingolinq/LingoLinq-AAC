@@ -43,7 +43,7 @@ describe('LoginController', 'controller:login', function() {
 //       if (!Ember.isEmpty(data.identification) && !Ember.isEmpty(data.password)) {
 //         this.set('password', null);
 //         var _this = this;
-//         this.get('session').authenticate('authenticator:coughdrop', data).then(function(data) {
+//         this.get('session').authenticate('authenticator:lingolinq', data).then(function(data) {
 //           stashes.flush(null, 'auth_');
 //           stashes.setup();
 //           _this.set('logging_in', false);

@@ -2475,7 +2475,7 @@ describe Api::UsersController, :type => :controller do
     end
     
     it 'should redirect to the cached copy if found' do
-      bi = ButtonImage.create(url: 'coughdrop://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       u = User.create
       expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
       get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => u.user_token, 'library' => 'lessonpix', 'image_id' => '12345'}
@@ -3037,7 +3037,7 @@ describe Api::UsersController, :type => :controller do
       @user.reload
       expect(@user.settings['tmp_2fa']).to_not eq(nil)
       expect(@user.settings['2fa']).to eq(nil)
-      totp = ROTP::TOTP.new(@user.settings['tmp_2fa']['secret'], issuer: 'CoughDrop')
+      totp = ROTP::TOTP.new(@user.settings['tmp_2fa']['secret'], issuer: 'LingoLinq')
       code = totp.at(Time.now)
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
       json = assert_success_json
@@ -3058,7 +3058,7 @@ describe Api::UsersController, :type => :controller do
       @user.reload
       expect(@user.settings['tmp_2fa']).to_not eq(nil)
       expect(@user.settings['2fa']).to eq(nil)
-      totp = ROTP::TOTP.new(@user.settings['tmp_2fa']['secret'], issuer: 'CoughDrop')
+      totp = ROTP::TOTP.new(@user.settings['tmp_2fa']['secret'], issuer: 'LingoLinq')
       code = totp.at(Time.now)
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => '0000009'}
       assert_error("invalid code: 0000009")
@@ -3079,7 +3079,7 @@ describe Api::UsersController, :type => :controller do
       expect(@user.settings['tmp_2fa']).to_not eq(nil)
       expect(@user.settings['2fa']).to eq(nil)
       secret = @user.settings['tmp_2fa']['secret']
-      totp = ROTP::TOTP.new(secret, issuer: 'CoughDrop')
+      totp = ROTP::TOTP.new(secret, issuer: 'LingoLinq')
       code = totp.at(Time.now)
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
       json = assert_success_json

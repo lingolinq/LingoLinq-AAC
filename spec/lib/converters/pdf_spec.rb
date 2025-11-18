@@ -31,7 +31,7 @@ describe Converters::PDF do
       b.save!
       path1 = OBF::Utils.temp_path("stash")
       path2 = OBF::Utils.temp_path(["file", ".pdf"])
-      Converters::CoughDrop.to_obz(b, path1, {'user' => u})
+      Converters::LingoLinq.to_obz(b, path1, {'user' => u})
       Converters::PDF.from_obz(path1, path2)
       File.unlink path1
       expect(File.exist?(path2)).to eq(true)
@@ -40,12 +40,12 @@ describe Converters::PDF do
     end
   end
 
-  describe "from_coughdrop" do
+  describe "from_lingolinq" do
     it "should convert to obz and then render that" do
       hash = {}
-      expect(Converters::CoughDrop).to receive(:to_external).and_return(hash)
+      expect(Converters::LingoLinq).to receive(:to_external).and_return(hash)
       expect(OBF::PDF).to receive(:from_external).with(hash, "/file.pdf")
-      Converters::PDF.from_coughdrop(nil, "/file.pdf", {})
+      Converters::PDF.from_lingolinq(nil, "/file.pdf", {})
     end
   end  
 

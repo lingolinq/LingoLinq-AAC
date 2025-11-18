@@ -1,4 +1,4 @@
-Coughdrop::RESERVED_ROUTES ||= [
+LingoLinq::RESERVED_ROUTES ||= [
   'admin', 'etc', 'settings', 'status', 'reports', 'stats', 'search', 
   'messages', 'inbox', 'log', 'logs', 'session', 'sessions', 'imports', 
   'boards', 'users', 'groups', 'organizations', 'pages', 'people', 'videos', 
@@ -11,8 +11,8 @@ Coughdrop::RESERVED_ROUTES ||= [
   'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
   'privacy', 'terms', 'hipaa', 'accessibility', 'history',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
-  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'coughdrop', 'cough_drop',
-  'mycoughdrop', 'inflection', 'inflections', 'saml'
+  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
+  'mylingolinq', 'inflection', 'inflections', 'saml'
 ]
 require 'resque/server'
 require 'admin_constraint'

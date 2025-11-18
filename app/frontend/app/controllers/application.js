@@ -289,8 +289,8 @@ export default Controller.extend({
       if(location.hostname == '127.0.0.1') {
         this.transitionToRoute('login');
         // location.href = "//localhost:" + location.port + "/login";
-      } else if(location.hostname == 'www.mycoughdrop.com') {
-        location.href = "//app.mycoughdrop.com/login";
+      } else if(location.hostname == 'www.mylingolinq.com') {
+        location.href = "//app.mylingolinq.com/login";
       } else {
         this.transitionToRoute('login');
       }
@@ -1039,7 +1039,7 @@ export default Controller.extend({
       }
     },
     about_modal: function() {
-      modal.open('about-coughdrop');
+      modal.open('about-lingolinq');
     },
     full_screen: function() {
       capabilities.fullscreen(true).then(null, function() {
