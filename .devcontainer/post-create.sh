@@ -3,7 +3,7 @@ set -e
 
 echo "=== Post-Create Script Starting ==="
 
-# Load NVM (installed by the devcontainer feature)
+# Load NVM
 export NVM_DIR="/usr/local/share/nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
     echo "Loading NVM..."
@@ -13,7 +13,7 @@ else
     exit 1
 fi
 
-# Verify Node is available
+# Verify Node
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
@@ -26,10 +26,14 @@ nvm alias node18 18
 nvm use 20
 nvm alias default 20
 
-# Install CLIs globally with Node 20
-echo "Installing CLIs..."
+# Install CLIs globally
+echo "Installing Gemini and Claude CLIs..."
 npm install -g @google/generative-ai-cli
 npm install -g @anthropic-ai/sdk
+
+# Verify CLI installs
+echo "Gemini CLI version: $(genai version || echo 'Not found')"
+echo "Claude SDK version: $(npm list -g @anthropic-ai/sdk || echo 'Not found')"
 
 # Ruby setup
 echo "Setting up Ruby gems..."
