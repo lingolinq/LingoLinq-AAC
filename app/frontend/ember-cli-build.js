@@ -35,6 +35,11 @@ module.exports = function(defaults) {
   // modules that you would like to import into your application
   // please specify an object with the list of modules as keys
   // along with the exports of each module as its value.
+  // Import CSS files
+  app.import('bower_components/bootstrap/dist/css/bootstrap.min.css');
+  app.import('bower_components/jquery-minicolors/jquery.minicolors.css');
+
+  // Import JS files
   app.import('bower_components/IndexedDBShim/dist/indexeddbshim.min.js');
   // Hammer-Time causes a weird bug in Windows Chrome where if you
   // tap a dropdown, when you touch (not mouse) the element within the dropdown, it

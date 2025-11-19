@@ -545,9 +545,20 @@ class User < ActiveRecord::Base
   end
   
   def generated_avatar_url(override_url=nil)
-    bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
     id = self.id || 0
-    fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
+    # In development, use local paths; in production, use S3
+    if Rails.env.development?
+      fallback = "/avatars/avatar-#{id % 10}.png"
+    else
+      bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
+      fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
+    end
+
+    # In development mode, always use local fallback unless explicitly overridden
+    if Rails.env.development? && !override_url
+      return fallback
+    end
+
     url = self.settings && self.settings['avatar_url']
     url = override_url if override_url
     if url == 'fallback'
