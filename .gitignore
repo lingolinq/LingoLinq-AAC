@@ -41,3 +41,7 @@
 
 # Ignore compiled assets
 /public/assets
+
+# Ignore temporary logo/backup files
+/backup
+/temp_logos
