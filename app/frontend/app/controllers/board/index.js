@@ -952,7 +952,7 @@ export default Controller.extend({
       if(app_state.get('currentUser')) {
         bg = 'white';
       } else {
-        bg = window.user_preferences.any_user.symbol_background;
+        bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
       }
     }
     return "symbol_background_" + bg;

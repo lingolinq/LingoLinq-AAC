@@ -614,7 +614,7 @@ export default Controller.extend({
   active_sidebar_options: computed('pending_preferences.sidebar_boards', function() {
     var res = this.get('pending_preferences.sidebar_boards');
     if(!res || res.length === 0) {
-     res = [].concat(window.user_preferences.any_user.default_sidebar_boards);
+     res = [].concat((window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || []);
     }
     res.forEach(function(b, idx) { b.idx = idx; });
     return res;
@@ -635,7 +635,7 @@ export default Controller.extend({
     'include_prior_sidebar_buttons',
     'pending_preferences.prior_sidebar_boards',
     function() {
-      var defaults = window.user_preferences.any_user.default_sidebar_boards;
+      var defaults = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
       if(this.get('include_prior_sidebar_buttons')) {
         (this.get('pending_preferences.prior_sidebar_boards') || []).forEach(function(b) {
           if(!defaults.find(function(o) { return (o.key && o.key == b.key) || (o.alert && b.alert); })) {

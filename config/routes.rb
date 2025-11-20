@@ -152,6 +152,7 @@ LingoLinq::Application.routes.draw do
   get 'api/v1/status/heartbeat' => 'session#heartbeat'
   
   scope 'api/v1', module: 'api' do
+    get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
     post 'messages' => 'messages#create'
     post 'callback' => 'callbacks#callback'
@@ -159,7 +160,7 @@ LingoLinq::Application.routes.draw do
     get 'start_code' => 'organizations#start_code_lookup'
     post 'focus/usage' => 'integrations#focus_usage'
     get 'lang/:locale' => 'words#lang'
-    
+
     resources :boards, :constraints => {:id => board_id_regex} do
       get 'stats' => 'boards#stats'
       get 'simple.obf' => 'boards#simple_obf'

@@ -38,7 +38,7 @@ export default modal.ModalController.extend({
     'app_state.currentUser',
     'app_state.currentUser.preferences.sharing',
     function() {
-      return (!this.get('app_state.currentUser') && window.user_preferences.any_user.sharing) || this.get('app_state.currentUser.preferences.sharing');
+      return (!this.get('app_state.currentUser') && window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.sharing) || this.get('app_state.currentUser.preferences.sharing');
     }
   ),
   working_vocalization_text: computed('stashes.working_vocalization', function() {

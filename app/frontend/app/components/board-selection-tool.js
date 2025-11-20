@@ -119,7 +119,7 @@ export default Component.extend({
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
-    LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), per_page: 20, category: 'layouts'}).then(function(data) {
+    LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', per_page: 20, category: 'layouts'}).then(function(data) {
       var res = data.map(function(b) { return b; });
       if(res && res.length > 0) {
         _this.set('boards', res);

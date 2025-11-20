@@ -11,13 +11,13 @@ export default Route.extend({
     function loadBoards() {
       if(persistence.get('online')) {
         controller.set('home_boards', {loading: true});
-        _this.store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
+        _this.store.query('board', {user_id: 'self', starred: true, public: true}).then(function(boards) {
           controller.set('home_boards', boards);
         }, function() {
           controller.set('home_boards', null);
         });
         controller.set('core_vocabulary', {loading: true});
-        _this.store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true, per_page: 6}).then(function(boards) {
+        _this.store.query('board', {user_id: app_state.get('currentUser.id') || 'self', starred: true, public: true, per_page: 6}).then(function(boards) {
           controller.set('core_vocabulary', boards);
         }, function() {
           controller.set('core_vocabulary', null);

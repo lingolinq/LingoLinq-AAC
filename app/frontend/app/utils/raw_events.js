@@ -960,7 +960,7 @@ var buttonTracker = EmberObject.extend({
 
       if(event.type != 'gazelinger' && !event.dwell_linger) {
         // Use start, end or average pointer location for selection
-        buttonTracker.activation_location = buttonTracker.activation_location || window.user_preferences.any_user.activation_location;
+        buttonTracker.activation_location = buttonTracker.activation_location || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.activation_location);
         if(buttonTracker.activation_location == 'start') {
           elem_wrap = buttonTracker.initialTarget;
           frame_event = buttonTracker.initialEvent;

@@ -41,4 +41,22 @@ gem install bundler -v 2.6.8 --conservative || true
 bundle _2.6.8_ config set --local path 'vendor/bundle' || true
 bundle _2.6.8_ install --jobs 4 || true
 
+# Install Redis
+echo "Installing Redis..."
+sudo apt-get update
+sudo apt-get install -y redis-server
+sudo service redis-server start
+
+# Install PostgreSQL
+echo "Installing PostgreSQL..."
+sudo apt-get update
+sudo apt-get install -y postgresql postgresql-contrib
+sudo service postgresql start
+
+# Configure PostgreSQL for the current user
+sudo -u postgres psql -c "CREATE USER $(whoami) WITH SUPERUSER CREATE DATABASE $(whoami) OWNER $(whoami);" || true
+
 echo "=== Post-Create Script Complete ==="
+
+nvm use 20
+

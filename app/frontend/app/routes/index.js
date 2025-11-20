@@ -76,7 +76,7 @@ export default Route.extend({
 
     app_state.clear_mode();
     if(!app_state.get('currentUser.preferences.home_board.id')) {
-      this.store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
+      this.store.query('board', {user_id: 'self', starred: true, public: true}).then(function(boards) {
         controller.set('starting_boards', boards);
       }, function() { });
     }

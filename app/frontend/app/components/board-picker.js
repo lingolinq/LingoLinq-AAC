@@ -46,13 +46,13 @@ export default Component.extend({
       this.set('category_boards', {loading: true});
       var _this = this;
       if(str == 'mine') {
-        LingoLinq.store.query('board', {user_id: app_state.get('domain_board_user_name'), include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
+        LingoLinq.store.query('board', {user_id: app_state.get('currentUser.id') || 'self', include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});
         });  
       } else {
-        LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
+        LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});

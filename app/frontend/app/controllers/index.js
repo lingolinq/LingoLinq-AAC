@@ -238,13 +238,13 @@ export default Controller.extend({
           if(app_state.get('currentUser.preferences.locale')) {
             locale = app_state.get('currentUser.preferences.locale').split(/-/)[0];
           }
-          var opts = {public: true, starred: true, user_id: app_state.get('domain_board_user_name'), sort: 'custom_order', per_page: 20, preferred_locale: locale};
+          var opts = {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 20, preferred_locale: locale};
           if(key == 'personal') {
             list = 'personalBoards';
             opts = {user_id: 'self', root: true, per_page: 12};
           } else if(key == 'popular') {
             list = 'popularBoards';
-            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: app_state.get('domain_board_user_name'), locale: locale};
+            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: app_state.get('currentUser.id') || 'self', locale: locale};
           }
           if(!(_this.get(list) || {}).length) {
             _this.set(list, {loading: true});

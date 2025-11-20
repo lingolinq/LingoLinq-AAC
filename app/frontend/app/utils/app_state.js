@@ -62,6 +62,9 @@ var app_state = EmberObject.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
+    // Ensure window.user_preferences.any_user exists to prevent TypeError
+    window.user_preferences = window.user_preferences || {};
+    window.user_preferences.any_user = window.user_preferences.any_user || {};
     this.set('currentBoardState', null);
     var _this = this;
     this.set('version', window.app_version || 'unknown');
