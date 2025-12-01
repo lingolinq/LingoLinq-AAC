@@ -551,50 +551,67 @@ module Uploader
         end
       end
     elsif ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
-      str = keyword.to_s
-      if library == 'tawasol'
-        str += " favor:#{library}"
-      elsif library != 'opensymbols'
-        str += " repo:#{library}"
-      end
-      token = ENV['OPENSYMBOLS_TOKEN']
-      protected_source = nil
-      if library == 'pcs' && user && user.subscription_hash['extras_enabled']
-        token += ":pcs"
-        protected_source = 'pcs'
-      elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
-        token += ":symbolstix"
-        protected_source = 'symbolstix'
-      end
-      res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", :ssl_verifypeer => false, timeout: 5)
-      results = JSON.parse(res.body) rescue []
-      results.each do |result|
-        if result['extension']
-          type = MIME::Types.type_for(result['extension'])[0]
-          result['content_type'] = type.content_type
+      # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
+      # Otherwise fall back to v1 API with OPENSYMBOLS_TOKEN
+      if ENV['OPENSYMBOLS_SECRET'].present?
+        # Determine protected source for premium libraries
+        protected_source = nil
+        if library == 'pcs' && user && user.subscription_hash['extras_enabled']
+          protected_source = 'pcs'
+        elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
+          protected_source = 'symbolstix'
         end
-      end
-      list = []
-      results.each do |obj|
-        list << {
-          'url' => obj['image_url'],
-          'thumbnail_url' => obj['image_url'],
-          'content_type' => obj['content_type'],
-          'width' => obj['width'],
-          'height' => obj['height'],
-          'external_id' => obj['id'],
-          'public' => true,
-          'protected' => !!protected_source,
-          'protected_source' => protected_source,
-          'license' => {
-            'type' => obj['license'],
-            'copyright_notice_url' => obj['license_url'],
-            'source_url' => obj['source_url'],
-            'author_name' => obj['author'],
-            'author_url' => obj['author_url'],
-            'uneditable' => true
-          }
-        }        
+        
+        # Use the new OpenSymbols v2 API module
+        require 'open_symbols' unless defined?(OpenSymbols)
+        list = OpenSymbols.find_images(keyword, library, locale, protected_source: protected_source)
+      else
+        # Fall back to v1 API (legacy)
+        str = keyword.to_s
+        if library == 'tawasol'
+          str += " favor:#{library}"
+        elsif library != 'opensymbols'
+          str += " repo:#{library}"
+        end
+        token = ENV['OPENSYMBOLS_TOKEN']
+        protected_source = nil
+        if library == 'pcs' && user && user.subscription_hash['extras_enabled']
+          token += ":pcs"
+          protected_source = 'pcs'
+        elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
+          token += ":symbolstix"
+          protected_source = 'symbolstix'
+        end
+        res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", :ssl_verifypeer => false, timeout: 5)
+        results = JSON.parse(res.body) rescue []
+        results.each do |result|
+          if result['extension']
+            type = MIME::Types.type_for(result['extension'])[0]
+            result['content_type'] = type.content_type
+          end
+        end
+        list = []
+        results.each do |obj|
+          list << {
+            'url' => obj['image_url'],
+            'thumbnail_url' => obj['image_url'],
+            'content_type' => obj['content_type'],
+            'width' => obj['width'],
+            'height' => obj['height'],
+            'external_id' => obj['id'],
+            'public' => true,
+            'protected' => !!protected_source,
+            'protected_source' => protected_source,
+            'license' => {
+              'type' => obj['license'],
+              'copyright_notice_url' => obj['license_url'],
+              'source_url' => obj['source_url'],
+              'author_name' => obj['author'],
+              'author_url' => obj['author_url'],
+              'uneditable' => true
+            }
+          }        
+        end
       end
     end
     cache = library.instance_variable_get('@library_cache')
