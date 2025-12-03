@@ -81,6 +81,60 @@ module OpenSymbols
         []
       end
     end
+
+    # Get default symbols for a list of queries
+    # @param library [String] the repository key (e.g., 'opensymbols', 'mulberry')
+    # @param queries [Array<String>] list of terms to search for
+    # @param locale [String] locale code
+    # @return [Hash] mapping of query to symbol object
+    def defaults(library, queries, locale)
+      return {} if queries.blank?
+      
+      token = access_token
+      return {} unless token
+      
+      url = "https://www.opensymbols.org/api/v2/repositories/#{library}/defaults"
+      
+      begin
+        response = Typhoeus.post(
+          url,
+          body: {
+            words: queries,
+            locale: locale
+          },
+          headers: { 'Authorization' => "Bearer #{token}" },
+          ssl_verifypeer: false,
+          timeout: 30
+        )
+        
+        if response.code == 401
+          clear_token_cache
+          token = generate_new_token
+          return {} unless token
+          
+          response = Typhoeus.post(
+            url,
+            body: {
+              words: queries,
+              locale: locale
+            },
+            headers: { 'Authorization' => "Bearer #{token}" },
+            ssl_verifypeer: false,
+            timeout: 30
+          )
+        end
+        
+        if response.success?
+          JSON.parse(response.body) rescue {}
+        else
+          Rails.logger.error "OpenSymbols Defaults API error: #{response.code} - #{response.body}"
+          {}
+        end
+      rescue => e
+        Rails.logger.error "OpenSymbols Defaults API exception: #{e.message}"
+        {}
+      end
+    end
     
     # Search for symbols and return in LingoLinq format
     # This maintains compatibility with the existing find_images interface

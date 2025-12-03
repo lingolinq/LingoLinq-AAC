@@ -362,24 +362,52 @@ module Uploader
     found_words = {}
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
-      token = ENV['OPENSYMBOLS_TOKEN']
-      protected_source = nil
-      if library == 'pcs' && user && user.subscription_hash['extras_enabled']
-        token += ":pcs"
-        protected_source = 'pcs'
-      elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
-        token += ":symbolstix"
-        protected_source = 'symbolstix'
+      # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
+      if ENV['OPENSYMBOLS_SECRET'].present?
+        require 'open_symbols' unless defined?(OpenSymbols)
+        
+        protected_source = nil
+        if library == 'pcs' && user && user.subscription_hash['extras_enabled']
+          protected_source = 'pcs'
+        elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
+          protected_source = 'symbolstix'
+        end
+        
+        list = words - found_words.keys
+        results = {}
+        
+        if library == 'opensymbols'
+          # The 'opensymbols' meta-repo doesn't support the defaults endpoint,
+          # iterate and search for each word individually
+          list.each do |word|
+            search_results = OpenSymbols.search(word, locale: locale)
+            results[word] = search_results.first if search_results.any?
+          end
+        else
+          # Use the bulk defaults endpoint for specific repositories
+          results = OpenSymbols.defaults(library, list, locale)
+        end
+      else
+        # Fallback to v1 API with OPENSYMBOLS_TOKEN
+        token = ENV['OPENSYMBOLS_TOKEN']
+        protected_source = nil
+        if library == 'pcs' && user && user.subscription_hash['extras_enabled']
+          token += ":pcs"
+          protected_source = 'pcs'
+        elsif library == 'symbolstix' && user && user.subscription_hash['extras_enabled']
+          token += ":symbolstix"
+          protected_source = 'symbolstix'
+        end
+        url = "https://www.opensymbols.org/api/v2/repositories/#{library}/defaults"
+        res = Typhoeus.post(url, body: {
+          words: list,
+          allow_search: find_missing,
+          locale: locale,
+          search_token: token
+        }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
+        results = {}
+        results = JSON.parse(res.body) unless res.code >= 400
       end
-      url = "https://www.opensymbols.org/api/v2/repositories/#{library}/defaults"
-      res = Typhoeus.post(url, body: {
-        words: words - found_words.keys,
-        allow_search: find_missing,
-        locale: locale,
-        search_token: token
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
-      results = {}
-      results = JSON.parse(res.body) unless res.code >= 400
       hash = {}
       found_words.each do |word, h|
         hash[word] = h if !h['missing']
