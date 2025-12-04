@@ -5,6 +5,10 @@ services:
     plan: starter
     branch: functional-baseline
     buildCommand: |
+      # Force Node 18 for Ember 3.12 compatibility
+      if [ -s "$HOME/.nvm/nvm.sh" ]; then source "$HOME/.nvm/nvm.sh"; elif [ -s "/usr/local/share/nvm/nvm.sh" ]; then source "/usr/local/share/nvm/nvm.sh"; fi &&
+      nvm install 18 &&
+      nvm use 18 &&
       bundle install &&
       bundle exec rake extras:assert_js &&
       cd app/frontend &&
