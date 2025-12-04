@@ -6,7 +6,9 @@ require 'rails/all'
 # you've limited to :test, :development, or :production.
 Bundler.require(:default, Rails.env)
 
-if !ENV['SECURE_ENCRYPTION_KEY'] || !Rails.env.production?
+# Load environment variables from .env file in development/test
+# (dotenv gem is available in all envs for build compatibility)
+unless Rails.env.production?
   require 'dotenv'
   Dotenv.load if defined?(Dotenv)
 end

@@ -2,8 +2,9 @@ source 'https://rubygems.org'
 
 # TODO: https://rails-assets.org/ for bower support
 
+gem 'dotenv'
+
 group :development, :test do
-  gem 'dotenv'
   gem 'guard'
   gem 'guard-rspec'
   gem 'rspec-rails'
