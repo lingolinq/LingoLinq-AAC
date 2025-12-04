@@ -6,6 +6,9 @@ set -x # Enable debug logging
 echo "=== Starting Render Build ==="
 
 # Try all known NVM locations, otherwise install it
+# Note: We disable errexit (set +e) during sourcing because nvm.sh 
+# often returns non-zero codes during initialization which kills the script.
+set +e
 if [ -s "$HOME/.nvm/nvm.sh" ]; then
   export NVM_DIR="$HOME/.nvm"
   . "$NVM_DIR/nvm.sh"
@@ -18,6 +21,7 @@ else
   export NVM_DIR="$HOME/.nvm"
   . "$NVM_DIR/nvm.sh"
 fi
+set -e
 
 echo "=== Using Node 18 for Ember ==="
 nvm install 18
