@@ -4,32 +4,23 @@ set -o errexit
 
 echo "=== Starting Render Build ==="
 
-# Try to load nvm
-export NVM_DIR="$HOME/.nvm"
+# Ensure NVM is available in Render
+export NVM_DIR="/usr/local/share/nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
   echo "Loading nvm from $NVM_DIR/nvm.sh"
   . "$NVM_DIR/nvm.sh"
-elif [ -s "/usr/local/share/nvm/nvm.sh" ]; then
-  echo "Loading nvm from /usr/local/share/nvm/nvm.sh"
-  . "/usr/local/share/nvm/nvm.sh"
 else
-  echo "nvm not found in standard locations, trying to install..."
+  echo "NVM not found, installing..."
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  . "$NVM_DIR/nvm.sh"
 fi
 
-# Verify nvm is loaded
-if command -v nvm >/dev/null 2>&1; then
-  echo "nvm loaded successfully"
-  echo "Installing Node 18..."
-  nvm install 18
-  nvm use 18
-  echo "Node version: $(node -v)"
-  echo "NPM version: $(npm -v)"
-else
-  echo "WARNING: nvm could not be loaded. Using system node: $(node -v)"
-fi
+echo "=== Forcing Node 18 for Ember build ==="
+nvm install 18
+nvm use 18
+echo "Node version for Ember: $(node -v)"
+echo "NPM version: $(npm -v)"
 
 echo "=== Installing Ruby Dependencies ==="
 bundle install
