@@ -60,8 +60,28 @@ class Api::ButtonSetsController < ApplicationController
       return
     else
       user_id = @api_user ? @api_user.global_id : nil
-      progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id)
-      render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
+      
+      # DEBUG: Synchronous generation to bypass Resque/Redis issues
+      Rails.logger.warn "STARTING SYNCHRONOUS GENERATION for #{board.global_id}"
+      begin
+        result = BoardDownstreamButtonSet.generate_for(board.global_id, user_id)
+        Rails.logger.warn "GENERATION RESULT: #{result.inspect}"
+        
+        if result[:success] && result[:url]
+          render json: {exists: true, id: params['id'], url: result[:url]}
+        else
+          # Fallback to progress response if it didn't return a URL directly (e.g. throttled)
+          # But for debugging, we want to see the error
+          render json: {error: "Generation failed", details: result}, status: 500
+        end
+      rescue => e
+        Rails.logger.error "GENERATION ERROR: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        render json: {error: e.message, backtrace: e.backtrace}, status: 500
+      end
+      # Original async code:
+      # progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id)
+      # render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     end
   end
 end
