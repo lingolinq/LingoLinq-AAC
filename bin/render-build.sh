@@ -4,10 +4,12 @@ set -o errexit
 
 echo "=== Starting Render Build ==="
 
-# Ensure NVM is available in Render
-export NVM_DIR="/usr/local/share/nvm"
-if [ -s "$NVM_DIR/nvm.sh" ]; then
-  echo "Loading nvm from $NVM_DIR/nvm.sh"
+# Try all known NVM locations, otherwise install it
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
+  . "$NVM_DIR/nvm.sh"
+elif [ -s "/opt/render/.nvm/nvm.sh" ]; then
+  export NVM_DIR="/opt/render/.nvm"
   . "$NVM_DIR/nvm.sh"
 else
   echo "NVM not found, installing..."
@@ -16,7 +18,7 @@ else
   . "$NVM_DIR/nvm.sh"
 fi
 
-echo "=== Forcing Node 18 for Ember build ==="
+echo "=== Using Node 18 for Ember ==="
 nvm install 18
 nvm use 18
 echo "Node version for Ember: $(node -v)"
