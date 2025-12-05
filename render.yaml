@@ -44,7 +44,8 @@ services:
     runtime: ruby
     plan: starter
     branch: main
-    buildCommand: "./bin/render-build.sh"
+    buildCommand: "bundle install --deployment"
+
     startCommand: env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
     envVars:
       - key: RAILS_ENV
