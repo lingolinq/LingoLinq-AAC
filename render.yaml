@@ -39,6 +39,31 @@ services:
         generateValue: true
       - key: RAILS_LOG_TO_STDOUT
         value: "true"
+  - type: worker
+    name: LingoLinq-AAC-Worker
+    runtime: ruby
+    plan: starter
+    branch: main
+    buildCommand: "./bin/render-build.sh"
+    startCommand: env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lingolinq-redis
+          property: connectionString
+      - key: RAILS_LOG_TO_STDOUT
+        value: "true"
 
 databases:
   - name: lingolinq-db
