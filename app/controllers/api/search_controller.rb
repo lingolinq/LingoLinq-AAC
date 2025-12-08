@@ -2,56 +2,52 @@ require 'mime/types'
 class Api::SearchController < ApplicationController
   before_action :require_api_token, :except => [:audio, :focuses]
   def symbols
-    token = ENV['OPENSYMBOLS_TOKEN']
+    # Extract query and parameters
+    query = params['q']
+    locale = (params['locale'] || 'en').split(/-|_/)[0]
+    safe = params['safe'] != '0'
+
+    # Determine library - default to 'opensymbols' for backward compatibility
+    library = params['library'] || 'opensymbols'
+
+    # Handle premium repository searches
     protected_source = nil
-    if params['q'].match(/premium_repo:pcs$/) 
+    if query.match(/premium_repo:pcs$/)
       user_allowed = @api_user && @api_user.subscription_hash['extras_enabled']
       if !user_allowed && @api_user && params['user_name']
         ref_user = User.find_by_path(params['user_name'])
         user_allowed = ref_user && ref_user.allows?(@api_user, 'edit') && ref_user.subscription_hash['extras_enabled']
       end
       if user_allowed
-        params['q'].sub!(/premium_repo:pcs$/, 'repo:pcs')
-        # TODO: for now, don't combine them in non-protected searches even though it's coming
-        # from the same source, otherwise things can get confusing
-        token += ":pcs"
+        query = query.sub(/premium_repo:pcs$/, '')
+        library = 'pcs'
         protected_source = 'pcs'
       else
         return api_error 400, {error: 'premium search not allowed'}
       end
-    elsif params['q'].match(/premium_repo:symbolstix$/) 
+    elsif query.match(/premium_repo:symbolstix$/)
       user_allowed = @api_user && @api_user.subscription_hash['extras_enabled']
       if !user_allowed && @api_user && params['user_name']
         ref_user = User.find_by_path(params['user_name'])
         user_allowed = ref_user && ref_user.allows?(@api_user, 'edit') && ref_user.subscription_hash['extras_enabled']
       end
       if user_allowed
-        params['q'].sub!(/premium_repo:symbolstix$/, 'repo:symbolstix')
-        # TODO: for now, don't combine them in non-protected searches even though it's coming
-        # from the same source, otherwise things can get confusing
-        token += ":symbolstix"
+        query = query.sub(/premium_repo:symbolstix$/, '')
+        library = 'symbolstix'
         protected_source = 'symbolstix'
       else
         return api_error 400, {error: 'premium search not allowed'}
       end
     end
-    locale = (params['locale'] || 'en').split(/-|_/)[0]
-    safe = params['safe'] != '0'
-    res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(params['q'])}&search_token=#{token}&locale=#{locale}&safe=#{safe ? '1' : '0'}", :timeout => 5, :ssl_verifypeer => false)
-    results = JSON.parse(res.body) rescue nil
-    results ||= []
-    results.each do |result|
-      type = MIME::Types.type_for(result['extension'])[0]
-      result['content_type'] = type.content_type
-      result['thumbnail_url'] ||= result['image_url']
-      if protected_source
-        result['protected'] = true 
-        result['protected_source'] = protected_source
-      end
+
+    # Use Uploader to get results (handles v2 API with OPENSYMBOLS_SECRET fallback to v1)
+    results = Uploader.find_images(query, library, locale, @api_user, nil, false, false)
+
+    # Track missing symbols
+    if results.empty? && query && RedisInit.default
+      RedisInit.default.hincrby('missing_symbols', query.to_s, 1)
     end
-    if results.empty? && params['q'] && RedisInit.default
-      RedisInit.default.hincrby('missing_symbols', params['q'].to_s, 1)
-    end
+
     render json: results.to_json
   end
 
