@@ -163,6 +163,7 @@ module OpenSymbols
       results.map do |symbol|
         {
           'url' => symbol['image_url'],
+          'image_url' => symbol['image_url'],
           'thumbnail_url' => symbol['image_url'],
           'content_type' => content_type_for_extension(symbol['extension']),
           'width' => symbol['width'],
