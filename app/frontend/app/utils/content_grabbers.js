@@ -703,6 +703,11 @@ var pictureGrabber = EmberObject.extend({
         which_skin = LingoLinq.Board.which_skinner(s);
       }
       data.forEach(function(img) {
+        // Always set to_save_url to preserve the original URL
+        if(!img.to_save_url) {
+          img.to_save_url = img.url || img.image_url;
+        }
+
         if(img.skins) {
           if(skin && skin != 'default') {
             img.image_url = LingoLinq.Board.skinned_url(img.image_url, which_skin);
