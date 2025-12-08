@@ -125,7 +125,8 @@ module OpenSymbols
         end
         
         if response.success?
-          JSON.parse(response.body) rescue {}
+          raw_results = JSON.parse(response.body) rescue {}
+          transform_defaults_results(raw_results)
         else
           Rails.logger.error "OpenSymbols Defaults API error: #{response.code} - #{response.body}"
           {}
@@ -283,6 +284,34 @@ module OpenSymbols
       end
     end
     
+    # Transform defaults API response to LingoLinq format
+    # The defaults endpoint returns {word => symbol_object}
+    # We preserve the hash structure but transform each symbol_object
+    def transform_defaults_results(results)
+      return {} unless results.is_a?(Hash)
+
+      transformed = {}
+      results.each do |word, symbol|
+        next unless symbol.is_a?(Hash) && symbol['image_url']
+
+        # Keep the API field names that uploader.rb expects
+        transformed[word] = {
+          'id' => symbol['id'],
+          'image_url' => symbol['image_url'],
+          'extension' => symbol['extension'],
+          'width' => symbol['width'],
+          'height' => symbol['height'],
+          'license' => symbol['license'],
+          'license_url' => symbol['license_url'],
+          'author' => symbol['author'],
+          'author_url' => symbol['author_url'],
+          'source_url' => symbol['source_url']
+        }
+      end
+
+      transformed
+    end
+
     def content_type_for_extension(ext)
       return 'image/png' unless ext
       
