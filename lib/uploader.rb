@@ -429,6 +429,7 @@ module Uploader
         next unless words.include?(word)
         hash[word] = {
           'url' => obj['image_url'],
+          'image_url' => obj['image_url'],
           'thumbnail_url' => obj['image_url'],
           'content_type' => obj['content_type'],
           'width' => obj['width'],
