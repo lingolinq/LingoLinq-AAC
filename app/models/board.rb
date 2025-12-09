@@ -27,6 +27,7 @@ class Board < ActiveRecord::Base
   before_save :require_key
   before_save :check_inflections
   before_save :check_content_overrides
+  before_save :process_suggested_symbols
   after_save :post_process
   after_save :assert_shallow_mapping
   after_destroy :flush_related_records
@@ -1019,6 +1020,66 @@ class Board < ActiveRecord::Base
     if @check_for_parts_of_speech
       self.check_for_parts_of_speech_and_inflections(false)
       @check_for_parts_of_speech = nil
+    end
+  end
+
+  def process_suggested_symbols
+    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols
+    return unless @buttons_changed == 'populated_from_labels'
+
+    buttons = self.settings['buttons'] || []
+    suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
+    return if suggested_buttons.empty?
+
+    # Get user's preferred library
+    library = 'opensymbols'
+    if self.user
+      library = self.user.settings.dig('preferences', 'preferred_symbols') || 'opensymbols'
+    end
+
+    # Get board locale
+    locale = self.settings['locale'] || 'en'
+
+    # Collect all labels to look up
+    labels = suggested_buttons.map { |b| b['label'] }.compact.uniq
+
+    # Fetch defaults from OpenSymbols API
+    begin
+      defaults = OpenSymbols.defaults(library, labels, locale)
+      return if defaults.empty?
+
+      # Create ButtonImage records and assign to buttons
+      suggested_buttons.each do |button|
+        next unless button['label']
+
+        symbol = defaults[button['label']]
+        next unless symbol && symbol['image_url']
+
+        # Create ButtonImage record
+        bi = ButtonImage.process_new({
+          'url' => symbol['image_url'],
+          'content_type' => 'image/png',
+          'external_id' => symbol['id'],
+          'public' => true,
+          'protected' => false,
+          'license' => {
+            'type' => symbol['license'],
+            'copyright_notice_url' => symbol['license_url'],
+            'source_url' => symbol['source_url'],
+            'author_name' => symbol['author'],
+            'author_url' => symbol['author_url'],
+            'uneditable' => true
+          }
+        }, {:user => self.user})
+
+        if bi && bi.id
+          button['image_id'] = bi.global_id
+          @buttons_changed = 'suggested_symbols_added'
+        end
+      end
+    rescue => e
+      Rails.logger.error "Failed to process suggested symbols: #{e.message}"
+      # Don't raise - board creation should continue even if symbol lookup fails
     end
   end
 

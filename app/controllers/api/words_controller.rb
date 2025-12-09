@@ -20,13 +20,14 @@ class Api::WordsController < ApplicationController
     end
     if rules
       render json: {
+        _locale: params['locale'],
         rules: rules['rules'],
         default_contractions: rules['default_contractions'],
         contractions: rules['contractions'],
         inflection_locations: rules['inflection_locations']
       }
     else
-      render json: {}
+      render json: { _locale: params['locale'] }
     end
   end
 
