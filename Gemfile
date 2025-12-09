@@ -12,7 +12,9 @@ group :development, :test do
   gem 'rack-test'
   gem 'rails-controller-testing'
   gem 'drb'
-  gem 'irb'
+  # gem 'irb'  # Disabled: depends on rdoc which requires psych (native compilation)
+  
+  # Ruby LSP - now working on Windows via system gems!
   gem 'ruby-lsp', require: false
   gem 'ruby-lsp-rails', require: false
 end
@@ -31,7 +33,7 @@ gem 'pg' #, '0.19.0' #, '>=1.1.3'
 gem 'sass-rails'
 gem 'sprockets-rails', '~> 3.4.2'
 gem 'uglifier', '>= 1.3.0'
-gem 'mimemagic', '0.4.3'
+# gem 'mimemagic', '0.4.3'
 
 gem 'typhoeus'
 gem 'coffee-rails'
