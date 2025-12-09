@@ -1,12 +1,6 @@
 {
-  // Bypass Bundler because project path with semicolon breaks PATH
-  "rubyLsp.useBundler": false,
-  // Keep Bundler enabled for other Ruby extensions if they can handle it
-  "ruby.useBundler": true,
-  // Explicitly configure Ruby version manager
-  "rubyLsp.rubyVersionManager": {
-    "identifier": "none"
-  },
-  // Inject global gem bin into PATH so the extension finds 'ruby-lsp' even if system PATH is broken
-  "rubyLsp.customRubyCommand": "cmd /c \"set PATH=C:\\Users\\skawa\\.local\\share\\gem\\ruby\\3.4.0\\bin;%PATH% && ruby -e \"require 'json'; puts ENV.to_h.to_json\"\""
+  // Prefer running the Ruby LSP via the project's Bundler to pick up the correct gems
+  "rubyLsp.useBundler": true,
+  // Some Ruby extensions also respect this setting
+  "ruby.useBundler": true
 }
