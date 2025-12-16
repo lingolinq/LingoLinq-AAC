@@ -1,3 +1,4 @@
+/* eslint ember/no-ember-testing-in-module-scope: "off" */
 import Ember from 'ember';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';

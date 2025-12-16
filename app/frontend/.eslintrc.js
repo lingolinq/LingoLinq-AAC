@@ -3,7 +3,10 @@ module.exports = {
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module'
+    sourceType: 'module',
+    ecmaFeatures: {
+      legacyDecorators: true
+    }
   },
   plugins: [
     'ember'
@@ -28,7 +31,10 @@ module.exports = {
     'ember/avoid-leaking-state-in-ember-objects': 'off', // TODO: fix this
     'ember/no-observers': 'off',
     'ember/use-brace-expansion': 'off',
-    'ember/no-jquery': 'off' // TODO: refactor away from jQuery in future
+    'ember/no-jquery': 'off', // TODO: refactor away from jQuery in future
+    'ember/no-ember-testing-in-module-scope': 'off',
+    'ember/no-unnecessary-route-path-option': 'off',
+    'ember/require-return-from-computed': 'off'
   },
   overrides: [
     // node files
