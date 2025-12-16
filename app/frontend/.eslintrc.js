@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module'
@@ -27,6 +28,7 @@ module.exports = {
     'ember/avoid-leaking-state-in-ember-objects': 'off', // TODO: fix this
     'ember/no-observers': 'off',
     'ember/use-brace-expansion': 'off',
+    'ember/no-jquery': 'off' // TODO: refactor away from jQuery in future
   },
   overrides: [
     // node files
