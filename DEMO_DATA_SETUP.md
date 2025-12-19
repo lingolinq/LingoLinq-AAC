@@ -243,6 +243,101 @@ When conducting training sessions:
 - Consider clearing demo data before production deployment
 - Demo users do not have admin privileges
 
+## Demo Organization (School District)
+
+In addition to individual demo users, you can create a complete demo school district organization with teachers, classrooms, and students.
+
+### Organization Structure
+
+| Component | Details |
+|-----------|----------|
+| **Organization** | Riverside Demo School District |
+| **Manager** | demo_org_admin (District AAC Coordinator) |
+| **Teachers** | 3 supervisors with different specialties |
+| **Students** | 6 students (3 main + 3 additional) |
+| **Classrooms** | 3 rooms with teacher/student assignments |
+
+### Demo Teachers
+
+| Username | Name | Role | Classroom |
+|----------|------|------|------------|
+| `demo_teacher_johnson` | Ms. Johnson | Special Ed - Elementary | Room 101 |
+| `demo_teacher_smith` | Mr. Smith | Speech Language Pathologist | Room 102 |
+| `demo_teacher_garcia` | Ms. Garcia | Special Ed - Middle School | Room 201 |
+
+### Demo Classrooms
+
+| Room | Teachers | Students |
+|------|----------|----------|
+| Room 101 - Elementary AAC | Ms. Johnson | Emma, Alex, Maya |
+| Room 102 - Speech Therapy | Mr. Smith | Emma, Jacob, Alex |
+| Room 201 - Middle School AAC | Ms. Garcia | Jacob, Sophia, Noah |
+
+### Organization Usage
+
+**Create the demo organization:**
+```bash
+rake demo:seed_org
+```
+
+This will:
+1. Create the Riverside Demo School District organization
+2. Create an org manager (demo_org_admin)
+3. Create 3 demo teachers as supervisors
+4. Create 3 additional demo students with usage data
+5. Add all students to the organization
+6. Create 3 classrooms with teacher/student assignments
+
+**Add existing demo users to org:**
+```bash
+rake demo:add_users_to_org
+```
+
+**Clear organization data:**
+```bash
+rake demo:clear_org
+```
+
+### Accessing the Organization Dashboard
+
+1. Log in as `demo_org_admin` (password: `demodemo123`)
+2. Navigate to the organization dashboard
+3. View:
+   - Organization statistics and usage reports
+   - Rooms/classrooms with teacher and student assignments
+   - Individual student reports and progress
+   - Supervisor management
+
+### Complete Demo Setup
+
+For a full demo environment with both individual users and organization:
+
+```bash
+# Create individual demo users first
+rake demo:seed_all
+
+# Then create the organization structure
+rake demo:seed_org
+```
+
+### Demonstrating Organization Features
+
+**As Org Manager (demo_org_admin):**
+- View organization dashboard with aggregate statistics
+- Manage rooms/classrooms
+- Add/remove teachers and students
+- View usage reports across all students
+
+**As Teacher (demo_teacher_*):**
+- View assigned students in their classroom
+- Access individual student reports
+- Monitor student progress and usage
+- See modeling statistics
+
+**As Student (demo_*):**
+- Use the AAC board normally
+- Data automatically aggregates to org reports
+
 ## Support
 
 For issues or questions about the demo data seeder, refer to:
