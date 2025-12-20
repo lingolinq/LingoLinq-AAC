@@ -15,16 +15,22 @@ if(location.pathname.match(/^\/jasmine/)) {
 } else if(check_full_screen) { // TODO: check if full screen launch on android
   use_push_state = false;
 }
-if(Ember.testing) {
-  config.locationType = 'none';
-} else if(capabilities.installed_app) {
+if(capabilities.installed_app) {
   config.locationType = 'hash';
 } else if(use_push_state) {
   config.locationType = 'history';
 }
 const Router = EmberRouter.extend({
   location: config.locationType,
-  rootURL: config.rootURL
+  rootURL: config.rootURL,
+  
+  init() {
+    this._super(...arguments);
+    // Check Ember.testing at runtime to satisfy ESLint
+    if (Ember.testing) {
+      this.location = 'none';
+    }
+  }
 });
 
 Router.reopen({

@@ -1,4 +1,5 @@
 require 'mime/types'
+require 'uri'
 
 module Uploadable
   extend ActiveSupport::Concern
@@ -26,7 +27,8 @@ module Uploadable
     else
       res = Uploader.fronted_url(self.url)
     end
-    res = URI.decode(res) if res && res.match(/%20/)
+    # URI.decode was removed; use the default parser to unescape percent-encoded spaces
+    res = URI::DEFAULT_PARSER.unescape(res) if res && res.match(/%20/)
     res
   end
 

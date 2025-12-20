@@ -198,6 +198,17 @@ Additionally, some records have protected ids, which means they can only be look
 up by id-and-nonce to prevent snooping. See also `find_all_by_global_id`
 and `find_batches_by_global_id`.
 
+### Ember frontend upgrade plan (3.12 -> 3.16 LTS, prepping 3.28)
+
+- Goal: land on 3.16 LTS while enforcing Octane patterns and removing jQuery so the 3.28 upgrade is mostly dependency bumps and minor deprecation cleanup.
+- Pre-reqs: use Node >= 10 (not 8/11), ensure ember-cli-babel >= 7.11.
+- Blueprint update: run `ember-cli-update` to 3.16; keep optional features with `jquery-integration` disabled; drop @ember/jquery.
+- Codemods (in order, scoped to app/frontend): angle-brackets -> no-implicit-this -> native-class; review diffs, then enable template-lint `octane` preset.
+- Deprecation fixes (required): replace `{{partial}}` with components; remove `Component#isVisible`; swap Ember mouse events for `{{on}}`; remove `window.ENV` usage.
+- jQuery removal: replace `Ember.$`/`this.$()`/`$()` and jQuery event helpers with native DOM (querySelector, addEventListener, fetch). Only re-add @ember/jquery if a blocker emerges.
+- Octane adoption: favor Glimmer components, `@tracked`, `@action`, template co-location, and named args; convert classic components where two-way bindings are not required.
+- Validation: run template-lint with octane preset, run test suite, and fix regressions from native classes and jQuery removal. Retest feature areas that had jQuery-heavy code.
+
 __media_object__ - helpers for transcoding stored media objects.
 
 __meta_record__ - data sent in HTML headers for specific record landing pages.
