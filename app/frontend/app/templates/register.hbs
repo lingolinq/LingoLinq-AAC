@@ -134,7 +134,15 @@
       </form>
     {{else}}
       <h2>Can't Register</h2>
-      {{partial "bad-privacy-settings"}}
+      <p>
+        <span class="glyphicon glyphicon-exclamation-sign"></span>
+        {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key='privacy_wont_work'}}
+      </p>
+      <p>
+        <a href="https://lingolinq.zendesk.com/hc/en-us/articles/202007575" target='_blank'>
+          {{t "Learn more about configuring your browser to run %app_name%" key='learn_privacy'}}
+        </a>
+      </p>
     {{/if}}
   </div>
 </div>
