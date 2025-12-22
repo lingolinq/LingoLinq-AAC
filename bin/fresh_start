@@ -7,7 +7,8 @@ echo ""
 
 # Kill any existing processes
 echo "1. Stopping any existing processes..."
-/workspaces/LingoLinq-AAC/bin/kill_all
+"$(dirname "$0")/kill_all"
+#/workspaces/LingoLinq-AAC/bin/kill_all
 sleep 2
 
 echo ""

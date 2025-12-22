@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
-import $ from 'jquery';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import { observer } from '@ember/object';
@@ -159,8 +158,8 @@ export default Component.extend({
       pending: true,
       window_x: window.screenInnerOffsetX || window.screenX,
       window_y: window.screenInnerOffsetY || window.screenY,
-      window_width: $(window).width(),
-      window_height: $(window).height(),
+      window_width: window.innerWidth,
+      window_height: window.innerHeight,
       event_x: null,
       event_y: null,
       eye_listener: null,
@@ -184,8 +183,8 @@ export default Component.extend({
           window_x: window.screenInnerOffsetX || window.screenX,
           window_y: window.screenInnerOffsetY || window.screenY,
           ts: (new Date()).getTime(),
-          window_width: $(window).width(),
-          window_height: $(window).height(),
+          window_width: window.innerWidth,
+          window_height: window.innerHeight,
           source: e.pointer ? {head: true} : {eyegaze: true}
         });
       };
@@ -196,7 +195,7 @@ export default Component.extend({
       }
       capabilities.eye_gaze.calibrating_or_testing = true;
       this.set('eye_listener', eye_listener);
-      $(document).on('gazelinger', eye_listener);
+      document.addEventListener('gazelinger', eye_listener);
       this.set('eye_gaze', capabilities.eye_gaze);
     }
 
@@ -211,14 +210,14 @@ export default Component.extend({
           window_x: window.screenInnerOffsetX || window.screenX,
           window_y: window.screenInnerOffsetY || window.screenY,
           ts: (new Date()).getTime(),
-          window_width: $(window).width(),
-          window_height: $(window).height(),
+          window_width: window.innerWidth,
+          window_height: window.innerHeight,
           source: {cursor: true}
         });
       };
       this.set('mouse_listener', mouse_listener);
       this.set('ts', (new Date()).getTime());
-      $(document).on('mousemove', mouse_listener);
+      document.addEventListener('mousemove', mouse_listener);
     }
 
     if(_this.get('preferences.device.dwell_type') == 'arrow_dwell' || (_this.get('preferences.device.dwell_type') == 'head' && !head_pointer)) {
@@ -232,7 +231,7 @@ export default Component.extend({
           }
         }
       };
-      $(document).on('keydown', key_listener);
+      document.addEventListener('keydown', key_listener);
       _this.set('key_listener', key_listener);
       buttonTracker.gamepadupdate = function(action, e) {
         if(action == 'select') {
@@ -248,8 +247,8 @@ export default Component.extend({
         } else if(action == 'move') {
           var window_x = window.screenInnerOffsetX || window.screenX;
           var window_y = window.screenInnerOffsetY || window.screenY;
-          var window_width = $(window).width();
-          var window_height = $(window).height();
+          var window_width = window.innerWidth;
+          var window_height = window.innerHeight;
           e.screenX = (e.clientX + (window.screenInnerOffsetX || window.screenX));
           e.screenY = (e.clientY + (window.screenInnerOffsetY || window.screenY));
           console.log(e.screenX, e.screenY, e.clientX, e.clientY);
@@ -304,7 +303,7 @@ export default Component.extend({
       };
       buttonTracker.gamepadupdate = buttonTracker.gamepadupdate || function() { };
       buttonTracker.gamepadupdate.expression = _this.get('preferences.device.select_expression');
-      $(document).on('facechange', expression_listener);
+      document.addEventListener('facechange', expression_listener);
       this.set('expression_listener', expression_listener)
       if(!this.get('head_tracking')) {
         capabilities.head_tracking.listen();
@@ -337,19 +336,19 @@ export default Component.extend({
     capabilities.eye_gaze.stop_listening();
     capabilities.head_tracking.stop_listening();
     if(this.get('mouse_listener')) {
-      $(document).off('mousemove', this.get('mouse_listener'));
+      document.removeEventListener('mousemove', this.get('mouse_listener'));
       this.set('mouse_listener', null);
     }
     if(this.get('eye_listener')) {
-      $(document).off('gazelinger', this.get('eye_listener'));
+      document.removeEventListener('gazelinger', this.get('eye_listener'));
       this.set('eye_listener', null);
     }
     if(this.get('head_listener')) {
-      $(document).off('headtilt', this.get('head_listener'));
+      document.removeEventListener('headtilt', this.get('head_listener'));
       this.set('head_listener', null);
     }
     if(this.get('key_listener')) {
-      $(document).off('keydown', this.get('key_listener'));
+      document.removeEventListener('keydown', this.get('key_listener'));
       this.set('key_listener', null);
     }
     if(this.get('gp_update')) {
@@ -362,11 +361,11 @@ export default Component.extend({
       this.set('gamepad_listener', null);
     }
     if(this.get('keycode_listener')) {
-      $(document).off('keydown', this.get('keycode_listener'));
+      document.removeEventListener('keydown', this.get('keycode_listener'));
       this.set('keycode_listener', null);
     }
     if(this.get('expression_listener')) {
-      $(document).off('facechange', this.get('expression_listener'));
+      document.removeEventListener('facechange', this.get('expression_listener'));
       this.set('expression_listener', null);
     }
   },

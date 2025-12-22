@@ -1,6 +1,5 @@
 import Ember from 'ember';
 import EmberApplication from '@ember/application';
-import $ from 'jquery';
 import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
@@ -65,7 +64,7 @@ LingoLinq.ready = function() {
   // remove the splash screen if showing
   if(capabilities.installed_app || (navigator && navigator.splashscreen && navigator.splashscreen.hide)) {
     var checkForFooter = function() {
-      if($("footer").length > 0) {
+      if(document.querySelector("footer")) {
         if(navigator && navigator.splashscreen && navigator.splashscreen.hide) {
           window.splash_hidden = true;
           RunLater(navigator.splashscreen.hide, 700);

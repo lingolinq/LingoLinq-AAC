@@ -1,5 +1,25 @@
 <div class="skinny_bio">
-  {{partial 'user_summary'}}
+  <div class="well" style="text-align: center;">
+    <div style='position: relative;'>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;"/>
+      {{#if model.online}}
+        <div title='currently online' class='online_marker'></div>
+      {{/if}}
+    </div>
+    <h2 style="margin-bottom: 0;">{{ model.name }}</h2>
+    <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
+    <div>{{ model.description }}</div>
+    {{#if model.details_url}}
+    <div><a href={{model.details_url}} target="_blank">{{ model.details_url }}</a></div>
+    {{/if}}
+    <div>{{ model.location }}</div>
+    {{#if model.joined}}
+      <div title={{date model.joined}}>{{t "joined" key='joined'}} {{date_ago model.joined}}</div>
+    {{/if}}
+    {{#if model.last_access}}
+      <div class="text-muted" title={{date model.last_access}}>{{t "used" key='used'}} {{date_ago model.last_access 'day'}}</div>
+    {{/if}}
+  </div>
 </div>
 {{#if model.permissions.view_detailed}}
   {{#if model.permissions.delete}}
@@ -445,7 +465,24 @@
           {{else if model.badges}}
             <div>
             {{#each model.badges as |badge|}}
-              {{partial 'badge-in-list'}}
+              <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
+                {{#if badge.global}}
+                  <a style='#' {{action 'badge_popup' badge}}>
+                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+                  </a>
+                {{else}}
+                  <a style='#' {{action 'badge_popup' badge}}>
+                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+                  </a>
+                {{/if}}
+                <div style='height: 30px; overflow: hidden; line-height: 14px;'>
+                  {{#if badge.global}}
+                    {{#link-to 'goals.goal' badge.goal_id}}{{badge.name}}{{/link-to}}
+                  {{else}}
+                    {{#link-to 'user.goal' model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+                  {{/if}}
+                </div>
+              </div>
             {{/each}}
             </div>
             <div style='clear: left;'></div>

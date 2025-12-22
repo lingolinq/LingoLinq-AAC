@@ -104,7 +104,45 @@
               <div class="button_row">
                 {{#each row as |button|}}
                   <!-- NOTE: this is noticeably slow on Chrome, only when debugger is open... -->
-                  {{partial "button"}}
+                  <!-- TODO: I think this is only used in Edit Mode -->
+                  <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
+                    {{#if button.pending}}
+                      <div class="pending">
+                        <img src={{path 'images/spinner.gif'}} draggable='false' />
+                      </div>
+                    {{/if}}
+                    <div class={{button.action_class}}>
+                      <span class="action">
+                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' />
+                      </span>
+                    </div>
+                    <span class='img_holder' style={{button.image_holder_style}}>
+                      {{#unless app_state.currentUser.hide_symbols}}
+                        {{#unless button.board.text_only}}
+                          {{#unless button.text_only}}
+                            <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image 'symbol hc' 'symbol'}}>
+                          {{/unless}}
+                        {{/unless}}
+                      {{/unless}}
+                    </span>
+                    <div class={{if button.text_only text_only_button_symbol_class button_symbol_class}}>
+                      {{#if editModeNormalText}}
+                        {{#if button.sound}}
+                          <div class="sound_container">
+                            <span class="glyphicon glyphicon-volume-up"></span>
+                          </div>
+                        {{/if}}
+                        {{label-field value=button.label class="button-label" placeholder="enter label"}}
+                        {{#if button.levels_list}}
+                          <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
+                        {{/if}}
+                      {{else}}
+                        {{#unless button.hide_label}}
+                          <span class="button-label">{{button.label}}</span>
+                        {{/unless}}
+                      {{/if}}
+                    </div>
+                  </a>
                 {{/each}}
               </div>
             {{/each}}
