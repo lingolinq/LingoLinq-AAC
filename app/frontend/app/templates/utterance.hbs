@@ -30,7 +30,37 @@
       {{else}}
         <div id="utterance" class="button_list" {{ action "vocalize"}}>
           {{#with model.button_list as |button_list|}}
-            {{partial "button-list"}}
+            {{#each button_list as |button|}}
+              {{#unless button.ghost}}
+                {{#if button.insert_before}}
+                  <div class='utterance_cursor history_button'><div class='left'>&nbsp;</div><div class='right'>&nbsp;</div></div>
+                {{/if}}
+              {{/unless}}
+              <div class={{if button.ghost "history_button ghosted" "history_button"}}>
+                <span style={{if button.history_clearable "opacity: 0.6;"}}>
+                  {{#if button.modeling}}
+                    <div class='modeling'>
+                      <span class='glyphicon glyphicon-hand-up'></span>
+                    </div>
+                  {{/if}}
+                  {{#if button.image}}
+                    <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false"/>
+                  {{else}}
+                    <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false"/>
+                  {{/if}}
+                  {{#if button.sound}}
+                    <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
+                  {{/if}}
+                  <div class={{if button.modeling 'text modeled' 'text'}}>{{ button.label }} </div>
+                </span>
+              </div>
+              {{#unless button.ghost}}
+                {{#if button.insert_after}}
+                  <div class='utterance_cursor history_button'><div class='left'>&nbsp;</div><div class='right'>&nbsp;</div></div>
+                {{/if}}
+              {{/unless}}
+            {{/each}}
+            <div style="clear: left;"></div>
           {{/with}}
         </div>
       {{/if}}

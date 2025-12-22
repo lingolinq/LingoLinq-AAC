@@ -173,6 +173,12 @@ board_yesno = Board.process_new({
   }
 }, {user: user1, key: "yesno"})
 
+# Ensure initial boards show up on the homepage by starring a few
+user1.reload
+user1.settings['starred_board_ids'] ||= []
+user1.settings['starred_board_ids'] = (user1.settings['starred_board_ids'] + [board1.global_id, board2.global_id, board_yesno.global_id]).uniq
+user1.save
+
 lat = 35.674831
 long = -108.0297416
 u = user1
