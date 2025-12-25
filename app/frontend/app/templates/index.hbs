@@ -1,9 +1,9 @@
 {{#opening-observer opening=(action 'opening_index') closing=(action 'closing_index')}}{{/opening-observer}}
 <div id="index_view" class={{if app_state.currentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
   {{#if app_state.currentUser}}
-    {{partial 'index/authenticated-new'}}
+    <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
   {{else if app_state.domain_settings.full_domain}}
-    {{partial 'index/unauthenticated'}}
+    <Dashboard::UnauthenticatedView @user={{this.user}} />
   {{else if app_state.login_index}}
     <div style="text-align: center; margin-bottom: 30px;">
       <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} style="width: 100px;"/>

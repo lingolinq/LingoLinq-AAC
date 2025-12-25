@@ -166,12 +166,12 @@
       <div class="btn-group dropup">
         <button class='btn btn-primary' {{action 'tweakBoard' "links_copy_as_home"}}>{{t "Copy as New Home Board" key='copy_linked_boards_as_home'}}</button>
       </div>
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{else if sidebar_board}}
       <div class="btn-group dropup">
         <button class='btn btn-primary' {{action 'tweakBoard' "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key='copy_linked_boards_to_sidebar'}}</button>
       </div>
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{else if in_board_set}}
       <div class="btn-group dropup">
         <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -182,7 +182,7 @@
           <li><a href="#" {{action 'tweakBoard' "modify_links_update"}}>{{t "Use Existing Copies if I Have Any" key='update_in_place'}}</a></li>
         </ul>
       </div>
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{else if in_sidebar_set}}
       <div class="btn-group dropup">
         <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -193,12 +193,12 @@
           <li><a href="#" {{action 'tweakBoard' "modify_links_update"}}>{{t "Use Existing Copies if I Have Any" key='update_in_place'}}</a></li>
         </ul>
       </div>
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{else if linked}}
       <button class='btn btn-primary' {{action 'tweakBoard' "links_copy"}}>{{t "Copy the Full Board Set" key='copy_linked_boards'}}</button>
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{else}}
-      {{partial 'copy-just-this-board'}}
+      <CopyJustThisBoard @parent={{this}} />
     {{/if}}
     <button class='btn btn-default' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
   </div>

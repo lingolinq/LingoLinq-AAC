@@ -1,23 +1,23 @@
 <tr>
   <td>
-    {{#link-to 'user.log' user.user_name log.id}}
-      {{#if log.video_type}}
+    {{#link-to 'user.log' @user.user_name @log.id}}
+      {{#if @log.video_type}}
         <span class="glyphicon glyphicon-film"></span>
         <span class="sr-only">{{t "video" key='video_lower'}}</span>
-      {{else if log.note_type}}
-        {{#if log.message_type}}
+      {{else if @log.note_type}}
+        {{#if @log.message_type}}
           <span class="glyphicon glyphicon-comment"></span>
         {{else}}
           <span class="glyphicon glyphicon-envelope"></span>
         {{/if}}
         <span class="sr-only">{{t "message" key='message_lower'}}</span>
-      {{else if log.assessment_type}}
+      {{else if @log.assessment_type}}
         <span class="glyphicon glyphicon-list-alt"></span>
         <span class="sr-only">{{t "assessment" key='assessment'}}</span>
-      {{else if log.journal_type}}
+      {{else if @log.journal_type}}
         <span class="glyphicon glyphicon-heart"></span>
         <span class="sr-only">{{t "journal" key='journal_lower'}}</span>
-      {{else if log.eval_type}}
+      {{else if @log.eval_type}}
         <span class="glyphicon glyphicon-list-alt"></span>
         <span class="sr-only">{{t "journal" key='journal_lower'}}</span>
       {{else}}
@@ -27,62 +27,62 @@
     {{/link-to}}
   </td>
   <td style="font-size: 12px; width: 100%;">
-    {{#if log.note_type}}
+    {{#if @log.note_type}}
       <div style="font-size: 10px; color: #888;">
         {{t "Note by" key='note_by'}}
-        {{#if log.author.contact.name}}
-          {{log.author.contact.name}}
+        {{#if @log.author.contact.name}}
+          {{@log.author.contact.name}}
         {{else}}
-          {{log.author.user_name}}
+          {{@log.author.user_name}}
         {{/if}}
-        {{#if log.goal.status}}
+        {{#if @log.goal.status}}
           <br/>
-          <span class='face_label'><span class={{log.goal_status_class}}></span></span>{{#if log.goal.summary}} - {{log.goal.summary}}{{/if}}
+          <span class='face_label'><span class={{@log.goal_status_class}}></span></span>{{#if @log.goal.summary}} - {{@log.goal.summary}}{{/if}}
         {{/if}}
       </div>
-      <span style="white-space: pre-line;">{{log.note.text}}</span>
-    {{else if log.assessment_type}}
+      <span style="white-space: pre-line;">{{@log.note.text}}</span>
+    {{else if @log.assessment_type}}
       <div style="font-size: 10px; color: #888;">
         {{t "Assessment by" key='assessment_by'}}
-        {{log.author.user_name}}
+        {{@log.author.user_name}}
       </div>
-      {{log.assessment.description}}<br/>
-      {{log.assessment.summary}}
-    {{else if log.journal_type}}
+      {{@log.assessment.description}}<br/>
+      {{@log.assessment.summary}}
+    {{else if @log.journal_type}}
       <div style="font-size: 10px; color: #888;">
         {{t "Journal Entry" key='journal_entry'}}
       </div>
-      {{log.journal.sentence}}
+      {{@log.journal.sentence}}
     {{else}}
-      {{#if log.highlighted}}
+      {{#if @log.highlighted}}
       <div style='margin-bottom: 5px;'>
         <span style='font-size: 16px; padding: 5px 10px; border-radius: 5px; background: #ffc;'>
-          {{log.highlight_summary}}  
+          {{@log.highlight_summary}}  
         </span>
       </div>
       {{/if}}
-      <span style="white-space: pre-line;">{{log.summary}}</span>
+      <span style="white-space: pre-line;">{{@log.summary}}</span>
     {{/if}}
   </td>
-  {{#unless messages_only}}
+  {{#unless @messagesOnly}}
     <td style="white-space: nowrap;">
-      {{#link-to 'user.log' user.user_name log.id}}
-        {{#if log.note_type}}
+      {{#link-to 'user.log' @user.user_name @log.id}}
+        {{#if @log.note_type}}
           ...
-        {{else if log.journal_type}}
+        {{else if @log.journal_type}}
           ...
         {{else}}
-          {{t "minute" key='minute' count=log.minutes}}
+          {{t "minute" key='minute' count=@log.minutes}}
         {{/if}}
       {{/link-to}}
     </td>
     <td>
-      {{#if log.event_note_count}}
-        {{#link-to 'user.log' model.user_name log.id}}
-          <span class="label label-primary">{{log.event_note_count}}</span>
+      {{#if @log.event_note_count}}
+        {{#link-to 'user.log' @model.user_name @log.id}}
+          <span class="label label-primary">{{@log.event_note_count}}</span>
         {{/link-to}}
       {{/if}}
     </td>
   {{/unless}}
-  <td style="white-space: nowrap;">{{date log.started_at}}</td>
+  <td style="white-space: nowrap;">{{date @log.started_at}}</td>
 </tr>

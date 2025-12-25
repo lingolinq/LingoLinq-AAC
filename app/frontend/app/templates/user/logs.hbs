@@ -114,7 +114,7 @@
             </tr>
           {{/if}}
           {{#each logs as |log|}}
-            {{partial 'log'}}
+            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} />
           {{/each}}
         </tbody>
       </table>

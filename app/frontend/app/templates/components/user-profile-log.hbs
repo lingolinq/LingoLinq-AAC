@@ -1,14 +1,14 @@
-{{#if processed_profile}}
+{{#if @processedProfile}}
   <div class="row">
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Date" key='date'}}</div>
         <div class="panel-body">
-          {{date processed_profile.started_at}}
-          {{#if expected_profile.state.due_soon}}
-            <br/><button {{action 'repeat_profile'}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key='repeat_profile_due_soon'}}</button>
-          {{else if expected_profile.overdue}}
-            <br/><button {{action 'repeat_profile'}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key='repeat_profile_overdue'}}</button>
+          {{date @processedProfile.started_at}}
+          {{#if @expectedProfile.state.due_soon}}
+            <br/><button {{action @repeatProfile}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key='repeat_profile_due_soon'}}</button>
+          {{else if @expectedProfile.overdue}}
+            <br/><button {{action @repeatProfile}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key='repeat_profile_overdue'}}</button>
           {{/if}}
         </div>
       </div>
@@ -17,7 +17,7 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Profile" key='profile_upper'}}</div>
         <div class="panel-body">
-          {{processed_profile.template.name}}
+          {{@processedProfile.template.name}}
         </div>
       </div>
     </div>
@@ -25,7 +25,7 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Assessor" key='assessor'}}</div>
         <div class="panel-body">
-          {{#link-to 'user' model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+          {{#link-to 'user' @model.author.user_name}}{{@model.author.user_name}}{{/link-to}}
         </div>
       </div>
     </div>
@@ -34,8 +34,8 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Summary" key='summary'}}</div>
         <div class="panel-body">
-          {{#if processed_profile.template.summary}}
-            {{processed_profile.template.summary}}
+          {{#if @processedProfile.template.summary}}
+            {{@processedProfile.template.summary}}
           {{else}}
             {{t "N/A" key='n_a'}}
           {{/if}}
@@ -46,8 +46,8 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Duration" key='duration'}}</div>
         <div class="panel-body">
-          {{#if processed_profile.results.submitted}}
-            {{t "minute" key='minute' count=processed_profile.minutes}}
+          {{#if @processedProfile.results.submitted}}
+            {{t "minute" key='minute' count=@processedProfile.minutes}}
           {{else}}
             {{t "not available" key='not_available'}}
           {{/if}}
@@ -59,18 +59,18 @@
         <div class="panel-heading">{{t "Type" key='type'}}</div>
         <div class="panel-body">
           <!-- Self-Assessment? Assessment? Communicator/Supervisor? Communicator included -->
-          {{processed_profile.readable_type}}
+          {{@processedProfile.readable_type}}
         </div>
       </div>
     </div>
   </div>
   <div class='profile'>
-    {{#if processed_profile.communicator_type}}
-      {{#unless processed_profile.template.with_communicator}}
+    {{#if @processedProfile.communicator_type}}
+      {{#unless @processedProfile.template.with_communicator}}
         <p class='text-danger'>{{t "NOTE: This profile was completed without the communicator's participation" key='profile_without_communicator'}}</p>
       {{/unless}}
     {{/if}}
-    {{#each processed_profile.reports_layout as |report|}}
+    {{#each @processedProfile.reports_layout as |report|}}
       <div style='margin-bottom: 30px;'>
         {{#if report.score}}
           <div style='page-break-inside: avoid;'>
@@ -119,7 +119,7 @@
                     </div>
                   {{/each}}
                   <div class='bar_holder'>
-                    <div class='bar_tip'>{{cat.value}}/{{#if cat.max}}{{cat.max}}{{else}}0{{/if}} {{date processed_profile.started_at 'short_day'}}</div>
+                    <div class='bar_tip'>{{cat.value}}/{{#if cat.max}}{{cat.max}}{{else}}0{{/if}} {{date @processedProfile.started_at 'short_day'}}</div>
                     <div class='bar' style={{cat.bar_style}}>
                       <div class='bg' style={{cat.bar_bg_style}}></div>
                     </div>
@@ -148,7 +148,7 @@
                         </div>
                       {{/each}}
                       <div class='bar_holder'>
-                        <div class='bar_tip'>{{cat.manuals}} {{t "items" key='items'}} - {{date processed_profile.started_at 'short_day'}}</div>
+                        <div class='bar_tip'>{{cat.manuals}} {{t "items" key='items'}} - {{date @processedProfile.started_at 'short_day'}}</div>
                         <div class='bar' style={{cat.bar_style}}>
                           <div class='bg' style={{cat.bar_bg_style}}></div>
                         </div>
@@ -182,7 +182,7 @@
           </div>
         {{else if report.raw}}
             <h3>{{t "Responses" key='responses'}}</h3>
-          {{#if processed_profile.results}}
+          {{#if @processedProfile.results}}
             {{#each report.questions as |question|}}
               {{#if question.header}}
                 <div class='question_header'>

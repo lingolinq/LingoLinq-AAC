@@ -283,7 +283,7 @@
       </thead>
       <tbody>
         {{#each logs as |log|}}
-          {{partial 'log'}}
+          <LogItem @log={{log}} @user={{this.model.author}} @model={{this.model}} @messagesOnly={{false}} />
         {{/each}}
         {{#unless logs}}
           <tr>

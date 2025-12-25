@@ -3,7 +3,7 @@ import EmberObject from '@ember/object';
 import { later as runLater, run } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
-import $ from 'jquery';
+// import $ from 'jquery';
 import i18n from './i18n';
 import LingoLinq from '../app';
 import editManager from './edit_manager';
@@ -582,8 +582,11 @@ var pictureGrabber = EmberObject.extend({
       });
     }
     this.controller.set('webcam', null);
-    $('#webcam_video').attr('src', '');
-    $('#image_upload').val('');
+    this.controller.set('webcam', null);
+    var vid = document.getElementById('webcam_video');
+    if(vid) { vid.setAttribute('src', ''); }
+    var upload = document.getElementById('image_upload');
+    if(upload) { upload.value = ''; }
   },
   clear_image_preview: function() {
     this.controller.set('image_preview', null);

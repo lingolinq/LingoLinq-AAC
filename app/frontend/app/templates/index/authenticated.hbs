@@ -421,7 +421,7 @@
         {{/if}}
         {{#if app_state.currentUser.parsed_notifications}}
           {{#each app_state.currentUser.parsed_notifications as |notif|}}
-            {{partial "user_notification"}}
+            <UserNotification @notification={{notif}} />
           {{/each}}
         {{/if}}
         {{#unless app_state.currentUser.unread_messages}}
