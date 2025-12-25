@@ -22,7 +22,7 @@ export default Component.extend({
     _this.set('extra_users', null);
     _this.set('extra_user', null);
     if(!this.get('users') && show_options) {
-      app_state.get('sessionUser.known_supervisees').forEach(function(supervisee) {
+      (app_state.get('sessionUser.known_supervisees') || []).forEach(function(supervisee) {
         var sup = {
           name: supervisee.user_name,
           image: supervisee.local_avatar_url || supervisee.avatar_url,
