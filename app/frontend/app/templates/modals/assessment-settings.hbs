@@ -37,7 +37,7 @@
               <button class='btn btn-default symbol_target small' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
                 <span class='text'>
                   {{#each current_option.images as |url|}}
-                    <img src={{url}} />
+                    <img src={{url}} >
                   {{/each}}
                   {{current_option.label}}
                 </span>
@@ -48,7 +48,7 @@
                   <li role="presentation">
                     <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose" option.id}}>
                       {{#each option.images as |url|}}
-                        <img src={{url}} />
+                        <img src={{url}} >
                       {{/each}}
                       {{option.label}}
                     </a>

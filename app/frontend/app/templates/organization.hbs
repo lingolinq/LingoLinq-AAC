@@ -10,14 +10,14 @@
         {{/if}}
       </h2>
       <div style='text-align: left; width: 100px; margin: 0 auto;'>
-        {{t "user" key="user_count" count=model.total_users }}<br/>
+        {{t "user" key="user_count" count=model.total_users }}<br>
         {{#if model.total_supervisors}}
           {{t "supervisor" key="supervisor_count" count=model.total_supervisors}}
-          <br/>
+          <br>
         {{/if}}
-        {{t "manager" key="manager_count" count=model.total_managers }}<br/>
+        {{t "manager" key="manager_count" count=model.total_managers }}<br>
         {{#if model.used_evals}}
-          {{t "eval" key="eval_count" count=model.used_evals}}<br/>
+          {{t "eval" key="eval_count" count=model.used_evals}}<br>
         {{/if}}
       </div>
       {{#if model.created}}

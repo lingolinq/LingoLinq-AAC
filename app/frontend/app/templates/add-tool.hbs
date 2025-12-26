@@ -12,7 +12,7 @@
   <div class="modal-body">
     {{#if selected_tool}}
       <h3>
-        <img src={{selected_tool.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'/>
+        <img src={{selected_tool.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
         {{selected_tool.name}}
       </h3>
       {{#if selected_tool.integration_key}}
@@ -47,7 +47,7 @@
         {{#each tools as |tool|}}
           <div class='well' {{action "select_tool" tool}} style='cursor: pointer;'>
             <div>
-              <img src={{tool.icon_url}} style='height: 30px; max-width: 50px;'/>
+              <img src={{tool.icon_url}} style='height: 30px; max-width: 50px;'>
               <span style='font-weight: bold; font-size: 20px; vertical-align: middle; padding-left: 5px;'>{{tool.name}}</span>
             </div>
             <div style='max-height: 43px; overflow: hidden;'>{{safe tool.description}}</div>

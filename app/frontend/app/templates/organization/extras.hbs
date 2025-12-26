@@ -100,7 +100,7 @@
             </span>
             {{#if gift.gift_types.bulk_purchase}}
               <a href="/purchase/{{gift.code}}">
-                {{#if gift.organization}}{{gift.organization}}<br/>{{/if}}
+                {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
                 {{t "$" key="dollar_sign"}}{{delimit gift.amount "full"}}
                 {{t "license" count=gift.licenses key="n_licenses"}}
               </a>
@@ -115,7 +115,7 @@
               </div>
             {{else if gift.gift_types.multi_code}}
               <a href="/purchase/{{gift.code}}">
-                {{#if gift.organization}}{{gift.organization}}<br/>{{/if}}
+                {{#if gift.organization}}{{gift.organization}}<br>{{/if}}
                 {{t "code" count=gift.total_codes key="n_codes"}}
                 {{#if gift.org_connected}}
                   {{t "(org-connected)" key="org_connected"}}
@@ -133,7 +133,7 @@
             {{else if gift.gift_types.discount}}
               <a href="/purchase/{{gift.id}}">
                 {{gift.code}}
-                ({{gift.organization}})<br/>
+                ({{gift.organization}})<br>
                 {{#if gift.discount}}{{gift.discount_hundred}}% {{t "off" key="off"}}{{/if}}
                 {{#if gift.expires}}{{t "exp" key="expires_abbreviated"}} {{date gift.expires "day"}}{{/if}}
               </a>
@@ -147,7 +147,7 @@
                 {{date gift.created "day"}}
               </div>
             {{else}}
-              {{#if gift.gift_name}}{{gift.gift_name}}{{else}}{{t "User-generated Gift" key="user_generated_gift"}}{{/if}}<br/>
+              {{#if gift.gift_name}}{{gift.gift_name}}{{else}}{{t "User-generated Gift" key="user_generated_gift"}}{{/if}}<br>
               {{gift.code}} - {{gift.duration}}
               <div class='text-muted' style='font-size: 12px; margin-left: 15px;'>
                 {{#if gift.active}}

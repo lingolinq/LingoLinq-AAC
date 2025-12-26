@@ -12,8 +12,8 @@
       <div class="col-sm-10">
         <p class="form-control-static">
           {{#if model.load_board.key}}
-            <img src={{model.icon}} style="height: 20px;"/>
-            <a href={{model.link}} target="_blank">{{model.load_board.key}}</a>
+            <img src={{model.icon}} style="height: 20px;">
+            <a href={{model.link}} target="_blank" rel="noopener">{{model.load_board.key}}</a>
           {{else}}
             {{t "None Set" key="none_set"}}
           {{/if}}
@@ -60,7 +60,7 @@
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
                         <span class="icon" style='display: block;'>
-                          <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);"/>
+                          <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);">
                         </span>
                         <span style="display: block; height: 50px">
                           <span style="color: #666; padding-left: 8px; display: block;">
@@ -90,10 +90,10 @@
                         <span class="name">
                           {{#unless board.public}}<span class="glyphicon glyphicon-lock"></span>{{/unless}}
                           {{board.name}}{{#if board.copy_version}} <span style='color: #666; font-size: 10px;'>({{board.copy_version}})</span>{{/if}}
-                        </span><br/>
+                        </span><br>
                         <span class="labels">{{board.labels}}</span>
-                      </span><br/>
-                      <span class="user_name">{{board.user_name}}</span><br/>
+                      </span><br>
+                      <span class="user_name">{{board.user_name}}</span><br>
                     </span>
                   </div>
                   <div class="col-sm-12">
@@ -271,9 +271,9 @@
       <div class="form-group">
         <label for="link_to" class="col-sm-2 control-label">
           {{#if model.video.popup}}
-            <img src={{path "images/video.svg"}} style="height: 20px; margin-left: -10px;"/>
+            <img src={{path "images/video.svg"}} style="height: 20px; margin-left: -10px;">
           {{else}}
-            <img src={{path "images/link.png"}} style="height: 20px; margin-left: -10px;"/>
+            <img src={{path "images/link.png"}} style="height: 20px; margin-left: -10px;">
           {{/if}}
            {{t "URL" key="url"}}
         </label>
@@ -357,11 +357,11 @@
               {{else if book_status.error}}
                 {{t "Error loading book details" key="error_loading_book"}}
               {{else if book_status}}
-                <strong>{{book_status.title}}</strong><br/>
+                <strong>{{book_status.title}}</strong><br>
                 {{#if book_status.image}}
-                  <img src={{book_status.image}} style='max-width: 200px; max-height: 160px;' />
+                  <img src={{book_status.image}} style='max-width: 200px; max-height: 160px;' >
                   {{#unless image_matches_book}}
-                    <br/><a href="#" {{action "set_as_button_image" book_status.image book_status.content_type}}>{{t "set as button image" key="set_as_button_image"}}</a>
+                    <br><a href="#" {{action "set_as_button_image" book_status.image book_status.content_type}}>{{t "set as button image" key="set_as_button_image"}}</a>
                   {{/unless}}
                 {{/if}}
               {{else}}
@@ -417,7 +417,7 @@
                 </p>
               {{/if}}
               <p class="form-control-static">
-                <a target="_blank" href={{model.fixed_url}}>{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
+                <a target="_blank" href={{model.fixed_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
               </p>
             </div>
           </div>
@@ -446,10 +446,10 @@
               {{#if model.apps.ios}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
-                    <strong>{{model.apps.ios.name}}</strong><br/>
+                    <strong>{{model.apps.ios.name}}</strong><br>
                     <span class="text-muted">{{model.apps.ios.author_name}}</span>
                   </span>
-                  <br/>
+                  <br>
                   {{#if model.apps.ios.custom}}
                     {{t "Custom mobile launch URL/scheme:" key="custom_launch"}}
                     {{input value=model.apps.ios.launch_url class="form-control" placeholder="i.e. fb://feed"}}
@@ -458,7 +458,7 @@
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
                     {{else}}
                       <em class="text-danger">{{t "This app won't be launched by %app_name%" key="app_cant_be_launched"}}</em>
-                      <br/><a href="#" {{action "set_custom"}}>advanced</a>
+                      <br><a href="#" {{action "set_custom"}}>advanced</a>
                     {{/if}}
                   {{/if}}
                 </div>
@@ -480,13 +480,13 @@
                     {{#each foundApps.results as |result|}}
                       <div class="col-sm-12" {{action "pick_app" result}}>
                         <div class="well well-sm" style="cursor: pointer; margin-bottom: 5px; line-height: 16px; white-space: nowrap; overflow: hidden;">
-                          <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;"/>
-                          {{result.name}}<br/>
+                          <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;">
+                          {{result.name}}<br>
                           <span class="text-muted">
                             {{result.author_name}}
                             ${{result.price}}
                           </span>
-                          <br/>
+                          <br>
                           {{#if result.launch_url}}
                             <em class="text-muted">{{t "launchable" key="launchable"}}</em>
                           {{else}}
@@ -524,10 +524,10 @@
               {{#if model.apps.android}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
-                    <strong>{{model.apps.android.name}}</strong><br/>
+                    <strong>{{model.apps.android.name}}</strong><br>
                     <span class="text-muted">{{model.apps.android.author_name}}</span>
                   </span>
-                  <br/>
+                  <br>
                   {{#if model.apps.android.custom}}
                     {{t "App-registered URL/scheme:" key="app_launch"}}
                     {{input value=model.apps.android.launch_url class="form-control" placeholder="i.e. https://www.twitter.com/"}}
@@ -536,7 +536,7 @@
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
                     {{else}}
                       <em class="text-danger">{{t "This app won't be launched by %app_name%" key="app_cant_be_launched"}}</em>
-                      <br/><a href="#" {{action "set_custom"}}>advanced</a>
+                      <br><a href="#" {{action "set_custom"}}>advanced</a>
                     {{/if}}
                   {{/if}}
                 </div>
@@ -558,13 +558,13 @@
                     {{#each foundApps.results as |result|}}
                       <div class="col-sm-12" {{action "pick_app" result}}>
                         <div class="well well-sm" style="cursor: pointer; margin-bottom: 5px; line-height: 16px; white-space: nowrap; overflow: hidden;">
-                          <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;"/>
-                          {{result.name}}<br/>
+                          <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;">
+                          {{result.name}}<br>
                           <span class="text-muted">
                             {{result.author_name}}
                             ${{result.price}}
                           </span>
-                          <br/>
+                          <br>
                           {{#if result.launch_url}}
                             <em class="text-muted">{{t "launchable" key="launchable"}}</em>
                           {{else}}
@@ -606,7 +606,7 @@
             <div class="form-group">
               <div class="col-sm-10 col-sm-offset-2">
                 <p class="form-control-static">
-                  <a target="_blank" href={{fixed_app_url}}>{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
+                  <a target="_blank" href={{fixed_app_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
                 </p>
               </div>
             </div>
@@ -614,7 +614,7 @@
         {{/if}}
 
       {{else}}
-        <img src={{path "images/talk.png"}} style="height: 20px;"/> {{t "Button will play sound or speech" key="button_will_play"}}
+        <img src={{path "images/talk.png"}} style="height: 20px;"> {{t "Button will play sound or speech" key="button_will_play"}}
       {{/if}}
     {{/if}}
   {{/if}}

@@ -36,7 +36,7 @@
                   {{else}}
                     <a href='#' {{action "copy" code.code}}>{{code.code}}</a>
                     {{#if code.to_delete}}
-                      <br/>
+                      <br>
                       <button class='btn btn-default btn-sm' {{action "delete" code}}>
                         {{#if code.status.deleting}}
                           {{t "deleting..." key="deleting"}}
@@ -47,7 +47,7 @@
                         {{/if}}
                       </button>
                     {{else}}
-                      <br/>
+                      <br>
                       <button class='btn btn-default btn-sm' {{action "code_link" code}}>{{t "generate link" key="generate_link"}}</button>
                     {{/if}}
                   {{/if}}

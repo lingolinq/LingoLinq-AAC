@@ -22,13 +22,13 @@
       </p>
     {{/if}}
 
-    <label for="symbol_library"><strong>{{t "Preferred Symbols" key="preferred_symbols"}}</strong></label><br/>
+    <label for="symbol_library"><strong>{{t "Preferred Symbols" key="preferred_symbols"}}</strong></label><br>
     <p class='text-muted'>{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
     {{bound-select select_class="form-control" select_id="symbol_library" content=symbol_libraries selection=symbol_library action=(action (mut symbol_library)) }}
 
     {{#if model.board.levels}}
       {{#if app_state.feature_flags.board_levels}}
-        <label for="board_level"><strong>{{t "Communication Level" key="communication_level"}}</strong></label><br/>
+        <label for="board_level"><strong>{{t "Communication Level" key="communication_level"}}</strong></label><br>
         <p class='text-muted'>{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
         {{bound-select select_class="form-control" select_id="board_level" content=board_levels selection=board_level action=(action (mut board_level)) }}
       {{/if}}

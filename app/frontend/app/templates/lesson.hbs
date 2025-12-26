@@ -17,7 +17,7 @@
     <div style='width: 200px; text-align: center; position: absolute; top: 14px; left: calc(50% - 100px);'>
       <button class='btn btn-default btn-lg' {{action "done"}}>
         {{#if model.user.avatar_url}}
-          <img src={{model.user.avatar_url}} style='width: 30px; height: 30px; object-fit: contain;' />
+          <img src={{model.user.avatar_url}} style='width: 30px; height: 30px; object-fit: contain;' >
         {{/if}}
         {{t "Finished Lesson" key="finished_lesson"}}
       </button>
@@ -38,7 +38,7 @@
   {{#if show_description}}
     <div {{action "toggle_description" on="click"}} style='position: fixed; left: 10px; top: 70px; background: #fff; min-height: 50px; width: 300px; border: 1px solid #000; border-top-width: 0; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; padding: 10px 10px 5px 10px; box-shadow: inset 0 7px 9px -7px #888, 3px 3px 15px #000;'>
       {{#if model.time_estimate}}
-        <b>{{t "Complete in about %{n} minutes" n=model.time_estimate key="complete_in_n_minutes"}}</b><br/>
+        <b>{{t "Complete in about %{n} minutes" n=model.time_estimate key="complete_in_n_minutes"}}</b><br>
       {{/if}}
       {{#if model.description}}
         {{model.description}}
@@ -67,15 +67,15 @@
           {{/if}}
           <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 3}}>
             <span class="face laugh"></span>
-            {{t "Useful &<br/>informative!" key="useful_and_informative"}}
+            {{t "Useful &<br>informative!" key="useful_and_informative"}}
           </button>
           <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 2}}>
             <span class="face neutral"></span>
-            {{t "It was<br/>okay" key="it_was_okay"}}
+            {{t "It was<br>okay" key="it_was_okay"}}
           </button>
           <button class="btn btn-default face_button" style='width: 90px;' {{action "rate" 1}}>
             <span class="face sad"></span>
-            {{t "Confusing/<br/>complicated" key="confusing_complicated"}}
+            {{t "Confusing/<br>complicated" key="confusing_complicated"}}
           </button>
         {{/if}}
       </div>

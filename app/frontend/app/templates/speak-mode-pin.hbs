@@ -33,7 +33,7 @@
       {{#if invalid_pin}}
         <p class="text-danger">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
       {{/if}}
-      <input type="text" class="form-control" value={{pin_dots}} rel={{pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;"/>
+      <input type="text" class="form-control" value={{pin_dots}} rel={{pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;">
     </div>
     <div class="modal-footer">
       {{#unless model.hide_hint}}

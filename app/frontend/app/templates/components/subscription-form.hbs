@@ -1,7 +1,7 @@
 {{#if trial_choice}}
   <div style='margin-top: 30px;'>
-    <button class='btn btn-default btn-lg' {{action "skip_subscription"}} style='height: 75px; width: calc(50% - 7px); margin-right: 10px;'>{{t "Start with a<br/>2-month trial" key="start_with_two_month_trial"}}</button>
-    <button class='btn btn-primary btn-lg' {{action "check_pricing"}} style='height: 75px; width: calc(50% - 7px);'>{{t "See Purchasing<br/>Options" key="see_purchasing"}}</button>
+    <button class='btn btn-default btn-lg' {{action "skip_subscription"}} style='height: 75px; width: calc(50% - 7px); margin-right: 10px;'>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
+    <button class='btn btn-primary btn-lg' {{action "check_pricing"}} style='height: 75px; width: calc(50% - 7px);'>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
   <form {{action "purchase" on="submit"}} class="row" style='max-width: 600px;'>
@@ -135,11 +135,11 @@
               <td colspan={{if subscription.app_pricing_override "1" "2"}} class='separator semi_dim'></td>
             {{else}}
               <td colspan={{if subscription.app_pricing_override_no_monthly "1" "2"}}>
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' >
                 {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}
               </td>
               <td colspan={{if subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' >
                 {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}
               </td>
             {{/if}}
@@ -150,7 +150,7 @@
               <td colspan={{if subscription.app_pricing_override "1" "2"}} class='separator semi_dim'></td>
             {{else}}
               <td colspan={{if subscription.app_pricing_override_no_monthly "1" "2"}}>
-                {{t "add supervisor<br/>credits for US$25 each" key="add_supervisor_credits_25_usd"}}
+                {{t "add supervisor<br>credits for US$25 each" key="add_supervisor_credits_25_usd"}}
               </td>
               <td colspan={{if subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
                 {{t "user management tools available for organizations," key="org_tools_available"}}
@@ -161,17 +161,17 @@
         {{/if}}
         <tr>
           {{#unless subscription.app_pricing_override_no_monthly}}
-            <td>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> included in subscription" key="included_in_subscription"}}</td>
+            <td>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> included in subscription" key="included_in_subscription"}}</td>
           {{/unless}}
           <td>
             {{#if subscription.user.lapsed}}
-              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>added" key="5_years_added"}}
+              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>5-year credit<br>added" key="5_years_added"}}
             {{else}}
-              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>5-year credit<br/>included" key="5_years_included"}}
+              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>5-year credit<br>included" key="5_years_included"}}
             {{/if}}
           </td>
-          <td colspan='1' class='separator semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> for communicators" key="for_supported_communicators"}}</td>
-          <td colspan='1' class='semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a> reset after every eval" key="for_supported_communicators2"}}</td>
+          <td colspan='1' class='separator semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> for communicators" key="for_supported_communicators"}}</td>
+          <td colspan='1' class='semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> reset after every eval" key="for_supported_communicators2"}}</td>
         </tr>
         {{#if pricing_only}}
           <tr>
@@ -190,12 +190,12 @@
               <td style='width: 25%;'>
                 <button style='width: 100%;' rel='monthly' class={{communicator_monthly_subscription_class}} type="button" {{action "set_subscription_type" "monthly_communicator"}}>
                   {{#if subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br/>
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br/>
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
                   {{/if}}
                   {{#if subscription.app_pricing_override}}
-                    {{subscription.monthly_app_price}} {{subscription.app_currency}}<br/>{{t "per month" key="per_month_lower"}}
+                    {{subscription.monthly_app_price}} {{subscription.app_currency}}<br>{{t "per month" key="per_month_lower"}}
                   {{else}}
                     {{t "US$9 per month" key="9_per_month"}}
                   {{/if}}
@@ -205,12 +205,12 @@
             <td style='width: 25%;'>
               <button style='width: 100%;' rel='long_term' class={{communicator_long_term_subscription_class}} type="button" {{action "set_subscription_type" "long_term_communicator"}}>
                 {{#if subscription.app_pricing_override}}
-                  <b>{{t "add to my account" key="add_to_my_account"}}</b><br/>
+                  <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                 {{else}}
-                  <b>{{t "select this plan" key="select_this_plan"}}</b><br/>
+                  <b>{{t "select this plan" key="select_this_plan"}}</b><br>
                 {{/if}}
                 {{#if subscription.app_pricing_override}}
-                  {{subscription.long_term_app_price}} {{subscription.app_currency}}<br/>{{t "purchase" key="purchase_lower"}}
+                  {{subscription.long_term_app_price}} {{subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
                 {{else}}
                   US${{subscription.long_term_amount}} {{t "purchase" key="purchase_lower"}}
                 {{/if}}
@@ -222,12 +222,12 @@
               {{else}}
                 <button type="button" rel='slp_paid' class={{slp_long_term_class}} {{action "set_subscription" "long_term_slp"}}>
                   {{#if subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br/>
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br/>
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
                   {{/if}}
                   {{#if subscription.app_pricing_override}}
-                    {{subscription.supporter_app_price}} {{subscription.app_currency}}<br/>{{t "purchase" key="purchase_lower"}}
+                    {{subscription.supporter_app_price}} {{subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
                   {{else}}
                     {{t "US$25 purchase" key="25_purchase"}}
                   {{/if}}
@@ -240,12 +240,12 @@
               {{else}}
                 <button type="button" rel='eval_paid' class={{eval_long_term_class}} {{action "set_subscription" "long_term_eval"}}>
                   {{#if subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br/>
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                   {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br/>
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
                   {{/if}}
                   {{#if subscription.app_pricing_override}}
-                    {{subscription.eval_app_price}} {{subscription.app_currency}}<br/>{{t "purchase" key="purchase_lower"}}
+                    {{subscription.eval_app_price}} {{subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
                   {{else}}
                     {{t "US$25 purchase" key="25_purchase"}}
                   {{/if}}
@@ -265,7 +265,7 @@
                 <td colspan={{if subscription.app_pricing_override_no_monthly "1" "2"}}>
                   {{#if subscription.communicator_type}}
                     <label>
-                      <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" />
+                      <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
                       {{input type="checkbox" checked=subscription.extras}}
                       {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
                     </label>
@@ -275,12 +275,12 @@
                   {{#if subscription.supporter_type}}
                     {{#if subscription.minimal_premium}}
                       <label> 
-                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" />
+                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
                         {{t "premium symbols can be purchased separately" key="premium_purchased_separately"}}
                       </label>
                     {{else}}
                       <label> 
-                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" />
+                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
                         {{input type="checkbox" checked=subscription.extras}}
                         {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
                       </label>
@@ -369,7 +369,7 @@
             </td>
             <td colspan='2' class='separator semi_dim' style='text-align: right;'>
               {{#if subscription.modeling_long_term}}
-                <button class='btn btn-primary' style='width: auto;'>{{t "set as a free<br/> modeling-only account" key="set_as_free_modeling_only_two_lines"}}</button>
+                <button class='btn btn-primary' style='width: auto;'>{{t "set as a free<br> modeling-only account" key="set_as_free_modeling_only_two_lines"}}</button>
               {{else}}
                 <a href="#" {{action "set_subscription" "slp_monthly_free"}}>{{t "set as a free modeling-only account" key="set_as_free_modeling_only"}}</a>
               {{/if}}
@@ -473,7 +473,7 @@
               {{#if subscription.monthly_subscription}}
                 {{#if subscription.communicator_type}}
                   {{#unless subscription.app_pricing_override}}
-                    <br/><em>{{t "monthly fee starts after your free trial" key="billing_after_trial"}}</em>
+                    <br><em>{{t "monthly fee starts after your free trial" key="billing_after_trial"}}</em>
                   {{/unless}}
                 {{/if}}
               {{/if}}

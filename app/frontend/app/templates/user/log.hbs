@@ -127,10 +127,10 @@
         </div>
         <div class='col-xs-4'>
           <div style='line-height: 30px; margin-bottom: 10px;'>
-            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(0, 255, 0, 0.7); border-radius: 20px;'></span> - {{t "correctly hit here" key="correctly_hit_here"}}<br/>
-            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(255, 0, 0, 0.7); border-radius: 20px'></span> - {{t "failed to hit here" key="failed_to_hit_here"}}<br/>
-            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(0, 0, 255, 0.7); border-radius: 20px;'></span> - {{t "hit here with full-size grid" key="hit_here_with_full_grid"}}<br/>
-            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(150, 150, 0, 0.7); border-radius: 20px'></span> - {{t "hit here with visual prompt" key="hit_here_with_partial_grid"}}<br/>
+            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(0, 255, 0, 0.7); border-radius: 20px;'></span> - {{t "correctly hit here" key="correctly_hit_here"}}<br>
+            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(255, 0, 0, 0.7); border-radius: 20px'></span> - {{t "failed to hit here" key="failed_to_hit_here"}}<br>
+            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(0, 0, 255, 0.7); border-radius: 20px;'></span> - {{t "hit here with full-size grid" key="hit_here_with_full_grid"}}<br>
+            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(150, 150, 0, 0.7); border-radius: 20px'></span> - {{t "hit here with visual prompt" key="hit_here_with_partial_grid"}}<br>
           </div>
           <span class='text-muted' style='font-size: 12px; font-style: italic;'>{{t "look for areas without any blue circles where the communicator wasn't able to reach, or for dark red areas where the communicator chose other (incorrect) options multiple times" key="key_hint"}}</span>
         </div>
@@ -517,7 +517,7 @@
               {{#if event.show_notes}}
                 <tr>
                   <td colspan="5" style="padding-left: 50px;">
-                    Notes:<br/>
+                    Notes:<br>
                     {{#each event.notes as |note|}}
                       <div>
                         {{#link-to "user" note.author.user_name}}
@@ -528,7 +528,7 @@
                     {{/each}}
                     <form class="form-inline" style="margin-top: 15px;" {{action "add_note" event.id}}>
                       <div class="form-group">
-                        <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text"/>
+                        <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text">
                       </div>
                       <div class="form-group">
                         <button type="submit" class='btn btn-default btn-sm'>{{t "Save" key="save"}}</button>
@@ -560,7 +560,7 @@
             {{t "Not Available" key="not_available_upper"}}
           {{/if}}
           {{#if model.geo_cluster_id}}
-            <br/>
+            <br>
             {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.geo_cluster_id device_id="" type="session") class="btn btn-default"}}
               {{t "more entries" key="see_more"}}
             {{/link-to}}
@@ -576,7 +576,7 @@
               {{model.readable_ip_address}}
             {{/if}}
             {{#if model.ip_cluster_id}}
-              <br/>
+              <br>
               {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.ip_cluster_id device_id="" type="session") class="btn btn-default"}}
                 {{t "more entries" key="see_more"}}
               {{/link-to}}

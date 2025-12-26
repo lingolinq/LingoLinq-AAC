@@ -13,7 +13,7 @@
 
     <div style={{if flipped "transform: rotate(180deg);"}}>
       {{#if selected_gif}}
-        <img src={{selected_gif.image_url}} style='width: 100%; height: calc(100vh - 220px);' class='fit_image'/>
+        <img src={{selected_gif.image_url}} style='width: 100%; height: calc(100vh - 220px);' class='fit_image'>
       {{else if results}}
         {{#if results.loading}}
           {{t "Loading results..." key="loading_results"}}
@@ -41,7 +41,7 @@
                   {{#each col.list as |pic|}}
                     {{#if pic.image_url}}
                       <a href='#' {{action "choose" pic}}>
-                        <img src={{pic.image_url}} class='fit_image' style='width: 100%; margin-bottom: 5px;' />
+                        <img src={{pic.image_url}} class='fit_image' style='width: 100%; margin-bottom: 5px;' >
                       </a>
                     {{/if}}
                   {{/each}}

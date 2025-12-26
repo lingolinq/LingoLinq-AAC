@@ -44,9 +44,9 @@
                     </div>
                   {{/if}}
                   {{#if button.image}}
-                    <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false"/>
+                    <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false">
                   {{else}}
-                    <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false"/>
+                    <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false">
                   {{/if}}
                   {{#if button.sound}}
                     <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
@@ -111,7 +111,7 @@
         <p>{{t "This is a private link that can be used to send messages to a %app_name% communicator. Please respect the communicator's privacy and security by not sharing it with others." key="keep_private_link_secure"}}</p>
       {{else}}
         <p>{{t "This is a private link and will expire after 7 days. You can navigate to the public link for this message if the communicator has given you permission and you would like to share it with others." key="private_link_warning"}}</p>
-        <a href={{model.link}} target='_blank' class='btn btn-default btn-lg'><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
+        <a href={{model.link}} target="_blank" class='btn btn-default btn-lg' rel="noopener"><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
       {{/if}}
     {{else}}
       {{#if speakable}}
@@ -148,10 +148,10 @@
             <div class="form-group">
               <div class="col-sm-12">
                 <p class="form-control-static">
-                  {{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}<br/>
+                  {{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}<br>
                   <button type='button' {{action "change_image" "prev"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-left'></span></button>
                   <span style="width: 400px; height: 200px; display: inline-block; overflow: hidden; vertical-align: middle; text-align: center;">
-                  <img src={{image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol"/>
+                  <img src={{image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol">
                   </span>
                   <button type='button' {{action "change_image" "next"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-right'></span></button>
                 </p>
@@ -174,7 +174,7 @@
           {{#each model.button_list as |button|}}
             {{#if button.image}}
               <li>
-                <img src={{button.image}} alt={{button.label}} title={{button.label}} style="width: 30px;"/>
+                <img src={{button.image}} alt={{button.label}} title={{button.label}} style="width: 30px;">
                 {{license-attribution license=button.image_license}}
               </li>
             {{/if}}
@@ -182,8 +182,8 @@
           {{#each model.button_list as |button|}}
             {{#if button.sound}}
               <li>
-                <strong>{{button.label}}</strong><br/>
-                <audio controls src={{button.sound}} style="width: 100%;"></audio><br/>
+                <strong>{{button.label}}</strong><br>
+                <audio controls src={{button.sound}} style="width: 100%;"></audio><br>
                 <span style="padding-left: 20px;">
                   {{license-attribution license=button.sound_license}}
                 </span>

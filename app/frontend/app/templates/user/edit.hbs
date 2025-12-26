@@ -73,8 +73,8 @@
                     <span class='sr-only'>{{t "Remove contact" key="remove_contact"}}</span>
                   </button>
                 </div>
-                <img class='fit_image' style='height: 50px; width: 50px; float: left; margin-top: -5px; padding-right: 5px;' src={{contact.image_url}} />
-                {{contact.name}}<br/>
+                <img class='fit_image' style='height: 50px; width: 50px; float: left; margin-top: -5px; padding-right: 5px;' src={{contact.image_url}} >
+                {{contact.name}}<br>
                 <span class='text-muted'><em>
                   {{#if contact.email}}{{contact.email}}{{/if}}
                   {{#if contact.cell_phone}}{{contact.cell_phone}}{{/if}}
@@ -130,7 +130,7 @@
         <label>
           {{input type="checkbox" checked=model.public id="public"}}
           {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
-          <br/><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
+          <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
         </label>
       </div>
     </div>
@@ -281,7 +281,7 @@
               <p>{{t "Enable valet login for modeling-only access, or for shared account access within a single classroom" key="enabled_valed_login"}}</p>
               <p>{{t "Additionally, a valet login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom"}}</p>
               {{#if model.valet_disabled}}
-                <br/><em class='text-danger'>{{t "(valet login was automatically disabled after being used)" key="valet_login_disabled"}}</em>
+                <br><em class='text-danger'>{{t "(valet login was automatically disabled after being used)" key="valet_login_disabled"}}</em>
               {{/if}}
             </label>
           </div>
@@ -364,9 +364,9 @@
   <div class="form-group">
     <label for="location" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
     <div class="col-sm-5">
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;"/>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;">
       <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
-      <a href="https://www.gravatar.com" target="_blank" style="display: none;">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
+      <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
     </div>
   </div>
   {{#if model.state_2fa.required}}
@@ -419,7 +419,7 @@
       <div class="col-sm-5">
         {{#each tools as |tool|}}
           <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>
-            <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'/>
+            <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'>
           </div> 
         {{/each}}
         <div style='clear: left;'></div>
@@ -440,11 +440,11 @@
   <div style='margin-top: 50px;'>
     <div style='margin-bottom: 10px;'>
       <button class='btn btn-default' {{action "browse_tools" "lessonpix"}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' style='height: 30px; max-width: 50px; padding-right: 5px;'/>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
         {{t "Connect To LessonPix" key="connect_lessonpix"}}
       </button>
       <button class='btn btn-default' {{action "browse_tools" "ifttt"}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' style='height: 30px; max-width: 50px; padding-right: 5px;'/>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
         {{t "Connect to IFTTT" key="connect_ifttt"}}
       </button>
     </div>
@@ -467,7 +467,7 @@
                     <td>
                       <div {{action "integration_details" integration}} style='cursor: pointer;'>
                         {{#if integration.icon_url}}
-                          <img src={{integration.icon_url}} style='height: 40px; max-width: 50px; vertical-align: middle; padding-right: 10px;' />
+                          <img src={{integration.icon_url}} style='height: 40px; max-width: 50px; vertical-align: middle; padding-right: 10px;' >
                         {{else}}
                           <span class='glyphicon glyphicon-wrench' style='font-size: 30px; vertical-align: middle; padding-right: 10px;'></span>
                         {{/if}}
@@ -477,7 +477,7 @@
                     <td>
                       {{#if integration.custom_integration}}
                         {{#if integration.truncated_access_token}}
-                          {{t "API: %{token}" token=integration.truncated_access_token key="displayable_access_token"}}<br/>
+                          {{t "API: %{token}" token=integration.truncated_access_token key="displayable_access_token"}}<br>
                           {{t "Webhooks: %{token}" token=integration.truncated_token key="displayable_token"}}
                         {{/if}}
                       {{else}}

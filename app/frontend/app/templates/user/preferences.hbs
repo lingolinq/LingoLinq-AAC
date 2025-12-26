@@ -84,7 +84,7 @@
           {{#if pending_preferences.sync_starred_boards}}
             {{t "All Liked Boards" key='all_starred_boards'}}
             {{#if pending_preferences.home_board.key}}
-              <br/>{{t "(and home board %{hb})" hb=pending_preferences.home_board.key key='and_home_board'}}
+              <br>{{t "(and home board %{hb})" hb=pending_preferences.home_board.key key='and_home_board'}}
             {{/if}}
           {{else if pending_preferences.home_board.key}}
             {{pending_preferences.home_board.key}}
@@ -136,7 +136,7 @@
             <button class='btn btn-default symbol_target small' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
               <span class='text'>
                 {{#each current_skin.image_urls as |url|}}
-                  <img src={{url}} />
+                  <img src={{url}} >
                 {{/each}}
                 {{current_skin.label}}
               </span>
@@ -146,7 +146,7 @@
               {{#each skin_options as |option|}}
                 <li role="presentation">
                   <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose_skin" option.id}}>
-                    <img src={{option.image_url}} />
+                    <img src={{option.image_url}} >
                     {{option.label}}
                   </a>
                 </li>
@@ -160,7 +160,7 @@
                   <div class='checkbox big_checkbox'>
                     <label>
                       {{input type='checkbox' checked=option.checked}}
-                      <img src={{option.image_url}} style='width: 30px; height: 30px;'/>
+                      <img src={{option.image_url}} style='width: 30px; height: 30px;'>
                       {{option.label}}
                     </label>
                   </div>
@@ -641,7 +641,7 @@
         <div class="checkbox big_checkbox">
           <label>
             {{input type="checkbox" checked=pending_preferences.sync_starred_boards id="sync_starred_boards"}}
-            {{t "Make my Home Board a list of all my liked boards" key='sync_starred_boards'}}<br/>
+            {{t "Make my Home Board a list of all my liked boards" key='sync_starred_boards'}}<br>
             {{t "(and sync them for offline use)" key='and_sync_for_offline'}}
           </label>
         </div>
@@ -1023,7 +1023,7 @@
         <label for="phrase_categories" class="col-sm-3 control-label">{{t "Saved Phrase Types" key='saved_phrase_types'}}</label>
         <div class="col-sm-5">
           {{input class='form-control' type='text' value=phrase_categories_string placeholder="list, of, phrase, categories"}}
-          <em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em><br/>
+          <em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em><br>
           <button class='btn btn-default' {{action 'phrases'}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
         </div>
       </div>
@@ -1085,7 +1085,7 @@
         <label class="col-sm-3 control-label">{{t "Links and Buttons" key='links_and_buttons'}}</label>
         <div class="col-sm-5">
           {{#unless editing_sidebar}}
-            <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button><br/>
+            <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button><br>
           {{else}}
             <p class="form-control-static">
               <strong>Active</strong>
@@ -1093,7 +1093,7 @@
             <ul class="list-group">
               {{#each active_sidebar_options as |option|}}
                 <li class="list-group-item" style="height: 60px;">
-                  <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}/>
+                  <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}>
                   <span style="float: right; margin-top: 5px;">
                     <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{action 'move_sidebar_button' option 'up'}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{action 'move_sidebar_button' option 'down'}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
@@ -1121,7 +1121,7 @@
               <ul class="list-group">
                 {{#each disabled_sidebar_options as |option|}}
                   <li class="list-group-item" style="height: 60px;">
-                    <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"/>
+                    <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
                       <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{action 'move_sidebar_button' option 'restore'}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     </span>

@@ -3,7 +3,7 @@
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if model.badge.avatar_url}}
-        <img src={{model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'/>
+        <img src={{model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
       {{/if}}
       {{#if user_goals_and_badges}}
         {{t "Badges and Goals" key="badges_and_goals"}}
@@ -28,9 +28,9 @@
             <div style='float: left;'>
               <a href="#" {{action "show_badge" badge.id}}>
                 {{#if badge.image_url}}
-                  <img src={{badge.image_url}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                  <img src={{badge.image_url}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{else}}
-                  <img src={{path "images/badge-fallback.png"}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                  <img src={{path "images/badge-fallback.png"}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{/if}}
               </a>
             </div>
@@ -48,7 +48,7 @@
           <div {{action "show_goal" goal.id}} class={{if goal.badge_image_url "cursor"}} style='padding-top: 10px; padding-bottom: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee;'>
             <div style='float: left; margin-right: 10px;'>
             {{#if goal.badge_image_url}}
-              <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+              <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
             {{else}}
               <span class='glyphicon glyphicon-flag' style='margin-top: 5px; display: inline-block;width: 50px; height: 40px; font-size: 30px; text-align: center;'></span>
             {{/if}}
@@ -91,9 +91,9 @@
             <div class='medal-holder'>
               <div class='medal'>
                 {{#if model.badge.image_url}}
-                  <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                  <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{else}}
-                  <img src={{path "images/badge-fallback.png"}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                  <img src={{path "images/badge-fallback.png"}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{/if}}
                 <div class='sparkle'>&#10022;</div>
               </div>
@@ -112,7 +112,7 @@
             {{/if}}
           {{else}}
             <div>
-              <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+              <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
             </div>
           {{/if}}
           <div style='font-weight: bold; font-size: 30px;'>{{model.badge.name}}</div>
@@ -144,9 +144,9 @@
             <div style='font-size: 14px; margin: 10px auto; max-width: 300px;'>
               <span style='color: #888;'>
                 {{#if model.badge.earned}}
-                  {{t "To earn this badge, %{user} had to:" user=user_name key="to_earn_user_had_to"}}<br/>
+                  {{t "To earn this badge, %{user} had to:" user=user_name key="to_earn_user_had_to"}}<br>
                 {{else}}
-                  {{t "To earn this badge, %{user} needs to:" user=user_name key="to_earn_user_needs_to"}}<br/>
+                  {{t "To earn this badge, %{user} needs to:" user=user_name key="to_earn_user_needs_to"}}<br>
                 {{/if}}
               </span>
 

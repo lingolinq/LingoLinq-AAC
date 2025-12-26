@@ -88,7 +88,7 @@
                 {{t "Initializing..." key="initializing"}}
               {{else}}
                 {{#if persistence.online}}
-                  <span style='font-size: 14px;'>{{t "Can't Reach %app_name% Cloud,<br/>Check Your Signal Quality" key="cant_reach_app"}}</span>
+                  <span style='font-size: 14px;'>{{t "Can't Reach %app_name% Cloud,<br>Check Your Signal Quality" key="cant_reach_app"}}</span>
                 {{else}}
                   {{t "Not Online" key="not_connected"}}
                 {{/if}}
@@ -111,7 +111,7 @@
             <button type='button' class='btn btn-default btn-lg' {{action "logout"}}>{{t "Log Out" key="log_out"}}</button>
           {{/if}}
           <span style="padding-left: 10px;">
-            {{#if force_logout}}<br/>{{/if}}
+            {{#if force_logout}}<br>{{/if}}
             {{#if app_state.no_linky}}
               {{#link-to "forgot_login"}}{{t "need help?" key="forgot_login"}}{{/link-to}}
             {{else}}
@@ -131,7 +131,7 @@
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}
       </p>
       <p>
-        <a href="https://lingolinq.zendesk.com/hc/en-us/articles/202007575" target='_blank'>
+        <a href="https://lingolinq.zendesk.com/hc/en-us/articles/202007575" target="_blank" rel="noopener">
           {{t "Learn more about configuring your browser to run %app_name%" key="learn_privacy"}}
         </a>
       </p>

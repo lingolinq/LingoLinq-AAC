@@ -64,9 +64,9 @@
     <div style='position: absolute; width: 100%;'>
       <div style='width: 400px; max-width: 80vw; max-height: calc(100vh - 200px); overflow: auto; margin: -20px auto 0; background: #fff; border: 2px solid #aaa; border-radius: 10px; padding: 10px; font-size: 16px; box-shadow: 1px 1px 10px, -1px -1px 10px;'>
         {{#if level_select}}
-          {{t "Great! Here's what your home board will look like right now. If you want, you can fine-tune it to show fewer or more button to start off. You can start at a basic level with only a few buttons, or show everything right away.<br/><br/>You can easily change the number of buttons shown later by adjusting the level for the communicator." key="button_count_prompt"}}
+          {{t "Great! Here's what your home board will look like right now. If you want, you can fine-tune it to show fewer or more button to start off. You can start at a basic level with only a few buttons, or show everything right away.<br><br>You can easily change the number of buttons shown later by adjusting the level for the communicator." key="button_count_prompt"}}
         {{else}}
-          {{t "Splendid! Next let's figure out what size of buttons will work best! If the buttons are too big then there won't be room to grow over time -- try to find the smallest size that your communicator can reliably use.<br/><br/>Remember that you can always hide buttons if a large board is overwhelming at first, but it's harder to change the grid size later." key="grid_prompt"}}
+          {{t "Splendid! Next let's figure out what size of buttons will work best! If the buttons are too big then there won't be room to grow over time -- try to find the smallest size that your communicator can reliably use.<br><br>Remember that you can always hide buttons if a large board is overwhelming at first, but it's harder to change the grid size later." key="grid_prompt"}}
         {{/if}}
         <div style='text-align: center; margin-top: 15px;'>
           <button class='btn btn-lg btn-primary' {{action "dismiss"}}>{{t "Got It" key="got_it"}}</button>
@@ -97,9 +97,9 @@
         {{#each board_styles as |style|}}
           <div class={{style.col_class}}>
             <button class='btn btn-default' {{action "set_board_style" style}} style='overflow: hidden;'>
-              {{style.name}}<br/>
+              {{style.name}}<br>
               ({{style.description}})
-              <img src={{style.image_url}} />
+              <img src={{style.image_url}} >
             </button>
           </div>
         {{/each}}
@@ -129,19 +129,19 @@
         {{else}}
           <div class='col-sm-4'>
             <button class='btn btn-default' {{action "set_base_level" 1}}>
-              <img src={{path "images/grid-few.svg"}} />
+              <img src={{path "images/grid-few.svg"}} >
               {{t "Brand New User" key="brand_new_user"}}
             </button>
           </div>
           <div class='col-sm-4'>
             <button class='btn btn-default' {{action "set_base_level" 4}}>
-              <img src={{path "images/grid-some.svg"}} />
+              <img src={{path "images/grid-some.svg"}} >
               {{t "Some Experience" key="some_experience"}}
             </button>
           </div>
           <div class='col-sm-4'>
             <button class='btn btn-default' {{action "set_base_level" 10}}>
-              <img src={{path "images/grid-full.svg"}} />
+              <img src={{path "images/grid-full.svg"}} >
               {{t "Very Experienced" key="very_experienced"}}
             </button>
           </div>

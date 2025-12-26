@@ -12,7 +12,7 @@
   <div class="modal-body">
     <h4>
       {{#if model.integration.icon_url}}
-        <img src={{model.integration.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'/>
+        <img src={{model.integration.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
       {{/if}}
       {{model.integration.name}}
     </h4>
@@ -34,7 +34,7 @@
       {{#if model.integration.access_token}}
         <p>{{t "The following tokens are necessary for this connected tool to access and receive information from LingoLinq. You should copy these tokens down, as they will not be visible again in the future." key="connected_tool_details"}}</p>
         <div style='width: 90%; overflow :auto;'>
-          {{t "API Access Token: %{token}" token=model.integration.access_token}} <br/><br/>
+          {{t "API Access Token: %{token}" token=model.integration.access_token}} <br><br>
           {{t "Webhook Token: %{token}" token=model.integration.token}}
         </div>
       {{/if}}

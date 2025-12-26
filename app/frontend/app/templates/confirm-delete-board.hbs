@@ -8,9 +8,9 @@
       {{t "Are you sure you want to delete this board?" key="confirm_delete_board"}}
     </p>
     {{#unless model.orphans}}
-      <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;"/>
+      <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
     {{/unless}}
-    <strong>{{model.board.name}}</strong><br/>
+    <strong>{{model.board.name}}</strong><br>
     {{#unless model.orphans}}
       {{model.board.grid.rows}} x {{model.board.grid.columns}}
       {{#if model.board.non_author_uses}}

@@ -2,26 +2,26 @@
   <h4>{{t "Using %app_name%" key="using_lingolinq"}}</h4>
 </div>
 <div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/aac_intro.gif"}} style='width: 100%;' />
+  <img src={{path "walkthrough/aac_intro.gif"}} style='width: 100%;' >
   {{#unless app_state.no_linky}}
     <div style='text-align: center; opacity: 0.8; margin-top: 10px; margin-bottom: 20px;'>
       {{#if app_state.domain_settings.ios_store_url}}
-        <a href={{app_state.domain_settings.ios_store_url}} target="_blank">
-          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;"/>
+        <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
         </a>
       {{/if}}
       {{#if app_state.domain_settings.play_store_url}}
-        <a href={{app_state.domain_settings.play_store_url}} target="_blank">
-          <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;"/>
+        <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+          <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
         </a>
       {{/if}}
       {{#if app_state.domain_settings.kindle_store_url}}
-        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank">
-          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;"/>
+        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
         </a>
       {{/if}}
-      <a href="https://app.mylingolinq.com/download" target="_blank">
-        <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;"/>
+      <a href="https://app.mylingolinq.com/download" target="_blank" rel="noopener">
+        <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
       </a>
     </div>
   {{/unless}}

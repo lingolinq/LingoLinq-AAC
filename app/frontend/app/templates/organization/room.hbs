@@ -166,7 +166,7 @@
                   {{#each model.topics as |topic|}}
                     <span style='padding-right: 15px; font-size: 16px;'>
                     {{#if topic.url}}
-                      <a href={{topic.url}} target='_blank'>{{topic.title}}</a>
+                      <a href={{topic.url}} target="_blank" rel="noopener">{{topic.title}}</a>
                     {{else}}
                       {{topic.title}}
                     {{/if}}
@@ -241,7 +241,7 @@
         {{#if log_stats.word_count}}
           {{stats/word-cloud stats=words_cloud short=true zoom=1}}
         {{else}}
-          <br/><br/><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br/>
+          <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
         {{/if}}
       </div>
       <div class='col-sm-6'>
@@ -249,7 +249,7 @@
         {{#if modeled_words_cloud.words_by_frequency.length}}
           {{stats/word-cloud stats=modeled_words_cloud short=true zoom=1}}
         {{else}}
-          <br/><br/><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br/>
+          <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
         {{/if}}
       </div>
       <div style='clear: both;'></div>
@@ -283,7 +283,7 @@
             {{#link-to "user.log" log.user.user_name log.id}}
               {{t "button" count=log.button_count key="button_count"}}
             {{/link-to}}
-            <br/>
+            <br>
             <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
           </p>
         </li>

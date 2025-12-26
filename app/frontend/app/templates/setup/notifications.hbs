@@ -19,7 +19,7 @@
       <div class="btn-group-vertical" style="width: 100%;">
         <span class={{if notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text"}}>
           {{t "As Text Messages" key="via_text"}}
-          <br/>
+          <br>
           <span style='display: inline-block; width: 300px;'>{{input type="text" class="form-control input-lg" value=cell placeholder="cell #"}}</span>
         </span>
         <a href="#" class={{if notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email"}}>{{t "As Email Messages" key="via_email"}}</a>

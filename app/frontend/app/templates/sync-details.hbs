@@ -76,7 +76,7 @@
         {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
         {{sync.summary}}
         {{#if sync.statuses}}
-          <br/>
+          <br>
           {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
           {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
           {{t "%{num} cached" num=sync.cached key="n_cached"}}

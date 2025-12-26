@@ -1,9 +1,9 @@
 {{#if license.type}}
   {{#if license.copyright_notice_url}}
     {{#if private_license}}
-      <a href={{license.copyright_notice_url}} target="_blank">{{t "All rights reserved" key="all_rights_reserved"}}</a>
+      <a href={{license.copyright_notice_url}} target="_blank" rel="noopener">{{t "All rights reserved" key="all_rights_reserved"}}</a>
     {{else}}
-      <a href={{license.copyright_notice_url}} target="_blank">{{license.type}}</a>
+      <a href={{license.copyright_notice_url}} target="_blank" rel="noopener">{{license.type}}</a>
     {{/if}}
   {{else}}
     {{#if protected_license}}
@@ -17,7 +17,7 @@
   {{#if license.author_name}}
     {{t " by " key="by_padded"}}
     {{#if license.author_url}}
-      <a href={{license.author_url}} target="_blank">{{license.author_name}}</a>
+      <a href={{license.author_url}} target="_blank" rel="noopener">{{license.author_name}}</a>
     {{else}}
       {{#if license.author_email}}
         <a href="mailto:{{license.author_email}}">{{license.author_name}}</a>
@@ -27,7 +27,7 @@
     {{/if}}
   {{/if}}
   {{#if license.source_url}}
-    (<a href={{license.source_url}} target="_blank">{{t "source" key="source_lower"}}</a>)
+    (<a href={{license.source_url}} target="_blank" rel="noopener">{{t "source" key="source_lower"}}</a>)
   {{/if}}
 {{else}}
   {{t "Unspecified, assume all rights reserved." key="unspecified_all_rights"}}

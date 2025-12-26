@@ -12,21 +12,21 @@
     <div style='text-align: center; margin: 50px 0;'>
       {{#if app_state.domain_settings.ios_store_url}}
         <a href={{app_state.domain_settings.ios_store_url}}>
-          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;"/>
+          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;">
         </a>
       {{/if}}
       {{#if app_state.domain_settings.play_store_url}}
         <a href={{app_state.domain_settings.play_store_url}}>
-          <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;"/>
+          <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;">
         </a>
       {{/if}}
       {{#if app_state.domain_settings.kindle_store_url}}
-        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank">
-          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;"/>
+        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
         </a>
       {{/if}}
       {{#link-to "download"}}
-        <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;"/>
+        <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;">
       {{/link-to}}
     </div>
 

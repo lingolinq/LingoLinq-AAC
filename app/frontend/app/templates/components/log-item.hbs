@@ -36,7 +36,7 @@
           {{@log.author.user_name}}
         {{/if}}
         {{#if @log.goal.status}}
-          <br/>
+          <br>
           <span class='face_label'><span class={{@log.goal_status_class}}></span></span>{{#if @log.goal.summary}} - {{@log.goal.summary}}{{/if}}
         {{/if}}
       </div>
@@ -46,7 +46,7 @@
         {{t "Assessment by" key="assessment_by"}}
         {{@log.author.user_name}}
       </div>
-      {{@log.assessment.description}}<br/>
+      {{@log.assessment.description}}<br>
       {{@log.assessment.summary}}
     {{else if @log.journal_type}}
       <div style="font-size: 10px; color: #888;">

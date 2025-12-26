@@ -1,7 +1,7 @@
 <div class="skinny_bio">
   <div class="well" style="text-align: center;">
     <div style='position: relative;'>
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;"/>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;">
       {{#if model.online}}
         <div title='currently online' class='online_marker'></div>
       {{/if}}
@@ -10,7 +10,7 @@
     <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
     <div>{{ model.description }}</div>
     {{#if model.details_url}}
-    <div><a href={{model.details_url}} target="_blank">{{ model.details_url }}</a></div>
+    <div><a href={{model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
     {{/if}}
     <div>{{ model.location }}</div>
     {{#if model.joined}}
@@ -29,14 +29,14 @@
         {{#if model.pending_org.sponsored}}
           {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}
         {{/if}}
-        <br/><br/>
+        <br><br>
         <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve"}}>{{t "Approve %{org}" org=model.pending_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject"}}>{{t "Deny Access"}}</button>
       </div>
     {{else if model.pending_supervision_org}}
       <div class='alert alert-info'>
         {{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=model.pending_supervision_org.name}}
-        <br/><br/>
+        <br><br>
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=model.pending_supervision_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access"}}</button>
       </div>
@@ -102,15 +102,15 @@
             {{/if}}
             {{#if model.device_image.device_url}}
               {{#if model.device_image.vocab_url}}
-                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);" style='position: absolute; top: 0px; left: 0px; width: 50%;'/>
-                <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);" style='position: relative;'/>
+                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);" style='position: absolute; top: 0px; left: 0px; width: 50%;'>
+                <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);" style='position: relative;'>
               {{else}}
-                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);"/>
+                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);">
               {{/if}}
             {{else if model.device_image.vocab_url}}
-              <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);"/>
+              <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);">
             {{else}}
-              <img src="/images/modeling_ideas.svg" onerror="button_broken_image(this);"/>
+              <img src="/images/modeling_ideas.svg" onerror="button_broken_image(this);">
             {{/if}}
             <div class='name' style='font-size: 17px; line-height: 18px;'>
               <div>
@@ -131,13 +131,13 @@
         {{else if model.preferences.sync_starred_boards}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
           <a href="#" {{action "load_starred"}} class="btn simple_board_icon btn-default">
-            <img src="/images/star.svg" onerror="button_broken_image(this);"/>
+            <img src="/images/star.svg" onerror="button_broken_image(this);">
             <div class='name' style='font-size: 17px; line-height: 18px;'>
               <div>
                 {{t "Liked Boards" key="liked_boards"}}
               </div>
               {{#if model.preferences.home_board.key}}
-                <div style='font-size: 12px;'>{{t "including<br/>%{bn}" bn=model.preferences.home_board.key key="including_board_name"}}</div>
+                <div style='font-size: 12px;'>{{t "including<br>%{bn}" bn=model.preferences.home_board.key key="including_board_name"}}</div>
               {{/if}}
             </div>
           </a>
@@ -148,13 +148,13 @@
           <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
           {{#link-to "home-boards" class="btn big_button btn-default"}}
             <span class='glyphicon glyphicon-home'></span>
-            {{t "No Home<br/>Board Set" key="no_home_board_set"}}
+            {{t "No Home<br>Board Set" key="no_home_board_set"}}
           {{/link-to}}
         {{/if}}
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
         <button class='btn big_button btn-default secondary_button' {{action "stats"}}>
-          <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'/>
+          <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
           {{t "Reports" key="reports"}}
         </button>
       </div>
@@ -206,7 +206,7 @@
           {{#if model.external_device}}
             <div class='col-sm-3 col-xs-6 big_button_holder'>
               <button class='btn big_button btn-default secondary_button' {{action "manual_log"}} style='height: 100px;'>
-                {{t "Manual Log<br/>Session" key="manual_log_session"}}
+                {{t "Manual Log<br>Session" key="manual_log_session"}}
               </button>
             </div>
             <div class='col-sm-3 col-xs-6 big_button_holder'>
@@ -236,7 +236,7 @@
           <div class='col-sm-3 col-xs-6' style='float: right; text-align: right; margin-top: -5px; margin-bottom: -10px;'>
             <div class="btn-group">
               <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='border-width: 3px; background: #eee;'>
-                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/extra_455_g.svg' style='height: 30px;'/>
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/extra_455_g.svg' style='height: 30px;'>
                 {{t "Extras" key="extras"}} <span class="caret"></span>
               </button>
               <ul class="dropdown-menu" style='right: 0; left: auto;'>
@@ -385,7 +385,7 @@
   <div class="row">
     <div class="col-sm-3 col-xs-6">
       {{#if model.permissions.edit}}
-        <strong>{{t "Recent Sessions:" key="log_colon"}}</strong><br/>
+        <strong>{{t "Recent Sessions:" key="log_colon"}}</strong><br>
         <div style="margin-left: 20px;">
           {{#if model.logs.loading}}
             <p>
@@ -410,7 +410,7 @@
                     {{t "button" count=log.button_count key="button_count"}}
                   {{/if}}
                 {{/link-to}}
-                <br/>
+                <br>
                 <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
               </p>
             {{/each}}
@@ -424,7 +424,7 @@
     </div>
     <div class="col-sm-3 col-sx-6">
       {{#if model.permissions.edit}}
-        <strong>{{t "Current Goals:" key="current_goals"}}</strong><br/>
+        <strong>{{t "Current Goals:" key="current_goals"}}</strong><br>
         {{#if model.goals.loading}}
           <p>{{t "Loading..." key="loading"}}</p>
         {{else if model.goals.error}}
@@ -468,11 +468,11 @@
               <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
                 {{#if badge.global}}
                   <a style='#' {{action "badge_popup" badge}}>
-                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                   </a>
                 {{else}}
                   <a style='#' {{action "badge_popup" badge}}>
-                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+                    <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                   </a>
                 {{/if}}
                 <div style='height: 30px; overflow: hidden; line-height: 14px;'>
@@ -506,7 +506,7 @@
           <ul class='list-group' style='max-width: 350px;'>
             {{#each model.topics as |topic|}}
               {{#if topic.url}}
-                <a class='list-group-item' href={{topic.url}} target='_blank'>{{topic.title}}</a>
+                <a class='list-group-item' href={{topic.url}} target="_blank" rel="noopener">{{topic.title}}</a>
               {{else}}
                 <li class='list-group-item'>{{topic.title}}</li>
               {{/if}}
@@ -644,7 +644,7 @@
         {{#if password}}
           <div>
             {{#unless password.pw}}
-              {{t "Are you sure you want to reset this user's password? They will receive an email notifying them of the reset." key="confirm_reset_password"}}<br/>
+              {{t "Are you sure you want to reset this user's password? They will receive an email notifying them of the reset." key="confirm_reset_password"}}<br>
               <button class='btn btn-default' {{action "reset_password" true}}>{{t "Reset Password" key="reset_password"}}</button>
               <button class='btn btn-default' {{action "reset_password" false}}>{{t "Cancel" key="cancel"}}</button>
             {{/unless}}
@@ -658,7 +658,7 @@
           </div>
         {{else if new_user_name}}
           <div>
-            {{t "Are you sure you want to change the user's user name? They will receive an email notifying them of the change." key="confirm_change"}}<br/>
+            {{t "Are you sure you want to change the user's user name? They will receive an email notifying them of the change." key="confirm_change"}}<br>
             <form class="form-horizontal" {{action "nothing"}}>
               <div class="form-group">
                 <label for="old_key" class="col-sm-3 control-label">{{t "Current User Name" key="current_user_name"}}</label>
@@ -706,7 +706,7 @@
                 {{date model.subscription.expires "day"}}
               {{/if}}
               {{#if model.purchase_duration}}
-                <br/>{{t "premium user for %{n} years" n=model.purchase_duration key="paid_for_n_years"}}
+                <br>{{t "premium user for %{n} years" n=model.purchase_duration key="paid_for_n_years"}}
               {{/if}}
               <div>
                 {{#if model.premium_voices}}
@@ -729,7 +729,7 @@
                 {{else if subscription_settings.error}}
                   {{subscription_settings.error}}
                 {{else}}
-                  {{t "Are you sure you want to set this user as a %{type}?" type=subscription_settings.type key="confirm_subscription_set"}}<br/>
+                  {{t "Are you sure you want to set this user as a %{type}?" type=subscription_settings.type key="confirm_subscription_set"}}<br>
                   <button class='btn btn-default' {{action "set_subscription" "confirm"}}>{{t "Update Subscription" key="update_subscription"}}</button>
                   <button class='btn btn-default' {{action "set_subscription" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
                 {{/if}}
@@ -790,7 +790,7 @@
                         <div style='font-size: 12px; color: #888;'>{{device.ref_id}}</div>
                       </td>
                       <td>
-                        {{device.app_version}}<br/>
+                        {{device.app_version}}<br>
                         {{device.token_type}}
                       </td>
                       <td style='width: 30%; font-size: 10px;'>{{device.user_agent}}</td>

@@ -4,12 +4,12 @@
   <h2 style='padding-left: 5px;'>
     {{#if app_state.currentUser.permissions.delete}}
       {{#link-to "user" app_state.currentUser.user_name class="hidden_link"}}
-        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;"/>
+        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
         <span style='vertical-align: middle'>{{app_state.currentUser.user_name}}</span>
       {{/link-to}}
     {{else}}
       <span>
-        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;"/>
+        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
         <span style='vertical-align: middle'>{{app_state.currentUser.user_name}}</span>
       </span>
     {{/if}}
@@ -40,11 +40,11 @@
         {{#link-to "user.subscription" app_state.currentUser.user_name class="list-group-item"}}
           <span class={{if app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
           {{#if app_state.currentUser.expired}}
-            <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br/>
+            <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br>
             {{t "your free preview has ended" key="preview_expired"}}
           {{else}}
             <strong>{{t "Please update your license" key="update_license"}}</strong>
-            <div style='font-size: 12px; line-height: 13px;'>{{t "your free preview ends" key="preview_expires"}}<br/>{{date app_state.currentUser.subscription.expires "day"}}</div>
+            <div style='font-size: 12px; line-height: 13px;'>{{t "your free preview ends" key="preview_expires"}}<br>{{date app_state.currentUser.subscription.expires "day"}}</div>
           {{/if}}
         {{/link-to}}
       {{/if}}
@@ -52,7 +52,7 @@
     {{#if app_state.currentUser.home_board_pending}}
       <a class="list-group-item collapsible">
         <span class="glyphicon glyphicon-home"></span>
-        {{t "current home board:" key="current_home_board"}}<br/>
+        {{t "current home board:" key="current_home_board"}}<br>
         <strong>{{t "copying %{brd}..." key="copying_board" brd=app_state.currentUser.home_board_pending}}</strong>
       </a>
     {{else if home_board_or_supporter}}
@@ -119,7 +119,7 @@
       {{else}}
         {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item collapsible"}}
           <span class="glyphicon glyphicon-home"></span>
-          {{t "current home board:" key="current_home_board"}}<br/>
+          {{t "current home board:" key="current_home_board"}}<br>
           <strong>{{app_state.currentUser.preferences.home_board.key}}</strong>
         {{/link-to}}
         {{#unless app_state.currentUser.any_limited_supervisor}}
@@ -166,7 +166,7 @@
               {{/if}}
             {{/if}}
             {{#if app_state.currentUser.stats.board_set_ids}}
-              <br/>
+              <br>
               {{#if persistence.sync_progress}}
                 {{persistence.sync_progress.visited}} /
                 {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
@@ -184,7 +184,7 @@
       {{#unless app_state.currentUser.modeling_only}}
         {{#link-to "home-boards" class="list-group-item collapsible"}}
           <span class="glyphicon glyphicon-home"></span>
-          <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br/>
+          <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br>
           {{t "Let us help you choose one." key="let_us_help_choose_home"}}
         {{/link-to}}
       {{/unless}}
@@ -262,7 +262,7 @@
             {{/if}}
           {{else}}
             {{t "disabled" key="logging_is_disabled"}}
-          {{/if}}<br/>
+          {{/if}}<br>
         {{/unless}}
 
         {{#if allow_logs}}
@@ -274,7 +274,7 @@
               </span>
             {{/if}}
           </span>
-          <br/>
+          <br>
           {{#if logs.loading}}
             {{t "Loading..." key="loading"}}
           {{else if logs.eror}}
@@ -302,7 +302,7 @@
       <a href="#" {{action "reload"}}>{{t "reload" key="reload"}}</a>
     </div>
     {{#if persistence.sync_log}}
-      <br/><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
+      <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
     {{/if}}
   </div>
   <div style="clear: both;"></div>
@@ -349,9 +349,9 @@
             <div style='float: left; position: relative;'>
               {{#link-to "user" supervisee.user_name}}
                 {{#if supervisee.local_avatar_url}}
-                  <img src={{supervisee.local_avatar_url}} rel-url={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;"/>
+                  <img src={{supervisee.local_avatar_url}} rel-url={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
                 {{else}}
-                  <img src={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;"/>
+                  <img src={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
                 {{/if}}
               {{/link-to}}
               {{#if supervisee.online}}
@@ -378,50 +378,50 @@
             </div>
             {{#if supervisee.home_board_key}}
               <button class='btn btn-primary' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id true}}>
-                <span class='glyphicon glyphicon-hand-up' style='font-size: 30px;'></span><br/>
+                <span class='glyphicon glyphicon-hand-up' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
-                  {{t "Model for" key="model_for"}}<br/>{{supervisee.user_name}}
+                  {{t "Model for" key="model_for"}}<br>{{supervisee.user_name}}
                 </div>
               </button>
               <button class='btn btn-default modeling_button less_important' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id}}>
-                <span class='glyphicon glyphicon-volume-up' style='font-size: 30px;'></span><br/>
+                <span class='glyphicon glyphicon-volume-up' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
-                  {{t "Speak as" key="speak_as"}}<br/>{{supervisee.user_name}}
+                  {{t "Speak as" key="speak_as"}}<br>{{supervisee.user_name}}
                 </div>
               </button>
             {{else if supervisee.external_device}}
               <button class='btn btn-default button_row_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <span class='glyphicon glyphicon-user' style='font-size: 30px;'></span><br/>
+                <span class='glyphicon glyphicon-user' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
-                  {{t "User" key="user"}}<br/>{{t "Profile" key="profile"}}
+                  {{t "User" key="user"}}<br>{{t "Profile" key="profile"}}
                 </div>
               </button>
             {{else}}
               <button class='btn btn-default button_row_wrap attention_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <img src={{path "images/learn.png"}}/>
+                <img src={{path "images/learn.png"}}>
                 <div style='line-height: 14px;'>
-                  {{t "Setup" key="setup"}}<br/>{{t "User" key="user"}}
+                  {{t "Setup" key="setup"}}<br>{{t "User" key="user"}}
                 </div>
               </button>
             {{/if}}
             {{#if app_state.currentUser.modeling_only}}
               <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "home_board" supervisee.home_board_key}}>
-                <span class='glyphicon glyphicon-th' style='font-size: 30px;'></span><br/>
+                <span class='glyphicon glyphicon-th' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
-                  {{t "Home" key="home"}}<br/>{{t "Board" key="board"}}
+                  {{t "Home" key="home"}}<br>{{t "Board" key="board"}}
                 </div>
               </button>
             {{else}}
               <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "stats" supervisee.user_name}}>
-                <span class='glyphicon glyphicon-stats' style='font-size: 30px;'></span><br/>
+                <span class='glyphicon glyphicon-stats' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
-                  {{t "Usage" key="usage"}}<br/>{{t "Reports" key="reports"}}
+                  {{t "Usage" key="usage"}}<br>{{t "Reports" key="reports"}}
                 </div>
               </button>
               <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "images/modeling_ideas.svg"}}/>
+                <img src={{path "images/modeling_ideas.svg"}}>
                 <div style='line-height: 14px;'>
-                  {{t "Modeling" key="modeling"}}<br/>{{t "Ideas" key="ideas"}}
+                  {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
                 </div>
               </button>
               <div class="btn-group">
@@ -458,7 +458,7 @@
           <div class='alert alert-danger'>
             {{t "Your evaluation has ended" key="eval_ended"}}
             {{#if app_state.currentUser.can_reset_eval}}
-              <br/>
+              <br>
               <button {{action "update_evaluation" "reset"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
                   <span class="glyphicon glyphicon-info-sign"></span>
@@ -466,7 +466,7 @@
                 </span>
               </button>
             {{else if app_state.currentUser.subscription.eval_extendable}}
-              <br/>
+              <br>
               <button {{action "update_evaluation" "extend"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
                   <span class="glyphicon glyphicon-info-sign"></span>
@@ -480,7 +480,7 @@
             {{t "Your evaluation is set to finish soon. This evaluation period will end" key="eval_ending_soon"}}
             {{date app_state.currentUser.subscription.eval_expires "day"}}.
             {{#if app_state.currentUser.can_reset_eval}}
-              <br/>
+              <br>
               <button {{action "update_evaluation"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
                   <span class="glyphicon glyphicon-info-sign"></span>
@@ -539,7 +539,7 @@
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_primary' class='btn big_button btn-default middle_row' {{action "manual_session"}}>
               <span class='glyphicon glyphicon-pencil'></span>
-              {{t "Manual Log<br/>Session" key="manual_log_session"}}
+              {{t "Manual Log<br>Session" key="manual_log_session"}}
             </button>
           </div>
         {{else}}
@@ -554,7 +554,7 @@
           {{#if app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               {{#link-to "user" app_state.currentUser.user_name id="nav_secondary" class="btn big_button btn-default"}}
-                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' />
+                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
               {{/link-to}}
             </div>
@@ -562,7 +562,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_secondary' class='btn big_button btn-default' {{action "stats"}}>
-              <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'/>
+              <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
               {{t "Reports" key="reports"}}
             </button>
           </div>
@@ -571,15 +571,15 @@
           {{#if modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
-                <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'/>
-                {{t "Modeling<br/>Ideas" key="modeling_ideas_two_lines"}}
+                <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
+                {{t "Modeling<br>Ideas" key="modeling_ideas_two_lines"}}
               </button>
             </div>
           {{else}}
             {{#unless app_state.currentUser.modeling_only}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button id='nav_tertiary' class='btn big_button btn-default' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} />
+                  <img src={{path "images/new.svg"}} >
                   {{t "New Board" key="new_board"}}
                 </button>
               </div>
@@ -589,8 +589,8 @@
           {{#unless app_state.currentUser.modeling_only}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default middle_row' {{action "intro"}}>
-                <img src={{path "images/learn.png"}} />
-                {{t "Learn<br/>and Setup" key="learn_and_setup"}}
+                <img src={{path "images/learn.png"}} >
+                {{t "Learn<br>and Setup" key="learn_and_setup"}}
               </button>
             </div>
           {{/unless}}
@@ -606,20 +606,20 @@
             {{#if app_state.currentUser.preferences.progress.intro_watched}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default middle_row' {{action "intro"}}>
-                  <img src={{path "images/learn.png"}} />
-                  {{t "Learn<br/>and Setup" key="learn_and_setup"}}
+                  <img src={{path "images/learn.png"}} >
+                  {{t "Learn<br>and Setup" key="learn_and_setup"}}
                 </button>
               </div>
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default middle_row' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} />
+                  <img src={{path "images/new.svg"}} >
                   {{t "New Board" key="new_board"}}
                 </button>
               </div>
             {{else}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default middle_row' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} />
+                  <img src={{path "images/new.svg"}} >
                   {{t "New Board" key="new_board"}}
                 </button>
               </div>
@@ -672,7 +672,7 @@
           {{#if app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               {{#link-to "user" app_state.currentUser.user_name class="btn big_button btn-default bottom_row"}}
-                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' />
+                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
               {{/link-to}}
             </div>
@@ -733,7 +733,7 @@
         <div class='col-xs-4 col-sm-6'>
           <div style='margin: 10px 0 20px -10px;'>
             <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
-            {{t "current home board:" key="current_home_board"}}<br/>
+            {{t "current home board:" key="current_home_board"}}<br>
             {{#if app_state.currentUser.preferences.home_board}}
               {{#link-to "board" app_state.currentUser.preferences.home_board.key}}
                 <strong style='font-size: 20px;'>{{app_state.currentUser.preferences.home_board.key}}</strong>
@@ -799,22 +799,22 @@
             </div>
             <div>
               {{#if app_state.domain_settings.ios_store_url}}
-                <a href={{app_state.domain_settings.ios_store_url}} target="_blank">
-                  <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;"/>
+                <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+                  <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
               {{#if app_state.domain_settings.play_store_url}}
-                <a href={{app_state.domain_settings.play_store_url}} target="_blank">
-                  <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;"/>
-                </a><br/>
+                <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+                  <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
+                </a><br>
               {{/if}}
               {{#if app_state.domain_settings.kindle_store_url}}
-                <a href={{app_state.domain_settings.kindle_store_url}} target="_blank">
-                  <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;"/>
+                <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+                  <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
               {{#link-to "download"}}
-                <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;"/>
+                <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
               {{/link-to}}
             </div>
           </div>
@@ -836,7 +836,7 @@
               <p>
                 <span class="glyphicon glyphicon-share"></span>
                 {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
-                {{t "is being shared with you by %{user_name}<br/>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
+                {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
               </p>
             {{/each}}
           {{/if}}
@@ -900,7 +900,7 @@
                     {{/link-to}}
                   </span>
                 {{/if}}
-                <br/>
+                <br>
                 <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
               </p>
             {{/each}}

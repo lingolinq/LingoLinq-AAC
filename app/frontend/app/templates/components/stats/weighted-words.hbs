@@ -5,7 +5,7 @@
       {{t "Weighted Words" key="weighted_words"}}
     </strong>
     <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
-    <br/>
+    <br>
     {{#each usage_stats.weighted_words as |word|}}
       <a href='#' class={{word.weight_class}} {{action "word_data" word.text}}>{{word.text}}</a>
     {{/each}}

@@ -11,7 +11,7 @@
         <a href="#" {{action "intro"}}>
           {{t "Learn about %app_name%" key="learn_about_app"}}
         </a>
-        <br/>
+        <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.intro_watched}}
           {{t "Done!" key="done_excl"}}
@@ -26,7 +26,7 @@
         {{#link-to "home-boards"}}
           {{t "Pick a home board" key="pick_a_home_board"}}
         {{/link-to}}
-        <br/>
+        <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.home_board_set}}
           {{t "Done!" key="done_excl"}}
@@ -41,7 +41,7 @@
         <a href="#" {{action "app_install"}}>
           {{t "Add the app to your device" key="add_app_to_your_device"}}
         </a>
-        <br/>
+        <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.app_added}}
           {{t "Done!" key="done_excl"}}
@@ -56,7 +56,7 @@
         {{#link-to "user.preferences" app_state.currentUser.user_name}}
           {{t "Configure your board preferences" key="configure_your_board_preferences"}}
         {{/link-to}}
-        <br/>
+        <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.preferences_edited}}
           {{t "Done!" key="done_excl"}}
@@ -71,7 +71,7 @@
         {{#link-to "user.edit" app_state.currentUser.user_name}}
           {{t "Update your profile" key="update_your_profile"}}
         {{/link-to}}
-        <br/>
+        <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.profile_edited}}
           {{t "Done!" key="done_excl"}}
@@ -87,7 +87,7 @@
           {{#link-to "user.subscription" app_state.currentUser.user_name}}
             {{t "Set up a subscription" key="pick_subscription"}}
           {{/link-to}}
-          <br/>
+          <br>
           <span class="text-muted" style="font-size: 12px;">
           {{#if model.progress.subscription_set}}
             {{t "Done!" key="done_excl"}}

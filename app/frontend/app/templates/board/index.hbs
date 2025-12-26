@@ -27,9 +27,9 @@
           {{/if}}
         {{/unless}}
         {{#if cc_license}}
-          <img src={{path "images/cc.png"}} alt="cc license" style="opacity: 0.5;"/>
+          <img src={{path "images/cc.png"}} alt="cc license" style="opacity: 0.5;">
         {{else if pd_license}}
-            <img src={{path "images/pd.png"}} alt="public domain" style="opacity: 0.5;"/>
+            <img src={{path "images/pd.png"}} alt="public domain" style="opacity: 0.5;">
         {{/if}}
         {{teaser_description}}
       </span>
@@ -38,12 +38,12 @@
   <div id="stash_hover" style="position: absolute;">
     <div {{action "stash_button"}} class='option'>
       <span class="glyphicon glyphicon-copy"></span>
-      {{t "Button<br/>Stash" key="copy_to_button_stash"}}
+      {{t "Button<br>Stash" key="copy_to_button_stash"}}
       <span style="clear: left;"></span>
     </div>
     <div {{action "word_data"}} class='option'>
       <span class="glyphicon glyphicon-book"></span>
-      {{t "Word<br/>Data" key="view_word_data"}}
+      {{t "Word<br>Data" key="view_word_data"}}
       <span style="clear: left;"></span>
     </div>
   </div>
@@ -56,7 +56,7 @@
             {{#if show_word_suggestion_images}}
               <span class='image_holder'>
                 {{#if suggestion.image}}
-                  <img src={{suggestion.image}} class={{if suggestion.hc_image "hc"}} data-fallback={{suggestion.fallback_image}} onerror='button_broken_image(this);' />
+                  <img src={{suggestion.image}} class={{if suggestion.hc_image "hc"}} data-fallback={{suggestion.fallback_image}} onerror='button_broken_image(this);' >
                 {{/if}}
               </span>
             {{/if}}
@@ -81,7 +81,7 @@
           {{#if board.background.image_exclusion}}
             <div class='exclude'></div>
           {{/if}}
-          <img src={{board.background_image_url_with_fallback}} style={{bg_img_style}}/>
+          <img src={{board.background_image_url_with_fallback}} style={{bg_img_style}}>
         {{/if}}
       </div>
     {{/if}}
@@ -108,12 +108,12 @@
                   <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
                     {{#if button.pending}}
                       <div class="pending">
-                        <img src={{path "images/spinner.gif"}} draggable='false' />
+                        <img src={{path "images/spinner.gif"}} draggable='false' >
                       </div>
                     {{/if}}
                     <div class={{button.action_class}}>
                       <span class="action">
-                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' />
+                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
                       </span>
                     </div>
                     <span class='img_holder' style={{button.image_holder_style}}>

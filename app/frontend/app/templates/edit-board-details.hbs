@@ -26,12 +26,12 @@
           {{input value=model.image_url class="form-control" id="image_url" placeholder="URL or pick from the list"}}
           <div style="margin-top: 12px; float: left; height: 42px; width: 42px; border: 1px solid #ccc; overflow: hidden;">
             {{#if model.image_url}}
-              <img src={{model.image_url}} {{action "pickImageUrl" model.image_url}} style="width: 40px; height: 40px;" alt="current image"/>
+              <img src={{model.image_url}} {{action "pickImageUrl" model.image_url}} style="width: 40px; height: 40px;" alt="current image">
             {{/if}}
           </div>
           <div class="icon_urls">
             {{#each iconUrls as |icon|}}
-              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} />
+              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} >
             {{/each}}
           </div>
           <div style="clear: left;"></div>
@@ -149,7 +149,7 @@
                 {{input type="checkbox" checked=model.word_suggestions}}
                 {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
-            </div><br/>
+            </div><br>
             <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
           </div>
         </div>
@@ -188,7 +188,7 @@
               {{input value=model.background.image class="form-control" id="background_image_url" placeholder="URL for background"}}
               <div style="margin-top: 12px; float: left; height: 60px; width: 80px; border: 1px solid #ccc; overflow: hidden;">
                 {{#if model.background.image}}
-                  <img src={{model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image"/>
+                  <img src={{model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image">
                 {{/if}}
               </div>
               <div style="clear: left;"></div>

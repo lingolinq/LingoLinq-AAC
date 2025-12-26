@@ -35,9 +35,9 @@
           <button class='btn btn-default' {{action "setup_recording"}} title={{t "Record Video" key="record_video"}}><span class='glyphicon glyphicon-facetime-video'></span><span class='sr-only'>{{t "Record Video" key="record_video"}}</span></button>
           <span class="file_select_holder">
             <button class='btn btn-default' title={{t "Upload Video" key="upload_video"}}>
-              <img src={{path "images/upload.svg"}} style='width: 35px; margin: -12px -3px -3px;'/><span class='sr-only'>{{t "Upload Video" key="upload_video"}}</span>
+              <img src={{path "images/upload.svg"}} style='width: 35px; margin: -12px -3px -3px;'><span class='sr-only'>{{t "Upload Video" key="upload_video"}}</span>
             </button>
-            <input type="file" name="video_upload" id="video_upload" accept="video/*"/>
+            <input type="file" name="video_upload" id="video_upload" accept="video/*">
           </span>
           {{#if video_error}}
             <p>{{t "There was an error while trying to record video" key="error_recording_video"}}</p>

@@ -2,7 +2,7 @@
   <h4>{{t "Usage Logging and Reports" key="usage_logging_and_reports"}}</h4>
 </div>
 <div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/reports.gif"}} style='width: 100%;' />
+  <img src={{path "walkthrough/reports.gif"}} style='width: 100%;' >
 </div>
 <div class='col-sm-5'>
   <p class='prompt'>{{t "%app_name% has powerful built-in reporting tools that allow caregivers, therapists and supporters to see things like what time of day the device is being used, most common words and progress toward goals. To use these helpful features, just enable logging." key="logging_reports_1"}}</p>
@@ -43,7 +43,7 @@
       <div class="btn-group-vertical" style="width: 100%;">
         <span class={{if notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text"}}>
           {{t "As Text Messages" key="via_text"}}
-          <br/>
+          <br>
           <span style='display: inline-block; width: 300px;'>{{input type="text" class="form-control input-lg" value=cell placeholder="cell #"}}</span>
         </span>
         <a href="#" class={{if notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email"}}>{{t "As Email Messages" key="via_email"}}</a>

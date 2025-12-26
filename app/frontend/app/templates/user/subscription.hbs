@@ -9,7 +9,7 @@
       {{#if subscription.user.pending_org}}
         <span class='glyphicon glyphicon-user' style="float: left; font-size: 30px; margin-right: 10px;"></span>
         {{t "<b>%{org}</b> wants to sponsor this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org" org=model.pending_org.name}}
-        <br/><br/>
+        <br><br>
         <button class="btn btn-default" {{action "approve_or_reject_org" true}}>{{t "Approve %{org}" org=model.pending_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" false}}>{{t "Deny Access"}}</button>
       {{else}}

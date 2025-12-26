@@ -9,13 +9,13 @@
     <div class="row">
       <div class="col-xs-12">
         {{#if model.user.avatar_url}}
-          <img src={{model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;"/>
+          <img src={{model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;">
         {{/if}}
-        {{t "Select an image from the list below, or upload your own!" key="select_or_upload"}}<br/>
+        {{t "Select an image from the list below, or upload your own!" key="select_or_upload"}}<br>
         {{#if loading_avatar}}
           {{t "Uploading..." key="uploading"}}
         {{else}}
-          <input type="file" id="avatar_upload" />
+          <input type="file" id="avatar_upload" >
           {{#if editable}}
             <div style='margin-bottom: 10px; margin-top: 5px;'>
               <a href="#" class='btn btn-default btn-sm' {{action "edit_image_url"}}>{{t "edit image" key="edit_image_lower"}}</a>

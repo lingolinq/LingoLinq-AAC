@@ -32,7 +32,7 @@
       {{t "Error Loading Ideas" key="error_loading_ideas"}}
     {{else if show_target_words}}
       {{#if current_activity.word}}
-        <img src={{path "images/modeling_ideas.svg"}} style='width: 100px; float: left; padding-right: 10px;' />
+        <img src={{path "images/modeling_ideas.svg"}} style='width: 100px; float: left; padding-right: 10px;' >
         <p>{{t "You can help your communicator learn to use their words by showing them! Look for opportunities to <b>use the word \"%{word}\"</b> in different activities and settings so they will get more comfortable with the word." word=current_activity.word key="chances_to_use_word"}}</p>
         <p style='margin-top: 30px; font-size: 14px;'>{{t "Below are some other words %app_name% sees might be useful to work with for your communicators." key="more_core_words"}}</p>
       {{else}}
@@ -94,9 +94,9 @@
     {{else if current_activity.real}}
       {{#if current_activity.types.topic_starters}}
       {{else if current_activity.image.image_url}}
-        <img src={{current_activity.image.image_url}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'/>
+        <img src={{current_activity.image.image_url}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
       {{else}}
-        <img src={{path "images/modeling_ideas.svg"}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'/>
+        <img src={{path "images/modeling_ideas.svg"}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
       {{/if}}
       {{#if current_activity.follow_up}}
         <h3>{{t "How Did It Go?" key="how_did_it_go"}}</h3>
@@ -121,7 +121,7 @@
         {{/unless}}
       {{else if current_activity.types.topic_starters}}
         <div style='text-align: center;'>
-          <img src={{current_activity.image.image_url}} class='fit_image' style='width: 100%; max-height: 500px;'/>
+          <img src={{current_activity.image.image_url}} class='fit_image' style='width: 100%; max-height: 500px;'>
         </div>
       {{/if}}
       {{#if current_activity.completed}}
@@ -134,7 +134,7 @@
         <div style='font-size: 13px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key="activity_match_for"}} {{t "user" count=current_activity.matching_users key="n_users"}}</div>
       {{/if}}
     {{else if current_activity}}
-      <img src={{path "images/modeling_ideas.svg"}} style='width: 150px; float: left; margin-right: 10px;'/>
+      <img src={{path "images/modeling_ideas.svg"}} style='width: 150px; float: left; margin-right: 10px;'>
       <p>{{t "Did you know that new communicators learn to combine words by observing others do it first? Did you know that babies hear thousands of hours of spoken language before speaking on their own? Or that AAC experts recommend up to 80% of communication with a new user be modeled on a device?" key="modeling_ideas_intro_1"}}</p>
       <!-- source: https://www.facebook.com/groups/421704261346486/permalink/830509463799295/ -->
       <p>{{t "Modeling, or showing examples of how to hit buttons to communicate, is very important! As you start work with communicators who are using AAC, look for chances to model different words, or the same words in different ways. It may take practice to get comfortable or to see results, but research has shown over and over how much of a different modeling makes!" key="modeling_ideas_intro_2"}}</p>
@@ -152,19 +152,19 @@
         <div style='margin-top: 5px; margin-left: 89px;'>
           <button class={{if current_activity.complete_score.score_1 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 1}}>
             <span class="face sad"></span>
-            {{t "We didn't<br/>do it" key="we_didnt_do_it"}}
+            {{t "We didn't<br>do it" key="we_didnt_do_it"}}
           </button>
           <button class={{if current_activity.complete_score.score_2 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 2}}>
             <span class="face neutral"></span>
-            {{t "We barely<br/>did it" key="we_barely_did_it"}}
+            {{t "We barely<br>did it" key="we_barely_did_it"}}
           </button>
           <button class={{if current_activity.complete_score.score_3 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 3}}>
             <span class="face happy"></span>
-            {{t "We did<br/>good!" key="we_did_good"}}
+            {{t "We did<br>good!" key="we_did_good"}}
           </button>
           <button class={{if current_activity.complete_score.score_4 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 4}}>
             <span class="face laugh"></span>
-            {{t "We did<br/>awesome!" key="we_did_awesome"}}
+            {{t "We did<br>awesome!" key="we_did_awesome"}}
           </button>
         </div>
     {{else}}

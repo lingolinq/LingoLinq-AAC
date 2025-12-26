@@ -25,7 +25,7 @@
         </div>
         <div class='basics'>
           <span {{action "badge_popup" badge}} style='cursor: pointer;'>
-            <img src={{badge.image_url}} class='badge_image'/>
+            <img src={{badge.image_url}} class='badge_image'>
             {{#if badge.earned}}
               <div class='sparkle'>&#10022;</div>
             {{/if}}
@@ -57,7 +57,7 @@
               </div>
             {{/if}}
           </div>
-          {{t "Level %{level}" level=badge.level key="level_n"}}<br/>
+          {{t "Level %{level}" level=badge.level key="level_n"}}<br>
           {{#if badge.earned}}
             {{#if badge.max_level}}
               {{t "Great job, you've completed all levels of this badge!" key="all_levels_completed"}}

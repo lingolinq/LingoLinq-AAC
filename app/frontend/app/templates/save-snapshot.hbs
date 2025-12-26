@@ -65,7 +65,7 @@
     {{else if snapshots}}
       {{#if show_snapshots_status}}
         {{#each snapshots as |snap|}}
-          SNAP! {{snap.name}} - <a href="#" {{action "delete_snapshots" snap}}>DELETE</a><br/>
+          SNAP! {{snap.name}} - <a href="#" {{action "delete_snapshots" snap}}>DELETE</a><br>
         {{/each}}
       {{else}}
         <a href="#" {{action "show_snapshots"}}>{{t "see other snapshots" key="see_other_snapshots"}}</a>

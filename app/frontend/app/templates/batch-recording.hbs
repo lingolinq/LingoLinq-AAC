@@ -78,7 +78,7 @@
           <div class='text-muted' style='font-size: 10px;'>
             {{repository.description}}
             {{#if repository.url}}
-              <a href={{repository.url}} target="_blank">{{t "learn more" key="learn_more_lower"}}</a>
+              <a href={{repository.url}} target="_blank" rel="noopener">{{t "learn more" key="learn_more_lower"}}</a>
             {{/if}}
           </div>
           {{#if repository.total}}

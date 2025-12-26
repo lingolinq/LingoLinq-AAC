@@ -3,13 +3,13 @@
     {{#if this.app_state.domain_settings.full_domain}}
       <div style='position: absolute; top: 0; left: 0; width: 100%;'>
         <div style='width: 400px; margin: 0 auto; background: rgba(255, 255, 255, 0.7); color: #000; line-height: 22px; padding: 10px; border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;'>
-          {{t "Did you know? %app_name% is now available as a" key="did_you_know"}}<br/><span style='font-size: 20px; text-shadow: -1px -1px 2px #fff, 1px 1px 2px #fff, -1px 1px 2px #fff, 1px -1px 2px #fff;'>{{#link-to "pricing"}}{{t "lifetime purchase" key="lifetime_purpose"}}{{/link-to}}</span>!
+          {{t "Did you know? %app_name% is now available as a" key="did_you_know"}}<br><span style='font-size: 20px; text-shadow: -1px -1px 2px #fff, 1px 1px 2px #fff, -1px 1px 2px #fff, 1px -1px 2px #fff;'>{{#link-to "pricing"}}{{t "lifetime purchase" key="lifetime_purpose"}}{{/link-to}}</span>!
         </div>
       </div>
     {{/if}}
   {{/unless}}
   <div style="margin-bottom: 30px;">
-    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;" alt="Logo"/>
+    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;" alt="Logo">
   </div>
   <h2>{{t "Communication is for everyone. %app_name%" key="communication_is_for_everyone"}}
     <span id="header_line_2">{{t "empowers people to make their voices heard." key="empowers_hearing"}}</span>
@@ -35,7 +35,7 @@
     </h2>
     <div style="line-height: 28px; font-size: 18px;">
     <p>{{t "Some people are hard to hear -- through no fault of their own. Disabilities like autism, cerebral palsy, Down syndrome, Angelman syndrome and Rett syndrome make it harder for many individuals to communicate on their own. Powerful software called Augmentative and Alternative Communication (AAC) can fill the gaps and make every voice heard." key="app_lets_you"}}</p>
-    <br/>
+    <br>
     <p>{{t "At %app_name% we work to help bring out the voices of those with complex communication needs through powerful open-source technology that easily adapts to the individual and supports everyone around them trying to help them succeed." key="app_lets_you_2"}}</p>
     </div>
     {{#unless this.app_state.no_linky}}
@@ -45,9 +45,9 @@
   {{#unless this.app_state.no_linky}}
     <div class="col-sm-5">
       <a href="https://blog.mylingolinq.com/new-well-known-image-library-within-lingolinq/" target='_blank' rel="noopener noreferrer" style='position: absolute; top: -39px; right: 60px;'>
-        <img src={{path "images/pcs-lingolinq.png"}} style='height: 90px;' alt="PCS"/>
+        <img src={{path "images/pcs-lingolinq.png"}} style='height: 90px;' alt="PCS">
       </a>
-      <img src={{path "images/preview.png"}} style="width: 100%; margin-top: 40px;" alt="preview"/>
+      <img src={{path "images/preview.png"}} style="width: 100%; margin-top: 40px;" alt="preview">
     </div>
   {{/unless}}
   {{#unless this.app_state.installed_app}}
@@ -55,23 +55,23 @@
       <div class="col-sm-12" style="text-align: center; margin-top: 30px; margin-bottom: -40px;">
         {{#if this.app_state.domain_settings.ios_store_url}}
           <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener noreferrer">
-            <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;"/>
+            <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;">
           </a>
         {{/if}}
-        <img src={{path "images/web_version.svg"}} alt="web version" style="height: 50px; margin-top: 5px;"/>
+        <img src={{path "images/web_version.svg"}} alt="web version" style="height: 50px; margin-top: 5px;">
         {{#if this.app_state.domain_settings.play_store_url}}
           <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener noreferrer">
-            <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;"/>
+            <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;">
           </a>
         {{/if}}
         {{#if this.app_state.domain_settings.kindle_store_url}}
           <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener noreferrer">
-            <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;"/>
+            <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
           </a>
         {{/if}}
         {{#if this.app_state.domain_settings.windows_64_bit_url}}
           {{#link-to "download"}}
-            <img src={{path "images/windows.svg"}} alt="windows" style='height: 50px; margin-top: 5px;'/>
+            <img src={{path "images/windows.svg"}} alt="windows" style='height: 50px; margin-top: 5px;'>
           {{/link-to}}
         {{/if}}
         <div style='margin-top: 10px;'>
@@ -178,14 +178,14 @@
       <div class="col-sm-6" style='text-align: center;'>
         <h3>{{t "For Families" key="for_families"}}</h3>
         <a {{action "intro_video" "eoiScclYEX4"}} href='#' class='dim_glyph_until_hover' style='position: relative;'>
-          <img src='https://img.youtube.com/vi/S_6lh5d0cco/maxresdefault.jpg' style='width: 420px; height: 235px; border: 2px solid #888; padding: 6px; border-radius: 5px;' alt="video"/>
+          <img src='https://img.youtube.com/vi/S_6lh5d0cco/maxresdefault.jpg' style='width: 420px; height: 235px; border: 2px solid #888; padding: 6px; border-radius: 5px;' alt="video">
           <span class='glyphicon glyphicon-play-circle' style='font-size: 80px;position: absolute;left: 168px;top: -32px;color: #fff; text-shadow: 2px 2px 5px #444, -2px -2px 5px #444, 2px -2px 5px #444, -2px 2px 5px #444;'></span>
         </a>
       </div>
       <div class="col-sm-6" style='text-align: center;'>
         <h3>{{t "For Schools" key="for_schools"}}</h3>
         <a {{action "intro_video" "S_6lh5d0cco"}} href='#' style='position: relative;' class='dim_glyph_until_hover'>
-          <img src='https://img.youtube.com/vi/eoiScclYEX4/maxresdefault.jpg' style='width: 420px; height: 235px; border: 2px solid #888; padding: 6px; border-radius: 5px;' alt="video"/>
+          <img src='https://img.youtube.com/vi/eoiScclYEX4/maxresdefault.jpg' style='width: 420px; height: 235px; border: 2px solid #888; padding: 6px; border-radius: 5px;' alt="video">
           <span class='glyphicon glyphicon-play-circle' style='font-size: 80px;position: absolute;left: 168px;top: -32px;color: #444; text-shadow: 2px 2px 5px #fff, -2px -2px 5px #fff, 2px -2px 5px #fff, -2px 2px 5px #fff;'></span>
         </a>
       </div>
@@ -227,7 +227,7 @@
             <div class="form-group">
               {{input type="password" value=this.user.password class="form-control" id="password" title="password" placeholder="Password"}}
               {{#if this.shortPassword}}
-                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br/>
+                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br>
               {{/if}}
             </div>
             <div class="form-group">

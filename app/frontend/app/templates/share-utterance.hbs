@@ -24,7 +24,7 @@
                 {{#if sup.reply}}
                   <span id='reply_icon' class='label-info' style='position: absolute; top: 3px; left: 18px;'><span class='glyphicon glyphicon-envelope' style='font-size: 14px;'></span></span>
                 {{/if}}
-                <img src={{sup.avatar_url}} />
+                <img src={{sup.avatar_url}} >
                 {{sup.user_name}}
               </button>
             </div>
@@ -63,7 +63,7 @@
       {{/if}}
       {{#if utterance_record.link}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
-          <a class='btn btn-default' {{action "share_via" "link"}} target='_blank'>
+          <a class='btn btn-default' {{action "share_via" "link"}} target="_blank" rel="noopener">
             <span class="glyphicon glyphicon-hand-up"></span>
             {{t "Link" key="link"}}
           </a>
@@ -72,7 +72,7 @@
       {{#if shares.facebook}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "facebook"}}>
-            <img src={{path "images/logos/facebook.png"}} alt={{t "Share via Facebook" key="share_via_facebook"}} style='filter: grayscale(0.8);'/>
+            <img src={{path "images/logos/facebook.png"}} alt={{t "Share via Facebook" key="share_via_facebook"}} style='filter: grayscale(0.8);'>
             {{t "Facebook" key="facebook"}}
           </button>
         </div>
@@ -80,7 +80,7 @@
       {{#if shares.twitter}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "twitter"}}>
-            <img src={{path "images/logos/twitter.png"}} alt={{t "Share via Twitter" key="share_via_twitter"}} style='filter: grayscale(0.8);' />
+            <img src={{path "images/logos/twitter.png"}} alt={{t "Share via Twitter" key="share_via_twitter"}} style='filter: grayscale(0.8);' >
             {{t "Twitter" key="twitter"}}
           </button>
         </div>
@@ -88,7 +88,7 @@
       {{#if shares.instagram}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "instagram"}}>
-            <img src={{path "images/logos/instagram.png"}} alt={{t "Share via Instagram" key="share_via_instagram"}} style='filter: grayscale(0.8);' />
+            <img src={{path "images/logos/instagram.png"}} alt={{t "Share via Instagram" key="share_via_instagram"}} style='filter: grayscale(0.8);' >
             {{t "Instagram" key="instagram"}}
           </button>
         </div>

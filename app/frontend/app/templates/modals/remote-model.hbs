@@ -6,7 +6,7 @@
   <div class="modal-body">
     <p>
       {{#if model.user.avatar_url_with_fallback}}
-        <img src={{model.user.avatar_url_with_fallback}} style='float: left; width: 50px; margin: 0 10px 5px 0;'/>
+        <img src={{model.user.avatar_url_with_fallback}} style='float: left; width: 50px; margin: 0 10px 5px 0;'>
       {{else}}
         <span class='glyphicon glyphicon-search' style='float: left; font-size: 50px; margin: 0 10px 5px 0;'></span>
       {{/if}}
@@ -34,7 +34,7 @@
           <div style='clear: left;'></div>
           <div class='reactions'>
             {{#each reactions as |reaction|}}
-              <img class={{if reaction.sending "sending" ""}} src={{reaction.url}} alt={{reaction.text}} {{action "send_reaction" reaction}} />
+              <img class={{if reaction.sending "sending" ""}} src={{reaction.url}} alt={{reaction.text}} {{action "send_reaction" reaction}} >
             {{/each}}
           </div>
           <div style='display: none;'>
@@ -49,11 +49,11 @@
           <div class='btn-group' style='width: 100%; margin: 20px 0; display: flex; flex-direction: row;'>
             <button type='button' style='flex: 1; white-space: normal; max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_modeling" "follow"}} class={{if following_mode "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>
               <span class='glyphicon glyphicon-search'></span>
-              {{t "Follow activity<br/>for %{user_name}" key="follow_user" user_name=model.user.user_name}}
+              {{t "Follow activity<br>for %{user_name}" key="follow_user" user_name=model.user.user_name}}
             </button>
             <button type='button' style='flex: 1; white-space: normal; max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_modeling" "model"}} class={{if following_mode "btn btn-default btn-lg" "btn btn-primary btn-lg"}}>
               <span class='glyphicon glyphicon-road'></span>
-              {{t "Follow and model activity<br/>for %{user_name}" key="model_for_user" user_name=model.user.user_name}}
+              {{t "Follow and model activity<br>for %{user_name}" key="model_for_user" user_name=model.user.user_name}}
             </button>
           </div>
         {{/if}}

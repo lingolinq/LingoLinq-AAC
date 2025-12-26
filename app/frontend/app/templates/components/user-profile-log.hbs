@@ -6,9 +6,9 @@
         <div class="panel-body">
           {{date @processedProfile.started_at}}
           {{#if @expectedProfile.state.due_soon}}
-            <br/><button {{action @repeatProfile}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key="repeat_profile_due_soon"}}</button>
+            <br><button {{action @repeatProfile}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key="repeat_profile_due_soon"}}</button>
           {{else if @expectedProfile.overdue}}
-            <br/><button {{action @repeatProfile}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key="repeat_profile_overdue"}}</button>
+            <br><button {{action @repeatProfile}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key="repeat_profile_overdue"}}</button>
           {{/if}}
         </div>
       </div>

@@ -2,7 +2,7 @@
     <div class="wrapper" style="background: #fff;">
     <h2>
       {{#link-to "user" app_state.currentUser.user_name class="hidden_link"}}
-        <img src={{app_state.currentUser.avatar_url_with_fallback}} style="height: 40px;"/>
+        <img src={{app_state.currentUser.avatar_url_with_fallback}} style="height: 40px;">
         {{app_state.currentUser.user_name}}
       {{/link-to}}
     </h2>
@@ -23,10 +23,10 @@
           {{#link-to "user.subscription" app_state.currentUser.user_name class="list-group-item"}}
             <span class={{if app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
             {{#if app_state.currentUser.expired}}
-              <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br/>
+              <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br>
               {{t "your free preview has ended" key="preview_expired"}}
             {{else}}
-              <strong>{{t "Please update your license" key="update_license"}}</strong><br/>
+              <strong>{{t "Please update your license" key="update_license"}}</strong><br>
               {{t "your free preview ends" key="preview_expires"}} {{date app_state.currentUser.subscription.expires "day"}}
             {{/if}}
           {{/link-to}}
@@ -36,14 +36,14 @@
         <span class="list-group-item" style="height: auto; overflow: visible;">
           <span class="glyphicon glyphicon-user"></span>
           <span style="display: inline-block; width: 200px; width: calc(100% - 60px);">
-            {{t "supervisees:" key="supervisees_colon"}}<br/>
+            {{t "supervisees:" key="supervisees_colon"}}<br>
             <ul class={{if many_supervisees "list-unstyled supervisee_list tall" "list-unstyled supervisee_list"}} style="margin-bottom: -15px;">
             {{#if app_state.currentUser.known_supervisees}}
               {{#each app_state.currentUser.known_supervisees as |supervisee|}}
                 <li style="margin: 5px 0; font-size: 20px;">
                   <div class="btn-group btn-group-lg supervisee_nav">
                     {{#link-to "user" supervisee.user_name class="btn btn-default"}}
-                      <img src={{supervisee.avatar_url}} style="position: absolute; top: 10px; left: 10px; height: 40px; width: 40px; margin: -5px 5px -5px -5px;"/>
+                      <img src={{supervisee.avatar_url}} style="position: absolute; top: 10px; left: 10px; height: 40px; width: 40px; margin: -5px 5px -5px -5px;">
                       {{#if supervisee.goal}}
                         <div style='padding-left: 33px; margin-top: -5px;'>
                           {{supervisee.user_name}}
@@ -149,7 +149,7 @@
         {{else}}
           {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item"}}
             <span class="glyphicon glyphicon-home"></span>
-            {{t "current home board:" key="current_home_board"}}<br/>
+            {{t "current home board:" key="current_home_board"}}<br>
             <strong>{{app_state.currentUser.preferences.home_board.key}}</strong>
           {{/link-to}}
           {{#unless app_state.currentUser.subscription.any_limited_supervisor}}
@@ -194,7 +194,7 @@
                 {{/if}}
               {{/if}}
               {{#if app_state.currentUser.stats.board_set_ids}}
-                <br/>
+                <br>
                 {{#if persistence.sync_progress}}
                   {{persistence.sync_progress.visited}} /
                   {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
@@ -211,13 +211,13 @@
       {{else if app_state.currentUser.home_board_pending}}
         <a class="list-group-item">
           <span class="glyphicon glyphicon-home"></span>
-          {{t "current home board:" key="current_home_board"}}<br/>
+          {{t "current home board:" key="current_home_board"}}<br>
           <strong>{{t "copying %{brd}..." key="copying_board" brd=app_state.currentUser.home_board_pending}}</strong>
         </a>
       {{else}}
         {{#link-to "home-boards" class="list-group-item"}}
           <span class="glyphicon glyphicon-home"></span>
-          <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br/>
+          <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br>
           {{t "Let us help you choose one." key="let_us_help_choose_home"}}
         {{/link-to}}
       {{/if}}
@@ -293,7 +293,7 @@
       </a>
     {{/if}}
     {{#if persistence.sync_log}}
-      <br/><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
+      <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
     {{/if}}
     <div style="clear: right;"></div>
     </div>
@@ -337,22 +337,22 @@
           </div>
           <div>
             {{#if app_state.domain_settings.ios_store_url}}
-              <a href={{app_state.domain_settings.ios_store_url}} target="_blank">
-                <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;"/>
+              <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+                <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
               </a>
             {{/if}}
             {{#if app_state.domain_settings.play_store_url}}
-              <a href={{app_state.domain_settings.play_store_url}} target="_blank">
-                <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;"/>
-              </a><br/>
+              <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+                <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
+              </a><br>
             {{/if}}
             {{#if app_state.domain_settings.kindle_store_url}}
-              <a href={{app_state.domain_settings.kindle_store_url}} target="_blank">
-                <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;"/>
+              <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+                <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
               </a>
             {{/if}}
             {{#link-to "download"}}
-              <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;"/>
+              <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
             {{/link-to}}
           </div>
         </div>
@@ -383,11 +383,11 @@
               </div>
             </div>
           {{else}}
-            <button class='btn btn-primary btn-lg' style='width: 100%;' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br/><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
+            <button class='btn btn-primary btn-lg' style='width: 100%;' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
           {{/unless}}
         {{/if}}
       {{else}}
-        <button class='btn btn-primary' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br/><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
+        <button class='btn btn-primary' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
       {{/if}}
       <h4>{{t "Notifications" key="notifications"}}</h4>
       <div style="margin-left: 20px;">
@@ -406,7 +406,7 @@
             <p>
               <span class="glyphicon glyphicon-share"></span>
               {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
-              {{t "is being shared with you by %{user_name}<br/>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
+              {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
             </p>
           {{/each}}
         {{/if}}
@@ -470,7 +470,7 @@
                   {{/link-to}}
                 </span>
               {{/if}}
-              <br/>
+              <br>
               <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
             </p>
           {{/each}}

@@ -2,9 +2,9 @@
   <a href="#" {{action "badge_popup"}}>
     <span style='position: relative; display: inline-block;'>
       {{#if badge.image_url}}
-        <img src={{badge.image_url}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+        <img src={{badge.image_url}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
       {{else}}
-        <img src={{path "images/badge-fallback.png"}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} />
+        <img src={{path "images/badge-fallback.png"}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
       {{/if}}
       {{#unless inline}}
         <div class='sparkle'>✦</div>

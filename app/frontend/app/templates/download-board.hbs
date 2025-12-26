@@ -15,7 +15,7 @@
         <div class='alert alert-success'>{{status_message}}</div>
         <b>
         {{#if pdf_download}}
-          <a target="_blank" href={{progress.result.download_url}}>{{t "Open board(s) for printing" key="open_board_for_printing"}}</a>
+          <a target="_blank" href={{progress.result.download_url}} rel="noopener">{{t "Open board(s) for printing" key="open_board_for_printing"}}</a>
         {{else}}
           <a href={{progress.result.download_url}}>{{t "Download board(s) to your computer" key="board_download_available"}}</a>
         {{/if}}
@@ -26,9 +26,9 @@
         {{else}}
           {{#if progress}}
             {{#if pdf_download}}
-              {{t "Generating PDF for download. This could take around %{n} minutes." n=minutes_estimate key="print_board_generating"}}<br/><br/>
+              {{t "Generating PDF for download. This could take around %{n} minutes." n=minutes_estimate key="print_board_generating"}}<br><br>
             {{else}}
-              {{t "Generating file for download. This could take around %{n} minutes." n=minutes_estimate key="download_board_generating"}}<br/><br/>
+              {{t "Generating file for download. This could take around %{n} minutes." n=minutes_estimate key="download_board_generating"}}<br><br>
             {{/if}}
 
             <div class='alert alert-info'>{{status_message}}</div>

@@ -5,14 +5,14 @@
   </div>
   <div class="modal-body">
     {{#if board.public}}
-      <p>{{t "This board is public, and available to share with anyone. Copy the link to this board to share it on other apps/sites.<br/><!--TODO: (for better sharing install the  mobile app).-->" key="copy_board_link"}}</p>
+      <p>{{t "This board is public, and available to share with anyone. Copy the link to this board to share it on other apps/sites.<br><!--TODO: (for better sharing install the  mobile app).-->" key="copy_board_link"}}</p>
 
       <div class="row" style="margin: 30px 0 0;">
         <div class="col-sm-12">
           <p class="form-control-static" style="line-height: 34px; vertical-align: middle; margin-bottom: 10px;">
-            <img src={{board.icon_url_with_fallback}} style="height: 30px; padding-right: 5px;"/>
+            <img src={{board.icon_url_with_fallback}} style="height: 30px; padding-right: 5px;">
             {{#if board.link}}
-              <a href={{board.link}} target="_blank">Link to {{board.name}} ({{board.key}}) <span class="glyphicon glyphicon-hand-up"></span></a>
+              <a href={{board.link}} target="_blank" rel="noopener">Link to {{board.name}} ({{board.key}}) <span class="glyphicon glyphicon-hand-up"></span></a>
               <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{board.link}}</span>
             {{/if}}
           </p>
@@ -75,7 +75,7 @@
             {{#each board.shared_users as |user|}}
               <tr>
                 <td style="width: 60px;">
-                  <img src={{user.avatar_url}} style="height: 50px; width: 50px;"/>
+                  <img src={{user.avatar_url}} style="height: 50px; width: 50px;">
                 </td>
                 <td>
                   <div style="font-size: 20px;">

@@ -127,14 +127,14 @@
           {{else}}
             <ul class="list-unstyled">
             {{#each images_with_license as |image|}}
-              <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;"/>
+              <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;">
               {{license-attribution license=image.license}}
               </li>
             {{/each}}
             {{#each sounds_with_license as |sound|}}
               <li>
-                <strong>{{sound.filename}}</strong><br/>
-                <audio controls src={{sound.url}} style="width: 100%;"></audio><br/>
+                <strong>{{sound.filename}}</strong><br>
+                <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
                 <span style="padding-left: 20px;">
                   {{license-attribution license=sound.license}}
                 </span>

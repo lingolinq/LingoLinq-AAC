@@ -14,11 +14,11 @@
       <div class="btn-group" role="group" aria-label="Jump Home" style='margin-bottom: 20px; width: 100%;'>
         <button type="button" {{action "set_attribute" "jump_home" true}} class={{if model.jump_home "btn btn-primary" "btn btn-default"}} style='width: 50%; padding: 10px 30px 10px;'>
           <span class='glyphicon glyphicon-home' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
-          {{t "Go to the Communicator's<br/>Home Board" key="go_to_users_home_board"}}
+          {{t "Go to the Communicator's<br>Home Board" key="go_to_users_home_board"}}
         </button>
         <button type="button" {{action "set_attribute" "jump_home" false}} class={{if model.jump_home "btn btn-default" "btn btn-primary"}} style='width: 50%; padding: 10px 30px 10px;'>
           <span class='glyphicon glyphicon-pushpin' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
-          {{t "Stay on<br/>This Board" key="stay_on_this_board"}}
+          {{t "Stay on<br>This Board" key="stay_on_this_board"}}
         </button>
       </div>
     {{/unless}}
@@ -27,11 +27,11 @@
         <div class="btn-group" role="group" aria-label="Speak Mode Style" style='margin-bottom: 20px; width: 100%;'>
           <button type="button" {{action "set_attribute" "keep_as_self" true}} class={{if model.keep_as_self "btn btn-primary" "btn btn-default"}} style='width: 50%; padding: 10px 30px 10px;'>
             <span class='glyphicon glyphicon-hand-up' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
-            Model for the<br/>Communicator
+            Model for the<br>Communicator
           </button>
           <button type="button" {{action "set_attribute" "keep_as_self" false}} class={{if model.keep_as_self "btn btn-default" "btn btn-primary"}} style='width: 50%; padding: 10px 30px 10px;'>
             <span class='glyphicon glyphicon-volume-up' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
-            Speak as the<br/>Communicator
+            Speak as the<br>Communicator
           </button>
         </div>
       {{/unless}}

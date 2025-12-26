@@ -15,7 +15,7 @@
       {{board-hierarchy selectable=true hierarchy=hierarchy}}
       <button class='btn btn-primary' {{action "start_copying"}} disabled={{hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
     {{else}}
-      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"/> {{t "Copying the board <strong>%{board_key}</strong>,<br/> this could take a few minutes..." key="copying_the_board" board_key=model.board.key}} </p>
+      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=model.board.key}} </p>
     {{/if}}
   </div>
   <div class="modal-footer">

@@ -9,11 +9,11 @@
     {{#if model.webhook.testing.waiting}}
       {{t "sending test message to event handler URLs..." key="testing_webhook"}}
     {{else if model.webhook.testing.error}}
-      <span class='text-danger'>{{t "there was an unexpected error while trying to test the event handler" key="error_testing_webhook"}}</span><br/>
+      <span class='text-danger'>{{t "there was an unexpected error while trying to test the event handler" key="error_testing_webhook"}}</span><br>
       <a href="#" {{action "test"}}>{{t "try again" key="try_again_lower"}}</a>
     {{else}}
       {{#if model.webhook.testing.done}}
-        <span class='text-success'>{{t "finished testing the event handler" key="done_testing_webhook"}}</span><br/>
+        <span class='text-success'>{{t "finished testing the event handler" key="done_testing_webhook"}}</span><br>
         <a href="#" {{action "test"}}>{{t "try again" key="try_again_lower"}}</a>
       {{else}}
         <a href="#" {{action "test"}}>
@@ -25,8 +25,8 @@
       <h4>{{t "Results" key="results"}}</h4>
       {{#each model.webhook.testing.result as |result|}}
         <div style='width: 100%; white-space: nowrap; overflow: hidden;'>{{result.url}}</div>
-        {{t "Status: %{status}" status=result.response_code key="status_code"}}<br/>
-        <div style='font-size: 11px; white-space: pre-line;'>{{result.response_body}}</div><br/><br/>
+        {{t "Status: %{status}" status=result.response_code key="status_code"}}<br>
+        <div style='font-size: 11px; white-space: pre-line;'>{{result.response_body}}</div><br><br>
       {{/each}}
     {{/if}}
   </div>

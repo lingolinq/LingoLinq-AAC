@@ -16,11 +16,11 @@
               {{#if goal.current_badge}}
                 {{# if goal.current_badge.earned}}
                   <span style='display: inline-block; position: relative;'>
-                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                     <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
                   </span>
                 {{else}}
-                  <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                  <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                   <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
                     <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
                       <span class="sr-only">
@@ -30,7 +30,7 @@
                   </div>
                 {{/if}}
               {{else if goal.badge_image_url}}
-                <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+                <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
               {{else}}
                 <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
               {{/if}}
@@ -89,7 +89,7 @@
         <p>{{t "Goals are a way to help the communicator and their support team keep their current strategies top of mind. They can be general like \"Remember to use core words!\" or specific like \"Use greetings when entering a new setting\". Remember, these can be goals for the communicator (\"Answer questions with yes or no\"), <strong>or</strong> for the support team around the communicator (\"Use a prompting hierarchy\")." key="goals_explainer1"}}</p>
         <p>{{t "Goals can be tracked for each communicator using assessments, or when making notes on a user's logs. These status updates are then used to show a general report of how the goal is progessing over time." key="goals_explainer2"}}</p>
         <p>{{t "You can start using goals at any time by creating a goal for a communicator. Then use notes and assessments to track progress toward the goal over time. Users can have multiple goals, but only one \"primary\" goal at a time." key="goals_explainer_3"}}</p>
-        <p>{{t "For more information on choosing good goals, <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank'>please check out</a> these <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank'>great resources</a> from PrAACtical AAC." key="goals_explainer_4"}}</p>
+        <p>{{t "For more information on choosing good goals, <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank' rel='noopener'>please check out</a> these <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank' rel='noopener'>great resources</a> from PrAACtical AAC." key="goals_explainer_4"}}</p>
       </div>
       <!--
       things we could programmatically track:
@@ -124,11 +124,11 @@
                 {{#if goal.current_badge}}
                   {{# if goal.current_badge.earned}}
                     <span style='display: inline-block; position: relative;'>
-                      <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                      <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                       <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
                     </span>
                   {{else}}
-                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                     <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
                       <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
                         <span class="sr-only">
@@ -138,7 +138,7 @@
                     </div>
                   {{/if}}
                 {{else if goal.badge_image_url}}
-                  <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+                  <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
                 {{else}}
                   <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
                 {{/if}}
@@ -202,11 +202,11 @@
                 {{#if goal.current_badge}}
                   {{# if goal.current_badge.earned}}
                     <span style='display: inline-block; position: relative;'>
-                      <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                      <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                       <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
                     </span>
                   {{else}}
-                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                     <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
                       <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
                         <span class="sr-only">
@@ -216,7 +216,7 @@
                     </div>
                   {{/if}}
                 {{else if goal.badge_image_url}}
-                  <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+                  <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
                 {{else}}
                   <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
                 {{/if}}

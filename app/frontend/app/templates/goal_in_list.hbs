@@ -4,11 +4,11 @@
       {{#if goal.current_badge}}
         {{# if goal.current_badge.earned}}
           <span style='display: inline-block; position: relative;'>
-            <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+            <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
             <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
           </span>
         {{else}}
-          <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'/>
+          <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
           <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
             <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
               <span class="sr-only">
@@ -18,7 +18,7 @@
           </div>
         {{/if}}
       {{else if goal.badge_image_url}}
-        <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+        <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
       {{else}}
         <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
       {{/if}}

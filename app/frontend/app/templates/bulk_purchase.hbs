@@ -97,7 +97,7 @@
             <span class='text-muted'>
               {{#link-to "user" code.receiver.user_name}}
                 {{#if code.receiver.avatar_url}}
-                  <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' />
+                  <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' >
                 {{/if}}
                 {{code.receiver.user_name}}
               {{/link-to}}
@@ -143,7 +143,7 @@
           <span class='text-muted'>
             {{#link-to "user" code.receiver.user_name}}
               {{#if code.receiver.avatar_url}}
-                <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' />
+                <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' >
               {{/if}}
               {{code.receiver.user_name}}
             {{/link-to}}
@@ -181,7 +181,7 @@
           {{/if}}
           <div class="form-group">
             <div class="col-sm-9" style="padding-top: 30px;">
-              <label>{{t "Your Email" key="your_email"}}</label><br/>
+              <label>{{t "Your Email" key="your_email"}}</label><br>
               <span style="display: inline-block; width: 300px;">
                 {{input type="text" value=subscription.email class="form-control input-lg" placeholder="email@example.com"}}
               </span>
@@ -189,7 +189,7 @@
           </div>
           <div class="form-group">
             <div class="col-sm-12" style="padding-top: 30px;">
-              <label>{{t "Total Licenses" key="total_licenses"}}</label><br/>
+              <label>{{t "Total Licenses" key="total_licenses"}}</label><br>
               <p style='font-size: 30px;'>
                 {{t "license" count=subscription.purchase_licenses key="n_licenses"}}
               </p>
@@ -200,7 +200,7 @@
           </div>
           <div class="form-group">
             <div class="col-sm-12" style="padding-top: 30px;">
-              <label>{{t "Purchase Amount" key="purchase_amount"}}</label><br/>
+              <label>{{t "Purchase Amount" key="purchase_amount"}}</label><br>
               <p style='font-size: 30px;'>
                 {{t "$" key="dollars"}}{{delimit subscription.subscription_custom_amount "full"}}
               </p>

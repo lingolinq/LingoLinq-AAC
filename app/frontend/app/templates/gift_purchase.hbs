@@ -37,7 +37,7 @@
         {{/if}}
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Name" key="your_name"}}</label><br/>
+            <label>{{t "Your Name" key="your_name"}}</label><br>
             <span style="display: inline-block; width: 300px;">
               {{input type="text" value=subscription.name class="form-control input-lg" placeholder="Purchaser's Name"}}
             </span>
@@ -45,7 +45,7 @@
         </div>
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Email" key="your_email"}}</label><br/>
+            <label>{{t "Your Email" key="your_email"}}</label><br>
             <span style="display: inline-block; width: 300px;">
               {{input type="text" value=subscription.email class="form-control input-lg" placeholder="email@example.com"}}
             </span>
@@ -53,7 +53,7 @@
         </div>
         <div class="form-group">
           <div class="col-sm-12" style="padding-top: 30px;">
-            <label>{{t "Purchase Amount" key="purchase_amount"}}</label><br/>
+            <label>{{t "Purchase Amount" key="purchase_amount"}}</label><br>
             <p class='explanation' style='display: none;'>
               {{t "To make %app_name% accessible to as many people as possible, we offer flexible \"pay-what-you-can\" pricing. If you can afford to pay more, your contribution will help gift %app_name% to additional families in need!" key="how_much_to_gift"}}
             </p>
@@ -74,13 +74,13 @@
                 {{else}}
                   $295
                 {{/if}}
-                <br/><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank'>cloud extras</a><br/>credit included" key="5_years_cloud_extras"}}</span>
+                <br><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>credit included" key="5_years_cloud_extras"}}</span>
               </button>
             </div>
             <div>
               <label style='margin-top: 15px; font-size: 20px;'>
                 {{input type="checkbox" checked=subscription.extras}}
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" />
+                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" >
                 {{t "Add LessonPix, SymbolStix & PCS (BoardMaker) by Tobii Dynavox ($25)" key="include_extras"}}
               </label>
               <label style='margin-top: 15px; font-size: 20px;'>

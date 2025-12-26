@@ -1,7 +1,7 @@
 {{#link-to "board" board class="well well-sm board_icon"}}
   <span style='display: block;' title={{board.long_preview}}>
     <span class="icon" style='display: block;'>
-      <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);"/>
+      <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);">
     </span>
     <span style="display: block; height: 50px">
       <span style="color: #666; padding-left: 8px; display: block;">
@@ -31,8 +31,8 @@
     <span class="name">
       {{#unless board.public}}<span class="glyphicon glyphicon-lock"></span>{{/unless}}
       {{board.name}}{{#if board.copy_version}} <span style='color: #666; font-size: 10px;'>({{board.copy_version}})</span>{{/if}}
-    </span><br/>
+    </span><br>
     <span class="labels">{{board.labels}}</span>
-  </span><br/>
-  <span class="user_name">{{board.user_name}}</span><br/>
+  </span><br>
+  <span class="user_name">{{board.user_name}}</span><br>
 {{/link-to}}

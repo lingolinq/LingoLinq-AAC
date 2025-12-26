@@ -7,7 +7,7 @@
     <div class='list-group'>
       {{#each model.list as |user|}}
         {{#link-to "user" user.user_name class="list-group-item"}}
-          <img src={{user.avatar_url}} style='height: 30px;'/>
+          <img src={{user.avatar_url}} style='height: 30px;'>
           {{user.user_name}}
         {{/link-to}}
       {{/each}}

@@ -15,7 +15,7 @@
               {{#if result.sequence}}
                 <div class='img_holder'>
                   {{#each result.steps as |step|}}
-                    <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" />
+                    <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" >
                   {{/each}}
                 </div>
                 {{result.text}}
@@ -49,7 +49,7 @@
                 </div>
               {{else}}
                 <div class="img_holder">
-                  <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" />
+                  <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" >
                 </div>
                 {{result.label}}
                 <div class="location">

@@ -36,7 +36,7 @@
                     </span>
                   {{/if}}
                   {{#if test.tests}}
-                    <br/>
+                    <br>
                     {{#each test.tests as |num|}}
                       <button class="btn btn-default" {{action "test_feature" test.key num}}>{{t "Test %{num}" key="test_num" num=num}}</button>
                     {{/each}}
@@ -77,7 +77,7 @@
           {{#if should_reload}}
             <tr>
               <td colspan='3' class='text-danger'>
-                {{t "After clearing, you should really reload" key="should_reload"}}<br/>
+                {{t "After clearing, you should really reload" key="should_reload"}}<br>
                 <button class='btn btn-primary' {{action "reload"}}>{{t "Reload Now" key="reload_now"}}</button>
               </td>
             </tr>

@@ -245,13 +245,13 @@
     </div>
     {{#if assessment_badge_description}}
       <p style='margin-top: 20px;'>
-        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br/>
+        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
         {{assessment_badge_description}}
       </p>
     {{/if}}
     {{#if model.badges}}
       <h4 style='margin-top: 40px;'>{{t "Badges" key="badges"}}</h4>
-      {{#if model.badge_name}}{{model.badge_name}}<br/>{{/if}}
+      {{#if model.badge_name}}{{model.badge_name}}<br>{{/if}}
       <table class='goal_badges'>
         <tbody>
           <tr>
@@ -259,14 +259,14 @@
               <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
                 <span style='display: inline-block; position: relative;'>
                   <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
-                    <img src={{badge.image_url}} style='width: 80px;' />
+                    <img src={{badge.image_url}} style='width: 80px;' >
                     {{#if badge.user_badge.earned}}
                       <div class='sparkle'>&#10022;</div>
                     {{/if}}
                   </span>
                 </span>
                 <div class='text'>
-                  {{t "Level %{level}" level=badge.level key="level_n"}}<br/>
+                  {{t "Level %{level}" level=badge.level key="level_n"}}<br>
                   {{#if badge.user_badge.earned}}
                     <span class='text-muted'>
                       <span class='glyphicon glyphicon-ok'></span>

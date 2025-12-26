@@ -9,7 +9,7 @@
           <button class='btn btn-default'>
             {{t "Import Board(s)" key="import_boards"}}
           </button>
-          <input type="file" name="board_upload" id="board_upload"/>
+          <input type="file" name="board_upload" id="board_upload">
         </span>
       </h3>
     </div>
@@ -145,7 +145,7 @@
                   <label>
                     {{input type="checkbox" checked=category.selected}}
                     {{category.name}}
-                  </label><br/>
+                  </label><br>
                 </div></div>
             {{/each}}
           </div>
@@ -159,7 +159,7 @@
                 {{input type="checkbox" checked=model.word_suggestions}}
                 {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
-            </div><br/>
+            </div><br>
             <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
           </div>
         </div>

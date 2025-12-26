@@ -31,10 +31,10 @@
           <a {{action "review_profile" profile.log_id}} href="#">{{t "review details" key="review_details"}}</a>
         </div>
         {{#if profile.priors}}
-          Additional profiles:<br/>
+          Additional profiles:<br>
           <div style='margin-left: 15px; color: #888;'>
             {{#each profile.priors as |prior|}}
-              {{date prior.date}}<br/>
+              {{date prior.date}}<br>
             {{/each}}
           </div>
         {{/if}}

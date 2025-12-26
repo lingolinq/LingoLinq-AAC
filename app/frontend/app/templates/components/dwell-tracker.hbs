@@ -1,6 +1,6 @@
 <div style='margin-top: 10px;'>
   <div style='float: left; width: 60%;'>
-    <strong>{{t "Dwell Status" key="dwell_status"}}</strong><br/>
+    <strong>{{t "Dwell Status" key="dwell_status"}}</strong><br>
     {{#if pending}}
       {{t "waiting for data..." key="waiting_for_data"}}
     {{else if current_dwell}}
@@ -15,8 +15,8 @@
       {{t "no events detected" key="no_hardware_detected"}}
     {{/if}}
     {{#if has_coords}}
-      <br/><br/>
-      <strong>{{t "Source" key="source"}}</strong><br/>
+      <br><br>
+      <strong>{{t "Source" key="source"}}</strong><br>
       {{#if hardware_type}}
         {{#if hardware_type.eyex}}
           {{t "EyeX Hardware" key="eyex_hardware"}}
@@ -45,14 +45,14 @@
         {{t "cursor-based events" key="cursor_based_events"}}
       {{/if}}
     {{/if}}
-    <br/>
+    <br>
     {{#if eye_tracking}}
       {{#if advanced}}
-        <br/>
+        <br>
         {{#if with_status}}
           {{#each with_status as |status|}}
             <strong>{{status.name}}</strong>
-            {{status.status}}<br/>
+            {{status.status}}<br>
           {{/each}}
         {{else}}
           {{t "No eye tracking hardware has been initialized" key="no_tracking_hardware_found"}}

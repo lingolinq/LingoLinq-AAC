@@ -5,7 +5,7 @@
       {{t "Focus Words" key="focus_words"}}
       {{#if model.user}}
         - 
-        <img src={{model.user.avatar_url_with_fallback}} style='width: 50px;'/>
+        <img src={{model.user.avatar_url_with_fallback}} style='width: 50px;'>
         {{model.user.user_name}}
       {{/if}}
     </h3>
@@ -27,23 +27,23 @@
             <h4>{{t "Found Words (%{cnt})" cnt=analysis.found.length key="found_words"}}</h4>
             {{#if analysis.found}}
               {{#each analysis_subset as |btn|}}
-                <strong>{{btn.label}}:</strong><br/>
+                <strong>{{btn.label}}:</strong><br>
                 <div style='white-space: nowrap; overflow: hidden;'>
                   {{#if btn.sequence.buttons}}
                     {{#each btn.sequence.buttons as |sub|}}
                       <span style={{sub.style}}>
-                        {{sub.label}}<br/>
-                        <img src={{sub.focus_image}} style='width: 50px; height: 50px;' class='fit_image'/>
+                        {{sub.label}}<br>
+                        <img src={{sub.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
                       </span>>
                     {{/each}}
                     <span style={{btn.style}}>
-                      {{btn.label}}<br/>
-                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'/>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
                     </span>
                   {{else}}
                     <span style={{btn.style}}>
-                      {{btn.label}}<br/>
-                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'/>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
                     </span>
                   {{/if}}
                 </div>
@@ -89,7 +89,7 @@
                 <div class="list-group">
                   {{#each recent_list as |list|}}
                     <a class={{if list.tmp "btn btn-default list-group-item-info" "btn btn-default list-group-item-success"}} {{action "pick_set" list}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
-                      <b>{{list.title}}{{#if list.user_name}} ({{list.user_name}}){{/if}}</b><br/>
+                      <b>{{list.title}}{{#if list.user_name}} ({{list.user_name}}){{/if}}</b><br>
                       <span class='text-muted' style='font-style: italic; display: inline-block; width: 100%; overflow: hidden; text-overflow: ellipsis;'>
                         {{list.words}}
                       </span>
@@ -131,7 +131,7 @@
             {{else if speech.engine}}
               {{#unless search_or_browse}}
                 <button type="button" class="btn btn-default" {{action "record"}}>
-                  <img src={{path "images/microphone.svg"}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture"/>
+                  <img src={{path "images/microphone.svg"}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture">
                   {{t "Speech Recognition" key="speech_recognition"}}
                 </button>
               {{/unless}}
@@ -155,7 +155,7 @@
                       <div style='margin-bottom: 5px;'>
                         <span style={{if browse.category.saved "display: inline-block; width: calc(100% - 100px);" "display: inline-block; width: 100%;"}}>
                           <button class='btn btn-default list-group-item-warning' {{action "pick_set" item}} style='width: 100%; text-align: left;'>
-                            <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'/>
+                            <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                             <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                               {{item.title}}
                               {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
@@ -196,7 +196,7 @@
               <div class='row'>
                 {{#each search.results as |item|}}
                   <button class='btn btn-default list-group-item-success' {{action "pick_set" item}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
-                    <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'/>
+                    <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                     <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                       {{item.title}}
                       {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}

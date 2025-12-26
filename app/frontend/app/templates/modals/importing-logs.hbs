@@ -15,7 +15,7 @@
     </div>
     <p>
       {{#unless model.status.errored}}
-        <img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"/>
+        <img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;">
       {{/unless}}
       {{#if model.status.errored}}
         {{t "There was an error importing your logs. Please make sure you uploaded a valid file and try again." key="bad_logs_import"}}

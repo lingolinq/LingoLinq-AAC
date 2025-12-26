@@ -6,7 +6,7 @@
     <Dashboard::UnauthenticatedView @user={{this.user}} />
   {{else if app_state.login_index}}
     <div style="text-align: center; margin-bottom: 30px;">
-      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;"/>
+      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;">
     </div>
     {{login-form}}
   {{/if}}
@@ -14,7 +14,7 @@
 {{#if app_state.login_modal}}
   <div id="login_overlay">
     <div style="text-align: center; margin-bottom: 30px;">
-      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;"/>
+      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;">
     </div>
     {{#unless app_state.no_linky}}
       {{#if app_state.domain_settings.full_domain}}

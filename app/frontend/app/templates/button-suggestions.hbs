@@ -98,7 +98,7 @@
                 </span>
                 {{#if item.image}}
                   <div style='height: 80px; width: 80px; overflow: hidden; float: left; margin-right: 10px;'>
-                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" style='width: 100%; max-height: 80px;' />
+                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" style='width: 100%; max-height: 80px;' >
                   </div>
                 {{/if}}
                 <span class={{if item.used "text-muted"}} style='font-size: 20px; white-space: normal;'>
@@ -121,11 +121,11 @@
             <button class='btn btn-default' style={{if category.image "height: 100px; text-align: left;" "height: 50px; text-align: left;"}} {{action "select_category" category}}>
               {{#if category.image}}
                 <span style='float: left; width: 80px; height: 80px; overflow: hidden; margin-right: 10px;'>
-                  <img src={{category.image}} style='width: 100%; max-height: 80px;' />
+                  <img src={{category.image}} style='width: 100%; max-height: 80px;' >
                 </span>
               {{/if}}
               {{#if category.sub_name}}
-                <strong>{{category.name}}</strong><br/>
+                <strong>{{category.name}}</strong><br>
                 {{category.sub_name}}
               {{else}}
                 {{category.name}}

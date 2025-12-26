@@ -1,21 +1,21 @@
 <div class='col-sm-6 col-sm-offset-3'>
   <h4>{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</h4>
-  <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;' />
+  <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;' >
   <p class='prompt'>{{t "Thanks for signing up for %app_name%! We're excited you're here and hope %app_name% makes a difference for you. If you're new to %app_name%, this walkthrough will help you get started." key="intro_1"}}</p>
   {{#if app_state.auto_start}}
     <div style='margin-bottom: 40px;'>
-      <button class='btn btn-default btn-lg' {{action "done"}}>{{t "Skip For Now, Return<br/>to the Dashboard" key="skip_to_dashboard"}}</button>
+      <button class='btn btn-default btn-lg' {{action "done"}}>{{t "Skip For Now, Return<br>to the Dashboard" key="skip_to_dashboard"}}</button>
     </div>
   {{else}}
     {{#if for_self}}
       <div style='margin-bottom: 40px;'>
-        <button class='btn btn-default btn-lg' {{action "done"}} style='font-size: 22px;'>{{t "Skip For Now, Return<br/>to the Dashboard" key="skip_to_dashboard"}}</button>
-        <button class='btn btn-default btn-lg' {{action "choose_board"}} style='font-size: 22px;'>{{t "Skip the Setup, Just<br/>Help Me Choose a Board" key="skip_to_board_choice"}}</button>
+        <button class='btn btn-default btn-lg' {{action "done"}} style='font-size: 22px;'>{{t "Skip For Now, Return<br>to the Dashboard" key="skip_to_dashboard"}}</button>
+        <button class='btn btn-default btn-lg' {{action "choose_board"}} style='font-size: 22px;'>{{t "Skip the Setup, Just<br>Help Me Choose a Board" key="skip_to_board_choice"}}</button>
       </div>
     {{/if}}
   {{/if}}
   {{#if setup_user.user_name}}
-    <img src={{setup_user.avatar_url_with_fallback}} onerror='button_broken_image(this);' style='float: left; width: 50px; height: 50px; margin-right: 10px; object-fit: contain;'/>
+    <img src={{setup_user.avatar_url_with_fallback}} onerror='button_broken_image(this);' style='float: left; width: 50px; height: 50px; margin-right: 10px; object-fit: contain;'>
     <p class='prompt'>{{t "First, remember your username (<b>%{un}</b>), you can use it to log in when you download the free app. You can also edit boards, practice and view reports from any computer with a web browser!" un=setup_user.user_name key="intro_3"}}</p>
   {{/if}}
   <p class='prompt'>{{t "Next we'd like to teach just a little about AAC (Augmentative and Alternative Communication), and then help make sure you've got %app_name% set up correctly. Hit \"Next\" in the bottom corner to get started." key="intro_2"}}</p>

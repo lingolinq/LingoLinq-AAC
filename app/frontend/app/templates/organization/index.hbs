@@ -128,7 +128,7 @@
         {{#if combined_models.words_by_frequency.length}}
           {{stats/word-cloud stats=combined_models tiny=true zoom=1}}
         {{else}}
-          <br/><br/><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br/>
+          <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
         {{/if}}
       </div>
       {{#if app_state.feature_flags.profiles}}
@@ -176,7 +176,7 @@
             <tr>
               <td style='font-size: 20px;'>
                 {{#link-to "user" manager.user_name}}
-                  <img src={{manager.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
+                  <img src={{manager.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{manager.user_name}}
                 {{/link-to}}
               </td>
@@ -226,7 +226,7 @@
             <tr>
               <td style='font-size: 20px;'>
                 {{#link-to "user" user.user_name}}
-                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
                 {{/link-to}}
                 {{#if user.org_supervision_pending}}
@@ -242,7 +242,7 @@
               </td>
               <td style='font-size: 14px;'>
                 {{#each user.org_supervisees as |sup|}}
-                  {{#link-to "user" sup.user_name}}{{sup.user_name}}{{/link-to}}<br/>
+                  {{#link-to "user" sup.user_name}}{{sup.user_name}}{{/link-to}}<br>
                 {{/each}}
               </td>
               <td>
@@ -292,7 +292,7 @@
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
-                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
                 {{/link-to}}
                 {{#if model.permissions.manage}}
@@ -356,7 +356,7 @@
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
-                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
                 {{/link-to}}
                 {{#if user.org_pending}}
@@ -410,7 +410,7 @@
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
-                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
                 {{/link-to}}
               </td>
@@ -577,7 +577,7 @@
       {{#if user_counts.word_counts.length}}
         {{stats/word-cloud stats=words short=true zoom=1}}
       {{else}}
-        <br/><br/><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br/>
+        <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
       {{/if}}
     </div>
     <h3>{{t "Recent Sessions" key="recent_sessions"}}</h3>
@@ -593,7 +593,7 @@
             {{#link-to "user.log" log.user.user_name log.id}}
               {{t "button" count=log.button_count key="button_count"}}
             {{/link-to}}
-            <br/>
+            <br>
             <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
           </p>
         </li>

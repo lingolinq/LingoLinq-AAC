@@ -47,13 +47,13 @@
     </span>
     <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key="search"}}</button>
     <button type="button" {{action "webcamPicture" on="click"}} disabled={{webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
-      <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture"/>
+      <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
     </button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
-        <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+        <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
       </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*"/>
+      <input type="file" name="image_upload" id="image_upload" accept="image/*">
     </span>
     {{#if show_library_options}}
       <div style='margin-top: 3px;'>
@@ -77,7 +77,7 @@
       <video autoplay id="webcam_video" {{action "webcamToggle" true}} class={{webcam_class}}></video>
       <canvas id="webcam_canvas" style="display:none;" width="800" height="800"></canvas>
       {{#unless webcam.snapshot}}
-        <br/>
+        <br>
         <button type="button" class='btn btn-primary' {{action "webcamToggle" true}}>{{t "Take Pic" key="take_pic"}}</button>
         {{#if webcam.video_streams}}
           <button type="button" class='btn btn-default' {{action "swapStreams"}}>{{t "Switch Views" key="switch_cameras"}}</button>
@@ -100,7 +100,7 @@
         {{else if image_preview.editor}}
           <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0"></iframe>
         {{else}}
-          <img src={{image_preview.url}} class="button_image"/>
+          <img src={{image_preview.url}} class="button_image">
         {{/if}}
         <div style="margin-top: 10px;">
           {{pick-license license=image_preview.license}}
@@ -164,14 +164,14 @@
       {{#if missing_library}}
         <div style="margin: 10px 0 10px 0;">
           {{#if missing_library.lessonpix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key="lessonpix_detailer"}}
+            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank' rel='noopener'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key="lessonpix_detailer"}}
           {{else if missing_library.pcs}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
+            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
             {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else if missing_library.symbolstix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
+            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
             {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else}}
@@ -183,11 +183,11 @@
       {{else if image_search.previews}}
         <div style="margin: 10px 0 10px 0;">
           {{#each image_search.previews as |image|}}
-            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;"/>
+            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;">
           {{/each}}
         </div>
         {{#if current_library.giphy_asl}}
-          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'/><br/>
+          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
 
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
@@ -205,7 +205,7 @@
           {{#unless webcam}}
             {{#if model.image.url}}
               <div style="text-align: center; margin-bottom: 10px; margin-top: 10px;">
-                <img src={{model.image.best_url_without_preferred_symbols}} class="button_image"/>
+                <img src={{model.image.best_url_without_preferred_symbols}} class="button_image">
               </div>
               {{pick-license license=model.image.license}}
               {{#if model.image.skinned}}
@@ -222,12 +222,12 @@
               </div>
               {{#if model.image.alternates}}
                 <div style='margin-top: 20px;'>
-                  <em>{{t "Alternates for specific libraries:" key="alternates_for_specific_libraries_colon"}}</em><br/>
+                  <em>{{t "Alternates for specific libraries:" key="alternates_for_specific_libraries_colon"}}</em><br>
                   {{#if model.image.alternate_error}}
                     <em class='text-danger'>{{t "Error loading alternates" key="error_loading_alternates"}}</em>
                   {{/if}}
                   {{#each model.image.alternates as |alt|}}
-                    <img src={{alt.url}} alt={{alt.library}} title={{alt.library}} style='width: 30px; height: 30px; margin-right: 5px; object-fit: contain; object-position: center;' />
+                    <img src={{alt.url}} alt={{alt.library}} title={{alt.library}} style='width: 30px; height: 30px; margin-right: 5px; object-fit: contain; object-position: center;' >
                   {{/each}}
                 </div>
               {{/if}}

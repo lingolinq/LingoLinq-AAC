@@ -92,7 +92,7 @@
           {{t "Upload Recording(s)" key="upload_recordings"}}
         {{/if}}
       </button>
-      <input type="file" name="recording_upload" id="recording_upload"/>
+      <input type="file" name="recording_upload" id="recording_upload">
     </span>
     {{#if recordings.length}}
       <button class='btn btn-default' {{action "download_recordings"}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>

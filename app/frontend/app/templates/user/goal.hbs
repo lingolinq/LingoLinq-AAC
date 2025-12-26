@@ -14,7 +14,7 @@
           {{t "Past Goal" key="past_goal"}}
         {{/if}}
 
-        <br/>
+        <br>
         <span class='text-muted'>
           {{#if model.unit_name}}
             <em>{{t "org-created Goal" key="org_created_goal"}}</em>
@@ -42,7 +42,7 @@
           {{else if model.ended}}
             {{date model.ended "short_day"}}
           {{/if}}
-          <br/>
+          <br>
           <span class='text-muted'>
             {{#if model.advance}}
               {{t "changes" key="changes_lower"}}
@@ -67,7 +67,7 @@
       <div class="panel-body">
         {{model.stats.weighted_percent_positive}}%
         {{t "weighted" key="weighted"}}
-        <br/>
+        <br>
         <span class='text-muted'>
           {{#if model.stats.weighted_average_status}}
             <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{weighted_average_status_face_class}}></span></span>
@@ -216,7 +216,7 @@
     <h4>{{t "Automated Tracking" key="automated_tracking"}}</h4>
     <div style='margin-bottom: 30px;'>
       {{#if assessment_badge_description}}
-        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br/>
+        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
         {{assessment_badge_description}}
       {{else}}
         {{t "Assessment not properly configured, data will not be reliable" key="assessment_misconfigured"}}
@@ -226,7 +226,7 @@
 
   {{#if model.badges}}
     <h4>{{t "Badges" key="badges"}}</h4>
-    {{#if model.badge_name}}{{model.badge_name}}<br/>{{/if}}
+    {{#if model.badge_name}}{{model.badge_name}}<br>{{/if}}
     <table class='goal_badges'>
       <tbody>
         <tr>
@@ -234,14 +234,14 @@
             <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
               <span style='display: inline-block; position: relative;'>
                 <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
-                  <img src={{badge.image_url}} style='width: 80px;' />
+                  <img src={{badge.image_url}} style='width: 80px;' >
                   {{#if badge.user_badge.earned}}
                     <div class='sparkle'>&#10022;</div>
                   {{/if}}
                 </span>
               </span>
               <div class='text'>
-                {{t "Level %{level}" level=badge.level key="level_n"}}<br/>
+                {{t "Level %{level}" level=badge.level key="level_n"}}<br>
                 {{#if badge.user_badge.earned}}
                   <span class='text-muted'>
                     <span class='glyphicon glyphicon-ok'></span>

@@ -1,22 +1,22 @@
 <div style="float: left;" id="share_links">
   {{#if facebook_enabled}}
-    <a href="#" {{action "share_via" "facebook"}}><img src={{path "images/logos/facebook.png"}} alt={{t "Share via Facebook" key="share_via_facebook"}} /></a>
+    <a href="#" {{action "share_via" "facebook"}}><img src={{path "images/logos/facebook.png"}} alt={{t "Share via Facebook" key="share_via_facebook"}} ></a>
   {{/if}}
   {{#if twitter_enabled}}
-    <a href="#" {{action "share_via" "twitter"}}><img src={{path "images/logos/twitter.png"}} alt={{t "Share via Twitter" key="share_via_twitter"}} /></a>
+    <a href="#" {{action "share_via" "twitter"}}><img src={{path "images/logos/twitter.png"}} alt={{t "Share via Twitter" key="share_via_twitter"}} ></a>
   {{/if}}
   {{#if instagram_enabled}}
-    <a href="#" {{action "share_via" "instagram"}}><img src={{path "images/logos/instagram.png"}} alt={{t "Share via Instagram" key="share_via_instagram"}} /></a>
+    <a href="#" {{action "share_via" "instagram"}}><img src={{path "images/logos/instagram.png"}} alt={{t "Share via Instagram" key="share_via_instagram"}} ></a>
   {{/if}}
   {{#if email_enabled}}
-    <a href="#" {{action "share_via" "email"}}><img src={{path "images/logos/email.png"}} alt={{t "Share via Email" key="share_via_email"}} /></a>
+    <a href="#" {{action "share_via" "email"}}><img src={{path "images/logos/email.png"}} alt={{t "Share via Email" key="share_via_email"}} ></a>
   {{/if}}
   {{#if generic_enabled}}
-    <a href="#" {{action "share_via" "generic"}}><img src={{path "images/logos/generic.png"}} alt={{t "Share" key="share"}} /></a>
+    <a href="#" {{action "share_via" "generic"}}><img src={{path "images/logos/generic.png"}} alt={{t "Share" key="share"}} ></a>
   {{/if}}
   {{#if element_id}}
     {{#if clipboard_enabled}}
-      <a href="#" {{action "share_via" "clipboard"}}><img src={{path "images/logos/clipboard.png"}} alt={{t "Copy to Clipboard" key="copy_to_clipboard"}} /></a>
+      <a href="#" {{action "share_via" "clipboard"}}><img src={{path "images/logos/clipboard.png"}} alt={{t "Copy to Clipboard" key="copy_to_clipboard"}} ></a>
     {{/if}}
   {{/if}}
   {{#if utterance}}
@@ -24,7 +24,7 @@
     <span style="padding-left: 30px;">
       {{#each user.supervisors as |sup|}}
         <button class='btn btn-default' style='margin-top: -10px; margin-bottom: -10px;' {{action "message" sup}}>
-          <img style="width: 50px; height: 50px;" src={{sup.avatar_url}} />
+          <img style="width: 50px; height: 50px;" src={{sup.avatar_url}} >
           <div style='width: 70px; font-size: 12px; overflow: hidden; margin-bottom: -5px; margin-left: -10px; margin-right: -10px;'>{{sup.user_name}}</div>
         </button>
       {{/each}}

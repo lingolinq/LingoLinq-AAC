@@ -17,7 +17,7 @@
             <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
             <div class="col-sm-10">
               <p class='form-control-static'>
-                <strong>{{selected_goal.sequence_summary}}</strong><br/>
+                <strong>{{selected_goal.sequence_summary}}</strong><br>
                 {{t "sequence of" key="sequence_of"}}
                 {{t "goal" key="n_goals" count=selected_goal.template_stats.goals}}{{#if selected_goal.template_stats.total_duration}}{{t " over " key="over"}}
                   {{seconds_ago selected_goal.template_stats.total_duration "long"}}
@@ -40,7 +40,7 @@
         <div class="form-group">
           <div class='col-sm-10 col-sm-offset-2'>
             {{#if selected_goal.badge_image_url}}
-              <img src={{selected_goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' />
+              <img src={{selected_goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
             {{else}}
               <span class='glyphicon glyphicon-flag' style='margin-top: 10px; font-size: 50px; '></span>
             {{/if}}
@@ -113,7 +113,7 @@
           <div class='well goal' {{action "select_goal" goal}} style='cursor: pointer;'>
             <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
               {{#if goal.badge_image_url}}
-                <img src={{goal.badge_image_url}} style='widht: 50px; max-height: 50px; opacity: 0.8;' />
+                <img src={{goal.badge_image_url}} style='widht: 50px; max-height: 50px; opacity: 0.8;' >
               {{else}}
                 <span class='glyphicon glyphicon-flag' style='margin-top: 0px;'></span>
               {{/if}}
@@ -250,7 +250,7 @@
                     <li>
                       <label class={{if user.not_premium "not_premium"}} style={{if user.add_goal "font-weight: bold;" "font-weight: normal;"}}>
                         {{input type="checkbox" checked=user.add_goal disabled=user.not_premium}}
-                        <img src={{user.avatar_url}} style="height: 30px; max-width: 30px;"/>
+                        <img src={{user.avatar_url}} style="height: 30px; max-width: 30px;">
                         {{user.user_name}}
                       </label>
                     </li>

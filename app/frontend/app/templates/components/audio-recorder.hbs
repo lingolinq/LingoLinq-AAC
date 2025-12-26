@@ -6,7 +6,7 @@
   {{else if sound_preview}}
     <div class="form-horizontal">
       <div style="text-align: center;">
-        Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+        Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
         <audio controls src={{sound_preview.url}}></audio>
       </div>
       <div class="form-group">
@@ -62,7 +62,7 @@
         <div style='margin-top: 5px;'>
           <span class="file_select_holder">
             <button class='btn btn-default'>{{t "upload recording" key="upload_recording"}}</button>
-            <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+            <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
           </span>
           <button class='btn btn-default' {{action "browse_audio"}}>{{t "browse recordings" key="browse_recordings"}}</button>
         </div>
@@ -70,7 +70,7 @@
     {{else}}
       {{#if sound.url}}
         <div style="margin-bottom: 50px; margin-top: 50px; text-align: center;">
-          {{t "Current sound:" key="current_sound_colon"}} {{sound.name}}<br/>
+          {{t "Current sound:" key="current_sound_colon"}} {{sound.name}}<br>
           <p class='text-muted'>{{sound.transcription}}</p>
           <audio controls src={{sound.url}}></audio>
           <div style='text-align: center;'>

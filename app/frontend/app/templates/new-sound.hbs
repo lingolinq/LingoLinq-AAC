@@ -15,20 +15,20 @@
         </div>
         <div>
             <button type="button" {{action "record_sound" on="click"}} disabled={{recorder_unavailable}} class="btn btn-default">
-              <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound"/>
+              <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
               {{t "Record Sound" key="record_sound"}}
             </button>
             <span class="file_select_holder">
               <button type="button" class='btn btn-default'>
-                <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+                <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
                 {{t "Upload Sound" key="upload_sound"}}
               </button>
-              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
             </span>
         </div>
         {{#if sound_preview}}
           <div style="text-align: center; margin: 20px;">
-            Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+            Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
             <audio controls src={{sound_preview.url}}></audio>
           </div>
         {{else}}

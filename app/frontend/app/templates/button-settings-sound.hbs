@@ -7,13 +7,13 @@
         {{input value=model.vocalization class="form-control inline" id="vocalization" placeholder=label}}
       </span>
       <button type="button" {{action "record_sound" on="click"}} disabled={{recorder_unavailable}} class="btn btn-default">
-        <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound"/>
+        <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
       </button>
       <span class="file_select_holder">
         <button type="button" class='btn btn-default'>
-          <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+          <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
         </button>
-        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
       </span>
       {{#unless sound_preview}}
         {{#unless model.sound.url}}
@@ -47,7 +47,7 @@
       <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
     {{/if}}
     <div style="text-align: center;">
-      Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+      Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
       <audio controls src={{sound_preview.url}}></audio>
     </div>
     <div style="margin-top: 10px;">
@@ -101,22 +101,22 @@
           <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
-          {{t "Played sound:" key="played_sound_colon"}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br/>
+          {{t "Played sound:" key="played_sound_colon"}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br>
           <audio controls src={{model.sound.url}}></audio>
         </div>
         {{pick-license license=model.sound.license}}
-        <br/>
+        <br>
         <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key="clear_sound"}}</button>
       {{else}}
         <div style="margin-bottom: 10px; text-align: center;">
           {{#if modifiers}}
             {{#each modifiers as |mod|}}
               {{#if mod.special}}
-                <strong>{{mod.special}}</strong> {{t "when selected" key="when_selected"}}<br/>
+                <strong>{{mod.special}}</strong> {{t "when selected" key="when_selected"}}<br>
               {{else if mod.modifier}}
-                <strong>{{mod.modifier}}</strong> {{t "modifier via Text-To-Speech" key="modifying_via_tts"}}<br/>
+                <strong>{{mod.modifier}}</strong> {{t "modifier via Text-To-Speech" key="modifying_via_tts"}}<br>
               {{else if mod.text}}
-                <strong>{{mod.text}}</strong> {{t "via Text-To-Speech" key="via_tts"}}<br/>
+                <strong>{{mod.text}}</strong> {{t "via Text-To-Speech" key="via_tts"}}<br>
               {{/if}}
             {{/each}}
             {{#if modifiers.any_basic}}
