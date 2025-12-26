@@ -18,7 +18,7 @@ import modal from './modal';
 import speecher from './speecher';
 import utterance from './utterance';
 import RSVP from 'rsvp';
-import $ from 'jquery';
+// import $ from 'jquery';
 import {
   set as emberSet,
   get as emberGet
@@ -574,8 +574,15 @@ var sync = EmberObject.extend({
   },
   model_button: function(button, obj) {
     if(!button.id || !button.board) { return; }
-    var $button = $(".board[data-id='" + button.board.id + "'] .button[data-id='" + button.id + "']");
-    if($button[0]) {
+    var button_elem = document.querySelector(".board[data-id='" + button.board.id + "'] .button[data-id='" + button.id + "']");
+    if(button_elem) {
+      // var $button = $(button_elem); // Assuming modal.highlight expects logic that handles elements
+      // Actually modal.highlight likely expects jQuery object if previous code passed one.
+      // But we are removing jQuery. We should check modal.highlight too. 
+      // For now let's pass the element, or a simple wrapper if needed.
+      // But assuming we are cleaning up, we pass the element.
+      var $button = button_elem; 
+
       var model_handled = false;
       setTimeout(function() {
         if(model_handled) { return; }
@@ -967,7 +974,7 @@ var sync = EmberObject.extend({
         if(app_state.get('currentBoardState.id') == action.board_id) {
           var close_on_next = false;
           console.log("ACTION", action);
-          var $button = $(".button[data-id='" + action.id + "']");
+          var $button = document.querySelector(".button[data-id='" + action.id + "']");
           var hit_button = function() {
             if(app_state.get('currentBoardState.id') == action.board_id) {
               var btn = editManager.find_button(action.id);

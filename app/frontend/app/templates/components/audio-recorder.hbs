@@ -1,24 +1,24 @@
 <div class="row">
   <div class='col-sm-12'>
   {{#if browse_audio}}
-    {{audio-browser audio_selected='audio_selected' prompt=text}}
-    <button class='btn btn-default' {{action 'clear_sound_work'}}>{{t "Stop Browsing" key='stop_browsing'}}</button>
+    {{audio-browser audio_selected="audio_selected" prompt=text}}
+    <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Stop Browsing" key="stop_browsing"}}</button>
   {{else if sound_preview}}
     <div class="form-horizontal">
       <div style="text-align: center;">
-        Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+        Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
         <audio controls src={{sound_preview.url}}></audio>
       </div>
       <div class="form-group">
-        <label for='sound_preview_name' class="col-sm-2 control-label">{{t "Name" key='name'}}</label>
+        <label for='sound_preview_name' class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class='col-sm-10'>
-          {{input id='sound_preview_name' type='text' value=sound_preview.name class='form-control'}}
+          {{input id="sound_preview_name" type="text" value=sound_preview.name class="form-control"}}
         </div>
       </div>
       <div class="form-group">
-        <label for='sound_preview_transcription' class="col-sm-2 control-label">{{t "Transcription" key='transcription'}}</label>
+        <label for='sound_preview_transcription' class="col-sm-2 control-label">{{t "Transcription" key="transcription"}}</label>
         <div class='col-sm-10'>
-          {{input id='sound_preview_transcription' type='text' value=sound_preview.transcription class='form-control'}}
+          {{input id="sound_preview_transcription" type="text" value=sound_preview.transcription class="form-control"}}
         </div>
       </div>
 
@@ -26,76 +26,76 @@
         {{pick-license license=sound_preview.license}}
       </div>
       <div>
-        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Save This Recording" key='save_this_recording'}}</button>
+        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Save This Recording" key="save_this_recording"}}</button>
         {{#if sound_preview.from_recording}}
           <button {{action "record_sound"}} class='btn btn-default'>
-            {{t "Try Again" key='try_again'}}
+            {{t "Try Again" key="try_again"}}
           </button>
         {{/if}}
-        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key='cancel'}}</button>
+        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
       </div>
     </div>
   {{else}}
     {{#if sound_recording.ready}}
-      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording 'recording'}} style='outline: none;'>
+      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording "recording"}} style='outline: none;'>
         <span class="sub_status">
           <span>
             {{#if sound_recording.recording}}
-              {{t "Stop" key='stop'}}
+              {{t "Stop" key="stop"}}
             {{else}}
-              {{t "Start" key='start'}}
+              {{t "Start" key="start"}}
             {{/if}}
           </span>
         </span>
       </button>
       {{#unless capabilities.mobile}}
-        <div class='text-muted' style='text-align: center; margin-top: -20px; margin-bottom: 20px;'>{{t "Hit spacebar to start/stop without recording a clicking sound" key='spacebar_to_silently_toggle_recording'}}</div>
+        <div class='text-muted' style='text-align: center; margin-top: -20px; margin-bottom: 20px;'>{{t "Hit spacebar to start/stop without recording a clicking sound" key="spacebar_to_silently_toggle_recording"}}</div>
       {{/unless}}
       <div style='text-align: center;'>
         <button {{action "toggle_recording_sound"}} class='btn btn-lg btn-primary'>
           {{#if sound_recording.recording}}
-            {{t "Stop Recording" key='stop_recording'}}
+            {{t "Stop Recording" key="stop_recording"}}
           {{else}}
-            {{t "Start Recording" key='start_recording'}}
+            {{t "Start Recording" key="start_recording"}}
           {{/if}}
         </button>
         <div style='margin-top: 5px;'>
           <span class="file_select_holder">
-            <button class='btn btn-default'>{{t "upload recording" key='upload_recording'}}</button>
-            <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+            <button class='btn btn-default'>{{t "upload recording" key="upload_recording"}}</button>
+            <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
           </span>
-          <button class='btn btn-default' {{action 'browse_audio'}}>{{t "browse recordings" key='browse_recordings'}}</button>
+          <button class='btn btn-default' {{action "browse_audio"}}>{{t "browse recordings" key="browse_recordings"}}</button>
         </div>
       </div>
     {{else}}
       {{#if sound.url}}
         <div style="margin-bottom: 50px; margin-top: 50px; text-align: center;">
-          {{t "Current sound:" key='current_sound_colon'}} {{sound.name}}<br/>
+          {{t "Current sound:" key="current_sound_colon"}} {{sound.name}}<br>
           <p class='text-muted'>{{sound.transcription}}</p>
           <audio controls src={{sound.url}}></audio>
           <div style='text-align: center;'>
             {{#if pending_sound}}
               <div style='margin: 5px 20% 10px;'>
-                {{t "This recording seems like it matches the phrase, would you like to accept it for this phrase?" key='choose_to_accept_recording'}}
+                {{t "This recording seems like it matches the phrase, would you like to accept it for this phrase?" key="choose_to_accept_recording"}}
               </div>
-              <button class='btn btn-primary' {{action 'decide_on_recording' 'approve'}}>{{t "Accept Recording" key='accept_recording'}}</button>
-              <button class='btn btn-default' {{action 'decide_on_recording' 'reject'}}>{{t "Cancel" key='cancel'}}</button>
+              <button class='btn btn-primary' {{action "decide_on_recording" "approve"}}>{{t "Accept Recording" key="accept_recording"}}</button>
+              <button class='btn btn-default' {{action "decide_on_recording" "reject"}}>{{t "Cancel" key="cancel"}}</button>
             {{else}}
-              <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key='clear_sound'}}</button>
+              <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key="clear_sound"}}</button>
             {{/if}}
           </div>
         </div>
       {{else if sound.errored}}
         <div style='margin: 50px 0 80px; text-align: center;'>
-          <p>{{t "There was an unexpected error loading the recorded audio" key='error_loading_audio'}}</p>
+          <p>{{t "There was an unexpected error loading the recorded audio" key="error_loading_audio"}}</p>
         </div>
       {{else if sound.unloaded}}
         <div style='margin: 50px 0 80px; text-align: center;'>
-          <p>{{t "Loading recorded audio..." key='loading_audio'}}</p>
+          <p>{{t "Loading recorded audio..." key="loading_audio"}}</p>
         </div>
       {{else}}
         <div style='margin: 50px 0 80px; text-align: center;'>
-          <p>{{t "There was an unexpected error getting ready to record audio" key='error_prepping_recording_audio'}}</p>
+          <p>{{t "There was an unexpected error getting ready to record audio" key="error_prepping_recording_audio"}}</p>
         </div>
       {{/if}}
     {{/if}}
@@ -104,6 +104,6 @@
 </div>
 {{#if show_next_phrase}}
   <div style='text-align: right; position: relative; top: -50px; height: 0;'>
-    <button class='btn btn-default' {{action 'select_phrase' next_phrase.id}} style='margin-left: 5px; height: 50px;'>{{t "Next Phrase" key='next_phrase'}}</button>
+    <button class='btn btn-default' {{action "select_phrase" next_phrase.id}} style='margin-left: 5px; height: 50px;'>{{t "Next Phrase" key="next_phrase"}}</button>
   </div>
 {{/if}}

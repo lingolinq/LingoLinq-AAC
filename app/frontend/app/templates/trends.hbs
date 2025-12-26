@@ -5,20 +5,20 @@
 -->
 <div class='row'>
   <div class='col-sm-8 col-sm-offset-2'>
-    <h2 style='margin-bottom: 30px;'>{{t "%app_name% Aggregate Research" key='app_aggregate_research'}}</h2>
+    <h2 style='margin-bottom: 30px;'>{{t "%app_name% Aggregate Research" key="app_aggregate_research"}}</h2>
 
-    <p style='margin-bottom: 20px;'>{{t "%app_name% users can opt-in to recording their usage data for personal and team analysis and reference. Whenever someone opts-in to data logging, we also ask if they would be willing to share an anonymized record of their usage data with independent researchers. We collaborate with non-profit research organizations to analyze this data in aggregate to provide better insights into AAC use and to investigate how supports can be improved." key='trends_explainer'}}</p>
-    <p style='margin-bottom: 20px;'>{{t "If you are interested in conducting AAC research, please consider reaching out to us to learn more about this important project. Below are some examples of the types of data that can be collected, anonymously and in aggregate, to help aid AAC research. All word usage information is based on aggregate data only from users who have opted in to anonymized research and reporting." key='trends_explainer2'}}</p>
+    <p style='margin-bottom: 20px;'>{{t "%app_name% users can opt-in to recording their usage data for personal and team analysis and reference. Whenever someone opts-in to data logging, we also ask if they would be willing to share an anonymized record of their usage data with independent researchers. We collaborate with non-profit research organizations to analyze this data in aggregate to provide better insights into AAC use and to investigate how supports can be improved." key="trends_explainer"}}</p>
+    <p style='margin-bottom: 20px;'>{{t "If you are interested in conducting AAC research, please consider reaching out to us to learn more about this important project. Below are some examples of the types of data that can be collected, anonymously and in aggregate, to help aid AAC research. All word usage information is based on aggregate data only from users who have opted in to anonymized research and reporting." key="trends_explainer2"}}</p>
     {{#if trends.loading}}
-      {{t "Loading anonymized snapshot..." key='loading_trends'}}
+      {{t "Loading anonymized snapshot..." key="loading_trends"}}
     {{else if trends.error}}
-      {{t "Error loading anonymized snapshot." key='error_loading_trends'}}
+      {{t "Error loading anonymized snapshot." key="error_loading_trends"}}
     {{else if trends}}
-      <p><em style='font-weight: bold; font-size: 18px;'>{{t "Anonymized Aggregate Research Data for %{start} to %{end}" start=trends.started_at end=trends.ended_at key='data_for_start_to_end'}}</em></p>
+      <p><em style='font-weight: bold; font-size: 18px;'>{{t "Anonymized Aggregate Research Data for %{start} to %{end}" start=trends.started_at end=trends.ended_at key="data_for_start_to_end"}}</em></p>
       <div class="col-sm-3 col-xs-6" style={{elem_style}}>
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Time Logged" key='total_session_time'}}
+            {{t "Time Logged" key="total_session_time"}}
           </div>
           <div class="panel-body" style='font-size: 22px; padding: 9px 0;'>
             {{seconds_ago trends.total_session_seconds}}
@@ -28,7 +28,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Avg. Sessions per User" key='average_sessions_per_user'}}
+            {{t "Avg. Sessions per User" key="average_sessions_per_user"}}
           </div>
           <div class="panel-body">
             {{trends.sessions_per_user}}
@@ -38,7 +38,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Modeling Frequency" key='percent_modeling'}}
+            {{t "Modeling Frequency" key="percent_modeling"}}
           </div>
           <div class="panel-body">
             {{trends.modeled_percent}}%
@@ -48,7 +48,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Total Words" key='total_words'}}
+            {{t "Total Words" key="total_words"}}
           </div>
           <div class="panel-body">
             {{delimit trends.total_words}}
@@ -61,7 +61,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Core Buttons" key='core_buttons'}}
+            {{t "Core Buttons" key="core_buttons"}}
           </div>
           <div class="panel-body">
             {{trends.core_percent}}%
@@ -71,7 +71,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Avg. Words per Minute" key='avg_words_per_minute'}}
+            {{t "Avg. Words per Minute" key="avg_words_per_minute"}}
           </div>
           <div class="panel-body">
             {{trends.words_per_minute}}
@@ -82,7 +82,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Auto-Home Enabled" key='auto_home_enabled'}}
+            {{t "Auto-Home Enabled" key="auto_home_enabled"}}
           </div>
           <div class="panel-body">
             {{auto_home_pct}}%
@@ -92,7 +92,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Touch-Based Hits" key='touch-based hits'}}
+            {{t "Touch-Based Hits" key="touch-based hits"}}
           </div>
           <div class="panel-body">
             {{touch_pct}}%
@@ -103,7 +103,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Avg. Available Words" key='average_access'}}
+            {{t "Avg. Available Words" key="average_access"}}
           </div>
           <div class="panel-body">
             {{delimit trends.average_access}}
@@ -113,7 +113,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Avg. Unique Words Used" key='average_breadth'}}
+            {{t "Avg. Unique Words Used" key="average_breadth"}}
           </div>
           <div class="panel-body">
             {{trends.average_breadth}}
@@ -123,7 +123,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Avg. Unique Words Modeled" key='average_modeled_breadth'}}
+            {{t "Avg. Unique Words Modeled" key="average_modeled_breadth"}}
           </div>
           <div class="panel-body">
             {{trends.average_modeled_breadth}}
@@ -133,7 +133,7 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary">
           <div class="panel-heading">
-            {{t "Total Languages" key='total_languages'}}
+            {{t "Total Languages" key="total_languages"}}
           </div>
           <div class="panel-body">
             {{locales_count}}
@@ -145,16 +145,16 @@
       {{#if trends.total_users}}
         {{#unless showing_private_info}}
           <div class='col-sm-12' style='margin-bottom: 5px; text-align: right;'>
-            <a href="#" {{action 'show_private_info'}}>{{t "show internal metrics" key='show_internal_metrics'}}</a>
+            <a href="#" {{action "show_private_info"}}>{{t "show internal metrics" key="show_internal_metrics"}}</a>
           </div>
         {{else}}
           <div class='col-sm-12'>
-            <span class='label label-danger'>{{t "Not Public Information:" key='not_public_information'}}</span>
+            <span class='label label-danger'>{{t "Not Public Information:" key="not_public_information"}}</span>
           </div>
           <div class="col-sm-3 col-xs-6" style={{elem_style}}>
             <div class="panel panel-default summary">
               <div class="panel-heading">
-                {{t "Total Logged Users" key='total_logged_users'}}
+                {{t "Total Logged Users" key="total_logged_users"}}
               </div>
               <div class="panel-body">
                 {{delimit trends.total_users}}
@@ -164,7 +164,7 @@
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
               <div class="panel-heading">
-                {{t "Total Sessions" key='total_sessions'}}
+                {{t "Total Sessions" key="total_sessions"}}
               </div>
               <div class="panel-body">
                 {{delimit trends.total_sessions}}
@@ -174,7 +174,7 @@
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
               <div class="panel-heading">
-                {{t "Active Researchable" key='active_researchable'}}
+                {{t "Active Researchable" key="active_researchable"}}
               </div>
               <div class="panel-body">
                 {{delimit trends.research_active_users}}
@@ -184,7 +184,7 @@
           <div class="col-sm-3 col-xs-6">
             <div class="panel panel-default summary">
               <div class="panel-heading">
-                {{t "Active Publishable" key='active_publishable'}}
+                {{t "Active Publishable" key="active_publishable"}}
               </div>
               <div class="panel-body">
                 {{delimit trends.publishing_active_users}}
@@ -195,7 +195,7 @@
       {{/if}}
 
       <div class='col-sm-12' style='margin-bottom: 50px;'>
-        <h4>{{t "Frequently-Used Core Words" key='most_common_core_words'}}</h4>
+        <h4>{{t "Frequently-Used Core Words" key="most_common_core_words"}}</h4>
         {{stats/word-cloud stats=word_cloud_stats zoom=1}}
       </div>
 
@@ -203,12 +203,12 @@
       {{stats/modeling-frequency trends=trends}}
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Common Home Boards" key='common_home_boards'}}</h4>
+        <h4>{{t "Common Home Boards" key="common_home_boards"}}</h4>
         {{#if home_boards}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each home_boards as |board|}}
-                {{#link-to 'board' board.key class='list-group-item'}}
+                {{#link-to "board" board.key class="list-group-item"}}
                   {{board.key}}
                   {{#if showing_private_info}}
                     <span class='text-muted'>({{board.pct}}%)</span>
@@ -218,12 +218,12 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Board Languages" key='board_languages'}}</h4>
+        <h4>{{t "Board Languages" key="board_languages"}}</h4>
         {{#if locales}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -242,18 +242,18 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       {{#if showing_private_info}}
         <div class='col-sm-6' style='margin-bottom: 50px;'>
-          <h4>{{t "Most-Commonly-Used Boards" key='most_common_boards'}}</h4>
+          <h4>{{t "Most-Commonly-Used Boards" key="most_common_boards"}}</h4>
           {{#if common_boards}}
             <div style='height: 300px; overflow: auto;'>
               <div class="list-group">
                 {{#each common_boards as |board|}}
-                  {{#link-to 'board' board.key class='list-group-item'}}
+                  {{#link-to "board" board.key class="list-group-item"}}
                     {{board.key}}
                     {{#if showing_private_info}}
                       <span class='text-muted'>({{delimit board.pct}})</span>
@@ -263,13 +263,13 @@
               </div>
             </div>
           {{else}}
-            {{t "None available" key='none_available'}}
+            {{t "None available" key="none_available"}}
           {{/if}}
         </div>
       {{/if}}
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Hardware Device" key='hardware_device'}}</h4>
+        <h4>{{t "Hardware Device" key="hardware_device"}}</h4>
         {{#if systems}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -288,12 +288,12 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Access Method" key='access_method'}}</h4>
+        <h4>{{t "Access Method" key="access_method"}}</h4>
         {{#if access_methods}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -312,13 +312,13 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       {{#if showing_private_info}}
         <div class='col-sm-6' style='margin-bottom: 50px;'>
-          <h4>{{t "Voice Output" key='voice_output'}}</h4>
+          <h4>{{t "Voice Output" key="voice_output"}}</h4>
           {{#if voices}}
             <div style='height: 300px; overflow: auto;'>
               <div class="list-group">
@@ -337,21 +337,21 @@
               </div>
             </div>
           {{else}}
-            {{t "None available" key='none_available'}}
+            {{t "None available" key="none_available"}}
           {{/if}}
         </div>
       {{/if}}
 
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Button Hit Levels" key='button_hit-levels'}}</h4>
+        <h4>{{t "Button Hit Levels" key="button_hit-levels"}}</h4>
         {{#if depths}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each depths as |depth|}}
                 <span class='list-group-item'>
-                  {{t "button hit" count=depth.level key='n_button_hits'}}
-                  {{t "to select" key='to_select'}}
+                  {{t "button hit" count=depth.level key="n_button_hits"}}
+                  {{t "to select" key="to_select"}}
                   <span class='text-muted'>
                     {{#if showing_private_info}}
                       ({{delimit depth.total}})
@@ -364,12 +364,12 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Core Words by Frequency" key='common_words'}}</h4>
+        <h4>{{t "Core Words by Frequency" key="common_words"}}</h4>
         {{#if words}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -377,13 +377,13 @@
                 <span class='list-group-item'>
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 12px;'>
-                    <br/>
-                    {{t "freq:" key='frequency'}} {{word.pct}}%&nbsp;&nbsp;
+                    <br>
+                    {{t "freq:" key="frequency"}} {{word.pct}}%&nbsp;&nbsp;
                     {{#if word.travel}}
-                      {{t "avg. travel:" key='avg_travel'}} {{word.travel}}&nbsp;&nbsp;
+                      {{t "avg. travel:" key="avg_travel"}} {{word.travel}}&nbsp;&nbsp;
                     {{/if}}
                     {{#if word.available}}
-                      {{t "available to:" key='available_to'}} {{word.available}}%
+                      {{t "available to:" key="available_to"}} {{word.available}}%
                     {{/if}}
                   </span>
                 </span>
@@ -391,12 +391,12 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Modeled Core Words by Frequency" key='modeled_common_words'}}</h4>
+        <h4>{{t "Modeled Core Words by Frequency" key="modeled_common_words"}}</h4>
         {{#if modeled_words}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -404,13 +404,13 @@
                 <span class='list-group-item'>
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 12px;'>
-                    <br/>
-                    {{t "freq:" key='frequency'}} {{word.pct}}%&nbsp;&nbsp;
+                    <br>
+                    {{t "freq:" key="frequency"}} {{word.pct}}%&nbsp;&nbsp;
                     {{#if word.travel}}
-                      {{t "avg. travel:" key='avg_travel'}} {{word.travel}}&nbsp;&nbsp;
+                      {{t "avg. travel:" key="avg_travel"}} {{word.travel}}&nbsp;&nbsp;
                     {{/if}}
                     {{#if word.available}}
-                      {{t "available to:" key='available_to'}} {{word.available}}%
+                      {{t "available to:" key="available_to"}} {{word.available}}%
                     {{/if}}
                   </span>
                 </span>
@@ -418,11 +418,11 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Most-Frequent Core Word Pairings" key='common_word_pairs'}}</h4>
+        <h4>{{t "Most-Frequent Core Word Pairings" key="common_word_pairs"}}</h4>
         {{#if word_pairs}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
@@ -439,19 +439,19 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
       
       <div class='col-sm-6' style='margin-bottom: 50px; clear: both;'>
-        <h4>{{t "Popular Goals" key='popular_goals'}}</h4>
+        <h4>{{t "Popular Goals" key="popular_goals"}}</h4>
         {{#if goals}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each goals as |goal|}}
-                {{#link-to 'goals.goal' goal.id class='list-group-item'}}
+                {{#link-to "goals.goal" goal.id class="list-group-item"}}
                   {{#if goal.image_url}}
-                    <img src={{goal.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' />
+                    <img src={{goal.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' >
                   {{else}}
                     <span style='display: inline-block; float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;'></span>
                   {{/if}}
@@ -464,19 +464,19 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
-        <h4>{{t "Most-Earned Goal Badges" key='most_earned_goal_badges'}}</h4>
+        <h4>{{t "Most-Earned Goal Badges" key="most_earned_goal_badges"}}</h4>
         {{#if badges}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each badges as |badge|}}
                 <span class='list-group-item'>
                   {{#if badge.image_url}}
-                    <img src={{badge.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' />
+                    <img src={{badge.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' >
                   {{else}}
                     <span style='display: inline-block; float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;'></span>
                   {{/if}}
@@ -490,7 +490,7 @@
                     <div class='text-muted' style='font-size: 12px;'>
                       {{#each badge.levels_list as |level|}}
                         <span style='padding-right: 10px'>
-                          {{t "Level %{level}" level=level.level key='level_n'}} - 
+                          {{t "Level %{level}" level=level.level key="level_n"}} - 
                           {{level.pct}}%
                         </span>
                       {{/each}}
@@ -501,18 +501,18 @@
             </div>
           </div>
         {{else}}
-          {{t "None available" key='none_available'}}
+          {{t "None available" key="none_available"}}
         {{/if}}
       </div>
 
       <div class='col-sm-6'>
-        <h4>{{t "Have More Questions?" key='have_more_questions'}}</h4>
-        <p>{{t "We hope this small data sample has helped you think of some of the additional questions we could  all benefit from answering with the help of anonymized AAC usage data. We have over <b>%{cnt}</b> communicators who have opted in to sharing their anonymized usage data with researchers, in a strictly private and protected manner." key='data_summary_2' cnt=trends.research_communicators}}</p>
-        <p>{{#link-to 'contact'}}{{t "Please contact us" key='please_contact_us'}}{{/link-to}} {{t "if you'd like to collaborate on an AAC research project." key='for_research_project'}}</p>
+        <h4>{{t "Have More Questions?" key="have_more_questions"}}</h4>
+        <p>{{t "We hope this small data sample has helped you think of some of the additional questions we could  all benefit from answering with the help of anonymized AAC usage data. We have over <b>%{cnt}</b> communicators who have opted in to sharing their anonymized usage data with researchers, in a strictly private and protected manner." key="data_summary_2" cnt=trends.research_communicators}}</p>
+        <p>{{#link-to "contact"}}{{t "Please contact us" key="please_contact_us"}}{{/link-to}} {{t "if you'd like to collaborate on an AAC research project." key="for_research_project"}}</p>
       </div>
 
     {{else}}
-      {{t "No data to show." key='no_data_to_show_period'}}
+      {{t "No data to show." key="no_data_to_show_period"}}
     {{/if}}
   </div>
 </div>

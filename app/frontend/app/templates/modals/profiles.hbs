@@ -1,60 +1,60 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3><span class='glyphicon glyphicon-lamp'></span> {{t "Communication Profiles for %{un}" un=model.user.user_name key='communication_profiles_for'}}
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3><span class='glyphicon glyphicon-lamp'></span> {{t "Communication Profiles for %{un}" un=model.user.user_name key="communication_profiles_for"}}
     </h3>
   </div>
   <div class="modal-body">
     {{#if model.profile_id}}
       <div>
         {{#if profile.loading}}
-          {{t "Loading profile details..." key='loading_profile_details'}}
+          {{t "Loading profile details..." key="loading_profile_details"}}
         {{else if profile.error}}
-          {{t "Error loading profile details" key='error_loading_profile_details'}}
+          {{t "Error loading profile details" key="error_loading_profile_details"}}
         {{else}}
           <h3 style='margin-top: 0;'>{{profile.name}}</h3>
         {{/if}}
       </div>
       {{#if profile.date}}
         <div style='margin: 10px 0 20px;'>
-          <div {{action 'review_profile' profile.log_id}} class={{if profile.summary 'profile_modal_circle single_row' 'profile_modal_circle'}} style={{profile.circle_style}}>
+          <div {{action "review_profile" profile.log_id}} class={{if profile.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{profile.circle_style}}>
             {{#if profile.summary}}
               {{profile.summary}}
             {{else}}
-              {{date profile.date 'tiny_day'}}
+              {{date profile.date "tiny_day"}}
             {{/if}}
           </div>
           {{#if profile.author}}
-            {{t "completed by <b>%{un}</b>" un=profile.author.user_name key='completed_by_user'}}
+            {{t "completed by <b>%{un}</b>" un=profile.author.user_name key="completed_by_user"}}
           {{/if}}
           <div style='font-style: italic; margin-left: 30px;'>{{date profile.date}}</div>
-          <a {{action 'review_profile' profile.log_id}} href="#">{{t "review details" key='review_details'}}</a>
+          <a {{action "review_profile" profile.log_id}} href="#">{{t "review details" key="review_details"}}</a>
         </div>
         {{#if profile.priors}}
-          Additional profiles:<br/>
+          Additional profiles:<br>
           <div style='margin-left: 15px; color: #888;'>
             {{#each profile.priors as |prior|}}
-              {{date prior.date}}<br/>
+              {{date prior.date}}<br>
             {{/each}}
           </div>
         {{/if}}
       {{else if profile.name}}
         <div style='margin: 20px 0;'>
-          {{t "No data recorded for this profile type" key='no_data_for_profile_type'}}
+          {{t "No data recorded for this profile type" key="no_data_for_profile_type"}}
         </div>
       {{/if}}
       <div style='margin-top: 20px;'>
-        <a href="#" {{action 'clear_profile'}}>{{t "See other profile results" key='see_other_profile_results'}}</a>
+        <a href="#" {{action "clear_profile"}}>{{t "See other profile results" key="see_other_profile_results"}}</a>
       </div>
     {{else}}
       {{#if profiles.loading}}
-        <p>{{t "Loading profile data..." key='loading_profile_data'}}</p>
+        <p>{{t "Loading profile data..." key="loading_profile_data"}}</p>
       {{else if profiles.error}}
-        <p>{{t "Error loading profile data" key='error_loading_profile_data'}}</p>
+        <p>{{t "Error loading profile data" key="error_loading_profile_data"}}</p>
       {{else if profiles}}
         {{#unless any_recorded}}
-          <p>{{t "Communication Profiles are evaluation tools that can be used to assess or monitor a user's communication development. Profiles can target communicators or the people who work with them, and can be run multiple times. They can help with deciding on appropriate goals for a user and can help teams coordinate on effective strategies for support." key='profiles_explainer'}}</p>
-          <p>{{t "NOTE: Profiles should always be run with the user's involvement, even if their participation may be limited. Also, profiles should never be used as \"proof\" that someone shouldn't receive full communication supports or age-appropriate learning experiences." key='profiles_explainer_2'}}</p>
+          <p>{{t "Communication Profiles are evaluation tools that can be used to assess or monitor a user's communication development. Profiles can target communicators or the people who work with them, and can be run multiple times. They can help with deciding on appropriate goals for a user and can help teams coordinate on effective strategies for support." key="profiles_explainer"}}</p>
+          <p>{{t "NOTE: Profiles should always be run with the user's involvement, even if their participation may be limited. Also, profiles should never be used as \"proof\" that someone shouldn't receive full communication supports or age-appropriate learning experiences." key="profiles_explainer_2"}}</p>
         {{/unless}}
         <!-- single list with both suggested (by org or defaults) and then recents that weren't suggested -->
         <table>
@@ -63,11 +63,11 @@
               <tr style='border-bottom: 1px solid #ccc;'>
                 {{#if prof.date}}
                   <td style='height: 80px;'>
-                    <div {{action 'review_profile'  prof.log_id}} class={{if prof.summary 'profile_modal_circle single_row' 'profile_modal_circle'}} style={{prof.circle_style}}>
+                    <div {{action "review_profile"  prof.log_id}} class={{if prof.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{prof.circle_style}}>
                       {{#if prof.summary}}
                         {{prof.summary}}
                       {{else}}
-                        {{date prof.date 'tiny_day'}}
+                        {{date prof.date "tiny_day"}}
                       {{/if}}
                     </div>
                   </td>
@@ -76,16 +76,16 @@
                     <div style='font-style: italic;'>{{prof.author.user_name}} {{date prof.date}}</div>
                   </td>
                   <td style='padding: 0 5px;'>
-                    <button {{action 'review_profile' prof.log_id}} class='btn btn-default'>{{t "review" key='review'}}</button>
+                    <button {{action "review_profile" prof.log_id}} class='btn btn-default'>{{t "review" key="review"}}</button>
                   </td>
                   <td style='padding: 0 5px;'>
-                    <button {{action 'run_profile' prof.id}} class={{prof.button_class}} style='width: 90px;'>{{t "repeat" key='repeat'}}</button>
+                    <button {{action "run_profile" prof.id}} class={{prof.button_class}} style='width: 90px;'>{{t "repeat" key="repeat"}}</button>
                   </td>
                   <!-- profile with results -->
                 {{else}}
                   <!-- profile template -->
                   <td style='height: 80px;'>
-                    <div {{action 'review_profile'}} class='profile_modal_circle single_row' style='opacity: 0.8;'>
+                    <div {{action "review_profile"}} class='profile_modal_circle single_row' style='opacity: 0.8;'>
                       -
                     </div>
                   </td>
@@ -96,7 +96,7 @@
                   <td style='padding: 0 5px;'>
                   </td>
                   <td style='padding: 0 5px;'>
-                    <button {{action 'run_profile' prof.id}} class={{prof.button_class}} style='width: 90px;'>{{t "run" key='run'}}</button>
+                    <button {{action "run_profile" prof.id}} class={{prof.button_class}} style='width: 90px;'>{{t "run" key="run"}}</button>
                   </td>
                 {{/if}}
               </tr>
@@ -105,29 +105,29 @@
         </table>
         <div class='row' style='margin: 15px 0;'>
           <div class='col-sm-5' style='padding-right: 0;'>
-            {{input type='text' class='form-control' enter=(action 'lookup') value=find_profile_id placeholder='Look up profile by ID'}}
+            {{input type="text" class="form-control" enter=(action "lookup") value=find_profile_id placeholder="Look up profile by ID"}}
           </div>
           <div class='col-sm-3' style='padding-left: 3px;'>
-            <button class='btn btn-default' {{action 'lookup'}}>{{t "Go" key='go'}}</button>
-            <button class='btn btn-default' {{action 'browse'}}>{{t "Browse" key='browse'}}</button>
+            <button class='btn btn-default' {{action "lookup"}}>{{t "Go" key="go"}}</button>
+            <button class='btn btn-default' {{action "browse"}}>{{t "Browse" key="browse"}}</button>
           </div>
         </div>
         {{#if lookup_state}}
           <div style='margin-top: -10px; font-style: italic; margin-left: 20px;'>
             {{#if lookup_state.loading}}
-              {{t "Loading profile..." key='loading_profile'}}
+              {{t "Loading profile..." key="loading_profile"}}
             {{else if lookup_state.error}}
-              {{t "Error loading profile" key='error_loading_profile'}}
+              {{t "Error loading profile" key="error_loading_profile"}}
             {{else}}
-              {{t "No results found" key='no_results_found'}}
+              {{t "No results found" key="no_results_found"}}
             {{/if}}
           </div>
         {{else if browse_state}}
           <div style='margin-top: -10px; font-style: italic; margin-left: 20px;'>
             {{#if browse_state.loading}}
-              {{t "Loading profiles..." key='loading_profiles'}}
+              {{t "Loading profiles..." key="loading_profiles"}}
             {{else if browse_state.error}}
-              {{t "Error loading profiles" key='error_loading_profiles'}}
+              {{t "Error loading profiles" key="error_loading_profiles"}}
             {{else}}
               <table>
                 <tbody>
@@ -141,7 +141,7 @@
                       <td style='padding: 0 5px;'>
                       </td>
                       <td style='padding: 0 5px;'>
-                        <button {{action 'run_profile' prof.id}} class='btn btn-lg btn-default' style='width: 90px;'>{{t "run" key='run'}}</button>
+                        <button {{action "run_profile" prof.id}} class='btn btn-lg btn-default' style='width: 90px;'>{{t "run" key="run"}}</button>
                       </td>
                     </tr>
                   {{/each}}
@@ -153,23 +153,23 @@
 
         <!-- TODO: other possible profiles - popular (collapsed if anything above) -->
       {{else}}
-        {{t "No data available" key='no_data_available'}}
+        {{t "No data available" key="no_data_available"}}
       {{/if}}
     {{/if}}
   </div>
   <div class="modal-footer">
     {{#if profile.date}}
-      <button {{action 'review_profile' profile.log_id}} class='btn btn-lg btn-default'>{{t "Review Results" key='review_profile'}}</button>
+      <button {{action "review_profile" profile.log_id}} class='btn btn-lg btn-default'>{{t "Review Results" key="review_profile"}}</button>
     {{/if}}
     {{#if model.profile_id}}
-      <button {{action 'run_profile' model.profile_id}} class={{repeat_button_class}}>
+      <button {{action "run_profile" model.profile_id}} class={{repeat_button_class}}>
         {{#if profile.date}}
-          {{t "Repeat Profile" key='repeat_profile'}}
+          {{t "Repeat Profile" key="repeat_profile"}}
         {{else}}
-          {{t "Run Profile" key='run_profile'}}
+          {{t "Run Profile" key="run_profile"}}
         {{/if}}
       </button>
     {{/if}}
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

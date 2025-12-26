@@ -1,16 +1,16 @@
 <div style="width: 700px; height: 300px; margin: 100px auto; font-size: 16px; font-weight: 200; line-height: normal;">
-  <img src={{path 'status/cuttlefish-lingolinq.svg'}} style="float: left;">
+  <img src={{path "status/cuttlefish-lingolinq.svg"}} style="float: left;">
   <h1 style='display: block; font-size: 2em; padding-top: 50px; margin-bottom: 20px; font-weight: 200; font-family: \"Helvetica Neue\",Helvetica,Arial,sans-serif; margin-top: 0; padding-bottom: 0; height: auto;'>
     {{#if persistence.online}}
-      {{t "Failed to load" key='failed_to_load'}}
+      {{t "Failed to load" key="failed_to_load"}}
     {{else}}
-      {{t "Unavailable offline" key='unavailable_offline'}}
+      {{t "Unavailable offline" key="unavailable_offline"}}
     {{/if}}
   </h1>
 
   {{#if persistence.online}}
-    {{t "The requested resource failed to load. If you got here through a web link then it's possible the resource was renamed, and you might find it by searching. If you got here from a link within %app_name% you may want to report the error through our support tool." key='failed_to_load_online'}}
+    {{t "The requested resource failed to load. If you got here through a web link then it's possible the resource was renamed, and you might find it by searching. If you got here from a link within %app_name% you may want to report the error through our support tool." key="failed_to_load_online"}}
   {{else}}
-    {{t "The requested resource failed to load. This probably happened because you tried to access something that isn't available when offline. You can try connecting to the Internet and attempting the action again." key='failed_to_load_offline'}}
+    {{t "The requested resource failed to load. This probably happened because you tried to access something that isn't available when offline. You can try connecting to the Internet and attempting the action again." key="failed_to_load_offline"}}
   {{/if}}
 </div>

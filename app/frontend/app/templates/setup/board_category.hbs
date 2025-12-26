@@ -1,42 +1,42 @@
 {{#if app_state.currentUser.modeling_only}}
   <div class='col-sm-10 col-sm-offset-1'>
-    <h4>{{t "Modeling on Boards" key='modeling_on_boards'}}</h4>
+    <h4>{{t "Modeling on Boards" key="modeling_on_boards"}}</h4>
   </div>
   <div class='col-sm-5 col-sm-offset-1'>
-    <img src={{path 'walkthrough/board_examples.gif'}} style='width: 100%;' />
+    <img src={{path "walkthrough/board_examples.gif"}} style='width: 100%;' >
   </div>
   <div class='col-sm-5'>
-    <p class='prompt'>{{t "%app_name% comes with many different styles of boards. As you work with different communicators you may come across different board styles and layouts. Every communicator can benefit from having the supporters around them model how to use %app_name%" key='boards_1'}}</p>
+    <p class='prompt'>{{t "%app_name% comes with many different styles of boards. As you work with different communicators you may come across different board styles and layouts. Every communicator can benefit from having the supporters around them model how to use %app_name%" key="boards_1"}}</p>
 
-    <p class='prompt'>{{t "Modeling is a great tool to language learning. Research has shown that AAC users who have people modeling for them have better success adopting and communicating using AAC." key='board_2'}}</p>
+    <p class='prompt'>{{t "Modeling is a great tool to language learning. Research has shown that AAC users who have people modeling for them have better success adopting and communicating using AAC." key="board_2"}}</p>
 
-    <p class='prompt'>{{t "Modeling is easy! All you do is hit buttons on the screen as you talk to the communicator. Show them how they can use the buttons they have available to express themselves. Don't just model requests, model all kinds of different thoughts, ideas, observations, and questions! The more you model, the more examples you'ree giving the communicator for what you consider valid ways of using their device." key='board_3'}}</p>
+    <p class='prompt'>{{t "Modeling is easy! All you do is hit buttons on the screen as you talk to the communicator. Show them how they can use the buttons they have available to express themselves. Don't just model requests, model all kinds of different thoughts, ideas, observations, and questions! The more you model, the more examples you'ree giving the communicator for what you consider valid ways of using their device." key="board_3"}}</p>
   </div>
 {{else if app_state.feature_flags.board_levels}}
   {{#if advanced}}
     <div class='col-sm-10 col-sm-offset-1'>
-      <p>{{t "In %app_name% vocabulary sets are made up of a collection of \"boards\". There are a number of different types of boards you can choose from, depending on the functional level and needs of your communicator. When you find one you like, hit \"Make This My Home Board\" to make it the communicator's \"home board\", which is what the communicator will see every time they first load the app." key='boards_explainer'}}</p>
-      <p>{{t "Nervous you'll pick the wrong board? Don't fret! You can easily change things later." key='easy_to_change_later'}}</p>
+      <p>{{t "In %app_name% vocabulary sets are made up of a collection of \"boards\". There are a number of different types of boards you can choose from, depending on the functional level and needs of your communicator. When you find one you like, hit \"Make This My Home Board\" to make it the communicator's \"home board\", which is what the communicator will see every time they first load the app." key="boards_explainer"}}</p>
+      <p>{{t "Nervous you'll pick the wrong board? Don't fret! You can easily change things later." key="easy_to_change_later"}}</p>
     </div>
     {{board-picker include_mine=advanced_mine}}
   {{else if already_have_board}}
     <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px;'>
-      <p>{{t "Next we'd be happy to help you set up a home board. It looks like you've already got one selected, so you can skip this step unless you'd like to set up a different home board" key='already_home_board'}}</p>
+      <p>{{t "Next we'd be happy to help you set up a home board. It looks like you've already got one selected, so you can skip this step unless you'd like to set up a different home board" key="already_home_board"}}</p>
     </div>
     <div class='col-sm-2 col-sm-offset-5' style='margin-top: 10px;'>
       {{board-icon noinfo=true noop=true board=app_state.currentUser.preferences.home_board localized=true}}
     </div>
     <div class='col-sm-6 col-sm-offset-3' style='margin-top: 10px; text-align: center;'>
-      <button class='btn btn-default' {{action 'find_new_board'}}>{{t "Pick a Different Home Board" key='pick_a_different_home_board'}}</button>
+      <button class='btn btn-default' {{action "find_new_board"}}>{{t "Pick a Different Home Board" key="pick_a_different_home_board"}}</button>
     </div>
 
   {{else}}
-    {{board-selection-tool load_error='show_advanced' mine='show_mine' advanced='show_advanced' select='select_board' update_scroll=(action 'update_scroll')}}
+    {{board-selection-tool load_error="show_advanced" mine="show_mine" advanced="show_advanced" select="select_board" update_scroll=(action "update_scroll")}}
   {{/if}}
 {{else}}
   <div class='col-sm-10 col-sm-offset-1'>
-    <p class='prompt'>{{t "In %app_name% vocabulary sets are made up of a collection of \"boards\". There are a number of different types of boards you can choose from, depending on the functional level and needs of your communicator. When you find one you like, hit \"Make This My Home Board\" to make it the communicator's \"home board\", which is what the communicator will see every time they first load the app." key='boards_explainer'}}</p>
-    <p class='prompt'>{{t "Nervous you'll pick the wrong board? Don't fret! You can easily change things later." key='easy_to_change_later'}}</p>
+    <p class='prompt'>{{t "In %app_name% vocabulary sets are made up of a collection of \"boards\". There are a number of different types of boards you can choose from, depending on the functional level and needs of your communicator. When you find one you like, hit \"Make This My Home Board\" to make it the communicator's \"home board\", which is what the communicator will see every time they first load the app." key="boards_explainer"}}</p>
+    <p class='prompt'>{{t "Nervous you'll pick the wrong board? Don't fret! You can easily change things later." key="easy_to_change_later"}}</p>
   </div>
   {{board-picker}}
 {{/if}}

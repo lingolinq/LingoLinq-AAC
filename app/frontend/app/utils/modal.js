@@ -5,7 +5,7 @@ import {
   later as runLater,
   cancel as runCancel
 } from '@ember/runloop';
-import $ from 'jquery';
+// import $ from 'jquery';
 import scanner from './scanner';
 
 var modal = EmberObject.extend({
@@ -73,13 +73,14 @@ var modal = EmberObject.extend({
     }
   },
   is_closeable: function() {
-    return $(".modal").attr('data-uncloseable') != 'true';
+    var modal = document.querySelector(".modal");
+    return modal && modal.getAttribute('data-uncloseable') != 'true';
   },
   scannable_targets: function() {
     if(modal.is_open()) {
-      return scanner.find_elem(".modal-dialog .modal_targets").find(".btn,a,.speak_menu_button");
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button");
     } else {
-      return scanner.find_elem();
+      return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }
   },
   queue: function(template) {
@@ -253,7 +254,8 @@ var modal = EmberObject.extend({
     });
   },
   fade_flash: function() {
-    $('.flash').addClass('fade');
+    var flash = document.querySelector('.flash');
+    if(flash) { flash.classList.add('fade'); }
   },
   warning: function(text, below_header, sticky, opts) {
     modal.flash(text, 'warning', below_header, sticky, opts);
@@ -311,7 +313,7 @@ modal.ModalController = Controller.extend({
       modal.auto_close_timer = null;
       if(settings && settings.inactivity_timeout) {
         modal.auto_close_callback = function() {
-          if(modal.auto_close && $(modal.component.element).find(".modal-content.auto_close").length) {
+          if(modal.auto_close && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
             modal.close();
             modal.auto_close = false;
           }

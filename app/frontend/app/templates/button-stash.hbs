@@ -1,9 +1,9 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-body">
     <!-- TODO: this needs better visual cue when in select mode. also could use drag option -->
     {{#if button_stashes}}
       <p>
-      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key='select_stashed_button'}}
+      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
       </p>
       {{#with model as |board|}}
         {{#each button_stashes as |button|}}
@@ -12,19 +12,19 @@
             <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
               {{#if button.pending}}
                 <div class="pending">
-                  <img src={{path 'images/spinner.gif'}} draggable='false' />
+                  <img src={{path "images/spinner.gif"}} draggable='false' >
                 </div>
               {{/if}}
               <div class={{button.action_class}}>
                 <span class="action">
-                  <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' />
+                  <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
                 </span>
               </div>
               <span class='img_holder' style={{button.image_holder_style}}>
                 {{#unless app_state.currentUser.hide_symbols}}
                   {{#unless button.board.text_only}}
                     {{#unless button.text_only}}
-                      <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image 'symbol hc' 'symbol'}}>
+                      <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
                     {{/unless}}
                   {{/unless}}
                 {{/unless}}
@@ -53,12 +53,12 @@
       <div style="clear: left;"></div>
     {{else}}
       <p>
-      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key='stash_explanation'}}
+      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
       <!-- TODO: pretty picture here making things a little more obvious -->
       </p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

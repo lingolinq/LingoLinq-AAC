@@ -3,30 +3,30 @@
 {{else if model.currently_premium_or_premium_supporter}}
   <h2>
     {{#if messages_only}}
-      {{t "Messages about" key='messages_about'}} {{model.user_name}}
+      {{t "Messages about" key="messages_about"}} {{model.user_name}}
     {{else}}
-      {{t "Logs for" key='logs_for'}} {{model.user_name}}
+      {{t "Logs for" key="logs_for"}} {{model.user_name}}
     {{/if}}
     {{#if filtered_results}}
-      {{t "(filtered)" key='filtered'}}
+      {{t "(filtered)" key="filtered"}}
       <span style='font-size: 12px; padding-left: 5px;'>
-      {{#link-to 'user.logs' model.user_name (query-params type=type highlighted=null start='' end='' device_id='' location_id='')}}
-        {{t "clear filter" key='clear_filter'}}
+      {{#link-to "user.logs" model.user_name (query-params type=type highlighted=null start="" end="" device_id="" location_id="")}}
+        {{t "clear filter" key="clear_filter"}}
       {{/link-to}}
       </span>
     {{else}}
       <span style='font-size: 12px; padding-left: 5px;'>
         {{#if all_logs}}
-          {{#link-to 'user.logs' model.user_name (query-params type='note' highlighted=null)}}{{t "Show Only Messages" key='show_only_messages'}}{{/link-to}} 
+          {{#link-to "user.logs" model.user_name (query-params type="note" highlighted=null)}}{{t "Show Only Messages" key="show_only_messages"}}{{/link-to}} 
           {{#if model.currently_premium}}
             | 
-            {{#link-to 'user.logs' model.user_name (query-params type='all' highlighted='1')}}{{t "Show Highlighted" key='show_highlighted'}}{{/link-to}}
+            {{#link-to "user.logs" model.user_name (query-params type="all" highlighted="1")}}{{t "Show Highlighted" key="show_highlighted"}}{{/link-to}}
             {{#if model.permissions.delete}}
-              | {{#link-to 'user.logs' model.user_name (query-params type='journal' highlighted=null)}}{{t "Show Journal" key='show_journal'}}{{/link-to}}
+              | {{#link-to "user.logs" model.user_name (query-params type="journal" highlighted=null)}}{{t "Show Journal" key="show_journal"}}{{/link-to}}
             {{/if}}
           {{/if}}
         {{else}}
-          {{#link-to 'user.logs' model.user_name (query-params type='all' highlighted=null)}}{{t "Show Full Log" key='show_full_log'}}{{/link-to}}
+          {{#link-to "user.logs" model.user_name (query-params type="all" highlighted=null)}}{{t "Show Full Log" key="show_full_log"}}{{/link-to}}
         {{/if}}
       </span>
     {{/if}}
@@ -37,7 +37,7 @@
       <div class='row big_buttons' style='margin-top: 20px;'>
         <div class='col-sm-3 col-xs-6 big_button_holder'>
           <button class='btn big_button btn-default lesser_button' {{action "generate"}} style='height: 100px;'>
-            Manual Log<br/>Session
+            Manual Log<br>Session
           </button>
         </div>
         <div class='col-sm-3 col-xs-6 big_button_holder'>
@@ -50,25 +50,25 @@
   {{/if}}
   </h2>
   {{#if logs.loading}}
-    <p>{{t "Loading..." key='loading...'}}</p>
+    <p>{{t "Loading..." key="loading..."}}</p>
   {{else if logs.error}}
-    <p>{{t "Failed to load" key='failed_to_load'}}</p>
+    <p>{{t "Failed to load" key="failed_to_load"}}</p>
   {{else if logs}}
     {{#if meta.logging_cutoffs}}
       <div class='alert alert-warning'>
-        {{t "NOTE: The results you are seeing are limited based on the user's preferences. You are currently only able to see results from the last " key='limited_logging_results'}}
+        {{t "NOTE: The results you are seeing are limited based on the user's preferences. You are currently only able to see results from the last " key="limited_logging_results"}}
         {{seconds_ago logging_cutoff_seconds}}.
         {{#if model.permissions.delete}}
           {{#if model.has_logging_code}}
-            {{t "If you know the logging access code, you may enter that to temporarily unlock full access to the user's logs." key='logging_code_for_full_access'}}
+            {{t "If you know the logging access code, you may enter that to temporarily unlock full access to the user's logs." key="logging_code_for_full_access"}}
 
             <form class="form-horizontal" {{action "update_logging_code" on="submit"}}>
               <div class="form-group">
                 <div class="col-sm-2">
-                  {{input type='text' value=logging_code class='form-control'}}
+                  {{input type="text" value=logging_code class="form-control"}}
                 </div>
                 <div class="col-sm-2">
-                  <button class='btn btn-default'>{{t "Submit Code" key='submit_code'}}</button>
+                  <button class='btn btn-default'>{{t "Submit Code" key="submit_code"}}</button>
                 </div>
               </div>
             </form>
@@ -81,96 +81,96 @@
         <thead>
           <tr>
             <th></th>
-            <th>{{t "Summary" key='summary'}}</th>
+            <th>{{t "Summary" key="summary"}}</th>
             {{#unless messages_only}}
-              <th>{{t "Duration" key='duration'}}</th>
-              <th>{{t "Notes" key='notes'}}</th>
+              <th>{{t "Duration" key="duration"}}</th>
+              <th>{{t "Notes" key="notes"}}</th>
             {{/unless}}
-            <th>{{t "Date" key='date'}}</th>
+            <th>{{t "Date" key="date"}}</th>
           </tr>
         </thead>
         <tbody>
           {{#if pending_eval}}
             <tr>
               <td>
-                {{#link-to 'user.log' user.user_name 'last-eval'}}
+                {{#link-to "user.log" user.user_name "last-eval"}}
                   <span class="glyphicon glyphicon-list-alt"></span>
-                  <span class="sr-only">{{t "journal" key='journal_lower'}}</span>
+                  <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
                 {{/link-to}}
               </td>
               <td style="font-size: 12px; width: 100%;">
-                {{t "Latest Evaluation" key='latest_pending'}}
+                {{t "Latest Evaluation" key="latest_pending"}}
               </td>
               {{#unless messages_only}}
                 <td style="white-space: nowrap;">
-                  {{#link-to 'user.log' user.user_name 'last-eval'}}
-                    {{t "pending" key='pending'}}
+                  {{#link-to "user.log" user.user_name "last-eval"}}
+                    {{t "pending" key="pending"}}
                   {{/link-to}}
                 </td>
                 <td>
                 </td>
               {{/unless}}
-              <td style="white-space: nowrap;">{{t "..." key='ellipsis'}}</td>
+              <td style="white-space: nowrap;">{{t "..." key="ellipsis"}}</td>
             </tr>
           {{/if}}
           {{#each logs as |log|}}
-            {{partial 'log'}}
+            <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} />
           {{/each}}
         </tbody>
       </table>
     </div>
     {{#if more_available}}
-      <button class="btn btn-default" {{action "more"}}>{{t "More" key='more'}}</button>
+      <button class="btn btn-default" {{action "more"}}>{{t "More" key="more"}}</button>
     {{/if}}
   {{else}}
-    <p>{{t "No records currently available" key='no_logs_found'}}</p>
+    <p>{{t "No records currently available" key="no_logs_found"}}</p>
   {{/if}}
   {{#if all_logs}}
     <!-- TODO
-    <button class="btn btn-default" {{action "exportLogs"}}>{{t "Export Logs" key='export_logs'}}</button>
+    <button class="btn btn-default" {{action "exportLogs"}}>{{t "Export Logs" key="export_logs"}}</button>
     -->
     {{#if model.permissions.edit}}
       {{#if model.currently_premium_or_premium_supporter}}
         <div class="btn-group dropup">
           <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
-            {{t "Add..." key='add_ellipses'}} <span class="caret"></span>
+            {{t "Add..." key="add_ellipses"}} <span class="caret"></span>
           </button>
           <ul class="dropdown-menu" role="menu">
             {{#unless model.supporter_role}}
-              <li><a href="#" {{action 'recordNote'}}><strong>{{t "New Note" key='new_note'}}</strong></a></li>
-              <li><a href="#" {{action 'quick_assessment'}}>{{t "Quick Assessment" key='quick_assessment'}}</a></li>
+              <li><a href="#" {{action "recordNote"}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
+              <li><a href="#" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
             {{/unless}}
-            <li><a href="#" {{action 'generate'}}>{{t "Manually Add Session" key='manually_add_session'}}</a></li>
+            <li><a href="#" {{action "generate"}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
             <li style='position: relative;'>
-              <a href="#" {{action 'import_session'}}>
-                {{t "Import Session(s)" key='import_sessions'}}
+              <a href="#" {{action "import_session"}}>
+                {{t "Import Session(s)" key="import_sessions"}}
               </a>
-              <input type='file' style='opacity: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; cursor: pointer;' id='log_upload'/>
+              <input type='file' style='opacity: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; cursor: pointer;' id='log_upload'>
             </li>
           </ul>
         </div>
       {{/if}}
     {{/if}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key='download_log_file'}}</button>
-    <button class="btn btn-default" {{action "clearLogs"}}>{{t "Clear All Logs" key='clear_all_logs'}}</button>
+    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button class="btn btn-default" {{action "clearLogs"}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
   {{else}}
     {{#if messages_only}}
       {{#if model.permissions.edit}}
-        <button class='btn btn-small btn-default' {{action "recordNote" "text"}}>{{t "New Note" key='new_note'}}</button>
-        <button class='btn btn-small btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key='quick_assessment'}}</button>
+        <button class='btn btn-small btn-default' {{action "recordNote" "text"}}>{{t "New Note" key="new_note"}}</button>
+        <button class='btn btn-small btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
       {{/if}}
     {{/if}}
   {{/if}}
 {{else if session.isAuthenticated}}
-  <h2>{{t "Premium Membership Required" key='premium_required'}}</h2>
+  <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
-    {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key='purchase_subscription_1g'}}
+    {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1g"}}
     {{#if app_state.feature_flags.subscriptions}}
-      {{#link-to 'user.subscription' model.user_name}}{{t "purchase a premium account" key='purchase_subscription_2'}}{{/link-to}}
+      {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
-      {{t "purchase a premium account" key='purchase_subscription_2'}}
+      {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}
-    {{t "to support this good cause and to unlock this feature." key='purchase_subscription_3'}}
+    {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
   {{login-form left=true prompt=true return=true}}

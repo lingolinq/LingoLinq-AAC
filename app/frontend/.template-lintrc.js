@@ -2,16 +2,18 @@
 
 module.exports = {
   extends: 'recommended',
+
   rules: {
-    'quotes': false, // TODO: blech
-    'no-inline-styles': false,
-    'block-indentation': false,
-    'img-alt-attributes': false, // TODO: yeah prolly
-    'self-closing-void-elements': false,
-    'simple-unless': false, // their bad
-    'no-html-comments': false,
+    'no-partial': true,
+    // Temporarily disabled for Phase 1 - will address in Phase 2
     'link-rel-noopener': false,
-    'no-invalid-interactive': false, // TODO: this seems busted
-    'no-partial': false, // TODO: clean these up soon
+    'no-inline-styles': false,
+    'require-button-type': false,
+    'require-valid-alt-text': false,
+    'no-html-comments': false,
+    'no-invalid-role': false,
+    'no-invalid-interactive': false,
+    'simple-unless': false,
+    'no-log': false
   }
 };

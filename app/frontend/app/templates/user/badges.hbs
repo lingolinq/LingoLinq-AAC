@@ -1,11 +1,11 @@
 {{#if app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if model.currently_premium}}
-  <h2>{{t "Current Badges" key='current_badges'}}</h2>
+  <h2>{{t "Current Badges" key="current_badges"}}</h2>
   {{#if badges.loading}}
-    {{t "Loading badges..." key='loading_badges'}}
+    {{t "Loading badges..." key="loading_badges"}}
   {{else if badges.error}}
-    {{t "Badges failed to load" key='badges_failed_to_load'}}
+    {{t "Badges failed to load" key="badges_failed_to_load"}}
   {{else if badges}}
     {{#each badges as |badge|}}
       <div class='well listed_badge sparkle_list_item'>
@@ -13,19 +13,19 @@
           {{#if user.permissions.edit}}
             {{#if badge.earned}}
               {{#if badge.highlighted}}
-                <button {{action 'highlight_badge' badge false}} class='btn btn-lg btn-default' title={{t "un-highlight badge" key='unhighlight_badge'}}><span class='glyphicon glyphicon-star'></span></button>
+                <button {{action "highlight_badge" badge false}} class='btn btn-lg btn-default' title={{t "un-highlight badge" key="unhighlight_badge"}}><span class='glyphicon glyphicon-star'></span></button>
               {{else}}
-                <button {{action 'highlight_badge' badge true}} class='btn btn-lg btn-default' title={{t "highlight badge" key='highlight_badge'}}><span class='glyphicon glyphicon-star-empty'></span></button>
+                <button {{action "highlight_badge" badge true}} class='btn btn-lg btn-default' title={{t "highlight badge" key="highlight_badge"}}><span class='glyphicon glyphicon-star-empty'></span></button>
               {{/if}}
             {{/if}}
             <!-- TODO: enable someday
-            <button {{action 'delete_badge' badge}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-remove'></span></button>
+            <button {{action "delete_badge" badge}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-remove'></span></button>
             -->
           {{/if}}
         </div>
         <div class='basics'>
-          <span {{action 'badge_popup' badge}} style='cursor: pointer;'>
-            <img src={{badge.image_url}} class='badge_image'/>
+          <span {{action "badge_popup" badge}} style='cursor: pointer;'>
+            <img src={{badge.image_url}} class='badge_image'>
             {{#if badge.earned}}
               <div class='sparkle'>&#10022;</div>
             {{/if}}
@@ -34,38 +34,38 @@
         <div class='details'>
           <div>
             {{#if badge.global}}
-              {{#link-to 'goals.goal' badge.goal_id}}{{badge.name}}{{/link-to}}
+              {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
             {{else}}
-              {{#link-to 'user.goal' model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+              {{#link-to "user.goal" model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
             {{/if}}
           </div>
           <div style='margin-bottom: 10px;'>
             {{#if badge.earned}}
               <span class='text-muted'>
                 <span class='glyphicon glyphicon-ok'></span>
-                {{t "Earned!" key='earned'}}
+                {{t "Earned!" key="earned"}}
               </span>
             {{else}}
               <div style='width: 150px; margin-left: 150px;'>
                 <div class="progress" style="border: 1px solid #aaa;height: 15px;">
                   <div class="progress-bar" role="progressbar" aria-value={{badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{badge.progress_style}}>
                     <span class="sr-only">
-                      {{t "%{pct}% Complete" key='percent_complete' pct=badge.progress_out_of_100}}
+                      {{t "%{pct}% Complete" key="percent_complete" pct=badge.progress_out_of_100}}
                     </span>
                   </div>
                 </div>
               </div>
             {{/if}}
           </div>
-          {{t "Level %{level}" level=badge.level key='level_n'}}<br/>
+          {{t "Level %{level}" level=badge.level key="level_n"}}<br>
           {{#if badge.earned}}
             {{#if badge.max_level}}
-              {{t "Great job, you've completed all levels of this badge!" key='all_levels_completed'}}
+              {{t "Great job, you've completed all levels of this badge!" key="all_levels_completed"}}
             {{else}}
-              {{t "Keep at it, there's another level of this badge to unlock!" key='more_levels_to_unlock'}}
+              {{t "Keep at it, there's another level of this badge to unlock!" key="more_levels_to_unlock"}}
             {{/if}}
           {{else}}
-            {{t "Keep working to unlock this badge!" key='keep_working_on_badge'}}
+            {{t "Keep working to unlock this badge!" key="keep_working_on_badge"}}
           {{/if}}
         </div>
         <div style='clear: both;'></div>
@@ -73,18 +73,18 @@
     {{/each}}
     <div style='clear: left;'></div>
   {{else}}
-    {{t "No badges earned yet" key='no_badges_earned_yet'}}
+    {{t "No badges earned yet" key="no_badges_earned_yet"}}
   {{/if}}
 {{else if session.isAuthenticated}}
-  <h2>{{t "Premium Membership Required" key='premium_required'}}</h2>
+  <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
-    {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key='purchase_subscription_1d'}}
+    {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1d"}}
     {{#if app_state.feature_flags.subscriptions}}
-      {{#link-to 'user.subscription' model.user_name}}{{t "purchase a premium account" key='purchase_subscription_2'}}{{/link-to}}
+      {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
-      {{t "purchase a premium account" key='purchase_subscription_2'}}
+      {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}
-    {{t "to support this good cause and to unlock this feature." key='purchase_subscription_3'}}
+    {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
   {{login-form left=true prompt=true return=true}}

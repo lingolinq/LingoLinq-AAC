@@ -1,33 +1,33 @@
-<form class="form-horizontal" {{action 'nothing' on='submit'}}>
-<div class={{if pictureState 'active' 'hidden'}}>
+<form class="form-horizontal" {{action "nothing" on="submit"}}>
+<div class={{if pictureState "active" "hidden"}}>
   {{#if show_libraries}}
     {{#if image_libraries}}
-      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key='library_colon'}}</div>
+      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
         {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=image_libraries selection=image_library action=(action (mut image_library)) }}
       </div>
     {{else}}
-      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key='library_open_symbols'}}</div>
+      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
     {{#if app_state.feature_flags.skin_tones}}
-      <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action 'library_options'}} style='height: 25px; padding-top: 3px;'>{{t "options" key='options'}}</button></div>
+      <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
     {{/if}}
     <div style="clear: left;"></div>
     {{#if premium_symbol_library}}
       {{#if app_state.currentUser.subscription.grace_trial_period}}
         <div class='text-danger'>
-          {{t "(requires extra fee after trial period)" key='extra_fee_at_purchase'}}            
+          {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
         </div>
       {{/if}}
     {{/if}}
     <div style='font-size: 12px; margin-top: 5px;' class='text-muted'>
-      <em>{{t "Enter a search term, or paste a URL or file" key='search_or_paste'}}</em>
+      <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
     </div>
   {{/if}}
   <div style="margin-bottom: 10px;" class="options">
     <span class="picture_search_field">
-      <span style={{if multi_locales 'display: inline-block; width: calc(100% - 60px); vertical-align: middle;' 'display: inline-block; width: 100%; vertical-align: middle;'}}>
-        {{input id='find_picture' value=model.image_field enter=(action "find_picture") placeholder=search_prompt class="form-control inline select_on_click"}}
+      <span style={{if multi_locales "display: inline-block; width: calc(100% - 60px); vertical-align: middle;" "display: inline-block; width: 100%; vertical-align: middle;"}}>
+        {{input id="find_picture" value=model.image_field enter=(action "find_picture") placeholder=search_prompt class="form-control inline select_on_click"}}
       </span>
       {{#if multi_locales}}
         <span style='display: inline-block; width: 55px; vertical-align: middle;'>
@@ -45,15 +45,15 @@
         </span>
       {{/if}}
     </span>
-    <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key='search'}}</button>
+    <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key="search"}}</button>
     <button type="button" {{action "webcamPicture" on="click"}} disabled={{webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
-      <img src={{path 'images/camera.svg'}} style="height: 42px; margin: -13px;" alt="take a picture"/>
+      <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
     </button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
-        <img src={{path 'images/upload.svg'}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+        <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
       </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*"/>
+      <input type="file" name="image_upload" id="image_upload" accept="image/*">
     </span>
     {{#if show_library_options}}
       <div style='margin-top: 3px;'>
@@ -62,7 +62,7 @@
         </div>
         <div style='width: 150px; float: left; margin-left: 5px;'>
           <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>
-            <label>{{input type='checkbox' checked=safe_search}} {{t "safe search" key='safe_search'}}</label>
+            <label>{{input type="checkbox" checked=safe_search}} {{t "safe search" key="safe_search"}}</label>
           </div>
         </div>
       </div>
@@ -70,19 +70,19 @@
     {{/if}}
   </div>
 
-  <div style="text-align: center;" class={{if webcam 'shown' 'hidden'}}>
+  <div style="text-align: center;" class={{if webcam "shown" "hidden"}}>
     {{#if webcam.error}}
-      <p>{{t "There was an error loading the camera" key='error_loading_camera'}}</p>
+      <p>{{t "There was an error loading the camera" key="error_loading_camera"}}</p>
     {{else}}
       <video autoplay id="webcam_video" {{action "webcamToggle" true}} class={{webcam_class}}></video>
       <canvas id="webcam_canvas" style="display:none;" width="800" height="800"></canvas>
       {{#unless webcam.snapshot}}
-        <br/>
-        <button type="button" class='btn btn-primary' {{action "webcamToggle" true}}>{{t "Take Pic" key='take_pic'}}</button>
+        <br>
+        <button type="button" class='btn btn-primary' {{action "webcamToggle" true}}>{{t "Take Pic" key="take_pic"}}</button>
         {{#if webcam.video_streams}}
-          <button type="button" class='btn btn-default' {{action "swapStreams"}}>{{t "Switch Views" key='switch_cameras'}}</button>
+          <button type="button" class='btn btn-default' {{action "swapStreams"}}>{{t "Switch Views" key="switch_cameras"}}</button>
         {{/if}}
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{/unless}}
     {{/if}}
   </div>
@@ -91,7 +91,7 @@
     {{#if image_preview.error}}
       {{image_preview.error}}
       <div style='margin-top: 10px;'>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
       <div style="text-align: center;">
@@ -100,7 +100,7 @@
         {{else if image_preview.editor}}
           <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0"></iframe>
         {{else}}
-          <img src={{image_preview.url}} class="button_image"/>
+          <img src={{image_preview.url}} class="button_image">
         {{/if}}
         <div style="margin-top: 10px;">
           {{pick-license license=image_preview.license}}
@@ -109,13 +109,13 @@
           <div style='margin-top: -10px; text-align: left;'>
             <div class='form-group'>
               <div class='col-sm-2'>
-                <label><p class='form-control-static'>{{t "Contrast" key='contrast'}}</p></label>
+                <label><p class='form-control-static'>{{t "Contrast" key="contrast"}}</p></label>
               </div>
               <div class='col-sm-10'>
                 <div class="checkbox big_checkbox">
                   <label>
                     {{input checked=image_preview.hc type="checkbox"}}
-                    {{t "This is a high-contrast image" key='mark_high_contrast'}}
+                    {{t "This is a high-contrast image" key="mark_high_contrast"}}
                   </label>
                 </div>
               </div>
@@ -125,31 +125,31 @@
         <div style="margin-top: 10px;">
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
             {{#if button.pending}}
-              {{t "Saving..." key='saving'}}
+              {{t "Saving..." key="saving"}}
             {{else}}
-              {{t "Use This" key='use_this'}}
+              {{t "Use This" key="use_this"}}
             {{/if}}
           </button>
           {{#unless image_preview.editor}}
-            <button type="button" class='btn btn-default' {{action "edit_image_preview"}}>{{t "Edit" key='edit'}}</button>
+            <button type="button" class='btn btn-default' {{action "edit_image_preview"}}>{{t "Edit" key="edit"}}</button>
           {{/unless}}
           {{#if stream}}
-            <button type="button" class='btn btn-default' {{action "webcamToggle" false}}>{{t "Try Again" key='try_again'}}</button>
+            <button type="button" class='btn btn-default' {{action "webcamToggle" false}}>{{t "Try Again" key="try_again"}}</button>
           {{/if}}
           {{#if image_search.previews}}
-            <button type="button" class='btn btn-default' {{action "clear_image_preview"}}>{{t "Back to List" key='back_to_list'}}</button>
+            <button type="button" class='btn btn-default' {{action "clear_image_preview"}}>{{t "Back to List" key="back_to_list"}}</button>
             {{#if model.image.permissions.edit}}
               <div class="btn-group" role="group" aria-label="extra" style='width: 30px; margin-right: 5px;'>
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-right">
-                  <li><a href="#" {{action 'set_alternate'}}>{{t "Set as Library Default" key='set_as_library_default'}}</a></li>
+                  <li><a href="#" {{action "set_alternate"}}>{{t "Set as Library Default" key="set_as_library_default"}}</a></li>
                 </ul>
               </div>
             {{/if}}
           {{/if}}
-          <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+          <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
         </div>
       </div>
     {{/if}}
@@ -157,77 +157,77 @@
     {{#if image_search.error}}
       <p class='text-danger' style='margin: 15px 0;'>{{image_search.error}}</p>
       <div style='margin-top: 10px;'>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
       {{#if missing_library}}
         <div style="margin: 10px 0 10px 0;">
           {{#if missing_library.lessonpix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key='lessonpix_detailer'}}
+            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank' rel='noopener'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key="lessonpix_detailer"}}
           {{else if missing_library.pcs}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key='pcs_explainer'}}
-            {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
+            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else if missing_library.symbolstix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key='symbolstix_explainer'}}
-            {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
+            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else}}
-            {{t "Premium symbol support required" key='premium_symbols_required'}}
+            {{t "Premium symbol support required" key="premium_symbols_required"}}
           {{/if}}
         </div>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else if image_search.previews}}
         <div style="margin: 10px 0 10px 0;">
           {{#each image_search.previews as |image|}}
-            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;"/>
+            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;">
           {{/each}}
         </div>
         {{#if current_library.giphy_asl}}
-          <img src={{path 'images/logos/giphy.png'}} style='padding-bottom: 10px; margin-left: -10px;'/><br/>
+          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
 
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else if image_search.previews_loaded}}
         <div style="margin: 10px 0 10px 0;">
-          {{t "No results found for %{term}" key='no_image_results_for' term=image_search.term}}
+          {{t "No results found for %{term}" key="no_image_results_for" term=image_search.term}}
         </div>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else}}
         {{#if image_search.term}}
-          {{t "Finding symbols for %{term}..." key='finding_symbols_for' term=image_search.term}}
+          {{t "Finding symbols for %{term}..." key="finding_symbols_for" term=image_search.term}}
         {{else}}
           {{#unless webcam}}
             {{#if model.image.url}}
               <div style="text-align: center; margin-bottom: 10px; margin-top: 10px;">
-                <img src={{model.image.best_url_without_preferred_symbols}} class="button_image"/>
+                <img src={{model.image.best_url_without_preferred_symbols}} class="button_image">
               </div>
               {{pick-license license=model.image.license}}
               {{#if model.image.skinned}}
                 <div class="checkbox big_checkbox">
                   <label>
                     {{input checked=model.no_skin type="checkbox"}}
-                    {{t "apply clustered skin tone for his button (all clustered images will use the same skin tone)" key='disable_skin_shuffle'}}
+                    {{t "apply clustered skin tone for his button (all clustered images will use the same skin tone)" key="disable_skin_shuffle"}}
                   </label>
                 </div>
               {{/if}}
               <div style="margin-top: 10px;">
-                <button type="button" class='btn btn-default' {{action "edit_image"}}>{{t "Edit Image" key='edit_image'}}</button>
-                <button type="button" class='btn btn-default' {{action "clear_image"}}>{{t "Clear Image" key='clear_image'}}</button>
+                <button type="button" class='btn btn-default' {{action "edit_image"}}>{{t "Edit Image" key="edit_image"}}</button>
+                <button type="button" class='btn btn-default' {{action "clear_image"}}>{{t "Clear Image" key="clear_image"}}</button>
               </div>
               {{#if model.image.alternates}}
                 <div style='margin-top: 20px;'>
-                  <em>{{t "Alternates for specific libraries:" key='alternates_for_specific_libraries_colon'}}</em><br/>
+                  <em>{{t "Alternates for specific libraries:" key="alternates_for_specific_libraries_colon"}}</em><br>
                   {{#if model.image.alternate_error}}
-                    <em class='text-danger'>{{t "Error loading alternates" key='error_loading_alternates'}}</em>
+                    <em class='text-danger'>{{t "Error loading alternates" key="error_loading_alternates"}}</em>
                   {{/if}}
                   {{#each model.image.alternates as |alt|}}
-                    <img src={{alt.url}} alt={{alt.library}} title={{alt.library}} style='width: 30px; height: 30px; margin-right: 5px; object-fit: contain; object-position: center;' />
+                    <img src={{alt.url}} alt={{alt.library}} title={{alt.library}} style='width: 30px; height: 30px; margin-right: 5px; object-fit: contain; object-position: center;' >
                   {{/each}}
                 </div>
               {{/if}}
@@ -238,7 +238,7 @@
               <div class="checkbox big_checkbox">
                 <label>
                   {{input checked=model.text_only type="checkbox"}}
-                  {{t "Show only text (as large as fits) for this button" key='stretch_text_only'}}
+                  {{t "Show only text (as large as fits) for this button" key="stretch_text_only"}}
                 </label>
               </div>
             {{/if}}

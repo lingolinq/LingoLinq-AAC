@@ -2,7 +2,7 @@
   {{#if available_reports}}
     <form class="form-horizontal">
       <div class="form-group">
-        <label for="report_type" class="col-sm-1 control-label">{{t "Report:" key='report_colon'}}</label>
+        <label for="report_type" class="col-sm-1 control-label">{{t "Report:" key="report_colon"}}</label>
         <div class="col-sm-6">
           {{bound-select select_class="form-control" select_id="report_type" content=available_reports selection=current_report action=(action (mut current_report)) }}
           {{#if custom_report}}
@@ -14,7 +14,7 @@
     {{#if results.loading}}
       <h2>
         <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;&nbsp;
-        {{t "Loading..." key='loading'}}
+        {{t "Loading..." key="loading"}}
       </h2>
     {{else if results}}
       {{#if results.error}}
@@ -28,7 +28,7 @@
             {{else}}
               <span class="glyphicon glyphicon-th-list"></span>&nbsp;
             {{/if}}
-            {{t "result" key='x_results' count=results.count}}
+            {{t "result" key="x_results" count=results.count}}
           </h2>
           <div class='list-group'>
             {{#each results.list as |item|}}
@@ -37,32 +37,32 @@
                   <span title={{date item.started_at}}>
                     {{date_ago item.started_at}}
                   </span>
-                  {{#link-to 'user.log' item.user.user_name log.id}}
-                    {{t "button" count=item.button_count key='button_count'}}
+                  {{#link-to "user.log" item.user.user_name log.id}}
+                    {{t "button" count=item.button_count key="button_count"}}
                   {{/link-to}}
                   <span> -
-                    {{#link-to 'user' item.user.user_name}}
+                    {{#link-to "user" item.user.user_name}}
                       {{item.user.user_name}}
                     {{/link-to}}
                   </span>
-                  <br/>
+                  <br>
                   <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{item.summary}}</span>
                 </span>
               {{else}}
                 {{#if removable_report}}
-                  <a href="#" {{action 'remove_report_user' item}} style="position: absolute; z-index: 2; right: 20px; padding: 10px;">
+                  <a href="#" {{action "remove_report_user" item}} style="position: absolute; z-index: 2; right: 20px; padding: 10px;">
                     <span class="glyphicon glyphicon-remove"></span>
                   </a>
                 {{/if}}
                 {{#if model.premium}}
                   {{#if item.org_status_class}}
-                    <button {{action 'set_status' item}} class='btn btn-default' style="position: absolute; z-index: 2; right: 60px; margin-top: 5px;">
+                    <button {{action "set_status" item}} class='btn btn-default' style="position: absolute; z-index: 2; right: 60px; margin-top: 5px;">
                       <span class={{item.org_status_class}} style='font-size: 20px;'></span>
                     </button>
                   {{/if}}
                 {{/if}}
-                {{#link-to 'user' item.user_name class='list-group-item'}}
-                  <img src={{item.avatar_url}} style='height: 40px; width: 40px; object-fit: contain; margin-right: 5px; margin-top: -5px; float: left;'/>
+                {{#link-to "user" item.user_name class="list-group-item"}}
+                  <img src={{item.avatar_url}} style='height: 40px; width: 40px; object-fit: contain; margin-right: 5px; margin-top: -5px; float: left;'>
                   <span style="font-size: 16px;">
                     {{item.user_name}}
                   </span>
@@ -76,13 +76,13 @@
                       {{/if}}
                     {{/if}}
                     {{#if item.org_pending}}
-                      <span class="comma_item">{{t "pending" key='pending'}}</span>
+                      <span class="comma_item">{{t "pending" key="pending"}}</span>
                     {{/if}}
                     {{#if item.org_supervision_pending}}
-                      <span class="comma_item">{{t "pending" key='pending'}}</span>
+                      <span class="comma_item">{{t "pending" key="pending"}}</span>
                     {{/if}}
                     {{#if item.org_sponsored}}
-                      <span class="comma_item">{{t "sponsored" key='sponsored_lower'}}</span>
+                      <span class="comma_item">{{t "sponsored" key="sponsored_lower"}}</span>
                     {{/if}}
                     {{#if item.goal}}
                       <span class="comma_item">goal set</span>
@@ -103,15 +103,15 @@
             {{/each}}
           </div>
           {{#if user_report}}
-            <a href="#" {{action 'download_list'}}>{{t "Download list as a csv" key='download_as_csv'}}</a>
+            <a href="#" {{action "download_list"}}>{{t "Download list as a csv" key="download_as_csv"}}</a>
           {{/if}}
         </div>
       </div>
     {{else}}
     {{/if}}
   {{else}}
-    <p>{{t "No reports available yet" key='no_reports_available'}}</p>
+    <p>{{t "No reports available yet" key="no_reports_available"}}</p>
   {{/if}}
 {{else}}
-  <p>{{t "Not authorized" key='not_authorized'}}</p>
+  <p>{{t "Not authorized" key="not_authorized"}}</p>
 {{/if}}

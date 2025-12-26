@@ -1,35 +1,35 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Download Log" key='download_log'}}
+      {{t "Download Log" key="download_log"}}
     </h3>
   </div>
   <div class="modal-body">
     {{#if model.user}}
-      <img src={{model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' />
+      <img src={{model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' >
     {{else if model.log}}
       <span class='glyphicon glyphicon-time' style='font-size: 60px; float: left; margin: 0 10px 10px 0;'></span>
     {{/if}}
     {{#if status.downloading}}
-      <p>{{t "Generating log file for download..." key='generating_log'}}</p>
+      <p>{{t "Generating log file for download..." key="generating_log"}}</p>
     {{else if status.url}}
-      <p>{{t "Download complete!" key='download_complete'}}</p>
+      <p>{{t "Download complete!" key="download_complete"}}</p>
       <p>
-        <a href={{status.url}} target='_blank' class='btn btn-lg btn-primary'>Download {{status.file_name}}</a>
+        <a href={{status.url}} target="_blank" class='btn btn-lg btn-primary' rel="noopener">Download {{status.file_name}}</a>
       </p>
     {{else if status.errored}}
-      <p>{{t "There was an error downloading the log file" key='error_downloading_log'}}</p>
+      <p>{{t "There was an error downloading the log file" key="error_downloading_log"}}</p>
     {{else if model.user}}
-      <p>{{t "%app_name% will generate a file containing <b>a full history of the %{un}'s logs</b> as an <a href='https://www.openboardformat.org/docs' target='_blank'>open board log file</a> which you can download and share with your team or upload into another system. If you have been using %app_name% for a long time then this could take a while. Would you like to continue?" un=model.user.user_name key='confirm_user_log_download'}}</p>
-      <button class='btn btn-primary' {{action 'download'}}>{{t "Generate Download (.obl)" key='generate_download'}}</button>
-      <button class='btn btn-default' {{action 'download' 'obla'}}>{{t "Generate .obla" key='generate_obla'}}</button>
+      <p>{{t "%app_name% will generate a file containing <b>a full history of the %{un}'s logs</b> as an <a href='https://www.openboardformat.org/docs' target='_blank' rel='noopener'>open board log file</a> which you can download and share with your team or upload into another system. If you have been using %app_name% for a long time then this could take a while. Would you like to continue?" un=model.user.user_name key="confirm_user_log_download"}}</p>
+      <button class='btn btn-primary' {{action "download"}}>{{t "Generate Download (.obl)" key="generate_download"}}</button>
+      <button class='btn btn-default' {{action "download" "obla"}}>{{t "Generate .obla" key="generate_obla"}}</button>
     {{else}}
-      <p>{{t "Missing Log Information" key='missing_log_information'}}</p>
+      <p>{{t "Missing Log Information" key="missing_log_information"}}</p>
     {{/if}}
     <div style='clear: left;'></div>
   </div>
   <div class="modal-footer">
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

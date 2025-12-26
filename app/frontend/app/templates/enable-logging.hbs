@@ -1,28 +1,28 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Logging is Enabled" key='logging_is_enabled'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Logging is Enabled" key="logging_is_enabled"}}</h3>
   </div>
   <div class="modal-body">
     <!-- details about trends page added April 18, 2018 -->
     <!-- details about anonymized research being made public added January 13, 2021 -->
-    <p><strong>{{t "Please make sure the communicator understands why you are logging their communication, and get their permission before proceeding." key='check_logging_with_user_first'}}</strong></p>
-    <p>{{t "When you enable logging, information including buttons pressed, time of day, hardware characteristics like screen size and orientation are all <b>collected and stored in the cloud on your behalf</b>. Some of these reports use Google Charts to render anonymized information like buttons pressed per day and parts of speech frequency by type. This data is used to generate reports to help the support team track progress and set effective goals, and can be disabled at any time." key='logging_1'}}</p>
-    <p>{{t "To help support research in AAC, %app_name% uses <b>anonymized summaries of all logged usage information to share general trends with the community</b>. This includes summary data like popular core words, total session time and typical frequency of modeling. %app_name% also collaborates with research organizations by providing anonymized communication information from %app_name% users who have enabled anonymous research support. User profiles and identifiable information are not shared, but <b>the anonymized data may be published publicly</b>, and if you're not comfortable sharing this user's AAC communication with public researchers, you can opt out here or on the user's preferences page. Note that inactive users who have opted in will not be deleted from our system for an extended period of time, to continue to provide support to researchers." key='logging_2'}}</p>
+    <p><strong>{{t "Please make sure the communicator understands why you are logging their communication, and get their permission before proceeding." key="check_logging_with_user_first"}}</strong></p>
+    <p>{{t "When you enable logging, information including buttons pressed, time of day, hardware characteristics like screen size and orientation are all <b>collected and stored in the cloud on your behalf</b>. Some of these reports use Google Charts to render anonymized information like buttons pressed per day and parts of speech frequency by type. This data is used to generate reports to help the support team track progress and set effective goals, and can be disabled at any time." key="logging_1"}}</p>
+    <p>{{t "To help support research in AAC, %app_name% uses <b>anonymized summaries of all logged usage information to share general trends with the community</b>. This includes summary data like popular core words, total session time and typical frequency of modeling. %app_name% also collaborates with research organizations by providing anonymized communication information from %app_name% users who have enabled anonymous research support. User profiles and identifiable information are not shared, but <b>the anonymized data may be published publicly</b>, and if you're not comfortable sharing this user's AAC communication with public researchers, you can opt out here or on the user's preferences page. Note that inactive users who have opted in will not be deleted from our system for an extended period of time, to continue to provide support to researchers." key="logging_2"}}</p>
     <div style='margin-top: 20px; margin-bottom: 30px;'>
       <div class='checkbox big_checkbox'>
         <label style='font-size: 16px;'>
-          {{input type='checkbox' checked=research}}
-          <span style='padding-left: 5px;'>{{t "Share anonymized usage data with researchers and in community summary reports" key='allow_research'}}</span>
+          {{input type="checkbox" checked=research}}
+          <span style='padding-left: 5px;'>{{t "Share anonymized usage data with researchers and in community summary reports" key="allow_research"}}</span>
         </label>
       </div>
       {{#if research}}
         <div style='margin-left: 30px;'>
           {{#if sessionUser.global_integrations}}
-            <h4>{{t "Optional Research Details" key='optional_research_details'}}</h4>
-            <p>{{t "If you and the communicator are comfortable, you may provide additional information about the AAC user's specific situation. This information will be passed to third-party research groups through OpenAAC.org, and NOT stored on %app_name% servers or as part of the user's %app_name% profile." key='optional_resarch_details'}}</p>
+            <h4>{{t "Optional Research Details" key="optional_research_details"}}</h4>
+            <p>{{t "If you and the communicator are comfortable, you may provide additional information about the AAC user's specific situation. This information will be passed to third-party research groups through OpenAAC.org, and NOT stored on %app_name% servers or as part of the user's %app_name% profile." key="optional_resarch_details"}}</p>
             <div class='row'>
-              <div class='col-sm-6'><b>{{t "Primary Reason for Using AAC" key='primary_reason_for_aac_user'}}</b></div>
+              <div class='col-sm-6'><b>{{t "Primary Reason for Using AAC" key="primary_reason_for_aac_user"}}</b></div>
               <div class='col-sm-5'>
                 {{input value=research_use class="form-control" id="research_primary_use" placeholder=""}}
               </div>
@@ -34,21 +34,21 @@
                   <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
                     {{#each research_uses as |option|}}
                       {{#if option.header}}
-                        <li><a href='#' {{action 'set_research_use' option}}><b>{{option.name}}</b></a></li>
+                        <li><a href='#' {{action "set_research_use" option}}><b>{{option.name}}</b></a></li>
                       {{else}}
-                        <li><a href='#' {{action 'set_research_use' option}}>&nbsp;{{option.name}}</a></li>
+                        <li><a href='#' {{action "set_research_use" option}}>&nbsp;{{option.name}}</a></li>
                       {{/if}}
                     {{/each}}
                   </ul>
                 </div>
               </div>
               <div style='clear: both; padding-top: 5px;'></div>
-              <div class='col-sm-6'><b>{{t "Current Age of the AAC User" key='current_age_of_aac_user'}}</b></div>
+              <div class='col-sm-6'><b>{{t "Current Age of the AAC User" key="current_age_of_aac_user"}}</b></div>
                 <div class='col-sm-5'>
                   {{bound-select select_class="form-control" select_id="research_age" content=research_ages selection=research_age action=(action (mut research_age)) }}
                 </div>
               <div style='clear: both; padding-top: 5px;'></div>
-              <div class='col-sm-6'><b>{{t "Existng Experience with AAC" key='existing_experience_with_aac'}}</b></div>
+              <div class='col-sm-6'><b>{{t "Existng Experience with AAC" key="existing_experience_with_aac"}}</b></div>
               <div class='col-sm-5'>
                 {{bound-select select_class="form-control" select_id="research_experience" content=research_experiences selection=research_experience action=(action (mut research_experience)) }}
               </div>
@@ -56,24 +56,24 @@
           {{/if}}
           <div class='checkbox big_checkbox'>
             <label style='font-size: 16px;'>
-              {{input type='checkbox' checked=publishing}}
-              <span style='padding-left: 5px;'>{{t "Allow anonymized logs to be included in public data sets for automated research and analysis" key='allow_publishing'}}</span>
+              {{input type="checkbox" checked=publishing}}
+              <span style='padding-left: 5px;'>{{t "Allow anonymized logs to be included in public data sets for automated research and analysis" key="allow_publishing"}}</span>
             </label>
           </div>
         </div>
       {{/if}}
     </div>
-    <p>{{t "Additionally, if you'd like, %app_name% can track GPS data to provide better insights into how user communication changes based on location. All logging data can be manually cleared from the system from a user's Preferences page. If you would like to opt-out of aggregate data collection or disable %app_name% administrators from seeing your logs while troubleshooting you can choose \"Completely Restrict Log Access\" on the user's Preferences" key='logging_3'}}</p>
+    <p>{{t "Additionally, if you'd like, %app_name% can track GPS data to provide better insights into how user communication changes based on location. All logging data can be manually cleared from the system from a user's Preferences page. If you would like to opt-out of aggregate data collection or disable %app_name% administrators from seeing your logs while troubleshooting you can choose \"Completely Restrict Log Access\" on the user's Preferences" key="logging_3"}}</p>
     <div style='margin-top: 20px;'>
       <div class='checkbox big_checkbox'>
         <label style='font-size: 16px;'>
-          {{input type='checkbox' checked=model.user.preferences.geo_logging}}
-          <span style='padding-left: 5px;'>{{t "Include geolocation in logs" key='include_geolocation'}}</span>
+          {{input type="checkbox" checked=model.user.preferences.geo_logging}}
+          <span style='padding-left: 5px;'>{{t "Include geolocation in logs" key="include_geolocation"}}</span>
         </label>
       </div>
     </div>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default' {{action "close" }}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

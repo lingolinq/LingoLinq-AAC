@@ -1,0 +1,32 @@
+<li class={{if @board.selected "selected"}}>
+  {{#if @selectable}}
+    {{input type="checkbox" checked=@board.selected disabled=@board.disabled}}
+  {{/if}}
+  {{#if @board.children}}
+    <a href="#" {{action @toggleBoardHierarchy @board.id}}>
+      {{#if @board.open}}
+        <span class="caret"></span>
+      {{else if @board.children}}
+        <span class="caret-right"></span>
+      {{else}}
+        <span style='display: inline-block; width: 10px;'></span>
+      {{/if}}
+      {{@board.key}}
+    </a>
+  {{else if @board.already_linked}}
+    <span style='display: inline-block; width: 10px;'></span>
+    <i>{{@board.key}}</i>
+  {{else}}
+    <span style='display: inline-block; width: 10px;'></span>
+    {{@board.key}}
+  {{/if}}
+  {{#if @board.children}}
+    {{#if @board.open}}
+      <ul>
+        {{#each @board.children as |childBoard|}}
+          <RecursiveBoard @board={{childBoard}} @selectable={{@selectable}} @toggleBoardHierarchy={{@toggleBoardHierarchy}} />
+        {{/each}}
+      </ul>
+    {{/if}}
+  {{/if}}
+</li>

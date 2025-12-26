@@ -3,7 +3,7 @@ import EmberObject from '@ember/object';
 import { later as runLater, run } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
-import $ from 'jquery';
+// import $ from 'jquery';
 import i18n from './i18n';
 import LingoLinq from '../app';
 import editManager from './edit_manager';
@@ -582,8 +582,11 @@ var pictureGrabber = EmberObject.extend({
       });
     }
     this.controller.set('webcam', null);
-    $('#webcam_video').attr('src', '');
-    $('#image_upload').val('');
+    this.controller.set('webcam', null);
+    var vid = document.getElementById('webcam_video');
+    if(vid) { vid.setAttribute('src', ''); }
+    var upload = document.getElementById('image_upload');
+    if(upload) { upload.value = ''; }
   },
   clear_image_preview: function() {
     this.controller.set('image_preview', null);
@@ -1356,7 +1359,8 @@ var videoGrabber = EmberObject.extend({
     this.toggle_recording_video('stop');
   },
   clear_video_work: function() {
-    $('#video_upload').val('');
+    var videoUpload = document.getElementById('video_upload');
+    if(videoUpload) { videoUpload.value = ''; }
     if(this.controller) {
       this.controller.set('video_preview', null);
     }
@@ -1669,7 +1673,7 @@ var videoGrabber = EmberObject.extend({
       };
       runLater(function() {
         if(!done) {
-          var e = $("#video_elem")[0];
+          var e = document.getElementById("video_elem");
           var duration = (e && e.duration) || 10;
           resolve({
             duration: duration
@@ -1786,7 +1790,8 @@ var soundGrabber = EmberObject.extend({
     this.clear();
     this.controller.set('sound_recording', null);
     this.controller.set('browse_audio', null);
-    $('#sound_upload').val('');
+    var soundUpload = document.getElementById('sound_upload');
+    if(soundUpload) { soundUpload.value = ''; }
   },
   default_sound_preview_license: function() {
     var user = app_state.get('currentUser');
@@ -1938,7 +1943,9 @@ var soundGrabber = EmberObject.extend({
             var context = new window.AudioContext();
             var source = context.createMediaStreamSource(stream);
             var analyser = context.createAnalyser();
-            var ctx = $('#sound_levels')[0].getContext('2d');
+            var soundLevels = document.getElementById('sound_levels');
+            var ctx = soundLevels ? soundLevels.getContext('2d') : null;
+            if(!ctx) { return; }
             analyser.smoothingTimeConstant = 0.3;
             analyser.fftSize = 1024;
             var js = context.createScriptProcessor(2048, 1, 1);
@@ -2198,7 +2205,7 @@ var boardGrabber = EmberObject.extend({
       // right now this is always doing a double-lookup, first for an exact
       // match by key and then by query string. It'd be better if it were only
       // one lookup..
-      var keyed_find_args = $.extend({}, find_args, {key: key});
+      var keyed_find_args = Object.assign({}, find_args, {key: key});
       keyed_find = LingoLinq.store.query('board', keyed_find_args).then(null, function() { return RSVP.resolve([]); });
     }
     keyed_find.then(function(data) {
@@ -2481,20 +2488,24 @@ document.addEventListener('dragover', function(event) {
     event.preventDefault();
   }
 });
-$(document).on('change', '#image_upload,#sound_upload,#board_upload,#avatar_upload,#video_upload,#badge_upload,#recording_upload,#log_upload', function(event) {
-  var type = 'image';
-  if(event.target.id == 'sound_upload') { type = 'sound'; }
-  if(event.target.id == 'video_upload') { type = 'video'; }
-  if(event.target.id == 'board_upload') { type = 'board'; }
-  if(event.target.id == 'avatar_upload') { type = 'avatar'; }
-  if(event.target.id == 'badge_upload') { type = 'badge'; }
-  if(event.target.id == 'recording_upload') { type = 'recording'; }
-  if(event.target.id == 'log_upload') { type = 'log'; }
-  var files = event.target.files;
-  contentGrabbers.file_selected(type, files);
-}).on('paste', function(event) {
+document.addEventListener('change', function(event) {
+  var uploadIds = ['image_upload', 'sound_upload', 'board_upload', 'avatar_upload', 'video_upload', 'badge_upload', 'recording_upload', 'log_upload'];
+  if(uploadIds.indexOf(event.target.id) !== -1) {
+    var type = 'image';
+    if(event.target.id == 'sound_upload') { type = 'sound'; }
+    if(event.target.id == 'video_upload') { type = 'video'; }
+    if(event.target.id == 'board_upload') { type = 'board'; }
+    if(event.target.id == 'avatar_upload') { type = 'avatar'; }
+    if(event.target.id == 'badge_upload') { type = 'badge'; }
+    if(event.target.id == 'recording_upload') { type = 'recording'; }
+    if(event.target.id == 'log_upload') { type = 'log'; }
+    var files = event.target.files;
+    contentGrabbers.file_selected(type, files);
+  }
+});
+
+document.addEventListener('paste', function(event) {
   if(document.getElementById('find_picture')) {
-    event = event.originalEvent || event;
     var data = event && event.clipboardData && event.clipboardData.items;
     var found_file = false;
     if(data) {
@@ -2510,27 +2521,33 @@ $(document).on('change', '#image_upload,#sound_upload,#board_upload,#avatar_uplo
       event.stopPropagation();
     }
   }
-}).on('drop', function(event) {
+});
+
+document.addEventListener('drop', function(event) {
   event.preventDefault();
   event.stopPropagation();
-  var $button = $(event.target).closest('.button');
-  if($button.length > 0) {
-    $('.button.drop_target').removeClass('drop_target');
-    var id = $button.attr('data-id');
+  var buttonElem = event.target.closest('.button');
+  if(buttonElem) {
+    var dropTargets = document.querySelectorAll('.button.drop_target');
+    dropTargets.forEach(function(el) { el.classList.remove('drop_target'); });
+    var id = buttonElem.getAttribute('data-id');
     contentGrabbers.content_dropped(id, event.dataTransfer);
   } else if(document.getElementById('find_picture')) {
     if(pictureGrabber.controller.get('model.id')) {
       contentGrabbers.content_dropped(pictureGrabber.controller.get('model.id'), event.dataTransfer);
     }
-  } else if($(event.target).closest('.board_drop').length > 0) {
+  } else if(event.target.closest('.board_drop')) {
     boardGrabber.files_dropped(event.dataTransfer.files);
   }
   event.stopPropagation();
-}).on('keydown', '.form-horizontal', function(event) {
-  if((event.code == 'Space' || event.keyCode == 32) && event.target.tagName == 'BUTTON') {
-    if($(event.target).closest("#button_settings").length > 0) {
-      if($("#recording_status").length > 0) {
-        $("#recording_status").focus();
+});
+
+document.addEventListener('keydown', function(event) {
+  if(event.target.closest('.form-horizontal') && (event.code == 'Space' || event.keyCode == 32) && event.target.tagName == 'BUTTON') {
+    if(event.target.closest("#button_settings")) {
+      var recordingStatus = document.getElementById("recording_status");
+      if(recordingStatus) {
+        recordingStatus.focus();
         event.preventDefault();
         soundGrabber.toggle_recording_sound();
       }

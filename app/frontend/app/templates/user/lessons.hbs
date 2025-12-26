@@ -1,10 +1,10 @@
 {{#if session.isAuthenticated}}
   <h2>
-    {{t "Current Trainings" key='current_trainings'}}
+    {{t "Current Trainings" key="current_trainings"}}
   </h2>
   {{#if styled_lessons}}
     {{#each styled_lessons as |lesson|}}
-      <div class={{if lesson.completed_ts 'well lesson done' 'well lesson'}}>
+      <div class={{if lesson.completed_ts "well lesson done" "well lesson"}}>
         <span class='summary'>
           <span style='display: inline-block; width: 20px; vertical-align: middle;'>
             {{#if lesson.rating_class}}
@@ -19,30 +19,30 @@
         </span>
         <div style='float: right;'>
           {{#if lesson.completed}}
-            <button class='btn btn-sm btn-default' {{action 'launch' lesson}}>{{t "Re-Take" key='re_take'}}</button>
+            <button class='btn btn-sm btn-default' {{action "launch" lesson}}>{{t "Re-Take" key="re_take"}}</button>
           {{else}}
-            <button class={{if lesson.required 'btn btn-primary' 'btn btn-default'}} {{action 'launch' lesson}}>{{t "Start Training" key='start_training'}}</button>
+            <button class={{if lesson.required "btn btn-primary" "btn btn-default"}} {{action "launch" lesson}}>{{t "Start Training" key="start_training"}}</button>
           {{/if}}
         </div>
         <div class='details'>
           {{#if lesson.completed_ts}}
-            {{t "finished" key='finished'}} {{date_ago lesson.completed_ts}}
+            {{t "finished" key="finished"}} {{date_ago lesson.completed_ts}}
           {{else if lesson.due_at}}
-            {{t "due" key='due' }} {{date_ago lesson.due_ts}}
+            {{t "due" key="due" }} {{date_ago lesson.due_ts}}
           {{/if}}
         </div>
         <div class='description text-muted'>
           {{lesson.description}}
           {{#if lesson.time_estimate}}
             <div>
-              ~ {{lesson.time_estimate}} {{t "min" key='minutes_abbreviated'}}
+              ~ {{lesson.time_estimate}} {{t "min" key="minutes_abbreviated"}}
             </div>
           {{/if}}
         </div>
       </div>
     {{/each}}
   {{else}}
-    {{t "Organization managers can define continuing education trainings for your benefit and improvement. When trainings have been added they will appear on a user's dashboard and here on their list of trainings. Each training can be launched, and then rated once completed to provide feedback and to track usage. Organizations can use these trainings to help everyone develop the skills and knowledge that can help them best support AAC users." key='user_trainings_explainer'}}
+    {{t "Organization managers can define continuing education trainings for your benefit and improvement. When trainings have been added they will appear on a user's dashboard and here on their list of trainings. Each training can be launched, and then rated once completed to provide feedback and to track usage. Organizations can use these trainings to help everyone develop the skills and knowledge that can help them best support AAC users." key="user_trainings_explainer"}}
   {{/if}}
 {{else}}
   {{login-form left=true prompt=true return=true}}

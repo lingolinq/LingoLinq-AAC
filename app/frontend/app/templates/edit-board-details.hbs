@@ -1,37 +1,37 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Edit Board Details" key='edit_board_details'}}
+      {{t "Edit Board Details" key="edit_board_details"}}
     </h3>
   </div>
   <div class="modal-body">
     <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
       <div class="form-group">
-        <label for="name" class="col-sm-3 control-label">{{t "Name" key='name'}}</label>
+        <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-7">
           {{input value=model.name class="form-control" id="name" placeholder="Board Name"}}
         </div>
       </div>
       <div class="form-group">
-        <label for="decription" class="col-sm-3 control-label">{{t "Description" key='description'}}</label>
+        <label for="decription" class="col-sm-3 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-7">
           <!-- TODO: placeholder i18n magic for textarea too -->
           {{textarea value=model.description class="form-control" id="decription" placeholder="Details about this board"}}
         </div>
       </div>
       <div class="form-group">
-        <label for="image_url" class="col-sm-3 control-label">{{t "Icon" key='icon'}}</label>
+        <label for="image_url" class="col-sm-3 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-7">
           {{input value=model.image_url class="form-control" id="image_url" placeholder="URL or pick from the list"}}
           <div style="margin-top: 12px; float: left; height: 42px; width: 42px; border: 1px solid #ccc; overflow: hidden;">
             {{#if model.image_url}}
-              <img src={{model.image_url}} {{action "pickImageUrl" model.image_url}} style="width: 40px; height: 40px;" alt="current image"/>
+              <img src={{model.image_url}} {{action "pickImageUrl" model.image_url}} style="width: 40px; height: 40px;" alt="current image">
             {{/if}}
           </div>
           <div class="icon_urls">
             {{#each iconUrls as |icon|}}
-              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} />
+              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} >
             {{/each}}
           </div>
           <div style="clear: left;"></div>
@@ -46,14 +46,14 @@
             delay_prompt_timeout: hash['background']['delay_prompt_timeout']
       -->
       <div class="form-group">
-        <label for="license" class="col-sm-3 control-label">{{t "License" key='license'}}</label>
+        <label for="license" class="col-sm-3 control-label">{{t "License" key="license"}}</label>
         <div class="col-sm-7">
           {{bound-select select_class="form-control" select_id="license" content=licenseOptions selection=model.license.type action=(action (mut model.license.type)) }}
         </div>
       </div>
       {{#if attributable_license_type}}
         <div class="form-group">
-          <label for="author" class="col-sm-3 control-label">{{t "Author" key='author'}}</label>
+          <label for="author" class="col-sm-3 control-label">{{t "Author" key="author"}}</label>
           <div class="col-sm-4">
             {{input value=model.license.author_name class="form-control" id="author" placeholder="Name"}}
           </div>
@@ -63,24 +63,24 @@
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="locale" class="col-sm-3 control-label">{{t "Default Language" key='default_language'}}</label>
+        <label for="locale" class="col-sm-3 control-label">{{t "Default Language" key="default_language"}}</label>
         <div class="col-sm-9">
           {{bound-select select_class="form-control" select_id="locale" content=locales selection=model.locale action=(action (mut model.locale)) }}
         </div>
       </div>
       <div class="form-group">
-        <label for="locale" class="col-sm-3 control-label">{{t "Current Language" key='button_locale'}}</label>
+        <label for="locale" class="col-sm-3 control-label">{{t "Current Language" key="button_locale"}}</label>
         <div class="col-sm-9">
           {{bound-select select_class="form-control" select_id="locale" content=locales selection=model.button_locale action=(action (mut model.button_locale)) }}
         </div>
       </div>
       <div class="form-group">
-        <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key='home_board'}}</label>
+        <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
         <div class="col-sm-9">
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=model.home_board}}
-              {{t "This board can be used as a home board" key='is_home_board'}}
+              {{t "This board can be used as a home board" key="is_home_board"}}
             </label>
           </div>
         </div>
@@ -88,11 +88,11 @@
       {{#if model.home_board}}
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          {{t "Select any categories that this home board may fit well into." key='select_categories'}}
+          {{t "Select any categories that this home board may fit well into." key="select_categories"}}
           {{#each board_categories as |category|}}
             <div><div class='checkbox big_checkbox'>
               <label>
-                {{input type='checkbox' checked=category.selected}}
+                {{input type="checkbox" checked=category.selected}}
                 {{category.name}}
               </label>
             </div></div>
@@ -101,15 +101,15 @@
       </div>
       {{/if}}
       <div class="form-group">
-        <label for="public" class="col-sm-3 control-label">{{t "Visibility" key='visibility'}}</label>
+        <label for="public" class="col-sm-3 control-label">{{t "Visibility" key="visibility"}}</label>
         <div class="col-sm-9">
           {{#if model.copying_state}}
-            <p class='form-control-static'><em>{{t "Boards with protected content can't be made public" key='protected_boards_no_public'}}</em></p>
+            <p class='form-control-static'><em>{{t "Boards with protected content can't be made public" key="protected_boards_no_public"}}</em></p>
           {{else}}
             {{bound-select select_class="form-control" select_id="license" content=public_options selection=model.visibility action=(action (mut model.visibility)) }}
             {{#unless model.visibility_setting.private}}
               {{#if model.protected_material}}
-                <em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key='premium_public_fallbacks_warning'}}</em>
+                <em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key="premium_public_fallbacks_warning"}}</em>
               {{/if}}
             {{/unless}}
           {{/if}}
@@ -120,7 +120,7 @@
               <div class="checkbox big_checkbox">
                 <label>
                   {{input type="checkbox" checked=model.update_visibility_downstream}}
-                  {{t "Update all linked boards to the same visibility" key='update_downstream_visibility'}}
+                  {{t "Update all linked boards to the same visibility" key="update_downstream_visibility"}}
                 </label>
               </div>
             </div>
@@ -130,36 +130,36 @@
       {{#if advanced}}
         {{#if model.visibility_setting.private}}
           <div class="form-group">
-            <label for="public" class="col-sm-3 control-label">{{t "Copying" key='copying'}}</label>
+            <label for="public" class="col-sm-3 control-label">{{t "Copying" key="copying"}}</label>
             <div class="col-sm-9">
               <div class="checkbox big_checkbox">
                 <label>
                   {{input type="checkbox" checked=protected_vocabulary disabled=model.copying_state.none}}
-                  {{t "Only the author can make copies of this board, and any copies cannot be re-copied by others" key='protected_vocabulary'}}
+                  {{t "Only the author can make copies of this board, and any copies cannot be re-copied by others" key="protected_vocabulary"}}
                 </label>
               </div>
             </div>
           </div>
         {{/if}}
         <div class="form-group">
-          <label for="suggestions" class="col-sm-3 control-label">{{t "Suggestions" key='word_suggestions'}}</label>
+          <label for="suggestions" class="col-sm-3 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.word_suggestions}}
-                {{t "Show word completion suggestions" key='show_word_suggestions'}}
+                {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
-            </div><br/>
-            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key='helpful_for_keyboard_boards'}}</em>
+            </div><br>
+            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
           </div>
         </div>
         <div class="form-group">
-          <label for="home_board" class="col-sm-3 control-label">{{t "Adjust Header" key='adjust_header'}}</label>
+          <label for="home_board" class="col-sm-3 control-label">{{t "Adjust Header" key="adjust_header"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.dim_header}}
-                {{t "Dim the header and vocalization box while on this board" key='dim_header_on_this_board'}}
+                {{t "Dim the header and vocalization box while on this board" key="dim_header_on_this_board"}}
               </label>
             </div>
           </div>
@@ -167,18 +167,18 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.small_header}}
-                {{t "Shrink the header and vocalization box while on this board" key='small_header_on_this_board'}}
+                {{t "Shrink the header and vocalization box while on this board" key="small_header_on_this_board"}}
               </label>
             </div>
           </div>
         </div>
         <div class="form-group">
-          <label for="background" class="col-sm-3 control-label">{{t "Background" key='background'}}</label>
+          <label for="background" class="col-sm-3 control-label">{{t "Background" key="background"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=background_enabled}}
-                {{t "Use a custom background for this board" key='add_custom_background'}}
+                {{t "Use a custom background for this board" key="add_custom_background"}}
               </label>
             </div>
 
@@ -188,7 +188,7 @@
               {{input value=model.background.image class="form-control" id="background_image_url" placeholder="URL for background"}}
               <div style="margin-top: 12px; float: left; height: 60px; width: 80px; border: 1px solid #ccc; overflow: hidden;">
                 {{#if model.background.image}}
-                  <img src={{model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image"/>
+                  <img src={{model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image">
                 {{/if}}
               </div>
               <div style="clear: left;"></div>
@@ -199,12 +199,12 @@
             <div class='col-sm-2' style='margin-left: -50px; margin-top: 10px;'>
               <div class="btn-group dropup">
                 <button class="btn btn-default dropdown-toggle" style="border-top-left-radius: 0; border-bottom-left-radius: 0;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{t "choose" key='choose'}} <span class="caret"></span>
+                  {{t "choose" key="choose"}} <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu" style="right: 0; left: inherit; text-align: left;">
-                  <li><a href="#" {{action 'set_position' 'center'}}>{{t "center" key='center'}}</a></li>
-                  <li><a href="#" {{action 'set_position' 'stretch'}}>{{t "stretch" key='stretch'}}</a></li>
-                  <li><a href="#" {{action 'set_position' 'cover'}}>{{t "cover" key='cover'}}</a></li>
+                  <li><a href="#" {{action "set_position" "center"}}>{{t "center" key="center"}}</a></li>
+                  <li><a href="#" {{action "set_position" "stretch"}}>{{t "stretch" key="stretch"}}</a></li>
+                  <li><a href="#" {{action "set_position" "cover"}}>{{t "cover" key="cover"}}</a></li>
                 </ul>
               </div>
               <div style="clear: left;"></div>
@@ -219,7 +219,7 @@
           {{/if}}
         </div>
         <div class="form-group">
-          <label for="copy_key" class="col-sm-3 control-label">{{t "Root Key" key='root_key'}}</label>
+          <label for="copy_key" class="col-sm-3 control-label">{{t "Root Key" key="root_key"}}</label>
           <div class="col-sm-7">
             {{input value=model.copy_key class="form-control" id="copy_key" placeholder="Root board key"}}
           </div>
@@ -227,25 +227,25 @@
         {{#if model.home_board}}
           {{#if app_state.feature_flags.find_multiple_buttons}}
             <div class="form-group">
-              <label for="board_intro" class="col-sm-3 control-label">{{t "Board Intro" key='board_intro'}}</label>
+              <label for="board_intro" class="col-sm-3 control-label">{{t "Board Intro" key="board_intro"}}</label>
               {{#unless model.intro.sections}}
                 <div class="col-sm-9" style='margin-bottom: 10px;'>
-                  <em class='form-control-static'>{{t "You can build a short lesson that people will walk through when they choose this board set, including explanations and practice phrases for them to find using the board set." key='board_intro_explainer'}}</em>
+                  <em class='form-control-static'>{{t "You can build a short lesson that people will walk through when they choose this board set, including explanations and practice phrases for them to find using the board set." key="board_intro_explainer"}}</em>
                 </div>
               {{/unless}}
               {{#each model.intro.sections as |section index|}}
-                <div class={{if index 'col-sm-7 col-sm-offset-3' 'col-sm-7'}}>
+                <div class={{if index "col-sm-7 col-sm-offset-3" "col-sm-7"}}>
                   {{textarea value=section.description class="form-control" placeholder="Explanation, notes, etc."}}
                   <div style='margin-top: 3px; margin-bottom: 15px;'>
-                    {{input type='text' value=section.prompt class='form-control' placeholder="optional button sequence to find"}}
+                    {{input type="text" value=section.prompt class="form-control" placeholder="optional button sequence to find"}}
                   </div>
                 </div>
                 <div class='col-sm-2'>
-                  <button class='btn btn-default' {{action 'delete_board_intro_section' section}}><span class='glyphicon glyphicon-remove'></span></button>
+                  <button class='btn btn-default' {{action "delete_board_intro_section" section}}><span class='glyphicon glyphicon-remove'></span></button>
                 </div>
               {{/each}}
               <div class='col-sm-9 col-sm-offset-3'>
-                <button class='btn btn-default' {{action 'add_board_intro_section'}}>{{t "Add Intro Section" key='add_intro_section'}}</button>
+                <button class='btn btn-default' {{action "add_board_intro_section"}}>{{t "Add Intro Section" key="add_intro_section"}}</button>
               </div>
             </div>
           {{/if}}
@@ -253,7 +253,7 @@
       {{else}}
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
-            <p><a href='#' {{action 'show_advanced'}}>{{t "advanced options" key='advanced_options'}}</a></p>
+            <p><a href='#' {{action "show_advanced"}}>{{t "advanced options" key="advanced_options"}}</a></p>
           </div>
         </div>
 
@@ -261,6 +261,6 @@
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

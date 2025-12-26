@@ -1,11 +1,11 @@
-{{#modal-dialog action='close' opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if lesson.id}}
-        {{t "Update Lesson" key='update_lesson'}}
+        {{t "Update Lesson" key="update_lesson"}}
       {{else}}
-        {{t "New Lesson" key='new_lesson'}}
+        {{t "New Lesson" key="new_lesson"}}
       {{/if}}
     </h3>
   </div>
@@ -14,96 +14,96 @@
         {{#unless lesson.id}}
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
-            <p>{{t "The Internet has many AAC training resources that can benefit AAC staff, users and families. You can assign any web URL as a lesson for users, and they can report back when they have finished the lesson." key='lessons_new_explainer'}}</p>
+            <p>{{t "The Internet has many AAC training resources that can benefit AAC staff, users and families. You can assign any web URL as a lesson for users, and they can report back when they have finished the lesson." key="lessons_new_explainer"}}</p>
           </div>
         </div>
       {{/unless}}
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Title" key='title'}}</label>
+        <label class='control-label col-sm-3'>{{t "Title" key="title"}}</label>
         <div class='col-sm-6'>
-          {{input type='text' value=lesson.title class="form-control"}}
+          {{input type="text" value=lesson.title class="form-control"}}
         </div>
       </div>
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Lesson URL" key='lesson_url'}}</label>
+        <label class='control-label col-sm-3'>{{t "Lesson URL" key="lesson_url"}}</label>
         <div class='col-sm-9'>
-          {{input type='text' value=lesson.original_url class="form-control" placeholder='https://'}}
+          {{input type="text" value=lesson.original_url class="form-control" placeholder="https://"}}
         </div>
       </div>
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Instructions" key='instructions'}}</label>
+        <label class='control-label col-sm-3'>{{t "Instructions" key="instructions"}}</label>
         <div class='col-sm-9'>
-          {{textarea class='form-control' value=lesson.description placeholder='additional instructions' rows=2}}
+          {{textarea class="form-control" value=lesson.description placeholder="additional instructions" rows=2}}
         </div>
       </div>
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Time Estimate" key='time_estimate'}}</label>
+        <label class='control-label col-sm-3'>{{t "Time Estimate" key="time_estimate"}}</label>
         <div class='col-sm-2'>
-          {{input type='text' value=lesson.time_estimate class="form-control" placeholder='##'}}
+          {{input type="text" value=lesson.time_estimate class="form-control" placeholder="##"}}
         </div>
-        <div class='col-sm-2'><p class='form-control-static'>{{t "minutes" key='minutes'}}</p></div>
+        <div class='col-sm-2'><p class='form-control-static'>{{t "minutes" key="minutes"}}</p></div>
       </div>
       {{#if model.org}}
         <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Target Users" key='target_users'}}</label>
+          <label class='control-label col-sm-3'>{{t "Target Users" key="target_users"}}</label>
           <div class='col-sm-9'>
             {{bound-select select_class="form-control" content=target_types selection=target_type action=(action (mut target_type)) }}
           </div>
         </div>
       {{else if model.unit}}
         <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Target Users" key='target_users'}}</label>
+          <label class='control-label col-sm-3'>{{t "Target Users" key="target_users"}}</label>
           <div class='col-sm-9'>
             {{bound-select select_class="form-control" content=target_types selection=target_type action=(action (mut target_type)) }}
           </div>
         </div>
       {{/if}}
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Required" key='required'}}</label>
+        <label class='control-label col-sm-3'>{{t "Required" key="required"}}</label>
         <div class='col-sm-9'>
           {{bound-select select_class="form-control" select_id="required" content=required_options selection=required_option action=(action (mut required_option)) }}
         </div>
       </div>
       {{#if lesson.required}}
         <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Due By" key='due_by'}}</label>
+          <label class='control-label col-sm-3'>{{t "Due By" key="due_by"}}</label>
           <div class='col-sm-6'>
-            {{input type='date' value=lesson.due_at class="form-control"}}
-            <div class='text-muted' style='margin-left: 10px; font-size: 14px; font-style: italic;'>{{t "leave blank for no due date" key='blank_for_no_due'}}</div>
+            {{input type="date" value=lesson.due_at class="form-control"}}
+            <div class='text-muted' style='margin-left: 10px; font-size: 14px; font-style: italic;'>{{t "leave blank for no due date" key="blank_for_no_due"}}</div>
           </div>
-          <div class='col-sm-2'><button class='btn btn-default'>{{t "clear" key='clear_lower'}}</button></div>
+          <div class='col-sm-2'><button class='btn btn-default'>{{t "clear" key="clear_lower"}}</button></div>
         </div>
       {{/if}}
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Allow Past" key='allow_past'}}</label>
+        <label class='control-label col-sm-3'>{{t "Allow Past" key="allow_past"}}</label>
         <div class='col-sm-9'>
           <div class="checkbox big_checkbox">
             <label>
               {{input checked=allow_past type="checkbox"}}
-              {{t "don't require users to re-take the lesson if they already have" key='dont_require_retaking'}}
+              {{t "don't require users to re-take the lesson if they already have" key="dont_require_retaking"}}
             </label>
           </div>
         </div>
         {{#if allow_past}}
-          <div class='col-sm-2 col-sm-offset-3'><p class='form-control-static'>{{t "in the last" key='in_the_last'}}</p></div>
+          <div class='col-sm-2 col-sm-offset-3'><p class='form-control-static'>{{t "in the last" key="in_the_last"}}</p></div>
           <div class='col-sm-2'>
-            {{input type='text' value=lesson.past_cutoff class="form-control" placeholder='##'}}
+            {{input type="text" value=lesson.past_cutoff class="form-control" placeholder="##"}}
           </div>
-          <div class='col-sm-2'><p class='form-control-static'>{{t "months" key='months_lower'}}</p></div>
+          <div class='col-sm-2'><p class='form-control-static'>{{t "months" key="months_lower"}}</p></div>
         {{/if}}
       </div>
     </form>
   </div>
   <div class='modal-footer'>
-    <button class='btn btn-primary btn-lg' {{action 'confirm'}}>
+    <button class='btn btn-primary btn-lg' {{action "confirm"}}>
       {{#if status.saving}}
-        {{t "Saving..." key='saving'}}
+        {{t "Saving..." key="saving"}}
       {{else if status.error}}
-        {{t "Error Saving" key='error_saving'}}
+        {{t "Error Saving" key="error_saving"}}
       {{else}}
-        {{t "Save" key='save'}}
+        {{t "Save" key="save"}}
       {{/if}}
     </button>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

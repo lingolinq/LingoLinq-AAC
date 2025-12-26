@@ -1,6 +1,6 @@
 {{#if license.uneditable}}
   <div class="form-group">
-    <label for="license" class="col-sm-2 control-label">{{t "License" key='license'}}</label>
+    <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
     <div class="col-sm-10">
       <p class='form-control-static'>
         {{license-attribution license=license}}
@@ -9,14 +9,14 @@
   </div>
 {{else}}
   <div class="form-group">
-    <label for="license" class="col-sm-2 control-label">{{t "License" key='license'}}</label>
+    <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
     <div class="col-sm-10">
       {{bound-select select_class="form-control" select_id="license" content=licenseOptions selection=license.type action=(action (mut license.type)) }}
     </div>
   </div>
   {{#unless private_license}}
     <div class="form-group">
-      <label for="license_author" class="col-sm-2 control-label">{{t "Author" key='author'}}</label>
+      <label for="license_author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
       <div class="col-sm-4">
         <!-- Ember is now barfing if I add more than one element with the same id, so changed to refid for now -->
         {{input value=license.author_name class="form-control" refid="license_author" placeholder="Name"}}

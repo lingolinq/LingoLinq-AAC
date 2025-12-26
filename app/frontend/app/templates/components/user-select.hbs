@@ -2,11 +2,11 @@
   <div class="row">
     {{#each users as |supervisee|}}
       <div class="col-md-3 col-sm-4 col-xs-6">
-        <button disabled={{supervisee.disabled}} class={{if supervisee.currently_selected 'user_select btn btn-info' 'user_select btn btn-default'}} {{action 'select' supervisee.id}} style="width: 100%; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
-          <img src={{supervisee.image}} style="height: 60px; max-width: 100px;"/><br/>
-          {{supervisee.name}}<br/>
+        <button disabled={{supervisee.disabled}} class={{if supervisee.currently_selected "user_select btn btn-info" "user_select btn btn-default"}} {{action "select" supervisee.id}} style="width: 100%; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
+          <img src={{supervisee.image}} style="height: 60px; max-width: 100px;"><br>
+          {{supervisee.name}}<br>
           {{#if supervisee.disabled}}
-            <em class='text-muted'>{{t "not available" key='not_available_lower'}}</em>
+            <em class='text-muted'>{{t "not available" key="not_available_lower"}}</em>
           {{else}}
             &nbsp;
           {{/if}}
@@ -18,21 +18,21 @@
         <div class="btn-group dropup" style='width: 100%;'>
           <button type="button" class={{if extra_user "btn btn-info dropdown-toggle" "btn btn-default dropdown-toggle"}} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="width: 100%; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
             {{#if extra_user}}
-              {{extra_user.user_name}}<br/>
-              <img src={{extra_user.avatar_url}} style='width: 60px; height: 60px; object-fit: contain;'/>
+              {{extra_user.user_name}}<br>
+              <img src={{extra_user.avatar_url}} style='width: 60px; height: 60px; object-fit: contain;'>
             {{else}}
-              {{t "Other User" key='other_user'}} 
+              {{t "Other User" key="other_user"}} 
             {{/if}}
             <span class="caret"></span>
           </button>
           <ul class="dropdown-menu" style='max-height: 190px; overflow: auto;'>
             {{#if extra_users.loading}}
-              <li><a>{{t "Loading Users..." key='loading_users'}}</a></li>
+              <li><a>{{t "Loading Users..." key="loading_users"}}</a></li>
             {{else if exta_users.errors}}
-              <li><a>{{t "Error Loading Users" key='error_loading_users'}}</a></li>
+              <li><a>{{t "Error Loading Users" key="error_loading_users"}}</a></li>
             {{else}}
               {{#each extra_users as |user|}}
-                <li class={{if user.edit_permission '' 'disabled'}}><a href='#' {{action 'set_extra_user' user}}><img src={{user.avatar_url}} style='width: 20px; height: 20px; object-fit: contain;'/> {{user.user_name}}</a></li>
+                <li class={{if user.edit_permission "" "disabled"}}><a href='#' {{action "set_extra_user" user}}><img src={{user.avatar_url}} style='width: 20px; height: 20px; object-fit: contain;'> {{user.user_name}}</a></li>
               {{/each}}
             {{/if}}
           </ul>
@@ -43,7 +43,7 @@
 {{else}}
   {{#if for_user_image}}
     <span style="display: inline-block; width: 35px;">
-      <img src={{for_user_image}} style="height: 35px; max-width: 35px;"/>
+      <img src={{for_user_image}} style="height: 35px; max-width: 35px;">
     </span>
   {{/if}}
   <span style="display: inline-block; width: calc(100% - 40px);">

@@ -1,14 +1,14 @@
 {{#if model.permissions.edit}}
-  <h2>{{t "Account Settings for %{term}" key='profile_for' term=model.user_name}}</h2>
+  <h2>{{t "Account Settings for %{term}" key="profile_for" term=model.user_name}}</h2>
   <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
   <div class="form-group">
-    <label for="name" class="col-sm-3 control-label">{{t "Name" key='name'}}</label>
+    <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
     <div class="col-sm-5">
       {{input value=model.name class="form-control" id="name" placeholder="Full Name"}}
     </div>
   </div>
   <div class="form-group">
-    <label for="user_name" class="col-sm-3 control-label">{{t "Username" key='username'}}</label>
+    <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
     <div class="col-sm-5">
       <label class="control-label">
         {{ model.user_name }}
@@ -16,65 +16,65 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="email" class="col-sm-3 control-label">{{t "Email" key='email'}}</label>
+    <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
     <div class="col-sm-5">
       {{input value=model.email class="form-control" id="email" placeholder=""}}
     </div>
   </div>
   <div class="form-group">
-    <label for="email" class="col-sm-3 control-label">{{t "Cell Phone" key='cell_phone'}}</label>
+    <label for="email" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
     <div class="col-sm-5">
       {{input value=model.cell_phone class="form-control" id="cell_phone" placeholder="optional, for alerts"}}
     </div>
   </div>
   <div class="form-group">
-    <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key='notification_frequency'}}</label>
+    <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
     <div class="col-sm-5">
       {{bound-select select_class="form-control" select_id="notification_frequency" content=notification_frequency_options selection=model.preferences.notification_frequency action=(action (mut model.preferences.notification_frequency)) }}
     </div>
   </div>
   <div class="form-group">
-    <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key='goal_notifications'}}</label>
+    <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
     <div class="col-sm-5">
       {{bound-select select_class="form-control" select_id="goal_notifications" content=goal_notification_options selection=model.preferences.goal_notifications action=(action (mut model.preferences.goal_notifications)) }}
     </div>
   </div>
   <div class="form-group">
-    <label for="share_notifications" class="col-sm-3 control-label">{{t "Notifying of Shares" key='share_notifications'}}</label>
+    <label for="share_notifications" class="col-sm-3 control-label">{{t "Notifying of Shares" key="share_notifications"}}</label>
     <div class="col-sm-5">
       {{bound-select select_class="form-control" select_id="share_notifications" content=allow_shares_options selection=model.preferences.share_notifications action=(action (mut model.preferences.share_notifications)) }}
     </div>
   </div>
   <div class="form-group">
-    <label for="registration_type" class="col-sm-3 control-label">{{t "Login is for" key='login_is_for'}}</label>
+    <label for="registration_type" class="col-sm-3 control-label">{{t "Login is for" key="login_is_for"}}</label>
     <div class="col-sm-5">
       {{bound-select select_class="form-control" select_id="registration_type" content=registration_types selection=model.preferences.registration_type action=(action (mut model.preferences.registration_type)) }}
     </div>
   </div>
   {{#if app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
-      <label for='contacts' class='col-sm-3 control-label'>{{t "Contacts" key='contacts'}}</label>
+      <label for='contacts' class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</label>
       <div class='col-sm-5'>
-        <p class='form-control-static'><em>{{t "You can add email addresses or cell numbers of people the communicator can message through the share tool, or through a messaging link you can send them." key='add_contacts'}}</em></p>
+        <p class='form-control-static'><em>{{t "You can add email addresses or cell numbers of people the communicator can message through the share tool, or through a messaging link you can send them." key="add_contacts"}}</em></p>
         {{#if model.contacts}}
           <ul class='list-group'>
             {{#each model.contacts as |contact|}}          
               <li class='list-group-item'>
                 <div style='float: right;'>
                   {{#unless contact.temporary}}
-                    <button class='btn btn-default' {{action 'message_link' contact}} title={{t "Send message link to contact" key='send_message_link_to_contact'}} style='position: relative;'>
+                    <button class='btn btn-default' {{action "message_link" contact}} title={{t "Send message link to contact" key="send_message_link_to_contact"}} style='position: relative;'>
                       <span class='glyphicon glyphicon-envelope' style='position: absolute;top: 3px;left: 3px;'></span>
                       <span class='glyphicon glyphicon-link' style='margin-right: -7px;margin-left: 7px;'></span>
-                      <span class='sr-only'>{{t "Send message link to contact" key='send_message_link_to_contact'}}</span>
+                      <span class='sr-only'>{{t "Send message link to contact" key="send_message_link_to_contact"}}</span>
                     </button>
                   {{/unless}}
-                  <button class='btn btn-default' {{action 'remove_contact' contact}}>
+                  <button class='btn btn-default' {{action "remove_contact" contact}}>
                     <span class='glyphicon glyphicon-trash'></span>
-                    <span class='sr-only'>{{t "Remove contact" key='remove_contact'}}</span>
+                    <span class='sr-only'>{{t "Remove contact" key="remove_contact"}}</span>
                   </button>
                 </div>
-                <img class='fit_image' style='height: 50px; width: 50px; float: left; margin-top: -5px; padding-right: 5px;' src={{contact.image_url}} />
-                {{contact.name}}<br/>
+                <img class='fit_image' style='height: 50px; width: 50px; float: left; margin-top: -5px; padding-right: 5px;' src={{contact.image_url}} >
+                {{contact.name}}<br>
                 <span class='text-muted'><em>
                   {{#if contact.email}}{{contact.email}}{{/if}}
                   {{#if contact.cell_phone}}{{contact.cell_phone}}{{/if}}
@@ -86,58 +86,58 @@
 
     
         {{#if app_state.supporter_role}}
-          <p class='text-danger'>{{t "NOTE: contacts will only show up in Speak Mode for communicators with a currently-active premium account" key='premium_account_required_for_contacts'}}</p>
+          <p class='text-danger'>{{t "NOTE: contacts will only show up in Speak Mode for communicators with a currently-active premium account" key="premium_account_required_for_contacts"}}</p>
         {{else if app_state.sessionUser.any_limited_supervisor}}
-          <p class='text-danger'>{{t "NOTE: contacts will not show up in Speak Mode for supervised users who do not have a currently-active premium account" key='premium_communicator_required_for_contacts'}}</p>
+          <p class='text-danger'>{{t "NOTE: contacts will not show up in Speak Mode for supervised users who do not have a currently-active premium account" key="premium_communicator_required_for_contacts"}}</p>
         {{else if model.currently_premium}}
         {{else}}
-          <p class='text-danger'>{{t "NOTE: contacts will not show up in Speak Mode for users who do not have a currently-active premium account" key='premium_required_for_contacts'}}</p>
+          <p class='text-danger'>{{t "NOTE: contacts will not show up in Speak Mode for users who do not have a currently-active premium account" key="premium_required_for_contacts"}}</p>
         {{/if}}
       </div>
       {{#if model.permissions.edit}}
         <div class='col-sm-3 col-sm-offset-3'>
-          {{input type='text' class='form-control' value=contact_name placeholder='Contact Name'}}
+          {{input type="text" class="form-control" value=contact_name placeholder="Contact Name"}}
         </div>
         <div class='col-sm-2'>
-          {{input type='text' class='form-control' value=contact_contact placeholder='email or cell #'}}
+          {{input type="text" class="form-control" value=contact_contact placeholder="email or cell #"}}
           <span style="font-size: 12px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>
-          <button class='btn btn-default' {{action 'set_picture'}} style='width: 100%;'>
+          <button class='btn btn-default' {{action "set_picture"}} style='width: 100%;'>
             <span class='glyphicon glyphicon-camera'></span>
-            {{t "Set Picture & Add" key='set_picture'}}
+            {{t "Set Picture & Add" key="set_picture"}}
           </button>
         </div>
       {{/if}}
     </div>
   {{/if}}
   <div class="form-group">
-    <label for="voice_pitch" class="col-sm-3 control-label">{{t "Home Board" key='home_board'}}</label>
+    <label for="voice_pitch" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
     <div class="col-sm-5">
       <p class="form-control-static">
         {{#if model.preferences.home_board.key}}
-          {{#link-to 'board' model.preferences.home_board.key}}{{model.preferences.home_board.key}}{{/link-to}}
+          {{#link-to "board" model.preferences.home_board.key}}{{model.preferences.home_board.key}}{{/link-to}}
         {{else}}
-          {{t "None selected. Find the home board you would like and pick it!" key='none_selected_find_one'}}
+          {{t "None selected. Find the home board you would like and pick it!" key="none_selected_find_one"}}
         {{/if}}
       </p>
     </div>
   </div>
   <div class="form-group">
-    <label for="public" class="col-sm-3 control-label">{{t "Public" key='public'}}</label>
+    <label for="public" class="col-sm-3 control-label">{{t "Public" key="public"}}</label>
     <div class="col-sm-5">
       <div class="checkbox big_checkbox">
         <label>
           {{input type="checkbox" checked=model.public id="public"}}
-          {{t "Anyone can see my profile" key='anyone_can_see_profile'}}
-          <br/><em>{{t "(your email and cell will stay private)" key='email_stays_private'}}</em>
+          {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
+          <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
         </label>
       </div>
     </div>
   </div>
   {{#unless change_password}}
     <div class="form-group">
-      <label class="col-sm-3 control-label">{{t "Password" key='password'}}</label>
+      <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
       <div class="col-sm-5">
         <p class="form-control-static">
           <a href="#" {{action "enable_change_password"}}>change password</a>
@@ -146,7 +146,7 @@
     </div>
   {{else}}
     <div class="form-group">
-      <label class="col-sm-3 control-label">{{t "Password" key='password'}}</label>
+      <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
       <div class="col-sm-5">
         {{input type="password" value=model.old_password class="form-control" id="old_password" placeholder="current password"}}
       </div>
@@ -160,30 +160,30 @@
   {{/unless}}
   {{#if model.single_org}}
     <div class="form-group">
-      <label for="third_party" class="col-sm-3 control-label">{{t "Third-Party App" key='third_party_app'}}</label>
+      <label for="third_party" class="col-sm-3 control-label">{{t "Third-Party App" key="third_party_app"}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
             {{input type="checkbox" checked=allow_external_device id="third_party"}}
-            {{t "This user uses a third-party app instead of %app_name% to communicate" key='user_third_party_app'}}
+            {{t "This user uses a third-party app instead of %app_name% to communicate" key="user_third_party_app"}}
           </label>
         </div>
       </div>
     </div>
     {{#if allow_external_device}}
       <div class="form-group">
-        <label for="device_type" class="col-sm-3 control-label">{{t "App/Device" key='app_device'}}</label>
+        <label for="device_type" class="col-sm-3 control-label">{{t "App/Device" key="app_device"}}</label>
         <div class="col-sm-4">
           {{input value=external_device class="form-control" id="device_type" placeholder="third-party app or device name"}}
         </div>
         <div class="col-sm-1" style='margin-left: -35px;'>
           <div class='btn-group dropdown'>
             <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{t "Device" key='device'}} <span class="caret"></span>
+              {{t "Device" key="device"}} <span class="caret"></span>
             </button>
             <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
               {{#each device_options as |option|}}
-                <li><a href='#' {{action 'set_device' option}}>{{option.name}}</a></li>
+                <li><a href='#' {{action "set_device" option}}>{{option.name}}</a></li>
               {{/each}}
             </ul>
           </div>
@@ -191,35 +191,35 @@
       </div>
       {{#if external_device}}
         <div class="form-group">
-          <label for="vocabulary_type" class="col-sm-3 control-label">{{t "Vocabulary" key='vocabulary'}}</label>
+          <label for="vocabulary_type" class="col-sm-3 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
           <div class="col-sm-4">
             {{input value=external_vocab class="form-control" id="vocabulary_type" placeholder="vocabulary used"}}
           </div>
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group dropdown' style='max-height: 183px;'>
               <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{t "Vocab" key='vocab'}} <span class="caret"></span>
+                {{t "Vocab" key="vocab"}} <span class="caret"></span>
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
                 {{#each vocab_options as |option|}}
-                  <li><a href='#' {{action 'set_vocab' option}}>{{option.name}}</a></li>
+                  <li><a href='#' {{action "set_vocab" option}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
             </div>
           </div>
         </div>
         <div class="form-group">
-          <label for="vocab_size" class="col-sm-3 control-label">{{t "Vocab Size" key='vocab_size'}}</label>
+          <label for="vocab_size" class="col-sm-3 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
           <div class="col-sm-2">
-            {{input type='number' value=external_vocab_size class="form-control" id="vocab_size" placeholder="###"}}
+            {{input type="number" value=external_vocab_size class="form-control" id="vocab_size" placeholder="###"}}
           </div>
           <div class='col-sm-3'>
-            <p class='form-control-static'>{{t "average buttons per board" key='average_buttons_per_view'}}</p>
+            <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>
           </div>
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key='access_method'}}</label>
+        <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
         <div class="col-sm-6">
           {{bound-select select_class="form-control" select_id="external_access_method" content=access_methods selection=external_access_method action=(action (mut external_access_method)) }}
         </div>
@@ -229,12 +229,12 @@
   {{#if model.supporter_role}}
     {{#if model.permissions.delete}}
       <div class="form-group">
-        <label for="valet_login" class="col-sm-3 control-label">{{t "Classroom Login" key='classroom_login'}}</label>
+        <label for="valet_login" class="col-sm-3 control-label">{{t "Classroom Login" key="classroom_login"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=model.valet_login id="valet_login"}}
-              <p>{{t "Classroom login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key='valet_as_classroom2'}}</p>
+              <p>{{t "Classroom login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom2"}}</p>
             </label>
           </div>
         </div>
@@ -243,12 +243,12 @@
         <div class='form-group'>
           <div class='col-sm-6 col-sm-offset-3'>
             <p class='form-control-static'><em>
-              {{t "Classroom login allows you to share an alternative username and password that allows speak-mode-only access to the account across multiple devices, such as in a classroom. When someone uses your classroom login, that device will have access to boards and user preferences only, similar to a modeling-only account." key='classroom_login_explainer'}}
+              {{t "Classroom login allows you to share an alternative username and password that allows speak-mode-only access to the account across multiple devices, such as in a classroom. When someone uses your classroom login, that device will have access to boards and user preferences only, similar to a modeling-only account." key="classroom_login_explainer"}}
             </em></p>
           </div>
         </div>
         <div class="form-group">
-          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Classroom User Name" key='classroom_user_name'}}</label>
+          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Classroom User Name" key="classroom_user_name"}}</label>
           <div class="col-sm-5">
             <p class="form-control-static">
               {{valet_user_name}}
@@ -256,7 +256,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="col-sm-3 control-label" for='valet_password'>{{t "Classroom Password" key='classroom_password'}}</label>
+          <label class="col-sm-3 control-label" for='valet_password'>{{t "Classroom Password" key="classroom_password"}}</label>
           <div class="col-sm-3">
             {{#if model.valet_password_set}}
               {{input type="password" value=model.valet_password class="form-control" id="valet_password" placeholder="enter to change"}}
@@ -265,7 +265,7 @@
             {{/if}}
           </div>
           <div class="col-sm-2">
-            <button type='button' class='btn btn-default' {{action 'generate_qr'}}>{{t "Generate QR Code" key='generate_qr_code'}}</button>
+            <button type='button' class='btn btn-default' {{action "generate_qr"}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
           </div>
         </div>
       {{/if}}
@@ -273,15 +273,15 @@
   {{else}}
     {{#if model.permissions.delete}}
       <div class="form-group">
-        <label for="valet_login" class="col-sm-3 control-label">{{t "Valet/Classroom Login" key='valet_login'}}</label>
+        <label for="valet_login" class="col-sm-3 control-label">{{t "Valet/Classroom Login" key="valet_login"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=model.valet_login id="valet_login"}}
-              <p>{{t "Enable valet login for modeling-only access, or for shared account access within a single classroom" key='enabled_valed_login'}}</p>
-              <p>{{t "Additionally, a valet login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key='valet_as_classroom'}}</p>
+              <p>{{t "Enable valet login for modeling-only access, or for shared account access within a single classroom" key="enabled_valed_login"}}</p>
+              <p>{{t "Additionally, a valet login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom"}}</p>
               {{#if model.valet_disabled}}
-                <br/><em class='text-danger'>{{t "(valet login was automatically disabled after being used)" key='valet_login_disabled'}}</em>
+                <br><em class='text-danger'>{{t "(valet login was automatically disabled after being used)" key="valet_login_disabled"}}</em>
               {{/if}}
             </label>
           </div>
@@ -291,12 +291,12 @@
         <div class='form-group'>
           <div class='col-sm-6 col-sm-offset-3'>
             <p class='form-control-static'><em>
-              {{t "Valet login allows you to share a temporary username and password outside of a trusted device without exposing your full account. When someone uses your valet login, that device will have access to boards and user preferences only, similar to a modeling-only account. The valet password will remain available for 24 hours or until you log in using your normal username and password. After that it will be disabled until you manually re-activate it." key='valet_login_explainer'}}
+              {{t "Valet login allows you to share a temporary username and password outside of a trusted device without exposing your full account. When someone uses your valet login, that device will have access to boards and user preferences only, similar to a modeling-only account. The valet password will remain available for 24 hours or until you log in using your normal username and password. After that it will be disabled until you manually re-activate it." key="valet_login_explainer"}}
             </em></p>
           </div>
         </div>
         <div class="form-group">
-          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Valet User Name" key='valet_user_name'}}</label>
+          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Valet User Name" key="valet_user_name"}}</label>
           <div class="col-sm-5">
             <p class="form-control-static">
               {{valet_user_name}}
@@ -304,7 +304,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="col-sm-3 control-label" for='valet_password'>{{t "Valet Password" key='valet_password'}}</label>
+          <label class="col-sm-3 control-label" for='valet_password'>{{t "Valet Password" key="valet_password"}}</label>
           <div class="col-sm-3">
             {{#if model.valet_password_set}}
               {{input type="password" value=model.valet_password class="form-control" id="valet_password" placeholder="enter to change"}}
@@ -313,28 +313,28 @@
             {{/if}}
           </div>
           <div class="col-sm-2">
-            <button type='button' class='btn btn-default' {{action 'generate_qr'}}>{{t "Generate QR Code" key='generate_qr_code'}}</button>
+            <button type='button' class='btn btn-default' {{action "generate_qr"}}>{{t "Generate QR Code" key="generate_qr_code"}}</button>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="valet_long_term" class="col-sm-3 control-label">{{t "Valet Long-Term" key='valet_long_term'}}</label>
+          <label for="valet_long_term" class="col-sm-3 control-label">{{t "Valet Long-Term" key="valet_long_term"}}</label>
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.valet_long_term id="valet_long_term"}}
-                {{t "Allow valet logins to last longer than 24 hours" key='allow_valet_long_term'}}
+                {{t "Allow valet logins to last longer than 24 hours" key="allow_valet_long_term"}}
               </label>
             </div>
           </div>
         </div>
         <div class="form-group">
-          <label for="valet_prevent_disable" class="col-sm-3 control-label">{{t "Valet Disabling" key='valet_disabling'}}</label>
+          <label for="valet_prevent_disable" class="col-sm-3 control-label">{{t "Valet Disabling" key="valet_disabling"}}</label>
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.valet_prevent_disable id="valet_prevent_disable"}}
-                {{t "Don't require re-authorization after a valet login is used" key='valet_prevent_disable'}}
+                {{t "Don't require re-authorization after a valet login is used" key="valet_prevent_disable"}}
               </label>
             </div>
           </div>
@@ -344,70 +344,70 @@
     {{/if}}
   {{/if}}
   <div class="form-group">
-    <label for="description" class="col-sm-3 control-label">{{t "One-Liner" key='one_liner'}}</label>
+    <label for="description" class="col-sm-3 control-label">{{t "One-Liner" key="one_liner"}}</label>
     <div class="col-sm-5">
       {{input value=model.description class="form-control" id="description" placeholder="a short bio"}}
     </div>
   </div>
   <div class="form-group">
-    <label for="url" class="col-sm-3 control-label">{{t "URL" key='url'}}</label>
+    <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
     <div class="col-sm-5">
       {{input value=model.details_url class="form-control" id="url" placeholder="https://"}}
     </div>
   </div>
   <div class="form-group">
-    <label for="location" class="col-sm-3 control-label">{{t "Location" key='location'}}</label>
+    <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
     <div class="col-sm-5">
       {{input value=model.location class="form-control" id="location" placeholder="City, State, Whatever"}}
     </div>
   </div>
   <div class="form-group">
-    <label for="location" class="col-sm-3 control-label">{{t "Avatar" key='avatar'}}</label>
+    <label for="location" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
     <div class="col-sm-5">
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;"/>
-      <a href="#" {{action 'pick_avatar'}}>{{t "Choose a different profile pic" key='choose_a_different_profile_pic'}}</a>
-      <a href="https://www.gravatar.com" target="_blank" style="display: none;">{{t "Change your avatar at Gravatar.com" key='change_at_gravatar'}}</a>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;">
+      <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
+      <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
     </div>
   </div>
   {{#if model.state_2fa.required}}
     <div class='form-group'>
-      <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key='2fa'}}</label>
+      <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
       <div class='col-sm-8'>
         {{#if status_2fa.loading}}
-          <p>{{t "updating..." key='updating_ellipsis'}}</p>
+          <p>{{t "updating..." key="updating_ellipsis"}}</p>
         {{else if status_2fa.uri}}
-          <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key='confirm_2fa_code'}}</p>
+          <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
           <div style='width: 300px'>
           {{qr-code text=status_2fa.uri size=300}}
           </div>
           <span style='display: inline-block; width: 200px;'>
-            {{input type='number' class='form-control' value=code_2fa placeholder='# # # # # #'}}
+            {{input type="number" class="form-control" value=code_2fa placeholder="# # # # # #"}}
           </span>
           {{#if status_2fa.error}}
-            <p class='text-danger'>{{t "Invalid code, please check again" key='invalid_code_please_try_again'}}</p>
+            <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
           {{/if}}
-          <button class='btn btn-default' {{action 'update_2fa' 'confirm'}}>{{t "Confirm" key='confirm'}}</button>
+          <button class='btn btn-default' {{action "update_2fa" "confirm"}}>{{t "Confirm" key="confirm"}}</button>
         {{else}}
           {{#if model.permissions.edit}}
             {{#if model.state_2fa.required}}
               {{#if model.state_2fa.mandatory}}
-                {{t "Required for This Account" key='required_for_this_account'}}
+                {{t "Required for This Account" key="required_for_this_account"}}
               {{else}}
-                {{t "Currently Enabled" key='currently_enabled'}}
+                {{t "Currently Enabled" key="currently_enabled"}}
               {{/if}}
               {{#unless model.state_2fa.mandatory}}
-                <button class='btn btn-default' {{action 'update_2fa' 'disable'}}>{{t "Disable" key='disable_2fa'}}</button>
+                <button class='btn btn-default' {{action "update_2fa" "disable"}}>{{t "Disable" key="disable_2fa"}}</button>
               {{/unless}}
-              <button class='btn btn-default' {{action 'update_2fa' 'reset'}}>{{t "Reset" key='reset_2fa'}}</button>
+              <button class='btn btn-default' {{action "update_2fa" "reset"}}>{{t "Reset" key="reset_2fa"}}</button>
             {{else}}
-              {{t "Ensure you have the latest app versions before enabling!" key='ensure_latest_app_versions'}}
-              <button class='btn btn-default' {{action 'update_2fa' 'enable'}}>{{t "Enable Two-Factor Authentication" key='enable_2fa'}}</button>
+              {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
+              <button class='btn btn-default' {{action "update_2fa" "enable"}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
             {{/if}}
           {{/if}}
           {{#if status_2fa.error}}
-            <p class='text-danger'>{{t "Error updating two-factor authentication" key='error_updating_2fa'}}</p>
+            <p class='text-danger'>{{t "Error updating two-factor authentication" key="error_updating_2fa"}}</p>
           {{else if status_2fa.success}}
-            <p class='text-success'>{{t "Two-factor authentcation successfully updated!" key='success_2fa'}}</p>
+            <p class='text-success'>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
           {{/if}}
         {{/if}}
       </div>
@@ -415,59 +415,59 @@
   {{/if}}
   {{#if tools}}
     <div class="form-group">
-      <label for="location" class="col-sm-3 control-label">{{t "Installed Tools" key='installed_tools'}}</label>
+      <label for="location" class="col-sm-3 control-label">{{t "Installed Tools" key="installed_tools"}}</label>
       <div class="col-sm-5">
         {{#each tools as |tool|}}
-          <div style='float: left; cursor: pointer;' {{action 'integration_details' tool}}>
-            <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'/>
+          <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>
+            <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'>
           </div> 
         {{/each}}
         <div style='clear: left;'></div>
         {{#unless model.currently_premium_or_premium_supporter}}
-          <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key='premium_required_for_tools'}}</p>
+          <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key="premium_required_for_tools"}}</p>
         {{/unless}}
       </div>
     </div>
   {{/if}}
   <div class="form-group">
     <div class="col-sm-offset-3 col-sm-4">
-      <button type="submit" class="btn btn-primary">{{t "Save Profile" key='save_profile'}}</button>
-      <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key='cancel'}}</button>
+      <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
+      <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
   </form>
 
   <div style='margin-top: 50px;'>
     <div style='margin-bottom: 10px;'>
-      <button class='btn btn-default' {{action 'browse_tools' 'lessonpix'}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' style='height: 30px; max-width: 50px; padding-right: 5px;'/>
-        {{t "Connect To LessonPix" key='connect_lessonpix'}}
+      <button class='btn btn-default' {{action "browse_tools" "lessonpix"}}>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
+        {{t "Connect To LessonPix" key="connect_lessonpix"}}
       </button>
-      <button class='btn btn-default' {{action 'browse_tools' 'ifttt'}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' style='height: 30px; max-width: 50px; padding-right: 5px;'/>
-        {{t "Connect to IFTTT" key='connect_ifttt'}}
+      <button class='btn btn-default' {{action "browse_tools" "ifttt"}}>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
+        {{t "Connect to IFTTT" key="connect_ifttt"}}
       </button>
     </div>
     {{#if managing_connections}}
-      <h2>{{t "Connections" key='connections'}}</h2>
+      <h2>{{t "Connections" key="connections"}}</h2>
       <div class='row' style='margin-top: 20px;'>
         <div class='col-sm-3'>
-          <h4>{{t "Connected Tools" key='connected_tools'}}</h4>
+          <h4>{{t "Connected Tools" key="connected_tools"}}</h4>
         </div>
         <div class='col-sm-8'>
           {{#if model.integrations.loading}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading connected tools..." key='loading_connected_tools'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading connected tools..." key="loading_connected_tools"}}</span>
           {{else if model.integrations.error}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading connected tools" key='error_loading_connected_tools'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading connected tools" key="error_loading_connected_tools"}}</span>
           {{else if model.integrations}}
             <table class='table table-striped table-hover' style='margin-bottom: 5px;'>
               <tbody>
                 {{#each model.integrations as |integration|}}
                   <tr>
                     <td>
-                      <div {{action 'integration_details' integration}} style='cursor: pointer;'>
+                      <div {{action "integration_details" integration}} style='cursor: pointer;'>
                         {{#if integration.icon_url}}
-                          <img src={{integration.icon_url}} style='height: 40px; max-width: 50px; vertical-align: middle; padding-right: 10px;' />
+                          <img src={{integration.icon_url}} style='height: 40px; max-width: 50px; vertical-align: middle; padding-right: 10px;' >
                         {{else}}
                           <span class='glyphicon glyphicon-wrench' style='font-size: 30px; vertical-align: middle; padding-right: 10px;'></span>
                         {{/if}}
@@ -477,24 +477,24 @@
                     <td>
                       {{#if integration.custom_integration}}
                         {{#if integration.truncated_access_token}}
-                          {{t "API: %{token}" token=integration.truncated_access_token key='displayable_access_token'}}<br/>
-                          {{t "Webhooks: %{token}" token=integration.truncated_token key='displayable_token'}}
+                          {{t "API: %{token}" token=integration.truncated_access_token key="displayable_access_token"}}<br>
+                          {{t "Webhooks: %{token}" token=integration.truncated_token key="displayable_token"}}
                         {{/if}}
                       {{else}}
-                        {{t "recognized tool" key='known_tool'}}
+                        {{t "recognized tool" key="known_tool"}}
                       {{/if}}
                       <div>
                         {{#if integration.webhook}}
-                          <span class='label label-default'>{{t "button" key='for_buttons'}}</span>
+                          <span class='label label-default'>{{t "button" key="for_buttons"}}</span>
                         {{/if}}
                         {{#if integration.render}}
-                          <span class='label label-default'>{{t "launch" key='launch'}}</span>
+                          <span class='label label-default'>{{t "launch" key="launch"}}</span>
                         {{/if}}
                       </div>
                     </td>
                     {{#if model.permissions.edit}}
                       <td>
-                        <a href="#" {{action 'delete_integration' integration}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete connected tool" key='delete_connected_tool'}}</span></a>
+                        <a href="#" {{action "delete_integration" integration}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete connected tool" key="delete_connected_tool"}}</span></a>
                       </td>
                     {{/if}}
                   </tr>
@@ -502,25 +502,25 @@
               </tbody>
             </table>
           {{else}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "No tools connected" key='no_tools_connected'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "No tools connected" key="no_tools_connected"}}</span>
           {{/if}}
           {{#if model.permissions.edit}}
             <div>
-              <a href="#" class='btn btn-default' {{action 'browse_tools'}}>{{t "browse tools" key='browse_tools_lower'}}</a>
-              <a href="#" class='btn btn-default' {{action 'add_integration'}}>{{t "add custom tool" key='add_custom_tool'}}</a>
+              <a href="#" class='btn btn-default' {{action "browse_tools"}}>{{t "browse tools" key="browse_tools_lower"}}</a>
+              <a href="#" class='btn btn-default' {{action "add_integration"}}>{{t "add custom tool" key="add_custom_tool"}}</a>
             </div>
           {{/if}}
         </div>
       </div>
       <div class='row' style='margin-top: 20px;'>
         <div class='col-sm-3'>
-          <h4>{{t "Event Handlers" key='event_handlers'}}</h4>
+          <h4>{{t "Event Handlers" key="event_handlers"}}</h4>
         </div>
         <div class='col-sm-8'>
           {{#if webhooks.loading}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading event handlers..." key='loading_event_handlers'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading event handlers..." key="loading_event_handlers"}}</span>
           {{else if webhooks.error}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading event handlers" key='error_loading_webhooks'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading event handlers" key="error_loading_webhooks"}}</span>
           {{else if webhooks}}
             <table class='table table-striped table-hover' style='margin-bottom: 5px;'>
               <tbody>
@@ -530,7 +530,7 @@
                     <span class='glyphicon glyphicon-phone-alt' style='font-size: 20px; vertical-align: middle; padding: 5px;'></span>
                     {{webhook.name}}
                     {{#if webhook.include_content}}
-                      {{t "(sends content)" key='sends_content'}}
+                      {{t "(sends content)" key="sends_content"}}
                     {{/if}}
                     {{#if webhook.webhooks}}
                       <em>{{webhook.webhooks_list}}</em>
@@ -538,14 +538,14 @@
                     </td>
                     <td>
                       {{#if webhook.custom_configuration}}
-                        <a href="#" {{action 'test_webhook' webhook}}>
-                          {{t "test" key='test'}}
+                        <a href="#" {{action "test_webhook" webhook}}>
+                          {{t "test" key="test"}}
                         </a>
                       {{/if}}
                     </td>
                     {{#if model.permissions.edit}}
                       <td>
-                        <a href="#" {{action 'delete_webhook' webhook}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete event handler" key='delete_event_handler_lower'}}</span></a>
+                        <a href="#" {{action "delete_webhook" webhook}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete event handler" key="delete_event_handler_lower"}}</span></a>
                       </td>
                     {{/if}}
                   </tr>
@@ -553,24 +553,24 @@
               </tbody>
             </table>
           {{else}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "None enabled" key='none_enabled'}}</span>
+            <span style='margin-top: 10px; display: inline-block;'>{{t "None enabled" key="none_enabled"}}</span>
           {{/if}}
           {{#if model.permissions.edit}}
             <div>
-              <a href="#" class='btn btn-sm btn-default' {{action 'add_webhook'}}>{{t "add custom handler" key='add_handler'}}</a>
+              <a href="#" class='btn btn-sm btn-default' {{action "add_webhook"}}>{{t "add custom handler" key="add_handler"}}</a>
             </div>
           {{/if}}
         </div>
       </div>
     {{else}}
-      <a href="#" class='btn btn-default' {{action 'manage_connections'}}>{{t "Manage Tools and Connections" key='manage_connections'}}</a>
+      <a href="#" class='btn btn-default' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a>
     {{/if}}
     {{#if model.permissions.delete}}
-      <a href="#" class='btn btn-default' {{action 'delete_user'}}>{{t "Delete My Account" key='delete_my_account'}}</a>
+      <a href="#" class='btn btn-default' {{action "delete_user"}}>{{t "Delete My Account" key="delete_my_account"}}</a>
     {{/if}}
   </div>
 {{else if session.isAuthenticated}}
-  <p>{{t "It appears you don't have permission to access this user's information" key='not_allowed_user_long'}}</p>
+  <p>{{t "It appears you don't have permission to access this user's information" key="not_allowed_user_long"}}</p>
 {{else}}
   {{login-form left=true prompt=true return=true}}
 {{/if}}

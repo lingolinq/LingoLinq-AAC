@@ -7,7 +7,7 @@
       {{#if usage_stats.custom_filter}}
         {{#if usage_stats.device_id}}
           <div class="form-group">
-            <a href="#" {{action 'update_filter' 'device'}} class='btn btn-default'>
+            <a href="#" {{action "update_filter" "device"}} class='btn btn-default'>
               {{usage_stats.device_name}}
               <span class="glyphicon glyphicon-remove"></span>
             </a>
@@ -15,7 +15,7 @@
         {{/if}}
         {{#if usage_stats.location_id}}
           <div class="form-group">
-            <a href="#" {{action 'update_filter' 'location'}} class='btn btn-default'>
+            <a href="#" {{action "update_filter" "location"}} class='btn btn-default'>
               {{usage_stats.location_name}}
               <span class="glyphicon glyphicon-remove"></span>
             </a>
@@ -25,7 +25,7 @@
         <div class="form-group">
           {{input type="date" value=usage_stats.start_date_field class="form-control"}}
         </div>
-          &nbsp;{{t "to" key='to'}}&nbsp;
+          &nbsp;{{t "to" key="to"}}&nbsp;
         <div class="form-group">
           {{input type="date" value=usage_stats.end_date_field class="form-control"}}
         </div>
@@ -46,22 +46,22 @@
           <div class="form-group well" style='padding: 0 10px;'>
             {{usage_stats.start_date_field}}
           </div>
-            &nbsp;{{t "to" key='to'}}&nbsp;
+            &nbsp;{{t "to" key="to"}}&nbsp;
           <div class="form-group well" style='padding: 0 10px;'>
             {{usage_stats.end_date_field}}
           </div>
           </span>
         </span>
       {{/if}}
-      <button type="button" {{action "update_filter" "date"}} class="btn btn-default">{{t "Go" key='go'}}</button>
+      <button type="button" {{action "update_filter" "date"}} class="btn btn-default">{{t "Go" key="go"}}</button>
       {{#unless side_by_side}}
         <span style="margin-left: 10px;" class="hidden-xs">
-          <a href="#" {{action 'compare_to'}}>{{t "compare to..." key='compare_to_ellipsis'}}</a>
+          <a href="#" {{action "compare_to"}}>{{t "compare to..." key="compare_to_ellipsis"}}</a>
         </span>
       {{/unless}}
     </form>
     {{#if side_by_side}}
-      <a href="#" {{action 'clear_side'}}>{{t "hide this side" key='hide_this_side'}}</a>
+      <a href="#" {{action "clear_side"}}>{{t "hide this side" key="hide_this_side"}}</a>
     {{/if}}
   {{/if}}
 </div>

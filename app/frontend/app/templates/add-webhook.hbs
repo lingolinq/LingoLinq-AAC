@@ -1,37 +1,37 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Add Event Handler" key='add_webhook'}}
+      {{t "Add Event Handler" key="add_webhook"}}
     </h3>
   </div>
   <div class="modal-body">
    <form class="form-horizontal"  {{action "save" on="submit"}}>
       <div class="form-group">
-        <label for="webhook_name" class="col-sm-3 control-label">{{t "Handler Name" key='handler_name'}}</label>
+        <label for="webhook_name" class="col-sm-3 control-label">{{t "Handler Name" key="handler_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
           {{input value=webhook.name class="form-control" id="webhook_name" placeholder="Name"}}
         </div>
       </div>
       <div class="form-group">
-        <label for="webhook_url" class="col-sm-3 control-label">{{t "Update URL" key='update_url'}}</label>
+        <label for="webhook_url" class="col-sm-3 control-label">{{t "Update URL" key="update_url"}}</label>
         <div class="col-sm-9">
           {{input value=webhook.url class="form-control" id="webhook_url" placeholder="URL to update"}}
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-3 control-label">{{t "Events to Handle" key='events_to_handle'}}</label>
+        <label class="col-sm-3 control-label">{{t "Events to Handle" key="events_to_handle"}}</label>
         <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=webhook.new_session_event}}
-                {{t "New Log Session (up to 3 hour delay)" key='new_log_session'}}
+                {{t "New Log Session (up to 3 hour delay)" key="new_log_session"}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=webhook.new_utterance_event}}
-                {{t "New Shared Utterance (short delay)" key='new_utterance'}}
+                {{t "New Shared Utterance (short delay)" key="new_utterance"}}
               </label>
             </div>
         </div>
@@ -39,12 +39,12 @@
 
       <div class="form-group">
         <fieldset>
-          <label class="col-sm-3 control-label">{{t "Content" key='content'}}</label>
+          <label class="col-sm-3 control-label">{{t "Content" key="content"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=webhook.include_content}}
-                {{t "Send content with update if available" key='send_content_with_update'}}
+                {{t "Send content with update if available" key="send_content_with_update"}}
               </label>
             </div>
           </div>
@@ -52,17 +52,17 @@
       </div>
     </form>
     {{#if status.error}}
-      <p class='text-danger'>{{t "There was an unexpected problem creating the event handler." key='error_creating_webhook'}}</p>
+      <p class='text-danger'>{{t "There was an unexpected problem creating the event handler." key="error_creating_webhook"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action 'save'}} class='btn btn-primary' disabled={{status.saving}}>
+    <button {{action "save"}} class='btn btn-primary' disabled={{status.saving}}>
       {{#if status.saving}}
-        {{t "Creating Event Handler..." key='creating_webhook'}}
+        {{t "Creating Event Handler..." key="creating_webhook"}}
       {{else}}
-        {{t "Create Event Handler" key='create_webhook'}}
+        {{t "Create Event Handler" key="create_webhook"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

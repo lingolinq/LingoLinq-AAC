@@ -1,6 +1,6 @@
 <div class="well" style="text-align: center;">
   <div style='position: relative;'>
-    <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;"/>
+    <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;">
     {{#if model.online}}
       <div title='currently online' class='online_marker'></div>
     {{/if}}
@@ -9,13 +9,13 @@
   <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
   <div>{{ model.description }}</div>
   {{#if model.details_url}}
-  <div><a href={{model.details_url}} target="_blank">{{ model.details_url }}</a></div>
+  <div><a href={{model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
   {{/if}}
   <div>{{ model.location }}</div>
   {{#if model.joined}}
-    <div title={{date model.joined}}>{{t "joined" key='joined'}} {{date_ago model.joined}}</div>
+    <div title={{date model.joined}}>{{t "joined" key="joined"}} {{date_ago model.joined}}</div>
   {{/if}}
   {{#if model.last_access}}
-    <div class="text-muted" title={{date model.last_access}}>{{t "used" key='used'}} {{date_ago model.last_access 'day'}}</div>
+    <div class="text-muted" title={{date model.last_access}}>{{t "used" key="used"}} {{date_ago model.last_access "day"}}</div>
   {{/if}}
 </div>

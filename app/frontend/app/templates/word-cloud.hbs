@@ -1,23 +1,23 @@
-{{#modal-dialog stretch_ratio=stretch_ratio action="close" opening='opening' closing='closing'}}
+{{#modal-dialog stretch_ratio=stretch_ratio action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if model.stats.modeling}}
         <span class='glyphicon glyphicon-hand-up'></span>
-        {{t "Modeled Word Cloud" key='modeled word_cloud'}}
+        {{t "Modeled Word Cloud" key="modeled word_cloud"}}
       {{else}}
-        {{t "Word Cloud" key='word_cloud'}}
+        {{t "Word Cloud" key="word_cloud"}}
       {{/if}}
       <span style="margin-left: 10px;">
-        <button class='btn btn-default' {{action 'refresh'}}><span class="glyphicon glyphicon-refresh" title={{t "redraw" key='redraw'}}></span></button>
-        <button class='btn btn-default' {{action 'zoom' 'in'}}><span class="glyphicon glyphicon-plus" title={{t "zoom in" key='zoom_in'}}></span></button>
-        <button class='btn btn-default' {{action 'zoom' 'out'}}><span class="glyphicon glyphicon-minus" title={{t "zoom out" key='zoom_out'}}></span></button>
+        <button class='btn btn-default' {{action "refresh"}}><span class="glyphicon glyphicon-refresh" title={{t "redraw" key="redraw"}}></span></button>
+        <button class='btn btn-default' {{action "zoom" "in"}}><span class="glyphicon glyphicon-plus" title={{t "zoom in" key="zoom_in"}}></span></button>
+        <button class='btn btn-default' {{action "zoom" "out"}}><span class="glyphicon glyphicon-minus" title={{t "zoom out" key="zoom_out"}}></span></button>
       </span>
     </h3>
   </div>
   <div class="modal-body" id="button_settings">
     <div class="row">
-      <div class={{if model.stats2 'col-sm-6' 'col-sm-12'}}>
+      <div class={{if model.stats2 "col-sm-6" "col-sm-12"}}>
         {{#if model.stats2}}
           <strong>{{model.stats.label}}</strong>
         {{/if}}
@@ -30,6 +30,6 @@
         </div>
       {{/if}}
     </div>
-    <em>{{t "Right-click or long-press for options on saving this image" key='press_to_save'}}</em>
+    <em>{{t "Right-click or long-press for options on saving this image" key="press_to_save"}}</em>
   </div>
 {{/modal-dialog}}

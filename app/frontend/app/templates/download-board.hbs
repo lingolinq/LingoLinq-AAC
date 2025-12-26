@@ -1,11 +1,11 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if pdf_download}}
-        {{t "Print Board" key='print_board'}}
+        {{t "Print Board" key="print_board"}}
       {{else}}
-        {{t "Download Board" key='download_board'}}
+        {{t "Download Board" key="download_board"}}
       {{/if}}
     </h3>
   </div>
@@ -15,9 +15,9 @@
         <div class='alert alert-success'>{{status_message}}</div>
         <b>
         {{#if pdf_download}}
-          <a target="_blank" href={{progress.result.download_url}}>{{t "Open board(s) for printing" key='open_board_for_printing'}}</a>
+          <a target="_blank" href={{progress.result.download_url}} rel="noopener">{{t "Open board(s) for printing" key="open_board_for_printing"}}</a>
         {{else}}
-          <a href={{progress.result.download_url}}>{{t "Download board(s) to your computer" key='board_download_available'}}</a>
+          <a href={{progress.result.download_url}}>{{t "Download board(s) to your computer" key="board_download_available"}}</a>
         {{/if}}
         </b>
       {{else}}
@@ -26,9 +26,9 @@
         {{else}}
           {{#if progress}}
             {{#if pdf_download}}
-              {{t "Generating PDF for download. This could take around %{n} minutes." n=minutes_estimate key='print_board_generating'}}<br/><br/>
+              {{t "Generating PDF for download. This could take around %{n} minutes." n=minutes_estimate key="print_board_generating"}}<br><br>
             {{else}}
-              {{t "Generating file for download. This could take around %{n} minutes." n=minutes_estimate key='download_board_generating'}}<br/><br/>
+              {{t "Generating file for download. This could take around %{n} minutes." n=minutes_estimate key="download_board_generating"}}<br><br>
             {{/if}}
 
             <div class='alert alert-info'>{{status_message}}</div>
@@ -36,7 +36,7 @@
               <div class="progress">
                 <div class="progress-bar" role="progressbar" aria-value={{num_percent}} aria-valuemin="0" aria-valuemax="100" style={{num_style}}>
                   <span class="sr-only">
-                    {{t "%{pct}% Complete" key='percent_complete' pct=num_percent}}
+                    {{t "%{pct}% Complete" key="percent_complete" pct=num_percent}}
                   </span>
                 </div>
               </div>
@@ -44,45 +44,45 @@
           {{else}}
             {{#if multi_download_type}}
               <span class="glyphicon glyphicon-cloud-download" style="font-size: 30px; float: left; padding-right: 10px; padding-bottom: 5px;"></span>
-              <p>{{t "Boards are downloaded using the Open Board Format, which is an open-licensed format that can be imported and exported using compatible AAC apps like LingoLinq." key='download_board_explainer'}}</p>
-              <p>{{t "This board contains links to sub-boards. Would you like to download a file containing all available sub-boards, or just the current board?" key='confirm_download_board'}}</p>
+              <p>{{t "Boards are downloaded using the Open Board Format, which is an open-licensed format that can be imported and exported using compatible AAC apps like LingoLinq." key="download_board_explainer"}}</p>
+              <p>{{t "This board contains links to sub-boards. Would you like to download a file containing all available sub-boards, or just the current board?" key="confirm_download_board"}}</p>
             {{else if single_download_type}}
               <span class="glyphicon glyphicon-cloud-download" style="font-size: 30px; float: left; padding-right: 10px; padding-bottom: 5px;"></span>
-              <p>{{t "Boards are downloaded using the Open Board Format, which is an open-licensed format that can be imported and exported using compatible AAC apps like LingoLinq." key='download_board_explainer'}}</p>
+              <p>{{t "Boards are downloaded using the Open Board Format, which is an open-licensed format that can be imported and exported using compatible AAC apps like LingoLinq." key="download_board_explainer"}}</p>
             {{else}}
               <span class="glyphicon glyphicon-print" style="font-size: 30px; float: left; padding-right: 10px; padding-bottom: 5px;"></span>
-              <p>{{t "You can print off a physical copy of any board set in LingoLinq. Printed copies can work as an effective backup or for places where you may not want to take a physical device." key='print_explanation'}}</p>
+              <p>{{t "You can print off a physical copy of any board set in LingoLinq. Printed copies can work as an effective backup or for places where you may not want to take a physical device." key="print_explanation"}}</p>
               {{#if model.has_links}}
-                <p>{{t "This board contains links to sub-boards. Would you like to print a packet containing all available sub-boards, or just the current board?" key='confirm_print_board'}}</p>
+                <p>{{t "This board contains links to sub-boards. Would you like to print a packet containing all available sub-boards, or just the current board?" key="confirm_print_board"}}</p>
               {{/if}}
               <p>
                 <div class="btn-group" role="group" aria-label="Print Header" style='margin-bottom: 20px; width: 100%;'>
-                  <button type="button" {{action 'set_attribute' 'include_header' false}} class={{if include_header "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                    {{t "No Header" key='no_header'}}
+                  <button type="button" {{action "set_attribute" "include_header" false}} class={{if include_header "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                    {{t "No Header" key="no_header"}}
                   </button>
-                  <button type="button" {{action 'set_attribute' 'include_header' true}} class={{if include_header "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                    {{t "Vocalization Header" key='vocalization_header'}}
+                  <button type="button" {{action "set_attribute" "include_header" true}} class={{if include_header "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                    {{t "Vocalization Header" key="vocalization_header"}}
                   </button>
                 </div>
               </p>
               {{#unless app_state.currentUser}}
                 <p>
                   <div class="btn-group" role="group" aria-label="Print Header" style='margin-bottom: 20px; width: 100%;'>
-                    <button type="button" {{action 'set_attribute' 'text_below' false}} class={{if text_below "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                      {{t "Text Below Images" key='text_below_images'}}
+                    <button type="button" {{action "set_attribute" "text_below" false}} class={{if text_below "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                      {{t "Text Below Images" key="text_below_images"}}
                     </button>
-                    <button type="button" {{action 'set_attribute' 'text_below' true}} class={{if text_below "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                      {{t "Text Above Images" key='text_above_images'}}
+                    <button type="button" {{action "set_attribute" "text_below" true}} class={{if text_below "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                      {{t "Text Above Images" key="text_above_images"}}
                     </button>
                   </div>
                 </p>
                 <p>
                   <div class="btn-group" role="group" aria-label="Print Header" style='margin-bottom: 20px; width: 100%;'>
-                    <button type="button" {{action 'set_attribute' 'white_background' false}} class={{if white_background "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                      {{t "Color Backgrounds" key='transparent_image_background'}}
+                    <button type="button" {{action "set_attribute" "white_background" false}} class={{if white_background "btn btn-default" "btn btn-primary"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                      {{t "Color Backgrounds" key="transparent_image_background"}}
                     </button>
-                    <button type="button" {{action 'set_attribute' 'white_background' true}} class={{if white_background "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
-                      {{t "White Backgrounds" key='white_behind_images'}}
+                    <button type="button" {{action "set_attribute" "white_background" true}} class={{if white_background "btn btn-primary" "btn btn-default"}} style='font-size: 20px; width: 50%; padding: 10px 30px 10px;'>
+                      {{t "White Backgrounds" key="white_behind_images"}}
                     </button>
                   </div>
                 </p>
@@ -92,7 +92,7 @@
         {{/if}}
       {{/if}}
     {{else}}
-      <p>{{t "Downloading and printing are only available when online" key='download_only_online'}}</p>
+      <p>{{t "Downloading and printing are only available when online" key="download_only_online"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
@@ -104,21 +104,21 @@
           {{#if progress}}
           {{else}}
             {{#if multi_download_type}}
-              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Download full board set" key='download_all_boards'}}</button>
-              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Download just this board" key='download_just_this_board'}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Download full board set" key="download_all_boards"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Download just this board" key="download_just_this_board"}}</button>
             {{else if single_download_type}}
-              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Download this board" key='download_this_board'}}</button>
-              <button {{action "startDownload" "all"}} class="btn btn-default">{{t "Download as .obz" key='download_as_obz'}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Download this board" key="download_this_board"}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-default">{{t "Download as .obz" key="download_as_obz"}}</button>
             {{else if model.has_links}}
-              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Print full board set" key='print_all_boards'}}</button>
-              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Print just this board" key='print_just_this_board'}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Print full board set" key="print_all_boards"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Print just this board" key="print_just_this_board"}}</button>
             {{else}}
-              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Print this board" key='print_this_board'}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Print this board" key="print_this_board"}}</button>
             {{/if}}
           {{/if}}
         {{/if}}
       {{/if}}
     {{/if}}
-    <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

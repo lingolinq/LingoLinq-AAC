@@ -1,14 +1,14 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Add Connected Tool" key='add_connected_tool'}}
+      {{t "Add Connected Tool" key="add_connected_tool"}}
     </h3>
   </div>
   <div class="modal-body">
    <form class="form-horizontal" {{action "save" on="submit"}}>
       <div class="form-group">
-        <label for="integration_name" class="col-sm-3 control-label">{{t "Tool Name" key='tool_name'}}</label>
+        <label for="integration_name" class="col-sm-3 control-label">{{t "Tool Name" key="tool_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
           {{input value=integration.name class="form-control" id="integration_name" placeholder="Name"}}
         </div>
@@ -18,18 +18,18 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input checked=integration.with_button_url type="checkbox"}}
-              {{t "enable custom button triggers via this tool" key='enable_button_actions'}}
+              {{t "enable custom button triggers via this tool" key="enable_button_actions"}}
             </label>
           </div>
         </div>
       </div>
       {{#if integration.with_button_url}}
         <div class="form-group" style='margin-top: -10px; margin-bottom: 20px;'>
-          <label for="integration_button_url" class="col-sm-offset-3 col-sm-3 control-label">{{t "Event URL" key='event_url'}}</label>
+          <label for="integration_button_url" class="col-sm-offset-3 col-sm-3 control-label">{{t "Event URL" key="event_url"}}</label>
           <div class="col-sm-6">
             {{input value=integration.button_webhook_url class="form-control" id="integration_button_url" placeholder="Button Action URL"}}
             {{#if integration.insecure_button_webhook_url}}
-              <span class='text-danger'>{{t "please use https URLs to protect user information" key='https_only_please'}}</span>
+              <span class='text-danger'>{{t "please use https URLs to protect user information" key="https_only_please"}}</span>
             {{/if}}
           </div>
         </div>
@@ -38,11 +38,11 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input checked=integration.button_webhook_local type="checkbox"}}
-                {{t "this URL is to a local address on the same network" key='local_address'}}
+                {{t "this URL is to a local address on the same network" key="local_address"}}
               </label>
               {{#if integration.button_webhook_local}}
                 <div><em>
-                  {{t "NOTE: Local requests are handled as a browser call, so make sure the endpoint supports cross-origin calls" key='remember_cors'}}
+                  {{t "NOTE: Local requests are handled as a browser call, so make sure the endpoint supports cross-origin calls" key="remember_cors"}}
                 </em></div>
               {{/if}}
             </div>
@@ -55,35 +55,35 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input checked=integration.with_board_url type="checkbox"}}
-              {{t "enable custom page renderings via this tool" key='enable_board_renders'}}
+              {{t "enable custom page renderings via this tool" key="enable_board_renders"}}
             </label>
           </div>
         </div>
       </div>
       {{#if integration.with_board_url}}
         <div class="form-group" style='margin-top: -10px; margin-bottom: 20px;'>
-          <label for="integration_button_url" class="col-sm-3 col-sm-offset-3 control-label">{{t "Event URL" key='event_url'}}</label>
+          <label for="integration_button_url" class="col-sm-3 col-sm-offset-3 control-label">{{t "Event URL" key="event_url"}}</label>
           <div class="col-sm-6">
             {{input value=integration.board_render_url class="form-control" id="board_render_url" placeholder="Board Render URL"}}
             {{#if integration.insecure_board_render_url}}
-              <span class='text-danger'>{{t "please use https URLs to protect user information" key='https_only_please'}}</span>
+              <span class='text-danger'>{{t "please use https URLs to protect user information" key="https_only_please"}}</span>
             {{/if}}
           </div>
         </div>
       {{/if}}
     </form>
     {{#if status.error}}
-      <p class='text-danger'>{{t "There was an unexpected problem creating the connected tool." key='error_creating_connected_tool'}}</p>
+      <p class='text-danger'>{{t "There was an unexpected problem creating the connected tool." key="error_creating_connected_tool"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action 'save'}} class='btn btn-primary' disabled={{status.saving}}>
+    <button {{action "save"}} class='btn btn-primary' disabled={{status.saving}}>
       {{#if status.saving}}
-        {{t "Creating Connected Tool..." key='creating_connected_tool'}}
+        {{t "Creating Connected Tool..." key="creating_connected_tool"}}
       {{else}}
-        {{t "Create Connected Tool" key='create_connected_tool'}}
+        {{t "Create Connected Tool" key="create_connected_tool"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

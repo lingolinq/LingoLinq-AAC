@@ -4,8 +4,8 @@
       <tr>
         <th colspan="2">
           {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
-          {{t "Most common words" key='most_common_words'}}
-          <a href="#" {{action 'word_cloud'}}>{{t "word cloud" key='word_cloud_lower'}}</a>
+          {{t "Most common words" key="most_common_words"}}
+          <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
         </th>
       </tr>
     </thead>
@@ -13,13 +13,13 @@
       {{#if usage_stats.popular_words}}
         {{#each usage_stats.popular_words as |word|}}
           <tr>
-            <td><a href="#" {{action 'word_data' word.text}} style='text-decoration: none; color: #000;'>{{word.text}}</a></td>
+            <td><a href="#" {{action "word_data" word.text}} style='text-decoration: none; color: #000;'>{{word.text}}</a></td>
             <td>{{word.count}}</td>
           </tr>
         {{/each}}
       {{else}}
         <tr>
-          <td>{{t "No data available" key='no_data'}}</td>
+          <td>{{t "No data available" key="no_data"}}</td>
         </tr>
       {{/if}}
     </tbody>

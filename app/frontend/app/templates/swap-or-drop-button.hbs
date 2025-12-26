@@ -1,33 +1,33 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Swap or Drop Button?" key='swap_or_drop'}}
+      {{t "Swap or Drop Button?" key="swap_or_drop"}}
     </h3>
   </div>
   <div class="modal-body">
     <div class="row" style="margin-bottom: 10px;">
       <div class="col-sm-5" style="text-align: center;">
-        <img src={{model.button.image.best_url}} style="height: 50px;"/><br/>
+        <img src={{model.button.image.best_url}} style="height: 50px;"><br>
         {{#if model.button.label}}
           {{model.button.label}}
         {{else}}
-          {{t "Unnamed button" key='unnamed_button'}}
+          {{t "Unnamed button" key="unnamed_button"}}
         {{/if}}
       </div>
       <div class="col-sm-2">
         <span class="glyphicon glyphicon-arrow-right" style="font-size: 30px; padding-top: 20px;"></span>
       </div>
       <div class="col-sm-5" style="text-align: center;">
-        <img src={{model.folder.image.best_url}} style="height: 50px;"/>
-        <br/>
+        <img src={{model.folder.image.best_url}} style="height: 50px;">
+        <br>
         {{#if model.folder.label}}
           {{model.folder.label}}
         {{else}}
-          {{t "Unnamed button" key='unnamed_button'}}
+          {{t "Unnamed button" key="unnamed_button"}}
         {{/if}}
-        <br/>
-        <img src={{path 'images/folder.png'}} style="height: 20px;">
+        <br>
+        <img src={{path "images/folder.png"}} style="height: 20px;">
         {{model.folder.load_board.key}}
       </div>
     </div>
@@ -39,11 +39,11 @@
           {{else}}
             {{#if status.need_decision}}
               <div class="alert alert-warning">
-                {{t "You don't have permission to edit the linked board, but you can make a copy of it and move the button if you'd like." key='no_edit_yes_copy'}}
+                {{t "You don't have permission to edit the linked board, but you can make a copy of it and move the button if you'd like." key="no_edit_yes_copy"}}
               </div>
               <div>
-                <button class='btn btn-default' {{action "move_button" "copy"}}>{{t "Copy the Board" key='copy_the_board'}}</button>
-                <button class='btn btn-default' {{action "close"}} >{{t "Cancel" key='cancel'}}</button>
+                <button class='btn btn-default' {{action "move_button" "copy"}}>{{t "Copy the Board" key="copy_the_board"}}</button>
+                <button class='btn btn-default' {{action "close"}} >{{t "Cancel" key="cancel"}}</button>
               </div>
             {{else}}
               <div class="alert alert-info">{{status.message}}</div>
@@ -51,17 +51,17 @@
           {{/if}}
         {{else}}
           <p>
-            {{t "The button you dropped onto is a link to another board. Would you like to swap the location of the two buttons, or move this button to the other board?" key='confirm_swap_or_drop'}}
+            {{t "The button you dropped onto is a link to another board. Would you like to swap the location of the two buttons, or move this button to the other board?" key="confirm_swap_or_drop"}}
           </p>
           <p>
-            {{t "If you move the button to the other board but there are no empty buttons available on that board, the button will still be available in the board's stash." key='button_in_stash'}}
+            {{t "If you move the button to the other board but there are no empty buttons available on that board, the button will still be available in the board's stash." key="button_in_stash"}}
           </p>
         {{/if}}
       </div>
     </div>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action 'swap_buttons'}} disabled={{pending}}>{{t "Swap Buttons" key='swap_buttons'}}</button>
-    <button class='btn btn-default' {{action 'move_button'}} disabled={{pending}}>{{t "Move Button" key='move_button'}}</button>
+    <button class='btn btn-primary' {{action "swap_buttons"}} disabled={{pending}}>{{t "Swap Buttons" key="swap_buttons"}}</button>
+    <button class='btn btn-default' {{action "move_button"}} disabled={{pending}}>{{t "Move Button" key="move_button"}}</button>
   </div>
 {{/modal-dialog}}

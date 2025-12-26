@@ -2,25 +2,25 @@
 <div class="row">
   <div class="col-sm-3 col-xs-2">
     <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "State" key='state'}}</div>
+      <div class="panel-heading">{{t "State" key="state"}}</div>
       <div class="panel-body">
         {{#if model.active}}
           {{#if model.primary}}
-            {{t "Primary Goal" key='primary_goal'}}
+            {{t "Primary Goal" key="primary_goal"}}
           {{else}}
-            {{t "Secondary Goal" key='secondary_goal'}}
+            {{t "Secondary Goal" key="secondary_goal"}}
           {{/if}}
         {{else}}
-          {{t "Past Goal" key='past_goal'}}
+          {{t "Past Goal" key="past_goal"}}
         {{/if}}
 
-        <br/>
+        <br>
         <span class='text-muted'>
           {{#if model.unit_name}}
-            <em>{{t "org-created Goal" key='org_created_goal'}}</em>
+            <em>{{t "org-created Goal" key="org_created_goal"}}</em>
           {{else}}
-            {{t "author: " key='author_colon'}}
-            {{#link-to 'user' model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+            {{t "author: " key="author_colon"}}
+            {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
           {{/if}}
         </span>
       </div>
@@ -28,29 +28,29 @@
   </div>
   <div class="col-sm-3 col-xs-2">
     <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Date" key='date'}}</div>
+      <div class="panel-heading">{{t "Date" key="date"}}</div>
       <div class="panel-body">
           {{#if model.active}}
-            {{t "started" key='started'}}
+            {{t "started" key="started"}}
           {{else if model.ended}}
-            {{t "ended" key='ended'}}
+            {{t "ended" key="ended"}}
           {{else}}
-            {{t "none" key='none_lower'}}
+            {{t "none" key="none_lower"}}
           {{/if}}
           {{#if model.active}}
-            {{date model.started 'short_day'}}
+            {{date model.started "short_day"}}
           {{else if model.ended}}
-            {{date model.ended 'short_day'}}
+            {{date model.ended "short_day"}}
           {{/if}}
-          <br/>
+          <br>
           <span class='text-muted'>
             {{#if model.advance}}
-              {{t "changes" key='changes_lower'}}
+              {{t "changes" key="changes_lower"}}
               <!-- TODO: make this a link to the template for the next goal -->
-              {{date model.advance 'short_day'}}
+              {{date model.advance "short_day"}}
             {{else if model.expires}}
-              {{t "concludes" key='concludes_lower'}}
-              {{date model.expires 'short_day'}}
+              {{t "concludes" key="concludes_lower"}}
+              {{date model.expires "short_day"}}
             {{else if model.duration_diff}}
               {{date_ago model.duration_diff}}
             {{else if model.started}}
@@ -63,17 +63,17 @@
   </div>
   <div class="col-sm-3 col-xs-2">
     <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Average" key='average_success'}}</div>
+      <div class="panel-heading">{{t "Average" key="average_success"}}</div>
       <div class="panel-body">
         {{model.stats.weighted_percent_positive}}%
-        {{t "weighted" key='weighted'}}
-        <br/>
+        {{t "weighted" key="weighted"}}
+        <br>
         <span class='text-muted'>
           {{#if model.stats.weighted_average_status}}
             <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{weighted_average_status_face_class}}></span></span>
-            {{t "weighted status" key='weighted_status'}}
+            {{t "weighted status" key="weighted_status"}}
           {{else}}
-            {{t "no statuses recorded" key='no_statuses'}}
+            {{t "no statuses recorded" key="no_statuses"}}
           {{/if}}
         </span>
       </div>
@@ -81,9 +81,9 @@
   </div>
   <div class="col-sm-3 col-xs-2">
     <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Total Sessions" key='total_sessions'}}</div>
+      <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
       <div class="panel-body" style='line-height: 44px;'>
-        {{t "session" key='n_sessions' count=model.stats.sessions}}
+        {{t "session" key="n_sessions" count=model.stats.sessions}}
       </div>
     </div>
   </div>
@@ -105,48 +105,48 @@
       {{#unless model.id}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <a href="#" {{action 'browse_goals'}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key='community_goals'}}</a>
+            <a href="#" {{action "browse_goals"}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
           </div>
         </div>
       {{/unless}}
       {{#unless badges_only}}
         <div class="form-group">
-          <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key='summary'}}</label>
+          <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
           <div class="col-sm-10" style='max-width: 300px;'>
             {{input value=model.summary class="form-control" id="new_goal_summary" placeholder="short goal summary"}}
           </div>
         </div>
         <div class="form-group">
-          <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key='description'}}</label>
+          <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
             {{textarea value=model.description class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal"}}
           </div>
         </div>
         {{#if model.video}}
           <div class="form-group">
-            <label class="col-sm-2 control-label">{{t "Video" key='video'}}</label>
+            <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
             <div class="col-sm-10">
               <div style="margin-top: 10px;">
                 <video src={{model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
               </div>
-              <a href="#" {{action 'reset_video'}}>{{t "Remove Video" key='remove_video'}}</a>
+              <a href="#" {{action "reset_video"}}>{{t "Remove Video" key="remove_video"}}</a>
             </div>
           </div>
         {{else}}
           <div class="form-group">
-            <label class="col-sm-2 control-label">{{t "Video" key='video'}}</label>
+            <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
             <div class="col-sm-10">
-              {{video-recorder user=model.user video_ready='video_ready' video_not_ready='video_not_ready'}}
+              {{video-recorder user=model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
             </div>
           </div>
         {{/if}}
         <div class="form-group">
-          <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key='auto_assessment'}}</label>
+          <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key="auto_assessment"}}</label>
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.auto_assessment id="auto_assessment"}}
-                {{t "Automatically assess this goal daily based on usage data" key='auto_assess_goal_daily'}}
+                {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
           </div>
@@ -157,34 +157,34 @@
       {{else}}
         <div class='form-group'>
           <div class='col-sm-10 col-sm-offset-2'>
-            <h3>{{t "Define Badges For This Goal" key='badges_for_goal'}}</h3>
+            <h3>{{t "Define Badges For This Goal" key="badges_for_goal"}}</h3>
           </div>
         </div>
       {{/unless}}
       <div class="form-group">
-        <label for="badges_enabled" class="col-sm-2 control-label">{{t "Badges" key='badges'}}</label>
+        <label for="badges_enabled" class="col-sm-2 control-label">{{t "Badges" key="badges"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=model.badges_enabled id="badges"}}
-              {{t "This goal will have one or more badges attached" key='goal_has_badges'}}
+              {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
         </div>
       </div>
       {{#if model.badges_enabled}}
         <div class="form-group">
-          <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key='badge_name'}}</label>
+          <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
             {{input value=model.badge_name class="form-control" id="badge_name" placeholder=model.summary}}
           </div>
         </div>
         {{#each model.badges as |badge index|}}
-          {{badge-settings badge=badge index=index remove_badge='remove_badge'}}
+          {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
         {{/each}}
         <div class="form-group" style='border-top: 1px solid #ddd; padding-top: 10px;'>
           <div class="col-sm-5 col-sm-offset-2">
-            <button class='btn btn-default' {{action 'add_badge_level'}}>{{t "Add Badge Level" key='add_badge_level'}}</button>
+            <button class='btn btn-default' {{action "add_badge_level"}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
           </div>
         </div>
       {{/if}}
@@ -192,14 +192,14 @@
         <div class='col-sm-10 col-sm-offset-2'>
           <button {{action "save_goal"}} disabled={{save_disabled}} class="btn btn-primary">
             {{#if saving}}
-              {{t "Updating Goal" key='updating_goal'}}
+              {{t "Updating Goal" key="updating_goal"}}
             {{else}}
-              {{t "Update Goal" key='update_goal'}}
+              {{t "Update Goal" key="update_goal"}}
             {{/if}}
           </button>
-          <button {{action "cancel_edit"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+          <button {{action "cancel_edit"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
           {{#if error}}
-            <p class='text-danger'>{{t "There was an error trying to save the goal" key='error_saving_goal'}}</p>
+            <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
           {{/if}}
         </div>
       </div>
@@ -213,50 +213,50 @@
   {{/if}}
 
   {{#if model.assessment_badge}}
-    <h4>{{t "Automated Tracking" key='automated_tracking'}}</h4>
+    <h4>{{t "Automated Tracking" key="automated_tracking"}}</h4>
     <div style='margin-bottom: 30px;'>
       {{#if assessment_badge_description}}
-        <em>{{t "Assessments will be automatically generated based on the following criteria:" key='assessments_based_on_criteria'}}</em><br/>
+        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
         {{assessment_badge_description}}
       {{else}}
-        {{t "Assessment not properly configured, data will not be reliable" key='assessment_misconfigured'}}
+        {{t "Assessment not properly configured, data will not be reliable" key="assessment_misconfigured"}}
       {{/if}}
     </div>
   {{/if}}
 
   {{#if model.badges}}
-    <h4>{{t "Badges" key='badges'}}</h4>
-    {{#if model.badge_name}}{{model.badge_name}}<br/>{{/if}}
+    <h4>{{t "Badges" key="badges"}}</h4>
+    {{#if model.badge_name}}{{model.badge_name}}<br>{{/if}}
     <table class='goal_badges'>
       <tbody>
         <tr>
         {{#each mapped_badges as |badge|}}
-            <td class={{if badge.user_badge 'sparkle_list_item goal_badge' 'sparkle_list_item goal_badge dim'}}>
+            <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
               <span style='display: inline-block; position: relative;'>
-                <span {{action 'badge_popup' badge}} style={{if badge.user_badge 'cursor: pointer;'}}>
-                  <img src={{badge.image_url}} style='width: 80px;' />
+                <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
+                  <img src={{badge.image_url}} style='width: 80px;' >
                   {{#if badge.user_badge.earned}}
                     <div class='sparkle'>&#10022;</div>
                   {{/if}}
                 </span>
               </span>
               <div class='text'>
-                {{t "Level %{level}" level=badge.level key='level_n'}}<br/>
+                {{t "Level %{level}" level=badge.level key="level_n"}}<br>
                 {{#if badge.user_badge.earned}}
                   <span class='text-muted'>
                     <span class='glyphicon glyphicon-ok'></span>
-                    {{t "Earned!" key='earned'}}
+                    {{t "Earned!" key="earned"}}
                   </span>
                 {{else if badge.user_badge}}
                   <div class="progress" style="border: 1px solid #aaa;height: 15px; margin-bottom: 0;">
                     <div class="progress-bar" role="progressbar" aria-value={{badge.user_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{badge.user_badge.progress_style}}>
                       <span class="sr-only">
-                        {{t "%{pct}% Complete" key='percent_complete' pct=badge.user_badge.progress_out_of_100}}
+                        {{t "%{pct}% Complete" key="percent_complete" pct=badge.user_badge.progress_out_of_100}}
                       </span>
                     </div>
                   </div>
                 {{else}}
-                  {{t "Not Started" key='not_started'}}
+                  {{t "Not Started" key="not_started"}}
                 {{/if}}
               </div>
             </td>
@@ -267,42 +267,42 @@
   {{/if}}
 
   <div style='display: none;'>
-    <h4>{{t "Comments" key='comments'}}</h4>
-    <p>{{t "No Comments" key='no_comments'}}</p>
-    <button class='btn btn-default'>{{t "Add Comment" key='add_comment'}}</button>
+    <h4>{{t "Comments" key="comments"}}</h4>
+    <p>{{t "No Comments" key="no_comments"}}</p>
+    <button class='btn btn-default'>{{t "Add Comment" key="add_comment"}}</button>
   </div>
-  <h4 style='margin-top: 20px;'>{{t "Notes and Assessments" key='notes_and_assessments'}}</h4>
+  <h4 style='margin-top: 20px;'>{{t "Notes and Assessments" key="notes_and_assessments"}}</h4>
   <div class="table-responsive">
     <table class="table table-hover table-bordered">
       <thead>
         <tr>
-          <th style="width: 10px;">{{t "Type" key='type'}}</th>
-          <th>{{t "Summary" key='summary'}}</th>
-          <th style="width: 20%;">{{t "Date" key='date'}}</th>
+          <th style="width: 10px;">{{t "Type" key="type"}}</th>
+          <th>{{t "Summary" key="summary"}}</th>
+          <th style="width: 20%;">{{t "Date" key="date"}}</th>
         </tr>
       </thead>
       <tbody>
         {{#each logs as |log|}}
-          {{partial 'log'}}
+          <LogItem @log={{log}} @user={{this.model.author}} @model={{this.model}} @messagesOnly={{false}} />
         {{/each}}
         {{#unless logs}}
           <tr>
-            <td colspan='3'>{{t "No data available" key='no_data_available'}}</td>
+            <td colspan='3'>{{t "No data available" key="no_data_available"}}</td>
           </tr>
         {{/unless}}
       </tbody>
     </table>
   </div>
   {{#if more_available}}
-    <button class='btn btn-default' {{action 'more_results'}}>{{t "More" key='more'}}</button>
+    <button class='btn btn-default' {{action "more_results"}}>{{t "More" key="more"}}</button>
   {{/if}}
-  <button class='btn btn-default' {{action 'new_note'}}>{{t "New Note" key='new_note'}}</button>
-  <button class='btn btn-default' {{action 'quick_assessment'}}>{{t "Quick Assessment" key='quick_assessment'}}</button>
+  <button class='btn btn-default' {{action "new_note"}}>{{t "New Note" key="new_note"}}</button>
+  <button class='btn btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
   {{#if model.permissions.edit}}
     {{#if model.uneditable}}
-      <p>{{t "This goal was created by a connected organization and can't be edited" key='uneditable_goal'}}</p>
+      <p>{{t "This goal was created by a connected organization and can't be edited" key="uneditable_goal"}}</p>
     {{else}}
-      <button class='btn btn-default' {{action 'edit_goal'}}>{{t "Edit Goal" key='edit_goal'}}</button>
+      <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>
     {{/if}}
   {{/if}}
 {{/if}}

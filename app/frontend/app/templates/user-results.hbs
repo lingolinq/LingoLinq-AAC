@@ -1,19 +1,19 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "User Search Results" key='user_search_results'}} - {{model.q}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "User Search Results" key="user_search_results"}} - {{model.q}}</h3>
   </div>
   <div class="modal-body">
     <div class='list-group'>
       {{#each model.list as |user|}}
-        {{#link-to 'user' user.user_name class='list-group-item'}}
-          <img src={{user.avatar_url}} style='height: 30px;'/>
+        {{#link-to "user" user.user_name class="list-group-item"}}
+          <img src={{user.avatar_url}} style='height: 30px;'>
           {{user.user_name}}
         {{/link-to}}
       {{/each}}
     </div>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

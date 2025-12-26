@@ -1,31 +1,31 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <div style='float: right; position: relative; margin-right: 15px;'>
-      <button class='btn btn-default'>{{t "Upload Pre-Designed Badge" key='upload_custom_badge'}}</button>
-      <input id='badge_upload' type='file' style='cursor: pointer; opacity: 0; position: absolute; top: 0; left: 0; width: 170px; height: 35px;' accept="image/*"/>
+      <button class='btn btn-default'>{{t "Upload Pre-Designed Badge" key="upload_custom_badge"}}</button>
+      <input id='badge_upload' type='file' style='cursor: pointer; opacity: 0; position: absolute; top: 0; left: 0; width: 170px; height: 35px;' accept="image/*">
     </div>
     <h3>
-      {{t "New Badge Image" key='new_badge_image'}}
+      {{t "New Badge Image" key="new_badge_image"}}
     </h3>
     <div style='clear: right;'></div>
     {{#if custom_badge_status.loading}}
-      <div>{{t "Saving image..." key='saving_image'}}</div>
+      <div>{{t "Saving image..." key="saving_image"}}</div>
     {{else if custom_badge_status.error}}
-      <div class='text-danger'>{{t "Error saving image" key='error_saving_image'}}</div>
+      <div class='text-danger'>{{t "Error saving image" key="error_saving_image"}}</div>
     {{/if}}
   </div>
   <div class="modal-body">
     <iframe style='width: 490px; height: 280px;' frameborder='0' src='https://www.opensymbols.org/badge_maker'/>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action 'update_badge_image'}} disabled={{loading}}>
+    <button class='btn btn-primary' {{action "update_badge_image"}} disabled={{loading}}>
       {{#if loading}}
-        {{t "Saving image..." key='saving_image'}}
+        {{t "Saving image..." key="saving_image"}}
       {{else}}
-        {{t "Use This Image" key='use_this_image'}}
+        {{t "Use This Image" key="use_this_image"}}
       {{/if}}
     </button>
-    <button class='btn btn-default' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

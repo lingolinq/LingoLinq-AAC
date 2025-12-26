@@ -2,8 +2,8 @@
   <div class="modal-dialog" style='width: calc(100vw - 40px); margin: calc(15vh + 20px) auto 20px;'>
     <div class="modal-content" style='height: calc(70vh - 40px); overflow: hidden;'>
       <div class="modal-header">
-        <button type="button" class="close" {{action 'close'}}>&times;</button>
-        <h3>{{t "Board Details" key='board_details'}}
+        <button type="button" class="close" {{action "close"}}>&times;</button>
+        <h3>{{t "Board Details" key="board_details"}}
         </h3>
       </div>
       {{#if style_missing}}
@@ -11,18 +11,18 @@
           {{#if model.board.style.long_description}}
             <p>{{model.board.style.long_description}}</p>
           {{/if}}
-          <p>{{t "This board style has multiple grid sizes. As you choose a grid size, try to focus on the smallest buttons that the user can reliably hit, rather than worrying about showing too many buttons. A many-button grid can be \"turned down\" to show fewer buttons more easily than a few-button grid can be adjusted to add more buttons later." key='grid_size_suggestion_prompt'}}</p>
+          <p>{{t "This board style has multiple grid sizes. As you choose a grid size, try to focus on the smallest buttons that the user can reliably hit, rather than worrying about showing too many buttons. A many-button grid can be \"turned down\" to show fewer buttons more easily than a few-button grid can be adjusted to add more buttons later." key="grid_size_suggestion_prompt"}}</p>
           <div class='row'>
             {{#each style_boards as |board|}}
               <div class={{style_cols}}>
-                {{board-icon board=board action_override='preview' locale=model.locale}}
+                {{board-icon board=board action_override="preview" locale=model.locale}}
               </div>
             {{/each}}
           </div>
         </div>
       {{else}}
         <div class="modal-body" style='height: 100%; overflow: auto; padding-bottom: 60px;'>
-          {{board-preview key=model_key back=back_func option=model.option action='select'}}
+          {{board-preview key=model_key back=back_func option=model.option action="select"}}
         </div>
       {{/if}}
     </div><!-- /.modal-content -->

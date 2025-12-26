@@ -1,18 +1,18 @@
-<h2><span class='glyphicon glyphicon-education'></span> {{t "All Organization Trainings" key='all_org_trainings'}}</h2>
+<h2><span class='glyphicon glyphicon-education'></span> {{t "All Organization Trainings" key="all_org_trainings"}}</h2>
 {{#if lessons.loading}}
-  <p>{{t "Loading trainings..." key='loading_trainings'}}</p>
+  <p>{{t "Loading trainings..." key="loading_trainings"}}</p>
 {{else if lessons.error}}
-  <p>{{t "Error loading trainings" key='error_loading_trainings'}}</p>
+  <p>{{t "Error loading trainings" key="error_loading_trainings"}}</p>
 {{else if lessons}}
-  <p>{{t "Below are all the trainings that have been assigned for the organization. You can see which users have completed each training, or manage the list of available trainings." key='org_trainings_explainer'}}</p>
+  <p>{{t "Below are all the trainings that have been assigned for the organization. You can see which users have completed each training, or manage the list of available trainings." key="org_trainings_explainer"}}</p>
   <!-- TODO: message users who... -->
-  <h3>{{t "Supervisor Trainings" key='supervisor_trainings'}}</h3>
+  <h3>{{t "Supervisor Trainings" key="supervisor_trainings"}}</h3>
   {{#if supervisor_lessons}}
     <div style='max-height: 200px; overflow: auto;'>
     <table class='table table-striped table-hover'>
       <thead>
         <tr>
-          <th>{{t "User" key='user'}}</th>
+          <th>{{t "User" key="user"}}</th>
           {{#each supervisor_lessons as |lesson|}}
             <th>{{lesson.title}}</th>
           {{/each}}
@@ -43,16 +43,16 @@
     </table>
     </div>
   {{else}}
-    <p>{{t "None to show" key='none_to_show'}}</p>
+    <p>{{t "None to show" key="none_to_show"}}</p>
   {{/if}}
 
-  <h3>{{t "Communicator Trainings" key='communicator_trainings'}}</h3>
+  <h3>{{t "Communicator Trainings" key="communicator_trainings"}}</h3>
   {{#if user_lessons}}
     <div style='max-height: 200px; overflow: auto;'>
     <table class='table table-striped table-hover'>
       <thead>
         <tr>
-          <th>{{t "User" key='user'}}</th>
+          <th>{{t "User" key="user"}}</th>
           {{#each user_lessons as |lesson|}}
             <th>{{lesson.title}}</th>
           {{/each}}
@@ -83,16 +83,16 @@
     </table>
     </div>
   {{else}}
-    <p>{{t "None to show" key='none_to_show'}}</p>
+    <p>{{t "None to show" key="none_to_show"}}</p>
   {{/if}}
 
-  <h3>{{t "Manager Trainings" key='manager_trainings'}}</h3>
+  <h3>{{t "Manager Trainings" key="manager_trainings"}}</h3>
   {{#if manager_lessons}}
     <div style='max-height: 200px; overflow: auto;'>
     <table class='table table-striped table-hover'>
       <thead>
         <tr>
-          <th>{{t "User" key='user'}}</th>
+          <th>{{t "User" key="user"}}</th>
           {{#each manager_lessons as |lesson|}}
             <th>{{lesson.title}}</th>
           {{/each}}
@@ -123,17 +123,17 @@
     </table>
     </div>
   {{else}}
-    <p>{{t "None to show" key='none_to_show'}}</p>
+    <p>{{t "None to show" key="none_to_show"}}</p>
   {{/if}}
 
-  <h3>{{t "Current Trainings" key='current_trainings'}}</h3>
+  <h3>{{t "Current Trainings" key="current_trainings"}}</h3>
   <table class='table table-striped table-hover'>
     <thead>
       <tr>
-        <th>{{t "Name" key='name'}}</th>
-        <th>{{t "Link" key='link'}}</th>
-        <th>{{t "Required" key='required'}}</th>
-        <th>{{t "Targets" key='targets'}}</th>
+        <th>{{t "Name" key="name"}}</th>
+        <th>{{t "Link" key="link"}}</th>
+        <th>{{t "Required" key="required"}}</th>
+        <th>{{t "Targets" key="targets"}}</th>
         <th></th>
       </tr>
     </thead>
@@ -142,27 +142,27 @@
         <tr>
           <td>{{lesson.title}}</td>
           <td>
-            <button class='btn btn-default btn-sm' {{action 'launch' lesson}}>{{t "Launch Training" key='launch_training'}}</button>
+            <button class='btn btn-default btn-sm' {{action "launch" lesson}}>{{t "Launch Training" key="launch_training"}}</button>
             {{#if lesson.time_estimate}}
-              {{lesson.time_estimate}} {{t "min" key='minutes_abbreviated'}}
+              {{lesson.time_estimate}} {{t "min" key="minutes_abbreviated"}}
             {{/if}} -
-            <a href={{lesson.url}} target='_blank'>link</a> 
+            <a href={{lesson.url}} target="_blank" rel="noopener">link</a> 
           </td>
           <td>
             {{#if lesson.required}}
               {{#if lesson.due_at}}
-                {{date lesson.due_at 'day'}}
+                {{date lesson.due_at "day"}}
               {{else}}
-                {{t "Y" key='y'}}
+                {{t "Y" key="y"}}
               {{/if}}
             {{/if}}
           </td>
           <td>{{lesson.target_types_list}}</td>
           <td style='text-align: right;'>
             {{#if lesson.editable}}
-              <a href='#' {{action 'edit' lesson}}><span class='glyphicon glyphicon-pencil'></span></a>&nbsp;&nbsp;&nbsp;&nbsp;
+              <a href='#' {{action "edit" lesson}}><span class='glyphicon glyphicon-pencil'></span></a>&nbsp;&nbsp;&nbsp;&nbsp;
             {{/if}}
-            <a href='#' {{action 'delete' lesson}}><span class='glyphicon glyphicon-remove'></span></a>
+            <a href='#' {{action "delete" lesson}}><span class='glyphicon glyphicon-remove'></span></a>
           </td>
         </tr>
       {{/each}}
@@ -170,13 +170,13 @@
     </tbody>
   </table>
 {{else}}
-  <p>{{t "Continuing education is an important, sometimes challenging endeavor. %app_name% Trainings allow you to link to outside training resources for training and support purposes. You can assign these trainings to staff, or make them available for all users in your organization." key='trainings_explainer'}} </p>
+  <p>{{t "Continuing education is an important, sometimes challenging endeavor. %app_name% Trainings allow you to link to outside training resources for training and support purposes. You can assign these trainings to staff, or make them available for all users in your organization." key="trainings_explainer"}} </p>
 {{/if}}
 
 <div>
   {{#if model.premium}}
-    <button class='btn btn-default' {{action 'add'}}>{{t "Add Training" key='add_training'}}</button>
+    <button class='btn btn-default' {{action "add"}}>{{t "Add Training" key="add_training"}}</button>
   {{else}}
-    <p>{{t "Trainings are currently only available for premium organizations" key='trainings_premium_only'}}</p>
+    <p>{{t "Trainings are currently only available for premium organizations" key="trainings_premium_only"}}</p>
   {{/if}}
 </div>

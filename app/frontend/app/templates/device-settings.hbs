@@ -1,7 +1,7 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "My Devices" key='my_devices'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "My Devices" key="my_devices"}}</h3>
   </div>
   <div class="modal-body">
     {{#if model.devices}}
@@ -10,7 +10,7 @@
         {{#with this as |contr|}}
         {{#each model.devices as |device|}}
           <tr>
-            <td style="width: 60px; font-size: 25px; vertical-align: top;" class={{if device.current_device 'text-info'}}>
+            <td style="width: 60px; font-size: 25px; vertical-align: top;" class={{if device.current_device "text-info"}}>
               {{#if device.mobile}}
                 <span class="glyphicon glyphicon-phone"></span>
               {{else}}
@@ -22,16 +22,16 @@
                 <span style="display: inline-block; width: 200px;">
                 {{focus-input type="text" value=device.new_name action="update_device" class="form-control"}}
                 </span>
-                <button {{action "update_device"}} class="btn btn-default">{{t "Save" key='save'}}</button>
+                <button {{action "update_device"}} class="btn btn-default">{{t "Save" key="save"}}</button>
               {{else}}
                 {{#if contr.persistence.online}}
-                  <div style="font-size: 20px;" {{action "rename_device" device.id}} class={{if device.current_device 'text-info'}}>{{device.name}}</div>
+                  <div style="font-size: 20px;" {{action "rename_device" device.id}} class={{if device.current_device "text-info"}}>{{device.name}}</div>
                 {{else}}
-                  <div style="font-size: 20px;" class={{if device.current_device 'text-info'}}>{{device.name}}</div>
+                  <div style="font-size: 20px;" class={{if device.current_device "text-info"}}>{{device.name}}</div>
                 {{/if}}
               {{/if}}
               <div class='text-muted'>
-                {{t "last used" key='last_used'}} {{date device.last_used}}
+                {{t "last used" key="last_used"}} {{date device.last_used}}
               </div>
               <div class='text-muted'>
                 {{device.ip_address}}
@@ -52,10 +52,10 @@
         </tbody>
       </table>
     {{else}}
-      <p>{{t "None found" key='none_found'}}</p>
+      <p>{{t "None found" key="none_found"}}</p>
     {{/if}}
   </div>    
   <div class="modal-footer">
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

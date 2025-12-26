@@ -1,18 +1,18 @@
 {{#if app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if model.permissions.supervise}}
-  <h2>{{t "User Recordings" key='user_recordings'}}</h2>
+  <h2>{{t "User Recordings" key="user_recordings"}}</h2>
   {{#if recordings.loading}}
-    <p>{{t "Loading Recordings..." key='loading_recordings'}}</p>
+    <p>{{t "Loading Recordings..." key="loading_recordings"}}</p>
   {{else if recordings.error}}
-    <p>{{t "Error loading recordings" key='error_loading_recordings'}}</p>
+    <p>{{t "Error loading recordings" key="error_loading_recordings"}}</p>
   {{else if recordings}}
     <div class="table-responsive">
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
-            <th>{{t "Summary" key='summary'}}</th>
-            <th>{{t "Duration" key='duration'}}</th>
+            <th>{{t "Summary" key="summary"}}</th>
+            <th>{{t "Duration" key="duration"}}</th>
             <th></th>
           </tr>
         </thead>
@@ -20,7 +20,7 @@
           <tr>
             <td colspan="3">
               <div style='max-width: 300px;'>
-                {{input type='text' value=search_string class='form-control' placeholder='find recordings'}}
+                {{input type="text" value=search_string class="form-control" placeholder="find recordings"}}
               </div>
             </td>
           </tr>
@@ -29,28 +29,28 @@
               {{#if sound.url}}
                 <tr>
                   <td>
-                    {{sound.name}} <span class='text-muted'>{{t "created" key='created_lower'}} {{date sound.created 'short_day'}}</span>
+                    {{sound.name}} <span class='text-muted'>{{t "created" key="created_lower"}} {{date sound.created "short_day"}}</span>
                     <div class='text-muted' style='margin-left: 30px;'>
                       {{#if sound.transcription}}
                         {{sound.transcription}}
                         {{#if model.permissions.edit}}
-                          <a href="#" {{action 'edit_sound' sound}}>{{t "edit" key='edit_lower'}}</a>
+                          <a href="#" {{action "edit_sound" sound}}>{{t "edit" key="edit_lower"}}</a>
                         {{/if}}
                       {{else if sound.transcription_pending}}
-                        {{t "checking for transcription..." key='transcription_pending'}}
+                        {{t "checking for transcription..." key="transcription_pending"}}
                       {{else}}
-                        {{t "no transcription" key='no_transcription'}}
+                        {{t "no transcription" key="no_transcription"}}
                       {{/if}}
                     </div>
                   </td>
                   <td>
-                    <button class='btn btn-default btn' {{action 'play_audio' sound}} style='margin-right: 5px; height: 40px;'>
+                    <button class='btn btn-default btn' {{action "play_audio" sound}} style='margin-right: 5px; height: 40px;'>
                       {{#if sound.playing}}
                         <span class='glyphicon glyphicon-pause'></span>
-                        <span class='sr-only'>{{t "pause" key='pause'}}</span>
+                        <span class='sr-only'>{{t "pause" key="pause"}}</span>
                       {{else}}
                         <span class='glyphicon glyphicon-play'></span>
-                        <span class='sr-only'>{{t "play" key='play'}}</span>
+                        <span class='sr-only'>{{t "play" key="play"}}</span>
                       {{/if}}
                     </button>
                     <span class='text-muted'>
@@ -60,46 +60,46 @@
                     <div style='clear: right;'></div>
                   </td>
                   <td style='width: 150px;'>
-                    <a href={{sound.url}} class='btn btn-default' title={{t "download" key='download'}}><span class='glyphicon glyphicon-cloud-download'></span></a>
+                    <a href={{sound.url}} class='btn btn-default' title={{t "download" key="download"}}><span class='glyphicon glyphicon-cloud-download'></span></a>
                     {{#if model.permissions.edit}}
-                      <button {{action 'edit_sound' sound}} class='btn btn-default' title={{t "edit" key='edit_lower'}}><span class='glyphicon glyphicon-pencil'></span></button>
-                      <button {{action 'delete_sound' sound}} class='btn btn-default' title={{t "delete" key='delete_lower'}}><span class='glyphicon glyphicon-trash'></span></button>
+                      <button {{action "edit_sound" sound}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
+                      <button {{action "delete_sound" sound}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
                     {{/if}}
                   </td>
                 </tr>
               {{/if}}
             {{/each}}
           {{else}}
-            <td colspan='3'><p style='margin: 10px 20px;'>{{t "No matching recordings" key='no_matching_recordings'}}</p></td>
+            <td colspan='3'><p style='margin: 10px 20px;'>{{t "No matching recordings" key="no_matching_recordings"}}</p></td>
           {{/if}}
         </tbody>
       </table>
     </div>
   {{else}}
-    <p>{{t "No recordings available" key='no_recordings_available'}}</p>
+    <p>{{t "No recordings available" key="no_recordings_available"}}</p>
   {{/if}}
 
   <div>
-    <button class='btn btn-default' {{action 'record_sound'}}>{{t "Record Message" key='record_message'}}</button>
-    <button class='btn btn-default' {{action 'batch_recording'}}>{{t "Message Bank Phrases" key='record_message_bank_phrases'}}</button>
+    <button class='btn btn-default' {{action "record_sound"}}>{{t "Record Message" key="record_message"}}</button>
+    <button class='btn btn-default' {{action "batch_recording"}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default'>
         {{#if upload_status.uploading}}
-          {{t "Uploading Recording(s)..." key='uploading_recordings'}}
+          {{t "Uploading Recording(s)..." key="uploading_recordings"}}
         {{else if upload_status.errored}}
-          {{t "Error Upload Recording(s)" key='error_upload_recordings'}}
+          {{t "Error Upload Recording(s)" key="error_upload_recordings"}}
         {{else}}
-          {{t "Upload Recording(s)" key='upload_recordings'}}
+          {{t "Upload Recording(s)" key="upload_recordings"}}
         {{/if}}
       </button>
-      <input type="file" name="recording_upload" id="recording_upload"/>
+      <input type="file" name="recording_upload" id="recording_upload">
     </span>
     {{#if recordings.length}}
-      <button class='btn btn-default' {{action 'download_recordings'}}>{{t "Download All Recordings" key='download_all_recordings'}}</button>
+      <button class='btn btn-default' {{action "download_recordings"}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
     {{/if}}
   </div>
 {{else if session.isAuthenticated}}
-  <p>{{t "It looks like you don't have permission to access this information" key='not_authorized_for_access'}}</p>
+  <p>{{t "It looks like you don't have permission to access this information" key="not_authorized_for_access"}}</p>
 {{else}}
   {{login-form left=true prompt=true return=true}}
 {{/if}}

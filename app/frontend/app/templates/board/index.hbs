@@ -1,8 +1,8 @@
-{{#button-listener compute_height='compute_height' button_event='button_event'}}
+{{#button-listener compute_height="compute_height" button_event="button_event"}}
 {{#if model.integration}}
   {{#unless app_state.sessionUser.currently_premium_or_premium_supporter}}
     <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
-    <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key='premium_required_for_tools'}}</p>
+    <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key="premium_required_for_tools"}}</p>
   {{else}}
     {{#if teaser_description}}
       <div id="board_description">
@@ -12,7 +12,7 @@
     {{#if model.embed_url}}
       {{embed-frame board_style=board_style code=model.action embed_url=model.embed_url user_token=model.user_token}}
     {{else}}
-      <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key='misconfigured_integration'}}</p>
+      <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
     {{/if}}
   {{/unless}}
 {{else if model.id}}
@@ -27,23 +27,23 @@
           {{/if}}
         {{/unless}}
         {{#if cc_license}}
-          <img src={{path "images/cc.png"}} alt="cc license" style="opacity: 0.5;"/>
+          <img src={{path "images/cc.png"}} alt="cc license" style="opacity: 0.5;">
         {{else if pd_license}}
-            <img src={{path "images/pd.png"}} alt="public domain" style="opacity: 0.5;"/>
+            <img src={{path "images/pd.png"}} alt="public domain" style="opacity: 0.5;">
         {{/if}}
         {{teaser_description}}
       </span>
     </div>
   {{/if}}
   <div id="stash_hover" style="position: absolute;">
-    <div {{action 'stash_button'}} class='option'>
+    <div {{action "stash_button"}} class='option'>
       <span class="glyphicon glyphicon-copy"></span>
-      {{t "Button<br/>Stash" key='copy_to_button_stash'}}
+      {{t "Button<br>Stash" key="copy_to_button_stash"}}
       <span style="clear: left;"></span>
     </div>
-    <div {{action 'word_data'}} class='option'>
+    <div {{action "word_data"}} class='option'>
       <span class="glyphicon glyphicon-book"></span>
-      {{t "Word<br/>Data" key='view_word_data'}}
+      {{t "Word<br>Data" key="view_word_data"}}
       <span style="clear: left;"></span>
     </div>
   </div>
@@ -56,7 +56,7 @@
             {{#if show_word_suggestion_images}}
               <span class='image_holder'>
                 {{#if suggestion.image}}
-                  <img src={{suggestion.image}} class={{if suggestion.hc_image 'hc'}} data-fallback={{suggestion.fallback_image}} onerror='button_broken_image(this);' />
+                  <img src={{suggestion.image}} class={{if suggestion.hc_image "hc"}} data-fallback={{suggestion.fallback_image}} onerror='button_broken_image(this);' >
                 {{/if}}
               </span>
             {{/if}}
@@ -64,9 +64,9 @@
           </a>
         {{/each}}
       {{else if suggestions.error}}
-        {{t "Word suggestions failed to load" key='word_suggestions_failed'}}
+        {{t "Word suggestions failed to load" key="word_suggestions_failed"}}
       {{else}}
-        {{t "Loading word suggestions..." key='loading_word_suggestions'}}
+        {{t "Loading word suggestions..." key="loading_word_suggestions"}}
       {{/if}}
     </div>
   {{/if}}
@@ -81,16 +81,16 @@
           {{#if board.background.image_exclusion}}
             <div class='exclude'></div>
           {{/if}}
-          <img src={{board.background_image_url_with_fallback}} style={{bg_img_style}}/>
+          <img src={{board.background_image_url_with_fallback}} style={{bg_img_style}}>
         {{/if}}
       </div>
     {{/if}}
     {{#if nothing_visible_not_edit}}
       <div class="board_status">
-        <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key='no_visible_buttons'}}</p>
+        <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key="no_visible_buttons"}}</p>
         {{#if board.permissions.edit}}
           {{#unless app_state.speak_mode}}
-            <button class='btn btn-default btn-lg' {{action "toggleEditMode" }}>{{t "Edit this Board" key='edit_this_board'}}</button>
+            <button class='btn btn-default btn-lg' {{action "toggleEditMode" }}>{{t "Edit this Board" key="edit_this_board"}}</button>
           {{/unless}}
         {{/if}}
       </div>
@@ -108,19 +108,19 @@
                   <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
                     {{#if button.pending}}
                       <div class="pending">
-                        <img src={{path 'images/spinner.gif'}} draggable='false' />
+                        <img src={{path "images/spinner.gif"}} draggable='false' >
                       </div>
                     {{/if}}
                     <div class={{button.action_class}}>
                       <span class="action">
-                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' />
+                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
                       </span>
                     </div>
                     <span class='img_holder' style={{button.image_holder_style}}>
                       {{#unless app_state.currentUser.hide_symbols}}
                         {{#unless button.board.text_only}}
                           {{#unless button.text_only}}
-                            <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image 'symbol hc' 'symbol'}}>
+                            <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
                           {{/unless}}
                         {{/unless}}
                       {{/unless}}
@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" redraw='redraw' tabindex='0'}}
+              {{board-canvas id="board_canvas" redraw="redraw" tabindex="0"}}
             {{else}}
               {{#each ordered_buttons as |row|}}
                 <div class="button_row">
@@ -162,12 +162,12 @@
           {{/if}}
         {{else}}
           <span class="board_status">
-            {{t "Loading..." key='loading'}}
+            {{t "Loading..." key="loading"}}
           </span>
         {{/if}}
       {{else}}
         <span class="board_status">
-          {{t "Grid not defined!" key='grid_not_defined'}}
+          {{t "Grid not defined!" key="grid_not_defined"}}
         </span>
       {{/if}}
     {{/if}}
@@ -177,9 +177,9 @@
 {{else}}
   <p>{{error_message}}</p>
   {{#if model.retrying}}
-    {{t "Trying again..." key='trying_again'}}
+    {{t "Trying again..." key="trying_again"}}
   {{else}}
-    <a href="#" {{action 're_transition'}}>{{t "Try Again" key='try_again'}}</a>
+    <a href="#" {{action "re_transition"}}>{{t "Try Again" key="try_again"}}</a>
   {{/if}}
 {{/if}}
 {{/button-listener}}

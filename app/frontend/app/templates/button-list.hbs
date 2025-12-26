@@ -12,14 +12,14 @@
         </div>
       {{/if}}
       {{#if button.image}}
-        <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false"/>
+        <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false">
       {{else}}
-        <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false"/>
+        <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false">
       {{/if}}
       {{#if button.sound}}
         <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
       {{/if}}
-      <div class={{if button.modeling 'text modeled' 'text'}}>{{ button.label }} </div>
+      <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
     </span>
   </div>
   {{#unless button.ghost}}

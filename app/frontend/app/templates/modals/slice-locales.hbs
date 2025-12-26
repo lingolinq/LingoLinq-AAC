@@ -1,30 +1,30 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Manage Languages" key='manage_languages'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Manage Languages" key="manage_languages"}}</h3>
   </div>
   <div class="modal-body">
-    <p>{{t "Select the lanboards you would like modified, and the languages you would like to keep for those boards. If no matching languages are found, the board will not be changed. Note that any unselect languages will be removed from the board." key='slice_languages_instructions'}}</p>
+    <p>{{t "Select the lanboards you would like modified, and the languages you would like to keep for those boards. If no matching languages are found, the board will not be changed. Note that any unselect languages will be removed from the board." key="slice_languages_instructions"}}</p>
     <form class="form-horizontal" {{action "nothing" on="submit"}}>
       <div class="form-group">
-        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key='boards'}}</label>
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
         <div class="col-sm-9">
           {{#if hierarchy.loading}}
-            {{t "Loading linked boards..." key='loading_linked_boards'}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
           {{else if hierarchy.error}}
-            {{t "There was an error trying to retrieve linked boards" key='error_getting_linked_boards'}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
           {{else if hierarchy}}
             <div style='margin-top: 5px;'>
               {{board-hierarchy hierarchy=hierarchy selectable=true}}
             </div>
           {{else}}
-            {{t "No linked boards" key='no_linked_boards'}}
+            {{t "No linked boards" key="no_linked_boards"}}
           {{/if}}
         </div>
       </div>
       <div class="form-group">
         <label class="col-sm-3 control-label" for="languages">
-          {{t "Languages" key='languages'}}
+          {{t "Languages" key="languages"}}
         </label>
         <div class="col-sm-9">
 
@@ -32,8 +32,8 @@
             {{#each langs as |lang|}}
               <li>
                 <div class="checkbox big_checkbox" style='margin: 0;'>
-                <label style={{if lang.keep 'font-weight: bold; margin-top: -5px;' 'font-weight: normal;; margin-top: -5px;'}}>
-                  {{input type='checkbox' checked=lang.keep}}
+                <label style={{if lang.keep "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
+                  {{input type="checkbox" checked=lang.keep}}
                   {{lang.str}} ({{lang.loc}})
                 </label>
                 </div>
@@ -45,15 +45,15 @@
     </form>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action 'confirm'}} disabled={{status.loading}}>
+    <button class='btn btn-primary' {{action "confirm"}} disabled={{status.loading}}>
       {{#if status.loading}}
-        {{t "Updating Languages..." key='updating_languages'}}
+        {{t "Updating Languages..." key="updating_languages"}}
       {{else if status.error}}
-        {{t "Updating Languages Failed" key='updating_languages_failed'}}
+        {{t "Updating Languages Failed" key="updating_languages_failed"}}
       {{else}}
-        {{t "Update Languages" key='update_languages'}}
+        {{t "Update Languages" key="update_languages"}}
       {{/if}}
     </button>
-    <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

@@ -1,18 +1,18 @@
-{{#opening-observer done_opening=(action 'draw_charts')}}
+{{#opening-observer done_opening=(action "draw_charts")}}
 {{#if model.note_type}}
-  <h2>{{t "Message Details" key='message_summary'}}</h2>
+  <h2>{{t "Message Details" key="message_summary"}}</h2>
 {{else if model.assessment_type}}
-  <h2>{{t "Assessment Details" key='assessment_details'}}</h2>
+  <h2>{{t "Assessment Details" key="assessment_details"}}</h2>
 {{else if model.journal_type}}
-  <h2>{{t "Journal Entry" key='journal_entry'}}</h2>
+  <h2>{{t "Journal Entry" key="journal_entry"}}</h2>
 {{else if model.profile_type}}
-  <h2>{{t "Communication Profile" key='communication_profile'}}</h2>
+  <h2>{{t "Communication Profile" key="communication_profile"}}</h2>
 {{else if processed_assessment}}
-  <h2>{{t "Assessment Results" key='assessment_results'}}
+  <h2>{{t "Assessment Results" key="assessment_results"}}
     {{#if processed_assessment.label}} - {{processed_assessment.label}}{{/if}}
   </h2>
 {{else}}
-  <h2>{{t "Log Entry Details" key='log_entry_details'}}</h2>
+  <h2>{{t "Log Entry Details" key="log_entry_details"}}</h2>
 {{/if}}
 <div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{user.name}} - {{user.user_name}}</div>
 {{#if processed_assessment}}
@@ -20,18 +20,18 @@
     <div class="row" style='page-break-inside: avoid;'>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Date" key='date'}}</div>
+          <div class="panel-heading">{{t "Date" key="date"}}</div>
           <div class="panel-body">
-            {{date processed_assessment.date 'abbrev'}}
+            {{date processed_assessment.date "abbrev"}}
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Duration" key='duration'}}</div>
+          <div class="panel-heading">{{t "Duration" key="duration"}}</div>
           <div class="panel-body">
             {{#if processed_assessment.multiple_sessions}}
-              {{duration processed_assessment.duration}}, {{t 'session' key='n_sessions' count=processed_assessment.sessions}}
+              {{duration processed_assessment.duration}}, {{t "session" key="n_sessions" count=processed_assessment.sessions}}
             {{else}}
               {{seconds_ago processed_assessment.duration}}
             {{/if}}
@@ -40,16 +40,16 @@
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Accuracy" key='accuracy'}}</div>
+          <div class="panel-heading">{{t "Accuracy" key="accuracy"}}</div>
           <div class="panel-body">
-            {{t "hit" count=processed_assessment.hits key='n_hits'}},
+            {{t "hit" count=processed_assessment.hits key="n_hits"}},
             {{processed_assessment.avg_accuracy}}%
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Avg. Response" key='response_time'}}</div>
+          <div class="panel-heading">{{t "Avg. Response" key="response_time"}}</div>
           <div class="panel-body">
             {{seconds_ago processed_assessment.avg_response_time}}
           </div>
@@ -58,7 +58,7 @@
 
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Access Method" key='access_method'}}</div>
+          <div class="panel-heading">{{t "Access Method" key="access_method"}}</div>
           <div class="panel-body">
             {{processed_assessment.access_method}}
           </div>
@@ -66,39 +66,39 @@
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Mastered Grid" key='mastered_grid'}}</div>
+          <div class="panel-heading">{{t "Mastered Grid" key="mastered_grid"}}</div>
           <div class="panel-body">
             {{#if processed_assessment.grid_width}}
               {{processed_assessment.grid_height}} x {{processed_assessment.grid_width}}
             {{else}}
-              {{t "N/A" key='n/a'}}
+              {{t "N/A" key="n/a"}}
             {{/if}}
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Mastered Buttons" key='mastered_buttons'}}</div>
+          <div class="panel-heading">{{t "Mastered Buttons" key="mastered_buttons"}}</div>
           <div class="panel-body">
             {{#if processed_assessment.button_width}}
-              <a href="#" {{action 'mastery_preview'}}>
+              <a href="#" {{action "mastery_preview"}}>
                 {{#if processed_assessment.approximate}}~{{/if}}{{processed_assessment.button_width}}" x {{processed_assessment.button_height}}"
               </a>
             {{else}}
-              {{t "N/A" key='n/a'}}
+              {{t "N/A" key="n/a"}}
             {{/if}}
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Mastered Field" key='mastered_field'}}</div>
+          <div class="panel-heading">{{t "Mastered Field" key="mastered_field"}}</div>
           <div class="panel-body">
             {{#if processed_assessment.field}}
-              {{t "field of" key='field_of'}}
+              {{t "field of" key="field_of"}}
               {{processed_assessment.field}}
             {{else}}
-              {{t "N/A" key='n/a'}}
+              {{t "N/A" key="n/a"}}
             {{/if}}
           </div>
         </div>
@@ -120,29 +120,29 @@
       {{/if}}
     </div>
     <div style='page-break-inside: avoid;'>
-      <h3>{{t "Grid Activations" key='activation_map'}}</h3>
+      <h3>{{t "Grid Activations" key="activation_map"}}</h3>
       <div class='row'>
         <div class='col-xs-8'>
           {{stats/eval-hits hits=processed_assessment.hit_locations}}
         </div>
         <div class='col-xs-4'>
           <div style='line-height: 30px; margin-bottom: 10px;'>
-            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(0, 255, 0, 0.7); border-radius: 20px;'></span> - {{t "correctly hit here" key='correctly_hit_here'}}<br/>
-            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(255, 0, 0, 0.7); border-radius: 20px'></span> - {{t "failed to hit here" key='failed_to_hit_here'}}<br/>
-            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(0, 0, 255, 0.7); border-radius: 20px;'></span> - {{t "hit here with full-size grid" key='hit_here_with_full_grid'}}<br/>
-            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(150, 150, 0, 0.7); border-radius: 20px'></span> - {{t "hit here with visual prompt" key='hit_here_with_partial_grid'}}<br/>
+            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(0, 255, 0, 0.7); border-radius: 20px;'></span> - {{t "correctly hit here" key="correctly_hit_here"}}<br>
+            <span style='display: inline-block; width: 1px; height: 1px; vertical-align: middle; border: 10px solid rgba(255, 0, 0, 0.7); border-radius: 20px'></span> - {{t "failed to hit here" key="failed_to_hit_here"}}<br>
+            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(0, 0, 255, 0.7); border-radius: 20px;'></span> - {{t "hit here with full-size grid" key="hit_here_with_full_grid"}}<br>
+            <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(150, 150, 0, 0.7); border-radius: 20px'></span> - {{t "hit here with visual prompt" key="hit_here_with_partial_grid"}}<br>
           </div>
-          <span class='text-muted' style='font-size: 12px; font-style: italic;'>{{t "look for areas without any blue circles where the communicator wasn't able to reach, or for dark red areas where the communicator chose other (incorrect) options multiple times" key='key_hint'}}</span>
+          <span class='text-muted' style='font-size: 12px; font-style: italic;'>{{t "look for areas without any blue circles where the communicator wasn't able to reach, or for dark red areas where the communicator chose other (incorrect) options multiple times" key="key_hint"}}</span>
         </div>
       </div>
     </div>
 
     {{#if processed_assessment.button_sizes}}
       <div style='page-break-inside: avoid;'>
-        <h3>{{t "Grid Sizes for basic target-finding" key='grid_sizes_for_targeting'}}
+        <h3>{{t "Grid Sizes for basic target-finding" key="grid_sizes_for_targeting"}}
           {{#if processed_assessment.approximate}}
             <div style='margin-left: 5px; font-size: 15px; color: #888; font-style: italic;'>
-              {{t "button sizes may not be accurate because of the device used" key='button_sizes_may_not_be_accurate'}}
+              {{t "button sizes may not be accurate because of the device used" key="button_sizes_may_not_be_accurate"}}
             </div>
           {{/if}}
         </h3>
@@ -151,13 +151,13 @@
     {{/if}}
     {{#if processed_assessment.field_sizes}}
       <div  style='page-break-inside: avoid;'>
-        <h3>{{t "Field Sizes for basic target-finding" key='field_sizes'}}</h3>
+        <h3>{{t "Field Sizes for basic target-finding" key="field_sizes"}}</h3>
         {{stats/trial-bar sizes=processed_assessment.field_sizes}}
       </div>
     {{/if}}
     {{#if processed_assessment.access_settings}}
       <div  style='page-break-inside: avoid;'>
-        <h3>{{t "Evaluation Settings" key='evaluation_settings'}}</h3>
+        <h3>{{t "Evaluation Settings" key="evaluation_settings"}}</h3>
         {{#each processed_assessment.access_settings as |setting|}}
           {{#if setting.val}}
             <span class='label label-default'>
@@ -175,7 +175,7 @@
         <!-- mastery cutoff, non-mastery cutoff, default library, button spacing, text position, etc. -->
       </div>
     {{/if}}
-    <h3>{{t "Assessment Types" key='assessment_types'}}</h3>
+    <h3>{{t "Assessment Types" key="assessment_types"}}</h3>
       <!-- access settings (eye gaze/scanning/touch settings during assessment) -->
     <div class="table-reponsive">
       <!-- accuracy scores for different assessment types -->
@@ -183,12 +183,12 @@
       <table class="table table-hover table-bordered table-striped">
         <thead>
           <tr>
-            <th>{{t "Assessment Type" key='assessment_type'}}</th>
+            <th>{{t "Assessment Type" key="assessment_type"}}</th>
             <!-- include symbol libraries -->
-            <th>{{t "Score" key='score'}}</th>
-            <th>{{t "Attempts" key='attempts'}}</th>
-            <th>{{t "Symbols" key='symbols'}}</th>
-            <th>{{t "Avg. Response" key='average_response'}}</th>
+            <th>{{t "Score" key="score"}}</th>
+            <th>{{t "Attempts" key="attempts"}}</th>
+            <th>{{t "Symbols" key="symbols"}}</th>
+            <th>{{t "Avg. Response" key="average_response"}}</th>
           </tr>
         </thead>
         <tbody>
@@ -202,7 +202,7 @@
                 <td style='padding-left: 20px;'>
                   {{result.name}}
                   {{#if result.fail}}
-                    <div style='font-style: italic; font-size: 12px;'>{{t "stopped early from errors" key='stopped_early'}}</div>
+                    <div style='font-style: italic; font-size: 12px;'>{{t "stopped early from errors" key="stopped_early"}}</div>
                   {{/if}}
                 </td>
                 <td>{{#if result.accuracy_class}}{{result.pct}}%{{/if}}</td>
@@ -217,9 +217,9 @@
     </div>
     {{#if processed_assessment.symbol_libraries}}
       <div style='page-break-inside: avoid;'>
-        <h3>{{t "Symbol Libraries Assessed" key='symbol_libraries'}}
+        <h3>{{t "Symbol Libraries Assessed" key="symbol_libraries"}}
             <div style='margin-left: 5px; font-size: 15px; color: #888; font-style: italic;'>
-              {{t "remember that the default library used will have more varied trials overall which can affect the response time" key='default_symbols_affected_response_time'}}
+              {{t "remember that the default library used will have more varied trials overall which can affect the response time" key="default_symbols_affected_response_time"}}
             </div>
 
         </h3>
@@ -229,14 +229,14 @@
 
     {{#if processed_assessment.open_ended_sections}}
       <div  style='page-break-inside: avoid;'>
-        <h3>{{t "Open-Ended Prompts" key='open_ended_prompts'}}</h3>
+        <h3>{{t "Open-Ended Prompts" key="open_ended_prompts"}}</h3>
         <table class="table table-hover table-bordered table-striped">
           <thead>
             <tr>
-              <th>{{t "Prompt" key='prompt'}}</th>
+              <th>{{t "Prompt" key="prompt"}}</th>
               <th></th>
-              <th>{{t "Words Entered/Spelled" key='words_added'}}</th>
-              <th>{{t "Avg. Button Delay" key='avg_delay'}}</th>
+              <th>{{t "Words Entered/Spelled" key="words_added"}}</th>
+              <th>{{t "Avg. Button Delay" key="avg_delay"}}</th>
             </tr>          
           </thead>
           <tbody>
@@ -256,19 +256,19 @@
 
     {{#if processed_assessment.literacy_responses}}
       <div style='page-break-inside: avoid;'>
-        <h3>{{t "Literacy Responses" key='literacy_responses'}}</h3>
+        <h3>{{t "Literacy Responses" key="literacy_responses"}}</h3>
         <table class="table table-hover table-bordered table-striped">
           <thead>
             <tr>
-              <th>{{t "Prompt" key='prompt'}}</th>
-              <th>{{t "Answer" key='answer'}}</th>
-              <th>{{t "Distractors" key='distractors'}}</th>
-              <th>{{t "Button Delay" key='button_delay'}}</th>
+              <th>{{t "Prompt" key="prompt"}}</th>
+              <th>{{t "Answer" key="answer"}}</th>
+              <th>{{t "Distractors" key="distractors"}}</th>
+              <th>{{t "Button Delay" key="button_delay"}}</th>
             </tr>          
           </thead>
           <tbody>
             {{#each processed_assessment.literacy_responses as |response|}}
-              <tr class={{if response.correct 'accuracy_mastered' 'accuracy_non_mastered'}}>
+              <tr class={{if response.correct "accuracy_mastered" "accuracy_non_mastered"}}>
                 <td>{{response.prompt}}</td>
                 <td>{{response.correct_answer}}</td>
                 <td>"{{response.distractors}}"</td>
@@ -282,25 +282,25 @@
       </div>
     {{/if}}
   {{else if model.eval_in_memory}}
-    <p>{{t "We could not find the latest evaluation results for this user" key='no_eval_in_memory'}}</p>
+    <p>{{t "We could not find the latest evaluation results for this user" key="no_eval_in_memory"}}</p>
   {{else}}
-    <p>{{t "No data found for this evaluation" key='no_data_for_evaluation'}}</p>
+    <p>{{t "No data found for this evaluation" key="no_data_for_evaluation"}}</p>
   {{/if}}
 {{else if model.profile_type}}
-  {{partial "user/profile-log"}}
+  <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{action "repeat_profile"}} />
 {{else}}
   {{#if model.imported}}
-    {{t "NOTE: This log entry was imported from an outside source" key='data_imported'}}
+    {{t "NOTE: This log entry was imported from an outside source" key="data_imported"}}
   {{/if}}
   {{#if model.goal.id}}
     <div style='margin: -5px 0 10px; font-size: 16px;'>
-      {{#link-to 'user.goal' user.user_name model.goal.id}}{{t "Goal:" key='goal_colon'}} {{model.goal.summary}}{{/link-to}}
+      {{#link-to "user.goal" user.user_name model.goal.id}}{{t "Goal:" key="goal_colon"}} {{model.goal.summary}}{{/link-to}}
     </div>
   {{/if}}
   <div class="row">
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Date" key='date'}}</div>
+        <div class="panel-heading">{{t "Date" key="date"}}</div>
         <div class="panel-body">
           {{date model.started_at}}
         </div>
@@ -309,9 +309,9 @@
     {{#unless model.note_type}}
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Duration" key='duration'}}</div>
+          <div class="panel-heading">{{t "Duration" key="duration"}}</div>
           <div class="panel-body">
-            {{t "minute" key='minute' count=model.minutes}}
+            {{t "minute" key="minute" count=model.minutes}}
           </div>
         </div>
       </div>
@@ -319,23 +319,23 @@
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
         {{#if model.note_type}}
-          <div class="panel-heading">{{t "Author" key='author'}}</div>
+          <div class="panel-heading">{{t "Author" key="author"}}</div>
           <div class="panel-body">
             {{#if model.author.contact}}
               {{model.author.contact.name}}
             {{else}}
-              {{#link-to 'user' model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+              {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
             {{/if}}
           </div>
         {{else if model.assessment_type}}
-          <div class="panel-heading">{{t "Assessor" key='assessor'}}</div>
+          <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
           <div class="panel-body">
-            {{#link-to 'user' model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+            {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
           </div>
         {{else}}
-          <div class="panel-heading">{{t "Device" key='device'}}</div>
+          <div class="panel-heading">{{t "Device" key="device"}}</div>
           <div class="panel-body">
-            {{#link-to 'user.stats' user.user_name (query-params highlighted=null start=null end=null location_id=null device_id=model.device.id split=null start2=null end2=null device_id2=null location_id2=null)}}
+            {{#link-to "user.stats" user.user_name (query-params highlighted=null start=null end=null location_id=null device_id=model.device.id split=null start2=null end2=null device_id2=null location_id2=null)}}
               {{model.device.name}}
             {{/link-to}}
           </div>
@@ -357,7 +357,7 @@
       {{/if}}
       {{#if model.note.prior}}
         <div style='white-space: normal; margin-top: 30px;'>
-          <div class='text-muted'>{{t "in reply to" key='in_reply_to'}} {{#if model.note.prior_contact}}{{t "message from" key='message_from'}} {{model.note.prior_contact.name}}{{/if}}:</div>
+          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}} {{#if model.note.prior_contact}}{{t "message from" key="message_from"}} {{model.note.prior_contact.name}}{{/if}}:</div>
           <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{model.note.prior}}</div>
         </div>
       {{/if}}
@@ -370,7 +370,7 @@
     <div class="row">
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Percent Correct" key='percent_correct'}}</div>
+          <div class="panel-heading">{{t "Percent Correct" key="percent_correct"}}</div>
           <div class="panel-body">
             {{model.assessment.stats.percent_correct}}%
           </div>
@@ -378,7 +378,7 @@
       </div>
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
-          <div class="panel-heading">{{t "Total Correct" key='total_correct'}}</div>
+          <div class="panel-heading">{{t "Total Correct" key="total_correct"}}</div>
           <div class="panel-body">
             {{model.assessment.stats.total_correct}} /
             {{model.assessment.stats.total_tallies}}
@@ -387,7 +387,7 @@
       </div>
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
-            <div class="panel-heading">{{t "Longest Streak" key='longest_correct_streak'}}</div>
+            <div class="panel-heading">{{t "Longest Streak" key="longest_correct_streak"}}</div>
             <div class="panel-body">
               {{model.assessment.stats.longest_correct_streak}}
             </div>
@@ -398,9 +398,9 @@
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
-            <td>{{t "Event Type" key='event_type'}}</td>
-            <td>{{t "Delay" key='delay'}}</td>
-            <td>{{t "Running Total" key='running_total'}}</td>
+            <td>{{t "Event Type" key="event_type"}}</td>
+            <td>{{t "Delay" key="delay"}}</td>
+            <td>{{t "Running Total" key="running_total"}}</td>
           </tr>
         </thead>
         <tbody>
@@ -409,10 +409,10 @@
               <td>
                 {{#if tally.correct}}
                   <span class="glyphicon glyphicon-stop text-success"></span>
-                  {{t "Correct" key='correct'}}
+                  {{t "Correct" key="correct"}}
                 {{else}}
                   <span class="glyphicon glyphicon-stop text-danger"></span>
-                  {{t "Incorrect" key='incorrect'}}
+                  {{t "Incorrect" key="incorrect"}}
                 {{/if}}
               </td>
               <td>
@@ -421,7 +421,7 @@
               <td>
                 {{#if tally.running_correct_total}}
                   {{tally.running_correct_total}} / {{tally.running_total}}
-                  {{t "correct" key='correct_lower'}}
+                  {{t "correct" key="correct_lower"}}
                 {{/if}}
               </td>
             </tr>
@@ -434,58 +434,58 @@
       <table class="table table-hover table-bordered">
         <thead>
           <tr>
-            <th style="width: 10px;">{{t "Type" key='type'}}</th>
-            <th>{{t "Summary" key='summary'}}</th>
-            <th>{{t "Delay" key='delay'}}</th>
-            <th>{{t "Board" key='board'}}</th>
-            <th style="width: 100px;">{{t "Notes" key='notes'}}</th>
+            <th style="width: 10px;">{{t "Type" key="type"}}</th>
+            <th>{{t "Summary" key="summary"}}</th>
+            <th>{{t "Delay" key="delay"}}</th>
+            <th>{{t "Board" key="board"}}</th>
+            <th style="width: 100px;">{{t "Notes" key="notes"}}</th>
           </tr>
         </thead>
         <tbody>
           {{#if model.events_state.checking}}
-            <tr><td colspan='5'>{{t "Loading..." key='loading'}}</td></tr>
+            <tr><td colspan='5'>{{t "Loading..." key="loading"}}</td></tr>
           {{else if model.events_state.error}}
-            <tr><td colspan='5'>{{t "Error loading data" key='error_loading_data'}}</td></tr>
+            <tr><td colspan='5'>{{t "Error loading data" key="error_loading_data"}}</td></tr>
           {{else}}
             {{#each model.processed_events as |event|}}
-              <tr class={{if event.long_delay 'long_delay'}}>
-                <td style={{if event.highlighted 'white-space: nowrap; background: #ffc;' 'white-space: nowrap;'}}>
+              <tr class={{if event.long_delay "long_delay"}}>
+                <td style={{if event.highlighted "white-space: nowrap; background: #ffc;" "white-space: nowrap;"}}>
                   <span class={{event.type_class}} title={{event.type}}>
                     <span class="sr-only">{{event.type}}</span>
                   </span>
                   {{#if event.spoken}}
                     <span class="glyphicon glyphicon-volume-up">
-                      <span class="sr-only">{{t "spoken" key='spoken'}}</span>
+                      <span class="sr-only">{{t "spoken" key="spoken"}}</span>
                     </span>
                   {{/if}}
                 </td>
-                <td style={{if event.highlighted 'background: #ffc;'}}>
+                <td style={{if event.highlighted "background: #ffc;"}}>
                   <span class={{event.part_of_speech_class}} title={{event.part_of_speech}}>
                     <span class="sr-only">{{event.part_of_speech}}</span>
                   </span>
                   {{#if event.modeling}}
-                    <span class='glyphicon glyphicon-hand-up' title={{t "modeled event" key='modeled_event'}}></span>
-                    <span class='sr-only'>{{t "modeled event" key='modeled_event'}}</span>
+                    <span class='glyphicon glyphicon-hand-up' title={{t "modeled event" key="modeled_event"}}></span>
+                    <span class='sr-only'>{{t "modeled event" key="modeled_event"}}</span>
                   {{/if}}
-                  <span class={{if event.button_type '' 'text-muted'}}>
-                    <span class={{if event.spoken 'spoken_log_event' 'text-muted'}}>
+                  <span class={{if event.button_type "" "text-muted"}}>
+                    <span class={{if event.spoken "spoken_log_event" "text-muted"}}>
                       {{event.processed_summary}}
                     </span>
                   </span>
                 </td>
                 <td>
-                  <span class={{if event.long_delay 'text-muted'}} title={{date event.timestamp}}>
+                  <span class={{if event.long_delay "text-muted"}} title={{date event.timestamp}}>
                     {{seconds_ago event.delay}}
                   </span>
                 </td>
                 <td style='max-width: 100px; overflow: hidden;'>
                   {{#if event.new_board}}
-                    {{#link-to 'board' event.new_board.key}}
+                    {{#link-to "board" event.new_board.key}}
                       {{event.new_board.key}}
                     {{/link-to}}
                   {{else}}
                     {{#if event.board}}
-                      {{#link-to 'board' event.board.key class='text-muted'}}
+                      {{#link-to "board" event.board.key class="text-muted"}}
                         {{event.board.key}}
                       {{/link-to}}
                     {{/if}}
@@ -493,23 +493,23 @@
                 </td>
                 <td style="text-align: right;">
                   {{#if event.highlighted}}
-                    <button {{action 'highlight' event.id false}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{action "highlight" event.id false}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star'></span>
                     </button>
                   {{else}}
-                    <button {{action 'highlight' event.id true}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{action "highlight" event.id true}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star-empty'></span>
                     </button>
                   {{/if}}
                   {{#if event.note_count}}
-                    <button {{action 'toggle_notes' event.id}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
+                    <button {{action "toggle_notes" event.id}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
                       {{event.note_count}}
-                      <span class='sr-only'>{{t "add comment" key='add_comment_lower'}}</span>
+                      <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
                   {{else}}
-                    <button {{action 'toggle_notes' event.id 'add'}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
+                    <button {{action "toggle_notes" event.id "add"}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
                       <span class='glyphicon glyphicon-comment'></span>
-                      <span class='sr-only'>{{t "add comment" key='add_comment_lower'}}</span>
+                      <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
                   {{/if}}
                 </td>
@@ -517,21 +517,21 @@
               {{#if event.show_notes}}
                 <tr>
                   <td colspan="5" style="padding-left: 50px;">
-                    Notes:<br/>
+                    Notes:<br>
                     {{#each event.notes as |note|}}
                       <div>
-                        {{#link-to 'user' note.author.user_name}}
+                        {{#link-to "user" note.author.user_name}}
                           {{note.author.user_name}}
                         {{/link-to}} -
                         {{note.note}}
                       </div>
                     {{/each}}
-                    <form class="form-inline" style="margin-top: 15px;" {{action 'add_note' event.id}}>
+                    <form class="form-inline" style="margin-top: 15px;" {{action "add_note" event.id}}>
                       <div class="form-group">
-                        <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text"/>
+                        <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text">
                       </div>
                       <div class="form-group">
-                        <button type="submit" class='btn btn-default btn-sm'>{{t "Save" key='save'}}</button>
+                        <button type="submit" class='btn btn-default btn-sm'>{{t "Save" key="save"}}</button>
                       </div>
                     </form>
                   </td>
@@ -552,37 +552,37 @@
     {{/if}}
     <div class="col-sm-4">
       <dl>
-        <dt>{{t "Location" key='location'}}</dt>
+        <dt>{{t "Location" key="location"}}</dt>
           <dd>
           {{#if model.geo}}
-            {{t "See map" key='see_map'}}
+            {{t "See map" key="see_map"}}
           {{else}}
-            {{t "Not Available" key='not_available_upper'}}
+            {{t "Not Available" key="not_available_upper"}}
           {{/if}}
           {{#if model.geo_cluster_id}}
-            <br/>
-            {{#link-to 'user.logs' model.user.user_name (query-params highlighted=null start='' end='' location_id=model.geo_cluster_id device_id='' type='session') class='btn btn-default'}}
-              {{t "more entries" key='see_more'}}
+            <br>
+            {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.geo_cluster_id device_id="" type="session") class="btn btn-default"}}
+              {{t "more entries" key="see_more"}}
             {{/link-to}}
 
-            {{#link-to 'user.stats' model.user.user_name (query-params highlighted=null start=null end=null location_id=model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type='session') class='btn btn-default'}}
-              {{t "filtered report" key='see_stats'}}
+            {{#link-to "user.stats" model.user.user_name (query-params highlighted=null start=null end=null location_id=model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+              {{t "filtered report" key="see_stats"}}
             {{/link-to}}
           {{/if}}
           </dd>
-        <dt style="margin-top: 15px;">{{t "IP Address" key='ip_address'}}</dt>
+        <dt style="margin-top: 15px;">{{t "IP Address" key="ip_address"}}</dt>
           <dd>
             {{#if model.readable_ip_address}}
               {{model.readable_ip_address}}
             {{/if}}
             {{#if model.ip_cluster_id}}
-              <br/>
-              {{#link-to 'user.logs' model.user.user_name (query-params highlighted=null start='' end='' location_id=model.ip_cluster_id device_id='' type='session') class='btn btn-default'}}
-                {{t "more entries" key='see_more'}}
+              <br>
+              {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.ip_cluster_id device_id="" type="session") class="btn btn-default"}}
+                {{t "more entries" key="see_more"}}
               {{/link-to}}
 
-              {{#link-to 'user.stats' model.user.user_name (query-params highlighted=null start=null end=null location_id=model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type='session') class='btn btn-default'}}
-                {{t "filtered report" key='see_stats'}}
+              {{#link-to "user.stats" model.user.user_name (query-params highlighted=null start=null end=null location_id=model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+                {{t "filtered report" key="see_stats"}}
               {{/link-to}}
             {{/if}}
           </dd>
@@ -593,29 +593,29 @@
 {{/if}}
 <div class='hide_print'>
   {{#if model.session_type}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key='download_log_file'}}</button>
-    <button type="button" {{action "lam_export"}} class='btn btn-default'>{{t "View LAM Report" key='export_as_lam'}}</button>
+    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button type="button" {{action "lam_export"}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
   {{/if}}
   {{#if processed_assessment.resumable}}
     {{#if same_author}}
-      <button type='button' {{action "resume"}} class='btn btn-default'>{{t "Resume Evaluation" key='resume_eval'}}</button>
+      <button type='button' {{action "resume"}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
     {{/if}}
   {{/if}}
-  <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key='print'}}</button>
+  <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
   {{#if model.previous_log_id}}
-    {{#link-to 'user.log' user.user_name model.previous_log_id class="btn btn-default"}}
+    {{#link-to "user.log" user.user_name model.previous_log_id class="btn btn-default"}}
       <span class="glyphicon glyphicon-arrow-left"></span>
-      {{t "Previous Entry" key='previous_entry'}}
+      {{t "Previous Entry" key="previous_entry"}}
     {{/link-to}}
   {{/if}}
   {{#if model.note_type}}
     {{#if user.permissions.supervise}}
-      <button class='btn btn-default' {{action "reply" "text"}}>{{t "Reply" key='reply'}}</button>
+      <button class='btn btn-default' {{action "reply" "text"}}>{{t "Reply" key="reply"}}</button>
     {{/if}}
   {{/if}}
   {{#if model.next_log_id}}
-    {{#link-to 'user.log' user.user_name model.next_log_id class="btn btn-default"}}
-      {{t "Next Entry" key='next_entry'}}
+    {{#link-to "user.log" user.user_name model.next_log_id class="btn btn-default"}}
+      {{t "Next Entry" key="next_entry"}}
       <span class="glyphicon glyphicon-arrow-right"></span>
     {{/link-to}}
   {{/if}}

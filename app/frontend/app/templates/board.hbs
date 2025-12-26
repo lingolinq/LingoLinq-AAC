@@ -4,19 +4,19 @@
   <div class="board_status">
     {{#if persistence.online}}
       {{#if model.error.deleted}}
-        <p>{{t "This board has been deleted." key='board_deleted'}}</p>
+        <p>{{t "This board has been deleted." key="board_deleted"}}</p>
         {{#if model.show_history}}
           {{outlet}}
         {{else if model.error.key}}
-          <p>{{#link-to 'board.history' model.error.id}}{{t "Review the edit history for this board." key='review_edit_history'}}{{/link-to}}</p>
+          <p>{{#link-to "board.history" model.error.id}}{{t "Review the edit history for this board." key="review_edit_history"}}{{/link-to}}</p>
         {{/if}}
       {{else if model.error.never_existed}}
-        <p>{{t "It looks like this board doesn't exist. Please check the link that brought you here to make sure it's correct." key='board_doesnt_exist'}}</p>
+        <p>{{t "It looks like this board doesn't exist. Please check the link that brought you here to make sure it's correct." key="board_doesnt_exist"}}</p>
       {{else}}
-        <p>{{t "You don't have permission to access this board, or it isn't currently available." key='no_permissions'}}</p>
+        <p>{{t "You don't have permission to access this board, or it isn't currently available." key="no_permissions"}}</p>
       {{/if}}
     {{else}}
-      <p>{{t "This board isn't available, or hasn't been synced for offline use." key='board_not_synced'}}</p>
+      <p>{{t "This board isn't available, or hasn't been synced for offline use." key="board_not_synced"}}</p>
     {{/if}}
     {{#unless session.isAuthenticated}}
       <div style="margin: 50px 15px;">
@@ -24,9 +24,9 @@
       </div>
     {{else}}
       {{#if model.retrying}}
-        {{t "Trying again..." key='trying_again'}}
+        {{t "Trying again..." key="trying_again"}}
       {{else}}
-        <a href="#" {{action 're_transition'}}>{{t "Try Again" key='try_again'}}</a>
+        <a href="#" {{action "re_transition"}}>{{t "Try Again" key="try_again"}}</a>
       {{/if}}
     {{/unless}}
   </div>

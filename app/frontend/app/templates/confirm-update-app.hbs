@@ -1,21 +1,21 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "App Update Available" key='app_update_available'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "App Update Available" key="app_update_available"}}</h3>
   </div>
   <div class="modal-body">
     <p>
-      {{t "An updated version of %app_name% has been downloaded and installed. Would you like to restart now? If you don't restart now, you should very soon." key='confirm_update'}}
-      <span class='text-muted'>{{t "Updating to %{version}" key='updating_to' version=version}}</span>
+      {{t "An updated version of %app_name% has been downloaded and installed. Would you like to restart now? If you don't restart now, you should very soon." key="confirm_update"}}
+      <span class='text-muted'>{{t "Updating to %{version}" key="updating_to" version=version}}</span>
     </p>
-    <p>{{t "Please note: Any premium voices you have downloaded may no longer work until after you restart the app." key='premium_voices_need_update'}}</p>
+    <p>{{t "Please note: Any premium voices you have downloaded may no longer work until after you restart the app." key="premium_voices_need_update"}}</p>
     {{#if error}}
-      <p class='text-danger'>{{t "There was an error trying to restart the app, please close and reopen manually." key='error_restarting_app'}}</p>
+      <p class='text-danger'>{{t "There was an error trying to restart the app, please close and reopen manually." key="error_restarting_app"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action 'restart'}}>{{t "Restart %app_name%" key='restart_app'}}</button>
-    <button class='btn btn-default' {{action 'close'}}>{{t "I'll Do it in a Minute" key='restart_soon'}}</button>
+    <button class='btn btn-primary' {{action "restart"}}>{{t "Restart %app_name%" key="restart_app"}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "I'll Do it in a Minute" key="restart_soon"}}</button>
   </div>
 {{/modal-dialog}}
 

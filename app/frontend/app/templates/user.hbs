@@ -1,7 +1,7 @@
 <div class="row">
   <div class="dropdown skinny_bio hide_print" style="margin-bottom: 10px;">
     <a class='btn btn-default' href="#" data-toggle="dropdown">
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;"/>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;">
       {{ model.name }}
       {{#if model.subroute_name}}
         <span class="text-muted">- {{model.subroute_name}}</span>
@@ -10,40 +10,40 @@
     </a>
     <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="width: 100%;">
       <li role="presentation">
-        {{#link-to 'user.index' model.user_name}}{{t "summary" key='summary_lower'}}{{/link-to}}
+        {{#link-to "user.index" model.user_name}}{{t "summary" key="summary_lower"}}{{/link-to}}
       </li>
       <li role="presentation">
-        {{#link-to 'user.stats' model.user_name (query-params highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null)}}{{t "reports" key='reports_lower'}}{{/link-to}}
+        {{#link-to "user.stats" model.user_name (query-params highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null)}}{{t "reports" key="reports_lower"}}{{/link-to}}
       </li>
       <li role="presentation">
-        {{#link-to 'user.goals' model.user_name}}{{t "goals" key='goals_lower'}}{{/link-to}}
+        {{#link-to "user.goals" model.user_name}}{{t "goals" key="goals_lower"}}{{/link-to}}
       </li>
       {{#if app_state.feature_flags.lessons}}
         {{#if model.organizations.length}}
           <li role="presentation">
-            {{#link-to 'user.lessons' model.user_name}}{{t "trainings" key='trainings_lower'}}{{/link-to}}
+            {{#link-to "user.lessons" model.user_name}}{{t "trainings" key="trainings_lower"}}{{/link-to}}
           </li>
         {{/if}}
       {{/if}}
       <li role="presentation">
-        {{#link-to 'user.recordings' model.user_name}}{{t "recordings" key='recordings_lower'}}{{/link-to}}
+        {{#link-to "user.recordings" model.user_name}}{{t "recordings" key="recordings_lower"}}{{/link-to}}
       </li>
       {{#if model.permissions.edit}}
         <li role="presentation">
-          {{#link-to 'user.edit' model.user_name}}{{t "profile" key='profile_lower'}}{{/link-to}}
+          {{#link-to "user.edit" model.user_name}}{{t "profile" key="profile_lower"}}{{/link-to}}
         </li>
         <li role="presentation">
-          {{#link-to 'user.preferences' model.user_name}}{{t "preferences" key='preferences_lower'}}{{/link-to}}
+          {{#link-to "user.preferences" model.user_name}}{{t "preferences" key="preferences_lower"}}{{/link-to}}
         </li>
         {{#if app_state.feature_flags.subscriptions}}
           <li role="presentation">
-            {{#link-to 'user.subscription' model.user_name}}{{t "billing" key='billing_lower'}}{{/link-to}}
+            {{#link-to "user.subscription" model.user_name}}{{t "billing" key="billing_lower"}}{{/link-to}}
           </li>
         {{/if}}
       {{/if}}
       <li role="presentation">
-        {{#link-to 'user.logs' model.user_name (query-params type=null)}}
-          {{t "logs &amp; messages" key='logs_messages'}}
+        {{#link-to "user.logs" model.user_name (query-params type=null)}}
+          {{t "logs &amp; messages" key="logs_messages"}}
           {{#if app_state.currentUser.unread_messages}}
             <span class="label label-danger">{{app_state.currentUser.unread_messages}}</span>
           {{/if}}
@@ -54,7 +54,7 @@
   <div class="col-md-3 col-sm-12 wide_bio hide_print">
     <div class="well" style="text-align: center;">
     <div style='position: relative;'>
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;"/>
+      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;">
       {{#if model.online}}
         <div title='currently online' class='online_marker'></div>
       {{/if}}
@@ -63,37 +63,37 @@
     <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
     <div>{{ model.description }}</div>
     {{#if model.details_url}}
-    <div><a href={{model.details_url}} target="_blank">{{ model.details_url }}</a></div>
+    <div><a href={{model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
     {{/if}}
     <div>{{ model.location }}</div>
     {{#if model.joined}}
-      <div title={{date model.joined}}>{{t "joined" key='joined'}} {{date_ago model.joined}}</div>
+      <div title={{date model.joined}}>{{t "joined" key="joined"}} {{date_ago model.joined}}</div>
     {{/if}}
     {{#if model.last_access}}
-      <div class="text-muted" title={{date model.last_access}}>{{t "used" key='used'}} {{date_ago model.last_access 'day'}}</div>
+      <div class="text-muted" title={{date model.last_access}}>{{t "used" key="used"}} {{date_ago model.last_access "day"}}</div>
     {{/if}}
   </div>
     {{#if model.permissions.supervise}}
       <div class="btn-group-vertical" style="width: 100%;">
         <!-- TODO: since we're not using ids these won't add 'active' class until clicked. need workaround -->
-        {{#link-to 'user.index' model.user_name class="btn btn-default"}}{{t "summary" key='summary_lower'}}{{/link-to}}
-        {{#link-to 'user.stats' model.user_name (query-params highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null) class="btn btn-default"}}{{t "reports" key='reports_lower'}}{{/link-to}}
-        {{#link-to 'user.goals' model.user_name class='btn btn-default'}}{{t "goals" key='goals_lower'}}{{/link-to}}
+        {{#link-to "user.index" model.user_name class="btn btn-default"}}{{t "summary" key="summary_lower"}}{{/link-to}}
+        {{#link-to "user.stats" model.user_name (query-params highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null) class="btn btn-default"}}{{t "reports" key="reports_lower"}}{{/link-to}}
+        {{#link-to "user.goals" model.user_name class="btn btn-default"}}{{t "goals" key="goals_lower"}}{{/link-to}}
         {{#if app_state.feature_flags.lessons}}
           {{#if model.organizations.length}}
-            {{#link-to 'user.lessons' model.user_name class='btn btn-default'}}{{t "trainings" key='trainings_lower'}}{{/link-to}}
+            {{#link-to "user.lessons" model.user_name class="btn btn-default"}}{{t "trainings" key="trainings_lower"}}{{/link-to}}
           {{/if}}
         {{/if}}
-        {{#link-to 'user.recordings' model.user_name class='btn btn-default'}}{{t "recordings" key='recordings_lower'}}{{/link-to}}
+        {{#link-to "user.recordings" model.user_name class="btn btn-default"}}{{t "recordings" key="recordings_lower"}}{{/link-to}}
         {{#if model.permissions.edit}}
-          {{#link-to 'user.edit' model.user_name class="btn btn-default"}}{{t "profile" key='profile_lower'}}{{/link-to}}
-          {{#link-to 'user.preferences' model.user_name class="btn btn-default"}}{{t "preferences" key='preferences_lower'}}{{/link-to}}
+          {{#link-to "user.edit" model.user_name class="btn btn-default"}}{{t "profile" key="profile_lower"}}{{/link-to}}
+          {{#link-to "user.preferences" model.user_name class="btn btn-default"}}{{t "preferences" key="preferences_lower"}}{{/link-to}}
           {{#if app_state.feature_flags.subscriptions}}
-            {{#link-to 'user.subscription' model.user_name class="btn btn-default"}}{{t "billing" key='billing_lower'}}{{/link-to}}
+            {{#link-to "user.subscription" model.user_name class="btn btn-default"}}{{t "billing" key="billing_lower"}}{{/link-to}}
           {{/if}}
         {{/if}}
-        {{#link-to 'user.logs' model.user_name (query-params type=null) class="btn btn-default"}}
-          {{t "logs &amp; messages" key='logs_messages'}}
+        {{#link-to "user.logs" model.user_name (query-params type=null) class="btn btn-default"}}
+          {{t "logs &amp; messages" key="logs_messages"}}
           {{#if app_state.currentUser.unread_messages}}
             <span class="label label-danger">{{app_state.currentUser.unread_messages}}</span>
           {{/if}}

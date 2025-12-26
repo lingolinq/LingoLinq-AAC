@@ -1,40 +1,40 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Categorize This Board" key='categorize_this_board'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Categorize This Board" key="categorize_this_board"}}</h3>
   </div>
   <div class="modal-body">
-    <p>{{t "You can organize individual boards or sets of boards to make them easier to find in the future. Choose a new category name or select from the list of names you've already used." key='tag_explainer'}}</p>
+    <p>{{t "You can organize individual boards or sets of boards to make them easier to find in the future. Choose a new category name or select from the list of names you've already used." key="tag_explainer"}}</p>
     <form class="form-horizontal" {{action "nothing" on="submit"}}>
       <div class="form-group">
-        <label for="category" class="col-sm-3 control-label">{{t "Category" key='category'}}</label>
+        <label for="category" class="col-sm-3 control-label">{{t "Category" key="category"}}</label>
         <div class="col-sm-9">
           {{#if model.user.board_tags}}
             <div class="input-group">
-              {{input type='text' id='category' class='form-control' value=tag}}
+              {{input type="text" id="category" class="form-control" value=tag}}
               <div class="input-group-btn">
-                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{t "Categories" key='categories'}} <span class="caret"></span></button>
+                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{t "Categories" key="categories"}} <span class="caret"></span></button>
                 <ul class="dropdown-menu dropdown-menu-right">
                   {{#each model.user.board_tags as |tag|}}
-                    <li><a href='#' {{action 'choose' tag}}>{{ tag }}</a></li>
+                    <li><a href='#' {{action "choose" tag}}>{{ tag }}</a></li>
                   {{/each}}
                 </ul>
               </div>
             </div>
           {{else}}
-            {{input type='text' id='category' class='form-control' value=tag}}
+            {{input type="text" id="category" class="form-control" value=tag}}
           {{/if}}
         </div>
       </div>
       {{#if model.board.downstream_boards}}
         <div class="form-group">
           <label class="col-sm-3 control-label" for="downstream">
-            {{t "Linked Boards" key='linked_boards'}}
+            {{t "Linked Boards" key="linked_boards"}}
           </label>
           <div class="col-sm-9">
             <label id='home'>
-              {{input type='checkbox' checked=downstream}}
-              {{t "Categorize all Linked Boards in the same category" key='categorize_linked_board'}}
+              {{input type="checkbox" checked=downstream}}
+              {{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}
             </label>
           </div>
         </div>
@@ -42,15 +42,15 @@
     </form>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action 'update'}} disabled={{status.loading}}>
+    <button class='btn btn-primary' {{action "update"}} disabled={{status.loading}}>
       {{#if status.loading}}
-        {{t "Categorizing Board..." key='categorizing_board'}}
+        {{t "Categorizing Board..." key="categorizing_board"}}
       {{else if status.error}}
-        {{t "Categorization Failed" key='categorization_failed'}}
+        {{t "Categorization Failed" key="categorization_failed"}}
       {{else}}
-        {{t "Categorize Board" key='categorize_board'}}
+        {{t "Categorize Board" key="categorize_board"}}
       {{/if}}
     </button>
-    <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

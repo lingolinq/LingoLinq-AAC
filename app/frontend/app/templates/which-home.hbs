@@ -1,22 +1,22 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-body">
-    {{t "This board is not your standard home board. Would you like to temporarily use this board as your home board?" key='not_standard_board'}}
+    {{t "This board is not your standard home board. Would you like to temporarily use this board as your home board?" key="not_standard_board"}}
   </div>
   <div class="modal-footer">
     <div class="btn-group">
       <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
-        {{t "Stay Here" key='stay_here'}} <span class="caret"></span>
+        {{t "Stay Here" key="stay_here"}} <span class="caret"></span>
       </button>
       <ul class="dropdown-menu" role="menu">
-        <li><a href="#" {{action 'toggleSpeakMode' "currentAsHome"}}>{{t "Use This as Home Temporarily" key='use_as_home_board_temporarily'}}</a></li>
-        <li><a href="#" {{action 'toggleSpeakMode' "rememberRealHome"}}>{{t "Keep My Usual Home Board" key='keep_home_board_but_stay_here'}}</a></li>
+        <li><a href="#" {{action "toggleSpeakMode" "currentAsHome"}}>{{t "Use This as Home Temporarily" key="use_as_home_board_temporarily"}}</a></li>
+        <li><a href="#" {{action "toggleSpeakMode" "rememberRealHome"}}>{{t "Keep My Usual Home Board" key="keep_home_board_but_stay_here"}}</a></li>
       </ul>
     </div>
-    <button class='btn btn-default' {{action 'toggleSpeakMode' "goHome"}}>
-      {{t "Go to my Home board" key='go_to_home_board'}}
+    <button class='btn btn-default' {{action "toggleSpeakMode" "goHome"}}>
+      {{t "Go to my Home board" key="go_to_home_board"}}
     </button>
-    <button class='btn btn-default' {{action 'close'}}>
-      {{t "Cancel" key='cancel'}}
+    <button class='btn btn-default' {{action "close"}}>
+      {{t "Cancel" key="cancel"}}
     </button>
   </div>
 {{/modal-dialog}}

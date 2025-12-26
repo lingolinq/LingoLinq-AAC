@@ -1,21 +1,21 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "About %app_name%" key='about_app'}}
+      {{t "About %app_name%" key="about_app"}}
     </h3>
   </div>
   <div class="modal-body">
-    <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 65px; float: left;" />
+    <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 65px; float: left;" >
     {{#if app_state.currentUser}}
-      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, so it's limited to speak mode only, but if you visit the web site you should be able to access your account as usual." key='thanks_app'}}</p>
+      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, so it's limited to speak mode only, but if you visit the web site you should be able to access your account as usual." key="thanks_app"}}</p>
     {{else}}
-      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, but %app_name% is a powerful augmentative communication (AAC) app that can run as it's own tab in a browser on a desktop, or be downloaded in app stores on tablets and smartphones. You can sign up for a free trial and see if it will work for you or someone you know!" key='thanks_app_long'}}</p>
+      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, but %app_name% is a powerful augmentative communication (AAC) app that can run as it's own tab in a browser on a desktop, or be downloaded in app stores on tablets and smartphones. You can sign up for a free trial and see if it will work for you or someone you know!" key="thanks_app_long"}}</p>
     {{/if}}
     <div style="margin-top: 20px;">
-      <a class='btn btn-lg btn-primary' href="https://www.mylingolinq.com" target="_blank">{{t "Learn More" key='learn_more'}}</a>
-      <a class='btn btn-lg btn-default' href={{app_state.board_url}} target='_blank'>{{t "View in %app_name%" key='view_this_board_in_app'}}</a>
-      <button class='btn btn-lg btn-default' {{action 'close'}}>{{t "Back to the Demo" key='back_to_demo'}}</button>
+      <a class='btn btn-lg btn-primary' href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Learn More" key="learn_more"}}</a>
+      <a class='btn btn-lg btn-default' href={{app_state.board_url}} target="_blank" rel="noopener">{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
+      <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Back to the Demo" key="back_to_demo"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

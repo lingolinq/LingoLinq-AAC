@@ -1,39 +1,39 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Note Templates" key='note_templates'}}
+      {{t "Note Templates" key="note_templates"}}
     </h3>
   </div>
   <div class="modal-body">
-    <p>{{t "When recording notes to a user's log, it can be useful to have a template to ensure consistent record-keeping across the organization. Here you can define templates that any supervisor or manager can use when recording notes to a user's log." key='note_templates_explainer'}}</p>
+    <p>{{t "When recording notes to a user's log, it can be useful to have a template to ensure consistent record-keeping across the organization. Here you can define templates that any supervisor or manager can use when recording notes to a user's log." key="note_templates_explainer"}}</p>
     <div class='row'>
       <div class='col-sm-9'>
         {{bound-select select_class="form-control" select_id="template" content=template_list selection=current_template_id action=(action (mut current_template_id)) }}
       </div>
       <div class='col-sm-3'>
-        <button class='btn btn-default' {{ action 'add_row' }}>{{t "Add New" key='add_new'}}</button>
+        <button class='btn btn-default' {{ action "add_row" }}>{{t "Add New" key="add_new"}}</button>
       </div>
 
     </div>
     {{#if current_template}}
       <div class='row' style='margin-top: 15px;'>
         <div class='col-sm-9'>
-          {{input value=current_template.title class='form-control' type='text' placeholder="Template Name"}}
+          {{input value=current_template.title class="form-control" type="text" placeholder="Template Name"}}
         </div>
       </div>
       <div class='row' style='margin-top: 5px;'>
         <div class='col-sm-9'>
-          {{textarea rows=8 class='form-control' value=current_template.text placeholder="Template Contents"}}
+          {{textarea rows=8 class="form-control" value=current_template.text placeholder="Template Contents"}}
         </div>
         <div class='col-sm-12' style='text-align: right;'>
-          <button class='btn btn-default' {{ action 'remove' current_template }}>{{t "Remove Template" key='remove_template'}}</button>
+          <button class='btn btn-default' {{ action "remove" current_template }}>{{t "Remove Template" key="remove_template"}}</button>
         </div>
       </div>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary btn-lg' {{action 'confirm'}}>{{t "Update" key='update'}}</button>
-    <a href="#" class="btn btn-default btn-lg" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <button class='btn btn-primary btn-lg' {{action "confirm"}}>{{t "Update" key="update"}}</button>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

@@ -3,7 +3,7 @@ class Api::BoardsController < ApplicationController
   before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
 
   def cache
-    head :ok
+    render json: { user: { id: 'cache' } }
   end
 
   def index

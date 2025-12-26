@@ -6,80 +6,80 @@
         {{#if model.permissions.view}}
           {{ model.name }}
         {{else}}
-          {{t "Organization" key='organization'}}
+          {{t "Organization" key="organization"}}
         {{/if}}
       </h2>
       <div style='text-align: left; width: 100px; margin: 0 auto;'>
-        {{t "user" key='user_count' count=model.total_users }}<br/>
+        {{t "user" key="user_count" count=model.total_users }}<br>
         {{#if model.total_supervisors}}
-          {{t "supervisor" key='supervisor_count' count=model.total_supervisors}}
-          <br/>
+          {{t "supervisor" key="supervisor_count" count=model.total_supervisors}}
+          <br>
         {{/if}}
-        {{t "manager" key='manager_count' count=model.total_managers }}<br/>
+        {{t "manager" key="manager_count" count=model.total_managers }}<br>
         {{#if model.used_evals}}
-          {{t "eval" key='eval_count' count=model.used_evals}}<br/>
+          {{t "eval" key="eval_count" count=model.used_evals}}<br>
         {{/if}}
       </div>
       {{#if model.created}}
-        <div title={{date model.created}}>{{t "created" key='created_lower'}} {{date_ago model.created}}</div>
+        <div title={{date model.created}}>{{t "created" key="created_lower"}} {{date_ago model.created}}</div>
       {{/if}}
     </div>
     {{#if model.permissions.edit}}
       <div class="btn-group-vertical" style="width: 100%;">
-        {{#link-to 'organization.index' model.id class='btn btn-default'}}{{t "Admin" key='admin'}}{{/link-to}}
-        {{#link-to 'organization.reports' model.id class='btn btn-default'}}{{t "Reports" key='reports'}}{{/link-to}}
-        {{#link-to 'organization.rooms' model.id class='btn btn-default'}}{{t "Rooms" key='rooms'}}{{/link-to}}
+        {{#link-to "organization.index" model.id class="btn btn-default"}}{{t "Admin" key="admin"}}{{/link-to}}
+        {{#link-to "organization.reports" model.id class="btn btn-default"}}{{t "Reports" key="reports"}}{{/link-to}}
+        {{#link-to "organization.rooms" model.id class="btn btn-default"}}{{t "Rooms" key="rooms"}}{{/link-to}}
         {{#if model.premium}}
           {{#if app_state.feature_flags.lessons}}
-            {{#link-to 'organization.lessons' model.id class='btn btn-default'}}{{t "Trainings" key='trainings'}}{{/link-to}}
+            {{#link-to "organization.lessons" model.id class="btn btn-default"}}{{t "Trainings" key="trainings"}}{{/link-to}}
           {{/if}}
         {{/if}}
 
         {{#if model.admin}}
-          {{#link-to 'organization.extras' model.id class='btn btn-default'}}{{t "Extras" key='extras'}}{{/link-to}}
+          {{#link-to "organization.extras" model.id class="btn btn-default"}}{{t "Extras" key="extras"}}{{/link-to}}
         {{/if}}
         {{#if model.permissions.manage_subscription}}
-          {{#link-to 'organization.subscription' model.id class='btn btn-default'}}{{t "Billing" key='billing'}}{{/link-to}}
+          {{#link-to "organization.subscription" model.id class="btn btn-default"}}{{t "Billing" key="billing"}}{{/link-to}}
         {{/if}}
         {{#if model.permissions.update_licenses}}
             <span class="btn btn-default" style='text-align: left; display: none;'>
               <div style='margin-bottom: 4px;'>
                 {{input value=model.allotted_licenses class="form-control inline inline-licenses"}}
-                {{t "purchased licenses" key='purchased_licenses_lower'}}
+                {{t "purchased licenses" key="purchased_licenses_lower"}}
               </div>
               {{input value=model.allotted_eval_licenses class="form-control inline inline-licenses"}}
-              {{t "eval accounts" key='eval_accounts_lower'}}
-              <button class="btn btn-default" {{action "update_org"}}>{{t "update" key='update_lower'}}</button>
+              {{t "eval accounts" key="eval_accounts_lower"}}
+              <button class="btn btn-default" {{action "update_org"}}>{{t "update" key="update_lower"}}</button>
             </span>
         {{/if}}
         {{#if model.admin}}
           {{#if model.permissions.manage}}
-            <a class="btn btn-default" {{action 'jobs'}}>
-              {{t "Background Jobs" key='background_jobs'}}
-              <span style='display: none;'>{{t "jobs" key='jobs'}}</span>
+            <a class="btn btn-default" {{action "jobs"}}>
+              {{t "Background Jobs" key="background_jobs"}}
+              <span style='display: none;'>{{t "jobs" key="jobs"}}</span>
             </a>
             {{#if model.permissions.edit}}
-              {{#link-to 'organization.settings' model.id class='btn btn-default'}}{{t "Settings" key='settings'}}{{/link-to}}
+              {{#link-to "organization.settings" model.id class="btn btn-default"}}{{t "Settings" key="settings"}}{{/link-to}}
             {{/if}}
             <span class="btn btn-default">
-              {{input value=masquerade_user_name enter=(action 'masquerade') placeholder="user name" class="form-control inline inline-masquerade"}}
-              <button class="btn btn-default" {{action "masquerade"}} style='width: 110px;'>{{t "masquerade" key='masquerade'}}</button>
+              {{input value=masquerade_user_name enter=(action "masquerade") placeholder="user name" class="form-control inline inline-masquerade"}}
+              <button class="btn btn-default" {{action "masquerade"}} style='width: 110px;'>{{t "masquerade" key="masquerade"}}</button>
             </span>
             <span class="btn btn-default">
-              {{input value=search_user enter=(action 'find_user') placeholder="user name/email" class="form-control inline inline-masquerade"}}
-              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key='find_user'}}</button>
+              {{input value=search_user enter=(action "find_user") placeholder="user name/email" class="form-control inline inline-masquerade"}}
+              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
             </span>
             <span class="btn btn-default">
-              {{input value=search_board enter=(action 'find_board') placeholder="board id/key" class="form-control inline inline-masquerade"}}
-              <button class="btn btn-default" {{action "find_board"}} style='width: 110px;'>{{t "find board" key='find_board_lower'}}</button>
+              {{input value=search_board enter=(action "find_board") placeholder="board id/key" class="form-control inline inline-masquerade"}}
+              <button class="btn btn-default" {{action "find_board"}} style='width: 110px;'>{{t "find board" key="find_board_lower"}}</button>
             </span>
           {{/if}}
         {{else}}
           {{#if model.permissions.edit}}
-            {{#link-to 'organization.settings' model.id class='btn btn-default'}}{{t "Settings" key='settings'}}{{/link-to}}
+            {{#link-to "organization.settings" model.id class="btn btn-default"}}{{t "Settings" key="settings"}}{{/link-to}}
             <span class="btn btn-default">
-              {{input value=search_user enter=(action 'find_user') placeholder="user name/email" class="form-control inline inline-masquerade"}}
-              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key='find_user'}}</button>
+              {{input value=search_user enter=(action "find_user") placeholder="user name/email" class="form-control inline inline-masquerade"}}
+              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
             </span>
           {{/if}}
         {{/if}}

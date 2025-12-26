@@ -4,7 +4,7 @@
       <thead>
         <tr>
           <th>
-            {{t "Devices" key='devices'}}
+            {{t "Devices" key="devices"}}
           </th>
         </tr>
       </thead>
@@ -14,17 +14,17 @@
             <tr>
               <td>
                 <strong>
-                  <a href="#" {{action 'filter' device}}>
+                  <a href="#" {{action "filter" device}}>
                     {{device.name}}
                   </a>
-                </strong><br/>
-                <span class="text-muted" style="padding-left: 10px;">{{t "%{term} sessions" key='term_session_count' term=device.total_sessions}}</span>
+                </strong><br>
+                <span class="text-muted" style="padding-left: 10px;">{{t "%{term} sessions" key="term_session_count" term=device.total_sessions}}</span>
               </td>
             </tr>
           {{/each}}
         {{else}}
           <tr>
-            <td>{{t "No data available" key='no_data'}}</td>
+            <td>{{t "No data available" key="no_data"}}</td>
           </tr>
         {{/if}}
       </tbody>

@@ -1,76 +1,76 @@
-{{#if processed_profile}}
+{{#if @processedProfile}}
   <div class="row">
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Date" key='date'}}</div>
+        <div class="panel-heading">{{t "Date" key="date"}}</div>
         <div class="panel-body">
-          {{date processed_profile.started_at}}
-          {{#if expected_profile.state.due_soon}}
-            <br/><button {{action 'repeat_profile'}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key='repeat_profile_due_soon'}}</button>
-          {{else if expected_profile.overdue}}
-            <br/><button {{action 'repeat_profile'}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key='repeat_profile_overdue'}}</button>
+          {{date @processedProfile.started_at}}
+          {{#if @expectedProfile.state.due_soon}}
+            <br><button {{action @repeatProfile}} class='btn btn-warning'>{{t "Repeat Profile (due soon)" key="repeat_profile_due_soon"}}</button>
+          {{else if @expectedProfile.overdue}}
+            <br><button {{action @repeatProfile}} class='btn btn-danger'>{{t "Repeat Profile (overdue)" key="repeat_profile_overdue"}}</button>
           {{/if}}
         </div>
       </div>
     </div>
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Profile" key='profile_upper'}}</div>
+        <div class="panel-heading">{{t "Profile" key="profile_upper"}}</div>
         <div class="panel-body">
-          {{processed_profile.template.name}}
+          {{@processedProfile.template.name}}
         </div>
       </div>
     </div>
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Assessor" key='assessor'}}</div>
+        <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
         <div class="panel-body">
-          {{#link-to 'user' model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+          {{#link-to "user" @model.author.user_name}}{{@model.author.user_name}}{{/link-to}}
         </div>
       </div>
     </div>
     <div style='clear: left;'></div>
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Summary" key='summary'}}</div>
+        <div class="panel-heading">{{t "Summary" key="summary"}}</div>
         <div class="panel-body">
-          {{#if processed_profile.template.summary}}
-            {{processed_profile.template.summary}}
+          {{#if @processedProfile.template.summary}}
+            {{@processedProfile.template.summary}}
           {{else}}
-            {{t "N/A" key='n_a'}}
+            {{t "N/A" key="n_a"}}
           {{/if}}
         </div>
       </div>
     </div>
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Duration" key='duration'}}</div>
+        <div class="panel-heading">{{t "Duration" key="duration"}}</div>
         <div class="panel-body">
-          {{#if processed_profile.results.submitted}}
-            {{t "minute" key='minute' count=processed_profile.minutes}}
+          {{#if @processedProfile.results.submitted}}
+            {{t "minute" key="minute" count=@processedProfile.minutes}}
           {{else}}
-            {{t "not available" key='not_available'}}
+            {{t "not available" key="not_available"}}
           {{/if}}
         </div>
       </div>
     </div>
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        <div class="panel-heading">{{t "Type" key='type'}}</div>
+        <div class="panel-heading">{{t "Type" key="type"}}</div>
         <div class="panel-body">
           <!-- Self-Assessment? Assessment? Communicator/Supervisor? Communicator included -->
-          {{processed_profile.readable_type}}
+          {{@processedProfile.readable_type}}
         </div>
       </div>
     </div>
   </div>
   <div class='profile'>
-    {{#if processed_profile.communicator_type}}
-      {{#unless processed_profile.template.with_communicator}}
-        <p class='text-danger'>{{t "NOTE: This profile was completed without the communicator's participation" key='profile_without_communicator'}}</p>
+    {{#if @processedProfile.communicator_type}}
+      {{#unless @processedProfile.template.with_communicator}}
+        <p class='text-danger'>{{t "NOTE: This profile was completed without the communicator's participation" key="profile_without_communicator"}}</p>
       {{/unless}}
     {{/if}}
-    {{#each processed_profile.reports_layout as |report|}}
+    {{#each @processedProfile.reports_layout as |report|}}
       <div style='margin-bottom: 30px;'>
         {{#if report.score}}
           <div style='page-break-inside: avoid;'>
@@ -83,7 +83,7 @@
                     <div class='pre_value'>{{hist.pre_value}}</div>
                   {{/if}}
                   <div style='position: relative;'>{{hist.value}}</div>
-                  <div class='date'>{{date hist.date 'tiny_day'}}</div>
+                  <div class='date'>{{date hist.date "tiny_day"}}</div>
                 </div>
               {{/each}}
               <div class='score_circle' style={{report.circle_style}}>
@@ -92,7 +92,7 @@
                   <div class='pre_value'>{{report.pre_value}}</div>
                 {{/if}}
                 <div style='position: relative;'>{{report.value}}</div>
-                <div class='date'>{{date report.date 'tiny_day'}}</div>
+                <div class='date'>{{date report.date "tiny_day"}}</div>
               </div>
               <div style='clear: left;'></div>
             </div>
@@ -102,7 +102,7 @@
             {{#if report.label}}
               <h3>{{ report.label }}</h3>
             {{else}}
-              <h3>{{t "Weighted Results" key='weighted_results'}}</h3>
+              <h3>{{t "Weighted Results" key="weighted_results"}}</h3>
             {{/if}}
             {{#each report.categories as |cat|}}
               <div class='category'>
@@ -112,14 +112,14 @@
                 <div style='flex: 2; border-right: 2px solid #ddd;'>
                   {{#each cat.history as |hist|}}
                     <div class='bar_holder'>
-                      <div class='bar_tip'>{{hist.value}}/{{#if hist.max}}{{hist.max}}{{else}}0{{/if}} {{date hist.date 'short_day'}}</div>
+                      <div class='bar_tip'>{{hist.value}}/{{#if hist.max}}{{hist.max}}{{else}}0{{/if}} {{date hist.date "short_day"}}</div>
                       <div class='bar prior' style={{hist.bar_style}}>
                         <div class='bg' style={{cat.bar_bg_style}}></div>
                       </div>
                     </div>
                   {{/each}}
                   <div class='bar_holder'>
-                    <div class='bar_tip'>{{cat.value}}/{{#if cat.max}}{{cat.max}}{{else}}0{{/if}} {{date processed_profile.started_at 'short_day'}}</div>
+                    <div class='bar_tip'>{{cat.value}}/{{#if cat.max}}{{cat.max}}{{else}}0{{/if}} {{date @processedProfile.started_at "short_day"}}</div>
                     <div class='bar' style={{cat.bar_style}}>
                       <div class='bg' style={{cat.bar_bg_style}}></div>
                     </div>
@@ -141,14 +141,14 @@
                     <div style='flex: 2; border-right: 1px solid #ddd;'>
                       {{#each cat.history as |hist|}}
                         <div class='bar_holder'>
-                          <div class='bar_tip'>{{hist.manuals}} {{t "items" key='items'}} - {{date hist.date 'short_day'}}</div>
+                          <div class='bar_tip'>{{hist.manuals}} {{t "items" key="items"}} - {{date hist.date "short_day"}}</div>
                           <div class='bar prior' style={{hist.bar_style}}>
                             <div class='bg' style={{cat.bar_bg_style}}></div>
                           </div>
                         </div>
                       {{/each}}
                       <div class='bar_holder'>
-                        <div class='bar_tip'>{{cat.manuals}} {{t "items" key='items'}} - {{date processed_profile.started_at 'short_day'}}</div>
+                        <div class='bar_tip'>{{cat.manuals}} {{t "items" key="items"}} - {{date @processedProfile.started_at "short_day"}}</div>
                         <div class='bar' style={{cat.bar_style}}>
                           <div class='bg' style={{cat.bar_bg_style}}></div>
                         </div>
@@ -158,7 +158,7 @@
                 {{/if}}
               {{/each}}
             {{else}}
-              {{t "None to show" key='none_to_show'}}
+              {{t "None to show" key="none_to_show"}}
             {{/if}}
           </div>
         {{else if report.concat}}
@@ -169,20 +169,20 @@
                 <div class={{hist.circle_class}} style={{report.border_style}}>
                   <div class='bg'></div>
                   <div style='position: relative;'>{{hist.value}}</div>
-                  <div class='date'>{{date hist.date 'tiny_day'}}</div>
+                  <div class='date'>{{date hist.date "tiny_day"}}</div>
                 </div>
               {{/each}}
               <div class='score_circle wide' style={{report.border_style}}>
                 <div class='bg'></div>
                 <div style='position: relative;'>{{report.value}}</div>
-                <div class='date'>{{date report.date 'tiny_day'}}</div>
+                <div class='date'>{{date report.date "tiny_day"}}</div>
               </div>
               <div style='clear: left;'></div>
             </div>
           </div>
         {{else if report.raw}}
-            <h3>{{t "Responses" key='responses'}}</h3>
-          {{#if processed_profile.results}}
+            <h3>{{t "Responses" key="responses"}}</h3>
+          {{#if @processedProfile.results}}
             {{#each report.questions as |question|}}
               {{#if question.header}}
                 <div class='question_header'>
@@ -200,7 +200,7 @@
                       {{else}}
                         <div class='answer_holder'>
                           {{#each question.answers as |answer|}}
-                            <div class={{if answer.selected 'answer selected' 'answer'}}>
+                            <div class={{if answer.selected "answer selected" "answer"}}>
                               {{#if answer.selected}}
                                 <div class='bg' style='border-top-color: #cdf;'></div>
                                 <div style='position: relative;'>
@@ -217,21 +217,21 @@
                   </div>
                   {{#if question.manual}}
                     <div style='font-weight: bold; padding-left: 30px; font-style: italic; background: #ffe2e2; margin: 0 10px; box-shadow: 0 -5px 10px -5px #888; position: relative; margin-top: -3px; border-top-left-radius: 3px; border-top-right-radius: 3px;'>
-                      {{t "marked as: " key='marked_as_colon'}}
+                      {{t "marked as: " key="marked_as_colon"}}
                       {{question.manual_selection}}
                     </div>
                   {{/if}}
                 </div>
-                <div class={{if question.has_more 'bottom-hr with_more' 'bottom-hr'}}></div>
+                <div class={{if question.has_more "bottom-hr with_more" "bottom-hr"}}></div>
               {{/if}}
             {{/each}}
           {{else}}
-            <p>{{t "Raw results could not be decrypted" key='results_decryption_failed'}}</p>
+            <p>{{t "Raw results could not be decrypted" key="results_decryption_failed"}}</p>
           {{/if}}
         {{/if}}
       </div>
     {{/each}}
   </div>
 {{else}}
-  {{t "No data available" key='no_data_available'}}
+  {{t "No data available" key="no_data_available"}}
 {{/if}}

@@ -1,26 +1,26 @@
 <div style='width: 100%; overflow-x: auto;'>
   {{#if selectable}}
-    <a href="#" {{action 'select_all'}}>{{t "Select All" key='select_all'}}</a> |
-    <a href="#" {{action 'toggle_board_hierarchy' 'all' true}}>{{t "Expand All" key='expand_all'}}</a> |
-    <a href="#" {{action 'toggle_board_hierarchy' 'all' false}}>{{t "Collapse All" key='collapse_all'}}</a>
+    <a href="#" {{action "select_all"}}>{{t "Select All" key="select_all"}}</a> |
+    <a href="#" {{action "toggle_board_hierarchy" "all" true}}>{{t "Expand All" key="expand_all"}}</a> |
+    <a href="#" {{action "toggle_board_hierarchy" "all" false}}>{{t "Collapse All" key="collapse_all"}}</a>
   {{/if}}
   {{#if hierarchy.boards_missing}}
     {{#if hierarchy.boards_meta_missing}}
-      <p class='text-danger'>{{t "NOTE: This list does not include all sub-boards, but you can still choose to copy all sub-boards even if they aren't in the list" key='missing_boards_selectable'}}</p>
+      <p class='text-danger'>{{t "NOTE: This list does not include all sub-boards, but you can still choose to copy all sub-boards even if they aren't in the list" key="missing_boards_selectable"}}</p>
       {{#if selectable}}
         <label>
-          {{input type='checkbox' checked=hierarchy.include_missing}}
-          {{t "Include all sub-boards, even if not listed" key='include_missing_sub_boards'}}
+          {{input type="checkbox" checked=hierarchy.include_missing}}
+          {{t "Include all sub-boards, even if not listed" key="include_missing_sub_boards"}}
         </label>
       {{/if}}
     {{else}}
-      <p class='text-danger'>{{t "NOTE: One or more sub-boards may be missing from this list" key='missing_boards'}}</p>
+      <p class='text-danger'>{{t "NOTE: One or more sub-boards may be missing from this list" key="missing_boards"}}</p>
     {{/if}}
   {{/if}}
   {{#with hierarchy.root as |board|}}
     <div class="board_hierarchy" style='margin-top: 10px;'>
       <ul>
-        {{partial "recursive-board"}}
+        <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{action "toggle_board_hierarchy"}} />
       </ul>
     </div>
   {{/with}}

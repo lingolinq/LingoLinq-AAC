@@ -1,18 +1,18 @@
 <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
   {{#if badge.global}}
-    <a style='#' {{action 'badge_popup' badge}}>
-      <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+    <a style='#' {{action "badge_popup" badge}}>
+      <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     </a>
   {{else}}
-    <a style='#' {{action 'badge_popup' badge}}>
-      <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+    <a style='#' {{action "badge_popup" badge}}>
+      <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     </a>
   {{/if}}
   <div style='height: 30px; overflow: hidden; line-height: 14px;'>
     {{#if badge.global}}
-      {{#link-to 'goals.goal' badge.goal_id}}{{badge.name}}{{/link-to}}
+      {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
     {{else}}
-      {{#link-to 'user.goal' model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+      {{#link-to "user.goal" model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
     {{/if}}
   </div>
 </div>

@@ -1,17 +1,17 @@
-<div id="within_ember" class={{background_class}} style={{if speak_mode_needing_hammer_js 'touch-action: auto;' }}>
+<div id="within_ember" class={{background_class}} style={{if speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <header class={{header_class}}>
   <div id="inner_header">
   {{#if app_state.speak_mode}}
     <span id="speak">
-      {{#triple-click-listener triple_click='meta_home_click'}}
+      {{#triple-click-listener triple_click="meta_home_click"}}
         <button class={{if on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
           <span class="sr-only">{{t "Home" key="home"}}</span>
           <span class="glyphicon glyphicon-home button_icon"></span>
           {{#unless app_state.eval_mode}}
             {{#if stashes.temporary_root_board_state}}
-              <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key='home_or_board_lock_set'}}></span>
+              <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key="home_or_board_lock_set"}}></span>
             {{else if stashes.sticky_board}}
-              <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key='board_lock_set'}}></span>
+              <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key="board_lock_set"}}></span>
             {{/if}}
           {{/unless}}
         </button>
@@ -24,14 +24,14 @@
       {{/if}}
       {{#unless app_state.eval_mode}}
         {{#if app_state.pairing}}
-          <button class={{if app_state.pairing.user.online 'btn over pair access online' 'btn over pair access'}} {{action 'remote_modeling'}} id='reply_icon'>
+          <button class={{if app_state.pairing.user.online "btn over pair access online" "btn over pair access"}} {{action "remote_modeling"}} id='reply_icon'>
             {{#if app_state.pairing.model}}
               <span class='glyphicon glyphicon-road'></span>
             {{else}}
               <span class='glyphicon glyphicon-search'></span>
             {{/if}}
             {{#if app_state.pairing.user}}
-              <img src={{app_state.pairing.user.avatar_url_with_fallback}} />
+              <img src={{app_state.pairing.user.avatar_url_with_fallback}} >
             {{/if}}
           </button>
         {{else if app_state.reply_note}}
@@ -45,7 +45,7 @@
         {{else if app_state.followers.active}}
           <div class='label label-info over clear' id='reply_icon'>
             {{#each app_state.followers.active as |user|}}
-              <img src={{user.avatar_url}} class='follower' />
+              <img src={{user.avatar_url}} class='follower' >
             {{/each}}
           </div>
         {{else if app_state.clearable_history}}
@@ -58,8 +58,8 @@
         {{#unless app_state.button_list}}
           {{#if app_state.embedded}}
             <div style='float: left; margin: 5px; opacity: 0.7;'>
-              <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq" style='width: 20px;'/>
-              {{t "Powered by %app_name%" key='powered_by_app'}}
+              <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq" style='width: 20px;'>
+              {{t "Powered by %app_name%" key="powered_by_app"}}
             </div>
           {{else if app_state.currentUser.preferences.blank_status}}
             <div id="blank_status" class='text-muted'>
@@ -70,7 +70,7 @@
                     {{#if app_state.battery.charging}}
                       <span class="glyphicon glyphicon-flash"></span>
                     {{/if}}
-                    <span class="sr-only">{{t "%{pct}% battery" key='percent_battery' pct=app_state.battery.level}} {{#if app_state.battery.charging}}{{t "charging" key='charging'}}{{/if}}</span>
+                    <span class="sr-only">{{t "%{pct}% battery" key="percent_battery" pct=app_state.battery.level}} {{#if app_state.battery.charging}}{{t "charging" key="charging"}}{{/if}}</span>
                   </div>
                   {{#if app_state.battery.low}}
                     {{#unless app_state.battery.charging}}
@@ -80,9 +80,9 @@
                 </div>
               {{/if}}
               {{#if show_board_intro}}
-                <div {{action 'board_intro'}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
-                  <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'/>
-                  {{t "Intro" key='intro'}}
+                <div {{action "board_intro"}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
+                  <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'>
+                  {{t "Intro" key="intro"}}
                 </div>
               {{else if app_state.eye_gaze_state}}
                 <div class="eye_status" title={{app_state.eye_gaze_state.status}}>
@@ -113,14 +113,14 @@
                   </div>
                 {{/if}}
                 {{#if button.image}}
-                  <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false"/>
+                  <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false">
                 {{else}}
-                  <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false"/>
+                  <img src="https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg" onerror="button_broken_image(this);" draggable="false">
                 {{/if}}
                 {{#if button.sound}}
                   <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
                 {{/if}}
-                <div class={{if button.modeling 'text modeled' 'text'}}>{{ button.label }} </div>
+                <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
               </span>
             </div>
             {{#unless button.ghost}}
@@ -136,13 +136,13 @@
         {{#if app_state.currentUser.preferences.blank_status}}
           {{#unless app_state.eval_mode}}
             <!-- TODO: these popups should be dwellable, but if opened via dwell they should auto-close after like ten seconds -->
-            <button id='speak_mode_notification' class='btn btn-default' {{action 'speak_mode_notification'}}>
+            <button id='speak_mode_notification' class='btn btn-default' {{action "speak_mode_notification"}}>
               {{#if stashes.board_level}}
                 <span style='color: #ddd; font-size: 12px; position: absolute; top: 3px; text-align: right;'>L{{stashes.board_level}}</span>
               {{/if}}
               {{#if app_state.speak_mode_modeling_ideas.enabled}}
                 <span class='notification' style='height: 100%; position: absolute; top: 5px; left: 0; right: 0; bottom: 5px; height: auto;'>
-                  <img src={{path 'images/modeling_ideas.svg'}} style='height: 100%; width: 100%; opacity: 0.7;' class='fit_image'/>
+                  <img src={{path "images/modeling_ideas.svg"}} style='height: 100%; width: 100%; opacity: 0.7;' class='fit_image'>
                   {{#if app_state.speak_mode_modeling_ideas.word}}
                     <div style='position: absolute; left: 0; top: 3px; width: 100%; text-align: center;'>
                       <span style='border: 3px solid rgba(255, 255, 255, 0.7); border-radius: 3px;'>
@@ -161,7 +161,7 @@
                 </span>
               {{else if app_state.speak_mode_modeling_ideas.timeout}}
                 <span class='notification' style='height: 100%; position: absolute; top: 5px; left: 0; right: 0; bottom: 5px; height: auto;'>
-                  <img src={{path 'images/modeling_ideas.svg'}} style='height: 100%; width: 100%; opacity: 0.3;' class='fit_image'/>
+                  <img src={{path "images/modeling_ideas.svg"}} style='height: 100%; width: 100%; opacity: 0.3;' class='fit_image'>
                 </span>
               {{/if}}
             </button>
@@ -176,17 +176,17 @@
             {{else if app_state.referenced_user.request_alert}}
               <span class='label label-danger' style='position: absolute; top: -5px; right: -5px; border-radius: 10px;'>*</span>
             {{/if}}
-            <span class="sr-only">{{t "speak options" key='speak_options'}}</span><span class="glyphicon glyphicon-chevron-down"></span>
+            <span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span>
           </button>
         {{/unless}}
       {{/unless}}
       <button class="btn btn-default access skinnier" id="backspace_button" {{action "backspace"}}>
-        <span class="sr-only">{{t "backspace" key='backspace_lower'}}</span>
-        <img src={{path "images/delete.svg"}}/>
+        <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
+        <img src={{path "images/delete.svg"}}>
       </button>
-      {{#triple-click-listener triple_click='toggle_modeling'}}
+      {{#triple-click-listener triple_click="toggle_modeling"}}
         <button class="btn btn-default access" id="clear_button" {{action "clear"}} style='position: relative;'>
-          <span class="sr-only">{{t "clear" key='clear_lower'}}</span>
+          <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
           <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
           {{#if app_state.modeling}}
             <div style="position: absolute; bottom: 2px; left: 2px;">
@@ -203,7 +203,7 @@
         {{#unless app_state.edit_mode}}
           {{#unless app_state.embedded}}
             <span style='float: right;' class='not_pretty_skinny'>
-              <a href="#" {{action 'support'}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
+              <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
             </span>
           {{/unless}}
         {{/unless}}
@@ -217,7 +217,7 @@
     <h1 class={{app_state.h1_class}} style='position: relative; z-index: 1;'>
 
       <a href="#" {{action "index"}}>
-        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq"/>
+        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
@@ -226,26 +226,26 @@
     {{#if app_state.currentBoardState.id}}
       {{#unless app_state.edit_mode}}
         {{#if app_state.from_route}}
-          <button id='board_done' class='btn btn-default' {{action 'back_to_from_route'}}>
+          <button id='board_done' class='btn btn-default' {{action "back_to_from_route"}}>
             <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
-            <span style='font-size: 16px;'>{{t "Done" key='done'}}</span>
-            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key='with_boards'}}</span>
+            <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
+            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
           </button>
         {{/if}}
         <span id="board_id">
           {{#if app_state.current_board_is_home}}
-            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 20px; width: 20px; vertical-align: bottom; margin-top: 10px;"/>
+            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 20px; width: 20px; vertical-align: bottom; margin-top: 10px;">
           {{else}}
             {{#if board.model.image_url}}
-              <img src={{board.model.image_url}} style="width: 20px; height: 20px; vertical-align: bottom; margin-top: 10px;"/>
+              <img src={{board.model.image_url}} style="width: 20px; height: 20px; vertical-align: bottom; margin-top: 10px;">
             {{else}}
               <span style="display: inline-block; height: 30px;"></span>
             {{/if}}
           {{/if}}
           {{#if app_state.current_board_in_board_set}}
-            <span class="glyphicon glyphicon-align-justify" title={{t "in the user's board set" key='in_board_set'}}></span>
+            <span class="glyphicon glyphicon-align-justify" title={{t "in the user's board set" key="in_board_set"}}></span>
           {{else if app_state.current_board_in_extended_board_set}}
-            <span class="glyphicon glyphicon-list" title={{t "in a supervisee's board set" key='in_supervisee_board_set'}}></span>
+            <span class="glyphicon glyphicon-list" title={{t "in a supervisee's board set" key="in_supervisee_board_set"}}></span>
           {{/if}}
 
           {{#if app_state.currentBoardState.integration_name}}
@@ -254,7 +254,7 @@
             {{#if board.model.local_only}}
               {{app_state.current_board_user_name}} / 
             {{else}}
-              {{#link-to 'user' app_state.current_board_user_name}}{{app_state.current_board_user_name}}{{/link-to}} /
+              {{#link-to "user" app_state.current_board_user_name}}{{app_state.current_board_user_name}}{{/link-to}} /
             {{/if}}
             {{app_state.current_board_name}}
           {{/if}}
@@ -274,7 +274,7 @@
               <div style="float: left; margin-right: 4px; width: 150px;">
               {{input type="text" value=searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
               </div>
-              <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key='go'}}</button>
+              <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
               <div style="clear: left;"></div>
             </form>
           {{/if}}
@@ -289,9 +289,9 @@
               {{#if app_state.domain_settings.full_domain}}
                 {{#unless app_state.currentUser}}
                   <div class='signup_links'>
-                    {{#link-to 'register'}}<span style='color: #444;'>{{t "2-Month Trial" key='two_month_trial'}}</span>{{/link-to}}
+                    {{#link-to "register"}}<span style='color: #444;'>{{t "2-Month Trial" key="two_month_trial"}}</span>{{/link-to}}
                     <span style='color: #aaa; padding: 0 5px;'> | </span>
-                    {{#link-to 'gift_purchase'}}<span style='color: #444;'>{{t "Gift Purchase" key='gift_purchase'}}</span>{{/link-to}}
+                    {{#link-to "gift_purchase"}}<span style='color: #444;'>{{t "Gift Purchase" key="gift_purchase"}}</span>{{/link-to}}
                   </div>
                 {{/unless}}
               {{/if}}
@@ -309,17 +309,17 @@
           {{t "Copy Button to Stash" key="copy_button_to_stash"}}
         </button>
       {{else if board.preview_levels}}
-        <button class="btn btn-default drag_button" {{action 'shift_level' 'down'}} style="position: relative; width: 50px;">
+        <button class="btn btn-default drag_button" {{action "shift_level" "down"}} style="position: relative; width: 50px;">
           <span class='glyphicon glyphicon-chevron-left'></span>
         </button>
         <span style='font-size: 20px; margin: 0 10px; width: 90px; display: inline-block; text-align: center;'>
-          {{t "Level" key='level'}} {{board.current_level}}
+          {{t "Level" key="level"}} {{board.current_level}}
         </span>
-        <button class="btn btn-default drag_button" {{action 'shift_level' 'up'}} style="position: relative; width: 50px;">
+        <button class="btn btn-default drag_button" {{action "shift_level" "up"}} style="position: relative; width: 50px;">
           <span class='glyphicon glyphicon-chevron-right'></span>
         </button>
-        <button class="btn btn-info" {{action 'shift_level' 'done'}} style="position: relative; width: 100px;">
-          {{t "Done" key='done'}}
+        <button class="btn btn-info" {{action "shift_level" "done"}} style="position: relative; width: 100px;">
+          {{t "Done" key="done"}}
         </button>
       {{else}}
         <button class={{no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
@@ -369,9 +369,9 @@
             </li>
             {{#if app_state.feature_flags.board_levels}}
               <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{action "paint" 'level'}}>
+                <a role="menuitem" href="#" tabindex="-1" {{action "paint" "level"}}>
                   <span class="glyphicon glyphicon-signal"></span>
-                  {{t "Level Modifications" key='level_modifications'}}
+                  {{t "Level Modifications" key="level_modifications"}}
                 </a>
               </li>
             {{/if}}
@@ -386,27 +386,27 @@
             <li role="presentation" id="grid_menuitem">
               <span style="display: block; width: 300px; height: 200px; position: relative;">
                 <span style="position: absolute; top: 0px; left: 0; width: 100%; text-align: center;">
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span><span class="sr-only">{{t "Top Row "key='top_row'}}</span></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Top Row" key='add_top_row'}}</span></a>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Top Row" key='remove_top_row'}}</span></a>
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span><span class="sr-only">{{t "Top Row "key="top_row"}}</span></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Top Row" key="add_top_row"}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Top Row" key="remove_top_row"}}</span></a>
                   <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span></span>
                 </span>
                 <span style="position: absolute; top: 53px; width: 50%; right: 0; text-align: right; line-height: 45px;">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Right Column" key='add_right_column'}}</span></a>
-                  <span class="glyphicon glyphicon-chevron-right"></span><br/>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Right Column" key='remove_right_column'}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Right Column" key="add_right_column"}}</span></a>
+                  <span class="glyphicon glyphicon-chevron-right"></span><br>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Right Column" key="remove_right_column"}}</span></a>
                   <span class="glyphicon glyphicon-chevron-right"></span>
                 </span>
                 <span style="position: absolute; top: 53px; width: 50%; left: 0; text-align: left; line-height: 45px;">
                   <span class="glyphicon glyphicon-chevron-left"></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Left Column" key='add_left_column'}}</span></a><br/>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Left Column" key="add_left_column"}}</span></a><br>
                   <span class="glyphicon glyphicon-chevron-left"></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Left Column" key='remove_left_column'}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Left Column" key="remove_left_column"}}</span></a>
                 </span>
                 <span style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;">
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span><span class="sr-only">{{t "Bottom Rowx" key='bottom_row'}}</span></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Bottom Row" key='add_bottom_row'}}</span></a>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Bottom Row" key='remove_bottom_row'}}</span></a>
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span><span class="sr-only">{{t "Bottom Rowx" key="bottom_row"}}</span></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Bottom Row" key="add_bottom_row"}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Bottom Row" key="remove_bottom_row"}}</span></a>
                   <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span></span>
                 </span>
               </span>
@@ -453,21 +453,21 @@
           {{#unless app_state.empty_board_history}}
             <a class="btn btn-default" href="#" {{action "back"}}>
               <span class="glyphicon glyphicon-arrow-left"></span>
-              <span class="hidden">{{t "back" key='back_lower'}}</span>
+              <span class="hidden">{{t "back" key="back_lower"}}</span>
             </a>
           {{/unless}}
           {{#if app_state.currentBoardState.id}}
             {{#if simple_board_header}}
-              <a class="btn btn-default" href="#" {{action "toggleSpeakMode" 'goBrowsedHome'}} id="speak_mode" data-placement="bottom" data-trigger="manual">
+              <a class="btn btn-default" href="#" {{action "toggleSpeakMode" "goBrowsedHome"}} id="speak_mode" data-placement="bottom" data-trigger="manual">
                 <span class="wide">{{t "Try in Speak Mode" key="try_in_speak_mode"}}</span><span class="skinny real_skinny glyphicon glyphicon-volume-up"></span>
               </a>
               {{#if app_state.currentUser}}
                 {{#if app_state.root_board_is_home}}
-                  <a class="btn btn-default" href="#" {{action "setAsHome" 'starting'}}>
+                  <a class="btn btn-default" href="#" {{action "setAsHome" "starting"}}>
                     <span class="wide"><span class='glyphicon glyphicon-ok'></span> {{t "Set as Home Board" key="set_as_home_board"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                   </a>
                 {{else}}
-                  <a class="btn btn-primary" href="#" {{action "setAsHome" 'starting'}}>
+                  <a class="btn btn-primary" href="#" {{action "setAsHome" "starting"}}>
                     <span class="wide">{{t "Make This my Home Board" key="make_home_board"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                   </a>
                 {{/if}}
@@ -482,22 +482,22 @@
                     </a>
                     <ul class="dropdown-menu" role="menu">
                       {{#if app_state.currentUser.communicator_in_supporter_view}}
-                        <li><a href="#" {{action "setSpeakModeUser" 'self' 'modeling'}}>{{t "model for me" key='model_for_me'}}</a></li>
+                        <li><a href="#" {{action "setSpeakModeUser" "self" "modeling"}}>{{t "model for me" key="model_for_me"}}</a></li>
                       {{/if}}
-                      <li><a href="#" {{action "setSpeakModeUser" 'self'}}>{{t "speak as me" key='speak_as_me'}}</a></li>
+                      <li><a href="#" {{action "setSpeakModeUser" "self"}}>{{t "speak as me" key="speak_as_me"}}</a></li>
                       {{#if app_state.currentUser.permissions.delete}}
                         {{#if few_supervisees}}
                           {{#each few_supervisees.list as |supervisee|}}
-                            <li><a href="#" {{action "setSpeakModeUser" supervisee.id 'modeling'}}>{{t "model for" key='model_for_lower'}} {{supervisee.user_name}}</a></li>
-                            <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key='speak_as_lower'}} {{supervisee.user_name}}</a></li>
+                            <li><a href="#" {{action "setSpeakModeUser" supervisee.id "modeling"}}>{{t "model for" key="model_for_lower"}} {{supervisee.user_name}}</a></li>
+                            <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</a></li>
                           {{/each}}
                           {{#if few_supervisees.more}}
-                            <li><a href="#" {{action "pickSpeakModeUser" 'modeling'}}>{{t "model for..." key='model_for_ellipsis'}}</a></li>
-                            <li><a href="#" {{action "pickSpeakModeUser" 'speak'}}>{{t "speak as..." key='speak_as_ellipsis'}}</a></li>
+                            <li><a href="#" {{action "pickSpeakModeUser" "modeling"}}>{{t "model for..." key="model_for_ellipsis"}}</a></li>
+                            <li><a href="#" {{action "pickSpeakModeUser" "speak"}}>{{t "speak as..." key="speak_as_ellipsis"}}</a></li>
                           {{/if}}
                         {{else}}
-                          <li><a href="#" {{action "pickSpeakModeUser" 'modeling'}}>{{t "model for..." key='model_for_ellipsis'}}</a></li>
-                          <li><a href="#" {{action "pickSpeakModeUser" 'speak'}}>{{t "speak as..." key='speak_as_ellipsis'}}</a></li>
+                          <li><a href="#" {{action "pickSpeakModeUser" "modeling"}}>{{t "model for..." key="model_for_ellipsis"}}</a></li>
+                          <li><a href="#" {{action "pickSpeakModeUser" "speak"}}>{{t "speak as..." key="speak_as_ellipsis"}}</a></li>
                         {{/if}}
                       {{/if}}
                     </ul>
@@ -519,29 +519,29 @@
                       </a>
                       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
                         <li role="presentation">
-                          <button class='skippy btn btn-default' {{action 'adjust_level' 'minus'}}><span class='glyphicon glyphicon-minus'></span></button>
+                          <button class='skippy btn btn-default' {{action "adjust_level" "minus"}}><span class='glyphicon glyphicon-minus'></span></button>
                           <span style='display: inline-block; width: 200px; vertical-align: top; text-align: center;'>
-                            {{t "Board Communication" key='board_level'}}<br/>
+                            {{t "Board Communication" key="board_level"}}<br>
                             {{#if level_description}}
-                              <b>{{t "Level" key='level'}} {{level_description}}</b>
+                              <b>{{t "Level" key="level"}} {{level_description}}</b>
                             {{else}}
-                              <b>{{t "Level" key='level'}} {{board.current_level}}</b>
+                              <b>{{t "Level" key="level"}} {{board.current_level}}</b>
                             {{/if}}
                             {{#if level_buttons}}
-                              <div style='font-size: 12px;'>{{t "visible button" key='n_visible_buttons' count=level_buttons}}</div>
+                              <div style='font-size: 12px;'>{{t "visible button" key="n_visible_buttons" count=level_buttons}}</div>
                             {{/if}}
                           </span>
-                          <button class='skippy btn btn-default' {{action 'adjust_level' 'plus'}}><span class='glyphicon glyphicon-plus'></span></button>
+                          <button class='skippy btn btn-default' {{action "adjust_level" "plus"}}><span class='glyphicon glyphicon-plus'></span></button>
                         </li>
                         <li>
                           <div style='width: calc(100% - 10px); font-size: 12px; white-space: normal; margin: 15px 10px 5px;'>
-                            {{t "Some boards are built with progressive levels in mind, so you can start basic and grow the vocabulary over time without having to rebuild everything. Find a level that works for your communicator, you can easily change it later." key='board_levels_explainer'}}
+                            {{t "Some boards are built with progressive levels in mind, so you can start basic and grow the vocabulary over time without having to rebuild everything. Find a level that works for your communicator, you can easily change it later." key="board_levels_explainer"}}
                           </div>
                         </li>
                         {{#if board.model.has_overrides}}
                           {{#if board.model.permissions.edit}}
                             <li>
-                              <button class='btn btn-default' style='width: 100%;' {{action 'clear_overrides'}}>{{t "Clear Level Overrides" key='clear_level_overrides'}}</button>
+                              <button class='btn btn-default' style='width: 100%;' {{action "clear_overrides"}}>{{t "Clear Level Overrides" key="clear_level_overrides"}}</button>
                             </li>
                           {{/if}}
                         {{/if}}
@@ -551,21 +551,21 @@
                 {{else}}
                   {{#if board.model.multiple_copies}}
                     <span style="margin-right: -1px;">
-                    <a href="#" class='btn btn-info' {{action 'list_copies'}}>
+                    <a href="#" class='btn btn-info' {{action "list_copies"}}>
                       <span class="wide">{{t "Copies" key="copies"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     </a>
                     </span>
                   {{else if board.model.copy.key}}
                     <!-- TODO: no idea why this is necessary -->
                     <span style="margin-right: -1px;">
-                    {{#link-to 'board' board.model.copy.key class='btn btn-info'}}
+                    {{#link-to "board" board.model.copy.key class="btn btn-info"}}
                       <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                     {{/link-to}}
                     </span>
                   {{else if board.model.original.key}}
                     <!-- TODO: no idea why this is necessary -->
                     <span style="margin-right: -1px;">
-                    {{#link-to 'board' board.model.original.key class='btn btn-info'}}
+                    {{#link-to "board" board.model.original.key class="btn btn-info"}}
                       <span class="wide">{{t "Original" key="original"}}</span><span class="skinny real_skinny glyphicon glyphicon-certificate"></span>
                     {{/link-to}}
                     </span>
@@ -615,12 +615,12 @@
               {{#unless board.model.uncopyable}}
                 {{#if app_state.currentUser}}
                   <a class='btn btn-default medium_skinny not_really_skinny' href="#" {{action "star"}}>
-                    <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;"/>
+                    <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;">
                     <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{board.stars}}</span>
                   </a>
                 {{else}}
                   <span class='btn btn-default not_really_skinny' href="#">
-                    <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;"/>
+                    <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;">
                     <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{board.stars}}</span>
                   </span>
                 {{/if}}
@@ -642,7 +642,7 @@
                     {{#if app_state.currentUser}}
                       {{#if board.model.permissions.edit}}
                         <li role="presentation">
-                          <a role="menuitem" tabindex="-1" href="#" {{action "toggleEditMode"}}>{{t "Edit Board" key='edit_board'}}</a>
+                          <a role="menuitem" tabindex="-1" href="#" {{action "toggleEditMode"}}>{{t "Edit Board" key="edit_board"}}</a>
                         </li>
                       {{/if}}
                       <li role="presentation">
@@ -668,22 +668,22 @@
                     {{#if board.model.local_only}}
                       {{#if board.model.editable_source_key}} 
                           <li role="presentation">
-                            {{#link-to 'board' board.model.editable_source_key role='menuitem' tabindex='-1'}}{{t "Editable Version" key="editable_version"}}{{/link-to}}
+                            {{#link-to "board" board.model.editable_source_key role="menuitem" tabindex="-1"}}{{t "Editable Version" key="editable_version"}}{{/link-to}}
                           </li>
                       {{/if}}
                     {{else}}
                       {{#if board.model.levels}}
                         {{#if board.model.multiple_copies}}
                           <li role="presentation">
-                            <a role='menuitem' tabindex='-1' href="#" {{action 'list_copies'}}>{{t "View Copies" key="view_copies"}}</a>
+                            <a role='menuitem' tabindex='-1' href="#" {{action "list_copies"}}>{{t "View Copies" key="view_copies"}}</a>
                           </li>
                         {{else if board.model.copy.key}}
                           <li role="presentation">
-                            {{#link-to 'board' board.model.copy.key role='menuitem' tabindex='-1'}}{{t "View My Copy" key="view_my_copy"}}{{/link-to}}
+                            {{#link-to "board" board.model.copy.key role="menuitem" tabindex="-1"}}{{t "View My Copy" key="view_my_copy"}}{{/link-to}}
                           </li>
                         {{else if board.model.original.key}}
                           <li role="presentation">
-                            {{#link-to 'board' board.model.original.key role='menuitem' tabindex='-1'}}{{t "View Original" key="original_board"}}{{/link-to}}
+                            {{#link-to "board" board.model.original.key role="menuitem" tabindex="-1"}}{{t "View Original" key="original_board"}}{{/link-to}}
                           </li>
                         {{/if}}
                       {{/if}}
@@ -703,9 +703,9 @@
     {{/if}}
     </span>
   {{/if}}
-    <span id="identity" class={{if app_state.speak_mode 'advanced_selection undwellable' 'advanced_selection'}}>
-      <span style="display: inline-block;" class={{if app_state.super_no_linky 'dropdown hidden' 'dropdown'}}>
-        <a class={{if persistence.online 'btn btn-default online' 'btn btn-default offline'}} id='identity_button' href="#" data-toggle="dropdown">
+    <span id="identity" class={{if app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}}>
+      <span style="display: inline-block;" class={{if app_state.super_no_linky "dropdown hidden" "dropdown"}}>
+        <a class={{if persistence.online "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if app_state.speak_mode}}
             {{#if stashes.logging_enabled}}
               {{#unless stashes.logging_paused_at}}
@@ -717,15 +717,15 @@
           {{/if}}
           {{#if app_state.currentUser}}
             <span class='user_holder'>
-              <img src={{app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' />
+              <img src={{app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if app_state.modeling_for_user}}
               {{#unless app_state.modeling_for_self}}
-                <img src={{app_state.referenced_speak_mode_user.avatar_url_with_fallback}} class='modeling_user' onerror='button_broken_image(this);' />
+                <img src={{app_state.referenced_speak_mode_user.avatar_url_with_fallback}} class='modeling_user' onerror='button_broken_image(this);' >
               {{/unless}}
             {{/if}}
             {{#if session.invalid_token}}
-              <span class="label label-danger unread">{{t "!" key='exclaim'}}</span>
+              <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
             {{else if stashes.logging_paused_at }}
               <span class="label label-primary unread" style='padding: 3px;'><span class='glyphicon glyphicon-pause'></span></span>
             {{else if persistence.syncing}}
@@ -734,7 +734,7 @@
                 <span class="glyphicon glyphicon-refresh" style='color: #fff; position: absolute; left: 2px; top: 2px;'></span>
               </span>
             {{else if persistence.app_needs_update}}
-              <span class="label label-danger unread">{{t "!" key='exclaim'}}</span>
+              <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
             {{else if app_state.currentUser.unread_messages}}
               {{#unless app_state.speak_mode}}
                 <span class="label label-danger unread">{{app_state.currentUser.unread_messages}}</span>
@@ -743,7 +743,7 @@
               <span class='status unread'></span>
             {{/if}}
           {{else}}
-            <img src={{path 'images/settings.png'}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;"/>
+            <img src={{path "images/settings.png"}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;">
           {{/if}}
           {{#if session.isAuthenticated}}
             {{#unless app_state.currentUser.preferences.new_index}}
@@ -753,7 +753,7 @@
             {{/unless}}
           {{else}}
             <span class="user_name">
-              {{t "Not signed in" key='not_signed_in'}}
+              {{t "Not signed in" key="not_signed_in"}}
             </span>
           {{/if}}
           <span class="caret"></span>
@@ -765,7 +765,7 @@
                 {{#if app_state.currentUser}}
                   {{#if app_state.currentUser.permissions.delete}}
                     <li role="presentation" class='big' id='exit_speak_mode'>
-                      <a href="#" {{action "setAsHome" 'starting'}}>
+                      <a href="#" {{action "setAsHome" "starting"}}>
                         {{#if app_state.root_board_is_home}}
                           {{t "Set as Home Board" key="set_as_home_board"}}
                         {{else}}
@@ -790,30 +790,30 @@
                 {{#if can_edit_from_speak_mode}}
                   <a href="#" {{action "toggleSpeakMode"}} style='display: inline-block; width: calc(100% - 40px); overflow: hidden; padding-bottom: 10px; margin-bottom: -10px;'>
                     {{t "Exit Speak Mode" key="exit_speak_mode"}}
-                    <div style='color: #888; font-size: 14px; margin: -5px 0;'>{{t "Settings, Menu, etc." key='settings_etc'}}</div>
-                  </a><a href='#' {{action 'toggleEditMode'}} style='display: inline-block; width: 40px; overflow: hidden; height: 55px; margin-bottom: -10px; padding-left: 0; padding-right: 0; text-align: center;'>
+                    <div style='color: #888; font-size: 14px; margin: -5px 0;'>{{t "Settings, Menu, etc." key="settings_etc"}}</div>
+                  </a><a href='#' {{action "toggleEditMode"}} style='display: inline-block; width: 40px; overflow: hidden; height: 55px; margin-bottom: -10px; padding-left: 0; padding-right: 0; text-align: center;'>
                     <span class='glyphicon glyphicon-pencil'></span>
                   </a>
                 {{else}}
                   <a href="#" {{action "toggleSpeakMode"}} style='display: inline-block; width: 100%; overflow: hidden; padding-bottom: 10px; margin-bottom: -10px;'>
                     {{t "Exit Speak Mode" key="exit_speak_mode"}}
-                    <div style='color: #888; font-size: 14px; margin: -5px 0;'>{{t "Settings, Menu, etc." key='settings_etc'}}</div>
+                    <div style='color: #888; font-size: 14px; margin: -5px 0;'>{{t "Settings, Menu, etc." key="settings_etc"}}</div>
                   </a>
                 {{/if}}
               </li>
               {{#unless stashes.temporary_root_board_state}}
                 {{#if stashes.root_board_state.meta_home}}
-                  <li><a href="#" {{action "meta_home"}}>{{t "Return to Home List" key='return_to_home_list'}}</a></li>
+                  <li><a href="#" {{action "meta_home"}}>{{t "Return to Home List" key="return_to_home_list"}}</a></li>
                 {{/if}}
               {{/unless}}
 
               {{#if app_state.embedded}}
                 <li class="divider"></li>
                 <li role="presentation">
-                  <a href="#" {{action 'printBoard'}}>{{t "Print this Board" key="print_this_board_cap"}}</a>
+                  <a href="#" {{action "printBoard"}}>{{t "Print this Board" key="print_this_board_cap"}}</a>
                 </li>
                 <li role="presentation">
-                  <a href="#" {{action 'launch_board'}}>{{t "Open in %app_name%" key="open_in_app"}}</a>
+                  <a href="#" {{action "launch_board"}}>{{t "Open in %app_name%" key="open_in_app"}}</a>
                 </li>
                 {{#if app_state.full_screen_capable}}
                   <li role="presentation">
@@ -823,7 +823,7 @@
                 <li role="presentation">
                   <a href="#" {{action "about_modal"}}>{{t "About %app_name%" key="about_app"}}</a>
                 </li>
-                <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key='find_a_button'}}</a></li>
+                <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key="find_a_button"}}</a></li>
               {{/if}}
               {{#unless app_state.superProtectedSpeakMode}}
                 {{#if session.isAuthenticated}}
@@ -836,7 +836,7 @@
             {{#if session.isAuthenticated}}
               <li role="presentation">
                 <a href="#" {{action "invalidateSession"}}>
-                  <span class='label label-danger'>{{t "!" key='exclaim'}}</span>
+                  <span class='label label-danger'>{{t "!" key="exclaim"}}</span>
                   {{t "Please Re-Login" key="please_relogin"}}
                 </a>
               </li>
@@ -844,14 +844,14 @@
           {{else if persistence.app_needs_update}}
             <li role="presentation">
               <a href="#" {{action "confirm_update"}}>
-                <span class='label label-danger'>{{t "!" key='exclaim'}}</span>
+                <span class='label label-danger'>{{t "!" key="exclaim"}}</span>
                 {{t "Update Available" key="update_available"}}
               </a>
             </li>
           {{/if}}
           {{#if app_state.speak_mode}}
             {{#if app_state.sidebar_relegated}}
-              <li><a href="#" {{action "toggleSidebar"}}>{{t "Show Sidebar" key='show_sidebar'}}</a></li>
+              <li><a href="#" {{action "toggleSidebar"}}>{{t "Show Sidebar" key="show_sidebar"}}</a></li>
             {{/if}}
           {{/if}}
           {{#unless app_state.limited_speak_mode_options}}
@@ -859,23 +859,23 @@
               <li class="dropdown-header">{{app_state.currentUser.name}}</li>
               {{#unless app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key='dashboard'}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
                 </li>
               {{/unless}}
               {{#if app_state.currentUser.permissions.delete}}
                 <li role="presentation">
-                  {{#link-to "user" app_state.currentUser.user_name}}{{t "My Account" key='my_account'}}{{/link-to}}
+                  {{#link-to "user" app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
                 </li>
               {{/if}}
               {{#if persistence.syncing}}
                 <li role="presentation" style='display: none;'>
-                  <a href="#" {{action 'cancel_sync'}}>{{t "Cancel Sync" key='cancel_sync'}}</a>
+                  <a href="#" {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</a>
                 </li>
               {{/if}}
             {{else}}
               {{#unless app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key='dashboard'}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
                 </li>
               {{/unless}}
             {{/if}}
@@ -886,17 +886,17 @@
                 {{#unless app_state.currentUser.preferences.prevent_hide_buttons}}
                   {{#unless app_state.eval_mode}}
                     {{#if no_hidden_buttons}}
-                      <li><a href="#" {{action 'toggle_all_buttons'}} style={{if session.isAuthenticated 'margin-top: -10px; font-size: 14px;' 'font-size: 14px;'}}>
+                      <li><a href="#" {{action "toggle_all_buttons"}} style={{if session.isAuthenticated "margin-top: -10px; font-size: 14px;" "font-size: 14px;"}}>
                         <span class="glyphicon glyphicon-apple"></span>
-                        {{t "No Hidden Buttons" key='no_hidden_buttons'}}
+                        {{t "No Hidden Buttons" key="no_hidden_buttons"}}
                       </a></li>
                     {{else}}
-                      <li><a href="#" {{action 'toggle_all_buttons'}}>
+                      <li><a href="#" {{action "toggle_all_buttons"}}>
                         <span class="glyphicon glyphicon-apple"></span>
                         {{#if stashes.all_buttons_enabled}}
-                          {{t "Hide Hidden Buttons" key='hide_disabled_buttons'}}
+                          {{t "Hide Hidden Buttons" key="hide_disabled_buttons"}}
                         {{else}}
-                          {{t "Show Hidden Buttons" key='show_all_buttons'}}
+                          {{t "Show Hidden Buttons" key="show_all_buttons"}}
                         {{/if}}
                       </a></li>
                     {{/if}}
@@ -904,11 +904,11 @@
                 {{/unless}}
                 {{#if app_state.feature_flags.focus_word_highlighting}}
                   {{#unless app_state.eval_mode}}
-                    <li><a href="#" {{action 'toggle_focus'}}>
+                    <li><a href="#" {{action "toggle_focus"}}>
                       {{#if app_state.focus_words}}
-                        {{t "Clear Focus Words" key='clear_focus_words'}}
+                        {{t "Clear Focus Words" key="clear_focus_words"}}
                       {{else}}
-                        {{t "Focus Words" key='focus_words'}}
+                        {{t "Focus Words" key="focus_words"}}
                       {{/if}}
                     </a></li>
                   {{/unless}}
@@ -919,54 +919,54 @@
               {{#if app_state.sessionUser.supervisees}}
                 {{#if app_state.speak_mode}}
                   {{#if app_state.currentUser.permissions.delete}}
-                    <li><a href="#" {{action "switch_communicators"}}>{{t "Switch Communicators" key='switch_communicators'}}</a></li>
+                    <li><a href="#" {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</a></li>
                   {{/if}}
                 {{/if}}
               {{/if}}
               {{#if app_state.currentBoardState}}
-                <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key='find_a_button'}}</a></li>
+                <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key="find_a_button"}}</a></li>
               {{/if}}
             {{/unless}}
             {{#if session.isAuthenticated}}
               {{#if app_state.currentBoardState}}
                 {{#if app_state.speak_mode}}
                   {{#if app_state.eval_mode}}
-                    <li><a href="#" {{action "repeat_prompt"}}><span class='glyphicon glyphicon-volume-up'></span> {{t "Repeat Prompt" key='repeat_prompt'}}</a></li>
-                    <li><a href="#" {{action "change_section" 'forward'}}><span class='glyphicon glyphicon-chevron-right'></span> {{t "Next Section" key='next_section'}}</a></li>
-                    <li><a href="#" {{action "change_section" 'back'}}><span class='glyphicon glyphicon-chevron-left'></span> {{t "Previous Section" key='previous_section'}}</a></li>
-                    <li><a href="#" {{action "jump_section"}}><span class='glyphicon glyphicon-th-list'></span> {{t "Jump To..." key='jump_to'}}</a></li>
-                    <li><a href="#" {{action "assessment_settings"}}><span class='glyphicon glyphicon-cog'></span> {{t "Eval Settings" key='eval_settings'}}</a></li>
+                    <li><a href="#" {{action "repeat_prompt"}}><span class='glyphicon glyphicon-volume-up'></span> {{t "Repeat Prompt" key="repeat_prompt"}}</a></li>
+                    <li><a href="#" {{action "change_section" "forward"}}><span class='glyphicon glyphicon-chevron-right'></span> {{t "Next Section" key="next_section"}}</a></li>
+                    <li><a href="#" {{action "change_section" "back"}}><span class='glyphicon glyphicon-chevron-left'></span> {{t "Previous Section" key="previous_section"}}</a></li>
+                    <li><a href="#" {{action "jump_section"}}><span class='glyphicon glyphicon-th-list'></span> {{t "Jump To..." key="jump_to"}}</a></li>
+                    <li><a href="#" {{action "assessment_settings"}}><span class='glyphicon glyphicon-cog'></span> {{t "Eval Settings" key="eval_settings"}}</a></li>
                   {{else}}
                     {{#if app_state.currentBoardState.translatable}}
-                      <li><a href="#" {{action "switch_languages"}}>{{t "Switch Languages" key='switch_languages'}}</a></li>
+                      <li><a href="#" {{action "switch_languages"}}>{{t "Switch Languages" key="switch_languages"}}</a></li>
                     {{/if}}
                     {{#if stashes.sticky_board}}
-                      <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key='release_board_lock'}}</a></li>
+                      <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
                     {{else}}
-                      <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key='stay_on_board'}}</a></li>
+                      <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
                     {{/if}}
                     {{#if stashes.temporary_root_board_state}}
-                      <li><a href="#" {{action "toggle_home_lock"}}>{{t "Release Home Lock" key='release_home_lock'}}</a></li>
+                      <li><a href="#" {{action "toggle_home_lock"}}>{{t "Release Home Lock" key="release_home_lock"}}</a></li>
                     {{else}}
                       {{#unless app_state.current_board_is_speak_mode_home}}
-                        <li><a href="#" {{action "toggle_home_lock"}}>{{t "Set As Temporary Home" key='temporary_home'}}</a></li>
+                        <li><a href="#" {{action "toggle_home_lock"}}>{{t "Set As Temporary Home" key="temporary_home"}}</a></li>
                       {{/unless}}
                     {{/if}}
                     {{#if app_state.feature_flags.find_multiple_buttons}}
                       {{#if has_board_intro}}
-                        <li><a href="#" {{action "board_intro"}}>{{t "Board Intro" key='board_intro'}}</a></li>
+                        <li><a href="#" {{action "board_intro"}}>{{t "Board Intro" key="board_intro"}}</a></li>
                       {{/if}}
                     {{/if}}
                     {{#if app_state.currentUser.preferences.logging}}
                       {{#if app_state.logging_paused}}
                         <li><a href="#" {{action "toggle_pause_logging"}}>
                           <span class="label label-primary" style='padding: 3px;'><span class='glyphicon glyphicon-play'></span></span>
-                          {{t "Resume Logging" key='resume_logging'}}
+                          {{t "Resume Logging" key="resume_logging"}}
                         </a></li>
                       {{else}}
                         <li><a href="#" {{action "toggle_pause_logging"}}>
                           <span class="" style='padding: 3px;'><span class='glyphicon glyphicon-briefcase'></span></span>
-                          {{t "Pause Logging" key='pause_logging'}}
+                          {{t "Pause Logging" key="pause_logging"}}
                         </a></li>
                       {{/if}}
                     {{else}}
@@ -980,25 +980,25 @@
           {{#unless app_state.limited_speak_mode_options}}
             {{#if session.isAuthenticated}}
               {{#unless app_state.speak_mode}}
-                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key='find_board'}}{{/link-to}}</li>
+                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key="find_board"}}{{/link-to}}</li>
                 {{#if app_state.currentUser.permissions.delete}}
-                  <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key='create_a_new_board'}}</a></li>
+                  <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
                 {{/if}}
               {{/unless}}
               {{#if app_state.currentUser.permissions.delete}}
-                <li>{{#link-to 'user.preferences' app_state.currentUser.user_name}}{{t "Preferences" key='preferences'}}{{/link-to}}</li>
-                <li>{{#link-to 'user.logs' app_state.currentUser.user_name (query-params type='note')}}
+                <li>{{#link-to "user.preferences" app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
+                <li>{{#link-to "user.logs" app_state.currentUser.user_name (query-params type="note")}}
                   {{#if app_state.currentUser.unread_messages}}
                     <span class="label label-danger" style="border-radius: 5px;">{{app_state.currentUser.unread_messages}}</span>
                   {{/if}}
-                  {{t "Messages" key='messages'}}
+                  {{t "Messages" key="messages"}}
                 {{/link-to}}</li>
               {{/if}}
               {{#if session.as_user_id}}
-                <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key='stop_masquerading'}}</a></li>
+                <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
               {{#unless app_state.speak_mode}}
-                <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key='logout'}}</a></li>
+                <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
               <li role="presentation">
@@ -1013,7 +1013,7 @@
               {{/unless}}
               {{#if app_state.feature_flags.emergency_boards}}              
                 <li role="presentation">
-                  {{#link-to 'offline_boards' class='critical_access'}}{{t "Basic Access" key='critical_access'}}{{/link-to}}
+                  {{#link-to "offline_boards" class="critical_access"}}{{t "Basic Access" key="critical_access"}}{{/link-to}}
                 </li>
               {{/if}}
             {{/if}}
@@ -1034,32 +1034,32 @@
           <button class='btn btn-default' style="width: 50%;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
           <button class='btn btn-default' id='sidebar_close' style="width: calc(50% - 14px); padding-left: 0; padding-right: 0;">&times;</button>
         {{else}}
-          <button id='sidebar_close' class='btn btn-default' style="width: 90%;">&times; {{t "Hide" key='hide_upper'}}</button>
+          <button id='sidebar_close' class='btn btn-default' style="width: 90%;">&times; {{t "Hide" key="hide_upper"}}</button>
         {{/if}}
       </span>
     {{/unless}}
     {{#each app_state.sidebar_boards as |board|}}
       {{#if board.alert}}
-        <a href="#" {{action 'alert' 'sidebar'}} class='sidebar_item'>
+        <a href="#" {{action "alert" "sidebar"}} class='sidebar_item'>
           <span class="glyphicon glyphicon-bullhorn"></span>
-          <img src={{board.image}} class='pic' alt=""/>
+          <img src={{board.image}} class='pic' alt="">
           {{board.name}}
         </a>
       {{else if board.special}}
-        <a href="#" {{action 'special' board}} class='sidebar_item'>
+        <a href="#" {{action "special" board}} class='sidebar_item'>
           <span class="glyphicon glyphicon-flash"></span>
-          <img src={{board.image}} class='pic' alt=""/>
+          <img src={{board.image}} class='pic' alt="">
           {{board.name}}
         </a>
       {{else}}
-        <a href={{board.key}} class='sidebar_item' {{action 'jump' board.key 'sidebar' board}} data-key={{board.key}}>
+        <a href={{board.key}} class='sidebar_item' {{action "jump" board.key "sidebar" board}} data-key={{board.key}}>
           {{#if board.home_lock}}
             <span class="glyphicon glyphicon-home"></span>
           {{/if}}
           {{#if board.fenced}}
             <span class="glyphicon glyphicon-map-marker"></span>
           {{/if}}
-          <img src={{board.image}} class='pic' alt=""/>
+          <img src={{board.image}} class='pic' alt="">
           {{board.name}}
         </a>
       {{/if}}
@@ -1081,7 +1081,7 @@
             {{#if app_state.fenced_sidebar_board}}
               <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;'></span>
             {{/if}}
-            {{t "sidebar" key='sidebar'}}
+            {{t "sidebar" key="sidebar"}}
           </div>
         {{/unless}}
       {{/unless}}
@@ -1089,16 +1089,16 @@
   {{/if}}
 {{/if}}
 
-{{outlet 'modal'}}
-{{outlet 'highlight'}}
-{{outlet 'highlight-secondary'}}
-{{outlet 'board-preview'}}
-{{outlet 'flash-message'}}
+{{outlet "modal"}}
+{{outlet "highlight"}}
+{{outlet "highlight-secondary"}}
+{{outlet "board-preview"}}
+{{outlet "flash-message"}}
 {{#if setup_footer}}
   <div id='setup_footer'>
     <span style='display: inline-block; font-size: 18px; margin-top: 10px;'>
       {{#if setup_for_other}}
-        <img src={{setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'/>
+        <img src={{setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'>
       {{/if}}
       {{#if footer_status.error}}
         <span class='text-danger'>{{footer_status.error}}</span>
@@ -1106,11 +1106,11 @@
         {{footer_status.message}}
       {{else if app_state.currentBoardState.id}}
         <span style='font-size: 14px;'>
-          <a href='#' {{action 'back_to_from_route'}}>{{t "Back to Board List" key='back_to_board_list'}}</a>
+          <a href='#' {{action "back_to_from_route"}}>{{t "Back to Board List" key="back_to_board_list"}}</a>
         </span>
       {{else}}
         <span style='font-size: 14px;'>
-          {{#link-to 'index'}}{{t "Back to the Dashboard" key='back_to_dashboard'}}{{/link-to}}
+          {{#link-to "index"}}{{t "Back to the Dashboard" key="back_to_dashboard"}}{{/link-to}}
         </span>
       {{/if}}
       {{#if app_state.currentBoardState}}
@@ -1118,7 +1118,7 @@
           {{#if app_state.currentUser}}
             {{#if app_state.root_board_is_home}}
             {{else}}
-              <a class="btn btn-primary" href="#" {{action "setAsHome" 'starting'}} style='margin-left: 20px;'>
+              <a class="btn btn-primary" href="#" {{action "setAsHome" "starting"}} style='margin-left: 20px;'>
                 <span class="wide">{{t "Make This my Home Board" key="make_home_board"}}</span>
               </a>
             {{/if}}
@@ -1128,123 +1128,17 @@
     </span>
     <div style='float: right;'>
       <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
-        {{t "step" key='step'}} {{setup_index}} {{t "of" key='of'}} {{setup_order.length}}
+        {{t "step" key="step"}} {{setup_index}} {{t "of" key="of"}} {{setup_order.length}}
       </span>
-      <button class='btn btn-lg btn-default' {{action 'setup_go' 'backward'}} style={{unless setup_previous 'visibility: hidden;'}} >Previous</button>
-      <button class='btn btn-lg btn-default' {{action 'setup_go' 'forward'}} style={{unless setup_next 'visibility: hidden;'}} >Next</button>
+      <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless setup_previous "visibility: hidden;"}} >Previous</button>
+      <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless setup_next "visibility: hidden;"}} >Next</button>
     </div>
     <div class='clear'></div>
   </div>
 {{else if footer}}
-  <footer>
-    <div class="wide_links">
-      <div class="row">
-        <div class='col-sm-6'>
-          <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key='app_name'}}</span>
-          {{#unless app_state.no_linky}}
-            {{#if app_state.installed_app}}
-              <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a> <span class='text-muted'>|</span>
-            {{/if}}
-            {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}} <span class='text-muted'>|</span>
-            {{#unless app_state.installed_app}}
-              {{#if app_state.feature_flags.subscriptions}}
-                {{#if app_state.domain_settings.full_domain}}
-                  {{#link-to "pricing"}}{{t "Pricing" key='pricing'}}{{/link-to}} <span class='text-muted'>|</span>
-                {{/if}}
-              {{/if}}
-            {{/unless}}
-          {{/unless}}
-          <a href="#" {{action 'support'}}>{{t "Support" key='support'}}</a>
-          {{#unless app_state.installed_app}}
-            <span class='text-muted'>|</span>
-            {{#link-to "contact"}}{{t "Contact Us" key='contact'}}{{/link-to}}
-          {{/unless}}
-          <a href='#' {{action 'language'}} style='margin-left: 10px;'>
-            <img src={{path "images/language-icon.svg"}} style='height: 30px; margin: -20px 0 -10px;'/>
-            {{app_state.current_locale_string}}
-          </a>
-        </div>
-        <div class='col-sm-4' style="text-align: right;">
-          {{#unless app_state.installed_app}}
-            <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key='developers'}}</a> <span class='text-muted'>|</span>
-          {{/unless}}
-          {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}} <span class='text-muted'>|</span>
-          {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
-        </div>
-        {{#if persistence.online}}
-          {{#unless app_state.no_linky}}
-            <div class='col-sm-2'>
-              <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
-              <span class="icons">
-                {{#if app_state.domain_settings.blog_url}}
-                  <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
-                {{/if}}
-                {{#if app_state.domain_settings.twitter_url}}
-                  <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
-                {{/if}}
-                {{#if app_state.domain_settings.facebook_url}}
-                  <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
-                {{/if}}
-              </span>
-            </div>
-          {{/unless}}
-        {{/if}}
-      </div>
-    </div>
-    {{#if app_state.index_view}}
-    <div class="skinny_links">
-      <span class="dropdown">
-        <span class="dropup">
-        <a data-toggle="dropdown" href="#">{{t "More Resources" key="more_resources"}} <span class='caret'></span></a>
-        <ul class="dropdown-menu dropdown-menu-top top" role="menu" aria-labelledby="dLabel">
-          {{#unless app_state.no_linky}}
-            <li>
-              <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a>
-            </li>
-            <li>
-              {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}}
-            </li>
-          {{/unless}}
-          <li>
-            <a href="#" {{action 'support'}}>{{t "Support" key='support'}}</a>
-          </li>
-          <li>
-            <a href='#' {{action 'language'}}>
-              <img src={{path "images/language-icon.svg"}} style='height: 20px; margin: -10px 0 -5px;'/>
-              {{app_state.current_locale_string}}
-            </a>
-          </li>
-          <li>
-            {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}}
-          </li>
-          <li>
-            {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
-          </li>
-          {{#unless app_state.no_linky}}
-            {{#if persistence.online}}
-              <li>
-                <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
-                <span class="icons" style="padding-left: 17px;">
-                  {{#if app_state.domain_settings.blog_url}}
-                    <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
-                  {{/if}}
-                  {{#if app_state.domain_settings.twitter_url}}
-                    <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
-                  {{/if}}
-                  {{#if app_state.domain_settings.facebook_url}}
-                    <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
-                  {{/if}}
-                </span>
-              </li>
-            {{/if}}
-          {{/unless}}
-        </ul>
-        </span>
-      </span>
-    </div>
-    {{/if}}
-  </footer>
+  {{page-footer support=(action "support") language=(action "language")}}
 {{/if}}
+
 {{#unless app_state.testing}}
   {{#unless app_state.installed_app}}
     <iframe style="visibility: hidden; height: 0; position: absolute;" src="/cache"></iframe>

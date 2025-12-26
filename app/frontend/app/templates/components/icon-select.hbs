@@ -2,15 +2,15 @@
 {{input value=selection class="form-control" id="image_url" placeholder="pick from the list below or paste a URL"}}
 <div style="margin-top: 12px; float: left; height: 42px; width: 42px; border: 1px solid #ccc; overflow: hidden;">
   {{#if selection_preview}}
-    <img src={{selection_preview}} {{action "pick" selection_preview}} style="width: 40px; height: 40px;" alt="current image"/>
+    <img src={{selection_preview}} {{action "pick" selection_preview}} style="width: 40px; height: 40px;" alt="current image">
   {{/if}}
 </div>
 <div class="icon_urls">
   {{#each iconUrls as |icon|}}
-    <img src={{icon.url}} {{action "pick" icon.url}} alt={{icon.alt}} />
+    <img src={{icon.url}} {{action "pick" icon.url}} alt={{icon.alt}} >
   {{/each}}
   {{#each included_icon_urls as |url|}}
-    <img src={{url}} {{action "pick" url}} alt={{t "original" key='alternate'}} />
+    <img src={{url}} {{action "pick" url}} alt={{t "original" key="alternate"}} >
   {{/each}}
 </div>
 <div style="clear: left;"></div>

@@ -1,7 +1,7 @@
-<h3>{{t "Edit Organization Details" key='edit_org_details'}}</h3>
+<h3>{{t "Edit Organization Details" key="edit_org_details"}}</h3>
 <form class="form-horizontal" {{action "save" on="submit"}}>
   <div class="form-group">
-    <label for="name" class="col-sm-3 control-label">{{t "Name" key='name'}}</label>
+    <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
     <div class="col-sm-7">
       {{#if model.permissions.update_licenses}}
         {{input value=model.name class="form-control" id="name" placeholder="Recording Name"}}
@@ -11,34 +11,34 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="preferred_symbols" class="col-sm-3 control-label">{{t "Preferred Symbols" key='preferred_symbols'}}</label>
+    <label for="preferred_symbols" class="col-sm-3 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
     <div class="col-sm-7">
         {{bound-select select_class="form-control" select_id="preferred_symbols" content=symbols_list selection=model.preferred_symbols action=(action (mut model.preferred_symbols)) }}
         {{#if premium_symbol_library}}
           <div class='text-danger' style='margin-left: 10px;'>
-            {{t "(will not apply for users without premium symbols enabled)" key='wont_work_without_premium_symbols'}}            
+            {{t "(will not apply for users without premium symbols enabled)" key="wont_work_without_premium_symbols"}}            
           </div>
         {{/if}}
     </div>
   </div>
   <div class="form-group">
-    <label for="default_locale" class="col-sm-3 control-label">{{t "Default Language" key='default_language'}}</label>
+    <label for="default_locale" class="col-sm-3 control-label">{{t "Default Language" key="default_language"}}</label>
     <div class="col-sm-7">
       {{bound-select select_class="form-control" select_id="default_locale" content=locale_list selection=model.default_locale action=(action (mut model.default_locale)) }}
     </div>
   </div>
   <div class="form-group">
-    <label for="board" class="col-sm-3 control-label">{{t "Home Boards" key='home_boards'}}</label>
+    <label for="board" class="col-sm-3 control-label">{{t "Home Boards" key="home_boards"}}</label>
     <div class="col-sm-7">
-      {{textarea value=home_board_key_lines class='form-control' id='board' placeholder=board_keys_placeholder}}
+      {{textarea value=home_board_key_lines class="form-control" id="board" placeholder=board_keys_placeholder}}
       <div class='text-muted'>
-        <em>{{t "any users you add that don't have a home board set will be set with the first board unless specified" key='default_home_board_explainer'}}</em>
+        <em>{{t "any users you add that don't have a home board set will be set with the first board unless specified" key="default_home_board_explainer"}}</em>
       </div>
     </div>
   </div>
   {{#if model.premium}}
     <div class="form-group">
-      <label for="logo_url" class="col-sm-3 control-label">{{t "Logo URL" key='logo_url'}}</label>
+      <label for="logo_url" class="col-sm-3 control-label">{{t "Logo URL" key="logo_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.image_url class="form-control" id="logo_url" placeholder="URL to (circular) image, ~50px"}}
       </div>
@@ -46,36 +46,36 @@
   {{/if}}
   {{#if model.permissions.delete}}
     <div class="form-group">
-      <label for="inactivity_timeout" class="col-sm-3 control-label">{{t "Login Timeout" key='inactivity_timeout'}}</label>
+      <label for="inactivity_timeout" class="col-sm-3 control-label">{{t "Login Timeout" key="inactivity_timeout"}}</label>
       <div class="col-sm-3">
-        {{input id='inactivity_timeout' value=model.inactivity_timeout class="form-control" type="text"}}
+        {{input id="inactivity_timeout" value=model.inactivity_timeout class="form-control" type="text"}}
       </div>
-      <div class='col-sm-3'>{{t "minutes" key='minutes'}}</div>
+      <div class='col-sm-3'>{{t "minutes" key="minutes"}}</div>
     </div>
     <div class="form-group">
-      <label for="org_access" class="col-sm-3 control-label">{{t "Org Access" key='org_access'}}</label>
+      <label for="org_access" class="col-sm-3 control-label">{{t "Org Access" key="org_access"}}</label>
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
             {{input checked=model.org_access type="checkbox"}}
-            {{t "Allow manager access to the org management tool" key='allow_org_access'}}
+            {{t "Allow manager access to the org management tool" key="allow_org_access"}}
           </label>
         </div>
       </div>
     </div>
     <div class="form-group">
-      <label for="premium" class="col-sm-3 control-label">{{t "Premium" key='premium'}}</label>
+      <label for="premium" class="col-sm-3 control-label">{{t "Premium" key="premium"}}</label>
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
             {{input checked=model.premium type="checkbox"}}
-              {{t "This org has an active annual subscription" key='allow_premium'}}
+              {{t "This org has an active annual subscription" key="allow_premium"}}
           </label>
         </div>
       </div>
     </div>
     <div class="form-group">
-      <label for="parent_org_id" class="col-sm-3 control-label">{{t "Parent Org ID" key='parent_org_id'}}</label>
+      <label for="parent_org_id" class="col-sm-3 control-label">{{t "Parent Org ID" key="parent_org_id"}}</label>
       <div class="col-sm-1">
         {{input value=model.parent_org_id class="form-control" id="parent_org_id" placeholder="ID of Parent Org"}}
       </div>
@@ -92,12 +92,12 @@
       </div>
     </div>
     <div class="form-group">
-      <label for="external_auth" class="col-sm-3 control-label">{{t "Authentication" key='authentication'}}</label>
+      <label for="external_auth" class="col-sm-3 control-label">{{t "Authentication" key="authentication"}}</label>
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
             {{input checked=external_auth type="checkbox"}}
-            {{t "Enable external authentication (beta)" key='enable_external_auth'}}
+            {{t "Enable external authentication (beta)" key="enable_external_auth"}}
           </label>
         </div>
       </div>
@@ -112,7 +112,7 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input checked=model.saml_enforced type="checkbox"}}
-              {{t "Require all org users to log in using external authentication" key='require_external_auth'}}
+              {{t "Require all org users to log in using external authentication" key="require_external_auth"}}
             </label>
           </div>
         </div>
@@ -121,12 +121,12 @@
   {{/if}}
   {{#if model.premium}}
     <div class="form-group">
-      <label for="allow_support_target" class="col-sm-3 control-label">{{t "Support Emails" key='support_emails'}}</label>
+      <label for="allow_support_target" class="col-sm-3 control-label">{{t "Support Emails" key="support_emails"}}</label>
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
             {{input checked=allow_support_target type="checkbox"}}
-              {{t "Email a copy of all support tickets from within this organization" key='allow_support_target'}}
+              {{t "Email a copy of all support tickets from within this organization" key="allow_support_target"}}
           </label>
         </div>
       </div>
@@ -138,70 +138,70 @@
     {{/if}}
   {{/if}}
   <div class='form-group'>
-      <label class="col-sm-3 control-label">{{t "Editing Colors" key='editing_colors'}}</label>
+      <label class="col-sm-3 control-label">{{t "Editing Colors" key="editing_colors"}}</label>
       <div class="col-sm-6">
         {{extra-colors colors=model.extra_colors}}
       </div>
   </div>
   <div class='form-group'>
-      <label class="col-sm-3 control-label">{{t "Start Codes" key='start_codes'}}</label>
+      <label class="col-sm-3 control-label">{{t "Start Codes" key="start_codes"}}</label>
       <div class="col-sm-2">
         <p class='form-control-static'>
           {{#if model.start_codes.length}}
-            {{t "Start Code" count=model.start_codes.length key='n_start_codes'}}
+            {{t "Start Code" count=model.start_codes.length key="n_start_codes"}}
           {{else}}
-            {{t "None Defined" key='none_defined'}}
+            {{t "None Defined" key="none_defined"}}
           {{/if}}
         </p>
       </div>
       <div class='col-sm-2'>
-        <button class='btn btn-default' {{action 'manage_start_codes'}} style='margin-left: 30px;'>{{t "Manage Start Codes" key='manage_start_codes'}}</button>
+        <button class='btn btn-default' {{action "manage_start_codes"}} style='margin-left: 30px;'>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
       </div>
   </div>
   <div class='form-group'>
-      <label class="col-sm-3 control-label">{{t "Note Templates" key='note_templates'}}</label>
+      <label class="col-sm-3 control-label">{{t "Note Templates" key="note_templates"}}</label>
       <div class="col-sm-2">
         <p class='form-control-static'>
           {{#if model.note_templates.length}}
-            {{t "Template" count=model.note_templates.length key='n_templates'}}
+            {{t "Template" count=model.note_templates.length key="n_templates"}}
           {{else}}
-            {{t "None Defined" key='none_defined'}}
+            {{t "None Defined" key="none_defined"}}
           {{/if}}
         </p>
       </div>
       <div class='col-sm-2'>
-        <button class='btn btn-default' {{action 'modify_templates'}} style='margin-left: 30px;'>{{t "Modify Templates" key='modify_templates'}}</button>
+        <button class='btn btn-default' {{action "modify_templates"}} style='margin-left: 30px;'>{{t "Modify Templates" key="modify_templates"}}</button>
       </div>
   </div>
   {{#if app_state.feature_flags.profiles}}
     <div class="form-group">
-      <label for="comm_prof_id" class="col-sm-3 control-label">{{t "Profiles" key='profiling'}}</label>
+      <label for="comm_prof_id" class="col-sm-3 control-label">{{t "Profiles" key="profiling"}}</label>
       <div class="col-sm-2" style='margin-bottom: 5px;'>
         {{input value=model.communicator_profile_id class="form-control" id="comm_prof_id" placeholder="ID of default for communicators"}}
       </div>
       <div class='col-sm-4' style='margin-bottom: 5px;'>
-        <p class='form-control-static'>{{t "for communicators" key='for_communicators'}}</p>
+        <p class='form-control-static'>{{t "for communicators" key="for_communicators"}}</p>
       </div>
       {{#unless no_communicator_profile}}
         <div class="col-sm-1 col-sm-offset-3">
           {{input value=model.communicator_profile_frequency class="form-control" id="comm_prof_freq" placeholder="##"}}
         </div>
         <div class='col-sm-5'>
-          <p class='form-control-static'>{{t "months until next profile due" key='days_until_next_profile_due'}}</p>
+          <p class='form-control-static'>{{t "months until next profile due" key="days_until_next_profile_due"}}</p>
         </div>
       {{/unless}}
       <div class="col-sm-2 col-sm-offset-3" style='margin-top: 5px; margin-bottom: 5px;'>
         {{input value=model.supervisor_profile_id class="form-control" id="comm_sup_id" placeholder="ID of default for supervisors"}}
       </div>
       <div class='col-sm-4' style='margin-top: 5px; margin-bottom: 5px;'>
-        <p class='form-control-static'>{{t "for supervisors" key='for_supervisors'}}</p>
+        <p class='form-control-static'>{{t "for supervisors" key="for_supervisors"}}</p>
       </div>
       {{#unless no_supervisor_profile}}
         <div class="col-sm-1 col-sm-offset-3">
           {{input value=model.supervisor_profile_frequency class="form-control" id="comm_sup_freq" placeholder="##"}}
         </div>
         <div class='col-sm-5'>
-          <p class='form-control-static'>{{t "months until next profile due" key='days_until_next_profile_due'}}</p>
+          <p class='form-control-static'>{{t "months until next profile due" key="days_until_next_profile_due"}}</p>
         </div>
       {{/unless}}
     </div>
@@ -211,115 +211,115 @@
     <div class="form-group">
       <div class="col-sm-7 col-sm-offset-3">
         <p class='form-control-static' style='font-weight: bold;'>
-          {{t "Customization Settings For" key='customization_settings_for'}}
+          {{t "Customization Settings For" key="customization_settings_for"}}
           {{#if model.hosts}}
             {{#each model.hosts as |host|}}
               {{host}}&nbsp;&nbsp;
             {{/each}}
           {{else}}
-            {{t "custom domains" key='custom_domains'}}
+            {{t "custom domains" key="custom_domains"}}
           {{/if}}
         </p>
       </div>
     </div>
     <div class="form-group">
-      <label for="app_name" class="col-sm-3 control-label">{{t "App Name" key='app_name_prompt'}}</label>
+      <label for="app_name" class="col-sm-3 control-label">{{t "App Name" key="app_name_prompt"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.app_name class="form-control" id="app_name" placeholder="name for the application"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="company_name" class="col-sm-3 control-label">{{t "Organization Name" key='company_name'}}</label>
+      <label for="company_name" class="col-sm-3 control-label">{{t "Organization Name" key="company_name"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.company_name class="form-control" id="company_name" placeholder="shown in the app"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="admin_email" class="col-sm-3 control-label">{{t "Admin Email" key='admin_email'}}</label>
+      <label for="admin_email" class="col-sm-3 control-label">{{t "Admin Email" key="admin_email"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.admin_email class="form-control" id="admin_email" placeholder="for alerts and messages"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="logo_url" class="col-sm-3 control-label">{{t "Logo Image URL" key='logo_image_url'}}</label>
+      <label for="logo_url" class="col-sm-3 control-label">{{t "Logo Image URL" key="logo_image_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.logo_url class="form-control" id="logo_url" placeholder="100px x 100px"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="css_url" class="col-sm-3 control-label">{{t "CSS Override URL" key='css_url'}}</label>
+      <label for="css_url" class="col-sm-3 control-label">{{t "CSS Override URL" key="css_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.css_url class="form-control" id="css_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="support_url" class="col-sm-3 control-label">{{t "Customer Support URL" key='support_url'}}</label>
+      <label for="support_url" class="col-sm-3 control-label">{{t "Customer Support URL" key="support_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.support_url class="form-control" id="support_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="board_user_name" class="col-sm-3 control-label">{{t "Suggest Boards User Name" key='board_user_name'}}</label>
+      <label for="board_user_name" class="col-sm-3 control-label">{{t "Suggest Boards User Name" key="board_user_name"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.board_user_name class="form-control" id="board_user_name" placeholder="user_name"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="ios_store_url" class="col-sm-3 control-label">{{t "iOS App Store URL" key='ios_store_url'}}</label>
+      <label for="ios_store_url" class="col-sm-3 control-label">{{t "iOS App Store URL" key="ios_store_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.ios_store_url class="form-control" id="ios_store_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="play_store_url" class="col-sm-3 control-label">{{t "Google Play Store URL" key='play_store_url'}}</label>
+      <label for="play_store_url" class="col-sm-3 control-label">{{t "Google Play Store URL" key="play_store_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.play_store_url class="form-control" id="play_store_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="kindle_store_url" class="col-sm-3 control-label">{{t "Amazon Kindle Store URL" key='kindle_store_url'}}</label>
+      <label for="kindle_store_url" class="col-sm-3 control-label">{{t "Amazon Kindle Store URL" key="kindle_store_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.kindle_store_url class="form-control" id="kindle_store_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="windows_64_bit_url" class="col-sm-3 control-label">{{t "Windows 64-bit URL" key='windows_64_bit_url'}}</label>
+      <label for="windows_64_bit_url" class="col-sm-3 control-label">{{t "Windows 64-bit URL" key="windows_64_bit_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.windows_64_bit_url class="form-control" id="windows_64_bit_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="windows_32_bit_url" class="col-sm-3 control-label">{{t "Windows 32-bit Download URL" key='windows_32_bit_url'}}</label>
+      <label for="windows_32_bit_url" class="col-sm-3 control-label">{{t "Windows 32-bit Download URL" key="windows_32_bit_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.windows_32_bit_url class="form-control" id="windows_32_bit_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="blog_url" class="col-sm-3 control-label">{{t "Blog URL" key='blog_url'}}</label>
+      <label for="blog_url" class="col-sm-3 control-label">{{t "Blog URL" key="blog_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.blog_url class="form-control" id="blog_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="twitter_url" class="col-sm-3 control-label">{{t "Twitter URL" key='twitter_url'}}</label>
+      <label for="twitter_url" class="col-sm-3 control-label">{{t "Twitter URL" key="twitter_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.twitter_url class="form-control" id="twitter_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="twitter_handle" class="col-sm-3 control-label">{{t "Twitter Handle" key='twitter_handle'}}</label>
+      <label for="twitter_handle" class="col-sm-3 control-label">{{t "Twitter Handle" key="twitter_handle"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.twitter_handle class="form-control" id="twitter_handle" placeholder="@whoever"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="facebook_url" class="col-sm-3 control-label">{{t "Facebook URL" key='facebook_url'}}</label>
+      <label for="facebook_url" class="col-sm-3 control-label">{{t "Facebook URL" key="facebook_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.facebook_url class="form-control" id="facebook_url" placeholder="https://"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="youtube_url" class="col-sm-3 control-label">{{t "YouTube URL" key='youtube_url'}}</label>
+      <label for="youtube_url" class="col-sm-3 control-label">{{t "YouTube URL" key="youtube_url"}}</label>
       <div class="col-sm-7">
         {{input value=model.host_settings.youtube_url class="form-control" id="youtube_url" placeholder="https://"}}
       </div>
@@ -329,16 +329,16 @@
     <div class="col-sm-9 col-sm-offset-3">
       <button class='btn btn-primary' type='submit' disabled={{status.saving}}>
         {{#if status.saving}}
-          {{t "Updating Organization..." key='updating_org'}}
+          {{t "Updating Organization..." key="updating_org"}}
         {{else if status.error}}
-          {{t "Error Updating Organization" key='error_updating_organization'}}
+          {{t "Error Updating Organization" key="error_updating_organization"}}
         {{else}}
-          {{t "Update Organization" key='update_org'}}
+          {{t "Update Organization" key="update_org"}}
         {{/if}}
       </button>
-      <button type='button' class='btn btn-default' {{action 'cancel'}}>{{t "Cancel" key='cancel'}}</button>
+      <button type='button' class='btn btn-default' {{action "cancel"}}>{{t "Cancel" key="cancel"}}</button>
       {{#if error}}
-        <p class='text-danger'>{{t "There was an unexpected error while updating the organization" key='error_updating_org'}}</p>
+        <p class='text-danger'>{{t "There was an unexpected error while updating the organization" key="error_updating_org"}}</p>
       {{/if}}
     </div>
   </div>

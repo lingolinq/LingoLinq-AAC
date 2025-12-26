@@ -1,7 +1,7 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Add Audio" key='add_audio'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Add Audio" key="add_audio"}}</h3>
   </div>
   <div class="modal-body" id="button_settings">
     <div class="col-sm-12 content">
@@ -9,31 +9,31 @@
         <div style='margin-bottom: 5px;'>
           <span style='display: inline-block; width: 275px;'>
 <!-- https://lingolinq-usercontent.s3.amazonaws.com/sounds/2/9/1_29_635d33f9c9196f22140f3276-d7c75f40661f0ae83500a430bb1f774091c9b3a21e58143a71804e63077feb9a371827c1d11e59c5da913628428eb2903404eec886460b4eb4f6e50e032c085a -->
-            {{input type='text' class='form-control' value=url placeholder='URL to audio file'}}
+            {{input type="text" class="form-control" value=url placeholder="URL to audio file"}}
           </span>
-          <button class='btn btn-default' type='button' {{action 'find_url'}}>{{t "Retrieve" key='retrieve'}}</button>
+          <button class='btn btn-default' type='button' {{action "find_url"}}>{{t "Retrieve" key="retrieve"}}</button>
         </div>
         <div>
             <button type="button" {{action "record_sound" on="click"}} disabled={{recorder_unavailable}} class="btn btn-default">
-              <img src={{path 'images/microphone.svg'}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound"/>
-              {{t "Record Sound" key='record_sound'}}
+              <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
+              {{t "Record Sound" key="record_sound"}}
             </button>
             <span class="file_select_holder">
               <button type="button" class='btn btn-default'>
-                <img src={{path 'images/upload.svg'}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
-                {{t "Upload Sound" key='upload_sound'}}
+                <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
+                {{t "Upload Sound" key="upload_sound"}}
               </button>
-              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
             </span>
         </div>
         {{#if sound_preview}}
           <div style="text-align: center; margin: 20px;">
-            Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+            Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
             <audio controls src={{sound_preview.url}}></audio>
           </div>
         {{else}}
           {{#if sound_recording.ready}}
-            <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording 'recording'}}>
+            <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording "recording"}}>
               <span class="sub_status">
                 <span>Start</span>
               </span>
@@ -41,16 +41,16 @@
             <canvas id="sound_levels" width="400" height="300" style="display: none;"></canvas>
             <button {{action "toggle_recording_sound"}} class='btn btn-primary'>
               {{#if sound_recording.recording}}
-                {{t "Stop" key='stop'}}
+                {{t "Stop" key="stop"}}
               {{else}}
-                {{t "Start" key='start'}}
+                {{t "Start" key="start"}}
               {{/if}}
             </button>
-            <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Cancel" key='cancel'}}</button>
+            <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Cancel" key="cancel"}}</button>
           {{else}}
             <div style='font-size: 20px; text-align: center; margin: 20px;'>
               <span class='glyphicon glyphicon-volume-off'></span>
-              {{t "Record or upload a sound" key='record_or_upload_sound'}}
+              {{t "Record or upload a sound" key="record_or_upload_sound"}}
             </div>
           {{/if}}
         {{/if}}
@@ -61,15 +61,15 @@
   <div class="modal-footer">
     <div style="margin-top: 10px;">
       {{#if sound_preview}}
-        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Use This" key='use_this'}}</button>
+        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Use This" key="use_this"}}</button>
         {{#if sound_preview.from_recording}}
           <button {{action "record_sound"}} class='btn btn-default'>
-            {{t "Try Again" key='try_again'}}
+            {{t "Try Again" key="try_again"}}
           </button>
         {{/if}}
-        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Clear" key='clear'}}</button>
+        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Clear" key="clear"}}</button>
       {{/if}}
-      <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+      <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
     </div>
   </div>
 {{/modal-dialog}}

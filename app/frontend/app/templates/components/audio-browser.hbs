@@ -1,14 +1,14 @@
 {{#if browse_audio.loading}}
-  <p>{{t "Loading stored audio..." key='loading_stored_audio'}}</p>
+  <p>{{t "Loading stored audio..." key="loading_stored_audio"}}</p>
 {{else if browse_audio.error}}
   {{#if persistence.online}}
-    <p>{{t "Error loading stored audio" key='error_loading_stored_audio'}}</p>
+    <p>{{t "Error loading stored audio" key="error_loading_stored_audio"}}</p>
   {{else}}
-    <p>{{t "Stored audio files not available offline" key='audio_not_available_offline'}}</p>
+    <p>{{t "Stored audio files not available offline" key="audio_not_available_offline"}}</p>
   {{/if}}
 {{else}}
   <div style='margin-bottom: 5px;'>
-    {{input type='text' class='form-control' value=browse_audio.filter_string placeholder='filter results'}}
+    {{input type="text" class="form-control" value=browse_audio.filter_string placeholder="filter results"}}
   </div>
   {{# if browse_audio.results}}
     <div style='max-height: 200px; overflow: auto;'>
@@ -16,24 +16,24 @@
         {{#if sound.url}}
           <div class='sound-hover'>
             <div style='float: right;'>
-              <button class='btn btn-default btn' {{action 'play_audio' sound}} style='margin-right: 5px; height: 40px;'>
+              <button class='btn btn-default btn' {{action "play_audio" sound}} style='margin-right: 5px; height: 40px;'>
                 {{#if sound.playing}}
                   <span class='glyphicon glyphicon-pause'></span>
-                  <span class='sr-only'>{{t "pause" key='pause'}}</span>
+                  <span class='sr-only'>{{t "pause" key="pause"}}</span>
                 {{else}}
                   <span class='glyphicon glyphicon-play'></span>
-                  <span class='sr-only'>{{t "play" key='play'}}</span>
+                  <span class='sr-only'>{{t "play" key="play"}}</span>
                 {{/if}}
               </button>
-              <button class='btn btn-default btn-sm' {{action 'select_audio' sound}} style='height: 40px;'>{{t "select" key='select_lower'}}</button>
+              <button class='btn btn-default btn-sm' {{action "select_audio" sound}} style='height: 40px;'>{{t "select" key="select_lower"}}</button>
             </div>
-            {{sound.name}}, {{date sound.created 'short_day'}}
+            {{sound.name}}, {{date sound.created "short_day"}}
             <div style='padding-left: 20px;' class='text-muted'>
               {{#if sound.transcription}}
                 {{sound.transcription}} -
                 {{duration sound.duration}}
               {{else}}
-                {{t "duration:" key='duration_colon'}}
+                {{t "duration:" key="duration_colon"}}
                 {{duration sound.duration}}
               {{/if}}
             </div>
@@ -44,9 +44,9 @@
       {{/each}}
     </div>
   {{else}}
-    <p>{{t "No audio found" key='no_audio_found'}}</p>
+    <p>{{t "No audio found" key="no_audio_found"}}</p>
   {{/if}}
 {{/if}}
 {{#if more_audio_results}}
-  <button class='btn btn-default' {{action 'more_browsed_audio'}}>{{t "More" key='more'}}</button>
+  <button class='btn btn-default' {{action "more_browsed_audio"}}>{{t "More" key="more"}}</button>
 {{/if}}

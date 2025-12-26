@@ -1,20 +1,20 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Remove Goal from Room?" key='remove_goal_from_room'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Remove Goal from Room?" key="remove_goal_from_room"}}</h3>
   </div>
   <div class="modal-body">
     <div class="form-horizontal">
       <div class="form-group">
         <div class="col-sm-8 col-sm-offset-3">
           <p class="form-control-static">
-            {{t "Are you sure you want to conclude this goal for the room?" key='confirm_conclude_goal'}}
+            {{t "Are you sure you want to conclude this goal for the room?" key="confirm_conclude_goal"}}
           </p>
         </div>
       </div>
       <div class='form-group'>
         <div class='col-sm-3'>
-          {{t "Goal:" key='goal_colon'}}
+          {{t "Goal:" key="goal_colon"}}
         </div>
         <div class='col-sm-8'>
           <strong>{{model.goal.summary}}</strong>
@@ -22,7 +22,7 @@
       </div>
       <div class='form-group'>
         <div class='col-sm-3'>
-          {{t "Room:" key='room_colon'}}
+          {{t "Room:" key="room_colon"}}
         </div>
         <div class='col-sm-8'>
           <strong>{{model.source.name}}</strong>
@@ -32,7 +32,7 @@
         <div class="col-sm-8 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type='checkbox' checked=auto_conclude}}
+              {{input type="checkbox" checked=auto_conclude}}
               Auto-conclude the goal for all users in the room
             </label>
           </div>
@@ -41,15 +41,15 @@
     </div>
   </div>
   <div class="modal-header">
-    <button class='btn btn-primary btn-lg' disabled={{status.saving}} {{action 'confirm'}}>
+    <button class='btn btn-primary btn-lg' disabled={{status.saving}} {{action "confirm"}}>
       {{#if status.saving}}
-        {{t "Removing Goal..." key='removing_goal'}}
+        {{t "Removing Goal..." key="removing_goal"}}
       {{else if status.error}}
-        {{t "Error Removing Goal" key='error_removing_goal'}}
+        {{t "Error Removing Goal" key="error_removing_goal"}}
       {{else}}
-        {{t "Remove Goal" key='remove_goal'}}
+        {{t "Remove Goal" key="remove_goal"}}
       {{/if}}
     </button>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

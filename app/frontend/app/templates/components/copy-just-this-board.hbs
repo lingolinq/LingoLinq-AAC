@@ -1,0 +1,25 @@
+{{#if @parent.model.board.linked_boards}}
+  <div class="btn-group dropup">
+    <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
+      {{t "Other" key="other"}} <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu" role="menu">
+      {{#if @parent.home_board}}
+        <li><a href="#" {{action "tweakBoard" "links_copy" target=@parent}}><strong>{{t "Copy Everything" key="copy_everything"}}</strong></a></li>
+      {{else if @parent.sidebar_board}}
+        <li><a href="#" {{action "tweakBoard" "links_copy" target=@parent}}><strong>{{t "Copy Everything" key="copy_everything"}}</strong></a></li>
+      {{else if @parent.in_board_set}}
+        <li><a href="#" {{action "tweakBoard" "links_copy" target=@parent}}><strong>{{t "Copy Everything" key="copy_everything"}}</strong></a></li>
+      {{else if @parent.in_sidebar_set}}
+        <li><a href="#" {{action "tweakBoard" "links_copy" target=@parent}}><strong>{{t "Copy Everything" key="copy_everything"}}</strong></a></li>
+      {{else if @parent.linked}}
+      {{else}}
+        <li><a href="#" {{action "tweakBoard" "links_copy" target=@parent}}><strong>{{t "Copy Everything" key="copy_everything"}}</strong></a></li>
+      {{/if}}
+      <li><a href="#" {{action "tweakBoard" "remove_links" target=@parent}}><strong>{{t "Copy Just this Board, Removing Links" key="remove_links_while_copying"}}</strong></a></li>
+      <li><a href="#" {{action "tweakBoard" "keep_links" target=@parent}}>{{t "Copy Just this Board, with Links from the Original" key="copy_as_is"}}</a></li>
+    </ul>
+  </div>
+{{else}}
+  <button class='btn btn-default' {{action "tweakBoard" "keep_links" target=@parent}}>{{t "Copy Just This Board" key="copy_just_this_board"}}</button>
+{{/if}}

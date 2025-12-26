@@ -1,35 +1,35 @@
-{{#modal-dialog action='close' opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      <img src={{path "images/learn.png"}} style='height: 70px; margin: -10px 0;'/>
-      {{t "Board Intro" key='board_intro'}}
+      <img src={{path "images/learn.png"}} style='height: 70px; margin: -10px 0;'>
+      {{t "Board Intro" key="board_intro"}}
     </h3>
   </div>
   <div class="modal-body">
     {{#if current_step.description}}
       <div style='white-space: pre-line;'>{{current_step.description}}</div>
     {{else if current_step}}
-      {{t "No content provided" key='no_content_provided'}}
+      {{t "No content provided" key="no_content_provided"}}
     {{else}}
-      {{t "That's it! If you want to go through this intro again, just hit the menu in the top right corner and choose \"Board Intro\"" key='done_board_intro'}}
+      {{t "That's it! If you want to go through this intro again, just hit the menu in the top right corner and choose \"Board Intro\"" key="done_board_intro"}}
     {{/if}}
     {{#if current_step.prompt}}
       <div style='margin-top: 20px;'>
-        {{t "Try It Yourself! Find the buttons to say:" key='try_for_buttons'}}<br/>
+        {{t "Try It Yourself! Find the buttons to say:" key="try_for_buttons"}}<br>
         <span style='font-size: 20px; font-weight: bold; padding-left: 20px;'>"{{current_step.prompt}}"</span>
       </div>
     {{/if}}
   </div>
   <div class='modal-footer'>
     {{#if current_step.prompt}}
-      <button class='btn btn-primary btn-lg' {{action 'start'}}>{{t "I'm Ready to Try" key='ready_to_try'}}</button>
+      <button class='btn btn-primary btn-lg' {{action "start"}}>{{t "I'm Ready to Try" key="ready_to_try"}}</button>
       {{#if next_step}}
-        <button class='btn btn-default btn-lg' {{action 'next'}}>{{t "Skip" key='skip'}}</button>
+        <button class='btn btn-default btn-lg' {{action "next"}}>{{t "Skip" key="skip"}}</button>
       {{/if}}
     {{else if next_step}}
-      <button class='btn btn-primary btn-lg' {{action 'next'}}>{{t "Continue" key='continue'}}</button>
+      <button class='btn btn-primary btn-lg' {{action "next"}}>{{t "Continue" key="continue"}}</button>
     {{/if}}
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

@@ -1,14 +1,14 @@
 {{#if in_list}}
   <div class="form-group" style='border-top: 1px solid #ddd; padding-top: 10px;'>
     <label class="col-sm-2 control-label">
-      {{t "Level %{level}" key='level_n' level=index increment='level' }}
+      {{t "Level %{level}" key="level_n" level=index increment="level" }}
       <div style='margin-top: 5px;'>
-        <button class='btn btn-default' type='button' {{action 'delete_badge'}}><span class='glyphicon glyphicon-trash'></span></button>
+        <button class='btn btn-default' type='button' {{action "delete_badge"}}><span class='glyphicon glyphicon-trash'></span></button>
       </div>
     </label>
     <div class='col-sm-4'>
-      <img src={{badge.image_url}} style='height: 75px; max-width: 75px; vertical-align: bottom;'/>
-      <button class='btn btn-default' type='button' {{action 'change_image'}}>{{t "Change Image" key='new_image'}}</button>
+      <img src={{badge.image_url}} style='height: 75px; max-width: 75px; vertical-align: bottom;'>
+      <button class='btn btn-default' type='button' {{action "change_image"}}>{{t "Change Image" key="new_image"}}</button>
     </div>
     <div class='col-sm-4'>
       {{#if badge.sound_url}}
@@ -16,15 +16,15 @@
       {{else}}
         <span class='glyphicon glyphicon-volume-off' style='display: block; height: 40px; font-size: 30px;'></span>
       {{/if}}
-        <button class='btn btn-default' type='button' {{action 'change_sound'}}>
+        <button class='btn btn-default' type='button' {{action "change_sound"}}>
           {{#if badge.sound_url}}
-            {{t "Change Sound" key='change_sound'}}
+            {{t "Change Sound" key="change_sound"}}
           {{else}}
-            {{t "New Sound" key='new_sound'}}
+            {{t "New Sound" key="new_sound"}}
           {{/if}}
         </button>
         {{#if badge.sound_url}}
-          <button class='btn btn-default' type='button' {{action 'delete_sound'}}><span class='glyphicon glyphicon-remove'></span></button>
+          <button class='btn btn-default' type='button' {{action "delete_sound"}}><span class='glyphicon glyphicon-remove'></span></button>
         {{/if}}
     </div>
   </div>
@@ -39,7 +39,7 @@
         <div class="checkbox big_checkbox">
           <label>
             {{input type="checkbox" checked=badge.enable_auto_tracking}}
-            {{t "This badge is automatically awarded based on user activity" key='auto_tracking'}}
+            {{t "This badge is automatically awarded based on user activity" key="auto_tracking"}}
           </label>
         </div>
       </div>
@@ -58,9 +58,9 @@
       <div class='col-sm-4 col-sm-offset-2'>
         <p class='form-control-static'>
           {{#if in_list}}
-            {{t "For awarding this badge," key='for_awarding_badge'}}
+            {{t "For awarding this badge," key="for_awarding_badge"}}
           {{else}}
-            {{t "For tracking daily success," key='for_daily_tracking'}}
+            {{t "For tracking daily success," key="for_daily_tracking"}}
           {{/if}}
         </p>
       </div>
@@ -73,13 +73,13 @@
         <div class='col-sm-4 col-sm-offset-2'>
           <p class='form-control-static'>
             {{#if in_list}}
-              {{t "To earn this badge, the user must use some of the following" key='user_must_use'}}
+              {{t "To earn this badge, the user must use some of the following" key="user_must_use"}}
             {{else}}
-              {{t "The user should daily use some of the following" key='userMust_daily_user'}}
+              {{t "The user should daily use some of the following" key="userMust_daily_user"}}
             {{/if}}
           </p>
         </div>
-        <div class={{if in_list 'col-sm-2' 'col-sm-4'}}>
+        <div class={{if in_list "col-sm-2" "col-sm-4"}}>
           {{bound-select select_class="form-control" content=watchlist_types selection=badge.watchlist_type action=(action (mut badge.watchlist_type)) }}
         </div>
         {{#if in_list}}
@@ -90,7 +90,7 @@
       </div>
       <div class='form-group'>
         <label for='string_list' class='col-sm-2 col-sm-offset-2'>
-          <p class='form-control-static'>{{t "list of %{types}:" types=watchlist_type_plural key='list_of_watchlist_types'}}</p>
+          <p class='form-control-static'>{{t "list of %{types}:" types=watchlist_type_plural key="list_of_watchlist_types"}}</p>
         </label>
         <div class='col-sm-6'>
           {{input value=badge.string_list class="form-control" placeholder="comma-separated list"}}
@@ -101,15 +101,15 @@
           <div class='checkbox big_checkbox'>
             <label>
               {{input type="checkbox" checked=badge.enable_watch_type_minimum}}
-              {{t "limit to %{types} used at least" types=watchlist_type_plural key='watch_type_minimum'}}
+              {{t "limit to %{types} used at least" types=watchlist_type_plural key="watch_type_minimum"}}
             </label>
           </div>
         </div>
-        <div class={{if in_list 'col-sm-1' 'col-sm-2'}}>
-          {{input value=badge.watch_type_minimum class="form-control" placeholder='#'}}
+        <div class={{if in_list "col-sm-1" "col-sm-2"}}>
+          {{input value=badge.watch_type_minimum class="form-control" placeholder="#"}}
         </div>
         <div class='col-sm-3'>
-          <p class='form-control-static'>{{t "times per %{unit_type}" unit_type=unit_type key='from_the_type_list'}}</p>
+          <p class='form-control-static'>{{t "times per %{unit_type}" unit_type=unit_type key="from_the_type_list"}}</p>
         </div>
       </div>
       <div class='form-group'>
@@ -117,15 +117,15 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=badge.enable_watch_total}}
-              {{t "require a total every %{unit_type} of" unit_type=unit_type key='watch_total'}}
+              {{t "require a total every %{unit_type} of" unit_type=unit_type key="watch_total"}}
             </label>
           </div>
         </div>
-        <div class={{if in_list 'col-sm-1' 'col-sm-2'}}>
-          {{input value=badge.watch_total class="form-control" placeholder='#'}}
+        <div class={{if in_list "col-sm-1" "col-sm-2"}}>
+          {{input value=badge.watch_total class="form-control" placeholder="#"}}
         </div>
         <div class='col-sm-3'>
-          <p class='form-control-static'>{{t "of any %{types} from the list" types=watchlist_type_plural key='type_from_the_list'}}</p>
+          <p class='form-control-static'>{{t "of any %{types} from the list" types=watchlist_type_plural key="type_from_the_list"}}</p>
         </div>
       </div>
       <div class='form-group'>
@@ -133,17 +133,17 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input type="checkbox" checked=badge.enable_watch_type_count}}
-              {{t "require different %{types}, at least" types=watchlist_type_plural key='watch_type_count'}}
+              {{t "require different %{types}, at least" types=watchlist_type_plural key="watch_type_count"}}
             </label>
           </div>
         </div>
-        <div class={{if in_list 'col-sm-1' 'col-sm-2'}}>
-          {{input value=badge.watch_type_count class="form-control" placeholder='#'}}
+        <div class={{if in_list "col-sm-1" "col-sm-2"}}>
+          {{input value=badge.watch_type_count class="form-control" placeholder="#"}}
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>
-            {{t "different %{types}" types=watchlist_type_plural key='different_types'}}
-            {{t "per %{unit_type}" unit_type=unit_type key='per_unit_type'}}
+            {{t "different %{types}" types=watchlist_type_plural key="different_types"}}
+            {{t "per %{unit_type}" unit_type=unit_type key="per_unit_type"}}
           </p>
         </div>
       </div>
@@ -153,15 +153,15 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=badge.enable_watch_type_interval}}
-                {{t "also require different %{types}, at least" types=watchlist_type_plural key='watch_type_interval_count'}}
+                {{t "also require different %{types}, at least" types=watchlist_type_plural key="watch_type_interval_count"}}
               </label>
             </div>
           </div>
           <div class='col-sm-1'>
-            {{input value=badge.watch_type_interval_count class="form-control" placeholder='#'}}
+            {{input value=badge.watch_type_interval_count class="form-control" placeholder="#"}}
           </div>
           <div class='col-sm-2'>
-            <p class='form-control-static'>{{t "different %{types} used" types=watchlist_type_plural key='different_types_used'}}</p>
+            <p class='form-control-static'>{{t "different %{types} used" types=watchlist_type_plural key="different_types_used"}}</p>
           </div>
           <div class='col-sm-2'>
             {{bound-select select_class="form-control" content=unit_type_list selection=badge.watch_type_interval action=(action (mut badge.watch_type_interval)) }}
@@ -173,16 +173,16 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <p class='form-control-static'>
             {{#if in_list}}
-              {{t "To earn this badge, the user must have at least" key='to_earn_must_have_at_least'}}
+              {{t "To earn this badge, the user must have at least" key="to_earn_must_have_at_least"}}
             {{else}}
-              {{t "The user should daily have at least" key='user_should_daily_have_at_least'}}
+              {{t "The user should daily have at least" key="user_should_daily_have_at_least"}}
             {{/if}}
           </p>
         </div>
-        <div class={{if in_list 'col-sm-1' 'col-sm-2'}}>
-          {{input value=badge.instance_count class="form-control" placeholder='#'}}
+        <div class={{if in_list "col-sm-1" "col-sm-2"}}>
+          {{input value=badge.instance_count class="form-control" placeholder="#"}}
         </div>
-        <div class={{if in_list 'col-sm-3' 'col-sm-4'}}>
+        <div class={{if in_list "col-sm-3" "col-sm-4"}}>
           {{bound-select select_class="form-control" content=instance_metric_list selection=badge.instance_metric action=(action (mut badge.instance_metric)) }}
         </div>
         {{#if in_list}}
@@ -196,28 +196,28 @@
       {{#if in_list}}
         <div class="form-group">
           <div class="col-sm-3 col-sm-offset-2">
-            <p class='form-control-static'>{{t "The user must meet the criteria" key='must_meet_criteria'}}</p>
+            <p class='form-control-static'>{{t "The user must meet the criteria" key="must_meet_criteria"}}</p>
           </div>
           <div class='col-sm-3'>
             {{bound-select select_class="form-control" content=criteria_type_list selection=badge.criteria_type action=(action (mut badge.criteria_type)) }}
           </div>
           {{#if badge.for_consecutive_units}}
             <div class='col-sm-1'>
-              {{input value=badge.consecutive_units class="form-control" placeholder='#'}}
+              {{input value=badge.consecutive_units class="form-control" placeholder="#"}}
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{unit_type_plural}}</p>
             </div>
           {{else if badge.for_matching_units}}
             <div class='col-sm-1'>
-              {{input value=badge.matching_units class="form-control" placeholder='#'}}
+              {{input value=badge.matching_units class="form-control" placeholder="#"}}
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{unit_type_plural}}</p>
             </div>
           {{else if badge.for_matching_instances}}
             <div class='col-sm-1'>
-              {{input value=badge.matching_instances class="form-control" placeholder='#'}}
+              {{input value=badge.matching_instances class="form-control" placeholder="#"}}
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{event_type_plural}}</p>
@@ -230,8 +230,8 @@
 {{else if simple_badge}}
   <div class='form-group'>
     {{#if simple_word_badge}}
-      <label for='string_list' class={{if in_list 'col-sm-2 col-sm-offset-2' 'col-sm-4 col-sm-offset-2'}} style='font-weight: normal;'>
-        <p class='form-control-static'>{{t "list of words:" key='list_of_words'}}</p>
+      <label for='string_list' class={{if in_list "col-sm-2 col-sm-offset-2" "col-sm-4 col-sm-offset-2"}} style='font-weight: normal;'>
+        <p class='form-control-static'>{{t "list of words:" key="list_of_words"}}</p>
       </label>
       <div class='col-sm-5'>
           {{input value=badge.string_list class="form-control" placeholder="list, of, words"}}
@@ -240,36 +240,36 @@
     <div class='col-sm-10 col-sm-offset-2'>
       <p class='form-control-static'>
         {{#if simple_word_badge}}
-          {{t "must use the words at least" key='use_words_at_least'}}
+          {{t "must use the words at least" key="use_words_at_least"}}
         {{else if simple_button_badge}}
-          {{t "must hit at least" key='must_hit_at_least'}}
+          {{t "must hit at least" key="must_hit_at_least"}}
         {{else if simple_modeling_badge}}
-          {{t "must have at least" key='must_have_at_least'}}
+          {{t "must have at least" key="must_have_at_least"}}
         {{else}}
-          {{t "Unrecognized badge type" key='unrecognized_badge_type'}}
+          {{t "Unrecognized badge type" key="unrecognized_badge_type"}}
         {{/if}}
         <span style='display: inline-block; width: 50px; margin: 0 5px;'>
           {{#if simple_word_badge}}
-            {{input value=badge.watch_total class="form-control" placeholder='#'}}
+            {{input value=badge.watch_total class="form-control" placeholder="#"}}
           {{else}}
-            {{input value=badge.instance_count class="form-control" placeholder='#'}}
+            {{input value=badge.instance_count class="form-control" placeholder="#"}}
           {{/if}}
         </span>
         {{#if simple_word_badge}}
-          {{t "times" key='times'}}
+          {{t "times" key="times"}}
         {{else if simple_button_badge}}
-          {{t "buttons" key='buttons'}}
+          {{t "buttons" key="buttons"}}
         {{else if simple_modeling_badge}}
-          {{t "modeling events" key='modeling_events'}}
+          {{t "modeling events" key="modeling_events"}}
         {{else}}
-          {{t "events" key='events'}}
+          {{t "events" key="events"}}
         {{/if}}
         {{#if in_list}}
-          {{t "for" key='for_lower'}}
-          <span style='display: inline-block; width: 50px; margin: 0 5px;'>{{input value=badge.consecutive_units class="form-control" placeholder='#'}}</span>
-          {{simple_badge_unit}} {{t "in a row" key='in_a_row'}}
+          {{t "for" key="for_lower"}}
+          <span style='display: inline-block; width: 50px; margin: 0 5px;'>{{input value=badge.consecutive_units class="form-control" placeholder="#"}}</span>
+          {{simple_badge_unit}} {{t "in a row" key="in_a_row"}}
         {{else}}
-          {{t "each day" key='each_day'}}
+          {{t "each day" key="each_day"}}
         {{/if}}
       </p>
     </div>

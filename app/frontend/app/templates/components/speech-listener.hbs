@@ -1,7 +1,7 @@
 {{#if speech.recording}}
-  <button class='btn btn-default' {{action 'stop'}}>{{t "Stop Listening" key='stop_listening'}}</button>
+  <button class='btn btn-default' {{action "stop"}}>{{t "Stop Listening" key="stop_listening"}}</button>
 {{else if speech.almost_recording}}
-  {{t "Waiting for Approval..." key='waiting_for_approval'}}
+  {{t "Waiting for Approval..." key="waiting_for_approval"}}
 {{else}}
-  {{t "Not Available" key='not_available_upper'}}
+  {{t "Not Available" key="not_available_upper"}}
 {{/if}}

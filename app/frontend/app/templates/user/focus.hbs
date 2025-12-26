@@ -2,11 +2,11 @@
   {{#if focus.title}}
     {{focus.title}}
   {{else}}
-    {{t "Focus Words" key='focus_words'}}
+    {{t "Focus Words" key="focus_words"}}
   {{/if}}
   {{#if focus.user}}
     - 
-    <img src={{focus.user.avatar_url_with_fallback}} style='width: 50px;'/>
+    <img src={{focus.user.avatar_url_with_fallback}} style='width: 50px;'>
     {{focus.user.user_name}}
   {{/if}}
 </h2>
@@ -16,15 +16,15 @@
 
 {{#if focus.analysis}}
   <div class='col-sm-12'>
-    <h4>{{t "Found Words (%{cnt})" cnt=focus.analysis.found.length key='found_words'}}</h4>
+    <h4>{{t "Found Words (%{cnt})" cnt=focus.analysis.found.length key="found_words"}}</h4>
     {{#if focus.analysis.found}}
       <table><tbody>
       {{#each analysis_subset as |btn|}}
         {{#unless btn.collapsed}}
           <tr>
             <td style='min-width: 70px;'>
-              <strong style='font-size: 16px;'>{{btn.label}}:</strong><br/>
-              <button class='btn btn-default btn-sm hidden-print' {{action 'toggle' btn}}>{{t "hide" key='hide'}}</button>
+              <strong style='font-size: 16px;'>{{btn.label}}:</strong><br>
+              <button class='btn btn-default btn-sm hidden-print' {{action "toggle" btn}}>{{t "hide" key="hide"}}</button>
             </td>
             <td style='width: 80%;'>
               <div style='white-space: nowrap; overflow: hidden; margin-bottom: 10px;'>
@@ -33,8 +33,8 @@
                     <span style={{sub.big_style}}>
                       <div style={{sub.print_style}}></div>
                       <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
-                        {{sub.label}}<br/>
-                        <img src={{sub.focus_image}} style='width: 70px; height: 70px;' class='fit_image'/>
+                        {{sub.label}}<br>
+                        <img src={{sub.focus_image}} style='width: 70px; height: 70px;' class='fit_image'>
                       </div>
                     </span>
                     <span class='glyphicon glyphicon-arrow-right' style='vertical-align: middle; margin-left: 5px;'></span>
@@ -42,16 +42,16 @@
                   <span style={{btn.big_style}}>
                     <div style={{btn.print_style}}></div>
                     <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
-                      {{btn.label}}<br/>
-                      <img src={{btn.focus_image}} style='width: 70px; height: 70px;' class='fit_image'/>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 70px; height: 70px;' class='fit_image'>
                     </div>
                   </span>
                 {{else}}
                   <span style={{btn.big_style}}>
                     <div style={{btn.print_style}}></div>
                     <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
-                      {{btn.label}}<br/>
-                      <img src={{btn.focus_image}} style='width: 70px; height: 70px;' class='fit_image'/>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 70px; height: 70px;' class='fit_image'>
                     </div>
                   </span>
                 {{/if}}
@@ -63,9 +63,9 @@
       </tbody></table>
       {{#if analysis_extras}}
         <p>
-          <em>{{t "Plus %{n} more:" n=analysis_extras.length key='plus_n_more'}}</em>
+          <em>{{t "Plus %{n} more:" n=analysis_extras.length key="plus_n_more"}}</em>
           {{#each analysis_extras as |btn|}}
-            <span class='analysis_extra' style={{btn.mini_style}} {{action 'toggle' btn}}>
+            <span class='analysis_extra' style={{btn.mini_style}} {{action "toggle" btn}}>
               <div style={{btn.print_style}}></div>
               <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
                 {{btn.label}}
@@ -78,18 +78,18 @@
         </p>
       {{/if}}
     {{else}}
-      <p>{{t "No words found" key='no_words_found'}}</p>
+      <p>{{t "No words found" key="no_words_found"}}</p>
     {{/if}}
     {{#if focus.analysis.missing}}
-      <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=focus.analysis.missing.length key='missing_words'}}</h4>
+      <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=focus.analysis.missing.length key="missing_words"}}</h4>
       {{#each focus.analysis.missing as |word|}}
         {{word}}
       {{/each}}
     {{/if}}
     <div style='margin-top: 20px;' class='hidden-print'>
-      <button class='btn btn-lg btn-default' {{action 'print'}}>{{t "Print This Report" key='print_this_report'}}</button>
+      <button class='btn btn-lg btn-default' {{action "print"}}>{{t "Print This Report" key="print_this_report"}}</button>
     </div>
   </div>
 {{else}}
-  <p>{{t "Analysis lost" key='analysis_lost'}}</p>
+  <p>{{t "Analysis lost" key="analysis_lost"}}</p>
 {{/if}}

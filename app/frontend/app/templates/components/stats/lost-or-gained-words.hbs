@@ -4,13 +4,13 @@
       <tr>
         <th colspan="2">
           {{#if lost_words.some}}
-            {{t "Lost words (compared)" key='lost_words'}}
+            {{t "Lost words (compared)" key="lost_words"}}
           {{else if gained_words.some}}
-            {{t "Gained words (compared)" key='gained_words'}}
+            {{t "Gained words (compared)" key="gained_words"}}
           {{else}}
-            {{t "Words (compared)" key='words_compared'}}
+            {{t "Words (compared)" key="words_compared"}}
           {{/if}}
-          <a href="#" {{action 'word_cloud'}}>{{t "word cloud" key='word_cloud_lower'}}</a>
+          <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
         </th>
       </tr>
     </thead>
@@ -20,9 +20,9 @@
           <tr>
             <td>{{word.text}}</td>
             {{#if word.gone}}
-              <td>{{t "gone, was %{pct}%" key='lost_from_pct' pct=word.pre}}</td>
+              <td>{{t "gone, was %{pct}%" key="lost_from_pct" pct=word.pre}}</td>
             {{else}}
-              <td>{{t "-" key='minus'}}{{word.multiplier}}{{t "x" key='mult'}}</td>
+              <td>{{t "-" key="minus"}}{{word.multiplier}}{{t "x" key="mult"}}</td>
             {{/if}}
           </tr>
         {{/each}}
@@ -31,15 +31,15 @@
           <tr>
             <td>{{word.text}}</td>
             {{#if word.new}}
-              <td>{{t "new with %{pct}%" key='new_with_pct' pct=word.post}}</td>
+              <td>{{t "new with %{pct}%" key="new_with_pct" pct=word.post}}</td>
             {{else}}
-              <td>{{t "+" key='plus'}}{{word.multiplier}}{{t "x" key='mult'}}</td>
+              <td>{{t "+" key="plus"}}{{word.multiplier}}{{t "x" key="mult"}}</td>
             {{/if}}
           </tr>
         {{/each}}
       {{else}}
         <tr>
-          <td>{{t "No data available" key='no_data'}}</td>
+          <td>{{t "No data available" key="no_data"}}</td>
         </tr>
       {{/if}}
     </tbody>

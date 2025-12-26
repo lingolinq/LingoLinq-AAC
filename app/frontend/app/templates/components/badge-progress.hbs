@@ -1,9 +1,9 @@
 <div style={{badge_container_style}}>
-  <a href="#" {{action 'badge_popup'}}>
+  <a href="#" {{action "badge_popup"}}>
     {{#if badge.image_url}}
-      <img src={{badge.image_url}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+      <img src={{badge.image_url}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     {{else}}
-      <img src={{path 'images/badge-fallback.png'}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path 'images/badge-fallback.png'}} />
+      <img src={{path "images/badge-fallback.png"}} style={{image_style}} onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     {{/if}}
     <div class="progress" style={{progress_container_style}}>
       <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow={{badge_progress}} aria-valuemin="0" aria-valuemax="100" style={{progress_style}}>

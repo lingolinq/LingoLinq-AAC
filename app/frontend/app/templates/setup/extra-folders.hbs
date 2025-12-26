@@ -1,25 +1,25 @@
 <div class='col-sm-10 col-sm-offset-1'>
-  <h4>{{t "Accessing Linked Boards" key='accessing_linked_boards'}}</h4>
+  <h4>{{t "Accessing Linked Boards" key="accessing_linked_boards"}}</h4>
 </div>
 <div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path 'walkthrough/speak_mode_folders.gif'}} style='width: 100%;' />
+  <img src={{path "walkthrough/speak_mode_folders.gif"}} style='width: 100%;' >
 </div>
 <div class='col-sm-5'>
-  <p>{{t "Buttons that have a little folder icon or a mark in the corner are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key='folders_1'}}</p>
-  <p>{{t "By default linked buttons do not speak, and when the communicator hits a non-linked button they will be taken back to the home board, but both of these settings are optional and can be changed in a user's preferences." key='folders_2'}}</p>
+  <p>{{t "Buttons that have a little folder icon or a mark in the corner are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key="folders_1"}}</p>
+  <p>{{t "By default linked buttons do not speak, and when the communicator hits a non-linked button they will be taken back to the home board, but both of these settings are optional and can be changed in a user's preferences." key="folders_2"}}</p>
   <label style='padding: 10px 0; font-size: 16px;'>
-    {{input type='checkbox' checked=vocalize_buttons}}
-    <span style='padding-left: 5px;'>{{t "Speak after each button selection" key='speak_on_select'}}</span>
+    {{input type="checkbox" checked=vocalize_buttons}}
+    <span style='padding-left: 5px;'>{{t "Speak after each button selection" key="speak_on_select"}}</span>
   </label>
   {{#if vocalize_buttons}}
     <label style='padding: 10px 0; font-size: 16px;'>
-      {{input type='checkbox' checked=vocalize_linked_buttons}}
-      <span style='padding-left: 5px;'>{{t "Speak even when linked buttons are selected" key='speak_linked_buttons'}}</span>
+      {{input type="checkbox" checked=vocalize_linked_buttons}}
+      <span style='padding-left: 5px;'>{{t "Speak even when linked buttons are selected" key="speak_linked_buttons"}}</span>
     </label>
   {{/if}}
   <label style='padding: 10px 0; font-size: 16px;'>
-    {{input type='checkbox' checked=auto_home_return}}
-    <span style='padding-left: 5px;'>{{t "Return home when unlinked buttons are selected" key='unlinked_auto_home_return'}}</span>
+    {{input type="checkbox" checked=auto_home_return}}
+    <span style='padding-left: 5px;'>{{t "Return home when unlinked buttons are selected" key="unlinked_auto_home_return"}}</span>
   </label>
 </div>
 

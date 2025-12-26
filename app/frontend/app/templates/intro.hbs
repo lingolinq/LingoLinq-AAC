@@ -1,195 +1,195 @@
-{{#modal-dialog desired_width=800 action="close" opening='opening' closing='closing'}}
+{{#modal-dialog desired_width=800 action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Getting Started with %app_name%" key='getting_started_with_app'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Getting Started with %app_name%" key="getting_started_with_app"}}</h3>
   </div>
   <div class="modal-body">
     <div style="float: right; margin: -5px 0 5px;">
-      {{t "Page %{page} of" key='page_n_of' page=page}}
+      {{t "Page %{page} of" key="page_n_of" page=page}}
       {{total_pages}}
     </div>
     <div class="intro_box">
       {{#if pages.page_1}}
-        <h4 >{{t "First, A Little About AAC" key='a_little_about_aac'}}</h4>
+        <h4 >{{t "First, A Little About AAC" key="a_little_about_aac"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/aac_intro.gif'}} alt={{t "AAC Intro" key='aac_intro_image'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/aac_intro.gif"}} alt={{t "AAC Intro" key="aac_intro_image"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Thanks for signing up for %app_name%! We're excited you're here and hope %app_name% makes a difference. Before we get into some %app_name% basics, we wanted to talk a little about AAC." key='aac_intro_1'}}</p>
-            <p>{{t "AAC (Augmentative and Alternative Communication) is a tool to help developing communicators be heard. %app_name% is a type of AAC where you select buttons that represent words or letters and the device speaks whatever the user selects." key='aac_intro_2'}}</p>
+            <p>{{t "Thanks for signing up for %app_name%! We're excited you're here and hope %app_name% makes a difference. Before we get into some %app_name% basics, we wanted to talk a little about AAC." key="aac_intro_1"}}</p>
+            <p>{{t "AAC (Augmentative and Alternative Communication) is a tool to help developing communicators be heard. %app_name% is a type of AAC where you select buttons that represent words or letters and the device speaks whatever the user selects." key="aac_intro_2"}}</p>
           </div>
         </div>
       {{else if pages.page_2}}
-        <h4>{{t "First, A Little About AAC" key='a_little_about_aac'}}</h4>
+        <h4>{{t "First, A Little About AAC" key="a_little_about_aac"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/board_examples.gif'}} alt={{t "AAC Board Examples" key='aac_board_examples'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/board_examples.gif"}} alt={{t "AAC Board Examples" key="aac_board_examples"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "AAC can make a huge difference for people who have a hard time speaking on their own. Ideally users could pick from any word in the dictionary, but if spelling isn't an option, we need to carefully choose the right words and phrases to best help each individual communicate effectively." key='aac_intro_22'}}</p>
-            <p>{{t "In %app_name% we put words and phrases on buttons that are organized as a collection of \"boards\". There are different board sets for many different users and needs." key='aac_intro_3'}}</p>
+            <p>{{t "AAC can make a huge difference for people who have a hard time speaking on their own. Ideally users could pick from any word in the dictionary, but if spelling isn't an option, we need to carefully choose the right words and phrases to best help each individual communicate effectively." key="aac_intro_22"}}</p>
+            <p>{{t "In %app_name% we put words and phrases on buttons that are organized as a collection of \"boards\". There are different board sets for many different users and needs." key="aac_intro_3"}}</p>
           </div>
         </div>
       {{else if pages.page_3}}
-        <h4>{{t "Choosing the Right Vocabulary" key='choosing_vocabulary'}}</h4>
+        <h4>{{t "Choosing the Right Vocabulary" key="choosing_vocabulary"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/core_words.gif'}} alt={{t "AAC Core Words" key='aac_core_words'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/core_words.gif"}} alt={{t "AAC Core Words" key="aac_core_words"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Starting a user with the right words is important -- and hard! How do you decide which words someone should have at their fingertips?" key='core_words_1'}}</p>
-            <p>{{t "Many people think first about needs-based communication (\"I need to go to the bathroom\", \"I am hurting\", \"I am hungry\"), and these are important things to be able to express. However, it's also very valuable to try to include common words that can be used in more than one way. We call these types of words \"core\" words." key='core_words_2'}}</p>
+            <p>{{t "Starting a user with the right words is important -- and hard! How do you decide which words someone should have at their fingertips?" key="core_words_1"}}</p>
+            <p>{{t "Many people think first about needs-based communication (\"I need to go to the bathroom\", \"I am hurting\", \"I am hungry\"), and these are important things to be able to express. However, it's also very valuable to try to include common words that can be used in more than one way. We call these types of words \"core\" words." key="core_words_2"}}</p>
           </div>
         </div>
       {{else if pages.page_4}}
-        <h4>{{t "Choosing the Right Vocabulary" key='choosing_vocabulary'}}</h4>
+        <h4>{{t "Choosing the Right Vocabulary" key="choosing_vocabulary"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/core_words.gif'}} alt={{t "AAC Core Words" key='aac_core_words'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/core_words.gif"}} alt={{t "AAC Core Words" key="aac_core_words"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Core words are words like \"you\", \"I\", \"like\", \"not\", \"go\", \"in\", etc. They may not seem as useful right away, but over time a user who is exposed to core words can express many different ideas (\"I like it\", \"not want\", \"you get it\", \"when can we go there\") and more effectively deepen their vocabulary." key='core_words_3'}}</p>
-            <p>{{t "Every user is different, but a combination of core and specialized words and phrases can often help a communicator grow their expression gradually, instead of being stuck only expressing needs and wants." key='core_words_4'}}</p>
+            <p>{{t "Core words are words like \"you\", \"I\", \"like\", \"not\", \"go\", \"in\", etc. They may not seem as useful right away, but over time a user who is exposed to core words can express many different ideas (\"I like it\", \"not want\", \"you get it\", \"when can we go there\") and more effectively deepen their vocabulary." key="core_words_3"}}</p>
+            <p>{{t "Every user is different, but a combination of core and specialized words and phrases can often help a communicator grow their expression gradually, instead of being stuck only expressing needs and wants." key="core_words_4"}}</p>
           </div>
         </div>
       {{else if pages.page_5}}
-        <h4>{{t "Selecting a Home Board" key='selecting_a_home_board'}}</h4>
+        <h4>{{t "Selecting a Home Board" key="selecting_a_home_board"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/dashboard.gif'}} alt={{t "%app_name% Dashboard" key='app_dashboard'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/dashboard.gif"}} alt={{t "%app_name% Dashboard" key="app_dashboard"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Now let's move on to how to get started using %app_name%!" key='dashboard_1'}}</p>
-            <p>{{t "When you first log in to %app_name%, you'll start on the dashboard. Here you can see notifications, access your profile and preferences, and browse through the available home boards." key='dashboard_2'}}</p>
+            <p>{{t "Now let's move on to how to get started using %app_name%!" key="dashboard_1"}}</p>
+            <p>{{t "When you first log in to %app_name%, you'll start on the dashboard. Here you can see notifications, access your profile and preferences, and browse through the available home boards." key="dashboard_2"}}</p>
           </div>
         </div>
       {{else if pages.page_6}}
-        <h4>{{t "Selecting a Home Board" key='selecting_a_home_board'}}</h4>
+        <h4>{{t "Selecting a Home Board" key="selecting_a_home_board"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/set_as_home.gif'}} alt={{t "%app_name% Board Examples" key='app_board_examples'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/set_as_home.gif"}} alt={{t "%app_name% Board Examples" key="app_board_examples"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "%app_name% has a number of different home boards that you can start using right away, or copy and personalize as you go. Some boards have a few large buttons, and some have many small buttons." key='home_board_1'}}</p>
-            <p>{{t "More buttons means more options for expression, but some users are limited in how small a button they can reliably hit (keep in mind you can always hide buttons for now that you want to add later, so a board that looks \"too busy\" may actually be something they can grow into over time)." key='home_board_2'}}</p>
+            <p>{{t "%app_name% has a number of different home boards that you can start using right away, or copy and personalize as you go. Some boards have a few large buttons, and some have many small buttons." key="home_board_1"}}</p>
+            <p>{{t "More buttons means more options for expression, but some users are limited in how small a button they can reliably hit (keep in mind you can always hide buttons for now that you want to add later, so a board that looks \"too busy\" may actually be something they can grow into over time)." key="home_board_2"}}</p>
           </div>
         </div>
       {{else if pages.page_7}}
-        <h4>{{t "Speak Mode" key='speak_mode'}}</h4>
+        <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/speak_mode.gif'}} alt={{t "%app_name% Speak Mode" key='app_speak_mode'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/speak_mode.gif"}} alt={{t "%app_name% Speak Mode" key="app_speak_mode"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Once you've selected a home board you can access it by launching into Speak Mode." key='speak_mode_1'}}</p>
-            <p>{{t "When you're in Speak Mode you can hit buttons to have them spoken, and added to the vocalization box at the top. If you hit the vocalization box it'll speak all the buttons that are located there. The backspace and clear buttons can help keep the sentence window clean." key='speak_mode_2'}}</p>
+            <p>{{t "Once you've selected a home board you can access it by launching into Speak Mode." key="speak_mode_1"}}</p>
+            <p>{{t "When you're in Speak Mode you can hit buttons to have them spoken, and added to the vocalization box at the top. If you hit the vocalization box it'll speak all the buttons that are located there. The backspace and clear buttons can help keep the sentence window clean." key="speak_mode_2"}}</p>
           </div>
         </div>
       {{else if pages.page_8}}
-        <h4>{{t "Speak Mode" key='speak_mode'}}</h4>
+        <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/speak_mode_folders.gif'}} alt={{t "%app_name% Speak Mode Folders" key='app_speak_mode_folders'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/speak_mode_folders.gif"}} alt={{t "%app_name% Speak Mode Folders" key="app_speak_mode_folders"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Buttons that have a little folder icon on them are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key='speak_mode_22'}}</p>
+            <p>{{t "Buttons that have a little folder icon on them are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key="speak_mode_22"}}</p>
           </div>
         </div>
       {{else if pages.page_9}}
-        <h4>{{t "Speak Mode" key='speak_mode'}}</h4>
+        <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/speak_mode_exiting.gif'}} alt={{t "%app_name% Exiting Speak Mode" key='app_exiting_speak_mode'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/speak_mode_exiting.gif"}} alt={{t "%app_name% Exiting Speak Mode" key="app_exiting_speak_mode"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's preferences." key='speak_mode_3'}}</p>
+            <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's preferences." key="speak_mode_3"}}</p>
           </div>
         </div>
       {{else if pages.page_10}}
-        <h4>{{t "Adding Supervisors" key='adding_supervisors'}}</h4>
+        <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/modeling.gif'}} alt={{t "AAC Modeling" key='aac_modeling'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/modeling.gif"}} alt={{t "AAC Modeling" key="aac_modeling"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "When someone is learning to communicate (whether by speaking or using AAC), it's important that they have lots of supporting communicators helping them see good examples and learn correctly." key='modeling_1'}}</p>
-            <p>{{t "In the AAC world many people call this \"modeling\", and it's important that people around AAC users are showing them examples of how to effectively use their device (\"You want a cookie? Let me show you, you could say *want* and then *cookie*\")." key='modeling_2'}}</p>
+            <p>{{t "When someone is learning to communicate (whether by speaking or using AAC), it's important that they have lots of supporting communicators helping them see good examples and learn correctly." key="modeling_1"}}</p>
+            <p>{{t "In the AAC world many people call this \"modeling\", and it's important that people around AAC users are showing them examples of how to effectively use their device (\"You want a cookie? Let me show you, you could say *want* and then *cookie*\")." key="modeling_2"}}</p>
           </div>
         </div>
       {{else if pages.page_11}}
-        <h4>{{t "Adding Supervisors" key='adding_supervisors'}}</h4>
+        <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/supervisors.gif'}} alt={{t "%app_name% Supervisors" key='app_supervisors'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/supervisors.gif"}} alt={{t "%app_name% Supervisors" key="app_supervisors"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "In %app_name%, the support team around the communicator are called \"supervisors\". Supervisors are users that are modeling for and working with a communicator. They have their own login, and might be a teacher or a therapist, a parent, a caregiver, etc." key='intro_modeling_3'}}</p>
-            <p>{{t "Supervisors are added to their communicator's account, and can see a communicator's boards on their own devices, so they can get comfortable with a user's vocabulary for better modeling, and can add new buttons and phrases if they have editing permission." key='intro_modeling_4'}}</p>
+            <p>{{t "In %app_name%, the support team around the communicator are called \"supervisors\". Supervisors are users that are modeling for and working with a communicator. They have their own login, and might be a teacher or a therapist, a parent, a caregiver, etc." key="intro_modeling_3"}}</p>
+            <p>{{t "Supervisors are added to their communicator's account, and can see a communicator's boards on their own devices, so they can get comfortable with a user's vocabulary for better modeling, and can add new buttons and phrases if they have editing permission." key="intro_modeling_4"}}</p>
           </div>
         </div>
       {{else if pages.page_12}}
-        <h4>{{t "Logging and Reports" key='logging_and_report'}}</h4>
+        <h4>{{t "Logging and Reports" key="logging_and_report"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/reports.gif'}} alt={{t "%app_name% Reports" key='app_reports'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/reports.gif"}} alt={{t "%app_name% Reports" key="app_reports"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "Supervisors can also review a user's communication history. For privacy reasons logs and reports are disabled by default, but if you enable them then the user's supervisors can see how their communication is progressing over time." key='reports_1'}}</p>
+            <p>{{t "Supervisors can also review a user's communication history. For privacy reasons logs and reports are disabled by default, but if you enable them then the user's supervisors can see how their communication is progressing over time." key="reports_1"}}</p>
           </div>
         </div>
       {{else if pages.page_13}}
-        <h4>{{t "Logging and Reports" key='logging_and_report'}}</h4>
+        <h4>{{t "Logging and Reports" key="logging_and_report"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
-            <img src={{path 'walkthrough/logs.gif'}} alt={{t "%app_name% Logs and Notes" key='app_logs_and_notes'}} rel={{path 'walkthrough/fallback.gif'}} onerror="this.src=this.getAttribute('rel');" />
+            <img src={{path "walkthrough/logs.gif"}} alt={{t "%app_name% Logs and Notes" key="app_logs_and_notes"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "In addition to reviewing usage history, supervisors can access detailed reports on each communication session, and can make and share notes with the user's team, so everyone knows what the current strategy is and what is or isn't working well." key='reports_2'}}</p>
+            <p>{{t "In addition to reviewing usage history, supervisors can access detailed reports on each communication session, and can make and share notes with the user's team, so everyone knows what the current strategy is and what is or isn't working well." key="reports_2"}}</p>
           </div>
         </div>
       {{else if pages.page_14}}
-        <h4>{{t "Where to Learn More" key='where_to_learn_more'}}</h4>
+        <h4>{{t "Where to Learn More" key="where_to_learn_more"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
             <div class='list-group'>
-              <a class='list-group-item' href="#" {{action 'video'}}>{{t "Intro Video: Getting Started with %app_name%" key='getting_started_video'}}</a>
+              <a class='list-group-item' href="#" {{action "video"}}>{{t "Intro Video: Getting Started with %app_name%" key="getting_started_video"}}</a>
               {{#if app_state.domain_settings.youtube_url}}
-                <a class='list-group-item' href={{app_state.domain_settings.youtube_url}} target="_blank">{{t "%app_name% YouTube Channel, with Walkthroughs" key='youtube_channel'}}</a>
+                <a class='list-group-item' href={{app_state.domain_settings.youtube_url}} target="_blank" rel="noopener">{{t "%app_name% YouTube Channel, with Walkthroughs" key="youtube_channel"}}</a>
               {{/if}}
               {{#if app_state.domain_settings.support_url}}
-                <a class='list-group-item' href={{app_state.domain_settings.support_url}} target="_blank">{{t "%app_name% Support Site, with FAQs" key='support_site'}}</a>
+                <a class='list-group-item' href={{app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "%app_name% Support Site, with FAQs" key="support_site"}}</a>
               {{/if}}
             </div>
           </div>
           <div class="col-sm-4">
-            <p>{{t "Thanks for going through this introduction to %app_name%! Hopefully it was helpful for you! If you have questions or want to learn more, you can check out some additional resources." key='thanks_continue_learning'}}</p>
-            <p>{{t "If you ever get lost you can always hit the \"Support\" button at the bottom of the dashboard to ask for help, or to share feedback on how we can improve LingoLinq. We're always here to help!" key='more_resources_2'}}</p>
+            <p>{{t "Thanks for going through this introduction to %app_name%! Hopefully it was helpful for you! If you have questions or want to learn more, you can check out some additional resources." key="thanks_continue_learning"}}</p>
+            <p>{{t "If you ever get lost you can always hit the \"Support\" button at the bottom of the dashboard to ask for help, or to share feedback on how we can improve LingoLinq. We're always here to help!" key="more_resources_2"}}</p>
           </div>
         </div>
       {{else}}
-        <h4>{{t "Blah blah blah blah" key='blah_blah'}}</h4>
+        <h4>{{t "Blah blah blah blah" key="blah_blah"}}</h4>
       {{/if}}
     </div>
   </div>
   <div class="modal-footer">
     <div style='float: left;'>
-      <button class='btn btn-lg btn-default' {{action "close" }}>{{t "Close" key='close'}}</button>
+      <button class='btn btn-lg btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
     </div>
     <div style='float: right;'>
       {{#if pages.first_page}}
-        <button class='btn btn-lg btn-default' {{action 'video'}}>
+        <button class='btn btn-lg btn-default' {{action "video"}}>
           <span class='glyphicon glyphicon-play'></span>
-          {{t "Watch the Video" key='intro_video_instead'}}
+          {{t "Watch the Video" key="intro_video_instead"}}
         </button>
       {{else}}
         <button class='btn btn-lg btn-default' {{action "previous" }}>
           <span class='glyphicon glyphicon-chevron-left'></span>
-          {{t "Back" key='back'}}
+          {{t "Back" key="back"}}
         </button>
       {{/if}}
       <button class='btn btn-lg btn-default' {{action "next" }} style={{if pages.last_page "visibility: hidden;" ""}}>
-        {{t "Next" key='next'}}
+        {{t "Next" key="next"}}
         <span class='glyphicon glyphicon-chevron-right'></span>
       </button>
     </div>

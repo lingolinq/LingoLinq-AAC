@@ -1,59 +1,59 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Button Settings" key='button_settings'}} - {{model.label}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Button Settings" key="button_settings"}} - {{model.label}}</h3>
   </div>
   <div class="modal-body" id="button_settings">
     <div class="row">
       <div class="col-sm-3">
         <ul class="nav nav-pills nav-stacked">
-          <li class={{if helpState 'active' 'inactive'}} {{action 'setState' "help"}}><a href="#">{{t "Help" key='help'}}</a></li>
-          <li class={{if generalState 'active' 'inactive'}} {{action 'setState' "general"}}><a href="#">{{t "General" key='general'}}</a></li>
-          <li class={{if pictureState 'active' 'inactive'}} {{action 'setState' "picture"}}><a href="#">{{t "Picture" key='picture'}}</a></li>
-          <li class={{if actionState 'active' 'inactive'}} {{action 'setState' "action"}}><a href="#">{{t "Action" key='action'}}</a></li>
-          <li class={{if soundState 'active' 'inactive'}} {{action 'setState' "sound"}}><a href="#">{{t "Sound" key='sound'}}</a></li>
+          <li class={{if helpState "active" "inactive"}} {{action "setState" "help"}}><a href="#">{{t "Help" key="help"}}</a></li>
+          <li class={{if generalState "active" "inactive"}} {{action "setState" "general"}}><a href="#">{{t "General" key="general"}}</a></li>
+          <li class={{if pictureState "active" "inactive"}} {{action "setState" "picture"}}><a href="#">{{t "Picture" key="picture"}}</a></li>
+          <li class={{if actionState "active" "inactive"}} {{action "setState" "action"}}><a href="#">{{t "Action" key="action"}}</a></li>
+          <li class={{if soundState "active" "inactive"}} {{action "setState" "sound"}}><a href="#">{{t "Sound" key="sound"}}</a></li>
           {{#if board.translations}}
-            <li class={{if languageState 'active' 'inactive'}} {{action 'setState' "language"}}><a href="#">{{t "Language" key='language'}}</a></li>
+            <li class={{if languageState "active" "inactive"}} {{action "setState" "language"}}><a href="#">{{t "Language" key="language"}}</a></li>
           {{/if}}
           {{#if app_state.feature_flags.board_levels}}
-            <li class={{if extrasState 'active' 'inactive'}} {{action 'setState' "extras"}}><a href="#">{{t "Extras" key='extras'}}</a></li>
+            <li class={{if extrasState "active" "inactive"}} {{action "setState" "extras"}}><a href="#">{{t "Extras" key="extras"}}</a></li>
           {{/if}}
         </ul>
       </div>
       <div class="col-sm-9 content">
         {{!-- Help tab content --}}
         <form class="form-horizontal">
-        <div class={{if helpState 'active' 'hidden'}}>
+        <div class={{if helpState "active" "hidden"}}>
           <div class="form-group">
             <div class="col-sm-12">
               <div style='position: relative;'>
-                <h4>{{t "Button Settings" key='button_settings'}}</h4>
+                <h4>{{t "Button Settings" key="button_settings"}}</h4>
                 {{#if auto_help}}
-                  <button {{action 'disable_auto_help'}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key='skip_help'}}</button>
+                  <button {{action "disable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key="skip_help"}}</button>
                 {{else if app_state.currentUser.preferences.disable_button_help}}
-                  <button {{action 'enable_auto_help'}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key='re_enable_help'}}</button>
+                  <button {{action "enable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key="re_enable_help"}}</button>
                 {{/if}}
               </div>
-              <p>{{t "Buttons configurations are very flexible, and you can explore settings using the tabs to the left, or the quick actions below." key='button_settings_explainer'}}</p>
+              <p>{{t "Buttons configurations are very flexible, and you can explore settings using the tabs to the left, or the quick actions below." key="button_settings_explainer"}}</p>
             </div>
           </div>
           <div class="form-group">
             <div class="col-sm-12">
               <div class='btn-group-vertical' style='width: 90%;'>
-                <button {{action 'quick_action' 'picture'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-picture' style='margin-right: 3px;'></span> {{t "Change this Button's Picture" key='change_image'}}</button>
-                <button {{action 'quick_action' 'label'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-edit' style='margin-right: 3px;'></span> {{t "Change this Button's Label" key='change_label'}}</button>
-                <button {{action 'quick_action' 'sound'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-volume-down' style='margin-right: 3px;'></span> {{t "Change what this Button Speaks" key='change_speak_sound'}}</button>
-                <button {{action 'quick_action' 'folder'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-folder-open' style='margin-right: 3px;'></span> {{t "Link to Another Board" key='link_to_board'}}</button>
-                <button {{action 'quick_action' 'url'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-link' style='margin-right: 3px;'></span> {{t "Link to a Web Site or Video" key='link_to_web_site'}}</button>
-                <button {{action 'quick_action' 'hide'}} class='btn btn-lg btn-default' style='text-align: left;'>
+                <button {{action "quick_action" "picture"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-picture' style='margin-right: 3px;'></span> {{t "Change this Button's Picture" key="change_image"}}</button>
+                <button {{action "quick_action" "label"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-edit' style='margin-right: 3px;'></span> {{t "Change this Button's Label" key="change_label"}}</button>
+                <button {{action "quick_action" "sound"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-volume-down' style='margin-right: 3px;'></span> {{t "Change what this Button Speaks" key="change_speak_sound"}}</button>
+                <button {{action "quick_action" "folder"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-folder-open' style='margin-right: 3px;'></span> {{t "Link to Another Board" key="link_to_board"}}</button>
+                <button {{action "quick_action" "url"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-link' style='margin-right: 3px;'></span> {{t "Link to a Web Site or Video" key="link_to_web_site"}}</button>
+                <button {{action "quick_action" "hide"}} class='btn btn-lg btn-default' style='text-align: left;'>
                   {{#if model.hidden}}
-                    <span class='glyphicon glyphicon-eye-open' style='margin-right: 3px;'></span> {{t "Un-Hide this Button" key='unhide_this_button'}}
+                    <span class='glyphicon glyphicon-eye-open' style='margin-right: 3px;'></span> {{t "Un-Hide this Button" key="unhide_this_button"}}
                   {{else}}
-                    <span class='glyphicon glyphicon-eye-close' style='margin-right: 3px;'></span> {{t "Hide this Button" key='hide_this_button'}}
+                    <span class='glyphicon glyphicon-eye-close' style='margin-right: 3px;'></span> {{t "Hide this Button" key="hide_this_button"}}
                   {{/if}}
                 </button>
                 {{#if paint_hide_reminder}}
-                  <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key='hide_and_show_using_paint'}}</em>
+                  <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key="hide_and_show_using_paint"}}</em>
                 {{/if}}
               </div>
             </div>
@@ -63,9 +63,9 @@
 
         {{!-- General tab content --}}
         <form class="form-horizontal">
-        <div class={{if generalState 'active' 'hidden'}}>
+        <div class={{if generalState "active" "hidden"}}>
           <div class="form-group">
-            <label for="label" class="col-sm-2 control-label">{{t "Label" key='label'}}</label>
+            <label for="label" class="col-sm-2 control-label">{{t "Label" key="label"}}</label>
             <div class="col-sm-10">
               {{input value=model.label class="form-control" id="label"}}
             </div>
@@ -75,7 +75,7 @@
               <div class="checkbox big_checkbox">
                 <label>
                   {{input checked=model.hide_label type="checkbox"}}
-                  {{t "Hide the label when the picture is shown" key='hide_label'}}
+                  {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>
             </div>
@@ -87,18 +87,18 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="fill" class="col-sm-2 control-label">{{t "Fill" key='fill'}}</label>
+            <label for="fill" class="col-sm-2 control-label">{{t "Fill" key="fill"}}</label>
             <div class="col-sm-10">
               <span {{action "toggle_color" "fill"}} style="display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom;" class={{fake_button_class}}></span>
               <span class="button_field">
                 {{input value=model.background_color class="form-control" id="fill"}}
               </span>
-              <br/>
-              <em style="font-size: 12px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key='use_paint_button'}}</em>
+              <br>
+              <em style="font-size: 12px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
             </div>
           </div>
           <div class="form-group">
-            <label for="border" class="col-sm-2 control-label">{{t "Border" key='border'}}</label>
+            <label for="border" class="col-sm-2 control-label">{{t "Border" key="border"}}</label>
             <div class="col-sm-10">
               <span {{action "toggle_color" "border"}} id="background_pattern" style="display: inline-block; border-width: 3px; height: 34px; width: 70px; vertical-align: bottom;" class={{fake_button_class}}></span>
               <span class="button_field">
@@ -107,26 +107,26 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="hidden" class="col-sm-2 control-label">{{t "Hidden" key='hidden'}}</label>
+            <label for="hidden" class="col-sm-2 control-label">{{t "Hidden" key="hidden"}}</label>
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
                   {{input checked=model.hidden type="checkbox"}}
-                  {{t "Hide this button from view" key='hide_this_button_from_view'}}
+                  {{t "Hide this button from view" key="hide_this_button_from_view"}}
                 </label>
               </div>
             </div>
           </div>
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
-              <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear" key='clear'}}</button>
-              <button type="button" class="btn btn-default" {{action "swapButton"}}>{{t "Swap With..." key='swap_with'}}</button>
+              <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear" key="clear"}}</button>
+              <button type="button" class="btn btn-default" {{action "swapButton"}}>{{t "Swap With..." key="swap_with"}}</button>
               <button type="button" class="btn btn-default" {{action "stash_button"}}>
                 {{#if stashed}}
                   <span class="glyphicon glyphicon-check"></span>
-                  {{t "Copied to Stash" key='copied_to_stash'}}
+                  {{t "Copied to Stash" key="copied_to_stash"}}
                 {{else}}
-                  {{t "Copy to Stash" key='copy_to_stash'}}
+                  {{t "Copy to Stash" key="copy_to_stash"}}
                 {{/if}}
               </button>
             </div>
@@ -135,36 +135,36 @@
         </form>
 
         {{!-- Picture tab content (inlined) --}}
-        <form class="form-horizontal" {{action 'nothing' on='submit'}}>
-        <div class={{if pictureState 'active' 'hidden'}}>
+        <form class="form-horizontal" {{action "nothing" on="submit"}}>
+        <div class={{if pictureState "active" "hidden"}}>
   {{#if show_libraries}}
     {{#if image_libraries}}
-      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key='library_colon'}}</div>
+      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
         {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=image_libraries selection=image_library action=(action (mut image_library)) }}
       </div>
     {{else}}
-      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key='library_open_symbols'}}</div>
+      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
     {{#if app_state.feature_flags.skin_tones}}
-      <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action 'library_options'}} style='height: 25px; padding-top: 3px;'>{{t "options" key='options'}}</button></div>
+      <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
     {{/if}}
     <div style="clear: left;"></div>
     {{#if premium_symbol_library}}
       {{#if app_state.currentUser.subscription.grace_trial_period}}
         <div class='text-danger'>
-          {{t "(requires extra fee after trial period)" key='extra_fee_at_purchase'}}            
+          {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
         </div>
       {{/if}}
     {{/if}}
     <div style='font-size: 12px; margin-top: 5px;' class='text-muted'>
-      <em>{{t "Enter a search term, or paste a URL or file" key='search_or_paste'}}</em>
+      <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
     </div>
   {{/if}}
   <div style="margin-bottom: 10px;" class="options">
     <span class="picture_search_field">
-      <span style={{if multi_locales 'display: inline-block; width: calc(100% - 60px); vertical-align: middle;' 'display: inline-block; width: 100%; vertical-align: middle;'}}>
-        {{input id='find_picture' value=model.image_field enter=(action "find_picture") placeholder=search_prompt class="form-control inline select_on_click"}}
+      <span style={{if multi_locales "display: inline-block; width: calc(100% - 60px); vertical-align: middle;" "display: inline-block; width: 100%; vertical-align: middle;"}}>
+        {{input id="find_picture" value=model.image_field enter=(action "find_picture") placeholder=search_prompt class="form-control inline select_on_click"}}
       </span>
       {{#if multi_locales}}
         <span style='display: inline-block; width: 55px; vertical-align: middle;'>
@@ -182,15 +182,15 @@
         </span>
       {{/if}}
     </span>
-    <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key='search'}}</button>
+    <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key="search"}}</button>
     <button type="button" {{action "webcamPicture" on="click"}} disabled={{webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
-      <img src={{path 'images/camera.svg'}} style="height: 42px; margin: -13px;" alt="take a picture"/>
+      <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
     </button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
-        <img src={{path 'images/upload.svg'}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+        <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
       </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*"/>
+      <input type="file" name="image_upload" id="image_upload" accept="image/*">
     </span>
     {{#if show_library_options}}
       <div style='margin-top: 3px;'>
@@ -199,7 +199,7 @@
         </div>
         <div style='width: 150px; float: left; margin-left: 5px;'>
           <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>
-            <label>{{input type='checkbox' checked=safe_search}} {{t "safe search" key='safe_search'}}</label>
+            <label>{{input type="checkbox" checked=safe_search}} {{t "safe search" key="safe_search"}}</label>
           </div>
         </div>
       </div>
@@ -207,19 +207,19 @@
     {{/if}}
   </div>
 
-  <div style="text-align: center;" class={{if webcam 'shown' 'hidden'}}>
+  <div style="text-align: center;" class={{if webcam "shown" "hidden"}}>
     {{#if webcam.error}}
-      <p>{{t "There was an error loading the camera" key='error_loading_camera'}}</p>
+      <p>{{t "There was an error loading the camera" key="error_loading_camera"}}</p>
     {{else}}
       <video autoplay id="webcam_video" {{action "webcamToggle" true}} class={{webcam_class}}></video>
       <canvas id="webcam_canvas" style="display:none;" width="800" height="800"></canvas>
       {{#unless webcam.snapshot}}
-        <br/>
-        <button type="button" class='btn btn-primary' {{action "webcamToggle" true}}>{{t "Take Pic" key='take_pic'}}</button>
+        <br>
+        <button type="button" class='btn btn-primary' {{action "webcamToggle" true}}>{{t "Take Pic" key="take_pic"}}</button>
         {{#if webcam.video_streams}}
-          <button type="button" class='btn btn-default' {{action "swapStreams"}}>{{t "Switch Views" key='switch_cameras'}}</button>
+          <button type="button" class='btn btn-default' {{action "swapStreams"}}>{{t "Switch Views" key="switch_cameras"}}</button>
         {{/if}}
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{/unless}}
     {{/if}}
   </div>
@@ -228,7 +228,7 @@
     {{#if image_preview.error}}
       {{image_preview.error}}
       <div style='margin-top: 10px;'>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
       <div style="text-align: center;">
@@ -237,7 +237,7 @@
         {{else if image_preview.editor}}
           <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0"></iframe>
         {{else}}
-          <img src={{image_preview.url}} class="button_image"/>
+          <img src={{image_preview.url}} class="button_image">
         {{/if}}
         <div style="margin-top: 10px;">
           {{pick-license license=image_preview.license}}
@@ -246,13 +246,13 @@
           <div style='margin-top: -10px; text-align: left;'>
             <div class='form-group'>
               <div class='col-sm-2'>
-                <label><p class='form-control-static'>{{t "Contrast" key='contrast'}}</p></label>
+                <label><p class='form-control-static'>{{t "Contrast" key="contrast"}}</p></label>
               </div>
               <div class='col-sm-10'>
                 <div class="checkbox big_checkbox">
                   <label>
                     {{input checked=image_preview.hc type="checkbox"}}
-                    {{t "This is a high-contrast image" key='mark_high_contrast'}}
+                    {{t "This is a high-contrast image" key="mark_high_contrast"}}
                   </label>
                 </div>
               </div>
@@ -262,31 +262,31 @@
         <div style="margin-top: 10px;">
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
             {{#if button.pending}}
-              {{t "Saving..." key='saving'}}
+              {{t "Saving..." key="saving"}}
             {{else}}
-              {{t "Use This" key='use_this'}}
+              {{t "Use This" key="use_this"}}
             {{/if}}
           </button>
           {{#unless image_preview.editor}}
-            <button type="button" class='btn btn-default' {{action "edit_image_preview"}}>{{t "Edit" key='edit'}}</button>
+            <button type="button" class='btn btn-default' {{action "edit_image_preview"}}>{{t "Edit" key="edit"}}</button>
           {{/unless}}
           {{#if stream}}
-            <button type="button" class='btn btn-default' {{action "webcamToggle" false}}>{{t "Try Again" key='try_again'}}</button>
+            <button type="button" class='btn btn-default' {{action "webcamToggle" false}}>{{t "Try Again" key="try_again"}}</button>
           {{/if}}
           {{#if image_search.previews}}
-            <button type="button" class='btn btn-default' {{action "clear_image_preview"}}>{{t "Back to List" key='back_to_list'}}</button>
+            <button type="button" class='btn btn-default' {{action "clear_image_preview"}}>{{t "Back to List" key="back_to_list"}}</button>
             {{#if model.image.permissions.edit}}
               <div class="btn-group" role="group" aria-label="extra" style='width: 30px; margin-right: 5px;'>
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-right">
-                  <li><a href="#" {{action 'set_alternate'}}>{{t "Set as Library Default" key='set_as_library_default'}}</a></li>
+                  <li><a href="#" {{action "set_alternate"}}>{{t "Set as Library Default" key="set_as_library_default"}}</a></li>
                 </ul>
               </div>
             {{/if}}
           {{/if}}
-          <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+          <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
         </div>
       </div>
     {{/if}}
@@ -294,52 +294,52 @@
     {{#if image_search.error}}
       <p class='text-danger' style='margin: 15px 0;'>{{image_search.error}}</p>
       <div style='margin-top: 10px;'>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
       {{#if missing_library}}
         <div style="margin: 10px 0 10px 0;">
           {{#if missing_library.lessonpix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key='lessonpix_detailer'}}
+            <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank' rel='noopener'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key="lessonpix_detailer"}}
           {{else if missing_library.pcs}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key='pcs_explainer'}}
-            {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
+            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else if missing_library.symbolstix}}
-            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'/>
-            {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key='symbolstix_explainer'}}
-            {{#link-to 'user.subscription' app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
+            {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
+            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
           {{else}}
-            {{t "Premium symbol support required" key='premium_symbols_required'}}
+            {{t "Premium symbol support required" key="premium_symbols_required"}}
           {{/if}}
         </div>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else if image_search.previews}}
         <div style="margin: 10px 0 10px 0;">
           {{#each image_search.previews as |image|}}
-            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;"/>
+            <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;">
           {{/each}}
         </div>
         {{#if current_library.giphy_asl}}
-          <img src={{path 'images/logos/giphy.png'}} style='padding-bottom: 10px; margin-left: -10px;'/><br/>
+          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
 
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else if image_search.previews_loaded}}
         <div style="margin: 10px 0 10px 0;">
-          {{t "No results found for %{term}" key='no_image_results_for' term=image_search.term}}
+          {{t "No results found for %{term}" key="no_image_results_for" term=image_search.term}}
         </div>
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
-        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key='cancel'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
+        <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else}}
         {{#if current_library.giphy_asl}}
-          <img src={{path 'images/logos/giphy.png'}} style='padding-bottom: 10px; margin-left: -10px;'/><br/>
+          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
-        <button type='button' class='btn btn-default' {{action 'word_art'}}>{{t "Make Word Art" key='make_word_art'}}</button>
+        <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
       {{/if}}
     {{/if}}
   {{/if}}
@@ -348,7 +348,7 @@
 
         {{!-- Action tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if actionState 'active' 'hidden'}}>
+<div class={{if actionState "active" "hidden"}}>
   <div class="form-group">
     <label for="action" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
     <div class="col-sm-10">
@@ -357,28 +357,28 @@
   </div>
   {{#if model.folderAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Board" key='board'}}</label>
+      <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
           {{#if model.load_board.key}}
-            <img src={{model.icon}} style="height: 20px;"/>
-            <a href={{model.link}} target="_blank">{{model.load_board.key}}</a>
+            <img src={{model.icon}} style="height: 20px;">
+            <a href={{model.link}} target="_blank" rel="noopener">{{model.load_board.key}}</a>
           {{else}}
-            {{t "None Set" key='none_set'}}
+            {{t "None Set" key="none_set"}}
           {{/if}}
         </p>
       </div>
     </div>
     <div class="form-group">
-      <label for="change_to" class="col-sm-2 control-label">{{t "Find/Add" key='find_add'}}</label>
+      <label for="change_to" class="col-sm-2 control-label">{{t "Find/Add" key="find_add"}}</label>
       <div class="col-sm-10 options">
         <!-- for some reason this invisible button needs to be here otherwise when I hit 'enter' it triggers build_board instead of find_board -->
-        <button class="btn btn-default" {{action "find_board"}} style='display: none; margin-right: 20px;'>{{t "Find" key='find'}}</button>
-        <button class="btn btn-default" {{action "build_board"}} style='margin-right: 20px;'>{{t "New" key='new'}}</button>
+        <button class="btn btn-default" {{action "find_board"}} style='display: none; margin-right: 20px;'>{{t "Find" key="find"}}</button>
+        <button class="btn btn-default" {{action "build_board"}} style='margin-right: 20px;'>{{t "New" key="new"}}</button>
         <span class="board_search_field">
           {{input value=linkedBoardName class="form-control" id="change_to" placeholder="Board name or key" enter=(action "find_board")}}
         </span>
-        <button class="btn btn-default" {{action "find_board"}}>{{t "Find" key='find'}}</button>
+        <button class="btn btn-default" {{action "find_board"}}>{{t "Find" key="find"}}</button>
         {{#unless pending_board}}
           <div class="row" style="margin-top: 5px;">
             <div class="col-sm-12">
@@ -389,19 +389,19 @@
             <div class="row" style="margin-top: 10px;">
               {{#if confirm_found_board.copy_status.copying}}
                 <div class="col-sm-12">
-                  <p>{{t "Copying board %{board_key}..." board_key=confirm_found_board.key key='copying_board_key'}}</p>
+                  <p>{{t "Copying board %{board_key}..." board_key=confirm_found_board.key key="copying_board_key"}}</p>
                 </div>
               {{else if confirm_found_board.copy_status.error}}
                 <div class="col-sm-12">
-                  <p>{{t "There was an error copying the board" key='error_copying_board'}}</p>
+                  <p>{{t "There was an error copying the board" key="error_copying_board"}}</p>
                 </div>
               {{else if confirm_found_board.share_status.sharing}}
                 <div class="col-sm-12">
-                  <p>{{t "Sharing board %{board_key}..." board_key=confirm_found_board.key key='sharing_board_key'}}</p>
+                  <p>{{t "Sharing board %{board_key}..." board_key=confirm_found_board.key key="sharing_board_key"}}</p>
                 </div>
               {{else if confirm_found_board.share_status.error}}
                 <div class="col-sm-12">
-                  <p>{{t "There was an error sharing the board" key='error_sharing_board'}}</p>
+                  <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
                 {{#with confirm_found_board as |board|}}
@@ -409,7 +409,7 @@
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
     <span class="icon" style='display: block;'>
-      <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);"/>
+      <img src={{board.icon_url_with_fallback}} onerror="button_broken_image(this);">
     </span>
     <span style="display: block; height: 50px">
       <span style="color: #666; padding-left: 8px; display: block;">
@@ -439,26 +439,26 @@
   <span class="name">
     {{#unless board.public}}<span class="glyphicon glyphicon-lock"></span>{{/unless}}
     {{board.name}}{{#if board.copy_version}} <span style='color: #666; font-size: 10px;'>({{board.copy_version}})</span>{{/if}}
-  </span><br/>
+  </span><br>
   <span class="labels">{{board.labels}}</span>
-</span><br/>
-<span class="user_name">{{board.user_name}}</span><br/>
+</span><br>
+<span class="user_name">{{board.user_name}}</span><br>
 
                     </span>
                   </div>
                   <div class="col-sm-12">
                     {{#if board.copy_or_share}}
-                      <p>{{t "The current board's author may not have access to this board as it is marked private. Would you like to share this board, or make a copy of it?" key='copy_or_share_board'}}</p>
+                      <p>{{t "The current board's author may not have access to this board as it is marked private. Would you like to share this board, or make a copy of it?" key="copy_or_share_board"}}</p>
                     {{else}}
-                      <p>{{t "This board was created by someone other than the current board's author. Would you like to use the board as-is, or make a copy of it?" key='copy_or_link_board'}}</p>
+                      <p>{{t "This board was created by someone other than the current board's author. Would you like to use the board as-is, or make a copy of it?" key="copy_or_link_board"}}</p>
                     {{/if}}
                     {{#if board.downstream_boards}}
-                      <p>{{t "NOTE: To copy linked boards with this board you should navigate to the board and manually make a copy." key='links_are_not_copied'}}</p>
+                      <p>{{t "NOTE: To copy linked boards with this board you should navigate to the board and manually make a copy." key="links_are_not_copied"}}</p>
                     {{/if}}
                     {{#if board.copy_or_share}}
-                      <button class='btn btn-primary' {{action 'shareFoundBoard' board}}>{{t "Share This Board" key='share_this_board'}}</button>
+                      <button class='btn btn-primary' {{action "shareFoundBoard" board}}>{{t "Share This Board" key="share_this_board"}}</button>
                     {{else}}
-                      <button class='btn btn-primary' {{action 'selectFoundBoard' board true}}>{{t "Link to This Board" key='link_to_this_board'}}</button>
+                      <button class='btn btn-primary' {{action "selectFoundBoard" board true}}>{{t "Link to This Board" key="link_to_this_board"}}</button>
                     {{/if}}
                     <!-- TODO: option to select who to copy for? -->
                     <!-- TODO: option to copy downstream boards as well? I'm deliberately
@@ -468,7 +468,7 @@
                                even more confusing. -->
                     <!-- TODO: if you can't copy FOR the person, copy for yourself and
                                share with them? -->
-                    <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key='copy_this_board'}}</button>
+                    <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key="copy_this_board"}}</button>
                   </div>
                 {{/with}}
               {{/if}}
@@ -479,23 +479,23 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option='select' action='selectFoundBoard' locale=foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>
               {{else}}
                 <div style="margin-top: 10px;">
                   {{#if foundBoards.term}}
-                    {{t "No results found for \"%{term}\"" key='no_results_for' term=foundBoards.term}}
+                    {{t "No results found for \"%{term}\"" key="no_results_for" term=foundBoards.term}}
                   {{else}}
-                    {{t "No results found" key='no_results_found'}}
+                    {{t "No results found" key="no_results_found"}}
                   {{/if}}
                 </div>
               {{/if}}
             {{else}}
               {{#if foundBoards.term}}
                 <div style="margin-top: 10px;">
-                  {{t "Searching for \"%{term}\"..." key='searching_for' term=foundBoards.term}}
+                  {{t "Searching for \"%{term}\"..." key="searching_for" term=foundBoards.term}}
                 </div>
               {{/if}}
             {{/if}}
@@ -506,26 +506,26 @@
     {{#if pending_board}}
       {{#if has_supervisees}}
         <div class="form-group">
-          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key='for'}}</label>
+          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
           <div class="col-sm-10">
             {{user-select select_id="for_user_id" selection=pending_board.for_user_id action=(action (mut pending_board.for_user_id)) }}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="pending_board_name" class="col-sm-2 control-label">{{t "Name" key='name'}}</label>
+        <label for="pending_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           {{input value=pending_board.name id="pending_board_name" class="form-control" placeholder="Board name"}}
         </div>
       </div>
       <div class="form-group">
-        <label for="pending_board_key" class="col-sm-2 control-label">{{t "Key" key='key'}}</label>
+        <label for="pending_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
         <div class="col-sm-10">
           {{input value=pending_board.key id="pending_board_key" class="form-control" placeholder=pending_board.key_placeholder}}
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-2 control-label">{{t "Size" key='size'}}</label>
+        <label class="col-sm-2 control-label">{{t "Size" key="size"}}</label>
         <div class="col-sm-4">
           <div class="input-group">
             <span class="input-group-btn">
@@ -536,7 +536,7 @@
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.rows"}}>+</button>
             </span>
           </div>
-          <em style="padding-left: 35px;">{{t "Rows" key='row'}}</em>
+          <em style="padding-left: 35px;">{{t "Rows" key="row"}}</em>
         </div>
         <div class="col-sm-2"><p class="form-control-static"> by </p></div>
         <div class="col-sm-4">
@@ -549,7 +549,7 @@
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.columns"}}>+</button>
             </span>
           </div>
-          <em style="padding-left: 35px;">{{t "Columns" key='columns'}}</em>
+          <em style="padding-left: 35px;">{{t "Columns" key="columns"}}</em>
         </div>
       </div>
       <div class="form-group">
@@ -557,39 +557,39 @@
           <div class="checkbox big_checkbox">
             <label>
               {{input checked=pending_board.copy_access type="checkbox"}}
-              {{t "Use same license and access settings as are set for this board" key='use_same_license'}}
+              {{t "Use same license and access settings as are set for this board" key="use_same_license"}}
             </label>
           </div>
         </div>
       </div>
       <div class="form-group">
         <div class="col-sm-10 col-sm-offset-2">
-          <button class="btn btn-primary" {{action "create_board"}}>{{t "Create" key='create'}}</button>
-          <button class="btn btn-default" {{action "cancel_build_board"}}>{{t "Cancel" key='cancel'}}</button>
+          <button class="btn btn-primary" {{action "create_board"}}>{{t "Create" key="create"}}</button>
+          <button class="btn btn-default" {{action "cancel_build_board"}}>{{t "Cancel" key="cancel"}}</button>
         </div>
       </div>
     {{/if}}
   {{else if model.integrationOrWebhookAction}}
     {{#if has_supervisees}}
       <div class="form-group">
-        <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key='for'}}</label>
+        <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
         <div class="col-sm-10">
           {{user-select select_id="for_user_id" selection=model.integration_user_id action=(action (mut model.integration_user_id)) }}
         </div>
       </div>
     {{/if}}
     <div class="form-group">
-      <label for="tool" class="col-sm-2 control-label">{{t "Tool" key='tool'}}</label>
+      <label for="tool" class="col-sm-2 control-label">{{t "Tool" key="tool"}}</label>
       <div class="col-sm-10">
         {{#if user_integrations.loading}}
-          <p class='form-control-static'>{{t "Loading tools..." key='loading_tools'}}</p>
+          <p class='form-control-static'>{{t "Loading tools..." key="loading_tools"}}</p>
         {{else if user_integrations.error}}
-          <p class='text-danger form-control-static'>{{t "There was an error loading the tools." key='error_loading_tools'}}</p>
+          <p class='text-danger form-control-static'>{{t "There was an error loading the tools." key="error_loading_tools"}}</p>
         {{else if user_integrations.content}}
           {{#unless user_integrations.content.length}}
-            <p class='form-control-static'>{{t "You haven't connected any tools yet. Open a web browser and visit your User Profile page to add integrations." key='no_integrations_found'}}</p>
+            <p class='form-control-static'>{{t "You haven't connected any tools yet. Open a web browser and visit your User Profile page to add integrations." key="no_integrations_found"}}</p>
           {{else}}
-            {{bound-select select_class="form-control" select_id="integration" content=user_integrations.content selection=integration action=(action (mut integration)) optionLabelPath='content.name'}}
+            {{bound-select select_class="form-control" select_id="integration" content=user_integrations.content selection=integration action=(action (mut integration)) optionLabelPath="content.name"}}
           {{/unless}}
         {{/if}}
       </div>
@@ -597,16 +597,16 @@
     {{#if integration}}
       {{#if integration.has_accounts}}
         <div class="form-group">
-          <label for="account" class="col-sm-2 control-label">{{t "Account" key='account'}}</label>
+          <label for="account" class="col-sm-2 control-label">{{t "Account" key="account"}}</label>
           <div class="col-sm-10">
             {{#if integration.accounts}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_account" content=integration.accounts selection=integration_account action=(action (mut integration_account)) optionLabelPath='content.label'}}
+                  {{bound-select select_class="form-control" select_id="integration_account" content=integration.accounts selection=integration_account action=(action (mut integration_account)) optionLabelPath="content.label"}}
                 </div>
               </div>
             {{else}}
-              <p class='text-muted form-control-static'>{{t "Loading account list..." key='loading_account_list'}}</p>
+              <p class='text-muted form-control-static'>{{t "Loading account list..." key="loading_account_list"}}</p>
             {{/if}}
           </div>
         </div>
@@ -619,7 +619,7 @@
             {{else}}
               <div class="form-group">
                 <div class="col-sm-12">
-                  <p class='text-muted form-control-static'>{{t "Choose an account above." key='choose_an_account'}}</p>
+                  <p class='text-muted form-control-static'>{{t "Choose an account above." key="choose_an_account"}}</p>
                 </div>
               </div>
             {{/if}}
@@ -640,7 +640,7 @@
                     </label>
                   </div>
                 {{else if field.preferred_languages}}
-                  {{bound-select select_class="form-control" select_id="pref_langs" content=field.preferred_languages selection=field.value action=(action (mut field.value)) optionValuePath='content.id' optionLabelPath='content.label'}}
+                  {{bound-select select_class="form-control" select_id="pref_langs" content=field.preferred_languages selection=field.value action=(action (mut field.value)) optionValuePath="content.id" optionLabelPath="content.label"}}
                 {{else if field.field_type_key}}
                   {{#if field.field_type_key.is_locale}}
                     <div class="row">
@@ -648,7 +648,7 @@
                         {{input value=field.value class="form-control" id=field.name placeholder=field.placeholder}}
                       </div>
                       <div class="col-sm-3">
-                        {{bound-select select_class="form-control" select_id="pref_langs_for_locale" content=field.locales selection=field.locale action=(action (mut field.locale)) optionValuePath='content.code' optionLabelPath='content.label'}}
+                        {{bound-select select_class="form-control" select_id="pref_langs_for_locale" content=field.locales selection=field.locale action=(action (mut field.locale)) optionValuePath="content.code" optionLabelPath="content.label"}}
                       </div>
                     </div>
                   {{/if}}
@@ -659,39 +659,39 @@
         {{else}}
           <div class="form-group">
             <div class="col-sm-12">
-              <p class='text-muted form-control-static'>{{t "Loading form..." key='loading_form'}}</p>
+              <p class='text-muted form-control-static'>{{t "Loading form..." key="loading_form"}}</p>
             </div>
           </div>
         {{/if}}
       {{/if}}
       {{#if integration.has_groups}}
         <div class="form-group">
-          <label for="group" class="col-sm-2 control-label">{{t "Group" key='group'}}</label>
+          <label for="group" class="col-sm-2 control-label">{{t "Group" key="group"}}</label>
           <div class="col-sm-10">
             {{#if integration.groups}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_group" content=integration.groups selection=integration_group action=(action (mut integration_group)) optionLabelPath='content.label'}}
+                  {{bound-select select_class="form-control" select_id="integration_group" content=integration.groups selection=integration_group action=(action (mut integration_group)) optionLabelPath="content.label"}}
                 </div>
               </div>
             {{else}}
-              <p class='text-muted form-control-static'>{{t "Loading group list..." key='loading_group_list'}}</p>
+              <p class='text-muted form-control-static'>{{t "Loading group list..." key="loading_group_list"}}</p>
             {{/if}}
           </div>
         </div>
       {{/if}}
       {{#if integration.takes_multiple_inputs}}
         <div class="form-group">
-          <label for="max_inputs" class="col-sm-2 control-label">{{t "Max items" key='max_items'}}</label>
+          <label for="max_inputs" class="col-sm-2 control-label">{{t "Max items" key="max_items"}}</label>
           <div class="col-sm-10">
             <div class="btn-group" role="group">
-              <button type="button" class={{if max_inputs_is_exact 'btn btn-default active' 'btn btn-default'}} {{action 'set_max_inputs_exact' true}}>{{t "Exact" key='exact'}}</button>
-              <button type="button" class={{unless max_inputs_is_exact 'btn btn-default active' 'btn btn-default'}} {{action 'set_max_inputs_exact' false}}>{{t "Up to" key='up_to'}}</button>
+              <button type="button" class={{if max_inputs_is_exact "btn btn-default active" "btn btn-default"}} {{action "set_max_inputs_exact" true}}>{{t "Exact" key="exact"}}</button>
+              <button type="button" class={{unless max_inputs_is_exact "btn btn-default active" "btn btn-default"}} {{action "set_max_inputs_exact" false}}>{{t "Up to" key="up_to"}}</button>
             </div>
             <span class="btn-group" role="group">
-              <button type="button" class="btn btn-default" {{action 'max_inputs_minus'}}>-</button>
+              <button type="button" class="btn btn-default" {{action "max_inputs_minus"}}>-</button>
               <button type="button" class="btn btn-default" disabled>{{max_inputs}}</button>
-              <button type="button" class="btn btn-default" {{action 'max_inputs_plus'}}>+</button>
+              <button type="button" class="btn btn-default" {{action "max_inputs_plus"}}>+</button>
             </span>
           </div>
         </div>
@@ -699,14 +699,14 @@
       {{#if integration.show_sync_note}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <p class='text-muted'>{{t "Note: these commands will only run online and will fail if not connected." key='integration_sync_note'}}</p>
+            <p class='text-muted'>{{t "Note: these commands will only run online and will fail if not connected." key="integration_sync_note"}}</p>
           </div>
         </div>
       {{/if}}
     {{/if}}
   {{else if model.webhookAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Webhook" key='webhook'}}</label>
+      <label class="col-sm-2 control-label">{{t "Webhook" key="webhook"}}</label>
       <div class="col-sm-10">
         {{#if webhook}}
           {{#if webhook.title}}
@@ -714,278 +714,278 @@
           {{/if}}
           <p class='form-control-static'>{{webhook.url}}</p>
         {{else}}
-          <p class='form-control-static'>{{t "Not set" key='not_set'}}</p>
+          <p class='form-control-static'>{{t "Not set" key="not_set"}}</p>
         {{/if}}
-        <p class='text-muted'>{{t "Webhooks can be configured for this user by opening their profile in a web browser." key='webhooks_setup_web'}}</p>
+        <p class='text-muted'>{{t "Webhooks can be configured for this user by opening their profile in a web browser." key="webhooks_setup_web"}}</p>
       </div>
     </div>
   {{else if model.exportAction}}
     <div class="form-group">
-      <label for="format" class="col-sm-2 control-label">{{t "Format" key='format'}}</label>
+      <label for="format" class="col-sm-2 control-label">{{t "Format" key="format"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="format" content=export_formats selection=model.export_format action=(action (mut model.export_format)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="format" content=export_formats selection=model.export_format action=(action (mut model.export_format)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
     <div class="form-group">
-      <label for="print_size" class="col-sm-2 control-label">{{t "Print Size" key='print_size'}}</label>
+      <label for="print_size" class="col-sm-2 control-label">{{t "Print Size" key="print_size"}}</label>
       <div class="col-sm-10">
         {{bound-select select_class="form-control" select_id="print_size" content=print_sizes selection=model.print_size action=(action (mut model.print_size)) }}
-        <p class='text-muted'>{{t "There may be a short delay before your export is ready" key='delay_before_export'}}</p>
+        <p class='text-muted'>{{t "There may be a short delay before your export is ready" key="delay_before_export"}}</p>
       </div>
     </div>
   {{else if model.enunciateAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Audio Delay" key='audio_delay'}}</label>
+      <label class="col-sm-2 control-label">{{t "Audio Delay" key="audio_delay"}}</label>
       <div class="col-sm-10">
         {{bound-select select_class="form-control" select_id="audio_delay" content=audio_delay_options selection=model.audio_delay action=(action (mut model.audio_delay)) }}
-        <p class='text-muted'>{{t "When enabled, audio will play without waiting for other sounds to finish." key='audio_delay_info'}}</p>
+        <p class='text-muted'>{{t "When enabled, audio will play without waiting for other sounds to finish." key="audio_delay_info"}}</p>
       </div>
     </div>
   {{else if model.integrationUserAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Action" key='action'}}</label>
+      <label class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="integration_user_action" content=integration_user_actions selection=model.integration_user_action_key action=(action (mut model.integration_user_action_key)) optionValuePath='content.id' optionLabelPath='content.name'}}
-        <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key='integration_user_action_info'}}</p>
+        {{bound-select select_class="form-control" select_id="integration_user_action" content=integration_user_actions selection=model.integration_user_action_key action=(action (mut model.integration_user_action_key)) optionValuePath="content.id" optionLabelPath="content.name"}}
+        <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key="integration_user_action_info"}}</p>
       </div>
     </div>
   {{else if model.toggleFeatureAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Feature" key='feature'}}</label>
+      <label class="col-sm-2 control-label">{{t "Feature" key="feature"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="feature_toggle" content=feature_toggle_options selection=model.feature_toggle_key action=(action (mut model.feature_toggle_key)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="feature_toggle" content=feature_toggle_options selection=model.feature_toggle_key action=(action (mut model.feature_toggle_key)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.volumeAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Volume" key='volume'}}</label>
+      <label class="col-sm-2 control-label">{{t "Volume" key="volume"}}</label>
       <div class="col-sm-10">
         <div class="btn-group" role="group">
-          <button type="button" class="btn btn-default" {{action 'set_volume' 'down'}}>{{t "Down" key='down'}}</button>
-          <button type="button" class="btn btn-default" {{action 'set_volume' 'up'}}>{{t "Up" key='up'}}</button>
+          <button type="button" class="btn btn-default" {{action "set_volume" "down"}}>{{t "Down" key="down"}}</button>
+          <button type="button" class="btn btn-default" {{action "set_volume" "up"}}>{{t "Up" key="up"}}</button>
         </div>
         <div class="btn-group" role="group">
-          <button type="button" class="btn btn-default" {{action 'set_volume' 'mute'}}>{{t "Mute" key='mute'}}</button>
-          <button type="button" class="btn btn-default" {{action 'set_volume' 'max'}}>{{t "Max" key='max'}}</button>
+          <button type="button" class="btn btn-default" {{action "set_volume" "mute"}}>{{t "Mute" key="mute"}}</button>
+          <button type="button" class="btn btn-default" {{action "set_volume" "max"}}>{{t "Max" key="max"}}</button>
         </div>
       </div>
     </div>
   {{else if model.keyCommandAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Command" key='command'}}</label>
+      <label class="col-sm-2 control-label">{{t "Command" key="command"}}</label>
       <div class="col-sm-10">
         {{input value=model.key_command class="form-control" placeholder="ex: CMD+W"}}
-        <p class='text-muted'>{{t "Use modifier keys like CMD/CTRL/ALT/SHIFT. Multiple keys can be chained with +." key='key_command_hint'}}</p>
+        <p class='text-muted'>{{t "Use modifier keys like CMD/CTRL/ALT/SHIFT. Multiple keys can be chained with +." key="key_command_hint"}}</p>
       </div>
     </div>
   {{else if model.toggleAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Toggle" key='toggle'}}</label>
+      <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle" content=toggle_options selection=model.toggle_action action=(action (mut model.toggle_action)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="toggle" content=toggle_options selection=model.toggle_action action=(action (mut model.toggle_action)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.openUrlAction}}
     <div class="form-group">
-      <label for="url" class="col-sm-2 control-label">{{t "URL" key='url'}}</label>
+      <label for="url" class="col-sm-2 control-label">{{t "URL" key="url"}}</label>
       <div class="col-sm-10">
         {{input value=model.url class="form-control" id="url" placeholder="http://"}}
       </div>
     </div>
   {{else if model.shareBoardAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Share" key='share'}}</label>
+      <label class="col-sm-2 control-label">{{t "Share" key="share"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Shares the current board with another user." key='share_board_description'}}</p>
+        <p class='form-control-static'>{{t "Shares the current board with another user." key="share_board_description"}}</p>
       </div>
     </div>
   {{else if model.copyBoardAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Copy" key='copy'}}</label>
+      <label class="col-sm-2 control-label">{{t "Copy" key="copy"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Copies the current board." key='copy_board_description'}}</p>
+        <p class='form-control-static'>{{t "Copies the current board." key="copy_board_description"}}</p>
       </div>
     </div>
   {{else if model.pasteBoardAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Paste" key='paste'}}</label>
+      <label class="col-sm-2 control-label">{{t "Paste" key="paste"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Pastes the previously copied board." key='paste_board_description'}}</p>
+        <p class='form-control-static'>{{t "Pastes the previously copied board." key="paste_board_description"}}</p>
       </div>
     </div>
   {{else if model.clearBoardAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Clear" key='clear'}}</label>
+      <label class="col-sm-2 control-label">{{t "Clear" key="clear"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Clears the current board." key='clear_board_description'}}</p>
+        <p class='form-control-static'>{{t "Clears the current board." key="clear_board_description"}}</p>
       </div>
     </div>
   {{else if model.toggleBlockAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Block" key='block'}}</label>
+      <label class="col-sm-2 control-label">{{t "Block" key="block"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="block_toggle" content=block_toggle_options selection=model.block_action action=(action (mut model.block_action)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="block_toggle" content=block_toggle_options selection=model.block_action action=(action (mut model.block_action)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.randomBoardAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Source" key='source'}}</label>
+      <label class="col-sm-2 control-label">{{t "Source" key="source"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_source" content=random_sources selection=model.random_source action=(action (mut model.random_source)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="random_source" content=random_sources selection=model.random_source action=(action (mut model.random_source)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.randomAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Random" key='random'}}</label>
+      <label class="col-sm-2 control-label">{{t "Random" key="random"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_action" content=random_actions selection=model.random_action action=(action (mut model.random_action)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="random_action" content=random_actions selection=model.random_action action=(action (mut model.random_action)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.talkAction}}
     <div class="form-group">
-      <label for="talk_text" class="col-sm-2 control-label">{{t "Speak" key='speak'}}</label>
+      <label for="talk_text" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
       <div class="col-sm-10">
         {{textarea value=model.talk_text class="form-control" id="talk_text" rows=3}}
       </div>
     </div>
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Capitalize" key='capitalize'}}</label>
+      <label class="col-sm-2 control-label">{{t "Capitalize" key="capitalize"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.capitalize}} {{t "Capitalize speech" key='capitalize_speech'}}</label>
+          <label>{{input type="checkbox" checked=model.capitalize}} {{t "Capitalize speech" key="capitalize_speech"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleShiftAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Shift" key='shift'}}</label>
+      <label class="col-sm-2 control-label">{{t "Shift" key="shift"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.shift_on}} {{t "Shift on" key='shift_on'}}</label>
+          <label>{{input type="checkbox" checked=model.shift_on}} {{t "Shift on" key="shift_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleInflectionAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Inflections" key='inflections'}}</label>
+      <label class="col-sm-2 control-label">{{t "Inflections" key="inflections"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.inflections_on}} {{t "Inflections on" key='inflections_on'}}</label>
+          <label>{{input type="checkbox" checked=model.inflections_on}} {{t "Inflections on" key="inflections_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.insertAction}}
     <div class="form-group">
-      <label for="insert_text" class="col-sm-2 control-label">{{t "Insert" key='insert'}}</label>
+      <label for="insert_text" class="col-sm-2 control-label">{{t "Insert" key="insert"}}</label>
       <div class="col-sm-10">
         {{textarea value=model.insert_text class="form-control" id="insert_text" rows=3}}
-        <p class='text-muted'>{{t "Will insert text without speaking it" key='insert_without_speaking'}}</p>
+        <p class='text-muted'>{{t "Will insert text without speaking it" key="insert_without_speaking"}}</p>
       </div>
     </div>
   {{else if model.clearSentenceAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Clear Sentence" key='clear_sentence'}}</label>
+      <label class="col-sm-2 control-label">{{t "Clear Sentence" key="clear_sentence"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Clears the sentence box" key='clears_sentence_box'}}</p>
+        <p class='form-control-static'>{{t "Clears the sentence box" key="clears_sentence_box"}}</p>
       </div>
     </div>
   {{else if model.silenceAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Silence" key='silence'}}</label>
+      <label class="col-sm-2 control-label">{{t "Silence" key="silence"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Stops current speech" key='stops_current_speech'}}</p>
+        <p class='form-control-static'>{{t "Stops current speech" key="stops_current_speech"}}</p>
       </div>
     </div>
   {{else if model.repeatAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Repeat" key='repeat'}}</label>
+      <label class="col-sm-2 control-label">{{t "Repeat" key="repeat"}}</label>
       <div class="col-sm-10">
-        <p class='form-control-static'>{{t "Repeats last spoken phrase" key='repeats_last_phrase'}}</p>
+        <p class='form-control-static'>{{t "Repeats last spoken phrase" key="repeats_last_phrase"}}</p>
       </div>
     </div>
   {{else if model.toggleSpeakModeAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Toggle" key='toggle'}}</label>
+      <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle_speak_mode" content=toggle_speak_mode_options selection=model.toggle_speak_mode action=(action (mut model.toggle_speak_mode)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="toggle_speak_mode" content=toggle_speak_mode_options selection=model.toggle_speak_mode action=(action (mut model.toggle_speak_mode)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.setGazeAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Gaze" key='gaze'}}</label>
+      <label class="col-sm-2 control-label">{{t "Gaze" key="gaze"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="gaze" content=gaze_options selection=model.gaze_action action=(action (mut model.gaze_action)) optionValuePath='content.id' optionLabelPath='content.name'}}
+        {{bound-select select_class="form-control" select_id="gaze" content=gaze_options selection=model.gaze_action action=(action (mut model.gaze_action)) optionValuePath="content.id" optionLabelPath="content.name"}}
       </div>
     </div>
   {{else if model.toggleAudioAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Audio" key='audio'}}</label>
+      <label class="col-sm-2 control-label">{{t "Audio" key="audio"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.audio_on}} {{t "Audio on" key='audio_on'}}</label>
+          <label>{{input type="checkbox" checked=model.audio_on}} {{t "Audio on" key="audio_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleMagnifierAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Magnifier" key='magnifier'}}</label>
+      <label class="col-sm-2 control-label">{{t "Magnifier" key="magnifier"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.magnifier_on}} {{t "Magnifier on" key='magnifier_on'}}</label>
+          <label>{{input type="checkbox" checked=model.magnifier_on}} {{t "Magnifier on" key="magnifier_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleScanAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Scanning" key='scanning'}}</label>
+      <label class="col-sm-2 control-label">{{t "Scanning" key="scanning"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.scan_on}} {{t "Scanning on" key='scanning_on'}}</label>
+          <label>{{input type="checkbox" checked=model.scan_on}} {{t "Scanning on" key="scanning_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleStashAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Stash" key='stash'}}</label>
+      <label class="col-sm-2 control-label">{{t "Stash" key="stash"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.stash_on}} {{t "Stash on" key='stash_on'}}</label>
+          <label>{{input type="checkbox" checked=model.stash_on}} {{t "Stash on" key="stash_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleSidebarAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Sidebar" key='sidebar'}}</label>
+      <label class="col-sm-2 control-label">{{t "Sidebar" key="sidebar"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.sidebar_on}} {{t "Sidebar on" key='sidebar_on'}}</label>
+          <label>{{input type="checkbox" checked=model.sidebar_on}} {{t "Sidebar on" key="sidebar_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleFullScreenAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Full Screen" key='full_screen'}}</label>
+      <label class="col-sm-2 control-label">{{t "Full Screen" key="full_screen"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.full_screen_on}} {{t "Full screen on" key='full_screen_on'}}</label>
+          <label>{{input type="checkbox" checked=model.full_screen_on}} {{t "Full screen on" key="full_screen_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleSleepAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Sleep" key='sleep'}}</label>
+      <label class="col-sm-2 control-label">{{t "Sleep" key="sleep"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.sleep_on}} {{t "Sleep on" key='sleep_on'}}</label>
+          <label>{{input type="checkbox" checked=model.sleep_on}} {{t "Sleep on" key="sleep_on"}}</label>
         </div>
       </div>
     </div>
   {{else if model.toggleLockAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Lock" key='lock'}}</label>
+      <label class="col-sm-2 control-label">{{t "Lock" key="lock"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label>{{input type='checkbox' checked=model.lock_on}} {{t "Lock on" key='lock_on'}}</label>
+          <label>{{input type="checkbox" checked=model.lock_on}} {{t "Lock on" key="lock_on"}}</label>
         </div>
       </div>
     </div>
@@ -994,28 +994,28 @@
         </form>
 
         {{!-- Sound tab content (inlined) --}}
-        <form class="form-horizontal" {{action "nothing" on='submit'}}>
-<div class={{if soundState 'active' 'hidden'}}>
+        <form class="form-horizontal" {{action "nothing" on="submit"}}>
+<div class={{if soundState "active" "hidden"}}>
   <div class="form-group">
-    <label for="vocalization" class="col-sm-2 control-label">{{t "Speak" key='speak'}}</label>
+    <label for="vocalization" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
     <div class="col-sm-10 options">
       <span class="vocalization_field">
         {{input value=model.vocalization class="form-control inline" id="vocalization" placeholder=label}}
       </span>
       <button type="button" {{action "record_sound" on="click"}} disabled={{recorder_unavailable}} class="btn btn-default">
-        <img src={{path 'images/microphone.svg'}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound"/>
+        <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
       </button>
       <span class="file_select_holder">
         <button type="button" class='btn btn-default'>
-          <img src={{path 'images/upload.svg'}} style="height: 30px; margin: -10px -6px -6px;" alt="upload"/>
+          <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
         </button>
-        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*"/>
+        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
       </span>
       {{#unless sound_preview}}
         {{#unless model.sound.url}}
           {{#unless browse_audio}}
             <div>
-              <a href="#" {{action 'browse_audio'}}>{{t "browse stored audio" key='browse_audio'}}</a>
+              <a href="#" {{action "browse_audio"}}>{{t "browse stored audio" key="browse_audio"}}</a>
             </div>
           {{/unless}}
         {{/unless}}
@@ -1023,34 +1023,34 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="blocking_speech" class="col-sm-2 control-label">{{t "Hold" key='hold'}}</label>
+    <label for="blocking_speech" class="col-sm-2 control-label">{{t "Hold" key="hold"}}</label>
     <div class="col-sm-10">
       <div class="checkbox big_checkbox">
         <label>
           {{input checked=model.blocking_speech type="checkbox"}}
-          {{t "Hold other speech until this button completes" key='hold_other_speech_until_this_button_completes'}}
+          {{t "Hold other speech until this button completes" key="hold_other_speech_until_this_button_completes"}}
         </label>
       </div>
     </div>
   </div>
   {{#if browse_audio}}
     <div class="col-sm-10 col-sm-offset-2">
-    {{audio-browser audio_selected='audio_selected' prompt=model.vocalization fallback_prompt=model.label}}
-    <button class='btn btn-default' {{action 'clear_sound_work'}}>{{t "Clear Sound" key='clear_sound'}}</button>
+    {{audio-browser audio_selected="audio_selected" prompt=model.vocalization fallback_prompt=model.label}}
+    <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Clear Sound" key="clear_sound"}}</button>
     </div>
   {{else if sound_preview}}
     {{#if vocalization_sound_conflict}}
-      <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key='vocalization_sound_conflict'}}</p>
+      <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
     {{/if}}
     <div style="text-align: center;">
-      Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br/>
+      Selected sound{{#if sound_preview.name}} ({{sound_preview.name}}){{/if}}:<br>
       <audio controls src={{sound_preview.url}}></audio>
     </div>
     <div style="margin-top: 10px;">
       <div class="form-group">
-        <div class="col-sm-2 control-label">{{t "Name" key='name'}}</div>
+        <div class="col-sm-2 control-label">{{t "Name" key="name"}}</div>
         <div class='col-sm-10'>
-          {{input type='text' value=sound_preview.name class='form-control'}}
+          {{input type="text" value=sound_preview.name class="form-control"}}
         </div>
       </div>
     </div>
@@ -1059,60 +1059,60 @@
       {{pick-license license=sound_preview.license}}
     </div>
     <div style="margin-top: 10px;">
-      <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Use This" key='use_this'}}</button>
+      <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Use This" key="use_this"}}</button>
       {{#if sound_preview.from_recording}}
         <button {{action "record_sound"}} class='btn btn-default'>
-          {{t "Try Again" key='try_again'}}
+          {{t "Try Again" key="try_again"}}
         </button>
       {{/if}}
-      <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key='cancel'}}</button>
+      <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
     </div>
   {{else}}
     {{#if sound_record.error}}
-      <p>{{t "There was an error while trying to record audio" key='error_recording_audio'}}</p>
+      <p>{{t "There was an error while trying to record audio" key="error_recording_audio"}}</p>
     {{else if sound_recording.ready}}
       {{#if vocalization_sound_conflict}}
-        <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key='vocalization_sound_conflict'}}</p>
+        <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
       {{/if}}
-      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording 'recording'}} style='outline: none;'>
+      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if sound_recording.recording "recording"}} style='outline: none;'>
         <span class="sub_status">
           <span>Start</span>
         </span>
       </button>
       {{#unless capabilities.mobile}}
-        <div class='col-sm-10 col-sm-offset-2 text-muted' style='margin-top: -20px; margin-bottom: 20px;'>{{t "Hit spacebar to start/stop without recording a clicking sound" key='spacebar_to_silently_toggle_recording'}}</div>
+        <div class='col-sm-10 col-sm-offset-2 text-muted' style='margin-top: -20px; margin-bottom: 20px;'>{{t "Hit spacebar to start/stop without recording a clicking sound" key="spacebar_to_silently_toggle_recording"}}</div>
       {{/unless}}
       <canvas id="sound_levels" width="400" height="300" style="display: none;"></canvas>
       <button {{action "toggle_recording_sound"}} class='btn btn-primary'>
         {{#if sound_recording.recording}}
-          {{t "Stop" key='stop'}}
+          {{t "Stop" key="stop"}}
         {{else}}
-          {{t "Start" key='start'}}
+          {{t "Start" key="start"}}
         {{/if}}
       </button>
-      <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Cancel" key='cancel'}}</button>
+      <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Cancel" key="cancel"}}</button>
     {{else}}
       {{#if model.sound.url}}
         {{#if vocalization_sound_conflict}}
-          <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key='vocalization_sound_conflict'}}</p>
+          <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
-          {{t "Played sound:" key='played_sound_colon'}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br/>
+          {{t "Played sound:" key="played_sound_colon"}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br>
           <audio controls src={{model.sound.url}}></audio>
         </div>
         {{pick-license license=model.sound.license}}
-        <br/>
-        <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key='clear_sound'}}</button>
+        <br>
+        <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key="clear_sound"}}</button>
       {{else}}
         <div style="margin-bottom: 10px; text-align: center;">
           {{#if modifiers}}
             {{#each modifiers as |mod|}}
               {{#if mod.special}}
-                <strong>{{mod.special}}</strong> {{t "when selected" key='when_selected'}}<br/>
+                <strong>{{mod.special}}</strong> {{t "when selected" key="when_selected"}}<br>
               {{else if mod.modifier}}
-                <strong>{{mod.modifier}}</strong> {{t "modifier via Text-To-Speech" key='modifying_via_tts'}}<br/>
+                <strong>{{mod.modifier}}</strong> {{t "modifier via Text-To-Speech" key="modifying_via_tts"}}<br>
               {{else if mod.text}}
-                <strong>{{mod.text}}</strong> {{t "via Text-To-Speech" key='via_tts'}}<br/>
+                <strong>{{mod.text}}</strong> {{t "via Text-To-Speech" key="via_tts"}}<br>
               {{/if}}
             {{/each}}
             {{#if modifiers.any_basic}}
@@ -1122,15 +1122,15 @@
             {{/if}}
           {{else}}
             {{#if model.vocalization}}
-              <strong>"{{model.vocalization}}"</strong> {{t "via Text-To-Speech" key='via_tts'}}
+              <strong>"{{model.vocalization}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{else}}
-              <strong>"{{model.label}}"</strong> {{t "via Text-To-Speech" key='via_tts'}}
+              <strong>"{{model.label}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{/if}}
           {{/if}}
         </div>
         {{#unless modifiers.none}}
           <div style="text-align: center;">
-            <button type="button" {{action "testVocalization" this}} class="btn btn-default">{{t "Listen" key='listen'}}</button>
+            <button type="button" {{action "testVocalization" this}} class="btn btn-default">{{t "Listen" key="listen"}}</button>
           </div>
         {{/unless}}
       {{/if}}
@@ -1141,63 +1141,63 @@
 
         {{!-- Language tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if languageState 'active' 'hidden'}}>
+<div class={{if languageState "active" "hidden"}}>
   {{#each model.translations as |locale|}}
     <div class="form-group">
-      <label for="label" class="col-sm-2 control-label">{{t "Language" key='language'}}</label>
+      <label for="label" class="col-sm-2 control-label">{{t "Language" key="language"}}</label>
       <div class="col-sm-10">
         <p class='form-control-static'>{{locale.locale}}</p>
       </div>
     </div>
     <div class="form-group">
-      <label for={{locale.label_id}} class="col-sm-4 control-label">{{t "Label" key='label'}}</label>
+      <label for={{locale.label_id}} class="col-sm-4 control-label">{{t "Label" key="label"}}</label>
       <div class="col-sm-8">
         {{input value=locale.label class="form-control" id=locale.label_id}}
       </div>
     </div>
     <div class="form-group">
-      <label for={{locale.vocalization_id}} class="col-sm-4 control-label">{{t "Speech" key='speech'}}</label>
+      <label for={{locale.vocalization_id}} class="col-sm-4 control-label">{{t "Speech" key="speech"}}</label>
       <div class="col-sm-8">
         {{input value=locale.vocalization class="form-control" id=locale.vocalization_id placeholder="matches label if empty"}}
       </div>
     </div>
     {{#if app_state.feature_flags.inflections_overlay}}
       <div class='form-group'>
-        <label for="inflections" class="col-sm-4 control-label">{{t "Inflections" key='inflections'}}</label>
+        <label for="inflections" class="col-sm-4 control-label">{{t "Inflections" key="inflections"}}</label>
         <div class='col-sm-8'>
-          <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key='inflections_overlay_description'}}</p>
+          <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key="inflections_overlay_description"}}</p>
         </div>
         <div class='col-sm-10 col-sm-offset-2'>
           <div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.nw placeholder=locale.inflections_suggestions.nw}}
+              {{input class="form-control" value=locale.inflections_hash.nw placeholder=locale.inflections_suggestions.nw}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.n placeholder=locale.inflections_suggestions.n}}
+              {{input class="form-control" value=locale.inflections_hash.n placeholder=locale.inflections_suggestions.n}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.ne placeholder=locale.inflections_suggestions.ne}}
+              {{input class="form-control" value=locale.inflections_hash.ne placeholder=locale.inflections_suggestions.ne}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.w placeholder=locale.inflections_suggestions.w}}
+              {{input class="form-control" value=locale.inflections_hash.w placeholder=locale.inflections_suggestions.w}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
               {{locale.label}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.e placeholder=locale.inflections_suggestions.e}}
+              {{input class="form-control" value=locale.inflections_hash.e placeholder=locale.inflections_suggestions.e}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.sw placeholder=locale.inflections_suggestions.sw}}
+              {{input class="form-control" value=locale.inflections_hash.sw placeholder=locale.inflections_suggestions.sw}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.s placeholder=locale.inflections_suggestions.s}}
+              {{input class="form-control" value=locale.inflections_hash.s placeholder=locale.inflections_suggestions.s}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class='form-control' value=locale.inflections_hash.se placeholder=locale.inflections_suggestions.se}}
+              {{input class="form-control" value=locale.inflections_hash.se placeholder=locale.inflections_suggestions.se}}
             </div>
             <div>
-              {{textarea class='form-control' value=locale.rules_string placeholder=inflection_overrides_placeholder}}
+              {{textarea class="form-control" value=locale.rules_string placeholder=inflection_overrides_placeholder}}
             </div>
           </div>
         </div>
@@ -1209,9 +1209,9 @@
 
         {{!-- Extras tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if extrasState 'active' 'hidden'}}>
+<div class={{if extrasState "active" "hidden"}}>
     <div class="form-group">
-      <label for="levels" class="col-sm-2 control-label">{{t "Levels" key='levels'}}</label>
+      <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
         {{bound-select select_class="form-control" select_id="levels" content=levelTypes selection=model.level_style action=(action (mut model.level_style)) }}
       </div>
@@ -1220,39 +1220,39 @@
       {{#if level_overrides.hidden}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
-            {{t "Visibility" key='visibility'}}
+            {{t "Visibility" key="visibility"}}
           </label>
           <div class='col-sm-6'>
             {{#if level_overrides.hidden.set_true}}
-              {{t "Never Show Button" key='never_show_button'}}
+              {{t "Never Show Button" key="never_show_button"}}
             {{else}}
-              {{t "Always Show Button" key='always_show_button'}}
+              {{t "Always Show Button" key="always_show_button"}}
             {{/if}}
-            <button class='btn btn-default' {{action 'clear_override' 'hidden'}}>{{t "Clear" key='clear_override'}}</button>
+            <button class='btn btn-default' {{action "clear_override" "hidden"}}>{{t "Clear" key="clear_override"}}</button>
           </div>
         </div>
       {{/if}}
       {{#if level_overrides.link_disabled}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
-            {{t "Links" key='links'}}
+            {{t "Links" key="links"}}
           </label>
           <div class='col-sm-6'>
             {{#if level_overrides.hidden.set_true}}
-              {{t "Never Disable Link" key='never_disable_link'}}
+              {{t "Never Disable Link" key="never_disable_link"}}
             {{else}}
-              {{t "Always Disable Link" key='always_disable_link'}}
+              {{t "Always Disable Link" key="always_disable_link"}}
             {{/if}}
-            <button class='btn btn-default' {{action 'clear_override' 'link_disabled'}}>{{t "Clear" key='clear_override'}}</button>
+            <button class='btn btn-default' {{action "clear_override" "link_disabled"}}>{{t "Clear" key="clear_override"}}</button>
           </div>
         </div>
       {{/if}}
       <div class='form-group'>
         <label for='hidden_level' class='col-sm-offset-2 col-sm-4'>
           {{#if level_overrides.hidden}}
-            <s>{{t "Hide Until Level" key='hide_until_level'}}</s>
+            <s>{{t "Hide Until Level" key="hide_until_level"}}</s>
           {{else}}
-            {{t "Hide Until Level" key='hide_until_level'}}
+            {{t "Hide Until Level" key="hide_until_level"}}
           {{/if}}
         </label>
         <div class='col-sm-6'>
@@ -1263,9 +1263,9 @@
         <div class='form-group'>
           <label for='link_disabled_level' class='col-sm-offset-2 col-sm-4'>
             {{#if level_overrides.link_disabled}}
-              <s>{{t "Disable Link Until Level" key='disable_link_until_level'}}</s>
+              <s>{{t "Disable Link Until Level" key="disable_link_until_level"}}</s>
             {{else}}
-              {{t "Disable Link Until Level" key='disable_link_until_level'}}
+              {{t "Disable Link Until Level" key="disable_link_until_level"}}
             {{/if}}
           </label>
           <div class='col-sm-6'>
@@ -1276,51 +1276,51 @@
     {{else if advanced_level_style}}
       <div class='form-group'>
         <div class='col-sm-2'>
-          <p class='form-control-static'>{{t "Level Settings" key='level_settings'}}</p>
+          <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          {{textarea class='form-control' value=model.level_json placeholder='level override configuration'}}
+          {{textarea class="form-control" value=model.level_json placeholder="level override configuration"}}
         </div>
       </div>
     {{/if}}
     {{#if app_state.feature_flags.inflections_overlay}}
       <div class='form-group'>
-        <label for="inflections" class="col-sm-2 control-label">{{t "Inflections" key='inflections'}}</label>
+        <label for="inflections" class="col-sm-2 control-label">{{t "Inflections" key="inflections"}}</label>
         <div class='col-sm-10'>
-          <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key='inflections_overlay_description'}}</p>
+          <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key="inflections_overlay_description"}}</p>
           <div>
             {{#if board.translations}}
-              <p>{{t "See the \"Language\" section for per-language inflections" key='see_language_for_inflections'}}</p>
+              <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.nw placeholder=inflections_suggestions.nw}}
+                {{input class="form-control" value=inflections_hash.nw placeholder=inflections_suggestions.nw}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.n placeholder=inflections_suggestions.n}}
+                {{input class="form-control" value=inflections_hash.n placeholder=inflections_suggestions.n}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.ne placeholder=inflections_suggestions.ne}}
+                {{input class="form-control" value=inflections_hash.ne placeholder=inflections_suggestions.ne}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.w placeholder=inflections_suggestions.w}}
+                {{input class="form-control" value=inflections_hash.w placeholder=inflections_suggestions.w}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
                 {{model.label}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.e placeholder=inflections_suggestions.e}}
+                {{input class="form-control" value=inflections_hash.e placeholder=inflections_suggestions.e}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.sw placeholder=inflections_suggestions.sw}}
+                {{input class="form-control" value=inflections_hash.sw placeholder=inflections_suggestions.sw}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.s placeholder=inflections_suggestions.s}}
+                {{input class="form-control" value=inflections_hash.s placeholder=inflections_suggestions.s}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class='form-control' value=inflections_hash.se placeholder=inflections_suggestions.se}}
+                {{input class="form-control" value=inflections_hash.se placeholder=inflections_suggestions.se}}
               </div>
               <div>
-                {{textarea class='form-control' value=rules_string placeholder=inflection_overrides_placeholder}}
+                {{textarea class="form-control" value=rules_string placeholder=inflection_overrides_placeholder}}
               </div>
             {{/if}}
           </div>
@@ -1328,9 +1328,9 @@
       </div>
     {{/if}}
   <div class="form-group">
-    <label for="ref_id" class="col-sm-2 control-label" style='padding-left: 0; padding-right: 0;'>{{t "Pointer ID" key='pointer_id'}}</label>
+    <label for="ref_id" class="col-sm-2 control-label" style='padding-left: 0; padding-right: 0;'>{{t "Pointer ID" key="pointer_id"}}</label>
     <div class="col-sm-10">
-      {{input value=model.ref_id class="form-control" id="ref_id" placeholder='ID for custom referencing'}}
+      {{input value=model.ref_id class="form-control" id="ref_id" placeholder="ID for custom referencing"}}
     </div>
   </div>
 
@@ -1340,13 +1340,13 @@
     </div>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn btn-default btn-lg" {{action 'close'}} style='vertical-align: top;'>{{t "Close" key='close'}}</a>
-    <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear Button" key='clear_button'}}</button>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}} style='vertical-align: top;'>{{t "Close" key="close"}}</a>
+    <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear Button" key="clear_button"}}</button>
     <span style='float: right; margin: -5px 20px -5px -5px; display: inline-block; height: 63px; width: 124px; position: relative;'>
-      <a href="#" class='btn btn-default' {{action 'move' 'left'}} style='position: absolute; margin: 0; width: 40px; height: 40px; left: 0; top: calc(50% - 20px);'><span class='glyphicon glyphicon-arrow-left'></span></a>
-      <a href="#" class='btn btn-default' {{action 'move' 'up'}} style='position: absolute; margin: 0; width: 40px; height: 30px; left: calc(50% - 20px); top: 0;'><span class='glyphicon glyphicon-arrow-up'></span></a>
-      <a href="#" class='btn btn-default' {{action 'move' 'down'}} style='position: absolute; margin: 0; width: 40px; height: 30px; left: calc(50% - 20px); bottom: 0;'><span class='glyphicon glyphicon-arrow-down'></span></a>
-      <a href="#" class='btn btn-default' {{action 'move' 'right'}} style='position: absolute; margin: 0; width: 40px; height: 40px; right: 0; top: calc(50% - 20px);'><span class='glyphicon glyphicon-arrow-right'></span></a>
+      <a href="#" class='btn btn-default' {{action "move" "left"}} style='position: absolute; margin: 0; width: 40px; height: 40px; left: 0; top: calc(50% - 20px);'><span class='glyphicon glyphicon-arrow-left'></span></a>
+      <a href="#" class='btn btn-default' {{action "move" "up"}} style='position: absolute; margin: 0; width: 40px; height: 30px; left: calc(50% - 20px); top: 0;'><span class='glyphicon glyphicon-arrow-up'></span></a>
+      <a href="#" class='btn btn-default' {{action "move" "down"}} style='position: absolute; margin: 0; width: 40px; height: 30px; left: calc(50% - 20px); bottom: 0;'><span class='glyphicon glyphicon-arrow-down'></span></a>
+      <a href="#" class='btn btn-default' {{action "move" "right"}} style='position: absolute; margin: 0; width: 40px; height: 40px; right: 0; top: calc(50% - 20px);'><span class='glyphicon glyphicon-arrow-right'></span></a>
     </span>
   </div>
 {{/modal-dialog}}

@@ -1,19 +1,19 @@
-{{#modal-dialog opening='opening' closing='closing' desired_width=625}}
+{{#modal-dialog opening="opening" closing="closing" desired_width=625}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Have You Tried Modeling?" key='have_you_tried_modeling'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Have You Tried Modeling?" key="have_you_tried_modeling"}}</h3>
   </div>
   <div class="modal-body" id="button_settings">
     <div style='font-size: 18px;'>
       <div style="float: left; margin: 0 10px 0px 0;">
         <span style="font-size: 70px;" class="glyphicon glyphicon-hand-up"></span>
       </div>
-      <p style='margin-bottom: 20px;'>{{t "Learning to use an AAC vocabulary is a lot like learning a new language. It's much easier when the people around you use it too! You can help by modeling, which is showing examples of how to us it (\"here's how you could say this\" and then hit the buttons yourself). Sometimes it takes a lot of modeling before a communicator follows your example, so try to be patient!" key='modeling_intro_1'}}</p>
-      <p>{{t "When modeling you'll want to make sure you're in modeling mode, so %app_name% can tell the difference between your speech and the communicator's. You can \"model for\" a communicator in your dashboard, or you can triple-tap the clear button to temporarily go into modeling mode. Give it a try and see for yourself!" key='modeling_intro_2'}}</p>
+      <p style='margin-bottom: 20px;'>{{t "Learning to use an AAC vocabulary is a lot like learning a new language. It's much easier when the people around you use it too! You can help by modeling, which is showing examples of how to us it (\"here's how you could say this\" and then hit the buttons yourself). Sometimes it takes a lot of modeling before a communicator follows your example, so try to be patient!" key="modeling_intro_1"}}</p>
+      <p>{{t "When modeling you'll want to make sure you're in modeling mode, so %app_name% can tell the difference between your speech and the communicator's. You can \"model for\" a communicator in your dashboard, or you can triple-tap the clear button to temporarily go into modeling mode. Give it a try and see for yourself!" key="modeling_intro_2"}}</p>
     </div>
     <div style='clear: right;'></div>
   </div>
   <div class='modal-footer'>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Got It" key='got_it'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Got It" key="got_it"}}</button>
   </div>
 {{/modal-dialog}}

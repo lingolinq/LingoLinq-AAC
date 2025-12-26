@@ -1,39 +1,39 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Message Users" key='message_users'}}
+      {{t "Message Users" key="message_users"}}
     </h3>
   </div>
   <div class="modal-body">
     <form class="form-horizontal">
       <div class="form-group">
-        <label id="note_type" class="col-sm-2 control-label">{{t "Recipients" key='recipients'}}</label>
+        <label id="note_type" class="col-sm-2 control-label">{{t "Recipients" key="recipients"}}</label>
         <div class="col-sm-10">
           <p class='form-control-static'>
             {{model.unit.name}} - 
             {{#if target_type.communicators}}
-              {{t "Communicators and their non-room-linked supervisors" key='communicators_with_supervisors'}}
+              {{t "Communicators and their non-room-linked supervisors" key="communicators_with_supervisors"}}
             {{else if target_type.supervisors}}
-              {{t "Supervisors in this room" key='supervisors_in_this_room'}}
+              {{t "Supervisors in this room" key="supervisors_in_this_room"}}
             {{else}}
-              {{t "Everyone tied to communicators in this room" key='everyone_tied_to_room'}}
+              {{t "Everyone tied to communicators in this room" key="everyone_tied_to_room"}}
             {{/if}}
           </p>
         </div>
       </div>
       <div class="form-group">
-        <label id="note_type" class="col-sm-2 control-label">{{t "Type" key='type'}}</label>
+        <label id="note_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
         <div class="col-sm-10">
           <div class="btn-group" role="group" aria-labelledby="note_type">
-            <button type="button" class={{text_class}} {{action 'set_type' 'text'}}>{{t "Text" key='text'}}</button>
-            <button type="button" class={{video_class}} {{action 'set_type' 'video'}}>{{t "Video" key='video'}}</button>
+            <button type="button" class={{text_class}} {{action "set_type" "text"}}>{{t "Text" key="text"}}</button>
+            <button type="button" class={{video_class}} {{action "set_type" "video"}}>{{t "Video" key="video"}}</button>
           </div>
         </div>
       </div>
       {{#if text_note}}
         <div class="form-group">
-          <label for="note" class="col-sm-2 control-label">{{t "Note" key='note'}}</label>
+          <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
             {{textarea value=note class="form-control" id="note" rows="4"}}
           </div>
@@ -43,7 +43,7 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input checked=notify_user type="checkbox"}}
-                {{t "Send an alert to communicators about this message" key='alert_users'}}
+                {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
           </div>
@@ -53,7 +53,7 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input checked=include_footer type="checkbox"}}
-                {{t "Include status-check links at the end of the message" key='include_footer'}}
+                {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
           </div>
@@ -61,20 +61,20 @@
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <button class="btn btn-primary" {{action "send_message"}}>
-              {{t "Save Note" key='save_note'}}
+              {{t "Save Note" key="save_note"}}
             </button>
-            <button class="btn btn-default" {{action "close"}}>{{t "Cancel" key='cancel'}}</button>
+            <button class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         </div>
       {{else}}
         <div class="form-group">
-          <label for="video" class="col-sm-2 control-label">{{t "Video" key='video'}}</label>
+          <label for="video" class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
           <div class="col-sm-10">
-            {{video-recorder user=app_state.sessionUser video_ready='video_ready' video_pending='video_pending' video_not_ready='video_not_ready'}}
+            {{video-recorder user=app_state.sessionUser video_ready="video_ready" video_pending="video_pending" video_not_ready="video_not_ready"}}
           </div>
         </div>
         <div class="form-group">
-          <label for="note" class="col-sm-2 control-label">{{t "Note" key='note'}}</label>
+          <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
             {{textarea value=note class="form-control" id="note" rows="2"}}
           </div>
@@ -84,7 +84,7 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input checked=notify_user type="checkbox"}}
-                {{t "Send an alert to communicators about this message" key='alert_users'}}
+                {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
           </div>
@@ -94,17 +94,17 @@
             <div class="checkbox big_checkbox">
               <label>
                 {{input checked=include_footer type="checkbox"}}
-                {{t "Include status-check links at the end of the message" key='include_footer'}}
+                {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <button class="btn btn-primary" disabled={{no_video_ready}} {{action "send_message" 'video'}}>
-              {{t "Save Note" key='save_note'}}
+            <button class="btn btn-primary" disabled={{no_video_ready}} {{action "send_message" "video"}}>
+              {{t "Save Note" key="save_note"}}
             </button>
-            <button class="btn btn-default" {{action "close"}}>{{t "Cancel" key='cancel'}}</button>
+            <button class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         </div>
       {{/if}}
