@@ -1,23 +1,23 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Add Board to Sidebar" key='add_board_to_sidebar'}}
+      {{t "Add Board to Sidebar" key="add_board_to_sidebar"}}
     </h3>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" {{action 'nothing' on='submit'}}>
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
       <p>
-        {{t "The sidebar is a set of quick links you can use to jump to commonly-used boards other than the home board. It can be useful for school or home-specific board sets, quick phrases, keyboard access, etc." key='sidebar_boards_explanation'}}
+        {{t "The sidebar is a set of quick links you can use to jump to commonly-used boards other than the home board. It can be useful for school or home-specific board sets, quick phrases, keyboard access, etc." key="sidebar_boards_explanation"}}
       </p>
       <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">{{t "Board" key='board'}}</label>
+        <label for="name" class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
         <div class="col-sm-10">
           <p class='form-control-static'>{{model.board.key}}</p>
         </div>
       </div>
       <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">{{t "Name" key='name'}}</label>
+        <label for="name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           <div style="width: 100px;">
             {{input value=model.board.name class="form-control" id="name" placeholder="Board"}}
@@ -25,7 +25,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="icon" class="col-sm-2 control-label">{{t "Icon" key='icon'}}</label>
+        <label for="icon" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-10">
           {{icon-select selection=model.board.image action=(action (mut model.board.image)) }}
         </div>
@@ -33,7 +33,7 @@
       {{#if model.board.levels}}
         {{#if app_state.feature_flags.board_levels}}
           <div class="form-group">
-            <label for="level" class="col-sm-2 control-label">{{t "Level" key='level'}}</label>
+            <label for="level" class="col-sm-2 control-label">{{t "Level" key="level"}}</label>
             <div class="col-sm-10">
               {{bound-select select_class="form-control" select_id="level" content=board_levels selection=model.level action=(action (mut model.level)) }}
             </div>
@@ -41,11 +41,11 @@
         {{/if}}
       {{/if}}
       <div class="form-group">
-        <label for="home" class="col-sm-2 control-label">{{t "Home" key='home'}}</label>
+        <label for="home" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
         <div class="col-sm-10">
           <label id='home'>
-            {{input type='checkbox' checked=model.board.home_lock}}
-            {{t "Set as temporary Home when loaded from the sidebar" key='set_home_lock_sidebar'}}
+            {{input type="checkbox" checked=model.board.home_lock}}
+            {{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}
           </label>
         </div>
       </div>
@@ -53,23 +53,23 @@
 
     {{#if has_supervisees}}
       <p>
-        {{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key='which_user_set_as_sidebar' board_key=model.board.key}}
+        {{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key="which_user_set_as_sidebar" board_key=model.board.key}}
       </p>
       {{user-select select_id="currently_selected_id" buttons=true selection=currently_selected_id action=(action (mut currently_selected_id)) }}
     {{/if}}
 
     {{#if error}}
-      <p class='text-danger'>{{t "Adding to sidebar failed unexpectedly" key='add_to_sidebar_failed'}}</p>
+      <p class='text-danger'>{{t "Adding to sidebar failed unexpectedly" key="add_to_sidebar_failed"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
     <button {{action "add"}} class="btn btn-primary" disabled={{loading}}>
       {{#if loading}}
-        {{t "Adding to Sidebar..." key='adding_to_sidebar'}}
+        {{t "Adding to Sidebar..." key="adding_to_sidebar"}}
       {{else}}
-        {{t "Add Board to Sidebar" key='add_board_to_sidebar'}}
+        {{t "Add Board to Sidebar" key="add_board_to_sidebar"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default" disabled={{loading}}>{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default" disabled={{loading}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

@@ -1,6 +1,6 @@
 <div class="modal fade in" style="display: block;" data-uncloseable={{uncloseable}}>
   <div class="modal-dialog">
-    {{#touch-listener select=(action 'any_select')}}
+    {{#touch-listener select=(action "any_select")}}
       <div class={{if auto_close "modal-content auto_close" "modal-content"}}>
         {{yield}}
       </div><!-- /.modal-content -->

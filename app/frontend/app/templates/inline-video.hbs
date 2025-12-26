@@ -1,16 +1,16 @@
-{{#modal-dialog stretch_ratio=1.5 opening='opening' closing='closing'}}
+{{#modal-dialog stretch_ratio=1.5 opening="opening" closing="closing"}}
   <div class="modal-body">
     {{#if player.error}}
       <div style="width: 100%; margin-top: 30px; text-align: center;">
         <p>
           {{#if player.embed_error}}
-            {{t "This video isn't allowed to be shown inside %app_name%" key='embed_forbidden'}}
+            {{t "This video isn't allowed to be shown inside %app_name%" key="embed_forbidden"}}
           {{else}}
-            {{t "There was an unexpected error loading the video" key='video_error'}}
+            {{t "There was an unexpected error loading the video" key="video_error"}}
           {{/if}}
         </p>
         <p>
-          <a href={{model.video.url}} target="_blank">{{t "Open the video on the web" key='open_video_on_web'}}</a>
+          <a href={{model.video.url}} target="_blank">{{t "Open the video on the web" key="open_video_on_web"}}</a>
         </p>
       </div>
     {{else}}
@@ -18,7 +18,7 @@
         {{#if video_url}}
           <iframe src={{video_url}} id="video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media"></iframe>
         {{else}}
-          {{t "Invalid video resource" key='invalid_video_resource'}}
+          {{t "Invalid video resource" key="invalid_video_resource"}}
         {{/if}}
         {{#if player.started}}
           {{#unless model.hide_overlay}}
@@ -31,13 +31,13 @@
       {{#unless player.error}}
         <button class="btn btn-lg btn-default" {{action "toggle_video"}} style="width: 160px;">
           {{#if player.paused}}
-            {{t "Resume Video" key='resume_video'}}
+            {{t "Resume Video" key="resume_video"}}
           {{else}}
-            {{t "Pause Video" key='pause_video'}}
+            {{t "Pause Video" key="pause_video"}}
           {{/if}}
         </button>
       {{/unless}}
-      <button class='btn btn-lg btn-default' {{action 'close'}}>{{t "Close" key='close'}}</button>
+      <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
       {{#if player.time}}
         {{#if player.duration}}
           <span class="text-muted" style="margin-left: 10px;">{{duration player.time}} / {{duration player.duration}}</span>

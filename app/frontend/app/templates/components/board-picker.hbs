@@ -1,33 +1,33 @@
 <div class='col-sm-5 col-sm-offset-1'>
   <div class='setup_setting'>
-    <label>{{t "Select a Category to Browse" key='browse_categories'}}</label>
+    <label>{{t "Select a Category to Browse" key="browse_categories"}}</label>
     <div class="btn-group-vertical" style="width: 100%;">
       {{#each categories as |category|}}
-        <a href="#" class={{if category.selected 'btn btn-lg btn-primary' 'btn btn-lg btn-default'}} {{action 'set_category' category.id}}>{{category.name}}</a>
+        <a href="#" class={{if category.selected "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_category" category.id}}>{{category.name}}</a>
       {{/each}}
     </div>
   </div>
 </div>
 <div class='col-sm-5' style='padding-top: 50px;'>
-  <div class={{if show_category_explainer 'category_explainer full' 'category_explainer'}}>
+  <div class={{if show_category_explainer "category_explainer full" "category_explainer"}}>
     {{#if category.robust}}
-      <p>{{t "Robust vocabularies may seem a little intimidating at first, but they can be powerful language sets that the communicator can grow into over time. Try to focus more on how many buttons the communicator can successfully access rather than how busy the screen is, because you can always hide buttons and plan to re-enable them later. These board sets can have an emphasis on motor planning or pragmatic communication, but all have a good collection of core and specialized words, and room for personalized vocabulary as well." key='robust_1'}}</p>
+      <p>{{t "Robust vocabularies may seem a little intimidating at first, but they can be powerful language sets that the communicator can grow into over time. Try to focus more on how many buttons the communicator can successfully access rather than how busy the screen is, because you can always hide buttons and plan to re-enable them later. These board sets can have an emphasis on motor planning or pragmatic communication, but all have a good collection of core and specialized words, and room for personalized vocabulary as well." key="robust_1"}}</p>
     {{else if category.cause_effect}}
-      <p>{{t "For communicators that are brand-new to AAC, sometimes it's beneficial to start with a non-communication board, just to help them learn that they can hit buttons and things will happen. These cause-and-effect boards can help train communicators how to use their access method in a fun way." key='cause_effect_1'}}</p>
+      <p>{{t "For communicators that are brand-new to AAC, sometimes it's beneficial to start with a non-communication board, just to help them learn that they can hit buttons and things will happen. These cause-and-effect boards can help train communicators how to use their access method in a fun way." key="cause_effect_1"}}</p>
     {{else if category.simple_starts}}
-      <p>{{t "For some communicators starting with a small set of simple buttons can help them get comfortable using AAC. It can be trickier to move from a simple board set to something more robust or long-term, but each communicator is different." key='simple_starts_1'}}</p>
+      <p>{{t "For some communicators starting with a small set of simple buttons can help them get comfortable using AAC. It can be trickier to move from a simple board set to something more robust or long-term, but each communicator is different." key="simple_starts_1"}}</p>
     {{else if category.functional}}
-      <p>{{t "Sometimes an emphasis on more functional communication can be of value for communicators. Depending on a communicator's developmental level when starting to use AAC, functional boards can be more intuitive." key='functional_1'}}</p>
+      <p>{{t "Sometimes an emphasis on more functional communication can be of value for communicators. Depending on a communicator's developmental level when starting to use AAC, functional boards can be more intuitive." key="functional_1"}}</p>
     {{else if category.phrases}}
-      <p>{{t "For communicators that can speak, recording their own voice for playback can be helpful in stressful situations, or for degenerative conditions like ALS. Phrase-based boards can be a useful template for these communicators, and work well with %app_name%'s built-in recording tools to easily create message banks for the communicator." key='phrases_1'}}</p>
+      <p>{{t "For communicators that can speak, recording their own voice for playback can be helpful in stressful situations, or for degenerative conditions like ALS. Phrase-based boards can be a useful template for these communicators, and work well with %app_name%'s built-in recording tools to easily create message banks for the communicator." key="phrases_1"}}</p>
     {{else if category.keyboards}}
-      <p>{{t "%app_name% supports custom keyboards that include word prediction, so communicators that can spell proficiently may benefit from keyboard-based board sets. Some keyboards come with quick phrases or common words to help speed up communication." key='keyboards_1'}}</p>
+      <p>{{t "%app_name% supports custom keyboards that include word prediction, so communicators that can spell proficiently may benefit from keyboard-based board sets. Some keyboards come with quick phrases or common words to help speed up communication." key="keyboards_1"}}</p>
     {{else if category.mine}}
-      <p>{{t "Browse from the home boards you have created, copied, or had shared with your own account." key='browse_mine'}}</p>
+      <p>{{t "Browse from the home boards you have created, copied, or had shared with your own account." key="browse_mine"}}</p>
     {{/if}}
     {{#if category}}
       <div class='more_link'>
-        <a href="#" {{action 'show_explainer'}}>{{t "more" key='more_lower'}}</a>
+        <a href="#" {{action "show_explainer"}}>{{t "more" key="more_lower"}}</a>
       </div>
     {{/if}}
   </div>
@@ -35,11 +35,11 @@
     <div class="row">
       {{#if category_boards.loading}}
         <div class="col-xs-12">
-          {{t "Loading boards..." key='loading_boards'}}
+          {{t "Loading boards..." key="loading_boards"}}
         </div>
       {{else if category_boards.error}}
         <div class="col-xs-12">
-          {{t "Error loading boards" key='error_loading_boards'}}
+          {{t "Error loading boards" key="error_loading_boards"}}
         </div>
       {{else if category_boards.length}}
         {{#each category_boards as |board|}}
@@ -51,7 +51,7 @@
         {{/each}}
       {{else}}
         <div class="col-xs-12">
-          {{t "None found" key='none_found'}}
+          {{t "None found" key="none_found"}}
         </div>
       {{/if}}
     </div>

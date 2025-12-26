@@ -36,7 +36,7 @@
                 {{#if button.sound}}
                   <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
                 {{/if}}
-                <div class={{if button.modeling 'text modeled' 'text'}}>{{ button.label }} </div>
+                <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
               </span>
             </div>
             {{#unless button.ghost}}
@@ -48,25 +48,25 @@
           <div style="clear: left;"></div>
         {{/with}}
       </a>
-      <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key='speak_options'}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
+      <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
       <button class="btn btn-default access skinnier" {{action "backspace"}}>
-        <span class="sr-only">{{t "backspace" key='backspace_lower'}}</span>
+        <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}/>
       </button>
       <button class="btn btn-default access" {{action "clear"}}>
-        <span class="sr-only">{{t "clear" key='clear_lower'}}</span>
+        <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
         <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
       </button>
     </span>
   {{else}}
     <span id="nav_header">
-    <h1 class={{if app_state.currentBoardState 'with_board'}}>
+    <h1 class={{if app_state.currentBoardState "with_board"}}>
       <a href="#" {{action "index"}}>
-        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path 'images/logo-big.png')}} alt="LingoLinq"/>
+        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq"/>
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
-        <span class="label label-primary">{{t "BETA" key='beta'}}</span>
+        <span class="label label-primary">{{t "BETA" key="beta"}}</span>
       </a>
     </h1>
     {{#if app_state.currentBoardState.id}}
@@ -81,7 +81,7 @@
 
           {{/if}}
 
-          {{#link-to 'user' app_state.current_board_user_name}}{{app_state.current_board_user_name}}{{/link-to}} /
+          {{#link-to "user" app_state.current_board_user_name}}{{app_state.current_board_user_name}}{{/link-to}} /
           {{app_state.current_board_name}}
         </span>
       {{/unless}}
@@ -92,7 +92,7 @@
           <div style="float: left; margin-right: 4px; width: 150px;">
           {{input type="text" value=searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
           </div>
-          <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key='go'}}</button>
+          <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
         </form>
       {{/if}}
@@ -184,7 +184,7 @@
           {{#unless app_state.empty_board_history}}
             <a class="btn btn-default" href="#" {{action "back"}}>
               <span class="glyphicon glyphicon-arrow-left"></span>
-              <span class="hidden">{{t "back" key='back_lower'}}</span>
+              <span class="hidden">{{t "back" key="back_lower"}}</span>
             </a>
           {{/unless}}
           {{#if app_state.currentBoardState.id}}
@@ -196,9 +196,9 @@
                     <span class="caret"></span>
                   </a>
                   <ul class="dropdown-menu" role="menu">
-                    <li><a href="#" {{action "setSpeakModeUser" 'self'}}>{{t "speak as" key='speak_as_lower'}} me</a></li>
+                    <li><a href="#" {{action "setSpeakModeUser" "self"}}>{{t "speak as" key="speak_as_lower"}} me</a></li>
                     {{#each app_state.currentUser.known_supervisees as |supervisee|}}
-                      <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key='speak_as_lower'}} {{supervisee.user_name}}</a></li>
+                      <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</a></li>
                     {{/each}}
                   </ul>
                 </div>
@@ -212,7 +212,7 @@
               {{#if board.model.copy.key}}
                 <!-- TODO: no idea why this is necessary -->
                 <span style="margin-right: -1px;">
-                {{#link-to 'board' board.model.copy.key class='btn btn-info'}}
+                {{#link-to "board" board.model.copy.key class="btn btn-info"}}
                   <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                 {{/link-to}}
                 </span>
@@ -291,7 +291,7 @@
     {{/if}}
     </span>
   {{/if}}
-    <span id="identity" class={{if app_state.speak_mode 'advanced_selection'}}>
+    <span id="identity" class={{if app_state.speak_mode "advanced_selection"}}>
       <span class="dropdown" style="display: inline-block;">
         <a class='btn btn-default' href="#" data-toggle="dropdown">
           {{#if app_state.currentUser}}
@@ -300,7 +300,7 @@
               <span class="label label-danger unread">{{app_state.currentUser.unread_messages}}</span>
             {{/if}}
           {{else}}
-            <img src={{path 'images/settings.png'}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;"/>
+            <img src={{path "images/settings.png"}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;"/>
           {{/if}}
           {{#if session.isAuthenticated}}
             <span class="user_name">
@@ -308,7 +308,7 @@
             </span>
           {{else}}
             <span class="user_name">
-              {{t "Not signed in" key='not_signed_in'}}
+              {{t "Not signed in" key="not_signed_in"}}
             </span>
           {{/if}}
           <span class="caret"></span>
@@ -329,37 +329,37 @@
               <li class="dropdown-header">{{app_state.currentUser.name}}</li>
               {{#unless app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Home" key='home'}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
               <li role="presentation">
-                {{#link-to "user" app_state.currentUser.user_name}}{{t "My Account" key='my_account'}}{{/link-to}}
+                {{#link-to "user" app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
               </li>
             {{else}}
               {{#unless app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Home" key='home'}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
             {{/if}}
           {{/unless}}
           {{#unless superProtectedSpeakMode}}
             {{#if app_state.currentBoardState}}
-              <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key='find_a_button'}}</a></li>
+              <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key="find_a_button"}}</a></li>
             {{/if}}
             {{#if session.isAuthenticated}}
               {{#if app_state.currentBoardState}}
                 {{#if app_state.speak_mode}}
                   {{#if stashes.sticky_board}}
-                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key='release_board_lock'}}</a></li>
+                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
                   {{else}}
-                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key='stay_on_board'}}</a></li>
+                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
                   {{/if}}
                   {{#if app_state.currentUser.preferences.logging}}
                     {{#if app_state.logging_paused}}
-                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Resume Logging" key='resume_logging'}}</a></li>
+                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Resume Logging" key="resume_logging"}}</a></li>
                     {{else}}
-                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Pause Logging" key='pause_logging'}}</a></li>
+                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Pause Logging" key="pause_logging"}}</a></li>
                     {{/if}}
                   {{/if}}
                 {{/if}}
@@ -369,21 +369,21 @@
           {{#unless app_state.limited_speak_mode_options}}
             {{#if session.isAuthenticated}}
               {{#unless app_state.speak_mode}}
-                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key='find_board'}}{{/link-to}}</li>
-                <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key='create_a_new_board'}}</a></li>
+                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key="find_board"}}{{/link-to}}</li>
+                <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
               {{/unless}}
-              <li>{{#link-to 'user.preferences' app_state.currentUser.user_name}}{{t "Preferences" key='preferences'}}{{/link-to}}</li>
-              <li>{{#link-to 'user.logs' app_state.currentUser.user_name (query-params type='note')}}
+              <li>{{#link-to "user.preferences" app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
+              <li>{{#link-to "user.logs" app_state.currentUser.user_name (query-params type="note")}}
                 {{#if app_state.currentUser.unread_messages}}
                   <span class="label label-danger" style="border-radius: 5px;">{{app_state.currentUser.unread_messages}}</span>
                 {{/if}}
-                {{t "Messages" key='messages'}}
+                {{t "Messages" key="messages"}}
               {{/link-to}}</li>
               {{#if session.as_user_id}}
-                <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key='stop_masquerading'}}</a></li>
+                <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
               {{#unless app_state.speak_mode}}
-                <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key='logout'}}</a></li>
+                <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
               <li role="presentation">
@@ -412,18 +412,18 @@
           <button class='btn btn-default' style="width: 52px;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
           <button class='btn btn-default' {{action "toggleSidebar"}}>&times;</button>
         {{else}}
-          <button class='btn btn-default' style="width: 90px;" {{action "toggleSidebar"}}>&times; {{t "Hide" key='hide_upper'}}</button>
+          <button class='btn btn-default' style="width: 90px;" {{action "toggleSidebar"}}>&times; {{t "Hide" key="hide_upper"}}</button>
         {{/if}}
       </span>
     {{/unless}}
     {{#each app_state.currentUser.sidebar_boards_with_fallbacks as |board|}}
       {{#if board.alert}}
-        <a href="#" {{action 'alert' 'sidebar'}}>
+        <a href="#" {{action "alert" "sidebar"}}>
           {{board.name}}
           <img src={{board.image}} style="width: 50px;" alt=""/>
         </a>
       {{else}}
-        <a href={{board.key}} {{action 'jump' board.key 'sidebar'}}>
+        <a href={{board.key}} {{action "jump" board.key "sidebar"}}>
           {{board.name}}
           <img src={{board.image}} style="width: 50px;" alt=""/>
         </a>
@@ -441,57 +441,57 @@
   {{#if app_state.speak_mode}}
     {{#unless app_state.currentUser.preferences.disable_quick_sidebar}}
       <div id="sidebar_tease" class="advanced_selection" {{action "toggleSidebar"}}>
-        {{t "sidebar" key='sidebar'}}
+        {{t "sidebar" key="sidebar"}}
       </div>
     {{/unless}}
   {{/if}}
 {{/if}}
 
-{{outlet 'modal'}}
-{{outlet 'flash-message'}}
+{{outlet "modal"}}
+{{outlet "flash-message"}}
   <footer>
     <div class="wide_links">
       <div class="row">
         <div class='col-sm-4'>
-          <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key='app_name'}}</span>
+          <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key="app_name"}}</span>
           {{#if app_state.installed_app}}
-            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a> <span class='text-muted'>|</span>
+            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
-          {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}} <span class='text-muted'>|</span>
+          {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}} <span class='text-muted'>|</span>
           {{#unless app_state.installed_app}}
             {{#if app_state.feature_flags.subscriptions}}
               {{#if app_state.domain_settings.full_domain}}
-                {{#link-to "pricing"}}{{t "Pricing" key='pricing'}}{{/link-to}} <span class='text-muted'>|</span>
+                {{#link-to "pricing"}}{{t "Pricing" key="pricing"}}{{/link-to}} <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
           {{#if app_state.domain_settings.support_url}}
-            <a href={{app_state.domain_settings.support_url}} target="_blank">{{t "Support" key='support'}}</a>
+            <a href={{app_state.domain_settings.support_url}} target="_blank">{{t "Support" key="support"}}</a>
           {{/if}}
           {{#unless app_state.installed_app}}
             <span class='text-muted'>|</span>
-            {{#link-to "contact"}}{{t "Contact Us" key='contact'}}{{/link-to}}
+            {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
           {{/unless}}
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
           {{#unless app_state.installed_app}}
-            <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key='developers'}}</a> <span class='text-muted'>|</span>
+            <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
           {{/unless}}
-          {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}} <span class='text-muted'>|</span>
-          {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
+          {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
+          {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
         </div>
         {{#if persistence.online}}
           <div class='col-sm-2'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons">
               {{#if app_state.domain_settings.blog_url}}
-                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
+                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.twitter_url}}
-                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
+                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.facebook_url}}
-                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
+                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}/></a>
               {{/if}}
             </span>
           </div>
@@ -504,34 +504,34 @@
         <a data-toggle="dropdown" href="#">{{t "More Resources" key="more_resources"}} <span class='caret'></span></a>
         <ul class="dropdown-menu dropdown-menu-top top" role="menu" aria-labelledby="dLabel">
           <li>
-            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a>
+            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key="web_site"}}</a>
           </li>
           <li>
-            {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}}
+            {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}}
           </li>
           {{#if app_state.domain_settings.support_url}}
             <li>
-              <a href={{app_state.domain_settings.support_url}} target="_blank">{{t "Support" key='support'}}</a>
+              <a href={{app_state.domain_settings.support_url}} target="_blank">{{t "Support" key="support"}}</a>
             </li>
           {{/if}}
           <li>
-            {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}}
+            {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}}
           </li>
           <li>
-            {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
+            {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
           </li>
         {{#if persistence.online}}
           <li>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons" style="padding-left: 17px;">
               {{#if app_state.domain_settings.blog_url}}
-                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
+                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.twitter_url}}
-                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
+                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.facebook_url}}
-                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
+                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}/></a>
               {{/if}}
             </span>
           </li>

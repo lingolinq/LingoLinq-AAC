@@ -1,7 +1,7 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Saved Phrases" key='saved_phrases'}}
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Saved Phrases" key="saved_phrases"}}
     </h3>
   </div>
   <div class="modal-body">
@@ -9,15 +9,15 @@
       <div class='row' style='margin-bottom: 5px;'>
         {{#each categories as |cat|}}
           <div class='col-sm-3 col-xs-4' style='margin-bottom: 5px;'>
-            <button {{action 'set_category' cat}} class={{if cat.active 'btn btn-primary' 'btn btn-default'}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
+            <button {{action "set_category" cat}} class={{if cat.active "btn btn-primary" "btn btn-default"}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
               {{cat.name}}
             </button>
           </div>
         {{/each}}
         {{#if user.preferences.recent_cleared_phrases}}
           <div class='col-sm-3 col-xs-4' style='float: right;'>
-            <button {{action 'set_recent'}} class={{if showing_recent 'btn btn-primary' 'btn btn-default'}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
-              <em>{{t "Recent" key='recent'}}</em>
+            <button {{action "set_recent"}} class={{if showing_recent "btn btn-primary" "btn btn-default"}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
+              <em>{{t "Recent" key="recent"}}</em>
             </button>
           </div>
         {{/if}}
@@ -27,7 +27,7 @@
       {{#each category_phrases as |phrase|}}
         <div class='row' style='margin-bottom: 5px;'>
           <div class='col-sm-8'>
-            <button class='btn btn-lg btn-default' {{action 'select' phrase}} style='width: 100%; text-align: left; white-space: normal; max-height: 70px; overflow: hidden;'>
+            <button class='btn btn-lg btn-default' {{action "select" phrase}} style='width: 100%; text-align: left; white-space: normal; max-height: 70px; overflow: hidden;'>
               {{#if journaling}}
                 <div class='text-muted' style='font-size: 12px; font-style: italic; margin-top: -7px;'>{{date phrase.date}}</div>
               {{/if}}
@@ -46,11 +46,11 @@
             {{#unless phrase.stash}}
               {{#if recent_category}}
               {{else}}
-                <button class='btn btn-lg btn-default' {{action 'shift' phrase 'up'}}><span class='glyphicon glyphicon-arrow-up'></span></button>
-                <button class='btn btn-lg btn-default' {{action 'shift' phrase 'down'}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+                <button class='btn btn-lg btn-default' {{action "shift" phrase "up"}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                <button class='btn btn-lg btn-default' {{action "shift" phrase "down"}}><span class='glyphicon glyphicon-arrow-down'></span></button>
               {{/if}}
             {{/unless}}
-            <button class='btn btn-lg btn-default' {{action 'remove' phrase}}><span class='glyphicon glyphicon-remove'></span></button>
+            <button class='btn btn-lg btn-default' {{action "remove" phrase}}><span class='glyphicon glyphicon-remove'></span></button>
           </div>
         </div>
       {{/each}}
@@ -58,26 +58,26 @@
       <div style='margin: 15px 0;'>
         {{#if journaling}}
           {{#if user.permissions.delete}}
-            <p>{{t "No recent journal entries available. Journal entries are private for the user. The most recent are shown here, and more are available in the user's Logs view." key='journal_empty'}}</p>
+            <p>{{t "No recent journal entries available. Journal entries are private for the user. The most recent are shown here, and more are available in the user's Logs view." key="journal_empty"}}</p>
           {{else}}
-            <p>{{t "Journal entries remain private for the user and are not accessible to supervisors" key='journal_for_students_only'}}</p>
+            <p>{{t "Journal entries remain private for the user and are not accessible to supervisors" key="journal_for_students_only"}}</p>
           {{/if}}
         {{else}}
-          <p>{{t "No phrases have been saved. You can save phrases by hitting \"Remember This\" in the sentence box dropdown." key='no_phrases'}}</p>
+          <p>{{t "No phrases have been saved. You can save phrases by hitting \"Remember This\" in the sentence box dropdown." key="no_phrases"}}</p>
         {{/if}}
       </div>
     {{/if}}
     {{#unless recent_category}}
       <div class='row' style='margin-top: 15px;'>
         <div class='col-sm-6'>
-          {{input type='text' value=sentence class='input-lg form-control' placeholder='Enter a new phrase to add to the list'}}
+          {{input type="text" value=sentence class="input-lg form-control" placeholder="Enter a new phrase to add to the list"}}
         </div>
         <div class='col-sm-4'>
-          <button class='btn btn-lg btn-default' {{action 'add'}}>
+          <button class='btn btn-lg btn-default' {{action "add"}}>
             {{#if journaling}}
-              {{t "Save Entry" key='save_entry'}}
+              {{t "Save Entry" key="save_entry"}}
             {{else}}
-              {{t "Add Phrase" key='add_phrase'}}
+              {{t "Add Phrase" key="add_phrase"}}
             {{/if}}
           </button>
         </div>
@@ -85,6 +85,6 @@
     {{/unless}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

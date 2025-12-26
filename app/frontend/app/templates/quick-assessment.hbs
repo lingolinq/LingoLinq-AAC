@@ -1,14 +1,14 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Quick Assessment for %{user_name}" key='quick_assessment_for' user_name=model.user.user_name}}
+      {{t "Quick Assessment for %{user_name}" key="quick_assessment_for" user_name=model.user.user_name}}
     </h3>
   </div>
   <div class="modal-body">
     <form class="row form-horizontal">
       <div class="form-group">
-        <label for="description" class="col-sm-4 control-label">{{t "Assessment Type" key='assessment_type'}}</label>
+        <label for="description" class="col-sm-4 control-label">{{t "Assessment Type" key="assessment_type"}}</label>
         <div class="col-sm-5">
           {{input value=description disabled=goal_id class="form-control" id="description" placeholder="brief description"}}
         </div>
@@ -16,11 +16,11 @@
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group'>
               <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{t "Goal" key='goal'}} <span class="caret"></span>
+                {{t "Goal" key="goal"}} <span class="caret"></span>
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left;">
                 {{#each goal_options as |option|}}
-                  <li><a href='#' {{action 'goal_action' option.id}}>{{option.name}}</a></li>
+                  <li><a href='#' {{action "goal_action" option.id}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
             </div>
@@ -28,23 +28,23 @@
         {{/if}}
       </div>
       <div class="form-group">
-        <label for="correct_tally" class="col-sm-4 control-label">{{t "Correct" key='correct'}}</label>
+        <label for="correct_tally" class="col-sm-4 control-label">{{t "Correct" key="correct"}}</label>
         <div class="col-sm-2">
           {{input value=totals.correct class="form-control input-lg" id="correct_tally" placeholder="0"}}
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
-          <span class="text-muted">{{t "oops?" key='oops_q'}}</span>
+          <span class="text-muted">{{t "oops?" key="oops_q"}}</span>
           <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "totals.correct"}} style="width: 35px;">-</button>
           <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "totals.correct"}} style="width: 35px;">+</button>
         </div>
       </div>
       <div class="form-group">
-        <label for="incorrect_tally" class="col-sm-4 control-label">{{t "Incorrect" key='incorrect'}}</label>
+        <label for="incorrect_tally" class="col-sm-4 control-label">{{t "Incorrect" key="incorrect"}}</label>
         <div class="col-sm-2">
           {{input value=totals.incorrect class="form-control input-lg" id="incorrect_tally" placeholder="0"}}
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
-          <span class="text-muted">{{t "oops?" key='oops_q'}}</span>
+          <span class="text-muted">{{t "oops?" key="oops_q"}}</span>
           <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "totals.incorrect"}} style="width: 35px;">-</button>
           <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "totals.incorrect"}} style="width: 35px;">+</button>
         </div>
@@ -64,7 +64,7 @@
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn btn-primary btn-lg" {{action 'record_assessment'}}>{{t "Done" key='done'}}</a>
-    <a href="#" class="btn btn-default btn-lg" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+    <a href="#" class="btn btn-primary btn-lg" {{action "record_assessment"}}>{{t "Done" key="done"}}</a>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

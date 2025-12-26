@@ -1,19 +1,19 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Sync Details" key='sync_details'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Sync Details" key="sync_details"}}</h3>
   </div>
   <div class="modal-body">
     <div style='float: right;'>
       {{#if persistence.syncing}}
-        <button class='btn btn-lg btn-default' {{action 'cancel_sync'}}>{{t "Cancel Sync" key='cancel_sync'}}</button>
+        <button class='btn btn-lg btn-default' {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
       {{/if}}
-      <button class='btn btn-lg btn-default' {{action 'sync'}}>
+      <button class='btn btn-lg btn-default' {{action "sync"}}>
         <span class={{refreshing_class}}></span>
         {{#if persistence.syncing}}
-          {{t "Syncing..." key='syncing_ellipsis'}}
+          {{t "Syncing..." key="syncing_ellipsis"}}
         {{else}}
-          {{t "Sync Now" key='sync_now'}}
+          {{t "Sync Now" key="sync_now"}}
         {{/if}}
       </button>
     </div>
@@ -21,40 +21,40 @@
       <span>
       {{#if persistence.sync_succeeded}}
         {{#if session.invalid_token}}
-          {{t "Please re-login and sync again" key='please_resync'}}
+          {{t "Please re-login and sync again" key="please_resync"}}
         {{else}}
-          {{t "Sync Done!" key='sync_done'}}
+          {{t "Sync Done!" key="sync_done"}}
         {{/if}}
       {{else if persistence.sync_finished}}
-        {{t "Done with " key='done_with'}}
-        {{t "error" key='n_errors_lower' count=persistence.sync_errors}}
-        {{t "(see log)" key='see_log'}}
+        {{t "Done with " key="done_with"}}
+        {{t "error" key="n_errors_lower" count=persistence.sync_errors}}
+        {{t "(see log)" key="see_log"}}
       {{else}}
         {{#if persistence.sync_failed}}
-          {{t "Sync Failed, see details below" key='sync_failed'}}
+          {{t "Sync Failed, see details below" key="sync_failed"}}
           {{#if persistence.sync_status_error}}
             <span title={{persistence.sync_status_error}}>{{persistence.sync_status_error}}</span>
           {{/if}}
         {{else}}
           {{#if persistence.syncing}}
-            {{t "Syncing..." key='syncing_ellipsis'}}
+            {{t "Syncing..." key="syncing_ellipsis"}}
             {{#if persistence.sync_progress}}
               {{#if persistence.sync_progress.total}}
                 {{persistence.sync_progress.visited}} /
-                {{t "board" key='communication_set_board' count=persistence.sync_progress.total}}
+                {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
               {{else}}
-                {{t "initializing..." key='initializing_lower'}}
+                {{t "initializing..." key="initializing_lower"}}
               {{/if}}
             {{/if}}
           {{else}}
             {{#if needs_sync}}
               {{#if app_state.installed_app}}
-                {{t "Sync before going offline!" key='needs_update'}}
+                {{t "Sync before going offline!" key="needs_update"}}
               {{else}}
-                {{t "Sync if planning to go offline" key='sync_if_planning_offline'}}
+                {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
               {{/if}}
             {{else}}
-              {{t "Synced and ready for offline" key='up_to_date'}}
+              {{t "Synced and ready for offline" key="up_to_date"}}
             {{/if}}
           {{/if}}
         {{/if}}
@@ -73,17 +73,17 @@
             <span class='text-success'>{{date_ago sync.finished}}</span>
           {{/if}}
         </h3>
-        {{#if sync.manual}}{{t "Manual sync. " key='manual_sync'}}{{/if}}
+        {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
         {{sync.summary}}
         {{#if sync.statuses}}
           <br/>
-          {{t "Boards: %{num} downloaded," num=sync.downloaded key='boards_n_downloaded_comma'}}
-          {{t "%{num} updated, " num=sync.re_downloaded key='n_re_downloaded_comma'}}
-          {{t "%{num} cached" num=sync.cached key='n_cached'}}
-          <a href='#'{{action 'toggle_statuses' sync}}>{{t "see details" key='see_details'}}</a>
+          {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
+          {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
+          {{t "%{num} cached" num=sync.cached key="n_cached"}}
+          <a href='#'{{action "toggle_statuses" sync}}>{{t "see details" key="see_details"}}</a>
           {{#if sync.toggled}}
             {{#if sync.reason}}
-              <p>{{t "sync trigger:" key='sync_trigger'}} {{sync.reason}}</p>
+              <p>{{t "sync trigger:" key="sync_trigger"}} {{sync.reason}}</p>
             {{/if}}
             <div style='max-height: 60vh; overflow: auto;'>
               <table class='table table-striped table-hover'>
@@ -98,11 +98,11 @@
                       </td>
                       <td>
                         {{#if status.downloaded}}
-                          {{t "downloaded" key='downloaded'}}
+                          {{t "downloaded" key="downloaded"}}
                         {{else if status.re_downloaded}}
-                          {{t "updated" key='re_downloaded'}}
+                          {{t "updated" key="re_downloaded"}}
                         {{else if status.cached}}
-                          {{t "cached (no change)" key='cached_no_change'}}
+                          {{t "cached (no change)" key="cached_no_change"}}
                         {{/if}}
                       </td>
                     </tr>
@@ -114,17 +114,17 @@
         {{/if}}
       {{/each}}
     {{else}}
-      <p style='margin-top: 20px;'>{{t "No sync details to show" key='no_sync_details'}}</p>
+      <p style='margin-top: 20px;'>{{t "No sync details to show" key="no_sync_details"}}</p>
     {{/if}}
     {{#if stashes.usage_log.length}}
       <p style='margin-top: 20px;'>
-        {{stashes.usage_log.length}} {{t "log items waiting to be synced starting" key='pending_log_items_from'}}
+        {{stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
         {{date first_log_date}}
       </p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default' {{action 'close'}}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}
 

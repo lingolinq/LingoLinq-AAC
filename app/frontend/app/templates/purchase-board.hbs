@@ -1,16 +1,16 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="board_drop">
     <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
       <h3>
-        {{t "Purchase Board" key='purchase_board'}}
+        {{t "Purchase Board" key="purchase_board"}}
       </h3>
     </div>
     <div class="modal-body">
-      <p>{{t "To purchase a copy of this board, go to mylingolinq.com and purchase via the website." key='purchase_instructions'}}</p>
+      <p>{{t "To purchase a copy of this board, go to mylingolinq.com and purchase via the website." key="purchase_instructions"}}</p>
     </div>
     <div class="modal-footer">
-      <button {{action "close"}} class="btn btn-default">{{t "Close" key='close'}}</button>
+      <button {{action "close"}} class="btn btn-default">{{t "Close" key="close"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

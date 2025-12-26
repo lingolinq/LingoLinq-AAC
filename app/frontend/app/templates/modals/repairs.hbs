@@ -1,8 +1,8 @@
-{{#modal-dialog desired_width=850 action="close" opening='opening' closing='closing'}}
+{{#modal-dialog desired_width=850 action="close" opening="opening" closing="closing"}}
   <div class="modal-header" style='padding: 10px 20px 0;'>
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <button class='btn btn-default btn-lg' {{action 'oops'}} style='float: right; margin-right: 10px; border-width: 2px; border-color: rgb(124, 72, 72); margin-top: -10px;'><span class='glyphicon glyphicon-exclamation-sign'></span> {{t "Oops" key='oops'}}</button>
-    <h3>{{t "Modify and Repair Message" key='modify_and_repair_message'}}
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button class='btn btn-default btn-lg' {{action "oops"}} style='float: right; margin-right: 10px; border-width: 2px; border-color: rgb(124, 72, 72); margin-top: -10px;'><span class='glyphicon glyphicon-exclamation-sign'></span> {{t "Oops" key="oops"}}</button>
+    <h3>{{t "Modify and Repair Message" key="modify_and_repair_message"}}
     </h3>
   </div>
   <div class="modal-body" style='padding-top: 5px; padding-bottom: 5px;'>
@@ -10,18 +10,18 @@
     {{#if buttons}}
       <div class='cursor_holder'>
         <div class='cursor_navigation repair_buttons'>
-          <button class='btn btn-default btn-lg up' {{action 'move' 'up'}} disabled={{not_scrollable}}>
+          <button class='btn btn-default btn-lg up' {{action "move" "up"}} disabled={{not_scrollable}}>
             <span class='glyphicon glyphicon-chevron-up'></span>
-            {{t "Up" key='up'}}
+            {{t "Up" key="up"}}
           </button>
-          <button class='btn btn-default btn-lg down' {{action 'move' 'down'}} disabled={{not_scrollable}}>
+          <button class='btn btn-default btn-lg down' {{action "move" "down"}} disabled={{not_scrollable}}>
             <span class='glyphicon glyphicon-chevron-down'></span>
-            {{t "Down" key='down'}}
+            {{t "Down" key="down"}}
           </button>
         </div>
         <div class='row cursor_area'>
           {{#each buttons as |button|}}
-            <div {{action 'select' button}} class={{button.cursor_class}}>
+            <div {{action "select" button}} class={{button.cursor_class}}>
               <div class='cursor_blink prior'>
                 <div class='left'>
                 </div><div class='right'>
@@ -43,90 +43,90 @@
       </div>
       <div class='row repair_buttons'>
         <div class='col-sm-12'>
-          <button class='btn btn-lg btn-default' {{action 'move' 'back'}}>
+          <button class='btn btn-lg btn-default' {{action "move" "back"}}>
             {{#if has_selection}}
               {{#if moving}}
                 <span class='glyphicon glyphicon-arrow-left'></span>
-                {{t "Move Left" key='move_left'}}
+                {{t "Move Left" key="move_left"}}
               {{else}}
                 <span class='glyphicon glyphicon-arrow-left'></span>
-                {{t "Select Left" key='select_left'}}
+                {{t "Select Left" key="select_left"}}
               {{/if}}
             {{else}}
               <span class='glyphicon glyphicon-chevron-left'></span>
-              {{t "Previous" key='previous'}}
+              {{t "Previous" key="previous"}}
             {{/if}}
           </button>
-          <button class='btn btn-lg btn-default' {{action 'move' 'forward'}}>
+          <button class='btn btn-lg btn-default' {{action "move" "forward"}}>
             {{#if has_selection}}
               {{#if moving}}
                 <span class='glyphicon glyphicon-arrow-right'></span>
-                {{t "Move Right" key='move_right'}}
+                {{t "Move Right" key="move_right"}}
               {{else}}
                 <span class='glyphicon glyphicon-arrow-right'></span>
-                {{t "Select Right" key='select_right'}}
+                {{t "Select Right" key="select_right"}}
               {{/if}}
             {{else}}
               <span class='glyphicon glyphicon-chevron-right'></span>
-              {{t "Next" key='next'}}
+              {{t "Next" key="next"}}
             {{/if}}
           </button>
-          <button class='btn btn-lg btn-default' {{action 'select'}}>
+          <button class='btn btn-lg btn-default' {{action "select"}}>
             {{#if has_selection}}
               <span class='glyphicon glyphicon-unchecked'></span>
-              {{t "Unselect" key='unselect'}}
+              {{t "Unselect" key="unselect"}}
             {{else}}
               <span class='glyphicon glyphicon-screenshot'></span>
-              {{t "Select" key='select'}}
+              {{t "Select" key="select"}}
             {{/if}}
           </button>
           {{#if has_selection}}
             {{#if moving}}
-              <button class='btn btn-lg btn-default' {{action 'enable_move'}}>
+              <button class='btn btn-lg btn-default' {{action "enable_move"}}>
                 <span class='glyphicon glyphicon-ok'></span>
-                {{t "Done" key='done'}}
+                {{t "Done" key="done"}}
               </button>
             {{else}}
-              <button class='btn btn-lg btn-default' {{action 'enable_move'}}>
+              <button class='btn btn-lg btn-default' {{action "enable_move"}}>
                 <span class='glyphicon glyphicon-move'></span>
-                {{t "Move" key='move'}}
+                {{t "Move" key="move"}}
               </button>
             {{/if}}
           {{else}}
-            <button class='btn btn-lg btn-default' {{action 'begin_insertion'}}>
+            <button class='btn btn-lg btn-default' {{action "begin_insertion"}}>
               <span class='glyphicon glyphicon-comment'></span>
-              {{t "Insert Here" key='insert_here'}}
+              {{t "Insert Here" key="insert_here"}}
             </button>
           {{/if}}
-          <button class='btn btn-lg btn-default' {{action 'remove'}}>
-            <img src={{path 'images/delete.svg'}} />
-            {{t "Remove" key='remove'}}
+          <button class='btn btn-lg btn-default' {{action "remove"}}>
+            <img src={{path "images/delete.svg"}} />
+            {{t "Remove" key="remove"}}
           </button>
           <!-- TODO: suggestions! -->
           <button class='btn btn-lg btn-default' style='display: none;'>
             <span class='glyphicon glyphicon-bell'></span>
-            {{t "Suggestions" key='suggestions'}}
+            {{t "Suggestions" key="suggestions"}}
           </button>
         </div>
       </div>
     {{else}}
-      <p>{{t "There is no text in the sentence box to modify. The repairs tool lets you quickly add, delete, move or modify words to make changes within the user's current speech window." key='no_words_to_repair'}}</p>
+      <p>{{t "There is no text in the sentence box to modify. The repairs tool lets you quickly add, delete, move or modify words to make changes within the user's current speech window." key="no_words_to_repair"}}</p>
     {{/if}}
     <div class='row' style='margin-top: 5px;'>
       <div class='col-sm-12'>
         <div style='display: inline-block; width: 515px; vertical-align: middle;'>
           {{#if has_selection}}
-            {{input class='form-control input-lg' type='text' value=insertion placeholder="Replacement text for this word or phrase"}}
+            {{input class="form-control input-lg" type="text" value=insertion placeholder="Replacement text for this word or phrase"}}
           {{else}}
-            {{input class='form-control input-lg' type='text' value=insertion placeholder="Text to insert at cursor"}}
+            {{input class="form-control input-lg" type="text" value=insertion placeholder="Text to insert at cursor"}}
           {{/if}}
         </div>
         <div style='display: inline-block; width: 120px;'>
-          <button class='btn btn-lg btn-default' {{action 'insert'}}>
+          <button class='btn btn-lg btn-default' {{action "insert"}}>
             {{#if has_selection}}
-              {{t "Replace Text" key='replace_text'}}
+              {{t "Replace Text" key="replace_text"}}
             {{else}}
-              {{t "Insert Text" key='insert_text'}}
+              {{t "Insert Text" key="insert_text"}}
             {{/if}}
           </button>
         </div>
@@ -135,13 +135,13 @@
   </div>
   <div class="modal-footer">
     {{#if model.speak_on_done}}
-      <button class='btn btn-primary btn-lg' {{action 'done' true}}>
-        {{t "Speak and Update" key='speak_and_update'}}
+      <button class='btn btn-primary btn-lg' {{action "done" true}}>
+        {{t "Speak and Update" key="speak_and_update"}}
       </button>
     {{/if}}
-    <button class='btn btn-primary btn-lg' {{action 'done'}}>
-      {{t "Update" key='update'}}
+    <button class='btn btn-primary btn-lg' {{action "done"}}>
+      {{t "Update" key="update"}}
     </button>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

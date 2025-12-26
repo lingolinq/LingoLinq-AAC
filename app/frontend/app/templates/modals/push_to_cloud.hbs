@@ -1,27 +1,27 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Push Local Data to the Cloud" key='push_local_to_cloud'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Push Local Data to the Cloud" key="push_local_to_cloud"}}</h3>
   </div>
   <div class="modal-body">
     <p>
       <span class='glyphicon glyphicon-cloud-upload' style='float: left; font-size: 50px; margin: 0 10px 5px 0;'></span>
-      {{t "Are you sure you want to push your %{cnt} local boards to the cloud? If you have made changes to your boards from a different device then your changed may be overwritten." cnt=local_boards key='confirm_push_to_cloud'}}
+      {{t "Are you sure you want to push your %{cnt} local boards to the cloud? If you have made changes to your boards from a different device then your changed may be overwritten." cnt=local_boards key="confirm_push_to_cloud"}}
     </p>
   </div>
   <div class="modal-header">
-    <button class='btn btn-default btn-lg' {{action 'push'}} disabled={{status.pushing}}>
+    <button class='btn btn-default btn-lg' {{action "push"}} disabled={{status.pushing}}>
       {{#if status.pushing}}
-        {{t "Pushing to Cloud..." key='pushing_to_cloud'}}
+        {{t "Pushing to Cloud..." key="pushing_to_cloud"}}
       {{else if status.error}}
-        {{t "Error Pushing to Cloud" key='error_pushing_to_cloud'}}
+        {{t "Error Pushing to Cloud" key="error_pushing_to_cloud"}}
       {{else}}
-        {{t "Push to Cloud" key='push_to_cloud'}}
+        {{t "Push to Cloud" key="push_to_cloud"}}
       {{/if}}
     </button>
-    <button class='btn btn-primary btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{#if status.save_failed}}
-      <p class='text-danger'>{{t "One or more boards were not successfully pushed to the cloud" key='one_or_more_boards_failed_to_push'}}</p>
+      <p class='text-danger'>{{t "One or more boards were not successfully pushed to the cloud" key="one_or_more_boards_failed_to_push"}}</p>
     {{/if}}
   </div>
 {{/modal-dialog}}

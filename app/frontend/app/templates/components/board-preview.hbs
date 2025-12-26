@@ -1,84 +1,84 @@
 <div class='row'>
-  <div class={{if include_canvas 'col-sm-4' 'col-sm-8 col-sm-offset-2'}}>
-    <button class='btn btn-lg btn-primary' style='width: 100%;' {{action 'select'}}>
+  <div class={{if include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}}>
+    <button class='btn btn-lg btn-primary' style='width: 100%;' {{action "select"}}>
       {{#if select_option}}
-        {{t "Choose This Board" key='choose_this_board'}}
+        {{t "Choose This Board" key="choose_this_board"}}
       {{else}}
-        {{t "Try This Board" key='try_this_board'}}
+        {{t "Try This Board" key="try_this_board"}}
       {{/if}}
     </button>
     {{#if back}}
       <button class='btn btn-lg btn-default' style='width: 100%; margin-top: 2px;' {{action back}}>
-        {{t "Back to List" key='back_to_list'}}
+        {{t "Back to List" key="back_to_list"}}
       </button>
     {{/if}}
     {{#if select_option}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action 'close'}}>
-        {{t "Cancel" key='cancel'}}
+      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "close"}}>
+        {{t "Cancel" key="cancel"}}
       </button>
     {{else}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action 'visit'}}>
-        {{t "Board Actions" key='board_actions'}}
+      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "visit"}}>
+        {{t "Board Actions" key="board_actions"}}
       </button>
     {{/if}}
     {{#if app_state.currentUser.supervisees}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action 'copy'}}>
-        {{t "Copy For..." key='copy_for_ellipses'}}
+      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "copy"}}>
+        {{t "Copy For..." key="copy_for_ellipses"}}
       </button>
     {{/if}}
     {{#if model.loading}}
-      {{t "Loading board..." key='loading_board'}}
+      {{t "Loading board..." key="loading_board"}}
     {{else if model.error}}
-      {{t "Error loading board" key='error_loading_board'}}
+      {{t "Error loading board" key="error_loading_board"}}
     {{else if model}}
       <div style='text-align: center;'>
         <h3>{{model.name}}</h3>
-        <div style='margin: -10px 0 10px 0;'>{{t "by" key='by'}} {{model.user_name}}</div>
+        <div style='margin: -10px 0 10px 0;'>{{t "by" key="by"}} {{model.user_name}}</div>
       </div>
       <div style='max-height: 190px; overflow: auto;'>
           <span style="white-space: pre-line;">{{model.description}}</span>
       </div>
       <dl class="dl-horizontal">
-        <dt>{{t "Full Name" key='full_name'}}</dt>
+        <dt>{{t "Full Name" key="full_name"}}</dt>
           <dd>{{model.key}}</dd>
-        <dt>{{t "Dimensions" key='dimensions'}}</dt>
+        <dt>{{t "Dimensions" key="dimensions"}}</dt>
           <dd>{{model.grid.rows}} x {{model.grid.columns}}</dd>
-        <dt>{{t "Created" key='created'}}</dt>
-          <dd>{{date model.created 'day'}}</dd>
-        <dt>{{t "Last Updated" key='updated'}}</dt>
-          <dd>{{date model.updated 'day'}}</dd>
+        <dt>{{t "Created" key="created"}}</dt>
+          <dd>{{date model.created "day"}}</dd>
+        <dt>{{t "Last Updated" key="updated"}}</dt>
+          <dd>{{date model.updated "day"}}</dd>
         {{#if model.locale}}
-          <dt>{{t "Default Language" key='default_language'}}</dt>
+          <dt>{{t "Default Language" key="default_language"}}</dt>
             <dd>{{language}}</dd>
         {{/if}}
         {{#if multiple_locales}}
-          <dt>{{t "Translations" key='translations'}}</dt>
+          <dt>{{t "Translations" key="translations"}}</dt>
             <dd>{{languages}}</dd>
         {{/if}}
-        <dt>{{t "People Using" key='people_using'}}</dt>
+        <dt>{{t "People Using" key="people_using"}}</dt>
           <dd>
             {{model.non_author_uses}}
           </dd>
-        <dt>{{t "Connected Boards" key='connected_boards'}}</dt>
+        <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
           <dd>
             {{model.downstream_boards}}
           </dd>
-        <dt>{{t "Available Buttons" key='available_buttons'}}</dt>
+        <dt>{{t "Available Buttons" key="available_buttons"}}</dt>
           <dd>
             {{model.unlinked_buttons}}
           </dd>
-        <dt>{{t "Likes" key='stars'}}</dt>
+        <dt>{{t "Likes" key="stars"}}</dt>
           <dd>
             {{model.stars}}
           </dd>
       </dl>
     {{else}}
-      {{t "No data to show" key='no_data_to_show'}}
+      {{t "No data to show" key="no_data_to_show"}}
     {{/if}}
   </div>
   {{#if include_canvas}}
     <div class='col-sm-8'>
-      {{board-preview-canvas board=model locale=locale show_links=true size='modal'}}
+      {{board-preview-canvas board=model locale=locale show_links=true size="modal"}}
     </div>
   {{/if}}
 </div>

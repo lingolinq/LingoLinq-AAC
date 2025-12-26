@@ -1,35 +1,35 @@
 <form class="form-horizontal">
-<div class={{if helpState 'active' 'hidden'}}>
+<div class={{if helpState "active" "hidden"}}>
   <div class="form-group">
     <div class="col-sm-12">
       <div style='position: relative;'>
-        <h4>{{t "Button Settings" key='button_settings'}}</h4>
+        <h4>{{t "Button Settings" key="button_settings"}}</h4>
         {{#if auto_help}}
-          <button {{action 'disable_auto_help'}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key='skip_help'}}</button>
+          <button {{action "disable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key="skip_help"}}</button>
         {{else if app_state.currentUser.preferences.disable_button_help}}
-          <button {{action 'enable_auto_help'}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key='re_enable_help'}}</button>
+          <button {{action "enable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key="re_enable_help"}}</button>
         {{/if}}
       </div>
-      <p>{{t "Buttons configurations are very flexible, and you can explore settings using the tabs to the left, or the quick actions below." key='button_settings_explainer'}}</p>
+      <p>{{t "Buttons configurations are very flexible, and you can explore settings using the tabs to the left, or the quick actions below." key="button_settings_explainer"}}</p>
     </div>
   </div>
   <div class="form-group">
     <div class="col-sm-12">
       <div class='btn-group-vertical' style='width: 90%;'>
-        <button {{action 'quick_action' 'picture'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-picture' style='margin-right: 3px;'></span> {{t "Change this Button's Picture" key='change_image'}}</button>
-        <button {{action 'quick_action' 'label'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-edit' style='margin-right: 3px;'></span> {{t "Change this Button's Label" key='change_label'}}</button>
-        <button {{action 'quick_action' 'sound'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-volume-down' style='margin-right: 3px;'></span> {{t "Change what this Button Speaks" key='change_speak_sound'}}</button>
-        <button {{action 'quick_action' 'folder'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-folder-open' style='margin-right: 3px;'></span> {{t "Link to Another Board" key='link_to_board'}}</button>
-        <button {{action 'quick_action' 'url'}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-link' style='margin-right: 3px;'></span> {{t "Link to a Web Site or Video" key='link_to_web_site'}}</button>
-        <button {{action 'quick_action' 'hide'}} class='btn btn-lg btn-default' style='text-align: left;'>
+        <button {{action "quick_action" "picture"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-picture' style='margin-right: 3px;'></span> {{t "Change this Button's Picture" key="change_image"}}</button>
+        <button {{action "quick_action" "label"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-edit' style='margin-right: 3px;'></span> {{t "Change this Button's Label" key="change_label"}}</button>
+        <button {{action "quick_action" "sound"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-volume-down' style='margin-right: 3px;'></span> {{t "Change what this Button Speaks" key="change_speak_sound"}}</button>
+        <button {{action "quick_action" "folder"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-folder-open' style='margin-right: 3px;'></span> {{t "Link to Another Board" key="link_to_board"}}</button>
+        <button {{action "quick_action" "url"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-link' style='margin-right: 3px;'></span> {{t "Link to a Web Site or Video" key="link_to_web_site"}}</button>
+        <button {{action "quick_action" "hide"}} class='btn btn-lg btn-default' style='text-align: left;'>
           {{#if model.hidden}}
-            <span class='glyphicon glyphicon-eye-open' style='margin-right: 3px;'></span> {{t "Un-Hide this Button" key='unhide_this_button'}}
+            <span class='glyphicon glyphicon-eye-open' style='margin-right: 3px;'></span> {{t "Un-Hide this Button" key="unhide_this_button"}}
           {{else}}
-            <span class='glyphicon glyphicon-eye-close' style='margin-right: 3px;'></span> {{t "Hide this Button" key='hide_this_button'}}
+            <span class='glyphicon glyphicon-eye-close' style='margin-right: 3px;'></span> {{t "Hide this Button" key="hide_this_button"}}
           {{/if}}
         </button>
         {{#if paint_hide_reminder}}
-          <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key='hide_and_show_using_paint'}}</em>
+          <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key="hide_and_show_using_paint"}}</em>
         {{/if}}
       </div>
     </div>

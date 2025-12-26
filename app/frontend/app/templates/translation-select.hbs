@@ -1,18 +1,18 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Translate Boards" key='translate_boards'}}
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Translate Boards" key="translate_boards"}}
 </h3>
   </div>
   <div class="modal-body">
     <form class="form-horizontal" {{action "nothing" on="submit"}}>
       <div class="form-group">
-        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key='boards'}}</label>
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
         <div class="col-sm-9">
           {{#if hierarchy.loading}}
-            {{t "Loading linked boards..." key='loading_linked_boards'}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
           {{else if hierarchy.error}}
-            {{t "There was an error trying to retrieve linked boards" key='error_getting_linked_boards'}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
           {{else}}
             <div style='margin-top: 5px;'>
               {{board-hierarchy hierarchy=hierarchy selectable=true}}
@@ -22,7 +22,7 @@
       </div>
       <div class="form-group">
         <label class="col-sm-3 control-label" for="translate_locale">
-          {{t "Language" key='language'}}
+          {{t "Language" key="language"}}
         </label>
         <div class="col-sm-9">
           {{bound-select select_class="form-control" select_id="translate_locale" content=locales selection=translate_locale action=(action (mut translate_locale)) }}
@@ -31,8 +31,8 @@
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
           <label>
-            {{input type='checkbox' checked=default_language}}
-            {{t "Switch to this as the Default Language" key='set_as_default_language'}}
+            {{input type="checkbox" checked=default_language}}
+            {{t "Switch to this as the Default Language" key="set_as_default_language"}}
           </label>
         </div>
       </div>
@@ -40,7 +40,7 @@
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
             <p class='form-control-static text-info'>
-              {{t "This board already has some translations for this language. Would you like to switch to the existing translations as the new default languagee?" key='switch_default_languages_prompt'}}
+              {{t "This board already has some translations for this language. Would you like to switch to the existing translations as the new default languagee?" key="switch_default_languages_prompt"}}
             </p>
           </div>
         </div>
@@ -49,19 +49,19 @@
   </div>
   <div class="modal-footer">
     {{#if existing_default_language}}
-      <button disabled={{switch_status.pending}} class='btn btn-primary' {{action 'switch_language'}}>
+      <button disabled={{switch_status.pending}} class='btn btn-primary' {{action "switch_language"}}>
         {{#if switch_status.pending}}
-          {{t "Applying Translations..." key='applying_translations'}}
+          {{t "Applying Translations..." key="applying_translations"}}
         {{else if switch_status.error}}
-          {{t "Error Applying Translations" key='error_applying_translations'}}
+          {{t "Error Applying Translations" key="error_applying_translations"}}
         {{else}}
-          {{t "Switch to Existing Translation" key='switch_translation'}}
+          {{t "Switch to Existing Translation" key="switch_translation"}}
         {{/if}}
       </button>
-      <button class='btn btn-default' {{action 'translate'}}>{{t "Re-Translate" key='re_translate'}}</button>
+      <button class='btn btn-default' {{action "translate"}}>{{t "Re-Translate" key="re_translate"}}</button>
     {{else}}
-      <button class='btn btn-primary' {{action 'translate'}}>{{t "Start Translation" key='start_translation'}}</button>
+      <button class='btn btn-primary' {{action "translate"}}>{{t "Start Translation" key="start_translation"}}</button>
     {{/if}}
-    <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

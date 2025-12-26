@@ -1,8 +1,8 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Focus Words" key='focus_words'}}
+      {{t "Focus Words" key="focus_words"}}
       {{#if model.user}}
         - 
         <img src={{model.user.avatar_url_with_fallback}} style='width: 50px;'/>
@@ -15,16 +15,16 @@
       {{#if analysis}}
         <div class='col-sm-12'>
           {{#if analysis.loading}}
-            <p>{{t "Loading Analysis..." key='loading_analysis'}}</p>
+            <p>{{t "Loading Analysis..." key="loading_analysis"}}</p>
           {{else if analysis.error}}
-            <p>{{t "Erroor Loading Analysis" key='error_loading_analysis'}}</p>
+            <p>{{t "Erroor Loading Analysis" key="error_loading_analysis"}}</p>
           {{else}}
             {{#if title}}
               <h4>{{title}}</h4>
             {{else}}
               <div class='text-muted' style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{words}}</div>
             {{/if}}
-            <h4>{{t "Found Words (%{cnt})" cnt=analysis.found.length key='found_words'}}</h4>
+            <h4>{{t "Found Words (%{cnt})" cnt=analysis.found.length key="found_words"}}</h4>
             {{#if analysis.found}}
               {{#each analysis_subset as |btn|}}
                 <strong>{{btn.label}}:</strong><br/>
@@ -50,31 +50,31 @@
               {{/each}}
               {{#if analysis_extras}}
                 <p>
-                  <em>{{t "Plus %{n} more:" n=analysis_extras.length key='plus_n_more'}}</em>
+                  <em>{{t "Plus %{n} more:" n=analysis_extras.length key="plus_n_more"}}</em>
                   {{#each analysis_extras as |btn|}}
                     <span style={{btn.mini_style}}>{{btn.label}}</span>
                   {{/each}}
-                  <button class='btn btn-default' {{ action 'report' }}>{{t "see all" key='see_all'}}</button>
+                  <button class='btn btn-default' {{ action "report" }}>{{t "see all" key="see_all"}}</button>
                 </p>
               {{/if}}
             {{else}}
-              <p>{{t "No words found" key='no_words_found'}}</p>
+              <p>{{t "No words found" key="no_words_found"}}</p>
             {{/if}}
             {{#if analysis.missing}}
-              <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=analysis.missing.length key='missing_words'}}</h4>
+              <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=analysis.missing.length key="missing_words"}}</h4>
               {{#each analysis.missing as |word|}}
                 {{word}}
               {{/each}}
               {{#if model.user}}
                 <div>
                   {{#if ideas.saving}}
-                    {{t "Saving..." key='saving'}}
+                    {{t "Saving..." key="saving"}}
                   {{else if ideas.saved}}
-                    {{t "Saved!" key='saved_excl'}}
+                    {{t "Saved!" key="saved_excl"}}
                   {{else if ideas.error}}
-                    {{t "Error Saving Words" key='error_saving_words'}}
+                    {{t "Error Saving Words" key="error_saving_words"}}
                   {{else}}
-                    <button class='btn btn-default' {{action 'save_missing'}}>{{t "Save Missing Words to Requested Ideas" key='save_to_ideas'}}</button>
+                    <button class='btn btn-default' {{action "save_missing"}}>{{t "Save Missing Words to Requested Ideas" key="save_to_ideas"}}</button>
                   {{/if}}
                 </div>
               {{/if}}
@@ -88,7 +88,7 @@
               {{#if recent_list}}
                 <div class="list-group">
                   {{#each recent_list as |list|}}
-                    <a class={{if list.tmp 'btn btn-default list-group-item-info' 'btn btn-default list-group-item-success'}} {{action 'pick_set' list}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
+                    <a class={{if list.tmp "btn btn-default list-group-item-info" "btn btn-default list-group-item-success"}} {{action "pick_set" list}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
                       <b>{{list.title}}{{#if list.user_name}} ({{list.user_name}}){{/if}}</b><br/>
                       <span class='text-muted' style='font-style: italic; display: inline-block; width: 100%; overflow: hidden; text-overflow: ellipsis;'>
                         {{list.words}}
@@ -98,8 +98,8 @@
                 </div>
               {{else}}
                 <span class='glyphicon glyphicon-blackboard' style='float: left; margin-right: 5px; font-size: 50px;'></span>
-                <p>{{t "Focus Words is a tool for prividing easier access to the subset of words that have to do with a specific topic or activity. Rather than creating a separate context-specific copy of the vocabulary, Focus Words allows communicators and supporters to learn the location of relevant words in the communicator's default vocabulary." key='focus_words_explainer'}}</p>
-                <p>{{t "You can use Focus Words by entering the text of a shared reading book, words related to a specific activity, etc. You can also browse the community's collection of Focus Word sets or save your own for quick access." key='focus_words_explainer2'}}</p>
+                <p>{{t "Focus Words is a tool for prividing easier access to the subset of words that have to do with a specific topic or activity. Rather than creating a separate context-specific copy of the vocabulary, Focus Words allows communicators and supporters to learn the location of relevant words in the communicator's default vocabulary." key="focus_words_explainer"}}</p>
+                <p>{{t "You can use Focus Words by entering the text of a shared reading book, words related to a specific activity, etc. You can also browse the community's collection of Focus Word sets or save your own for quick access." key="focus_words_explainer2"}}</p>
               {{/if}}
             </div>
           </div>
@@ -109,30 +109,30 @@
             {{#if reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  {{input id='find_source' value=title placeholder="Word List Name" class="form-control inline select_on_click"}}
+                  {{input id="find_source" value=title placeholder="Word List Name" class="form-control inline select_on_click"}}
                 </span>
               </span>
             {{else}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  {{input id='find_source' value=search_term enter=(action "find_source") placeholder="search" class="form-control inline select_on_click"}}
+                  {{input id="find_source" value=search_term enter=(action "find_source") placeholder="search" class="form-control inline select_on_click"}}
                 </span>
               </span>
-              <button type="button" class='btn btn-default' {{action 'find_source'}}>{{t "Search" key='search'}}</button>
+              <button type="button" class='btn btn-default' {{action "find_source"}}>{{t "Search" key="search"}}</button>
               {{#if browse}}
-                <button type="button" class='btn btn-default' {{action 'back'}}>{{t "Custom" key='custom'}}</button>
+                <button type="button" class='btn btn-default' {{action "back"}}>{{t "Custom" key="custom"}}</button>
               {{else}}
-                <button type="button" class='btn btn-default' {{action 'browse'}}>{{t "Browse" key='browse'}}</button>
+                <button type="button" class='btn btn-default' {{action "browse"}}>{{t "Browse" key="browse"}}</button>
               {{/if}}
             {{/if}}
-            <!--button type="button" class='btn btn-default btn-lg' {{action 'find_source'}}>{{t "Custom" key='custom'}}</button-->
+            <!--button type="button" class='btn btn-default btn-lg' {{action "find_source"}}>{{t "Custom" key="custom"}}</button-->
             {{#if speech.ready}}
-              {{speech-listener content=(action 'speech_content') error=(action 'speech_error') stop=(action 'speech_stop') speech=speech}}
+              {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=speech}}
             {{else if speech.engine}}
               {{#unless search_or_browse}}
-                <button type="button" class="btn btn-default" {{action 'record'}}>
-                  <img src={{path 'images/microphone.svg'}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture"/>
-                  {{t "Speech Recognition" key='speech_recognition'}}
+                <button type="button" class="btn btn-default" {{action "record"}}>
+                  <img src={{path "images/microphone.svg"}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture"/>
+                  {{t "Speech Recognition" key="speech_recognition"}}
                 </button>
               {{/unless}}
             {{/if}}
@@ -141,24 +141,24 @@
         {{#if browse}}
           <div class='col-sm-10 col-sm-offset-1'>
             {{#if browse.category}}
-              <button class="btn btn-default" {{action 'back' browse.category}} style="float: left; margin-right: 5px; height: 50px;"><span class="glyphicon glyphicon-arrow-left"></span><span class="sr-only">{{t "Back to Category" key='back_to_category'}}</span></button>
+              <button class="btn btn-default" {{action "back" browse.category}} style="float: left; margin-right: 5px; height: 50px;"><span class="glyphicon glyphicon-arrow-left"></span><span class="sr-only">{{t "Back to Category" key="back_to_category"}}</span></button>
               <h4 style="margin-bottom: 0;">{{browse.category.title}}</h4>
               <div style='clear: left; margin-bottom: 10px;'></div>
               {{#if browse.pending}}
-                <p>{{t "Loading results..." key='loading_results'}}</p>
+                <p>{{t "Loading results..." key="loading_results"}}</p>
               {{else if browse.error}}
-                <p>{{t "Error loading results" key='error_loading_results'}}</p>
+                <p>{{t "Error loading results" key="error_loading_results"}}</p>
               {{else if browse.items}}
                 <div>
                   {{#each browse.items as |item|}}
                     {{#unless item.deleted}}
                       <div style='margin-bottom: 5px;'>
-                        <span style={{if browse.category.saved 'display: inline-block; width: calc(100% - 100px);' 'display: inline-block; width: 100%;'}}>
-                          <button class='btn btn-default list-group-item-warning' {{action 'pick_set' item}} style='width: 100%; text-align: left;'>
+                        <span style={{if browse.category.saved "display: inline-block; width: calc(100% - 100px);" "display: inline-block; width: 100%;"}}>
+                          <button class='btn btn-default list-group-item-warning' {{action "pick_set" item}} style='width: 100%; text-align: left;'>
                             <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'/>
                             <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                               {{item.title}}
-                              {{#if item.author}}{{t "by" key='by'}} {{item.author}}{{/if}}
+                              {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
                               {{#if item.user_name}} ({{item.user_name}}){{/if}}
                             </span>
                             <div class='text-muted' style='overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{item.words}}</div>
@@ -166,7 +166,7 @@
                         </span>
                         {{#if browse.category.saved}}
                           <span style='display: inline-block; width: 80px; text-align: right;'>
-                            <button class='btn btn-default' {{action 'remove_set' item}} style='width: 100%; height: 55px;'>
+                            <button class='btn btn-default' {{action "remove_set" item}} style='width: 100%; height: 55px;'>
                               <span class='glyphicon glyphicon-remove'></span>
                             </button>
                           </span>
@@ -176,12 +176,12 @@
                   {{/each}}
                 </div>
               {{else}}
-                <p>{{t "No results found" key='no_results_found'}}</p>
+                <p>{{t "No results found" key="no_results_found"}}</p>
               {{/if}}
             {{else}}
               <div class='row'>
                 {{#each browse_categories as |cat|}}
-                  <button class='btn btn-default list-group-item-warning' {{action 'browse' cat}} style='width: 100%; margin-bottom: 5px; padding: 15px 10px; font-size: 16px; text-align: left;'><span class='glyphicon glyphicon-list'></span> {{cat.title}}</button>
+                  <button class='btn btn-default list-group-item-warning' {{action "browse" cat}} style='width: 100%; margin-bottom: 5px; padding: 15px 10px; font-size: 16px; text-align: left;'><span class='glyphicon glyphicon-list'></span> {{cat.title}}</button>
                 {{/each}}
               </div>
             {{/if}}
@@ -189,17 +189,17 @@
         {{else if search}}
           <div class='col-sm-10 col-sm-offset-1'>
             {{#if search.loading}}
-              <p>{{t "Searching for term \"%{term}\"" term=search.term key='searching_for_term'}}</p>
+              <p>{{t "Searching for term \"%{term}\"" term=search.term key="searching_for_term"}}</p>
             {{else if search.error}}
-              <p>{{t "Error retrieving search results" key='error_search_results'}}</p>
+              <p>{{t "Error retrieving search results" key="error_search_results"}}</p>
             {{else if search.results}}
               <div class='row'>
                 {{#each search.results as |item|}}
-                  <button class='btn btn-default list-group-item-success' {{action 'pick_set' item}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
+                  <button class='btn btn-default list-group-item-success' {{action "pick_set" item}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
                     <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'/>
                     <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                       {{item.title}}
-                      {{#if item.author}}{{t "by" key='by'}} {{item.author}}{{/if}}
+                      {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
                       {{#if item.user_name}} ({{item.user_name}}){{/if}}
                     </span>
                     <div class='text-muted' style='overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{item.words}}</div>
@@ -207,28 +207,28 @@
                 {{/each}}
               </div>
             {{else}}
-              <p>{{t "No results found" key='no_results_found'}}</p>
+              <p>{{t "No results found" key="no_results_found"}}</p>
             {{/if}}
             {{#unless search.loading}}
               <div style='text-align: center; margin-top: 10px;'>
-                <button type="button" class='btn btn-default btn-lg' {{action 'clear_search'}}>{{t "Clear Search Results" key='clear_search_results'}}</button>
+                <button type="button" class='btn btn-default btn-lg' {{action "clear_search"}}>{{t "Clear Search Results" key="clear_search_results"}}</button>
               </div>
             {{/unless}}
           </div>         
         {{else}}
           <div class='col-sm-12' style='margin-top: -10px;'>
             <div class="form-group">
-              {{textarea value=words class='form-control' placeholder="Enter a custom list of focus words" }}
+              {{textarea value=words class="form-control" placeholder="Enter a custom list of focus words" }}
             </div>
           </div>
           {{#if model.user}}
             <div class="col-sm-12" style='margin-top: -30px;'>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type='checkbox' checked=reuse}}
-                  {{t "Save for Re-Use" key='save_for_reuse'}}
+                  {{input type="checkbox" checked=reuse}}
+                  {{t "Save for Re-Use" key="save_for_reuse"}}
                   {{#if model.user.user_name}}
-                    {{t "(%{user_name})" user_name=model.user.user_name key='paren_user_name'}}
+                    {{t "(%{user_name})" user_name=model.user.user_name key="paren_user_name"}}
                   {{/if}}
                 </label>
               </div>
@@ -239,12 +239,12 @@
     </div>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action 'set_focus_words'}}>{{t "Set Focus Words" key='set_focus_words'}}</button>
+    <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
     {{#if analysis}}
-      <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action 'report'}}>{{t "Printable Analysis" key='printable_analysis'}}</button>
+      <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
     {{else}}
-      <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action 'analyze_focus_words'}}>{{t "Analyze Focus Words" key='analyze_focus_words'}}</button>
+      <button class='btn btn-default btn-lg' disabled={{not_ready}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
     {{/if}}
-    <a href="#" class="btn btn-default btn-lg" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

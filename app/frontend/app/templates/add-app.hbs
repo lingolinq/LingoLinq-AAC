@@ -1,13 +1,13 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       <span class="glyphicon glyphicon-phone"></span>
-      {{t "Add the %app_name% App" key='add_the_cough_drop_app'}}
+      {{t "Add the %app_name% App" key="add_the_cough_drop_app"}}
     </h3>
   </div>
   <div class="modal-body">
-    {{t "%app_name% works in web browsers on your computer or mobile device, but you can also find it in the app stores listed below. If you're having trouble finding or installing the app, please contact our support team and we can help figure it out." key='app_stores_option'}}
+    {{t "%app_name% works in web browsers on your computer or mobile device, but you can also find it in the app stores listed below. If you're having trouble finding or installing the app, please contact our support team and we can help figure it out." key="app_stores_option"}}
 
     <div style='text-align: center; margin: 50px 0;'>
       {{#if app_state.domain_settings.ios_store_url}}
@@ -25,11 +25,11 @@
           <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;"/>
         </a>
       {{/if}}
-      {{#link-to 'download'}}
+      {{#link-to "download"}}
         <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;"/>
       {{/link-to}}
     </div>
 
-    {{t "You can also install the web version on mobile devices by hitting share or settings and selecting \"Add to Home Screen\"." key='add_to_home_screen'}}
+    {{t "You can also install the web version on mobile devices by hitting share or settings and selecting \"Add to Home Screen\"." key="add_to_home_screen"}}
   </div>
 {{/modal-dialog}}

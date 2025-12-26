@@ -2,36 +2,36 @@
   <div class="wide_links">
     <div class="row">
       <div class='col-sm-6'>
-        <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key='app_name'}}</span>
+        <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key="app_name"}}</span>
         {{#unless app_state.no_linky}}
           {{#if app_state.installed_app}}
-            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a> <span class='text-muted'>|</span>
+            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
-          {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}} <span class='text-muted'>|</span>
+          {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}} <span class='text-muted'>|</span>
           {{#unless app_state.installed_app}}
             {{#if app_state.feature_flags.subscriptions}}
               {{#if app_state.domain_settings.full_domain}}
-                {{#link-to "pricing"}}{{t "Pricing" key='pricing'}}{{/link-to}} <span class='text-muted'>|</span>
+                {{#link-to "pricing"}}{{t "Pricing" key="pricing"}}{{/link-to}} <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
         {{/unless}}
-        <a href="#" {{action 'support'}}>{{t "Support" key='support'}}</a>
+        <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
         {{#unless app_state.installed_app}}
           <span class='text-muted'>|</span>
-          {{#link-to "contact"}}{{t "Contact Us" key='contact'}}{{/link-to}}
+          {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
         {{/unless}}
-        <a href='#' {{action 'language'}} style='margin-left: 10px;'>
+        <a href='#' {{action "language"}} style='margin-left: 10px;'>
           <img src={{path "images/language-icon.svg"}} style='height: 30px; margin: -20px 0 -10px;'/>
           {{app_state.current_locale_string}}
         </a>
       </div>
       <div class='col-sm-4' style="text-align: right;">
         {{#unless app_state.installed_app}}
-          <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key='developers'}}</a> <span class='text-muted'>|</span>
+          <a href="https://github.com/LingoLinq" target="_blank">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
         {{/unless}}
-        {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}} <span class='text-muted'>|</span>
-        {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
+        {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
+        {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
       </div>
       {{#if persistence.online}}
         {{#unless app_state.no_linky}}
@@ -39,13 +39,13 @@
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons">
               {{#if app_state.domain_settings.blog_url}}
-                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
+                <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.twitter_url}}
-                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
+                <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}/></a>
               {{/if}}
               {{#if app_state.domain_settings.facebook_url}}
-                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
+                <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}/></a>
               {{/if}}
             </span>
           </div>
@@ -61,26 +61,26 @@
       <ul class="dropdown-menu dropdown-menu-top top" role="menu" aria-labelledby="dLabel">
         {{#unless app_state.no_linky}}
           <li>
-            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key='web_site'}}</a>
+            <a href="https://www.mylingolinq.com" target="_blank">{{t "Web Site" key="web_site"}}</a>
           </li>
           <li>
-            {{#link-to "about"}}{{t "About" key='about'}}{{/link-to}}
+            {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}}
           </li>
         {{/unless}}
         <li>
-          <a href="#" {{action 'support'}}>{{t "Support" key='support'}}</a>
+          <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
         </li>
         <li>
-          <a href='#' {{action 'language'}}>
+          <a href='#' {{action "language"}}>
             <img src={{path "images/language-icon.svg"}} style='height: 20px; margin: -10px 0 -5px;'/>
             {{app_state.current_locale_string}}
           </a>
         </li>
         <li>
-          {{#link-to "privacy"}}{{t "Privacy" key='privacy'}}{{/link-to}}
+          {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}}
         </li>
         <li>
-          {{#link-to "terms"}}{{t "Terms" key='terms'}}{{/link-to}}
+          {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
         </li>
         {{#unless app_state.no_linky}}
           {{#if persistence.online}}
@@ -88,13 +88,13 @@
               <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
               <span class="icons" style="padding-left: 17px;">
                 {{#if app_state.domain_settings.blog_url}}
-                  <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key='blog'}}/></a>
+                  <a href={{app_state.domain_settings.blog_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}/></a>
                 {{/if}}
                 {{#if app_state.domain_settings.twitter_url}}
-                  <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key='twitter'}}/></a>
+                  <a href={{app_state.domain_settings.twitter_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}/></a>
                 {{/if}}
                 {{#if app_state.domain_settings.facebook_url}}
-                  <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key='facebook'}}/></a>
+                  <a href={{app_state.domain_settings.facebook_url}} target="_blank"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}/></a>
                 {{/if}}
               </span>
             </li>

@@ -1,49 +1,49 @@
-{{#modal-dialog action='close' opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Board Actions" key='board_actions'}}
+      {{t "Board Actions" key="board_actions"}}
     </h3>
   </div>
   <div class="modal-body">
     {{#unless model.board.permissions.edit}}
       <p>
-        {{t "Some of these actions are not available because you don't have editing permission for this board. If you make a copy of the board set then you can make more of these changes." key='edit_permission_required_for_board_actions'}}
+        {{t "Some of these actions are not available because you don't have editing permission for this board. If you make a copy of the board set then you can make more of these changes." key="edit_permission_required_for_board_actions"}}
       </p>
     {{/unless}}
     <table class='table table-striped'>
       <tbody>
         <tr>
-          <td style='width: 200px;'><button {{action 'categorize'}} class='btn btn-lg btn-default' disabled={{cannot_categorize}} style='width: 100%;'>{{t "Categorize Board" key='categorize_board'}}</button></td>
-          <td>{{t "Organize boards in your personal account based on personalized tags or categories" key='categorize_explainer'}}</td>
+          <td style='width: 200px;'><button {{action "categorize"}} class='btn btn-lg btn-default' disabled={{cannot_categorize}} style='width: 100%;'>{{t "Categorize Board" key="categorize_board"}}</button></td>
+          <td>{{t "Organize boards in your personal account based on personalized tags or categories" key="categorize_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'langs'}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Manage Languages" key='manage_languages'}}</button></td>
-          <td>{{t "Select which languages are available during Speak Mode for this board set" key='manage_languages_explainer'}}</td>
+          <td><button {{action "langs"}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Manage Languages" key="manage_languages"}}</button></td>
+          <td>{{t "Select which languages are available during Speak Mode for this board set" key="manage_languages_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'privacy'}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Change Privacy" key='change_privacy'}}</button></td>
-          <td>{{t "Change a board (or set of boards) to public, private, or unlisted, all in a single action" key='change_privacy_explainer'}}</td>
+          <td><button {{action "privacy"}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Change Privacy" key="change_privacy"}}</button></td>
+          <td>{{t "Change a board (or set of boards) to public, private, or unlisted, all in a single action" key="change_privacy_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'translate'}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Translate Board" key='translate_board'}}</button></td>
-          <td>{{t "Change or add an additional language to the buttons on a set of boards" key='translate_explainer'}}</td>
+          <td><button {{action "translate"}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Translate Board" key="translate_board"}}</button></td>
+          <td>{{t "Change or add an additional language to the buttons on a set of boards" key="translate_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'swap_images'}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Swap Images" key='swap_images'}}</button></td>
-          <td>{{t "Change the image library displayed for a board or set of boards" key='swap_images_explainer'}}</td>
+          <td><button {{action "swap_images"}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Swap Images" key="swap_images"}}</button></td>
+          <td>{{t "Change the image library displayed for a board or set of boards" key="swap_images_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'download'}} class='btn btn-lg btn-default' style='width: 100%;'>{{t "Download Board" key='download_board'}}</button></td>
-          <td>{{t "Download an .obf or .obz file that can be shared with other users, or impored into apps that support obf" key='download_explainer'}}</td>
+          <td><button {{action "download"}} class='btn btn-lg btn-default' style='width: 100%;'>{{t "Download Board" key="download_board"}}</button></td>
+          <td>{{t "Download an .obf or .obz file that can be shared with other users, or impored into apps that support obf" key="download_explainer"}}</td>
         </tr>
         <tr>
-          <td><button {{action 'batch_recording'}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Record Messages" key='record_messages'}}</button></td>
-          <td>{{t "Batch-record audio files for buttons on this board" key='record_messages_explainer'}}</td>
+          <td><button {{action "batch_recording"}} class='btn btn-lg btn-default' style='width: 100%;' disabled={{cannot_edit}}>{{t "Record Messages" key="record_messages"}}</button></td>
+          <td>{{t "Batch-record audio files for buttons on this board" key="record_messages_explainer"}}</td>
         </tr>
         {{#if model.board.permissions.delete}}
           <tr>
-            <td><button {{action 'delete'}} class='btn btn-lg btn-default' style='width: 100%;'>{{t "Delete Board" key='delete_board'}}</button></td>
+            <td><button {{action "delete"}} class='btn btn-lg btn-default' style='width: 100%;'>{{t "Delete Board" key="delete_board"}}</button></td>
             <td></td>
           </tr>
         {{/if}}
@@ -51,6 +51,6 @@
     </table>
   </div>
   <div class='modal-footer'>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

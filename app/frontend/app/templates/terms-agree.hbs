@@ -1,20 +1,20 @@
-{{#modal-dialog opening='opening' closing='closing'}}
+{{#modal-dialog opening="opening" closing="closing"}}
   <div class="modal-header">
     <h3>
-      {{t "Complete %app_name% Registration" key='complete_registration'}}
+      {{t "Complete %app_name% Registration" key="complete_registration"}}
     </h3>
   </div>  
   <div class="modal-body">
     <span class="glyphicon glyphicon-info-sign" style="font-size: 40px; float: left; margin-top: 5px; margin-right: 10px; margin-bottom: 5px;"></span>
     By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank">Terms of Use & License Agreement</a>, and are capable of binding to a legal contract.
     {{#if agree_error}}
-      <p class="text-danger">{{t "There was a problem updating your account, please try again." key='agree_error'}}</p>
+      <p class="text-danger">{{t "There was a problem updating your account, please try again." key="agree_error"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action "confirm"}} class="btn btn-primary">{{t "Agree and Continue" key='accept_and_continue'}}</button>
+    <button {{action "confirm"}} class="btn btn-primary">{{t "Agree and Continue" key="accept_and_continue"}}</button>
     {{#if session.as_user_id}}
-      <button {{action "close"}} class="btn btn-default">{{t "This is Not My Account" key='this_is_not_my_account'}}</button>
+      <button {{action "close"}} class="btn btn-default">{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
     {{/if}}
   </div>
 {{/modal-dialog}}

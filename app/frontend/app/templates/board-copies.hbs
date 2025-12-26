@@ -1,12 +1,12 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Board Copies" key='board_copies'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Board Copies" key="board_copies"}}</h3>
   </div>
   <div class="modal-body">
-    <p>{{t "This board, %{board_key}, has been copied one or more times by either you or someone you supervise. To access one of those copies, find it below." key='copies_explanation' board_key=model.board.key}}</p>
+    <p>{{t "This board, %{board_key}, has been copied one or more times by either you or someone you supervise. To access one of those copies, find it below." key="copies_explanation" board_key=model.board.key}}</p>
     {{#if loading}}
-      <p>{{t "Loading copies..." key='loading_copies'}}</p>
+      <p>{{t "Loading copies..." key="loading_copies"}}</p>
     {{else if error}}
       <p class='text-danger'>{{error}}</p>
     {{else}}
@@ -14,11 +14,11 @@
         {{#each copies as |copy|}}
           <span class='list-group-item'>
             <span style="font-size: 16px; font-weight: bold;">
-              {{#link-to 'board' copy.key}}{{copy.key}}{{/link-to}}
+              {{#link-to "board" copy.key}}{{copy.key}}{{/link-to}}
             </span>
             <span class='text-muted'>
-              {{t "by %{user_name}," key='by_user_plus_comma' user_name = copy.user_name}}
-              {{date copy.created 'day'}}
+              {{t "by %{user_name}," key="by_user_plus_comma" user_name = copy.user_name}}
+              {{date copy.created "day"}}
               {{copy.shortened_locale}}
             </span>
           </span>
@@ -27,6 +27,6 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action "close"}} class="btn btn-default">{{t "Close" key='close'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

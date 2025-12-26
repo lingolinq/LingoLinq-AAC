@@ -1,14 +1,14 @@
-{{#modal-dialog action='close' opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Eval Settings" key='assessment_settings'}}
+      {{t "Eval Settings" key="assessment_settings"}}
     </h3>
   </div>
   <div class="modal-body">
     <form class="form-horizontal">
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "For" key='for'}}</label>
+        <label class='control-label col-sm-3'>{{t "For" key="for"}}</label>
         <div class='col-sm-6'>
           {{#if settings.saved}}
             <b>{{settings.user_name}}</b>
@@ -18,20 +18,20 @@
         </div>
       </div>
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Title" key='title'}}</label>
+        <label class='control-label col-sm-3'>{{t "Title" key="title"}}</label>
         <div class='col-sm-6'>
-          {{input type='text' value=settings.name class="form-control" placeholder=name_placeholder}}
+          {{input type="text" value=settings.name class="form-control" placeholder=name_placeholder}}
         </div>
       </div>
       {{#unless save_option}}
         <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Prompt Symbol(s)" key='prompt_symbols'}}</label>
+          <label class='control-label col-sm-3'>{{t "Prompt Symbol(s)" key="prompt_symbols"}}</label>
           <div class='col-sm-6'>
             {{bound-select select_class="form-control" select_id="default_symbols" content=symbol_libraries selection=settings.default_library action=(action (mut settings.default_library)) }}
           </div>
         </div>
         <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Search Target" key='search_target'}}</label>
+          <label class='control-label col-sm-3'>{{t "Search Target" key="search_target"}}</label>
           <div class='col-sm-6'>
             <span class="dropdown" style="display: inline-block; width: 100%;">
               <button class='btn btn-default symbol_target small' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
@@ -59,36 +59,36 @@
           </div>
         </div>
         <div class='form-group'>
-          <label for="prompts" class="col-sm-3 control-label">{{t "Audible Prompt" key='audible_prompt'}}</label>
+          <label for="prompts" class="col-sm-3 control-label">{{t "Audible Prompt" key="audible_prompt"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='prompts'>
-                {{input type='checkbox' checked=settings.prompts}}
-                {{t "Speak prompts out loud" key='speak_prompts_out_loud'}}
+                {{input type="checkbox" checked=settings.prompts}}
+                {{t "Speak prompts out loud" key="speak_prompts_out_loud"}}
               </label>
             </div>
           </div>
         </div>
         {{#if settings.prompts}}
           <div class='form-group'>
-            <label class='control-label col-sm-3'>{{t "Prompt Delay" key='prompt_delay'}}</label>
+            <label class='control-label col-sm-3'>{{t "Prompt Delay" key="prompt_delay"}}</label>
             <div class='col-sm-3'>
-              {{input type='text' value=settings.prompts_delay class="form-control" placeholder="no delay"}}
+              {{input type="text" value=settings.prompts_delay class="form-control" placeholder="no delay"}}
             </div>
             <div class='col-sm-3'>
               <p class='form-control-static'>
-                {{t "milliseconds" key='milliseconds'}}
+                {{t "milliseconds" key="milliseconds"}}
               </p>
             </div>
           </div>
         {{/if}}
         <div class='form-group'>
-          <label for="chimes" class="col-sm-3 control-label">{{t "Chime" key='chime'}}</label>
+          <label for="chimes" class="col-sm-3 control-label">{{t "Chime" key="chime"}}</label>
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='chimes'>
-                {{input type='checkbox' checked=settings.chimes}}
-                {{t "Play a sound on correct actions" key='play_sound_on_success'}}
+                {{input type="checkbox" checked=settings.chimes}}
+                {{t "Play a sound on correct actions" key="play_sound_on_success"}}
               </label>
             </div>
           </div>
@@ -98,33 +98,33 @@
         attempt_minimum, attempt_maximum, mastery_cutoff, target
         -->
       <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Notes" key='notes'}}</label>
+        <label class='control-label col-sm-3'>{{t "Notes" key="notes"}}</label>
         <div class='col-sm-9'>
-          {{textarea class='form-control' value=settings.accommodations placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows=2}}
+          {{textarea class="form-control" value=settings.accommodations placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows=2}}
         </div>
         <div class='col-sm-9 col-sm-offset-3' style='margin-top: 10px;'>
-          {{textarea class='form-control' value=settings.notes placeholder='additional notes' rows=4}}
+          {{textarea class="form-control" value=settings.notes placeholder="additional notes" rows=4}}
         </div>
       </div>
     </form>
   </div>
   <div class='modal-footer'>
     {{#if aborting}}
-      <p class='text-danger'>{{t "Are you sure you want to abort? All changed will be lost." key='confirm_abort'}}</p>
-      <button class='btn btn-default btn-lg' {{action 'abort' true}}>{{t "Abort" key='abort'}}</button>
-      <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+      <p class='text-danger'>{{t "Are you sure you want to abort? All changed will be lost." key="confirm_abort"}}</p>
+      <button class='btn btn-default btn-lg' {{action "abort" true}}>{{t "Abort" key="abort"}}</button>
+      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{else}}
-      <button class='btn btn-primary btn-lg' {{action 'confirm'}}>
+      <button class='btn btn-primary btn-lg' {{action "confirm"}}>
         {{#if save_option}}
-          {{t "Save" key='save'}}
+          {{t "Save" key="save"}}
         {{else}}
-          {{t "Update" key='update'}}
+          {{t "Update" key="update"}}
         {{/if}}
       </button>
       {{#if save_option}}
-        <button class='btn btn-default btn-lg' {{action 'abort'}}>{{t "Abort" key='abort'}}</button>
+        <button class='btn btn-default btn-lg' {{action "abort"}}>{{t "Abort" key="abort"}}</button>
       {{/if}}
-      <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{/if}}
   </div>
 {{/modal-dialog}}

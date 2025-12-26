@@ -1,59 +1,59 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Set Home Board" key='set_home_board'}}
+      {{t "Set Home Board" key="set_home_board"}}
     </h3>
   </div>
   <div class="modal-body">
     {{#if multiple_users}}
       <p>
-        {{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key='which_user_set_as_home' board_key=model.board.key}}
+        {{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key="which_user_set_as_home" board_key=model.board.key}}
       </p>
       {{user-select select_id="currently_selected_id" buttons=true selection=currently_selected_id action=(action (mut currently_selected_id)) }}
     {{/if}}
     {{#if owned_by_user}}
       {{#unless multiple_users}}
-        <p style='margin-top: 20px;'>{{t "Would you like to set <b>%{board_key}</b> as your home board?" key='confirm_set_as_home' board_key=model.board.key}}</p>
+        <p style='margin-top: 20px;'>{{t "Would you like to set <b>%{board_key}</b> as your home board?" key="confirm_set_as_home" board_key=model.board.key}}</p>
       {{/unless}}
     {{else}}
       <p style='margin-top: 20px;'>
-        {{t "This board is not owned by the user. You will probably want to make a new copy to allow for personalization and edits, but you can also just use the existing board if you don't plan to make changes." key='copy_or_keep'}}
+        {{t "This board is not owned by the user. You will probably want to make a new copy to allow for personalization and edits, but you can also just use the existing board if you don't plan to make changes." key="copy_or_keep"}}
       </p>
     {{/if}}
 
-    <label for="symbol_library"><strong>{{t "Preferred Symbols" key='preferred_symbols'}}</strong></label><br/>
-    <p class='text-muted'>{{t "Select the symbol library to display for the user's new copy:" key='symbol_library_explainer'}}</p>
+    <label for="symbol_library"><strong>{{t "Preferred Symbols" key="preferred_symbols"}}</strong></label><br/>
+    <p class='text-muted'>{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
     {{bound-select select_class="form-control" select_id="symbol_library" content=symbol_libraries selection=symbol_library action=(action (mut symbol_library)) }}
 
     {{#if model.board.levels}}
       {{#if app_state.feature_flags.board_levels}}
-        <label for="board_level"><strong>{{t "Communication Level" key='communication_level'}}</strong></label><br/>
-        <p class='text-muted'>{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key='board_level_explainer'}}</p>
+        <label for="board_level"><strong>{{t "Communication Level" key="communication_level"}}</strong></label><br/>
+        <p class='text-muted'>{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
         {{bound-select select_class="form-control" select_id="board_level" content=board_levels selection=board_level action=(action (mut board_level)) }}
       {{/if}}
     {{/if}}
   </div>
   <div class="modal-footer">
     {{#if owned_by_user}}
-      <button {{action 'set_as_home'}} disabled={{pending}} class='btn btn-primary'>{{t "Set as Home Board" key='set_as_home_board'}}</button>
+      <button {{action "set_as_home"}} disabled={{pending}} class='btn btn-primary'>{{t "Set as Home Board" key="set_as_home_board"}}</button>
     {{else}}
-      <button {{action 'copy_as_home'}} disabled={{pending}} class='btn btn-primary'>
+      <button {{action "copy_as_home"}} disabled={{pending}} class='btn btn-primary'>
         {{#if multiple_users}}
-          {{t "Make a New Copy" key='make_a_new_copy'}}
+          {{t "Make a New Copy" key="make_a_new_copy"}}
         {{else}}
-          {{t "Make My Own Copy" key='make_my_own_copy'}}
+          {{t "Make My Own Copy" key="make_my_own_copy"}}
         {{/if}}
       </button>
-      <button {{action 'set_as_home'}} disabled={{pending_or_copy_only}} class='btn btn-default'>{{t "Use the Existing Board" key='dont_copy_just_set_as_home_board'}}</button>
+      <button {{action "set_as_home"}} disabled={{pending_or_copy_only}} class='btn btn-default'>{{t "Use the Existing Board" key="dont_copy_just_set_as_home_board"}}</button>
     {{/if}}
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
     {{#if status.errored}}
-      <p class='text-danger'>{{t "Setting home board failed, please try again." key='setting_home_failed'}}</p>
+      <p class='text-danger'>{{t "Setting home board failed, please try again." key="setting_home_failed"}}</p>
     {{else if status.updating}}
-      <p class='text-info'>{{t "Updating user settings..." key='updating_user_settings'}}</p>
+      <p class='text-info'>{{t "Updating user settings..." key="updating_user_settings"}}</p>
     {{else if status.copying}}
-      <p class='text-info'>{{t "Copying boards..." key='copying_boards'}}</p>
+      <p class='text-info'>{{t "Copying boards..." key="copying_boards"}}</p>
     {{/if}}
   </div>
 {{/modal-dialog}}

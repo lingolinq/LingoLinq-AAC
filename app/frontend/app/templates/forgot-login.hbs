@@ -1,6 +1,6 @@
 <div class='row'>
   <div class='col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3'>
-    <h2>{{t "Login Help" key='login_help'}}</h2>
+    <h2>{{t "Login Help" key="login_help"}}</h2>
     <p style="margin-bottom: 30px; display: none;">
       %app_name% requires a mylingolinq.com account. After signing up on the web site
       you should have received an email with your user name. Enter that user name along
@@ -9,15 +9,15 @@
     <form {{action "submitKey" on="submit"}}>
       {{#if response.email_sent}}
         <div class='form-group'>
-          {{t "Email sent! Be sure to check your spam folder!" key='email_sent'}}
+          {{t "Email sent! Be sure to check your spam folder!" key="email_sent"}}
           {{#if response.message}}
-            {{t "NOTE:" key='note_colon'}} {{response.message}}
+            {{t "NOTE:" key="note_colon"}} {{response.message}}
           {{/if}}
         </div>
       {{else}}
         <div class='form-group'>
           <p>
-            {{t "If you're unsure how to log in, please enter your email address and we'll send you instructions for how to access the app on your device." key='password_alternate_prompt'}}
+            {{t "If you're unsure how to log in, please enter your email address and we'll send you instructions for how to access the app on your device." key="password_alternate_prompt"}}
             {{#link-to "login"}}Back to login{{/link-to}}
           </p>
         </div>
@@ -30,7 +30,7 @@
               {{response.message}}
             </p>
           {{/if}}
-          <button class='btn btn-primary btn-lg' type='submit'>{{t "Submit" key='submit'}}</button>
+          <button class='btn btn-primary btn-lg' type='submit'>{{t "Submit" key="submit"}}</button>
         </div>
       {{/if}}
     </form>

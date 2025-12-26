@@ -1,14 +1,14 @@
-{{#modal-dialog desired_width=850 action="close" opening='opening' closing='closing'}}
+{{#modal-dialog desired_width=850 action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3 style='max-width: calc(100% - 30px);white-space: nowrap;text-overflow: ellipsis;overflow: hidden;'>
-      {{t "GIF Search for \"%{str}\"" str=search key='gif_search_for_string'}}
+      {{t "GIF Search for \"%{str}\"" str=search key="gif_search_for_string"}}
     </h3>
   </div>
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div style='display: none;'>
-      {{input type='text' value=search class='input'}}
-      <button type='button' class="btn btn-default" {{action 'search'}}>{{t "Search" key='search'}}</button>
+      {{input type="text" value=search class="input"}}
+      <button type='button' class="btn btn-default" {{action "search"}}>{{t "Search" key="search"}}</button>
     </div>
 
     <div style={{if flipped "transform: rotate(180deg);"}}>
@@ -16,23 +16,23 @@
         <img src={{selected_gif.image_url}} style='width: 100%; height: calc(100vh - 220px);' class='fit_image'/>
       {{else if results}}
         {{#if results.loading}}
-          {{t "Loading results..." key='loading_results'}}
+          {{t "Loading results..." key="loading_results"}}
         {{else if results.error}}
           {{#if persistence.online}}
-            {{t "Error loading results" key='error_loading_results'}}
+            {{t "Error loading results" key="error_loading_results"}}
           {{else}}
-            {{t "Error loading results, it appears you are not online" key='error_loading_results_not_online'}}
+            {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}
           {{/if}}
         {{else}}
           <div class='cursor_holder'>
             <div class='cursor_navigation repair_buttons'>
-              <button class='btn btn-default btn-lg up' {{action 'move' 'up'}} disabled={{not_scrollable}}>
+              <button class='btn btn-default btn-lg up' {{action "move" "up"}} disabled={{not_scrollable}}>
                 <span class='glyphicon glyphicon-chevron-up'></span>
-                {{t "Up" key='up'}}
+                {{t "Up" key="up"}}
               </button>
-              <button class='btn btn-default btn-lg down' {{action 'move' 'down'}} disabled={{not_scrollable}}>
+              <button class='btn btn-default btn-lg down' {{action "move" "down"}} disabled={{not_scrollable}}>
                 <span class='glyphicon glyphicon-chevron-down'></span>
-                {{t "Down" key='down'}}
+                {{t "Down" key="down"}}
               </button>
             </div>
             <div class='row cursor_area' id='gif_scroll' style='max-height: calc(100vh - 220px);'>
@@ -40,7 +40,7 @@
                 <div style='width: calc(33% - 5px); float: left; margin-right: 5px;'>
                   {{#each col.list as |pic|}}
                     {{#if pic.image_url}}
-                      <a href='#' {{action 'choose' pic}}>
+                      <a href='#' {{action "choose" pic}}>
                         <img src={{pic.image_url}} class='fit_image' style='width: 100%; margin-bottom: 5px;' />
                       </a>
                     {{/if}}
@@ -51,23 +51,23 @@
           </div>
         {{/if}}
       {{else}}
-        {{t "No results" key='no_results'}}
+        {{t "No results" key="no_results"}}
       {{/if}}
     </div>
     <div class='row repair_buttons' style='margin-top: 10px;'>
       <div class='col-sm-12'>
-        <button class='btn btn-lg btn-default' {{action 'close'}}>
+        <button class='btn btn-lg btn-default' {{action "close"}}>
           <span class='glyphicon glyphicon-remove'></span>
-          {{t "Close" key='close'}}
+          {{t "Close" key="close"}}
         </button>
         {{#if selected_gif}}
-          <button class='btn btn-lg btn-default' {{action 'back'}}>
+          <button class='btn btn-lg btn-default' {{action "back"}}>
             <span class='glyphicon glyphicon-arrow-left'></span>
-            {{t "Back" key='back'}}
+            {{t "Back" key="back"}}
           </button>
-          <button class='btn btn-lg btn-default' {{action 'flip'}}>
+          <button class='btn btn-lg btn-default' {{action "flip"}}>
             <span class='glyphicon glyphicon-repeat'></span>
-            {{t "Flip Image" key='flip_image'}}
+            {{t "Flip Image" key="flip_image"}}
           </button>
         {{/if}}
       </div>

@@ -1,106 +1,106 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Getting Started" key='getting_started'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Getting Started" key="getting_started"}}</h3>
   </div>
   <div class="modal-body">
-    {{t "Welcome to %app_name%! You should get a confirmation email in your inbox soon. In the mean time here's some easy next steps. You can get back to this list anytime from the dashboard, just hit the logo in the top corner then open this list again." key='welcome_with_steps'}}
+    {{t "Welcome to %app_name%! You should get a confirmation email in your inbox soon. In the mean time here's some easy next steps. You can get back to this list anytime from the dashboard, just hit the logo in the top corner then open this list again." key="welcome_with_steps"}}
     <ul id="checklist" class='list-unstyled' style="margin: 20px; font-size: 16px; line-height: 16px;">
-      <li class={{if model.progress.intro_watched 'text-muted'}} style='margin-bottom: 20px;'>
+      <li class={{if model.progress.intro_watched "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{intro_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <a href="#" {{action 'intro'}}>
-          {{t "Learn about %app_name%" key='learn_about_app'}}
+        <a href="#" {{action "intro"}}>
+          {{t "Learn about %app_name%" key="learn_about_app"}}
         </a>
         <br/>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.intro_watched}}
-          {{t "Done!" key='done_excl'}}
+          {{t "Done!" key="done_excl"}}
         {{else}}
-          {{t "Pick up some basics about what %app_name% is and how it works." key='intro_explanation'}}
+          {{t "Pick up some basics about what %app_name% is and how it works." key="intro_explanation"}}
         {{/if}}
         </span>
         <span style="clear: left;"></span>
       </li>
-      <li class={{if model.progress.home_board_set 'text-muted'}} style='margin-bottom: 20px;'>
+      <li class={{if model.progress.home_board_set "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{home_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
         {{#link-to "home-boards"}}
-          {{t "Pick a home board" key='pick_a_home_board'}}
+          {{t "Pick a home board" key="pick_a_home_board"}}
         {{/link-to}}
         <br/>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.home_board_set}}
-          {{t "Done!" key='done_excl'}}
+          {{t "Done!" key="done_excl"}}
         {{else}}
-          {{t "Your home board is where you'll go by default when you want to speak." key='home_board_explanation'}}
+          {{t "Your home board is where you'll go by default when you want to speak." key="home_board_explanation"}}
         {{/if}}
         </span>
         <span style="clear: left;"></span>
       </li>
-      <li class={{if model.progress.app_added 'text-muted'}} style='margin-bottom: 20px;'>
+      <li class={{if model.progress.app_added "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{app_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
         <a href="#" {{action "app_install"}}>
-          {{t "Add the app to your device" key='add_app_to_your_device'}}
+          {{t "Add the app to your device" key="add_app_to_your_device"}}
         </a>
         <br/>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.app_added}}
-          {{t "Done!" key='done_excl'}}
+          {{t "Done!" key="done_excl"}}
         {{else}}
-          {{t "%app_name% runs in web browsers, but you can also find it in the app stores" key='app_explanation'}}
+          {{t "%app_name% runs in web browsers, but you can also find it in the app stores" key="app_explanation"}}
         {{/if}}
         </span>
         <span style="clear: left;"></span>
       </li>
-      <li class={{if model.progress.preferences_edited 'text-muted'}} style='margin-bottom: 20px;'>
+      <li class={{if model.progress.preferences_edited "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{preferences_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        {{#link-to 'user.preferences' app_state.currentUser.user_name}}
-          {{t "Configure your board preferences" key='configure_your_board_preferences'}}
+        {{#link-to "user.preferences" app_state.currentUser.user_name}}
+          {{t "Configure your board preferences" key="configure_your_board_preferences"}}
         {{/link-to}}
         <br/>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.preferences_edited}}
-          {{t "Done!" key='done_excl'}}
+          {{t "Done!" key="done_excl"}}
         {{else}}
-          {{t "Customize how %app_name% looks, turn on logging, etc." key='preferences_explanation'}}
+          {{t "Customize how %app_name% looks, turn on logging, etc." key="preferences_explanation"}}
         {{/if}}
         </span>
         <span style="clear: left;"></span>
       </li>
-      <li class={{if model.progress.profile_edited 'text-muted'}} style='margin-bottom: 20px;'>
+      <li class={{if model.progress.profile_edited "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{profile_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        {{#link-to 'user.edit' app_state.currentUser.user_name}}
-          {{t "Update your profile" key='update_your_profile'}}
+        {{#link-to "user.edit" app_state.currentUser.user_name}}
+          {{t "Update your profile" key="update_your_profile"}}
         {{/link-to}}
         <br/>
         <span class="text-muted" style="font-size: 12px;">
         {{#if model.progress.profile_edited}}
-          {{t "Done!" key='done_excl'}}
+          {{t "Done!" key="done_excl"}}
         {{else}}
-          {{t "Check your name, email, notifications, and basic bio." key='profile_explanation'}}
+          {{t "Check your name, email, notifications, and basic bio." key="profile_explanation"}}
         {{/if}}
         </span>
         <span style="clear: left;"></span>
       </li>
       {{#if app_state.feature_flags.subscriptions}}
-        <li class={{if model.progress.subscription_set 'text-muted'}} style='margin-bottom: 20px;'>
+        <li class={{if model.progress.subscription_set "text-muted"}} style='margin-bottom: 20px;'>
           <span class={{subscription_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-          {{#link-to 'user.subscription' app_state.currentUser.user_name}}
-            {{t "Set up a subscription" key='pick_subscription'}}
+          {{#link-to "user.subscription" app_state.currentUser.user_name}}
+            {{t "Set up a subscription" key="pick_subscription"}}
           {{/link-to}}
           <br/>
           <span class="text-muted" style="font-size: 12px;">
           {{#if model.progress.subscription_set}}
-            {{t "Done!" key='done_excl'}}
+            {{t "Done!" key="done_excl"}}
           {{else}}
-            {{t "Purchase %app_name% to keep using it after your free preview has ended." key='subscription_explanation'}}
+            {{t "Purchase %app_name% to keep using it after your free preview has ended." key="subscription_explanation"}}
           {{/if}}
           </span>
           <span style="clear: left;"></span>
         </li>
       {{/if}}
     </ul>
-    <button class='btn btn-default' {{action "close" }}>{{t "Close" key='close'}}</button>
-    <button class='btn btn-default' {{action "setup_done" }}>{{t "I'm Done with this Checklist" key='skip_setup'}}</button>
+    <button class='btn btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
+    <button class='btn btn-default' {{action "setup_done" }}>{{t "I'm Done with this Checklist" key="skip_setup"}}</button>
   </div>
 
 {{/modal-dialog}}

@@ -1,33 +1,33 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "User Activity Manual Entry" key='log_entry'}}
+      {{t "User Activity Manual Entry" key="log_entry"}}
     </h3>
   </div>
   <div class="modal-body">
     <div class='row'>
       <div class='col-sm-12'>
         {{#if model.external_device}}
-          <p>{{t "For communicators using a third-party device or app, you can manually enter logs for that user to allow for %app_name%'s reporting and goal tracking features to take effect. To do so, just enter the words or phrases the communicator used, with one \"button\" press per line." key='external_device_enter_log_explainer'}}</p>
+          <p>{{t "For communicators using a third-party device or app, you can manually enter logs for that user to allow for %app_name%'s reporting and goal tracking features to take effect. To do so, just enter the words or phrases the communicator used, with one \"button\" press per line." key="external_device_enter_log_explainer"}}</p>
         {{else}}
-          <p>{{t "Some communicators switch between digital and printed communication systems, which means that you may want to manually enter communication sessions to keep everything up-to-date. To do so, just enter the words or phrases the communicator used, with one \"button\" press per line." key='enter_log_explainer'}}</p>
+          <p>{{t "Some communicators switch between digital and printed communication systems, which means that you may want to manually enter communication sessions to keep everything up-to-date. To do so, just enter the words or phrases the communicator used, with one \"button\" press per line." key="enter_log_explainer"}}</p>
         {{/if}}
       </div>
-      <div class='col-sm-2'><p class='form-control-static'>{{t "Date:" key='date_colon'}}</p></div>
+      <div class='col-sm-2'><p class='form-control-static'>{{t "Date:" key="date_colon"}}</p></div>
       <div class='col-sm-4'>
-        {{input type='date' value=date class="form-control"}}
+        {{input type="date" value=date class="form-control"}}
       </div>
       <div class='col-sm-4'>
-        {{input type='time' value=time class='form-control'}}
+        {{input type="time" value=time class="form-control"}}
       </div>
       <div class='col-sm-12' style='margin-top: 20px; margin-bottom: 20px;'>
-        {{textarea class='form-control' value=words placeholder='one word/button per line' rows=10}}
+        {{textarea class="form-control" value=words placeholder="one word/button per line" rows=10}}
       </div>
     </div>
   </div>
   <div class="modal-footer">
-    <a href="#" class='btn btn-primary' {{action 'submit'}}>{{t "Generate Log" key='generate_log'}}</a>
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class='btn btn-primary' {{action "submit"}}>{{t "Generate Log" key="generate_log"}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

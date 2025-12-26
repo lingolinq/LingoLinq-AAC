@@ -7,7 +7,7 @@
       {{/each}}
     </div>
   {{/if}}
-  <h4>{{t "Instructions" key='instructions'}}</h4>
+  <h4>{{t "Instructions" key="instructions"}}</h4>
   {{#if profile.template.instructions}}
     <div style='margin: 15px 0 30px;'>
       {{#each profile.template.instructions as |par|}}
@@ -18,13 +18,13 @@
   <div>
     {{#if prior_profile}}
       <em>
-        {{user.user_name}}{{t "'s last assessment was" key='possessive last assessment'}}
+        {{user.user_name}}{{t "'s last assessment was" key="possessive last assessment"}}
 
         {{#if prior_profile.self_assessment}}
-          {{t "a self-assessment" key='a_self_assessment'}}
+          {{t "a self-assessment" key="a_self_assessment"}}
           {{date_ago prior_profile.started_at}}
         {{else}}
-          {{t "by" key='by'}}
+          {{t "by" key="by"}}
           {{prior_profile.assessor.user_name}}
           {{date_ago prior_profile.started_at}}
         {{/if}}
@@ -35,8 +35,8 @@
     <div style='font-size: 16px; margin: 10px 0; border: 2px solid #c88; padding: 10px 20px; border-radius: 5px;'>
       <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
         <label style='display: block; margin-top: -2px;'>
-          {{input type='checkbox' checked=profile.with_communicator}}
-          {{t "This profile was completed with the communicator's participation" key='profile_completed_with_communicator'}}
+          {{input type="checkbox" checked=profile.with_communicator}}
+          {{t "This profile was completed with the communicator's participation" key="profile_completed_with_communicator"}}
         </label>
       </div>
     </div>
@@ -57,7 +57,7 @@
       </div>
     {{else}}
       <div class='question_holder'>
-        <div class={{if question.unanswered 'question unanswered' 'question'}}>
+        <div class={{if question.unanswered "question unanswered" "question"}}>
           <div class={{question.prompt_class}}>
             {{#if question.unanswered}}
               &nbsp;*&nbsp;
@@ -75,17 +75,17 @@
           </div>
           <div style='flex: 1;'>
             {{#if question.answer_type.text}}
-              <div style={{if question.manual_selection 'min-height: 75px; height: calc(100% - 59px);' 'min-height: 75px; height: 100%;'}}>
+              <div style={{if question.manual_selection "min-height: 75px; height: calc(100% - 59px);" "min-height: 75px; height: 100%;"}}>
                 {{#if question.answer_type.extra}}
-                  {{textarea placeholder=question.answer_type.hint value=question.text_response class='text_response'}}
+                  {{textarea placeholder=question.answer_type.hint value=question.text_response class="text_response"}}
                 {{else}}
-                  {{textarea placeholder=question.answer_type.hint value=question.text_response class='text_response expected'}}
+                  {{textarea placeholder=question.answer_type.hint value=question.text_response class="text_response expected"}}
                 {{/if}}
               </div>
             {{else}}
-              <div class={{if question.manual_selection 'answer_holder with_manual' 'answer_holder'}}>
+              <div class={{if question.manual_selection "answer_holder with_manual" "answer_holder"}}>
                 {{#each question.answers as |answer|}}
-                  <div {{action 'select' question answer}} class={{if answer.selected 'answer selected' 'answer'}}>
+                  <div {{action "select" question answer}} class={{if answer.selected "answer selected" "answer"}}>
                     {{#if answer.selected}}
                       <div class='bg' style='border-top-color: #cdf;'></div>
                     {{/if}}
@@ -100,7 +100,7 @@
               <div class='manual_select'>
                 <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
                   <label style='display: block; margin-top: -2px;'>
-                    {{input type='checkbox' checked=question.manual}}
+                    {{input type="checkbox" checked=question.manual}}
                     {{question.manual_selection}}
                   </label>
                 </div>
@@ -109,23 +109,23 @@
           </div>
         </div>
       </div>
-      <div class={{if question.has_more 'bottom-hr with_more' 'bottom-hr'}}></div>
+      <div class={{if question.has_more "bottom-hr with_more" "bottom-hr"}}></div>
     {{/if}}
   {{/each}}
   <div style='font-size: 16px; margin: 30px 0 10px; border: 2px solid #888; padding: 10px 20px; border-radius: 5px;'>
       <label for='feedback'>{{t "Feedback on your experience with this profile (will be made available to the profile author)"}}</label><br/>
-      {{textarea placeholder="Feedback" value=profile.feedback class='form-control'}}
+      {{textarea placeholder="Feedback" value=profile.feedback class="form-control"}}
   </div>
   <div style='margin-top: 50px;'>
     {{#if missing_responses}}
       <p>
-        <a class='text-danger' href='#' {{action 'highlight_blank' true}}>{{t "Missing" key='missing'}} {{t "response" count=missing_responses key='n_responses'}}</a>
+        <a class='text-danger' href='#' {{action "highlight_blank" true}}>{{t "Missing" key="missing"}} {{t "response" count=missing_responses key="n_responses"}}</a>
       </p>
     {{/if}}
-    <button {{action 'submit'}} class='btn btn-lg btn-primary'>{{t "Finalize Profile" key='finalize_profile'}}</button>
+    <button {{action "submit"}} class='btn btn-lg btn-primary'>{{t "Finalize Profile" key="finalize_profile"}}</button>
     <!-- TODO: 
-    <button class='btn btn-lg btn-default'>{{t "Save for Later" key='save_for_later'}}</button>
-    <button class='btn btn-lg btn-default'>{{t "Cancel Profile" key='cancel_profile'}}</button>
+    <button class='btn btn-lg btn-default'>{{t "Save for Later" key="save_for_later"}}</button>
+    <button class='btn btn-lg btn-default'>{{t "Cancel Profile" key="cancel_profile"}}</button>
     -->
   </div>
 </div>

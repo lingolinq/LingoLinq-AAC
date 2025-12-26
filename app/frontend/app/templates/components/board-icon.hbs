@@ -1,6 +1,6 @@
-<a href="/{{board_record.key}}" {{action 'pick_board' board_record}} class={{display_class}}>
+<a href="/{{board_record.key}}" {{action "pick_board" board_record}} class={{display_class}}>
   {{#unless noinfo}}
-    <a {{action 'board_preview' board_record bubbles=false}} class='info'>
+    <a {{action "board_preview" board_record bubbles=false}} class='info'>
       {{#if override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
           {{override_count}}
@@ -23,14 +23,14 @@
   {{else}}
     <img src={{board_record.icon_url_with_fallback}} onerror="button_broken_image(this);"/>
   {{/if}}
-  <div class={{if noinfo 'name compact' 'name'}}>
+  <div class={{if noinfo "name compact" "name"}}>
   {{best_name}}
   </div>
   <div class='author'>
     {{#if children}}
-      {{t "board" key='n_boards' count=children.length}}
+      {{t "board" key="n_boards" count=children.length}}
     {{else}}
-      {{t "by" key='by'}} {{board_record.user_name}}
+      {{t "by" key="by"}} {{board_record.user_name}}
     {{/if}}
   </div>
 </a>

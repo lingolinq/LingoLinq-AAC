@@ -4,9 +4,9 @@
       <tr>
         <td style='width: 20%; white-space: nowrap; position: relative;'>
           {{#if user.totals}}
-            {{t "room activity" key='room_activity'}}
+            {{t "room activity" key="room_activity"}}
           {{else}}
-            {{#link-to 'user' user.user_name}}
+            {{#link-to "user" user.user_name}}
               <img src={{user.avatar_url}} class='fit_image' style="height: 30px; width: 30px;"/>
               {{user.user_name}}
             {{/link-to}}
@@ -17,30 +17,30 @@
             {{/if}}
           {{/if}}
           {{#if notable}}
-            <button {{action 'note' user}} class='btn_tooltip btn btn-default' style='position: absolute; right: 5px; width: 30px; padding: 6px 0;'><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "Record note for %{un}" un=user.user_name key='record_note_for_user'}}</span></button>
+            <button {{action "note" user}} class='btn_tooltip btn btn-default' style='position: absolute; right: 5px; width: 30px; padding: 6px 0;'><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "Record note for %{un}" un=user.user_name key="record_note_for_user"}}</span></button>
           {{/if}}
         </td>
         {{#if profiles}} <!-- if org has default communicator or supporter profile, and org is premium -->
           <td style='width: 110px; padding-bottom: 0;'>
             {{#if show_profiles}}
-              <div class='profile_box' title={{t "Communication Profiles (%{state})" state=user.profile_state key='communication_profiles'}} data-toggle="tooltip" data-placement="top" style='display: inline-block;'>
+              <div class='profile_box' title={{t "Communication Profiles (%{state})" state=user.profile_state key="communication_profiles"}} data-toggle="tooltip" data-placement="top" style='display: inline-block;'>
                 {{#if user.second_profile_history}}
-                  <button class='btn btn-default' {{action 'user_profile' user}} style='position: absolute; margin-left: -3px; margin-top: -3px;'>
+                  <button class='btn btn-default' {{action "user_profile" user}} style='position: absolute; margin-left: -3px; margin-top: -3px;'>
                     <span class='glyphicon glyphicon-lamp'></span>
                   </button>
                 {{/if}}
                 {{#if user.first_profile_history}}
-                  <button class='btn btn-default' {{action 'user_profile' user}} style='position: absolute; margin-left: 0px; margin-top: 0px;'>
+                  <button class='btn btn-default' {{action "user_profile" user}} style='position: absolute; margin-left: 0px; margin-top: 0px;'>
                     <span class='glyphicon glyphicon-lamp'></span>
                   </button>
                 {{/if}}
-                <button class={{if user.profile_class user.profile_class 'weeks_profile btn btn-default'}} {{action 'user_profile' user}} style={{if user.first_profile_history 'margin-left: 3px; margin-top: 3px;'}}>
+                <button class={{if user.profile_class user.profile_class "weeks_profile btn btn-default"}} {{action "user_profile" user}} style={{if user.first_profile_history "margin-left: 3px; margin-top: 3px;"}}>
                   <span class='glyphicon glyphicon-lamp'></span>
                 </button>
               </div>
               <div class='profile_box' title={{user.org_status_state}} data-toggle="tooltip" data-placement="top" style='display: inline-block;'>
                 {{#if user.org_status_class}}
-                  <button class='btn btn-default org_state' {{action 'user_status' user}} style='padding-top: 3px; padding-bottom: 9px;'>
+                  <button class='btn btn-default org_state' {{action "user_status" user}} style='padding-top: 3px; padding-bottom: 9px;'>
                     <span class={{user.org_status_class}} style='font-size: 20px; line-height: 10px; vertical-align: middle;'></span>
                     {{#if user.unit_lesson_complete}}
                       <span class='glyphicon glyphicon-education sub_state'></span>
@@ -96,7 +96,7 @@
           {{#if user.device}}
             <div style='position: absolute; margin: 25px 5px 5px 10px; color: #888; text-shadow: 1px 1px #fff, -1px -1px #fff, 1px -1px #fff, -1px 1px #fff; font-size: 12px; background: rgba(255, 255, 255, 0.3); border-radius: 5px;'>
               {{#if user.device.default_device}}
-                {{t "%app_name%" key='app_name'}} - {{user.device.board_key}}
+                {{t "%app_name%" key="app_name"}} - {{user.device.board_key}}
               {{else if user.device.external_device}}
                 {{user.device.device_name}}
               {{/if}}
@@ -105,16 +105,16 @@
         </td>
         <td style='width: 3%;'>
           {{#if deletable}}
-            <a href="#" {{action 'delete_action' user.id}}>
+            <a href="#" {{action "delete_action" user.id}}>
               <span class='glyphicon glyphicon-remove'></span>
-              <span class='sr-only'>{{t "Remove User" key='remove_user'}}</span>
+              <span class='sr-only'>{{t "Remove User" key="remove_user"}}</span>
             </a>
           {{/if}}
         </td>
       </tr>
     {{/each}}
     <tr>
-      <td style='width: 20%;' class='text-muted'>{{t "week of" key='week_of'}}</td>
+      <td style='width: 20%;' class='text-muted'>{{t "week of" key="week_of"}}</td>
       {{#if profiles}}
         <td></td>
       {{/if}}

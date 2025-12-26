@@ -12,7 +12,7 @@
           <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
             <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
               <span class="sr-only">
-                {{t "%{pct}% Complete" key='percent_complete' pct=goal.current_badge.progress_out_of_100}}
+                {{t "%{pct}% Complete" key="percent_complete" pct=goal.current_badge.progress_out_of_100}}
               </span>
             </div>
           </div>
@@ -24,28 +24,28 @@
       {{/if}}
     </div>
   {{/if}}
-  {{#link-to 'user.goal' model.user_name goal.id class='summary'}}
+  {{#link-to "user.goal" model.user_name goal.id class="summary"}}
     {{goal.summary}}
   {{/link-to}}
   {{#if goal.template}}
-    {{t "(template)" key='template_paren'}}
+    {{t "(template)" key="template_paren"}}
   {{/if}}
   {{#if model.permissions.edit}}
     <div style='float: right;'>
       {{#if goal.active}}
         <span style='margin-right: 15px;'>
-          <button {{action 'new_note' goal}} class='btn btn-lg btn-default' title={{t "new note" key='new_note_lower'}}><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "new note" key='new_note_lower'}}</span></button>
-          <button {{action 'quick_assessment' goal}} class='btn btn-lg btn-default' title={{t "quick assessment" key='quick_assessment_lower'}}><span class='glyphicon glyphicon-list-alt'></span><span class='sr-only'>{{t "quick assessment" key='quick_assessment_lower'}}</span></button>
+          <button {{action "new_note" goal}} class='btn btn-lg btn-default' title={{t "new note" key="new_note_lower"}}><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "new note" key="new_note_lower"}}</span></button>
+          <button {{action "quick_assessment" goal}} class='btn btn-lg btn-default' title={{t "quick assessment" key="quick_assessment_lower"}}><span class='glyphicon glyphicon-list-alt'></span><span class='sr-only'>{{t "quick assessment" key="quick_assessment_lower"}}</span></button>
         </span>
         {{#if goal.primary}}
-          <button {{action 'update' goal 'primary' 'off'}} class='btn btn-lg btn-default' title={{t "make secondary goal" key='make_secondary_goal'}}><span class='glyphicon glyphicon-hand-down'></span><span class='sr-only'>{{t "make secondary goal" key='make_secondary_goal'}}</span></button>
+          <button {{action "update" goal "primary" "off"}} class='btn btn-lg btn-default' title={{t "make secondary goal" key="make_secondary_goal"}}><span class='glyphicon glyphicon-hand-down'></span><span class='sr-only'>{{t "make secondary goal" key="make_secondary_goal"}}</span></button>
         {{else}}
-          <button {{action 'update' goal 'primary' 'on'}} class='btn btn-lg btn-default' title={{t "make primary goal" key='make_primary_goal'}}><span class='glyphicon glyphicon-hand-up'></span><span class='sr-only'>{{t "make primary goal" key='make_primary_goal'}}</span></button>
+          <button {{action "update" goal "primary" "on"}} class='btn btn-lg btn-default' title={{t "make primary goal" key="make_primary_goal"}}><span class='glyphicon glyphicon-hand-up'></span><span class='sr-only'>{{t "make primary goal" key="make_primary_goal"}}</span></button>
         {{/if}}
-        <button {{action 'delete' goal}} class='btn btn-lg btn-default' title={{t "retire goal" key='retire_goal_lower'}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "retire goal" key='retire_goal_lower'}}</span></button>
+        <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "retire goal" key="retire_goal_lower"}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "retire goal" key="retire_goal_lower"}}</span></button>
       {{else}}
-        <button {{action 'update' goal 'active' 'on'}} class='btn btn-lg btn-default' title={{t "restore goal" key='restore_goal'}}><span class='glyphicon glyphicon-arrow-up'></span><span class='sr-only'>{{t "restore goal" key='restore_goal'}}</span></button>
-        <button {{action 'delete' goal}} class='btn btn-lg btn-default' title={{t "delete goal" key='delete_goal_lower'}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete goal" key='delete_goal_lower'}}</span></button>
+        <button {{action "update" goal "active" "on"}} class='btn btn-lg btn-default' title={{t "restore goal" key="restore_goal"}}><span class='glyphicon glyphicon-arrow-up'></span><span class='sr-only'>{{t "restore goal" key="restore_goal"}}</span></button>
+        <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "delete goal" key="delete_goal_lower"}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete goal" key="delete_goal_lower"}}</span></button>
       {{/if}}
     </div>
   {{/if}}
@@ -57,11 +57,11 @@
     {{/if}}
     <span style='margin-left: 10px;'>
       {{#if goal.advance}}
-        {{t "advances" key='advances_in'}}
-        {{date_ago goal.advance 'day'}}
+        {{t "advances" key="advances_in"}}
+        {{date_ago goal.advance "day"}}
       {{else if goal.expires}}
-        {{t "concludes" key='concludes_in'}}
-        {{date_ago goal.expires 'day'}}
+        {{t "concludes" key="concludes_in"}}
+        {{date_ago goal.expires "day"}}
       {{/if}}
     </span>
   </div>

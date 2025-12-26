@@ -9,11 +9,11 @@
       {{footer_status.message}}
     {{else if app_state.currentBoardState.id}}
       <span style='font-size: 14px;'>
-        <a href='#' {{action 'back_to_from_route'}}>{{t "Back to Board List" key='back_to_board_list'}}</a>
+        <a href='#' {{action "back_to_from_route"}}>{{t "Back to Board List" key="back_to_board_list"}}</a>
       </span>
     {{else}}
       <span style='font-size: 14px;'>
-        {{#link-to 'index'}}{{t "Back to the Dashboard" key='back_to_dashboard'}}{{/link-to}}
+        {{#link-to "index"}}{{t "Back to the Dashboard" key="back_to_dashboard"}}{{/link-to}}
       </span>
     {{/if}}
     {{#if app_state.currentBoardState}}
@@ -21,7 +21,7 @@
         {{#if app_state.currentUser}}
           {{#if app_state.root_board_is_home}}
           {{else}}
-            <a class="btn btn-primary" href="#" {{action "setAsHome" 'starting'}} style='margin-left: 20px;'>
+            <a class="btn btn-primary" href="#" {{action "setAsHome" "starting"}} style='margin-left: 20px;'>
               <span class="wide">{{t "Make This my Home Board" key="make_home_board"}}</span>
             </a>
           {{/if}}
@@ -31,10 +31,10 @@
   </span>
   <div style='float: right;'>
     <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
-      {{t "step" key='step'}} {{setup_index}} {{t "of" key='of'}} {{setup_order.length}}
+      {{t "step" key="step"}} {{setup_index}} {{t "of" key="of"}} {{setup_order.length}}
     </span>
-    <button class='btn btn-lg btn-default' {{action 'setup_go' 'backward'}} style={{unless setup_previous 'visibility: hidden;'}} >Previous</button>
-    <button class='btn btn-lg btn-default' {{action 'setup_go' 'forward'}} style={{unless setup_next 'visibility: hidden;'}} >Next</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless setup_previous "visibility: hidden;"}} >Previous</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless setup_next "visibility: hidden;"}} >Next</button>
   </div>
   <div class='clear'></div>
 </div>

@@ -4,13 +4,13 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">
-            {{t "Last logged session" key='last_logged_session'}}
+            {{t "Last logged session" key="last_logged_session"}}
           </div>
           <div class="panel-body">
             {{#if first_log}}
               {{date_ago first_log.started_at}}
             {{else}}
-              {{t "..." key='ellipsis'}}
+              {{t "..." key="ellipsis"}}
             {{/if}}
           </div>
         </div>
@@ -18,34 +18,34 @@
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">
-            {{t "Recent Sessions" key='recent_sessions'}}
+            {{t "Recent Sessions" key="recent_sessions"}}
           </div>
           <div class="panel-body">
-            {{t "session" key='n_sessions' count=user_counts.recent_session_count}}
+            {{t "session" key="n_sessions" count=user_counts.recent_session_count}}
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">
-            {{t "Recently-logged users" key='recently_logged_users'}}
+            {{t "Recently-logged users" key="recently_logged_users"}}
           </div>
           <div class="panel-body">
             {{user_counts.recent_session_user_count}}{{#if model.total_users}} / {{model.total_users}}{{/if}}
-            {{t "users" key='users_lower'}}
+            {{t "users" key="users_lower"}}
           </div>
         </div>
       </div>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">
-            {{t "Recently-logged hours" key='recently_logged_hours'}}
+            {{t "Recently-logged hours" key="recently_logged_hours"}}
           </div>
           <div class="panel-body">
             {{#if user_counts}}
-              {{t "hour" key='n_hours' count=user_counts.recent_session_hours}}
+              {{t "hour" key="n_hours" count=user_counts.recent_session_hours}}
             {{else}}
-              {{t "..." key='ellipsis'}}
+              {{t "..." key="ellipsis"}}
             {{/if}}
           </div>
         </div>
@@ -54,7 +54,7 @@
         <div class="col-sm-3 col-xs-6">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
-              {{t "Cache Memory" key='cache_memory'}}
+              {{t "Cache Memory" key="cache_memory"}}
             </div>
             <div class="panel-body">
               <span class={{redis_state}}>
@@ -66,17 +66,17 @@
         <div class="col-sm-6 col-xs-6">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
-              {{t "Background Queues" key='background_queues'}}
+              {{t "Background Queues" key="background_queues"}}
             </div>
             <div class="panel-body">
               <span class={{queue_state.default}}>
-                {{delimit model.site.default_queue}} {{t "Default" key='default'}},
+                {{delimit model.site.default_queue}} {{t "Default" key="default"}},
               </span>
               <span class={{queue_state.priority}}>
-                {{delimit model.site.priority_queue}} {{t "Priority" key='priority'}},
+                {{delimit model.site.priority_queue}} {{t "Priority" key="priority"}},
               </span>
               <span class={{queue_state.slow}}>
-                {{delimit model.site.slow_queue}} {{t "Slow" key='slow'}}
+                {{delimit model.site.slow_queue}} {{t "Slow" key="slow"}}
               </span>
             </div>
           </div>
@@ -85,31 +85,31 @@
       <div class='col-sm-12' style='margin-top: -10px; margin-bottom: 10px;'>
         {{#if model.permissions.edit}}
           <div style='float: right;'>
-            <button class='btn btn-default' {{action 'edit_org'}}>{{t "Settings" key='settings'}}</button>
+            <button class='btn btn-default' {{action "edit_org"}}>{{t "Settings" key="settings"}}</button>
           </div>
         {{/if}}
         {{#if multi_home_boards}}
           <div class="btn-group">
             <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{t "Default Home Boards" key='default_home_boards'}} ({{model.home_board_keys.length}}) <span class="caret"></span>
+              {{t "Default Home Boards" key="default_home_boards"}} ({{model.home_board_keys.length}}) <span class="caret"></span>
             </button>
             <ul class="dropdown-menu">
               {{#each model.home_board_keys as |key|}}
-                <li>{{#link-to 'board' key}}{{key}}{{/link-to}}</li>
+                <li>{{#link-to "board" key}}{{key}}{{/link-to}}</li>
               {{/each}}
             </ul>
           </div>
         {{else if model.default_home_board}}
           <div class='text-muted'>
-            {{t "default home board:" key='default_home_board'}}
-            {{#link-to 'board' model.default_home_board.key}}{{model.default_home_board.key}}{{/link-to}}
+            {{t "default home board:" key="default_home_board"}}
+            {{#link-to "board" model.default_home_board.key}}{{model.default_home_board.key}}{{/link-to}}
           </div>
         {{/if}}
         <div style='clear: right;'></div>
       </div>
       <div class="col-sm-6" style="padding: 0;">
         {{#if weekly_stats.error}}
-          {{t "There was a problem loading this report" key='problem_loading_report'}}
+          {{t "There was a problem loading this report" key="problem_loading_report"}}
         {{else}}
           {{stats/sessions-per-week weekly_stats=weekly_stats}}
         {{/if}}
@@ -124,19 +124,19 @@
       {{/if}}
       <div style='clear: both;'>
       <div class='col-sm-6'>
-        <strong>{{t "Recently-Modeled Words" key='recently_modeled_words'}}</strong>
+        <strong>{{t "Recently-Modeled Words" key="recently_modeled_words"}}</strong>
         {{#if combined_models.words_by_frequency.length}}
           {{stats/word-cloud stats=combined_models tiny=true zoom=1}}
         {{else}}
-          <br/><br/><em>{{t "No modeled words to report" key='no_modeled_words_to_report'}}</em><br/>
+          <br/><br/><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br/>
         {{/if}}
       </div>
       {{#if app_state.feature_flags.profiles}}
         <div class="col-sm-3" style="padding: 0;">
-          {{stats/recent-profiles type='communicator' total=user_counts.communicators recent=user_counts.communicator_recent_profiles}}
+          {{stats/recent-profiles type="communicator" total=user_counts.communicators recent=user_counts.communicator_recent_profiles}}
         </div>
         <div class="col-sm-3" style="padding: 0;">
-          {{stats/recent-profiles type='supervisor' total=user_counts.supervisors recent=user_counts.supervisor_recent_profiles}}
+          {{stats/recent-profiles type="supervisor" total=user_counts.supervisors recent=user_counts.supervisor_recent_profiles}}
         </div>
       {{/if}}
       </div>
@@ -144,69 +144,69 @@
   {{/if}}
   {{#if model.parent_org}}
     {{#if model.parent_org.permissions.view}}
-      {{t "Parent Organization: " key='parent_org_colon'}}
-      {{#link-to 'organization' model.parent_org.id}}
+      {{t "Parent Organization: " key="parent_org_colon"}}
+      {{#link-to "organization" model.parent_org.id}}
         {{model.parent_org.name}}
       {{/link-to}}
     {{else}}
-      {{t "Parent Organization: " key='parent_org_colon'}}
+      {{t "Parent Organization: " key="parent_org_colon"}}
       {{model.parent_org.name}}
     {{/if}}
   {{/if}}
   <ul class='nav nav-pills' style="margin-bottom: 15px; margin-top: 20px;">
     {{#if model.admin}}
-      <li class={{if show_organizations 'active'}}><a href="#" {{action 'pick' 'organizations'}}>{{t "Organizations" key='organizations'}}</a></li>
+      <li class={{if show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
     {{else if model.children_orgs}}
-      <li class={{if show_organizations 'active'}}><a href="#" {{action 'pick' 'organizations'}}>{{t "Organizations" key='organizations'}}</a></li>
+      <li class={{if show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
     {{/if}}
-    <li class={{if show_managers 'active'}}><a href="#" {{action 'pick' 'managers'}}>{{t "Managers" key='managers'}}</a></li>
-    <li class={{if show_supervisors 'active'}}><a href="#" {{action 'pick' 'supervisors'}}>{{t "Supervisors" key='supervisors'}}</a></li>
-    <li class={{if show_communicators 'active'}}><a href="#" {{action 'pick' 'communicators'}}>{{t "Communicators" key='communicators'}}</a></li>
-    <li class={{if show_evals 'active'}}><a href="#" {{action 'pick' 'evals'}}>{{t "Evals" key='evals'}}</a></li>
-    <li class={{if show_extras 'active'}}><a href="#" {{action 'pick' 'extras'}}>{{t "Symbols" key='symbols'}}</a></li>
+    <li class={{if show_managers "active"}}><a href="#" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</a></li>
+    <li class={{if show_supervisors "active"}}><a href="#" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</a></li>
+    <li class={{if show_communicators "active"}}><a href="#" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</a></li>
+    <li class={{if show_evals "active"}}><a href="#" {{action "pick" "evals"}}>{{t "Evals" key="evals"}}</a></li>
+    <li class={{if show_extras "active"}}><a href="#" {{action "pick" "extras"}}>{{t "Symbols" key="symbols"}}</a></li>
   </ul>
   {{#if show_managers}}
     {{#if managers.data}}
       <p>
-        {{t "manager" key='n_managers' count=model.total_managers}}
+        {{t "manager" key="n_managers" count=model.total_managers}}
       </p>
       <table class="table table-hover" style="width: 400px;">
         <tbody>
           {{#each managers.data as |manager|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to 'user' manager.user_name}}
+                {{#link-to "user" manager.user_name}}
                   <img src={{manager.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
                   {{manager.user_name}}
                 {{/link-to}}
               </td>
               <td>
                 {{#if manager.org_manager}}
-                  {{t "manager" key='manager'}}
+                  {{t "manager" key="manager"}}
                 {{else if manager.org_assistant}}
-                  {{t "assistant" key='assistant'}}
+                  {{t "assistant" key="assistant"}}
                 {{/if}}
               </td>
               <td>
-                <a href='#' {{action "management_action" 'remove_manager' manager.id}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                <a href='#' {{action "management_action" "remove_manager" manager.id}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
               </td>
             </tr>
           {{/each}}
         </tbody>
       </table>
     {{else if managers.loading}}
-      <p style="margin-bottom: 30px;">{{t "Loading managers..." key='loading_managers'}}</p>
+      <p style="margin-bottom: 30px;">{{t "Loading managers..." key="loading_managers"}}</p>
     {{else}}
-      <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
       {{input value=manager_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button class="btn btn-default btn-sm" {{action "management_action" 'add_manager'}}>{{t "Add Manager" key='add_manager'}}</button>
-      <button class="btn btn-default btn-sm" {{action "management_action" 'add_assistant'}}>{{t "Add Assistant" key='add_assistant'}}</button>
-      <a href="#" {{action "new_user" 'add_manager'}} style='padding-left: 10px;'>{{t "New User" key='new_user'}}</a>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_manager"}}>{{t "Add Manager" key="add_manager"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_assistant"}}>{{t "Add Assistant" key="add_assistant"}}</button>
+      <a href="#" {{action "new_user" "add_manager"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
       {{#if suggest_creating_manager}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key='no_user_suggest_create' user_name=manager_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=manager_user_name}}
         </p>
       {{/if}}
     </div>
@@ -215,9 +215,9 @@
   {{#if show_supervisors}}
     {{#if supervisors.data}}
       <p>
-        {{t "supervisor" key='n_supervisors_lower' count=model.total_supervisors}}
+        {{t "supervisor" key="n_supervisors_lower" count=model.total_supervisors}}
         {{#if model.allotted_supervisor_licenses}}
-          ({{model.used_supervisors}} / {{model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key='premium_sponsorships_used'}})
+          ({{model.used_supervisors}} / {{model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key="premium_sponsorships_used"}})
         {{/if}}
       </p>
       <table class="table table-hover" style="width: 600px;">
@@ -225,28 +225,28 @@
           {{#each supervisors.data as |user|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to 'user' user.user_name}}
+                {{#link-to "user" user.user_name}}
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
                   {{user.user_name}}
                 {{/link-to}}
                 {{#if user.org_supervision_pending}}
-                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(pending)" key='pending_paren'}}</span>
+                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
                 {{else if user.org_premium_supervisor}}
-                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(premium)" key='premium_paren'}}</span>
+                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(premium)" key="premium_paren"}}</span>
                 {{/if}}
                 {{#if user.recent_org_profile}}
-                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key='has_profile'}}>
+                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key="has_profile"}}>
                     <span class='glyphicon glyphicon-lamp'></span>
                   </div>
                 {{/if}}
               </td>
               <td style='font-size: 14px;'>
                 {{#each user.org_supervisees as |sup|}}
-                  {{#link-to 'user' sup.user_name}}{{sup.user_name}}{{/link-to}}<br/>
+                  {{#link-to "user" sup.user_name}}{{sup.user_name}}{{/link-to}}<br/>
                 {{/each}}
               </td>
               <td>
-                <a href='#' {{action "management_action" 'remove_supervisor' user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                <a href='#' {{action "management_action" "remove_supervisor" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
               </td>
             </tr>
           {{/each}}
@@ -254,24 +254,24 @@
       </table>
       {{#if more_supervisors}}
         <p style="margin-bottom: 30px;">
-          {{#link-to 'organization.reports' (query-params current_report='all_supervisors')}}
-            {{t "See all supervisors" key='see_all_supervisors'}}
+          {{#link-to "organization.reports" (query-params current_report="all_supervisors")}}
+            {{t "See all supervisors" key="see_all_supervisors"}}
           {{/link-to}}
         </p>
       {{/if}}
     {{else if supervisors.loading}}
-      <p style="margin-bottom: 30px;">{{t "Loading supervisors..." key='loading_supervisors'}}</p>
+      <p style="margin-bottom: 30px;">{{t "Loading supervisors..." key="loading_supervisors"}}</p>
     {{else}}
-      <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
       {{input value=supervisor_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" 'add_premium_supervisor'}}>{{t "Add Premium Supervisor" key='add_premium_supervisor'}}</button>
-      <button class="btn btn-default btn-sm" {{action "management_action" 'add_supervisor'}}>{{t "Add Supervisor" key='add_supervisor'}}</button>
-      <a href="#" {{action "new_user" 'add_supervisor'}} style='padding-left: 10px;'>{{t "New User" key='new_user'}}</a>
+      <button disabled={{no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+      <a href="#" {{action "new_user" "add_supervisor"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
       {{#if suggest_creating_supervisor}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key='no_user_suggest_create' user_name=supervisor_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=supervisor_user_name}}
         </p>
       {{/if}}
     </div>
@@ -280,9 +280,9 @@
   {{#if show_communicators}}
     {{#if model.permissions}}
       <p>
-        {{model.used_licenses}} {{t "out of" key='out_of' }}
-        {{model.allotted_licenses}} {{t "sponsorships used, " key='sponsored_comma' }}
-        {{t "user" key='n_users' count=model.total_users}} {{t "total" key='total'}}
+        {{model.used_licenses}} {{t "out of" key="out_of" }}
+        {{model.allotted_licenses}} {{t "sponsorships used, " key="sponsored_comma" }}
+        {{t "user" key="n_users" count=model.total_users}} {{t "total" key="total"}}
       </p>
     {{/if}}
     {{#if users.data}}
@@ -291,7 +291,7 @@
           {{#each users.data as |user|}}
             <tr>
               <td>
-                {{#link-to 'user' user.user_name}}
+                {{#link-to "user" user.user_name}}
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
                   {{user.user_name}}
                 {{/link-to}}
@@ -299,19 +299,19 @@
                   <em>{{user.name}}</em>
                 {{/if}}
                 {{#if user.org_pending}}
-                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key='pending_paren'}}</span>
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
                 {{#if user.org_sponsored}}
-                  <span style="vertical-align: middle;" class="text-muted">{{t "(sponsored)" key='sponsored_paren'}}</span>
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(sponsored)" key="sponsored_paren"}}</span>
                 {{/if}}
                 {{#if user.recent_org_profile}}
-                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key='has_profile'}}>
+                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key="has_profile"}}>
                     <span class='glyphicon glyphicon-lamp'></span>
                   </div>
                 {{/if}}
               </td>
               <td>
-                <a href='#' {{action "management_action" 'remove_user' user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                <a href='#' {{action "management_action" "remove_user" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
               </td>
             </tr>
           {{/each}}
@@ -319,24 +319,24 @@
       </table>
       {{#if more_users}}
         <p style="margin-bottom: 30px;">
-          {{#link-to 'organization.reports' (query-params current_report='all_users')}}
-            {{t "See all users" key='see_all_users'}}
+          {{#link-to "organization.reports" (query-params current_report="all_users")}}
+            {{t "See all users" key="see_all_users"}}
           {{/link-to}}
         </p>
       {{/if}}
     {{else if users.loading}}
-      <p style="margin-bottom: 30px;">{{t "Loading Users..." key='loading_users'}}</p>
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
-      <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
       {{input value=user_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_licenses}} class="btn btn-default btn-sm" {{action "management_action" 'add_user'}}>{{t "Add Sponsored User" key='add_sponsored_user'}}</button>
-      <button class="btn btn-default btn-sm" {{action "management_action" 'add_unsponsored_user'}}>{{t "Add Unsponsored User" key='add_unsponsored_user'}}</button>
-      <a href="#" {{action "new_user" 'add_user'}} style='padding-left: 10px;'>{{t "New User" key='new_user'}}</a>
+      <button disabled={{no_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_unsponsored_user"}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
+      <a href="#" {{action "new_user" "add_user"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
       {{#if suggest_creating_communicator}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key='no_user_suggest_create' user_name=user_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=user_user_name}}
         </p>
       {{/if}}
     </div>
@@ -345,8 +345,8 @@
   {{#if show_evals}}
     {{#if model.permissions}}
       <p>
-        {{model.used_evals}} {{t "out of" key='out_of' }}
-        {{model.allotted_eval_licenses}} {{t "eval accounts used" key='evals_used' }}
+        {{model.used_evals}} {{t "out of" key="out_of" }}
+        {{model.allotted_eval_licenses}} {{t "eval accounts used" key="evals_used" }}
       </p>
     {{/if}}
     {{#if evals.data}}
@@ -355,16 +355,16 @@
           {{#each evals.data as |user|}}
             <tr>
               <td>
-                {{#link-to 'user' user.user_name}}
+                {{#link-to "user" user.user_name}}
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
                   {{user.user_name}}
                 {{/link-to}}
                 {{#if user.org_pending}}
-                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key='pending_paren'}}</span>
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
               </td>
               <td>
-                <a href='#' {{action "management_action" 'remove_user' user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                <a href='#' {{action "management_action" "remove_user" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
               </td>
             </tr>
           {{/each}}
@@ -372,24 +372,24 @@
       </table>
       {{#if more_evals}}
         <p style="margin-bottom: 30px;">
-          {{#link-to 'organization.reports' (query-params current_report='all_evals')}}
-            {{t "See all eval accounts" key='see_all_evals'}}
+          {{#link-to "organization.reports" (query-params current_report="all_evals")}}
+            {{t "See all eval accounts" key="see_all_evals"}}
           {{/link-to}}
         </p>
       {{/if}}
     {{else if evals.loading}}
-      <p style="margin-bottom: 30px;">{{t "Loading Users..." key='loading_users'}}</p>
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
-      <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
       {{input value=eval_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" 'add_eval'}}>{{t "Add Eval Account" key='add_eval'}}</button>
+      <button disabled={{no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
       {{#unless no_eval_licenses}}
-        <a href="#" {{action "new_user" 'add_eval'}} style='padding-left: 10px;'>{{t "New Eval Account" key='new_eval'}}</a>
+        <a href="#" {{action "new_user" "add_eval"}} style='padding-left: 10px;'>{{t "New Eval Account" key="new_eval"}}</a>
         {{#if suggest_creating_eval}}
           <p class='text-danger'>
-            {{t "The user name %{user_name} doesn't exist." key='no_user_suggest_create' user_name=eval_user_name}}
+            {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=eval_user_name}}
           </p>
         {{/if}}
       {{/unless}}
@@ -399,8 +399,8 @@
   {{#if show_extras}}
     {{#if model.permissions}}
       <p>
-        {{model.used_extras}} {{t "out of" key='out_of' }}
-        {{model.allotted_extras}} {{t "premium symbol accounts used" key='extras_used' }}
+        {{model.used_extras}} {{t "out of" key="out_of" }}
+        {{model.allotted_extras}} {{t "premium symbol accounts used" key="extras_used" }}
       </p>
     {{/if}}
     {{#if extras.data}}
@@ -409,40 +409,40 @@
           {{#each extras.data as |user|}}
             <tr>
               <td>
-                {{#link-to 'user' user.user_name}}
+                {{#link-to "user" user.user_name}}
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'/>
                   {{user.user_name}}
                 {{/link-to}}
               </td>
               <td>
-                <a href='#' {{action "management_action" 'remove_extras' user.user_name true}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                <a href='#' {{action "management_action" "remove_extras" user.user_name true}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
               </td>
             </tr>
           {{/each}}
         </tbody>
       </table>
     {{else if extras.loading}}
-      <p style="margin-bottom: 30px;">{{t "Loading Users..." key='loading_users'}}</p>
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
-      <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
       {{input value=extras_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_extras}} class="btn btn-default btn-sm" {{action "management_action" 'add_extras' extras_user_name}}>{{t "Add Premium Symbols" key='add_extras'}}</button>
+      <button disabled={{no_extras}} class="btn btn-default btn-sm" {{action "management_action" "add_extras" extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
     </div>
   {{/if}}
 
   {{#if show_organizations}}
     {{#if model.children_orgs}}
       <p>
-        {{t "sub-organization" key='n_sub_organizations' count=model.children_orgs.length}}
+        {{t "sub-organization" key="n_sub_organizations" count=model.children_orgs.length}}
       </p>
       <table class="table table-hover" style="width: 400px;">
         <tbody>
           {{#each model.children_orgs as |org|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to 'organization' org.id}}
+                {{#link-to "organization" org.id}}
                   <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                   {{org.name}}
                 {{/link-to}}
@@ -455,10 +455,10 @@
       {{#if model.permissions.manage}}
         {{#if orgs.data}}
           <p>
-            {{t "organization" key='n_organizations' count=orgs.data.length}}
+            {{t "organization" key="n_organizations" count=orgs.data.length}}
           </p>
           <span style='display: block; width: 200px;'>
-            {{input type='text' value=org_filter class='form-control' placeholder='search orgs'}}
+            {{input type="text" value=org_filter class="form-control" placeholder="search orgs"}}
           </span>
           <table class="table table-hover" style="width: 400px;">
             <tbody>
@@ -466,7 +466,7 @@
                 {{#each filtered_orgs as |org|}}
                     <tr>
                       <td style='font-size: 20px;'>
-                        {{#link-to 'organization' org.id}}
+                        {{#link-to "organization" org.id}}
                           <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                           {{#if org.premium}}
                             <b>{{org.name}}</b>
@@ -486,11 +486,11 @@
                 {{#each alphabetized_orgs as |letter|}}
                   <tr>
                     <td colspan="2">
-                      <a href="#" {{action 'toggle_letter' letter}}>
+                      <a href="#" {{action "toggle_letter" letter}}>
                         <span  style='font-size: 20px;'>
                          {{letter.letter}} - 
                         </span> 
-                        {{t "org" count=letter.orgs.length key='n_orgs'}}
+                        {{t "org" count=letter.orgs.length key="n_orgs"}}
                         {{#if letter.expanded}}
                           <span class='caret'></span>
                         {{else}}
@@ -503,7 +503,7 @@
                     {{#each letter.orgs as |org|}}
                       <tr>
                         <td style='font-size: 20px;'>
-                          {{#link-to 'organization' org.id}}
+                          {{#link-to "organization" org.id}}
                             <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                             {{#if org.premium}}
                               <b>{{org.name}}</b>
@@ -525,14 +525,14 @@
             </tbody>
           </table>
         {{else if orgs.loading}}
-          <p style="margin-bottom: 30px;">{{t "Loading organizations..." key='loading_orgs'}}</p>
+          <p style="margin-bottom: 30px;">{{t "Loading organizations..." key="loading_orgs"}}</p>
         {{else}}
-          <p style="margin-bottom: 30px;">{{t "None found" key='none_found'}}</p>
+          <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
         {{/if}}
         <div style='margin-top: -15px;'>
           {{input value=org_org_name placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
           {{input value=org_user_name placeholder="admin user name" class="form-control inline inline-masquerade input-sm"}}
-          <button class="btn btn-default btn-sm" {{action "add_org"}}>{{t "Add Organization" key='add_org'}}</button>
+          <button class="btn btn-default btn-sm" {{action "add_org"}}>{{t "Add Organization" key="add_org"}}</button>
         </div>
       {{/if}}
     {{/if}}
@@ -540,58 +540,58 @@
   {{#if model.permissions.manage}}
     <div style='margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;'></div>
     {{#if model.premium}}
-      <h3>{{t "Communicator & Eval Statistics" key='general_stats'}}</h3>
+      <h3>{{t "Communicator & Eval Statistics" key="general_stats"}}</h3>
       {{#if report.loading}}
-        {{t "Loading..." key='loading'}}
+        {{t "Loading..." key="loading"}}
       {{else if report.error}}
-        {{t "Error Loading Statistics" key='error_loading_statistic'}}
+        {{t "Error Loading Statistics" key="error_loading_statistic"}}
       {{else}}
         <div class='row'>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
-            <strong>{{t "Access Methods" key='access_methods'}}</strong>
-            {{stats/bar-breakdown hash=report.stats.access_methods org_id=model.id order='access'}}
+            <strong>{{t "Access Methods" key="access_methods"}}</strong>
+            {{stats/bar-breakdown hash=report.stats.access_methods org_id=model.id order="access"}}
           </div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
-            <strong>{{t "Communicator Status" key='communicator_status'}}</strong>
-            {{stats/bar-breakdown hash=report.stats.statuses org_id=model.id order='status'}}
-          </div>
-          <div style='clear: both;'></div>
-          <div class='col-sm-6' style='margin-bottom: 15px;'>
-            <strong>{{t "Devices" key='devices'}}</strong>
-            {{stats/bar-breakdown hash=report.stats.devices org_id=model.id order='device'}}
-          </div>
-          <div class='col-sm-6' style='margin-bottom: 15px;'>
-            <strong>{{t "Vocabularies" key='vocabularies'}}</strong>
-            {{stats/bar-breakdown hash=report.stats.vocabs org_id=model.id order='vocab'}}
+            <strong>{{t "Communicator Status" key="communicator_status"}}</strong>
+            {{stats/bar-breakdown hash=report.stats.statuses org_id=model.id order="status"}}
           </div>
           <div style='clear: both;'></div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
-            <strong>{{t "Grid Sizes" key='grid_sizes'}}</strong>
-            {{stats/bar-breakdown hash=report.stats.sizes org_id=model.id order='size'}}
+            <strong>{{t "Devices" key="devices"}}</strong>
+            {{stats/bar-breakdown hash=report.stats.devices org_id=model.id order="device"}}
+          </div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Vocabularies" key="vocabularies"}}</strong>
+            {{stats/bar-breakdown hash=report.stats.vocabs org_id=model.id order="vocab"}}
+          </div>
+          <div style='clear: both;'></div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Grid Sizes" key="grid_sizes"}}</strong>
+            {{stats/bar-breakdown hash=report.stats.sizes org_id=model.id order="size"}}
           </div>
         </div>
       {{/if}}
     {{/if}}
     <div>
-      <h3>{{t "Recent Words" key='recent_words'}}</h3>
+      <h3>{{t "Recent Words" key="recent_words"}}</h3>
       {{#if user_counts.word_counts.length}}
         {{stats/word-cloud stats=words short=true zoom=1}}
       {{else}}
-        <br/><br/><em>{{t "No recent words to report" key='no_recent_words_to_report'}}</em><br/>
+        <br/><br/><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br/>
       {{/if}}
     </div>
-    <h3>{{t "Recent Sessions" key='recent_sessions'}}</h3>
+    <h3>{{t "Recent Sessions" key="recent_sessions"}}</h3>
     {{#if logs.data}}
       <ul class="list-unstyled">
       {{#each logs.data as |log|}}
         <li>
           <p>
-            {{#link-to 'user' log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
+            {{#link-to "user" log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
             <span title={{date log.started_at}}>
               {{date_ago log.started_at}}
             </span>
-            {{#link-to 'user.log' log.user.user_name log.id}}
-              {{t "button" count=log.button_count key='button_count'}}
+            {{#link-to "user.log" log.user.user_name log.id}}
+              {{t "button" count=log.button_count key="button_count"}}
             {{/link-to}}
             <br/>
             <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
@@ -600,13 +600,13 @@
       {{/each}}
       </ul>
     {{else if logs.loading}}
-      <p>{{t "Loading sessions..." key='loading_sessions'}}</p>
+      <p>{{t "Loading sessions..." key="loading_sessions"}}</p>
     {{else}}
-      <p>{{t "None found" key='none_found'}}</p>
+      <p>{{t "None found" key="none_found"}}</p>
     {{/if}}
   {{/if}}
 {{else if loading_org}}
-  {{t "Loading..." key='loading'}}
+  {{t "Loading..." key="loading"}}
 {{else}}
-  {{t "No information available" key='no_information_available'}}
+  {{t "No information available" key="no_information_available"}}
 {{/if}}

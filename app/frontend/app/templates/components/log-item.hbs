@@ -1,35 +1,35 @@
 <tr>
   <td>
-    {{#link-to 'user.log' @user.user_name @log.id}}
+    {{#link-to "user.log" @user.user_name @log.id}}
       {{#if @log.video_type}}
         <span class="glyphicon glyphicon-film"></span>
-        <span class="sr-only">{{t "video" key='video_lower'}}</span>
+        <span class="sr-only">{{t "video" key="video_lower"}}</span>
       {{else if @log.note_type}}
         {{#if @log.message_type}}
           <span class="glyphicon glyphicon-comment"></span>
         {{else}}
           <span class="glyphicon glyphicon-envelope"></span>
         {{/if}}
-        <span class="sr-only">{{t "message" key='message_lower'}}</span>
+        <span class="sr-only">{{t "message" key="message_lower"}}</span>
       {{else if @log.assessment_type}}
         <span class="glyphicon glyphicon-list-alt"></span>
-        <span class="sr-only">{{t "assessment" key='assessment'}}</span>
+        <span class="sr-only">{{t "assessment" key="assessment"}}</span>
       {{else if @log.journal_type}}
         <span class="glyphicon glyphicon-heart"></span>
-        <span class="sr-only">{{t "journal" key='journal_lower'}}</span>
+        <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
       {{else if @log.eval_type}}
         <span class="glyphicon glyphicon-list-alt"></span>
-        <span class="sr-only">{{t "journal" key='journal_lower'}}</span>
+        <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
       {{else}}
         <span class="glyphicon glyphicon-time"></span>
-        <span class="sr-only">{{t "session" key='session'}}</span>
+        <span class="sr-only">{{t "session" key="session"}}</span>
       {{/if}}
     {{/link-to}}
   </td>
   <td style="font-size: 12px; width: 100%;">
     {{#if @log.note_type}}
       <div style="font-size: 10px; color: #888;">
-        {{t "Note by" key='note_by'}}
+        {{t "Note by" key="note_by"}}
         {{#if @log.author.contact.name}}
           {{@log.author.contact.name}}
         {{else}}
@@ -43,14 +43,14 @@
       <span style="white-space: pre-line;">{{@log.note.text}}</span>
     {{else if @log.assessment_type}}
       <div style="font-size: 10px; color: #888;">
-        {{t "Assessment by" key='assessment_by'}}
+        {{t "Assessment by" key="assessment_by"}}
         {{@log.author.user_name}}
       </div>
       {{@log.assessment.description}}<br/>
       {{@log.assessment.summary}}
     {{else if @log.journal_type}}
       <div style="font-size: 10px; color: #888;">
-        {{t "Journal Entry" key='journal_entry'}}
+        {{t "Journal Entry" key="journal_entry"}}
       </div>
       {{@log.journal.sentence}}
     {{else}}
@@ -66,19 +66,19 @@
   </td>
   {{#unless @messagesOnly}}
     <td style="white-space: nowrap;">
-      {{#link-to 'user.log' @user.user_name @log.id}}
+      {{#link-to "user.log" @user.user_name @log.id}}
         {{#if @log.note_type}}
           ...
         {{else if @log.journal_type}}
           ...
         {{else}}
-          {{t "minute" key='minute' count=@log.minutes}}
+          {{t "minute" key="minute" count=@log.minutes}}
         {{/if}}
       {{/link-to}}
     </td>
     <td>
       {{#if @log.event_note_count}}
-        {{#link-to 'user.log' @model.user_name @log.id}}
+        {{#link-to "user.log" @model.user_name @log.id}}
           <span class="label label-primary">{{@log.event_note_count}}</span>
         {{/link-to}}
       {{/if}}

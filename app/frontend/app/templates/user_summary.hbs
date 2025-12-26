@@ -13,9 +13,9 @@
   {{/if}}
   <div>{{ model.location }}</div>
   {{#if model.joined}}
-    <div title={{date model.joined}}>{{t "joined" key='joined'}} {{date_ago model.joined}}</div>
+    <div title={{date model.joined}}>{{t "joined" key="joined"}} {{date_ago model.joined}}</div>
   {{/if}}
   {{#if model.last_access}}
-    <div class="text-muted" title={{date model.last_access}}>{{t "used" key='used'}} {{date_ago model.last_access 'day'}}</div>
+    <div class="text-muted" title={{date model.last_access}}>{{t "used" key="used"}} {{date_ago model.last_access "day"}}</div>
   {{/if}}
 </div>

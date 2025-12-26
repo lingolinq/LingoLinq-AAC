@@ -2,12 +2,12 @@
   <div style={{inner_elem_style}}>
     <strong>
       {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
-      {{t "Weighted Words" key='weighted_words'}}
+      {{t "Weighted Words" key="weighted_words"}}
     </strong>
-    <a href="#" {{action 'word_cloud'}}>{{t "word cloud" key='word_cloud_lower'}}</a>
+    <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
     <br/>
     {{#each usage_stats.weighted_words as |word|}}
-      <a href='#' class={{word.weight_class}} {{action 'word_data' word.text}}>{{word.text}}</a>
+      <a href='#' class={{word.weight_class}} {{action "word_data" word.text}}>{{word.text}}</a>
     {{/each}}
   </div>
 </div>

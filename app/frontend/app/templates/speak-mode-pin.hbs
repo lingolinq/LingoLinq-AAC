@@ -1,10 +1,10 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
-  {{#opening-observer opening=(action 'opening')}}{{/opening-observer}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
+  {{#opening-observer opening=(action "opening")}}{{/opening-observer}}
   <div class="modal-body" style="padding: 0; font-size: 18px;">
     <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
       <h3>
-        {{t "PIN Required" key='pin_required'}}
+        {{t "PIN Required" key="pin_required"}}
       </h3>
     </div>
     <div class="modal-body" style="text-align: center;">
@@ -31,7 +31,7 @@
         </tr>
       </tbody></table>
       {{#if invalid_pin}}
-        <p class="text-danger">{{t "Invalid PIN. Try again!" key='invalid_pin_try_again'}}</p>
+        <p class="text-danger">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
       {{/if}}
       <input type="text" class="form-control" value={{pin_dots}} rel={{pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;"/>
     </div>

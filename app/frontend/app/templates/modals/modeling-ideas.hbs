@@ -1,8 +1,8 @@
-{{#modal-dialog action='close' opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Modeling Ideas" key='modeling_ideas'}}
-      <a href="#" class='text-info' {{action 'show_intro'}}><span class='glyphicon glyphicon-question-sign'></span></a>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Modeling Ideas" key="modeling_ideas"}}
+      <a href="#" class='text-info' {{action "show_intro"}}><span class='glyphicon glyphicon-question-sign'></span></a>
     </h3>
   </div>
   <div class="modal-body" style='font-size: 18px;'>
@@ -10,16 +10,16 @@
     {{else if activities.error}}
     {{else if current_activity}}
       <div style='margin-bottom: 10px;'>
-        <button class='btn btn-default btn-lg' style='float: left;' {{action 'previous'}} disabled={{no_previous}}><span class='glyphicon glyphicon-chevron-left'></span> {{t "Previous" key='previous'}}</button>
-        <button class='btn btn-default btn-lg' style='float: right;' {{action 'next'}} disabled={{no_next}}>{{t "Next" key='next'}} <span class='glyphicon glyphicon-chevron-right'></span></button>
+        <button class='btn btn-default btn-lg' style='float: left;' {{action "previous"}} disabled={{no_previous}}><span class='glyphicon glyphicon-chevron-left'></span> {{t "Previous" key="previous"}}</button>
+        <button class='btn btn-default btn-lg' style='float: right;' {{action "next"}} disabled={{no_next}}>{{t "Next" key="next"}} <span class='glyphicon glyphicon-chevron-right'></span></button>
         {{#if show_words_list}}
           {{#if current_activity.word}}
-            <div class='text-muted' {{action 'target_words'}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
-              <span style='color: #aaa;'>{{t "using the word:" key='using_the_word'}}</span> {{current_activity.word}}
+            <div class='text-muted' {{action "target_words"}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
+              <span style='color: #aaa;'>{{t "using the word:" key="using_the_word"}}</span> {{current_activity.word}}
             </div>
           {{else if words_list}}
-            <div class='text-muted' {{action 'target_words'}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
-              <span style='color: #aaa;'>{{t "targets:" key='target_words_colon'}}</span> {{words_list}}
+            <div class='text-muted' {{action "target_words"}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
+              <span style='color: #aaa;'>{{t "targets:" key="target_words_colon"}}</span> {{words_list}}
             </div>
           {{/if}}
         {{/if}}
@@ -27,16 +27,16 @@
       </div>
     {{/if}}
     {{#if activities.loading}}
-      {{t "Loading Ideas..." key='loading_ideas'}}
+      {{t "Loading Ideas..." key="loading_ideas"}}
     {{else if activities.error}}
-      {{t "Error Loading Ideas" key='error_loading_ideas'}}
+      {{t "Error Loading Ideas" key="error_loading_ideas"}}
     {{else if show_target_words}}
       {{#if current_activity.word}}
         <img src={{path "images/modeling_ideas.svg"}} style='width: 100px; float: left; padding-right: 10px;' />
-        <p>{{t "You can help your communicator learn to use their words by showing them! Look for opportunities to <b>use the word \"%{word}\"</b> in different activities and settings so they will get more comfortable with the word." word=current_activity.word key='chances_to_use_word'}}</p>
-        <p style='margin-top: 30px; font-size: 14px;'>{{t "Below are some other words %app_name% sees might be useful to work with for your communicators." key='more_core_words'}}</p>
+        <p>{{t "You can help your communicator learn to use their words by showing them! Look for opportunities to <b>use the word \"%{word}\"</b> in different activities and settings so they will get more comfortable with the word." word=current_activity.word key="chances_to_use_word"}}</p>
+        <p style='margin-top: 30px; font-size: 14px;'>{{t "Below are some other words %app_name% sees might be useful to work with for your communicators." key="more_core_words"}}</p>
       {{else}}
-        <p style='font-size: 14px;'>{{t "Each of the following words were suggested based on available user activity, goals, time in the app, etc. Some words are included for different reasons, you can review the reasons below, or set a goal inside of %app_name% to track progress toward these words." key='target_words_explainer'}}</p>
+        <p style='font-size: 14px;'>{{t "Each of the following words were suggested based on available user activity, goals, time in the app, etc. Some words are included for different reasons, you can review the reasons below, or set a goal inside of %app_name% to track progress toward these words." key="target_words_explainer"}}</p>
       {{/if}}
       <div style='margin: 20px 60px 30px;'>
         <table class='table table-striped'>
@@ -48,7 +48,7 @@
                 {{word.text_reasons}}
                 {{#if word.matching_users}}
                   <div class='text-muted' style='font-size: 13px;'>
-                    {{t "for" key='for_lower'}} {{t "user" count=word.matching_users key='n_users'}}
+                    {{t "for" key="for_lower"}} {{t "user" count=word.matching_users key="n_users"}}
                   </div>
                 {{/if}}
               </td>
@@ -58,17 +58,17 @@
         </table>
       </div>
       <div style='text-align: center;'>
-        <button {{action 'target_words'}} class='btn btn-default'>{{t "Back to List" key='back_to_list'}}</button>
-        <button {{action 'make_goal'}} class='btn btn-default'>{{t "Choose Goal Words" key='make_goal_for_words'}}</button>
+        <button {{action "target_words"}} class='btn btn-default'>{{t "Back to List" key="back_to_list"}}</button>
+        <button {{action "make_goal"}} class='btn btn-default'>{{t "Choose Goal Words" key="make_goal_for_words"}}</button>
       </div>
     {{else if current_activity.target_words}}
       <span class='glyphicon glyphicon-screenshot' style='font-size: 80px; float: left; margin-right: 20px;'></span>
       <p>
-        {{t "As you use %app_name%, the app will automatically generate <b>target words</b> that you can choose to focus on with your communicator." key='target_words_explainer2'}}
+        {{t "As you use %app_name%, the app will automatically generate <b>target words</b> that you can choose to focus on with your communicator." key="target_words_explainer2"}}
         {{#if user_words}}
-          {{t "Below are some words you may want to consider using. %app_name% shows different ideas throughout the day for ways to use the target words, so check back regularly." key='target_user_words'}}
+          {{t "Below are some words you may want to consider using. %app_name% shows different ideas throughout the day for ways to use the target words, so check back regularly." key="target_user_words"}}
         {{else}}
-          {{t "The list of suggestions will update throughout the day, so check back regularly for new ideas of activities to try with your communicator." key='target_no_user_words'}}
+          {{t "The list of suggestions will update throughout the day, so check back regularly for new ideas of activities to try with your communicator." key="target_no_user_words"}}
         {{/if}}
       </p>
       <ul class="list-group" style='width: 300px; margin: 20px auto;'>
@@ -77,30 +77,30 @@
         {{/each}}
       </ul>
       <p>
-        {{t "You can review this list in the future by hitting the \"targets\" list at the top of this window." key='link_at_top_of_window'}}
+        {{t "You can review this list in the future by hitting the \"targets\" list at the top of this window." key="link_at_top_of_window"}}
       </p>
     {{else if current_activity.no_home_board}}
       <span class='glyphicon glyphicon-home' style='font-size: 140px; float: left; margin-right: 10px;'></span>
-      <p>{{t "You don't have a home board set! Modeling Ideas draws suggestions from buttons in your home board set, so it won't do a lot of good until you choose a home board." key='home_board_required'}}</p>
-      {{#link-to "home-boards" class='btn btn-default btn-lg'}}
-        {{t "Help Me Choose a Home Board" key='help_me_choose_a_home_board'}}
+      <p>{{t "You don't have a home board set! Modeling Ideas draws suggestions from buttons in your home board set, so it won't do a lot of good until you choose a home board." key="home_board_required"}}</p>
+      {{#link-to "home-boards" class="btn btn-default btn-lg"}}
+        {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
       {{/link-to}}
     {{else if current_activity.empty}}
       <span class='glyphicon glyphicon-hourglass' style='font-size: 140px; float: left; margin-right: 10px;'></span>
-      <p>{{t "Sorry! We don't have any suggestions for you right now! We're continually adding more core words and suggestions, so please check back soon for more ideas!" key='no_data_yet'}}</p>
+      <p>{{t "Sorry! We don't have any suggestions for you right now! We're continually adding more core words and suggestions, so please check back soon for more ideas!" key="no_data_yet"}}</p>
     {{else if current_activity.none_premium}}
       <span class='glyphicon glyphicon-info-sign' style='font-size: 70px; float: left; margin-right: 10px;'></span>
-      <p>{{t "%app_name%'s Modeling Ideas require a premium membership to access for users. Modeling Ideas are a powerful feature that can make a significant different for developing communicators. Please consider purchasing a license to access these ideas." key='purchase_to_unlock_modeling_ideas'}}</p>
+      <p>{{t "%app_name%'s Modeling Ideas require a premium membership to access for users. Modeling Ideas are a powerful feature that can make a significant different for developing communicators. Please consider purchasing a license to access these ideas." key="purchase_to_unlock_modeling_ideas"}}</p>
     {{else if current_activity.real}}
       {{#if current_activity.types.topic_starters}}
       {{else if current_activity.image.image_url}}
         <img src={{current_activity.image.image_url}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'/>
       {{else}}
-        <img src={{path 'images/modeling_ideas.svg'}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'/>
+        <img src={{path "images/modeling_ideas.svg"}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'/>
       {{/if}}
       {{#if current_activity.follow_up}}
-        <h3>{{t "How Did It Go?" key='how_did_it_go'}}</h3>
-        <h4>{{ current_activity.text }} ({{t "using the word:" key='using_the_word'}} {{current_activity.word}})</h4>
+        <h3>{{t "How Did It Go?" key="how_did_it_go"}}</h3>
+        <h4>{{ current_activity.text }} ({{t "using the word:" key="using_the_word"}} {{current_activity.word}})</h4>
       {{else}}
         <h3>{{ current_activity.text }} ({{current_activity.word}})</h3>
       {{/if}}
@@ -108,16 +108,16 @@
         <p>{{current_activity.description}}</p>
       {{/if}}
       {{#if current_activity.types.books}}
-        <p>{{t "Read the book together, taking time to model \"%{w}\"  and other target words to make observations, or to ask and answer questions." w=current_activity.word key='repeat_and_model_book'}}</p>
+        <p>{{t "Read the book together, taking time to model \"%{w}\"  and other target words to make observations, or to ask and answer questions." w=current_activity.word key="repeat_and_model_book"}}</p>
         {{#unless current_activity.follow_up}}
-          <button {{action 'book' true}} class='btn btn-primary btn-lg'><span class='glyphicon glyphicon-book'></span> {{t "Read the Book Together" key='read_the_book_together'}}</button>
-          <a {{action 'book'}}><span class='glyphicon glyphicon-book'></span> {{t "Preview" key='preview'}}</a>
+          <button {{action "book" true}} class='btn btn-primary btn-lg'><span class='glyphicon glyphicon-book'></span> {{t "Read the Book Together" key="read_the_book_together"}}</button>
+          <a {{action "book"}}><span class='glyphicon glyphicon-book'></span> {{t "Preview" key="preview"}}</a>
         {{/unless}}
       {{else if current_activity.types.videos}}
-        <p>{{t "Watch the video together, looking for opportunities to model \"%{w}\" and other target words to make observations or repeat from the video." w=current_activity.word key='repeat_and_model_video'}}</p>
+        <p>{{t "Watch the video together, looking for opportunities to model \"%{w}\" and other target words to make observations or repeat from the video." w=current_activity.word key="repeat_and_model_video"}}</p>
         {{#unless current_activity.follow_up}}
-          <button {{action 'video'}} class='btn btn-default btn-lg'><span class='glyphicon glyphicon-play-circle'></span> {{t "Preview" key='preview'}}</button>
-          <button {{action 'video' true}} class='btn btn-primary btn-lg'><span class='glyphicon glyphicon-play-circle'></span> {{t "Watch the Video Together" key='watch_the_video_together'}}</button>
+          <button {{action "video"}} class='btn btn-default btn-lg'><span class='glyphicon glyphicon-play-circle'></span> {{t "Preview" key="preview"}}</button>
+          <button {{action "video" true}} class='btn btn-primary btn-lg'><span class='glyphicon glyphicon-play-circle'></span> {{t "Watch the Video Together" key="watch_the_video_together"}}</button>
         {{/unless}}
       {{else if current_activity.types.topic_starters}}
         <div style='text-align: center;'>
@@ -125,64 +125,64 @@
         </div>
       {{/if}}
       {{#if current_activity.completed}}
-        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thanks for reporting!" key='thanks_for_reporting'}}</div>
+        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thanks for reporting!" key="thanks_for_reporting"}}</div>
       {{else if current_activity.will_attempt}}
-        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thanks! Give this activity a try and we'll follow up later to see how it went!" key='follow_up_later'}}</div>
+        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thanks! Give this activity a try and we'll follow up later to see how it went!" key="follow_up_later"}}</div>
       {{else if current_activity.dismissed}}
-        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thank you for the feedback, we'll keep adding new ideas!" key='thank_you_for_feedback'}}</div>
+        <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thank you for the feedback, we'll keep adding new ideas!" key="thank_you_for_feedback"}}</div>
       {{else if current_activity.matching_users}}
-        <div style='font-size: 13px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key='activity_match_for'}} {{t "user" count=current_activity.matching_users key='n_users'}}</div>
+        <div style='font-size: 13px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key="activity_match_for"}} {{t "user" count=current_activity.matching_users key="n_users"}}</div>
       {{/if}}
     {{else if current_activity}}
-      <img src={{path 'images/modeling_ideas.svg'}} style='width: 150px; float: left; margin-right: 10px;'/>
-      <p>{{t "Did you know that new communicators learn to combine words by observing others do it first? Did you know that babies hear thousands of hours of spoken language before speaking on their own? Or that AAC experts recommend up to 80% of communication with a new user be modeled on a device?" key='modeling_ideas_intro_1'}}</p>
+      <img src={{path "images/modeling_ideas.svg"}} style='width: 150px; float: left; margin-right: 10px;'/>
+      <p>{{t "Did you know that new communicators learn to combine words by observing others do it first? Did you know that babies hear thousands of hours of spoken language before speaking on their own? Or that AAC experts recommend up to 80% of communication with a new user be modeled on a device?" key="modeling_ideas_intro_1"}}</p>
       <!-- source: https://www.facebook.com/groups/421704261346486/permalink/830509463799295/ -->
-      <p>{{t "Modeling, or showing examples of how to hit buttons to communicate, is very important! As you start work with communicators who are using AAC, look for chances to model different words, or the same words in different ways. It may take practice to get comfortable or to see results, but research has shown over and over how much of a different modeling makes!" key='modeling_ideas_intro_2'}}</p>
-      <p>{{t "<b>Modeling Ideas</b> is a %app_name% tool that recommends a few activities every day based on target words from your user's goals and log history. We hope it helps give you lots of ideas to help your communicator grow!" key='modeling_intro_3'}}</p>
+      <p>{{t "Modeling, or showing examples of how to hit buttons to communicate, is very important! As you start work with communicators who are using AAC, look for chances to model different words, or the same words in different ways. It may take practice to get comfortable or to see results, but research has shown over and over how much of a different modeling makes!" key="modeling_ideas_intro_2"}}</p>
+      <p>{{t "<b>Modeling Ideas</b> is a %app_name% tool that recommends a few activities every day based on target words from your user's goals and log history. We hope it helps give you lots of ideas to help your communicator grow!" key="modeling_intro_3"}}</p>
     {{/if}}
     <div style='clear: left;'></div>
     <!-- MODEL AND STUFF {{model.users.length}} -->
   </div>
   <div class='modal-footer'>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Close" key='close'}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
     {{#if current_activity.real}}
       {{#if current_activity.follow_up}}
-        <button class={{if current_activity.will_attempt 'btn btn-primary btn-lg' 'btn btn-default btn-lg'}} {{action 'attempt'}}>{{t "Not Done Yet" key='not_done_yet'}}</button>
-        <button class={{if current_activity.dismissed 'btn btn-primary btn-lg' 'btn btn-default btn-lg'}} {{action 'dismiss'}}>{{t "Dismiss" key='dismiss'}}</button>
+        <button class={{if current_activity.will_attempt "btn btn-primary btn-lg" "btn btn-default btn-lg"}} {{action "attempt"}}>{{t "Not Done Yet" key="not_done_yet"}}</button>
+        <button class={{if current_activity.dismissed "btn btn-primary btn-lg" "btn btn-default btn-lg"}} {{action "dismiss"}}>{{t "Dismiss" key="dismiss"}}</button>
         <div style='margin-top: 5px; margin-left: 89px;'>
-          <button class={{if current_activity.complete_score.score_1 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action 'complete' 1}}>
+          <button class={{if current_activity.complete_score.score_1 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 1}}>
             <span class="face sad"></span>
-            {{t "We didn't<br/>do it" key='we_didnt_do_it'}}
+            {{t "We didn't<br/>do it" key="we_didnt_do_it"}}
           </button>
-          <button class={{if current_activity.complete_score.score_2 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action 'complete' 2}}>
+          <button class={{if current_activity.complete_score.score_2 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 2}}>
             <span class="face neutral"></span>
-            {{t "We barely<br/>did it" key='we_barely_did_it'}}
+            {{t "We barely<br/>did it" key="we_barely_did_it"}}
           </button>
-          <button class={{if current_activity.complete_score.score_3 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action 'complete' 3}}>
+          <button class={{if current_activity.complete_score.score_3 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 3}}>
             <span class="face happy"></span>
-            {{t "We did<br/>good!" key='we_did_good'}}
+            {{t "We did<br/>good!" key="we_did_good"}}
           </button>
-          <button class={{if current_activity.complete_score.score_4 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action 'complete' 4}}>
+          <button class={{if current_activity.complete_score.score_4 "btn btn-primary face_button" "btn btn-default face_button"}} style='width: 80px;' {{action "complete" 4}}>
             <span class="face laugh"></span>
-            {{t "We did<br/>awesome!" key='we_did_awesome'}}
+            {{t "We did<br/>awesome!" key="we_did_awesome"}}
           </button>
         </div>
     {{else}}
       <div class="btn-group dropup">
         <button class='btn btn-default btn-lg dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
           {{#if feedback_given}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
-          {{t "Feedback" key='feedback'}} <span class="caret"></span>
+          {{t "Feedback" key="feedback"}} <span class="caret"></span>
         </button>
         <ul class="dropdown-menu" role="menu">
-          <li><a href="#" {{action 'attempt'}}>{{#if current_activity.will_attempt}}<span class='glyphicon glyphicon-ok'></span>{{/if}} {{t "Great Idea!" key='great_idea'}}</a></li>
-          <li><a href="#" {{action 'dismiss'}}>{{#if current_activity.dismissed}}<span class='glyphicon glyphicon-ok'></span>{{/if}} {{t "Not a Good Fit" key='not_a_good_fit'}}</a></li>
+          <li><a href="#" {{action "attempt"}}>{{#if current_activity.will_attempt}}<span class='glyphicon glyphicon-ok'></span>{{/if}} {{t "Great Idea!" key="great_idea"}}</a></li>
+          <li><a href="#" {{action "dismiss"}}>{{#if current_activity.dismissed}}<span class='glyphicon glyphicon-ok'></span>{{/if}} {{t "Not a Good Fit" key="not_a_good_fit"}}</a></li>
         </ul>
       </div>
       {{/if}}
     {{/if}}
     {{#if model.speak_mode}}
       <div style='margin-top: 5px;'>
-        <button class='btn btn-sm btn-default' {{action 'badges'}}>{{t "Badges and Goals" key='badges_and_goals'}}</button>
+        <button class='btn btn-sm btn-default' {{action "badges"}}>{{t "Badges and Goals" key="badges_and_goals"}}</button>
       </div>
     {{/if}}
   </div>

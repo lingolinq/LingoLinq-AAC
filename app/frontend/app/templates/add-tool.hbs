@@ -1,11 +1,11 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if selected_tool}}
-        {{t "Add %{tool}" tool=selected_tool.name key='add_tool'}}
+        {{t "Add %{tool}" tool=selected_tool.name key="add_tool"}}
       {{else}}
-        {{t "Browse Tools" key='browse_tools'}}
+        {{t "Browse Tools" key="browse_tools"}}
       {{/if}}
     </h3>
   </div>
@@ -17,7 +17,7 @@
       </h3>
       {{#if selected_tool.integration_key}}
         {{#if selected_tool.uses}}
-          <div class='text-muted' style='margin-top: -10px; margin-bottom: 10px;'>{{t "installed by" key='installed_by'}} {{t "user" key='n_users' count=selected_tool.uses}}</div>
+          <div class='text-muted' style='margin-top: -10px; margin-bottom: 10px;'>{{t "installed by" key="installed_by"}} {{t "user" key="n_users" count=selected_tool.uses}}</div>
         {{/if}}
       {{/if}}
       <span style='white-space: pre-line'>{{safe selected_tool.description}}</span>
@@ -25,7 +25,7 @@
         <form class="form-horizontal" {{action "nothing" on="submit"}}>
           <div class="form-group">
             <div class='col-sm-8 col-sm-offset-3'>
-              <h4 class='form-control-static'>{{t "Tool Settings" key='tool_settings'}}</h4>
+              <h4 class='form-control-static'>{{t "Tool Settings" key="tool_settings"}}</h4>
             </div>
           </div>
           {{#each user_parameters as |param|}}
@@ -40,12 +40,12 @@
       {{/if}}
     {{else}}
       {{#if tools.loading}}
-        <p>{{t "Loading tools..." key='loading_tools'}}</p>
+        <p>{{t "Loading tools..." key="loading_tools"}}</p>
       {{else if tools.error}}
-        <p>{{t "Error loading tools" key='error_loading_tools'}}</p>
+        <p>{{t "Error loading tools" key="error_loading_tools"}}</p>
       {{else if tools}}
         {{#each tools as |tool|}}
-          <div class='well' {{action 'select_tool' tool}} style='cursor: pointer;'>
+          <div class='well' {{action "select_tool" tool}} style='cursor: pointer;'>
             <div>
               <img src={{tool.icon_url}} style='height: 30px; max-width: 50px;'/>
               <span style='font-weight: bold; font-size: 20px; vertical-align: middle; padding-left: 5px;'>{{tool.name}}</span>
@@ -54,34 +54,34 @@
           </div>
         {{/each}}
       {{else}}
-        <p>{{t "No tools available" key='no_tools_available'}}</p>
+        <p>{{t "No tools available" key="no_tools_available"}}</p>
       {{/if}}
     {{/if}}
   </div>
   <div class="modal-footer">
     {{#if selected_tool}}
-      <button {{action 'install'}} disabled={{not_ready}} class='btn btn-primary'>
+      <button {{action "install"}} disabled={{not_ready}} class='btn btn-primary'>
         {{#if selected_tool.installing}}
-          {{t "Installing Tool..." key='installing_tool'}}
+          {{t "Installing Tool..." key="installing_tool"}}
         {{else if selected_tool.error}}
-          {{t "Error Installing Tool" key='error_installing_tool'}}
+          {{t "Error Installing Tool" key="error_installing_tool"}}
         {{else}}
-          {{t "Install Tool" key='install_tool'}}
+          {{t "Install Tool" key="install_tool"}}
         {{/if}}
       </button>
       {{#unless hide_list}}
-        <button {{action 'browse'}} class='btn btn-default'>{{t "Back to List" key='back_to_list'}}</button>
+        <button {{action "browse"}} class='btn btn-default'>{{t "Back to List" key="back_to_list"}}</button>
       {{/unless}}
     {{/if}}
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
     {{#if selected_tool.error}}
       <div>
         {{#if selected_tool.error.bad_credentials}}
-          <em class='text-danger'>{{t "Please check that you have entered the correct settings" key='please_check_settings'}}</em>
+          <em class='text-danger'>{{t "Please check that you have entered the correct settings" key="please_check_settings"}}</em>
         {{else if selected_tool.error.credential_collision}}
-          <em class='text-danger'>{{t "It looks like those settings are already being used by a different %app_name% user" key='credentials_already_in_use'}}</em>
+          <em class='text-danger'>{{t "It looks like those settings are already being used by a different %app_name% user" key="credentials_already_in_use"}}</em>
         {{else if selected_tool.error.bad_webhook}}
-          <em class='text-danger'>{{t "The URL you entered doesn't seem to match the value needed for this integration" key='bad_webhook_url'}}</em>
+          <em class='text-danger'>{{t "The URL you entered doesn't seem to match the value needed for this integration" key="bad_webhook_url"}}</em>
         {{/if}}
       </div>
     {{/if}}

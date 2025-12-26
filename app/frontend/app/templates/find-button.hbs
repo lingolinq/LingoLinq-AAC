@@ -1,17 +1,17 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Find a Button" key='find_a_button'}}
+      {{t "Find a Button" key="find_a_button"}}
     </h3>
   </div>
   <div class="modal-body">
-    {{focus-input force="true" type="text" id="button_search_string" value=searchString class="form-control" select='pick_result' placeholder="Word or phrase you're looking for"}}
+    {{focus-input force="true" type="text" id="button_search_string" value=searchString class="form-control" select="pick_result" placeholder="Word or phrase you're looking for"}}
     {{#if searchString}}
       <div class="row" id="button_results">
         {{#if results}}
           {{#each results as |result|}}
-            <div {{action 'pick_result' result}} class="result col-sm-12">
+            <div {{action "pick_result" result}} class="result col-sm-12">
               {{#if result.sequence}}
                 <div class='img_holder'>
                   {{#each result.steps as |step|}}
@@ -21,10 +21,10 @@
                 {{result.text}}
                 <div class='location'>
                   {{#if result.extra_steps}}
-                    {{t "Get there through: " key='get_there_through'}}
+                    {{t "Get there through: " key="get_there_through"}}
                     {{#each result.steps as |step|}}
                       {{#if step.sequence.pre}}
-                        <span class='link_list'>{{t "Home" key='home'}}</span>
+                        <span class='link_list'>{{t "Home" key="home"}}</span>
                       {{/if}}
                       {{#each step.sequence.buttons as |btn|}}
                         <span class='link_list'>
@@ -44,7 +44,7 @@
                       </em></span>
                     {{/each}}
                   {{else}}
-                    {{t "On this board" key='on_this_board'}}
+                    {{t "On this board" key="on_this_board"}}
                   {{/if}}
                 </div>
               {{else}}
@@ -54,11 +54,11 @@
                 {{result.label}}
                 <div class="location">
                   {{#if result.on_this_board}}
-                    {{t "On this board" key='on_this_board'}}
+                    {{t "On this board" key="on_this_board"}}
                   {{else}}
-                    {{t "Get there through: " key='get_there_through'}}
+                    {{t "Get there through: " key="get_there_through"}}
                     {{#if result.pre_action}}
-                      <span class="link_list">{{t "Home" key='home'}}</span>
+                      <span class="link_list">{{t "Home" key="home"}}</span>
                     {{/if}}
                     {{#each result.pre_buttons as |pre|}}
                       <span class="link_list">
@@ -77,22 +77,22 @@
         {{else}}
           <div class="col-sm-12">
             {{#if loading}}
-              {{t "Loading..." key='loading'}}
+              {{t "Loading..." key="loading"}}
             {{else}}
               {{#if error}}
                 {{error}}
               {{else}}
                 {{#if button_set.buttons.length}}
-                  {{t "No buttons found" key='no_buttons_found'}}
+                  {{t "No buttons found" key="no_buttons_found"}}
                 {{else if button_set}}
-                  {{t "No buttons loaded" key='no_buttons_loaded'}}
+                  {{t "No buttons loaded" key="no_buttons_loaded"}}
                 {{else if model.board}}
-                  {{t "Couldn't load button set" key='couldnt_load_button_set'}}
+                  {{t "Couldn't load button set" key="couldnt_load_button_set"}}
                 {{else}}
-                  {{t "No board found for searching" key='no_board_found'}}
+                  {{t "No board found for searching" key="no_board_found"}}
                 {{/if}}
                 <div style='margin-top: 30px; display: none;'>
-                  <a href="#" {{action 'request_button'}}>{{t "Request this phrase as a new button" key='request_as_a_new_button'}}</a>
+                  <a href="#" {{action "request_button"}}>{{t "Request this phrase as a new button" key="request_as_a_new_button"}}</a>
                 </div>
               {{/if}}
             {{/if}}
@@ -102,6 +102,6 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

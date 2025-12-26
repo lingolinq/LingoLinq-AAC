@@ -1,22 +1,22 @@
 <p>
   {{#if @notification.push_message}}
-    {{#link-to 'user' @notification.user_name}}
+    {{#link-to "user" @notification.user_name}}
       {{@notification.user_name}}
     {{/link-to}}
-    {{t " - new note by %{user_name}" key='user_new_message' user_name=@notification.author_user_name}}
+    {{t " - new note by %{user_name}" key="user_new_message" user_name=@notification.author_user_name}}
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
       <span title={{date @notification.occurred_at}}>
         {{date_ago @notification.occurred_at}}
       </span>
-      {{t " - " key='dash'}}
+      {{t " - " key="dash"}}
       {{@notification.text}}
     </span>
   {{else if @notification.utterance_shared}}
-    {{#link-to 'user' @notification.sharer_user_name}}
+    {{#link-to "user" @notification.sharer_user_name}}
       {{@notification.sharer_user_name}}
     {{/link-to}}
-    {{t "said to you, " key='said' }}
-    {{#link-to 'utterance' @notification.id}}
+    {{t "said to you, " key="said" }}
+    {{#link-to "utterance" @notification.id}}
       {{@notification.text}}
     {{/link-to}}
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
@@ -25,62 +25,62 @@
       </span>
     </span>
   {{else if @notification.home_board_changed}}
-    {{#link-to 'user' @notification.user_name}}
+    {{#link-to "user" @notification.user_name}}
       {{@notification.user_name}}
     {{/link-to}}
-    {{t " - home board was changed" key='home_board_changed'}}
+    {{t " - home board was changed" key="home_board_changed"}}
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
       <span title={{date @notification.occurred_at}}>
         {{date_ago @notification.occurred_at}}
       </span>
-      {{#link-to 'board' @notification.key}}
+      {{#link-to "board" @notification.key}}
         {{@notification.key}}
       {{/link-to}}
     </span>
   {{else if @notification.org_removed}}
-    {{t "You have been removed as a %{role} for the organization %{org_name}" key='removed_from_org' role=@notification.user_type org_name=@notification.org_name}}
+    {{t "You have been removed as a %{role} for the organization %{org_name}" key="removed_from_org" role=@notification.user_type org_name=@notification.org_name}}
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
       <span title={{date @notification.occurred_at}}>
         {{date_ago @notification.occurred_at}}
       </span>
     </span>
   {{else if @notification.badge_awarded}}
-    {{#link-to 'user' @notification.user_name}}
+    {{#link-to "user" @notification.user_name}}
       {{@notification.user_name}}
     {{/link-to}}
-    {{t " - new badge," key='new_badge_awarded'}}
-    {{#link-to 'user.badges' @notification.user_name}}{{@notification.badge_name}}{{/link-to}}
+    {{t " - new badge," key="new_badge_awarded"}}
+    {{#link-to "user.badges" @notification.user_name}}{{@notification.badge_name}}{{/link-to}}
 
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
       <span title={{date @notification.occurred_at}}>
         {{date_ago @notification.occurred_at}}
       </span>
-      {{t " - " key='dash'}}
-      {{t "level %{level}" key='level_n_lower' level=@notification.badge_level}}
+      {{t " - " key="dash"}}
+      {{t "level %{level}" key="level_n_lower" level=@notification.badge_level}}
     </span>
   {{else if @notification.board_buttons_changed}}
-    {{#link-to 'board' @notification.key}}
+    {{#link-to "board" @notification.key}}
       {{@notification.name}}
     {{/link-to}}
-    {{t " - board was modified" key='board_contents_changed'}}
+    {{t " - board was modified" key="board_contents_changed"}}
     <span style='font-size: 10px;'>
-      {{#link-to 'board.history' @notification.key}}{{t "history" key='history'}}{{/link-to}}
+      {{#link-to "board.history" @notification.key}}{{t "history" key="history"}}{{/link-to}}
     </span>
     <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">
       <span title={{date @notification.occurred_at}}>
         {{date_ago @notification.occurred_at}}
       </span>
       {{#if this.app_state.currentUser.supporter_role}}
-        {{t " - " key='dash'}}
-        {{t "used by" key='used_by'}}
+        {{t " - " key="dash"}}
+        {{t "used by" key="used_by"}}
         {{#if @notification.for_user}}
-          {{#link-to 'user' this.app_state.currentUser.user_name}}
-            {{t "you" key='you'}}{{/link-to}}{{#if @notification.for_supervisees}}{{t ", " key='comma_space'}}{{/if}}
+          {{#link-to "user" this.app_state.currentUser.user_name}}
+            {{t "you" key="you"}}{{/link-to}}{{#if @notification.for_supervisees}}{{t ", " key="comma_space"}}{{/if}}
         {{/if}}
         {{#if @notification.for_supervisees}}
           {{#each @notification.for_supervisees as |supervisee index|}}
-            {{#if index}}{{t ", " key='comma_space'}}{{/if}}
-            {{#link-to 'user' supervisee}}
+            {{#if index}}{{t ", " key="comma_space"}}{{/if}}
+            {{#link-to "user" supervisee}}
               {{supervisee}}
             {{/link-to}}
           {{/each}}

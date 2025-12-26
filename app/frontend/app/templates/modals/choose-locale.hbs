@@ -1,14 +1,14 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Choose Language" key='choose_language'}}
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Choose Language" key="choose_language"}}
     </h3>
   </div>
   <div class="modal-body">
-    <p>{{t "Choose from the list of supported languages" key='select_language'}}</p>
+    <p>{{t "Choose from the list of supported languages" key="select_language"}}</p>
     <form class="form-horizontal" {{action "nothing" on="submit"}}>
       <div class="form-group">
-        <label for="lang" class="col-sm-3 control-label">{{t "Language" key='language'}}</label>
+        <label for="lang" class="col-sm-3 control-label">{{t "Language" key="language"}}</label>
         <div class="col-sm-9">
           {{bound-select select_class="form-control" select_id="lang" content=locales selection=lang action=(action (mut lang)) }}
         </div>
@@ -16,7 +16,7 @@
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn btn-primary" {{action 'update'}}>{{t "Update & Reload" key='update_and_reload'}}</a>
-    <a href="#" class="btn btn-default" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+    <a href="#" class="btn btn-primary" {{action "update"}}>{{t "Update & Reload" key="update_and_reload"}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

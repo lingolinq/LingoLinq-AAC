@@ -1,6 +1,6 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       Usage Report for
       {{model.name}}
@@ -9,66 +9,66 @@
   <div class="modal-body">
     {{#if stats}}
       {{# if stats.error}}
-        {{t "Stats failed to load" key='stats_failed_to_load'}}
+        {{t "Stats failed to load" key="stats_failed_to_load"}}
       {{else}}
         <dl class="dl-horizontal">
-          <dt>{{t "Uses" key='people_using_this_board'}}</dt>
-          <dd>{{t "%{num} people use this board" num=stats.uses key='n_people_use_this_board'}}</dd>
+          <dt>{{t "Uses" key="people_using_this_board"}}</dt>
+          <dd>{{t "%{num} people use this board" num=stats.uses key="n_people_use_this_board"}}</dd>
 
           {{#if model.using_user_names}}
-            <dt>{{t "Known Users" key='known_users'}}</dt>
+            <dt>{{t "Known Users" key="known_users"}}</dt>
             <dd><div style='max-height: 50px; overflow: auto;'>{{using_user_names}}</div></dd>
           {{/if}}
 
-          <dt>{{t "Home Uses" key='people_using_this_home_board'}}</dt>
-          <dd>{{t "%{num} people use this as their home board" num=stats.home_uses key='n_people_use_this_home_board'}}</dd>
+          <dt>{{t "Home Uses" key="people_using_this_home_board"}}</dt>
+          <dd>{{t "%{num} people use this as their home board" num=stats.home_uses key="n_people_use_this_home_board"}}</dd>
 
-          <dt>{{t "Likes" key='stars'}}</dt>
+          <dt>{{t "Likes" key="stars"}}</dt>
           <dd>{{ stats.stars }}</dd>
 
-          <dt>{{t "Copies" key='forks'}}</dt>
+          <dt>{{t "Copies" key="forks"}}</dt>
           <dd>{{ stats.forks }}</dd>
 
-          <dt>{{t "Popular Copies" key='popular_forks'}}</dt>
+          <dt>{{t "Popular Copies" key="popular_forks"}}</dt>
           <dd>
             {{#if stats.popular_forks}}
               <ul>
               {{#each stats.popular_forks as |fork|}}
                 <li>
-                  {{#link-to 'board' fork.key}}
+                  {{#link-to "board" fork.key}}
                     {{fork.key}}
-                  {{/link-to}} - {{t "use" count=fork.uses key='n_uses' }}
+                  {{/link-to}} - {{t "use" count=fork.uses key="n_uses" }}
                 </li>
               {{/each}}
               </ul>
             {{else}}
-              {{t "None" key='none_upper'}}
+              {{t "None" key="none_upper"}}
             {{/if}}
           </dd>
-          <dt>{{t "Connected Boards" key='connected_boards'}}</dt>
+          <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
             <dd>
               {{model.downstream_boards}}
             </dd>
-          <dt>{{t "Dimensions" key='dimensions'}}</dt>
+          <dt>{{t "Dimensions" key="dimensions"}}</dt>
             <dd>{{model.grid.rows}} x {{model.grid.columns}}</dd>
 
-          <dt>{{t "Total Buttons" key='total_buttons'}}</dt>
+          <dt>{{t "Total Buttons" key="total_buttons"}}</dt>
             <dd>
               {{model.total_buttons}}
             </dd>
-          <dt>{{t "Total Unlinked Buttons" key='unlinked_buttons'}}</dt>
+          <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
             <dd>{{model.unlinked_buttons}}</dd>
         </dl>
       {{/if}}
     {{else}}
       {{#if persistence.online}}
         {{#if app_state.currentUser}}
-          {{t "Loading..." key='loading'}}
+          {{t "Loading..." key="loading"}}
         {{else}}
-          <p class="text-danger">{{t "Must be logged in to see board stats" key='must_be_logged_for_board_state'}}</p>
+          <p class="text-danger">{{t "Must be logged in to see board stats" key="must_be_logged_for_board_state"}}</p>
         {{/if}}
       {{else}}
-        <p class="text-danger">{{t "Not Online" key='not_online'}}</p>
+        <p class="text-danger">{{t "Not Online" key="not_online"}}</p>
       {{/if}}
     {{/if}}
   </div>

@@ -1,59 +1,59 @@
 <div style='max-width: 600px; margin: 20px auto 0;'>
   {{#if result.loading}}
-    <h2>{{t "Loading..." key='loading'}} {{code}}</h2>
+    <h2>{{t "Loading..." key="loading"}} {{code}}</h2>
   {{else if result.error}}
-    <h2>{{t "Error Loading" key='error_loading'}} {{code}}</h2>
+    <h2>{{t "Error Loading" key="error_loading"}} {{code}}</h2>
   {{else}}
     {{#if result.image_url}}
       <img src={{result.image_url}} style='width: 50px; height: 50px; margin-right: 15px; margin-top: -10px;' class='fit_image' />
     {{else}}
       <span class='glyphicon glyphicon-paperclip' style='float: left; font-size: 50px; margin-right: 15px; margin-top: -10px;'></span>
     {{/if}}
-    <h2>{{t "Start Code - " key='start_code_dash'}} {{result.code}}</h2>
+    <h2>{{t "Start Code - " key="start_code_dash"}} {{result.code}}</h2>
     <div style='clear: both;'></div>
     <dl class='dl-horizontal'>
-      <dt>{{t "Name:" key='name_colon'}}</dt>
+      <dt>{{t "Name:" key="name_colon"}}</dt>
         <dd>
           {{#if result.organization}}
-            {{#link-to 'organization' result.target_id}}{{result.name}}{{/link-to}}
+            {{#link-to "organization" result.target_id}}{{result.name}}{{/link-to}}
           {{else if result.supervisor}}
-            {{#link-to 'user' result.target_id}}{{result.name}}{{/link-to}}
+            {{#link-to "user" result.target_id}}{{result.name}}{{/link-to}}
           {{else}}
             {{result.name}}
           {{/if}}
           {{#if result.disabled}}
-            {{t "(disabled)" key='paren_disabled'}}
+            {{t "(disabled)" key="paren_disabled"}}
           {{/if}}
         </dd>
-      <dt>{{t "Type:" key='type_colon'}}</dt>
+      <dt>{{t "Type:" key="type_colon"}}</dt>
         <dd>{{result.type}}</dd>
       {{#if result.overrides.home_board_key}}
-        <dt>{{t "Home Board:" key='home_board_colon'}}</dt>
+        <dt>{{t "Home Board:" key="home_board_colon"}}</dt>
           <dd>
-            {{#link-to 'board' result.overrides.home_board_key}}
+            {{#link-to "board" result.overrides.home_board_key}}
               {{result.overrides.home_board_key}}
             {{/link-to}}
           </dd>
       {{/if}}
       {{#if result.overrides.locale}}
-        <dt>{{t "Language:" key='language_colon'}}</dt> 
+        <dt>{{t "Language:" key="language_colon"}}</dt> 
           <dd>{{result.overrides.locale}}</dd>
       {{/if}}
       {{#if result.overrides.symbol_library}}
-        <dt>{{t "Symbols:" key='symbols_colon'}}</dt> 
+        <dt>{{t "Symbols:" key="symbols_colon"}}</dt> 
           <dd>{{result.overrides.symbol_library}}</dd>
       {{/if}}
       {{#if result.overrides.premium}}
-        <dt>{{t "Sponsored" key='sponsored'}}</dt>
-          <dd>{{t "yes" key='yes'}}</dd>
+        <dt>{{t "Sponsored" key="sponsored"}}</dt>
+          <dd>{{t "yes" key="yes"}}</dd>
       {{/if}}
       {{#if result.overrides.premium_symbols}}
-        <dt>{{t "Premium Symbols" key='premium_symbols'}}</dt>
-          <dd>{{t "yes" key='yes'}}</dd>
+        <dt>{{t "Premium Symbols" key="premium_symbols"}}</dt>
+          <dd>{{t "yes" key="yes"}}</dd>
       {{/if}}
       {{#if result.overrides.supervisors}}
         <dt>
-          {{t "Supervisors:" key='supervisors_colon'}}
+          {{t "Supervisors:" key="supervisors_colon"}}
         </dt>
           <dd>
             {{#each result.overrides.supervisors as |sup|}}
@@ -62,12 +62,12 @@
           </dd>
       {{/if}}
     </dl>
-    <h4>{{t "Activated Users" key='activated_users'}}</h4>
+    <h4>{{t "Activated Users" key="activated_users"}}</h4>
     {{#if result.users.length}}
       <ul class='list-group'>
       {{#each result.users as |user|}}
         <li class='list-group-item'>
-          {{#link-to 'user' user.id}}
+          {{#link-to "user" user.id}}
             <img src={{user.avatar_url}} style='height: 30px; width: 30px; margin-right: 10px;' class='fit_image' />
             {{user.user_name}}
           {{/link-to}}
@@ -75,7 +75,7 @@
       {{/each}}
       </ul>
     {{else}}
-      <p>{{t "None" key='none'}}</p>
+      <p>{{t "None" key="none"}}</p>
     {{/if}}
   {{/if}}
 </div>

@@ -1,38 +1,38 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-body advanced_selection modal_targets" id="speak_menu" style="padding: 0; font-size: 18px;">
     {{#if app_state.feature_flags.new_speak_menu}}
-      {{#button-listener button_event='button_event'}}
+      {{#button-listener button_event="button_event"}}
         <div class='row' style='margin-left: -1px; margin-top: -1px; width: calc(100% + 2px); border-bottom: 1px solid #000;'>
           {{#if repeat_menu}}
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_quieter'>
               <span class='glyphicon glyphicon-volume-down'></span>
-              {{t "Quiet" key='quiet'}}
+              {{t "Quiet" key="quiet"}}
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button radial radial_on_click' id='menu_repeat_button'>
               <span class='glyphicon glyphicon-arrow-left' style='opacity: 0.7;'></span>
-              <span style='opacity: 0.7;'>{{t "Back" key='back'}}</span>
+              <span style='opacity: 0.7;'>{{t "Back" key="back"}}</span>
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_louder'>
               <span class='glyphicon glyphicon-volume-up'></span>
-              {{t "Loud" key='loud'}}
+              {{t "Loud" key="loud"}}
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_text'>
               <span class='glyphicon glyphicon-modal-window'></span>
-              {{t "Button" key='Button'}}
+              {{t "Button" key="Button"}}
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_flip'>
               <span class='glyphicon glyphicon-repeat'></span>
-              {{t "Flip Text" key='flip_text'}}
+              {{t "Flip Text" key="flip_text"}}
             </div>
             {{#if app_state.referenced_user.preferences.hide_gif}}
               <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button'>
                 <span class='glyphicon glyphicon-share'></span>
-                {{t "Share" key='share'}}
+                {{t "Share" key="share"}}
               </div>
             {{else}}
               <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_gif'>
                 <span class='glyphicon glyphicon-picture'></span>
-                {{t "GIF" key='gif'}}
+                {{t "GIF" key="gif"}}
               </div>
             {{/if}}
           {{else if punctuation_menu}}

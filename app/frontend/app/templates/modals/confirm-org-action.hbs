@@ -1,10 +1,10 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     {{#if set_home_board}}
-      <h3>{{t "Set Home Board?" key='set_home_board_question'}}</h3>
+      <h3>{{t "Set Home Board?" key="set_home_board_question"}}</h3>
     {{else}}
-      <h3>{{t "Confirm Remove" key='confirm_remove'}}</h3>
+      <h3>{{t "Confirm Remove" key="confirm_remove"}}</h3>
     {{/if}}
   </div>
   <div class="modal-body">
@@ -13,17 +13,17 @@
         <div class="col-sm-8 col-sm-offset-2">
           <p class="form-control-static">
             {{#if set_home_board}}
-              {{t "Would you like to set a home board for the user <b>%{user_name}</b>, if they don't already have one set?" user_name=model.user_name key='confirm_set_home_board'}}
+              {{t "Would you like to set a home board for the user <b>%{user_name}</b>, if they don't already have one set?" user_name=model.user_name key="confirm_set_home_board"}}
             {{else if model.user_name}}
-              {{t "Are you sure you want to remove the user <b>%{user_name}</b> from the org?" user_name=model.user_name key='confirm_remove_user'}}
+              {{t "Are you sure you want to remove the user <b>%{user_name}</b> from the org?" user_name=model.user_name key="confirm_remove_user"}}
             {{else if model.unit_user_name}}
-              {{t "Are you sure you want to remove the user from the room?" user_name=model.user_name key='confirm_remove_unit_user'}}
+              {{t "Are you sure you want to remove the user from the room?" user_name=model.user_name key="confirm_remove_unit_user"}}
             {{else if model.org_name}}
-              {{t "Are you sure you want to delete the org <b>%{org_name}</b> permanently? This cannot be undone. If so, please type \"confirmed\" in the box below." org_name=model.org_name key='confirm_remove_org'}}
+              {{t "Are you sure you want to delete the org <b>%{org_name}</b> permanently? This cannot be undone. If so, please type \"confirmed\" in the box below." org_name=model.org_name key="confirm_remove_org"}}
             {{else if model.lesson_name}}
-              {{t "Are you sure you want to remove the training <b>%{ln}</b> from this organization?" ln=model.lesson_name key='confirm_remove_training'}}
+              {{t "Are you sure you want to remove the training <b>%{ln}</b> from this organization?" ln=model.lesson_name key="confirm_remove_training"}}
             {{else}}
-              {{t "Are you sure you want to remove this? If so, please type \"confirmed\" in the box below." key='confirm_remove_other'}}
+              {{t "Are you sure you want to remove this? If so, please type \"confirmed\" in the box below." key="confirm_remove_other"}}
             {{/if}}
           </p>
         </div>
@@ -31,7 +31,7 @@
       {{#if set_home_board}}
         <div class='form-group'>
           <label for='home_board' class='col-sm-offset-1 col-sm-3'>
-            {{t "Home Board:" key='home_board_colon'}}
+            {{t "Home Board:" key="home_board_colon"}}
           </label>
           <div class='col-sm-6'>
             {{bound-select select_class="form-control" select_id="home_board" content=board_options selection=home_board_template action=(action (mut home_board_template)) }}
@@ -39,13 +39,13 @@
         </div>
         {{#if board_will_copy}}
           <div class="form-group">
-            <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key='preferred_symbols'}}</label>
+            <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
             <div class="col-sm-6">
               {{bound-select select_class="form-control" select_id="preferred_symbols" content=symbols_list selection=preferred_symbols action=(action (mut preferred_symbols)) }}
               {{#if premium_symbol_library}}
                 {{#unless add_symbols}}
                   <div class='text-danger' style='margin-left: 10px;'>
-                    {{t "(will not apply without premium symbols access)" key='wont_apply_without_premium_symbols'}}            
+                    {{t "(will not apply without premium symbols access)" key="wont_apply_without_premium_symbols"}}            
                   </div>
                 {{/unless}}
               {{/if}}
@@ -54,13 +54,13 @@
           {{#if premium_symbol_library}}
             {{#if model.org.extras_available}}
               <div class="form-group">
-                <label for="extras" class="col-sm-4 control-label">{{t "Premium Symbols" key='premium_symbols'}}</label>
+                <label for="extras" class="col-sm-4 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                 <div class="col-sm-6">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input type="checkbox" id='extras' checked=add_symbols}}
-                      {{t "Grant premium symbol access if not already granted" key='grand_premium_symbols_if_needed'}}
-                      ({{model.org.extras_available_count}} {{t "left" key='left'}})
+                      {{input type="checkbox" id="extras" checked=add_symbols}}
+                      {{t "Grant premium symbol access if not already granted" key="grand_premium_symbols_if_needed"}}
+                      ({{model.org.extras_available_count}} {{t "left" key="left"}})
                     </label>
                   </div>
                 </div>
@@ -85,27 +85,27 @@
   </div>
   <div class="modal-header">
     {{#if set_home_board}}
-      <button class='btn btn-primary btn-lg' {{action 'confirm'}}>
-        {{t "Continue" key='continue'}}
+      <button class='btn btn-primary btn-lg' {{action "confirm"}}>
+        {{t "Continue" key="continue"}}
       </button>
-      <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{else}}
-      <button class='btn btn-default btn-lg' {{action 'confirm'}}>
+      <button class='btn btn-default btn-lg' {{action "confirm"}}>
         {{#if set_home_board}}
-          {{t "Continue" key='continue'}}
+          {{t "Continue" key="continue"}}
         {{else if model.user_name}}
-          {{t "Remove User" key='remove_user'}}
+          {{t "Remove User" key="remove_user"}}
         {{else if model.unit_user_name}}
-          {{t "Remove User" key='remove_user'}}
+          {{t "Remove User" key="remove_user"}}
         {{else if model.lesson_name}}
-          {{t "Remove Training" key='remove_training'}}
+          {{t "Remove Training" key="remove_training"}}
         {{else if model.org_name}}
-          {{t "Delete Account" key='delete_account'}}
+          {{t "Delete Account" key="delete_account"}}
         {{else}}
-          {{t "Delete" key='delete'}}
+          {{t "Delete" key="delete"}}
         {{/if}}
       </button>
-      <button class='btn btn-primary btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+      <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{/if}}
     {{#if error}}
       <p class='text-danger'>{{error}}</p>

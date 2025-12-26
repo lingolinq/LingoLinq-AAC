@@ -1,19 +1,19 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Delete Logs" key='delete_logs'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Delete Logs" key="delete_logs"}}</h3>
   </div>
   <div class="modal-body">
     <div class="form-horizontal">
       <div class="form-group">
         <div class="col-sm-8 col-sm-offset-3">
           <p class="form-control-static">
-            {{t "Are you sure you want to delete your logs? This will remove all usage history currently recorded and cannot be undone. Your logs will be deleted in the next approximate 24 hours. To confirm, please enter your user name below." key='confirm_user_name_for_delete_logs'}}
+            {{t "Are you sure you want to delete your logs? This will remove all usage history currently recorded and cannot be undone. Your logs will be deleted in the next approximate 24 hours. To confirm, please enter your user name below." key="confirm_user_name_for_delete_logs"}}
           </p>
         </div>
       </div>
       <div class="form-group">
-        <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key='user_name'}}</label>
+        <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
         <div class="col-sm-5">
           {{input value=user_name class="form-control" id="user_name" placeholder="user_name"}}
         </div>
@@ -21,8 +21,8 @@
     </div>
   </div>
   <div class="modal-header">
-    <button class='btn btn-primary btn-lg' {{action 'delete_logs'}}>{{t "Delete Logs" key='delete_logs'}}</button>
-    <button class='btn btn-default btn-lg' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-primary btn-lg' {{action "delete_logs"}}>{{t "Delete Logs" key="delete_logs"}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{#if error}}
       <p class='text-danger'>{{error}}</p>
     {{/if}}

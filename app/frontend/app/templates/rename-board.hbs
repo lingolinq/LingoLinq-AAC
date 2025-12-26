@@ -1,47 +1,47 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Change Board Key" key='change_board_key'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Change Board Key" key="change_board_key"}}</h3>
   </div>
   <div class="modal-body">
     <p>
-      {{t "Are you sure you want to change this board's key?" key='confirm_rename_board'}}
+      {{t "Are you sure you want to change this board's key?" key="confirm_rename_board"}}
     </p>
     <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;"/>
     <strong>{{model.board.name}}</strong><br/>
     {{model.board.grid.rows}} x {{model.board.grid.columns}}
 
     <div style='margin: 20px 0;'>
-      {{t "To confirm the change, please enter the board's current key and new key below. The board's current key is <b>%{k}</b>" key='confirm_change_with_entry' k=old_key}}
+      {{t "To confirm the change, please enter the board's current key and new key below. The board's current key is <b>%{k}</b>" key="confirm_change_with_entry" k=old_key}}
     </div>
 
     <form class="form-horizontal" {{action "nothing"}}>
       <div class="form-group">
-        <label for="old_key" class="col-sm-3 control-label">{{t "Current Key" key='current_key'}}</label>
+        <label for="old_key" class="col-sm-3 control-label">{{t "Current Key" key="current_key"}}</label>
         <div class="col-sm-5">
-          {{input type='text' class='form-control' id='old_key' value=old_key_value placeholder="shown above"}}
+          {{input type="text" class="form-control" id="old_key" value=old_key_value placeholder="shown above"}}
         </div>
       </div>
 
       <div class="form-group">
-        <label for="new_key" class="col-sm-3 control-label">{{t "New Key" key='new_key'}}</label>
+        <label for="new_key" class="col-sm-3 control-label">{{t "New Key" key="new_key"}}</label>
         <div class="col-sm-5">
-          {{input type='text' class='form-control' id='new_key' value=new_key_value placeholder="new key"}}
+          {{input type="text" class="form-control" id="new_key" value=new_key_value placeholder="new key"}}
         </div>
       </div>
     </form>
 
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' disabled={{not_ready}} {{action 'rename'}}>
+    <button class='btn btn-primary' disabled={{not_ready}} {{action "rename"}}>
       {{#if status.renaming}}
-        {{t "Changing Board Key..." key='changing_board_key'}}
+        {{t "Changing Board Key..." key="changing_board_key"}}
       {{else if status.error}}
-        {{t "Error Changing Board Key" key='error_changing_board_key'}}
+        {{t "Error Changing Board Key" key="error_changing_board_key"}}
       {{else}}
-        {{t "Change Board Key" key='change_board_key'}}
+        {{t "Change Board Key" key="change_board_key"}}
       {{/if}}
     </button>
-    <a href="#" class="btn" {{action 'close'}}>{{t "Close" key='close'}}</a>
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

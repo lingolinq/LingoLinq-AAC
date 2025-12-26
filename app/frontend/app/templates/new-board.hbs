@@ -1,13 +1,13 @@
-{{#grid-listener grid_event='grid_event'}}
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#grid-listener grid_event="grid_event"}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="board_drop">
     <div class="modal-header">
-      <button type="button" class="close" {{action 'close'}}>&times;</button>
+      <button type="button" class="close" {{action "close"}}>&times;</button>
       <h3>
-        {{t "Create a New Board" key='create_a_new_board'}}
+        {{t "Create a New Board" key="create_a_new_board"}}
         <span class="file_select_holder">
           <button class='btn btn-default'>
-            {{t "Import Board(s)" key='import_boards'}}
+            {{t "Import Board(s)" key="import_boards"}}
           </button>
           <input type="file" name="board_upload" id="board_upload"/>
         </span>
@@ -17,21 +17,21 @@
       <form class="form-horizontal" {{action "saveBoard" on="submit"}}>
       <!-- TODO: form should wrap to include submit button, no? -->
       <div class="form-group">
-        <label for="new_board_name" class="col-sm-2 control-label">{{t "Name" key='name'}}</label>
+        <label for="new_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           {{input value=model.name class="form-control" id="new_board_name" placeholder="My Board"}}
         </div>
       </div>
       {{#if has_supervisees}}
         <div class="form-group">
-          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key='for'}}</label>
+          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
           <div class="col-sm-10">
             {{user-select select_id="for_user_id" selection=model.for_user_id action=(action (mut model.for_user_id)) }}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="new_board_rows" class="col-sm-2 control-label">{{t "Rows" key='rows'}}</label>
+        <label for="new_board_rows" class="col-sm-2 control-label">{{t "Rows" key="rows"}}</label>
         <div class="col-sm-3">
           <div class="input-group">
             <span class="input-group-btn">
@@ -45,7 +45,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="new_board_columns" class="col-sm-2 control-label">{{t "Columns" key='columns'}}</label>
+        <label for="new_board_columns" class="col-sm-2 control-label">{{t "Columns" key="columns"}}</label>
         <div class="col-sm-3" style="height: 100px;">
           <div class="input-group">
             <span class="input-group-btn">
@@ -72,13 +72,13 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-2 control-label">{{t "Visibility" key='visibility'}}</label>
+        <label class="col-sm-2 control-label">{{t "Visibility" key="visibility"}}</label>
         <div class="col-sm-10">
           {{bound-select select_class="form-control" select_id="license" content=public_options selection=model.visibility action=(action (mut model.visibility)) }}
         </div>
       </div>
       <div class="form-group">
-        <label for="image_url" class="col-sm-2 control-label">{{t "Icon" key='icon'}}</label>
+        <label for="image_url" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-10">
           {{icon-select selection=model.image_url action=(action (mut model.image_url)) }}
         </div>
@@ -86,31 +86,31 @@
       {{#unless more_options}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <a href="#" {{action 'more_options'}}>more options</a>
+            <a href="#" {{action "more_options"}}>more options</a>
           </div>
         </div>
       {{else}}
         <div class="form-group">
-          <label for="new_board_key" class="col-sm-2 control-label">{{t "Key" key='key'}}</label>
+          <label for="new_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
           <div class="col-sm-6">
             {{input value=model.key class="form-control" id="new_board_key" placeholder=key_placeholder}}
           </div>
         </div>
         <div class="form-group">
-          <label for="license" class="col-sm-2 control-label">{{t "License" key='license'}}</label>
+          <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
           <div class="col-sm-10">
             {{bound-select select_class="form-control" select_id="license" content=license_options selection=model.license.type action=(action (mut model.license.type)) }}
           </div>
         </div>
         <div class="form-group">
-          <label for="locale" class="col-sm-2 control-label">{{t "Language" key='locale'}}</label>
+          <label for="locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
           <div class="col-sm-10">
             {{bound-select select_class="form-control" select_id="locale" content=locales selection=model.locale action=(action (mut model.locale)) }}
           </div>
         </div>
         {{#if attributable_license_type}}
           <div class="form-group">
-            <label for="author" class="col-sm-2 control-label">{{t "Author" key='author'}}</label>
+            <label for="author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
             <div class="col-sm-4">
               {{input value=model.license.author_name class="form-control" id="author" placeholder="Name"}}
             </div>
@@ -120,18 +120,18 @@
           </div>
         {{/if}}
         <div class="form-group">
-          <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key='description'}}</label>
+          <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
             {{textarea value=model.description class="form-control" id="new_board_description" placeholder="brief description of the board"}}
           </div>
         </div>
         <div class="form-group">
-          <label for="home_board" class="col-sm-2 control-label">{{t "Home" key='home'}}</label>
+          <label for="home_board" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.home_board}}
-                {{t "This board can be used as a home board" key='is_home_board'}}
+                {{t "This board can be used as a home board" key="is_home_board"}}
               </label>
             </div>
           </div>
@@ -139,11 +139,11 @@
         {{#if model.home_board}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            {{t "Select any categories that this home board may fit well into." key='select_categories'}}
+            {{t "Select any categories that this home board may fit well into." key="select_categories"}}
               {{#each board_categories as |category|}}
                 <div><div class="checkbox big_checkbox">
                   <label>
-                    {{input type='checkbox' checked=category.selected}}
+                    {{input type="checkbox" checked=category.selected}}
                     {{category.name}}
                   </label><br/>
                 </div></div>
@@ -152,32 +152,32 @@
         </div>
         {{/if}}
         <div class="form-group">
-          <label for="word_suggestions" class="col-sm-2 control-label">{{t "Suggestions" key='word_suggestions'}}</label>
+          <label for="word_suggestions" class="col-sm-2 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
                 {{input type="checkbox" checked=model.word_suggestions}}
-                {{t "Show word completion suggestions" key='show_word_suggestions'}}
+                {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
             </div><br/>
-            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key='helpful_for_keyboard_boards'}}</em>
+            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
           </div>
         </div>
         <div class="form-group">
-          <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key='labels'}}</label>
+          <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
           <div class="col-sm-10">
             {{textarea value=model.grid.labels class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas"}}
             {{bound-select select_class="form-control" select_id="labels_order" content=labels_order_list selection=model.grid.labels_order action=(action (mut model.grid.labels_order)) }}
             <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
             <span class={{labels_class}}>
-              {{label_count}} {{t "labels" key='label_count'}}&nbsp;&nbsp;
+              {{label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
             </span>
-            <a href="#" data-count={{label_count}} {{action 'pick_core'}}>{{t "pick from core lists" key='pick_from_core_lists'}}</a>
+            <a href="#" data-count={{label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</a>
             {{#if speech}}
                |
-              <a href="#" data-count={{label_count}} {{action 'record_words'}}>{{t "speech recognition" key='record_words'}}</a>
+              <a href="#" data-count={{label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</a>
             {{/if}}
-            <a style="display: none;" href="#" {{action 'import_from_pdf'}}>{{t "import from pdf" key='import_from_pdf'}}</a>
+            <a style="display: none;" href="#" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</a>
           </div>
         </div>
         {{#if core_lists}}
@@ -185,8 +185,8 @@
             <div class="col-sm-10 col-sm-offset-2">
             <ul class="nav nav-pills">
               {{#each core_words as |core_word|}}
-                <li class={{if core_word.active 'active'}}>
-                  <a href="#" {{action 'enable_word' core_word.id}}>{{ core_word.label }}</a>
+                <li class={{if core_word.active "active"}}>
+                  <a href="#" {{action "enable_word" core_word.id}}>{{ core_word.label }}</a>
                 </li>
               {{/each}}
             </ul>
@@ -197,14 +197,14 @@
             <div class="form-group">
               <div class="col-sm-10 col-sm-offset-2">
               <div style="margin-bottom: 5px;">
-                {{t "Listening..." key='listening'}}
-                <button class='btn btn-default' {{action 'next_word'}}>{{t "Next Word" key='next_word'}}</button>
-                {{speech-listener content=(action 'speech_content') error=(action 'speech_error') stop=(action 'speech_stop') speech=speech}}
+                {{t "Listening..." key="listening"}}
+                <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+                {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=speech}}
               </div>
               <ul class="nav nav-pills">
                 {{#each speech.words as |word|}}
                   <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
-                    <a href="#" {{action 'remove_word' word.id}}>
+                    <a href="#" {{action "remove_word" word.id}}>
                       {{word.label}}
                       <span class="glyphicon glyphicon-remove" title="remove"></span>
                     </a>
@@ -217,7 +217,7 @@
             {{#if speech.almost_recording}}
               <div class="form-group">
                 <div class="col-sm-10 col-sm-offset-2">
-                  <p>{{t "Waiting for Approval..." key='waiting_for_approval'}}</p>
+                  <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
                 </div>
               </div>
             {{/if}}
@@ -229,14 +229,14 @@
     <div class="modal-footer">
       <button {{action "saveBoard"}} class="btn btn-primary" disabled={{status.saving}}>
         {{#if status.saving}}
-          {{t "Creating Board..." key='creating_board'}}
+          {{t "Creating Board..." key="creating_board"}}
         {{else if status.error}}
-          {{t "Error Creating Board" key='error_creating_board'}}
+          {{t "Error Creating Board" key="error_creating_board"}}
         {{else}}
-          {{t "Create Board" key='create_board'}}
+          {{t "Create Board" key="create_board"}}
         {{/if}}
       </button>
-      <button {{action "close"}} class="btn btn-default">{{t "Cancel" key='cancel'}}</button>
+      <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

@@ -1,20 +1,20 @@
-{{#modal-dialog desired_width=850 action="close" opening='opening' closing='closing'}}
+{{#modal-dialog desired_width=850 action="close" opening="opening" closing="closing"}}
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div class='cursor_holder' style={{if flipped "transform: rotate(180deg);"}}>
       <div class='cursor_navigation repair_buttons'>
-        <button class='btn btn-default btn-lg up' {{action 'move' 'up'}} disabled={{not_scrollable}}>
+        <button class='btn btn-default btn-lg up' {{action "move" "up"}} disabled={{not_scrollable}}>
           <span class='glyphicon glyphicon-chevron-up'></span>
-          {{t "Up" key='up'}}
+          {{t "Up" key="up"}}
         </button>
-        <button class='btn btn-default btn-lg down' {{action 'move' 'down'}} disabled={{not_scrollable}}>
+        <button class='btn btn-default btn-lg down' {{action "move" "down"}} disabled={{not_scrollable}}>
           <span class='glyphicon glyphicon-chevron-down'></span>
-          {{t "Down" key='down'}}
+          {{t "Down" key="down"}}
         </button>
       </div>
       <div class='row cursor_area any_size'>
-        <button class={{if holding 'btn btn-default big_btn unselectable' 'btn btn-default big_btn'}} {{action 'speak' true}} id='full_button'>
+        <button class={{if holding "btn btn-default big_btn unselectable" "btn btn-default big_btn"}} {{action "speak" true}} id='full_button'>
           {{#unless model.text_only}}
-            <img src={{path 'images/speak.svg'}} style='height: calc(100vh / 4);'/><br/>
+            <img src={{path "images/speak.svg"}} style='height: calc(100vh / 4);'/><br/>
           {{/unless}}
           <span class={{text_class}}>
             {{model.text}}
@@ -24,25 +24,25 @@
     </div>
     <div class='row repair_buttons'>
       <div class='col-sm-12'>
-        <button class='btn btn-lg btn-default' {{action 'close'}}>
+        <button class='btn btn-lg btn-default' {{action "close"}}>
           <span class='glyphicon glyphicon-remove'></span>
-          {{t "Close" key='close'}}
+          {{t "Close" key="close"}}
         </button>
-        <button class='btn btn-lg btn-default' {{action 'speak'}} disabled={{holding}}>
+        <button class='btn btn-lg btn-default' {{action "speak"}} disabled={{holding}}>
           <span class='glyphicon glyphicon-volume-up'></span>
-          {{t "Speak" key='speak'}}
+          {{t "Speak" key="speak"}}
         </button>
-        <button class='btn btn-lg btn-default' {{action 'flip'}}>
+        <button class='btn btn-lg btn-default' {{action "flip"}}>
           <span class='glyphicon glyphicon-repeat'></span>
-          {{t "Flip Text" key='flip_text'}}
+          {{t "Flip Text" key="flip_text"}}
         </button>
-        <button class='btn btn-lg btn-default' {{action 'hold'}}>
+        <button class='btn btn-lg btn-default' {{action "hold"}}>
           {{#if holding}}
             <span class='glyphicon glyphicon-play'></span>
-            {{t "Release" key='release'}}
+            {{t "Release" key="release"}}
           {{else}}
             <span class='glyphicon glyphicon-pause'></span>
-            {{t "Wait" key='wait'}}
+            {{t "Wait" key="wait"}}
           {{/if}}
         </button>
       </div>

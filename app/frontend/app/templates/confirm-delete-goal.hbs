@@ -1,41 +1,41 @@
-{{#modal-dialog action="close" opening='opening' closing='closing'}}
+{{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-header">
-    <button type="button" class="close" {{action 'close'}}>&times;</button>
-    <h3>{{t "Remove this Goal" key='remove_this_goal'}}</h3>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Remove this Goal" key="remove_this_goal"}}</h3>
   </div>
   <div class="modal-body">
     {{#if retirable}}
       <p>
-        {{t "Would you like to delete this goal completely, or just retire it and keep it as a past goal? Deleted goals are gone forever, but past goals are still available to review progress and reports." key='delete_or_retire'}}
+        {{t "Would you like to delete this goal completely, or just retire it and keep it as a past goal? Deleted goals are gone forever, but past goals are still available to review progress and reports." key="delete_or_retire"}}
       </p>
     {{else}}
       <p>
-        {{t "Are you sure you want to delete this goal? Any progress and reports attached to the goal will no longer be available." key='confirm_delete_goal'}}
+        {{t "Are you sure you want to delete this goal? Any progress and reports attached to the goal will no longer be available." key="confirm_delete_goal"}}
       </p>
     {{/if}}
     <strong>{{model.goal.summary}}</strong><br/>
     {{#if model.error}}
-      <p class='text-danger'>{{t "There was an error trying to update the goal" key='error_deleting_goal'}}</p>
+      <p class='text-danger'>{{t "There was an error trying to update the goal" key="error_deleting_goal"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
     {{#if retirable}}
-      <button class='btn btn-primary' {{action 'retire_goal'}} disabled={{model.updating}}>
+      <button class='btn btn-primary' {{action "retire_goal"}} disabled={{model.updating}}>
         {{#if model.retiring}}
-          {{t "Retiring Goal" key='retiring_goal'}}
+          {{t "Retiring Goal" key="retiring_goal"}}
         {{else}}
-          {{t "Retire Goal" key='retire_goal'}}
+          {{t "Retire Goal" key="retire_goal"}}
         {{/if}}
       </button>
     {{/if}}
-    <button class='btn btn-default' {{action 'delete_goal'}} disabled={{model.updating}}>
+    <button class='btn btn-default' {{action "delete_goal"}} disabled={{model.updating}}>
       {{#if model.deleting}}
-        {{t "Deleting Goal" key='deleting_goal'}}
+        {{t "Deleting Goal" key="deleting_goal"}}
       {{else}}
-        {{t "Delete Goal" key='delete_goal'}}
+        {{t "Delete Goal" key="delete_goal"}}
       {{/if}}
     </button>
-    <button class='btn btn-default' {{action 'close'}}>{{t "Cancel" key='cancel'}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}
 
