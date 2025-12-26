@@ -2643,7 +2643,7 @@ var persistence = EmberObject.extend({
                       var necessary_finds = [];
                       // this is probably a protective thing, but I have no idea why anymore,
                       // it may not even be necessary anymore
-                      var tmp_board = LingoLinq.store.createRecord('board', $.extend({}, b, {id: null}));
+                      var tmp_board = LingoLinq.store.createRecord('board', Object.assign({}, b, {id: null}));
                       var missing_image_ids = [];
                       var missing_sound_ids = [];
                       // TODO: does this need to be just for the current user, or the whole map?

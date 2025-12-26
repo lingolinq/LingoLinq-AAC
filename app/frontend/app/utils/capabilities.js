@@ -5,7 +5,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import $ from 'jquery';
+// import $ from 'jquery';
 import stashes from './_stashes';
 import tts_voices from './tts_voices';
 import dbman from './dbman';
@@ -53,7 +53,7 @@ var capabilities;
       console.log(str);
     }
   };
-  var ajax = $.ajax;
+  // var ajax = $.ajax;
   var chrome;
 
   function message_client(message) {
@@ -289,22 +289,22 @@ var capabilities;
                 mode: 'pointer',
                 event_callback: function(e) {
                   if(e.type == 'linger') {
-                    var evt = $.Event('gazelinger');
+                    var evt = new CustomEvent('gazelinger', { bubbles: true, cancelable: true });
                     evt.clientX = e.x;
                     evt.clientY = e.y;
                     evt.eyegaze_hardware = 'camera';
                     evt.pointer = true;
                     evt.target = document.elementFromPoint(e.x, e.y) || document.body;
                     evt.ts = (new Date()).getTime();
-                    $(evt.target).trigger(evt);
+                    evt.target.dispatchEvent(evt);
                   } else if(e.type == 'expression') {
-                    var evt = $.Event('facechange');
+                    var evt = new CustomEvent('facechange', { bubbles: true, cancelable: true });
                     evt.clientX = 0;
                     evt.clientY = 0;
                     evt.expression = e.expression.replace(/-/, '_');
                     evt.ts = (new Date()).getTime();
                     evt.target = document.body;
-                    $(evt.target).trigger(evt);
+                    evt.target.dispatchEvent(evt);
                   } else if(e.type == 'stop' || e.type == 'fail') {
                     window.weblinger.start_options = null;
                     capabilities.tracking.stop_canvas();
@@ -452,32 +452,22 @@ var capabilities;
                 mode: opts.head_pointing ? 'pointer' : 'joystick',
                 event_callback: function(e) {
                   if(e.type == 'linger') {
-                    if(opts.head_pointing) {
-                      var evt = $.Event('gazelinger');
-                      evt.clientX = e.x;
-                      evt.clientY = e.y;
-                      evt.eyegaze_hardware = 'camera';
-                      evt.pointer = true;
-                      evt.target = document.elementFromPoint(e.x, e.y) || document.body;
-                      evt.ts = (new Date()).getTime();
-                      $(evt.target).trigger(evt);
-                    } else if(e.extras) {
-                      var evt = $.Event('headtilt');
-                      evt.clientX = 0;
-                      evt.clientY = 0;
-                      evt.vertical = e.extras.tilt_y / 6;
-                      evt.horizontal = e.extras.tilt_x / 6;
-                      evt.target = document.body;
-                      $(evt.target).trigger(evt);
-                    }
+                    var evt = new CustomEvent('gazelinger', { bubbles: true, cancelable: true });
+                    evt.clientX = e.x;
+                    evt.clientY = e.y;
+                    evt.eyegaze_hardware = 'camera';
+                    evt.pointer = true;
+                    evt.target = document.elementFromPoint(e.x, e.y) || document.body;
+                    evt.ts = (new Date()).getTime();
+                    evt.target.dispatchEvent(evt);
                   } else if(e.type == 'expression') {
-                    var evt = $.Event('facechange');
+                    var evt = new CustomEvent('facechange', { bubbles: true, cancelable: true });
                     evt.clientX = 0;
                     evt.clientY = 0;
                     evt.expression = e.expression.replace(/-/, '_');
                     evt.ts = (new Date()).getTime();
                     evt.target = document.body;
-                    $(evt.target).trigger(evt);
+                    evt.target.dispatchEvent(evt);
                   } else if(e.type == 'stop' || e.type == 'fail') {
                     window.weblinger.start_options = null;
                     capabilities.tracking.stop_canvas();

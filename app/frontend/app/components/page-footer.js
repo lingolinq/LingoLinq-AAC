@@ -1,9 +1,8 @@
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
+import app_state from '../utils/app_state';
+import persistence from '../utils/persistence';
 
 export default Component.extend({
-  app_state: service('app-state'),
-  persistence: service('persistence'),
   
   actions: {
     support() {

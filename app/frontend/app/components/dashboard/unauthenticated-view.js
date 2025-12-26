@@ -3,13 +3,14 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 import progress_tracker from '../../utils/progress_tracker';
+import app_state from '../../utils/app_state';
+import session from '../../utils/session';
+import persistence from '../../utils/persistence';
+import stashes from '../../utils/_stashes';
 import $ from 'jquery';
 
 export default Component.extend({
-  app_state: service('app-state'),
-  persistence: service('persistence'),
-  session: service('session'),
-  stashes: service('stashes'),
+  tagName: '',
   
   registration_types: LingoLinq.registrationTypes,
   

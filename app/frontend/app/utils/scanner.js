@@ -11,7 +11,7 @@ import {
   cancel as runCancel
 } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import $ from 'jquery';
+// import $ from 'jquery';
 import editManager from './edit_manager';
 import modal from './modal';
 import capabilities from './capabilities';
@@ -21,15 +21,136 @@ import speecher from './speecher';
 import buttonTracker from './raw_events';
 import frame_listener from './frame_listener';
 
+class JShim {
+  constructor(arg) {
+    this.elements = [];
+    if (arg) {
+      if (typeof arg === 'string') {
+        this.elements = Array.from(document.querySelectorAll(arg));
+      } else if (arg instanceof Element || arg === window || arg === document) {
+        this.elements = [arg];
+      } else if (Array.isArray(arg)) {
+        this.elements = arg;
+      } else if (arg instanceof JShim) {
+        this.elements = arg.elements;
+      } else if (arg instanceof NodeList) {
+        this.elements = Array.from(arg);
+      }
+    }
+    this.length = this.elements.length;
+    for(let i=0; i<this.elements.length; i++) {
+      this[i] = this.elements[i];
+    }
+  }
+  each(cb) {
+    this.elements.forEach((el, idx) => cb.call(el, idx, el));
+    return this;
+  }
+  find(sel) {
+    let res = [];
+    this.elements.forEach(el => {
+      if(el.querySelectorAll) {
+        res = res.concat(Array.from(el.querySelectorAll(sel)));
+      }
+    });
+    return new JShim(res);
+  }
+  attr(name, val) {
+    if (val === undefined) {
+      return this.elements[0] && this.elements[0].getAttribute && this.elements[0].getAttribute(name);
+    }
+    this.elements.forEach(el => el.setAttribute && el.setAttribute(name, val));
+    return this;
+  }
+  text(val) {
+    if (val === undefined) {
+      return this.elements[0] ? this.elements[0].innerText || this.elements[0].textContent : "";
+    }
+    this.elements.forEach(el => el.innerText = val);
+    return this;
+  }
+  hasClass(cls) {
+    return this.elements.some(el => el.classList && el.classList.contains(cls));
+  }
+  closest(sel) {
+    let res = [];
+    this.elements.forEach(el => {
+      if (el.closest) {
+        let f = el.closest(sel);
+        if(f) res.push(f);
+      }
+    });
+    return new JShim(res);
+  }
+  add(other) {
+    let combined = this.elements.concat(other instanceof JShim ? other.elements : (Array.isArray(other) ? other : [other]));
+    return new JShim(combined);
+  }
+  css(props) {
+    this.elements.forEach(el => {
+      if(el.style) {
+        for(let k in props) el.style[k] = props[k];
+      }
+    });
+    return this;
+  }
+  val(v) {
+    if(v === undefined) return this.elements[0] ? this.elements[0].value : undefined;
+    this.elements.forEach(el => el.value = v);
+    return this;
+  }
+  select() {
+    this.elements.forEach(el => el.select && el.select());
+    return this;
+  }
+  focus() {
+    this.elements.forEach(el => el.focus && el.focus());
+    return this;
+  }
+  offset() {
+    if(!this.elements[0]) return {top:0, left:0};
+    let rect = this.elements[0].getBoundingClientRect();
+    return {
+      top: rect.top + window.scrollY,
+      left: rect.left + window.scrollX
+    };
+  }
+  outerWidth() {
+    return this.elements[0] ? this.elements[0].offsetWidth : 0;
+  }
+  outerHeight() {
+    return this.elements[0] ? this.elements[0].offsetHeight : 0;
+  }
+  remove() {
+    this.elements.forEach(el => el.parentNode && el.parentNode.removeChild(el));
+  }
+  on(evt, handler) {
+    this.elements.forEach(el => el.addEventListener(evt, handler));
+    return this;
+  }
+  off(evt, handler) {
+    this.elements.forEach(el => el.removeEventListener(evt, handler));
+    return this;
+  }
+}
+
 var scanner = EmberObject.extend({
   setup: function(controller) {
     this.controller = controller;
   },
   find_elem: function(search) {
-    return $(search);
+    return new JShim(search);
   },
   make_elem: function(tag, opts) {
-    return $(tag, opts);
+    var el = document.createElement(tag.replace(/[<>]/g, ''));
+    if(opts) {
+      for(var key in opts) {
+        if(key === 'id') el.id = opts[key];
+        else if(key === 'type') el.type = opts[key];
+        else el.setAttribute(key, opts[key]);
+      }
+    }
+    return new JShim(el);
   },
   start: function(options) {
     if(scanner.actively_scanning()) {
@@ -65,8 +186,8 @@ var scanner = EmberObject.extend({
       rows.reload = function() {
         var elem = (scanner.current_element || {}).dom || [];
         while(rows.length > 0) { rows.pop();}
-        modal.scannable_targets().each(function() {
-          var $item = scanner.find_elem(this);
+        modal.scannable_targets().forEach(function(item) {
+          var $item = scanner.find_elem(item);
           rows.push({
             dom: $item,
             label: ($item.attr('rel') || $item.text()).replace(/^\s*/, '').replace(/\s*$/, '')
@@ -94,7 +215,7 @@ var scanner = EmberObject.extend({
       if(!options.skip_header) {
         row = {
           children: [],
-          dom: $("header"),
+          dom: scanner.find_elem("header"),
           header: true,
           label: i18n.t('header', "Header")
         };
@@ -478,10 +599,10 @@ var scanner = EmberObject.extend({
         scanner.level_up(elem);
       } else if(elem.children) {
         if(elem.dom && elem.dom.hasClass('btn') && elem.dom.closest("#identity").length > 0) {
-          var e = $.Event( "click" );
+          var e = new CustomEvent( "click", { bubbles: true, cancelable: true } );
           e.pass_through = true;
           e.switch_activated = true;
-          scanner.find_elem(elem.dom).trigger(e);
+          scanner.find_elem(elem.dom)[0].dispatchEvent(e);
           setTimeout(function() {
             scanner.find_elem("#home_button").focus().select();
           }, 100);
@@ -490,9 +611,6 @@ var scanner = EmberObject.extend({
       } else if(elem.dom) {
         scanner.pick_elem(elem.dom);
       }
-    }
-    if(scanner.options && scanner.options.debounce) {
-      scanner.ignore_until = now + scanner.options.debounce;
     }
   },
   level_up: function(elem) {
@@ -504,7 +622,7 @@ var scanner = EmberObject.extend({
     });
   },
   pick_elem: function(dom) {
-    var $closest = $(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button');
+    var $closest = scanner.find_elem(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button');
     if($closest.length > 0) { dom = $closest; }
     scanner.element_index = 0;
     scanner.element_index_advanced = false;
@@ -512,9 +630,9 @@ var scanner = EmberObject.extend({
     var reset_now = true;
 
     if(dom && dom.hasClass('speak_menu_button')) {
-      var e = $.Event( 'speakmenuselect' );
+      var e = new CustomEvent( 'speakmenuselect', { bubbles: true, cancelable: true } );
       e.button_id = dom.attr('id');
-      dom.trigger(e);
+      dom[0].dispatchEvent(e);
     } else if(dom.hasClass('button') && dom.attr('data-id')) {
       var id = dom.attr('data-id');
       var button = editManager.find_button(id);
@@ -529,10 +647,10 @@ var scanner = EmberObject.extend({
     } else if(dom.hasClass('button_list')) {
       dom.select();
     } else {
-      debugger
-      var e = $.Event( "click" );
+      // debugger
+      var e = new CustomEvent( "click", { bubbles: true, cancelable: true } );
       e.pass_through = true;
-      scanner.find_elem(dom).trigger(e);
+      scanner.find_elem(dom)[0].dispatchEvent(e);
     }
     scanner.reset(true);
     var ref = scanner.ref;
@@ -845,12 +963,12 @@ var scanner = EmberObject.extend({
       scanner.scan_axes('clear');
       // simulate selection event at the current location
       var target = document.elementFromPoint(x, y);
-      scanner.pick_elem($(target));
+      scanner.pick_elem(new JShim(target));
       runLater(scanner.reset);
     }
   },
   load_children: function(elem, elements, index) {
-    var parent = $.extend({higher_level: elements, higher_level_index: index}, elem);
+    var parent = Object.assign({higher_level: elements, higher_level_index: index}, elem);
     if(elem.reload_children) {
       elem.children = elem.reload_children();
     }
@@ -913,9 +1031,9 @@ var scanner = EmberObject.extend({
   },
   measure: function($elems) {
     var minX = null, minY = null, maxX = null, maxY = null;
-    if(!$elems.each) { $elems = $($elems); }
+    if(!$elems.each) { $elems = new JShim($elems); }
     $elems.each(function() {
-      var $e = $(this);
+      var $e = new JShim(this);
       var offset = $e.offset();
       var thisMinX = offset.left;
       var thisMinY = offset.top;

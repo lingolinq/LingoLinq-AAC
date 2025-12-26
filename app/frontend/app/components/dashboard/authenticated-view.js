@@ -16,11 +16,10 @@ import stashes from '../../utils/_stashes';
 import i18n from '../../utils/i18n';
 
 export default Component.extend({
+  tagName: '',
+  
   router: service(),
   store: service(),
-  app_state: service('app-state'),
-  persistence: service('persistence'),
-  session: service('session'),
 
   sync_able: computed('extras.ready', 'app_state.currentUser.external_device', function() {
     return this.get('extras.ready') && !app_state.get('currentUser.external_device');
