@@ -6,6 +6,14 @@ class Api::LogsController < ApplicationController
   end
 
   def index
+    # Handle special case where user_id is 'cache' (from boards cache endpoint)
+    # Return empty result set since there are no logs for a cache user
+    if params['user_id'] == 'cache'
+      logs = LogSession.where(:id => 0)
+      json = JsonApi::Log.paginate(params, logs)
+      return render json: json
+    end
+    
     user = User.find_by_path(params['user_id'])
     return unless allowed?(user, 'supervise')
     if user.modeling_only?

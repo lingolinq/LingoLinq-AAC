@@ -49,83 +49,89 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
       if params['user_id']
-        user = User.find_by_path(params['user_id'])
-        return unless allowed?(user, 'view_detailed')
-        unless params['starred'] || params['tag']
-          if params['shared']
-            Rails.logger.warn('looking up shared board ids')
-            arel = Board.arel_table
-            shared_board_ids = Board.all_shared_board_ids_for(user)
-            # TODO: fix when sharding actually happens
-            Rails.logger.warn('filtering by shared board ids')
-            boards = boards.where(arel[:id].in(Board.local_ids(shared_board_ids)))
-          elsif params['include_shared']
-            arel = Board.arel_table
-            Rails.logger.warn('looking up shared board ids 2')
-            shared_board_ids = Board.all_shared_board_ids_for(user)
-            # TODO: fix when sharding actually happens
-            Rails.logger.warn('filtering by share board ids')
-            boards = boards.where(arel[:user_id].eq(user.id).or(arel[:id].in(Board.local_ids(shared_board_ids))))
-          else
-            find_shallow_clones = false
-            if !params['q'] && !params['locale'] && !params['public'] && !params['offset'] && user.allows?(@api_user, 'model')
-              find_shallow_clones = true
-            elsif params['q']
-              find_shallow_clones = true
-            end
-            if find_shallow_clones
-              shallow_clone_ids = []
-              if user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'].match(/-/)
-                # Include the home board if it's a shallow clone
-                shallow_clone_ids << user.settings['preferences']['home_board']['id']
+        # Handle special case where user_id is 'cache' (from boards cache endpoint)
+        # Return public boards only since there are no user-specific boards for cache
+        if params['user_id'] == 'cache'
+          params['public'] = true
+        else
+          user = User.find_by_path(params['user_id'])
+          return unless allowed?(user, 'view_detailed')
+          unless params['starred'] || params['tag']
+            if params['shared']
+              Rails.logger.warn('looking up shared board ids')
+              arel = Board.arel_table
+              shared_board_ids = Board.all_shared_board_ids_for(user)
+              # TODO: fix when sharding actually happens
+              Rails.logger.warn('filtering by shared board ids')
+              boards = boards.where(arel[:id].in(Board.local_ids(shared_board_ids)))
+            elsif params['include_shared']
+              arel = Board.arel_table
+              Rails.logger.warn('looking up shared board ids 2')
+              shared_board_ids = Board.all_shared_board_ids_for(user)
+              # TODO: fix when sharding actually happens
+              Rails.logger.warn('filtering by share board ids')
+              boards = boards.where(arel[:user_id].eq(user.id).or(arel[:id].in(Board.local_ids(shared_board_ids))))
+            else
+              find_shallow_clones = false
+              if !params['q'] && !params['locale'] && !params['public'] && !params['offset'] && user.allows?(@api_user, 'model')
+                find_shallow_clones = true
+              elsif params['q']
+                find_shallow_clones = true
               end
-              if user.settings['preferences'] && (!user.settings['preferences']['home_board'] || user.settings['preferences']['sync_starred_boards'])
-                # Include any shallow clone roots that are in the user's starred list
-                shallow_clone_ids += user.starred_board_refs.select{|r| !r['suggested'] && r['key'] && r['key'].match(/^#{user.user_name}\/my:/) }.map{|c| c['id'] }
-              end
-              # Also include any shallow clone roots that have had a sub-board edited
-              ue = UserExtra.find_by(user: user)
-              if ue && ue.settings['replaced_roots']
-                ue.settings['replaced_roots'].each do |id, hash|
-                  shallow_clone_ids << hash['id']
+              if find_shallow_clones
+                shallow_clone_ids = []
+                if user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'].match(/-/)
+                  # Include the home board if it's a shallow clone
+                  shallow_clone_ids << user.settings['preferences']['home_board']['id']
+                end
+                if user.settings['preferences'] && (!user.settings['preferences']['home_board'] || user.settings['preferences']['sync_starred_boards'])
+                  # Include any shallow clone roots that are in the user's starred list
+                  shallow_clone_ids += user.starred_board_refs.select{|r| !r['suggested'] && r['key'] && r['key'].match(/^#{user.user_name}\/my:/) }.map{|c| c['id'] }
+                end
+                # Also include any shallow clone roots that have had a sub-board edited
+                ue = UserExtra.find_by(user: user)
+                if ue && ue.settings['replaced_roots']
+                  ue.settings['replaced_roots'].each do |id, hash|
+                    shallow_clone_ids << hash['id']
+                  end
+                end
+                # Include in the results shallow clone roots that aren't currently owned by the user
+                other_boards = Board.order('id DESC').find_all_by_global_id(shallow_clone_ids.uniq).select{|b| b.user_id != user.id } if shallow_clone_ids.length > 0
+                if params['q'] && other_boards
+                  other_searchable_board_ids = other_boards.map(&:global_id) + other_boards.map{|b| b.downstream_board_ids }.flatten.uniq
+                  other_boards = nil
                 end
               end
-              # Include in the results shallow clone roots that aren't currently owned by the user
-              other_boards = Board.order('id DESC').find_all_by_global_id(shallow_clone_ids.uniq).select{|b| b.user_id != user.id } if shallow_clone_ids.length > 0
-              if params['q'] && other_boards
-                other_searchable_board_ids = other_boards.map(&:global_id) + other_boards.map{|b| b.downstream_board_ids }.flatten.uniq
-                other_boards = nil
-              end
+              boards = boards.where(:user_id => user.id)
             end
-            boards = boards.where(:user_id => user.id)
           end
-        end
-        if !params['public']
-          Rails.logger.warn('checking for supervision permission')
-          return unless allowed?(user, 'model')
-        end
-        if params['private']
-          Rails.logger.warn('checking for publicness')
-          boards = boards.where(:public => false)
-        end
-        if params['starred'] || params['tag']
-          Rails.logger.warn('filtering by user or public')
-          ids = [user.id] + User.local_ids(user.supervised_user_ids)
-          boards = boards.where(['user_id IN (?) OR public = ?',ids, true])
-        end
-        if params['starred']
-          ids = (user.settings['starred_board_ids'] || [])
-          Rails.logger.warn('filtering by starred board ids')
-          boards = boards.where(:id => Board.local_ids(ids))
-        end
-        if params['tag']
-          return unless allowed?(user, 'model')
-          ids = []
-          if user.user_extra
-            ids = (user.user_extra.settings['board_tags'] || {})[params['tag']] || []
+          if !params['public']
+            Rails.logger.warn('checking for supervision permission')
+            return unless allowed?(user, 'model')
           end
-          Rails.logger.warn('filtering by tagged board ids')
-          boards = boards.where(:id => Board.local_ids(ids))
+          if params['private']
+            Rails.logger.warn('checking for publicness')
+            boards = boards.where(:public => false)
+          end
+          if params['starred'] || params['tag']
+            Rails.logger.warn('filtering by user or public')
+            ids = [user.id] + User.local_ids(user.supervised_user_ids)
+            boards = boards.where(['user_id IN (?) OR public = ?',ids, true])
+          end
+          if params['starred']
+            ids = (user.settings['starred_board_ids'] || [])
+            Rails.logger.warn('filtering by starred board ids')
+            boards = boards.where(:id => Board.local_ids(ids))
+          end
+          if params['tag']
+            return unless allowed?(user, 'model')
+            ids = []
+            if user.user_extra
+              ids = (user.user_extra.settings['board_tags'] || {})[params['tag']] || []
+            end
+            Rails.logger.warn('filtering by tagged board ids')
+            boards = boards.where(:id => Board.local_ids(ids))
+          end
         end
       else
         params['public'] = true
