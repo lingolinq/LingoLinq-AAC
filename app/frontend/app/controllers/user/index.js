@@ -27,10 +27,15 @@ export default Controller.extend({
   }),
   check_daily_use: observer('model.user_name', 'model.permissions.admin_support_actions', function() {
     var current_user_name = this.get('daily_use.user_name');
-    if((this.get('model.user_name') && current_user_name != this.get('model.user_name') && this.get('model.permissions.admin_support_actions')) || !this.get('daily_use')) {
+    var user_name = this.get('model.user_name');
+    // Don't make request if user_name is undefined or empty
+    if(!user_name) {
+      return;
+    }
+    if((user_name && current_user_name != user_name && this.get('model.permissions.admin_support_actions')) || !this.get('daily_use')) {
       var _this = this;
       _this.set('daily_use', {loading: true});
-      persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/daily_use', {type: 'GET'}).then(function(data) {
+      persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
         var log = LingoLinq.store.push({ data: {
           id: data.log.id,
           type: 'log',

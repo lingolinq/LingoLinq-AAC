@@ -11,9 +11,6 @@ import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
 LingoLinq.Log = DS.Model.extend({
-  didLoad: function() {
-    this.check_for_events();
-  },
   type: DS.attr('string'),
   message_type: DS.attr('boolean'),
   events: DS.attr('raw'),

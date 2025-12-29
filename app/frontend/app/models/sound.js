@@ -9,8 +9,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Sound = DS.Model.extend({
-  didLoad: function() {
-    this.checkForDataURL().then(null, function() { });
+  init() {
+    this._super(...arguments);
+    // Clean license and check transcription on initialization
     this.clean_license();
     this.check_transcription();
   },

@@ -8,8 +8,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Image = DS.Model.extend({
-  didLoad: function() {
-    this.checkForDataURL().then(null, function() { });
+  init() {
+    this._super(...arguments);
+    // Set app_state reference and clean license on initialization
     this.set('app_state', app_state);
     this.clean_license();
   },

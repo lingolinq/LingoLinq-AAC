@@ -9,8 +9,6 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Profile = DS.Model.extend({
-  didLoad: function() {
-  },
   profile_id: DS.attr('string'),
   public: DS.attr('string'),
   template: DS.attr('raw'),

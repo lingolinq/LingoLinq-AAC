@@ -5,9 +5,6 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Gift = DS.Model.extend({
-  didLoad: function() {
-    this.update_gift_types();
-  },
   code: DS.attr('string'),
   duration: DS.attr('string'),
   seconds: DS.attr('number'),

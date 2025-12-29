@@ -9,8 +9,6 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Lesson = DS.Model.extend({
-  didLoad: function() {
-  },
   title: DS.attr('string'),
   url: DS.attr('string'),
   original_url: DS.attr('string'),

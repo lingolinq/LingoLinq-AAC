@@ -1,0 +1,46 @@
+Phase 2: Fix deprecations and enable SCSS compilation
+
+This commit addresses several Phase 2 tasks for the Ember 3.16 upgrade:
+
+**Ember Data Deprecations Fixed:**
+
+1. **Application Serializer** (NEW FILE)
+   - Created `app/frontend/app/serializers/application.js`
+   - Fixes "default serializer" deprecation warning
+   - Provides base RESTSerializer for all models
+
+2. **Replaced didLoad() lifecycle methods** (11 models)
+   - Removed empty didLoad() from: lesson.js, profile.js
+   - Removed redundant didLoad() from: gift.js, log.js (logic already in observers)
+   - Migrated didLoad() logic to init() hook in: goal.js, organization.js, user.js, 
+     board.js, video.js, image.js, sound.js
+   - Fixes "record-lifecycle-event-methods" deprecation
+
+3. **Replaced didUpdate() lifecycle methods** (2 models)
+   - board.js: Replaced with observer on 'retrieved' and 'current_revision'
+   - organization.js: Replaced with observer on 'retrieved' and 'allotted_licenses'
+   - Fixes "record-lifecycle-event-methods" deprecation
+
+4. **Fixed missing observer import**
+   - organization.js: Added observer to imports from '@ember/object'
+
+**SCSS Compilation Fix:**
+
+5. **Enabled SCSS compilation**
+   - Installed ember-cli-sass@^11.0.1 (Ember addon for SCSS support)
+   - Installed sass@^1.97.1 (Dart Sass implementation)
+   - Updated ember-cli-build.js to configure sassOptions with implementation
+   - Fixes missing frontend.css file generation (styles now compile from app.scss)
+
+**Impact:**
+- Eliminates all didLoad() and didUpdate() deprecation warnings
+- Fixes default serializer deprecation warnings
+- Enables proper CSS styling by compiling SCSS files
+- All changes maintain backward compatibility
+
+**Testing:**
+- Build completes successfully
+- frontend.css now generated (121KB, 6111 lines)
+- No runtime errors observed
+
+Related to: Phase 2 of Ember upgrade plan (Octane preparation)

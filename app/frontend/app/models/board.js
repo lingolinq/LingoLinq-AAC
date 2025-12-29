@@ -28,14 +28,17 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 
 LingoLinq.Board = DS.Model.extend({
-  didLoad: function() {
-    this.checkForDataURL().then(null, function() { });
+  init() {
+    this._super(...arguments);
+    // Initialize copy status and clean license on model creation
     this.check_for_copy();
     this.clean_license();
   },
-  didUpdate: function() {
+  // Reset fetched flag when board is updated from server
+  // Observer on key attributes that change on update
+  resetFetchedOnUpdate: observer('retrieved', 'current_revision', function() {
     this.set('fetched', false);
-  },
+  }),
   name: DS.attr('string'),
   key: DS.attr('string'),
   prefix: DS.attr('string'),
