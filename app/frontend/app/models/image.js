@@ -10,10 +10,14 @@ import { computed } from '@ember/object';
 LingoLinq.Image = DS.Model.extend({
   init() {
     this._super(...arguments);
-    // Set app_state reference and clean license on initialization
+    // Set app_state reference on initialization
     this.set('app_state', app_state);
-    this.clean_license();
   },
+  // Clean license when license attribute is loaded
+  // This replicates the old didLoad() behavior since init() runs before data is loaded
+  onLicenseLoad: observer('license', function() {
+    this.clean_license();
+  }),
   url: DS.attr('string'),
   fallback: DS.attr('boolean'),
   content_type: DS.attr('string'),

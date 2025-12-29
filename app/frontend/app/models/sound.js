@@ -11,10 +11,14 @@ import { computed } from '@ember/object';
 LingoLinq.Sound = DS.Model.extend({
   init() {
     this._super(...arguments);
-    // Clean license and check transcription on initialization
-    this.clean_license();
+    // Check transcription on initialization
     this.check_transcription();
   },
+  // Clean license when license attribute is loaded
+  // This replicates the old didLoad() behavior since init() runs before data is loaded
+  onLicenseLoad: observer('license', function() {
+    this.clean_license();
+  }),
   user_id: DS.attr('string'),
   url: DS.attr('string'),
   created: DS.attr('date'),

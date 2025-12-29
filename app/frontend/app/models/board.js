@@ -30,10 +30,13 @@ import utterance from '../utils/utterance';
 LingoLinq.Board = DS.Model.extend({
   init() {
     this._super(...arguments);
-    // Initialize copy status and clean license on model creation
     this.check_for_copy();
-    this.clean_license();
   },
+  // Clean license when license attribute is loaded
+  // This replicates the old didLoad() behavior since init() runs before data is loaded
+  onLicenseLoad: observer('license', function() {
+    this.clean_license();
+  }),
   // Reset fetched flag when board is updated from server
   // Observer on key attributes that change on update
   resetFetchedOnUpdate: observer('retrieved', 'current_revision', function() {
