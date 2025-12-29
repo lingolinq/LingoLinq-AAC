@@ -7,17 +7,20 @@ import persistence from '../utils/persistence';
 import modal from '../utils/modal';
 import Subscription from '../utils/subscription';
 import Utils from '../utils/misc';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 
 LingoLinq.Organization = DS.Model.extend({
-  didLoad: function() {
+  init() {
+    this._super(...arguments);
     this.set('total_licenses', this.get('allotted_licenses'));
     this.update_licenses_expire();
   },
-  didUpdate: function() {
+  // Update licenses when organization is updated from server
+  // Observer on key attributes that change on update
+  updateLicensesOnUpdate: observer('retrieved', 'allotted_licenses', function() {
     this.set('total_licenses', this.get('allotted_licenses'));
     this.update_licenses_expire();
-  },
+  }),
   name: DS.attr('string'),
   permissions: DS.attr('raw'),
   purchase_history: DS.attr('raw'),

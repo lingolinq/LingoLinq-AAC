@@ -8,8 +8,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Goal = DS.Model.extend({
-  didLoad: function() {
-    this.check_badges();
+  init() {
+    this._super(...arguments);
+    // Set auto_assessment based on assessment_badge
     if(this.get('assessment_badge')) {
       this.set('auto_assessment', true);
     }

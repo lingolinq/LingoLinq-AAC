@@ -7,8 +7,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Video = DS.Model.extend({
-  didLoad: function() {
-   this.checkForDataURL().then(null, function() { });
+  init() {
+    this._super(...arguments);
+    // Clean license on initialization
     this.clean_license();
   },
   url: DS.attr('string'),

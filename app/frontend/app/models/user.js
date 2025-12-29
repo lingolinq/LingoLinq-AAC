@@ -22,8 +22,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.User = DS.Model.extend({
-  didLoad: function() {
-    this.checkForDataURL().then(null, function() { });
+  init() {
+    this._super(...arguments);
+    // Set default preference if not set
     if(this.get('preferences') && !this.get('preferences.stretch_buttons')) {
       this.set('preferences.stretch_buttons', 'none');
     }
