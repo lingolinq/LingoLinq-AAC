@@ -9,9 +9,12 @@ import { computed } from '@ember/object';
 LingoLinq.Video = DS.Model.extend({
   init() {
     this._super(...arguments);
-    // Clean license on initialization
-    this.clean_license();
   },
+  // Clean license when license attribute is loaded
+  // This replicates the old didLoad() behavior since init() runs before data is loaded
+  onLicenseLoad: observer('license', function() {
+    this.clean_license();
+  }),
   url: DS.attr('string'),
   content_type: DS.attr('string'),
   duration: DS.attr('number'),

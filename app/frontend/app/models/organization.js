@@ -12,11 +12,9 @@ import { computed, observer } from '@ember/object';
 LingoLinq.Organization = DS.Model.extend({
   init() {
     this._super(...arguments);
-    this.set('total_licenses', this.get('allotted_licenses'));
-    this.update_licenses_expire();
   },
-  // Update licenses when organization is updated from server
-  // Observer on key attributes that change on update
+  // Update licenses when organization is loaded or updated from server
+  // Observer fires when allotted_licenses is set (emulating didLoad) and on subsequent changes (emulating didUpdate)
   updateLicensesOnUpdate: observer('retrieved', 'allotted_licenses', function() {
     this.set('total_licenses', this.get('allotted_licenses'));
     this.update_licenses_expire();
