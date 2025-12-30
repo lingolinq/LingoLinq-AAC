@@ -717,7 +717,11 @@ var persistence = EmberObject.extend({
           resolve(uri);
         }
       }, function(err) {
-        LingoLinq.track_error("JSON DATA find_url error", (err || {}).error || err);
+        // Only log unexpected errors, not the expected "url not in storage" case
+        var errorMsg = (err || {}).error || err;
+        if (errorMsg && errorMsg !== 'url not in storage') {
+          LingoLinq.track_error("JSON DATA find_url error", errorMsg);
+        }
         reject(err);
       });
     });
