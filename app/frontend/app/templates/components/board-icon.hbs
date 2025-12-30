@@ -1,6 +1,6 @@
-<a href="/{{board_record.key}}" {{action "pick_board" board_record}} class={{display_class}}>
+<div {{action "pick_board" board_record}} class={{display_class}} style="cursor: pointer;">
   {{#unless noinfo}}
-    <a {{action "board_preview" board_record bubbles=false}} class='info'>
+    <button type="button" {{action "board_preview" board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;">
       {{#if override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
           {{override_count}}
@@ -11,7 +11,7 @@
           <span class='size'>{{board_record.grid.rows}} x {{board_record.grid.columns}}</span>
         {{/if}}
       {{/if}}
-    </a>
+    </button>
   {{/unless}}
   {{#if flag_home }}
     {{#if board_record.home_board}}
@@ -33,4 +33,4 @@
       {{t "by" key="by"}} {{board_record.user_name}}
     {{/if}}
   </div>
-</a>
+</div>

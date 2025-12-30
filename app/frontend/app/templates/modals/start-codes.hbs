@@ -32,7 +32,7 @@
               <tr>
                 <td>
                   {{#if code.disabled}}
-                    <strike>{{code.code}}</strike>
+                    <del>{{code.code}}</del>
                   {{else}}
                     <a href='#' {{action "copy" code.code}}>{{code.code}}</a>
                     {{#if code.to_delete}}

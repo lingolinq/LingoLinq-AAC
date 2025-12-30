@@ -1,3 +1,5 @@
+@use "sass:color";
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -5738,7 +5740,7 @@ body:-ms-fullscreen {
               linear-gradient(315deg, $nav_primary 25%, transparent 25%) 5px -5px,
               linear-gradient(315deg, $nav_primary 25%, transparent 25%) -5px 5px,
               linear-gradient(135deg, $nav_primary 25%, transparent 25%) 10px -10px,
-              darken($nav_primary, 3);	
+              color.adjust($nav_primary, $lightness: -3%);	
             background-size: 20px 20px;
           }
           &#nav_secondary {
@@ -5747,7 +5749,7 @@ body:-ms-fullscreen {
               linear-gradient(315deg, $nav_secondary 25%, transparent 25%) 5px -5px,
               linear-gradient(315deg, $nav_secondary 25%, transparent 25%) -5px 5px,
               linear-gradient(135deg, $nav_secondary 25%, transparent 25%) 10px -10px,
-              darken($nav_secondary, 10);	
+              color.adjust($nav_secondary, $lightness: -10%);	
             background-size: 20px 20px;
           }
           &#nav_tertiary {
@@ -5756,7 +5758,7 @@ body:-ms-fullscreen {
               linear-gradient(315deg, $nav_tertiary 25%, transparent 25%) 5px -5px,
               linear-gradient(315deg, $nav_tertiary 25%, transparent 25%) -5px 5px,
               linear-gradient(135deg, $nav_tertiary 25%, transparent 25%) 10px -10px,
-              darken($nav_tertiary, 5);	
+              color.adjust($nav_tertiary, $lightness: -5%);	
             background-size: 20px 20px;
             &.middle_row {
               background: 
@@ -5764,7 +5766,7 @@ body:-ms-fullscreen {
                 linear-gradient(315deg, $nav_secondary_middle_row 25%, transparent 25%) 5px -5px,
                 linear-gradient(315deg, $nav_secondary_middle_row 25%, transparent 25%) -5px 5px,
                 linear-gradient(135deg, $nav_secondary_middle_row 25%, transparent 25%) 10px -10px,
-                darken($nav_secondary_middle_row, 3);	
+                color.adjust($nav_secondary_middle_row, $lightness: -3%);	
               background-size: 20px 20px;
             }
             &.bottom_row {
@@ -5773,7 +5775,7 @@ body:-ms-fullscreen {
                 linear-gradient(315deg, $nav_secondary_bottom_row 25%, transparent 25%) 5px -5px,
                 linear-gradient(315deg, $nav_secondary_bottom_row 25%, transparent 25%) -5px 5px,
                 linear-gradient(135deg, $nav_secondary_bottom_row 25%, transparent 25%) 10px -10px,
-                darken($nav_secondary_bottom_row, 3);	
+                color.adjust($nav_secondary_bottom_row, $lightness: -3%);	
               background-size: 20px 20px;
             }
           }
@@ -5783,7 +5785,7 @@ body:-ms-fullscreen {
               linear-gradient(315deg, $nav_extras 25%, transparent 25%) 5px -5px,
               linear-gradient(315deg, $nav_extras 25%, transparent 25%) -5px 5px,
               linear-gradient(135deg, $nav_extras 25%, transparent 25%) 10px -10px,
-              darken($nav_extras, 3);	
+              color.adjust($nav_extras, $lightness: -3%);	
             background-size: 20px 20px;
           }
           img {

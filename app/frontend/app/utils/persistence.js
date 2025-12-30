@@ -3037,13 +3037,17 @@ var persistence = EmberObject.extend({
         var headers = opts.headers || {};
         var body = opts.data;
         
-        if (opts.contentType !== false) {
-           // If contentType is not explicitly false, and we have data that isn't FormData, 
-           // and no Content-Type header is set, we might need to set it.
-           // However, fetch handles strings/FormData well. 
-           // If object, we might need to stringify and set application/json?
-           // Unlikely generic objects are passed without processing in existing usage unless $.ajax handled it.
-           // content_grabbers passes FormData.
+        // Handle body serialization for POST/PUT/PATCH requests
+        // jQuery's $.ajax automatically stringifies objects, but fetch does not
+        if (method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD' && body !== undefined && body !== null) {
+            // If body is an object (and not FormData or a string), stringify it and set Content-Type
+            if (typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams)) {
+                body = JSON.stringify(body);
+                // Only set Content-Type if not already set and contentType is not explicitly false
+                if (opts.contentType !== false && !headers['Content-Type'] && !headers['content-type']) {
+                    headers['Content-Type'] = 'application/json';
+                }
+            }
         }
 
         var fetchOpts = {
@@ -3055,8 +3059,61 @@ var persistence = EmberObject.extend({
         }
 
         fetch(url, fetchOpts).then(function(response) {
+            // Check for BROWSER_TOKEN header (case-insensitive - backend sends lowercase)
+            var browserTokenHeader = response.headers.get('BROWSER_TOKEN') || response.headers.get('browser_token') || response.headers.get('Browser-Token');
+            // Also check all headers if case-sensitive lookup fails
+            if (!browserTokenHeader) {
+                response.headers.forEach(function(value, key) {
+                    if (key.toLowerCase() === 'browser_token' || key.toLowerCase() === 'browser-token') {
+                        browserTokenHeader = value;
+                    }
+                });
+            }
+            console.log('[persistence.ajax] Fetch response received', {
+                url: url,
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                has_browserToken_header: !!browserTokenHeader,
+                browserToken_preview: browserTokenHeader ? browserTokenHeader.substring(0, 10) + '...' : null,
+                all_headers: Array.from(response.headers.entries()).map(function([k, v]) { return k + ': ' + (k.toLowerCase().includes('token') ? v.substring(0, 20) + '...' : '***'); })
+            });
             if (!response.ok) {
-                reject({status: response.status, statusText: response.statusText, xhr: {status: response.status}});
+                console.log('[persistence.ajax] Response not OK, parsing error body');
+                // Parse the error response body to get the actual error message
+                response.text().then(function(text) {
+                    var errorData = {status: response.status, statusText: response.statusText};
+                    var fakeXHR = {status: response.status, statusText: response.statusText};
+                    try {
+                        var json = JSON.parse(text);
+                        fakeXHR.responseJSON = json;
+                        fakeXHR.responseText = text;
+                        // Extract error message if present
+                        if (json.error) {
+                            errorData.error = json.error;
+                        }
+                        // Copy other error fields
+                        Object.keys(json).forEach(function(key) {
+                            if (key !== 'error') {
+                                errorData[key] = json[key];
+                            }
+                        });
+                    } catch(e) {
+                        fakeXHR.responseText = text;
+                        errorData.error = text || response.statusText;
+                    }
+                    errorData.fakeXHR = fakeXHR;
+                    console.log('[persistence.ajax] Error response parsed', errorData);
+                    reject(errorData);
+                }).catch(function(e) {
+                    console.log('[persistence.ajax] Error parsing error response', e);
+                    reject({
+                        status: response.status, 
+                        statusText: response.statusText, 
+                        error: 'Failed to parse error response',
+                        fakeXHR: {status: response.status}
+                    });
+                });
                 return;
             }
             
@@ -3072,12 +3129,59 @@ var persistence = EmberObject.extend({
             responsePromise.then(function(data) {
                 if (data && typeof data === 'object') {
                     data.xhr = {status: response.status};
+                    // Check for BROWSER_TOKEN header (case-insensitive - backend sends lowercase 'browser_token')
+                    var browserToken = response.headers.get('BROWSER_TOKEN') || 
+                                        response.headers.get('browser_token') || 
+                                        response.headers.get('Browser-Token');
+                    // If still not found, iterate through headers (fetch headers.get() is case-sensitive)
+                    if (!browserToken) {
+                        response.headers.forEach(function(value, key) {
+                            if (key.toLowerCase() === 'browser_token' || key.toLowerCase() === 'browser-token') {
+                                browserToken = value;
+                            }
+                        });
+                    }
+                    if (browserToken) {
+                        console.log('[persistence.ajax] Found browser_token in response header, setting in persistence');
+                        // Set the browserToken in persistence so observers can react
+                        persistence.set('browserToken', browserToken);
+                        // Set up fakeXHR structure that session.js expects
+                        if (!data.meta) {
+                            data.meta = {};
+                        }
+                        if (!data.meta.fakeXHR) {
+                            data.meta.fakeXHR = {status: response.status};
+                        }
+                        data.meta.fakeXHR.browserToken = browserToken;
+                        // Also set it directly for backward compatibility
+                        if (!data.fakeXHR) {
+                            data.fakeXHR = {status: response.status};
+                        }
+                        data.fakeXHR.browserToken = browserToken;
+                    } else {
+                        console.log('[persistence.ajax] No browser_token header found');
+                    }
                 }
+                console.log('[persistence.ajax] Response data parsed successfully', {
+                    url: url,
+                    has_data: !!data,
+                    has_browserToken: !!(data && data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken)
+                });
                 resolve(data);
             }).catch(function(e) {
-                 reject(e);
+                console.log('[persistence.ajax] Error parsing response', {
+                    url: url,
+                    error: e
+                });
+                reject(e);
             });
         }).catch(function(e) {
+            console.log('[persistence.ajax] Fetch failed (network error)', {
+                url: url,
+                error: e,
+                error_type: e && e.constructor && e.constructor.name,
+                error_message: e && e.message
+            });
             reject(e);
         });
       });

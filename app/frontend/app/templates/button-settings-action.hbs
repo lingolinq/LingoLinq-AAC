@@ -299,7 +299,7 @@
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="video_box">
-              <iframe src={{video_test_url}} id="link_video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media"></iframe>
+              <iframe src={{video_test_url}} id="link_video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
             </div>
             {{#unless image_matches_video_thumbnail}}
               <a href="#" {{action "set_as_button_image" model.video.thumbnail_url model.video.thumbnail_content_type}}>{{t "set thumbnail as button image" key="set_thumbnail_as_button_image"}}</a>

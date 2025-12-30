@@ -1,7 +1,7 @@
 {{#modal-dialog full_stretch=true opening="opening" closing="closing"}}
   <div class="modal-body">
     <div class="book_box">
-      <iframe src={{book_url}} id="book_preview" frameborder="0"></iframe>
+      <iframe src={{book_url}} id="book_preview" frameborder="0" title="Book preview"></iframe>
     </div>
     <p style="margin-top: 10px; margin-bottom: -5px;">
       <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Close Book" key="close_book"}}</button>

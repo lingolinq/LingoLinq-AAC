@@ -21,7 +21,7 @@
   {{#modal-dialog full_stretch=true  action="close" opening="opening" closing="closing"}}
     <div class="modal-body">
       <div class="book_box">
-        <iframe src={{model.url}} id="book_preview" frameborder="0" sandbox="allow-pointer-lock allow-popups allow-forms allow-same-origin allow-scripts allow-top-navigation"></iframe>
+        <iframe src={{model.url}} id="book_preview" frameborder="0" sandbox="allow-pointer-lock allow-popups allow-forms allow-same-origin allow-scripts allow-top-navigation" title="Link preview"></iframe>
       </div>
       <p style="margin-top: 10px; margin-bottom: -5px;">
         <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>

@@ -27,9 +27,9 @@
           </button>
           <ul class="dropdown-menu" style='max-height: 190px; overflow: auto;'>
             {{#if extra_users.loading}}
-              <li><a>{{t "Loading Users..." key="loading_users"}}</a></li>
+              <li><a href="#">{{t "Loading Users..." key="loading_users"}}</a></li>
             {{else if exta_users.errors}}
-              <li><a>{{t "Error Loading Users" key="error_loading_users"}}</a></li>
+              <li><a href="#">{{t "Error Loading Users" key="error_loading_users"}}</a></li>
             {{else}}
               {{#each extra_users as |user|}}
                 <li class={{if user.edit_permission "" "disabled"}}><a href='#' {{action "set_extra_user" user}}><img src={{user.avatar_url}} style='width: 20px; height: 20px; object-fit: contain;'> {{user.user_name}}</a></li>

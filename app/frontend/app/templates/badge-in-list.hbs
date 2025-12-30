@@ -1,10 +1,10 @@
 <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
   {{#if badge.global}}
-    <a style='#' {{action "badge_popup" badge}}>
+    <a href="#" style='#' {{action "badge_popup" badge}}>
       <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     </a>
   {{else}}
-    <a style='#' {{action "badge_popup" badge}}>
+    <a href="#" style='#' {{action "badge_popup" badge}}>
       <img src={{badge.image_url}} style='width: 70%;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
     </a>
   {{/if}}

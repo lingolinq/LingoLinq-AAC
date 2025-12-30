@@ -96,9 +96,9 @@
     {{else}}
       <div style="text-align: center;">
         {{#if image_preview.word_editor}}
-          <iframe src="https://www.opensymbols.org/word_maker#embed" style="width: 100%; height: 225px;" frameborder="0"></iframe>
+          <iframe src="https://www.opensymbols.org/word_maker#embed" style="width: 100%; height: 225px;" frameborder="0" title="Word art editor"></iframe>
         {{else if image_preview.editor}}
-          <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0"></iframe>
+          <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0" title="Image editor"></iframe>
         {{else}}
           <img src={{image_preview.url}} class="button_image">
         {{/if}}
