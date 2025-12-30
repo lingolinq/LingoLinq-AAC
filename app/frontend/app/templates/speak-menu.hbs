@@ -1,7 +1,7 @@
 {{#modal-dialog action="close" opening="opening" closing="closing"}}
   <div class="modal-body advanced_selection modal_targets" id="speak_menu" style="padding: 0; font-size: 18px;">
     {{#if app_state.feature_flags.new_speak_menu}}
-      {{#button-listener button_event="button_event"}}
+      {{#button-listener buttonEvent=(action "button_event")}}
         <div class='row' style='margin-left: -1px; margin-top: -1px; width: calc(100% + 2px); border-bottom: 1px solid #000;'>
           {{#if repeat_menu}}
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_quieter'>
@@ -107,7 +107,7 @@
       </ul>
     {{/if}}
     <div style='float: right; width: 100px;'>
-      {{#button-listener button_event='button_event'}}
+      {{#button-listener buttonEvent=(action "button_event")}}
         <div class='speak_menu_button' id='menu_period_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-top-width: 0;'>
           <span style='font-size: 80px; display: block; line-height: 20px'>.</span>
         </div>

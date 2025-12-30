@@ -1,4 +1,4 @@
-{{#button-listener compute_height="compute_height" button_event="button_event"}}
+{{#button-listener computeHeight=(action "compute_height") buttonEvent=(action "button_event")}}
 {{#if model.integration}}
   {{#unless app_state.sessionUser.currently_premium_or_premium_supporter}}
     <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
