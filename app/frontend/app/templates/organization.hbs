@@ -54,7 +54,7 @@
         {{/if}}
         {{#if model.admin}}
           {{#if model.permissions.manage}}
-            <a class="btn btn-default" {{action "jobs"}}>
+            <a href="#" class="btn btn-default" {{action "jobs"}}>
               {{t "Background Jobs" key="background_jobs"}}
               <span style='display: none;'>{{t "jobs" key="jobs"}}</span>
             </a>

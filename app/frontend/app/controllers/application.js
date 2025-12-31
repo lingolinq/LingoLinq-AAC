@@ -1368,7 +1368,7 @@ export default Controller.extend({
     'app_state.pairing',
     'app_state.currentUser.preferences.device.button_text_position',
     'app_state.currentUser.preferences.device.utterance_text_only',
-    'app_state.currentUsser.preferences.high_contrast',
+    'app_state.currentUser.preferences.high_contrast',
     'board.text_style',
     'board.button_style',
     'app_state.header_size',
@@ -1396,17 +1396,20 @@ export default Controller.extend({
       if(app_state.get('pairing')) {
         res = res + "paired ";
       }
-      var text_position = (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
-      var show_always = (app_state.get('currentUser.preferences.device.utterance_text_only') || window.user_preferences.device.utterance_text_only || app_state.get('pairing.partner'));
+      var currentUser = app_state.get('currentUser');
+      var userPrefs = currentUser && currentUser.get ? currentUser.get('preferences') : null;
+      var devicePrefs = userPrefs && userPrefs.device ? userPrefs.device : null;
+      var text_position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      var show_always = (devicePrefs && devicePrefs.utterance_text_only) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.utterance_text_only) || app_state.get('pairing.partner');
       if(text_position == 'text_only' || show_always || flipped) {
         res = res + "text_only ";
       }
-      if(app_state.get('currentUser.preferences.high_contrast')) {
+      if(userPrefs && userPrefs.high_contrast) {
         res = res + 'high_contrast ';
       }
 
-      if(app_state.get('flipped') && app_state.get('currentUser.preferences.device.flipped_override') && app_state.get('currentUser.preferences.device.flipped_text')) {
-        res = res + 'text_' + app_state.get('currentUser.preferences.device.flipped_text') + ' ';
+      if(app_state.get('flipped') && devicePrefs && devicePrefs.flipped_override && devicePrefs.flipped_text) {
+        res = res + 'text_' + devicePrefs.flipped_text + ' ';
       } else {
         if(this.get('board.text_style')) {
           var style = this.get('board.text_style') || ' ';

@@ -1051,8 +1051,11 @@ var editManager = EmberObject.extend({
         var raw = oldState[idx][jdx].raw();
         raw.local_image_url = oldState[idx][jdx].get('local_image_url');
         raw.local_sound_url = oldState[idx][jdx].get('local_sound_url');
-        var b = editManager.Button.create(raw, {board: board, pending: false});
-        if(b.get('board') != board || b.get('pending') != false) { alert('blech!'); }
+        // Ensure pending_image and pending_sound are false so the pending computed property works correctly
+        raw.pending_image = false;
+        raw.pending_sound = false;
+        var b = editManager.Button.create(raw, {board: board});
+        if(b.get('board') != board || (b.get('pending_image') || b.get('pending_sound'))) { alert('blech!'); }
         b.set('id', oldState[idx][jdx].get('id'));
         arr.push(b);
       }
@@ -1901,7 +1904,7 @@ var editManager = EmberObject.extend({
       var needs_check = force_refresh || (button && button.label && !button.image && !button.local_image_url && !button.text_only);
       if(needs_check) {
         button.set('pending_image', true);
-        button.set('pending', true);
+        // Don't set pending directly - it's a computed property based on pending_image/pending_sound
         if(button && button.label && !button.image) {
           button.check_for_parts_of_speech();
         }
@@ -1934,21 +1937,21 @@ var editManager = EmberObject.extend({
             save.then(function(image) {
               button = _this.find_button(id);
               if(_this.controller.get('model.id') == board_id && button && button.label && (!button.image || force_refresh)) {
-                button.set('pending', false);
+                // Don't set pending directly - it's a computed property based on pending_image/pending_sound
                 button.set('pending_image', false);
                 emberSet(button, 'image_id', image.id);
                 emberSet(button, 'image', image);
               }
             }, function() {
-              button.set('pending', false);
+              // Don't set pending directly - it's a computed property based on pending_image/pending_sound
               button.set('pending_image', false);
             });
           } else if(button) {
-            button.set('pending', false);
+            // Don't set pending directly - it's a computed property based on pending_image/pending_sound
             button.set('pending_image', false);
           }
         }, function() {
-          button.set('pending', false);
+          // Don't set pending directly - it's a computed property based on pending_image/pending_sound
           button.set('pending_image', false);
           // nothing to do here, this can be a silent failure and it's ok
         });

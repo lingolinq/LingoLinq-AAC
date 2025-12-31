@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Button List for %{board_name}" key="button_list_for" board_name=model.board.name}}</h3>

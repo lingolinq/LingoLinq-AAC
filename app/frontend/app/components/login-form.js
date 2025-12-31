@@ -1,6 +1,6 @@
 import Ember from 'ember';
 import Component from '@ember/component';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
 import stashes from '../utils/_stashes';
@@ -24,10 +24,13 @@ export default Component.extend({
     this.set('login_single_assertion', null);
     this.set('status_2fa', null);
     this.set('prompt_2fa', null);
+    this.set('pendingTimeouts', []);
     this.browserTokenChange = function() {
-      _this.set('client_id', 'browser');
-      _this.set('client_secret', persistence.get('browserToken'));
-      _this.set('checking_for_secret', false);
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('client_id', 'browser');
+        _this.set('client_secret', persistence.get('browserToken'));
+        _this.set('checking_for_secret', false);
+      }
     };
     persistence.addObserver('browserToken', this.browserTokenChange);
     this.set('long_token', false);
@@ -41,9 +44,12 @@ export default Component.extend({
     } else {
       this.set('checking_for_secret', true);
       var timeout = this.get('restore') === false ? 100 : 2000;
-      runLater(function() {
-        _this.check_for_missing_token();
+      var timeoutHandle = runLater(function() {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.check_for_missing_token();
+        }
       }, timeout);
+      this.get('pendingTimeouts').push(timeoutHandle);
       if(this.get('restore') !== false) {
         session.restore(true);
       }
@@ -54,20 +60,66 @@ export default Component.extend({
   },
   check_for_missing_token: function() {
     var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) {
+      console.log('[login-form] Component destroyed, skipping check_for_missing_token');
+      return;
+    }
+    console.log('[login-form] check_for_missing_token called', {
+      has_client_secret: !!_this.get('client_secret'),
+      online: persistence.get('online')
+    });
     _this.set('checking_for_secret', false);
     if(!_this.get('client_secret')) {
+      console.log('[login-form] No client_secret, starting token check');
       _this.set('requesting', true);
-      session.check_token().then(function() {
+      session.check_token().then(function(result) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          console.log('[login-form] Component destroyed during token check success');
+          return;
+        }
+        console.log('[login-form] Token check completed', {
+          success: result && result.success,
+          networkError: result && result.networkError,
+          has_browserToken: !!result && !!result.browserToken,
+          browserToken_preview: result && result.browserToken ? result.browserToken.substring(0, 20) + '...' : null,
+          persistence_browserToken: persistence.get('browserToken') ? persistence.get('browserToken').substring(0, 20) + '...' : null
+        });
+        // If we got a browserToken, it should already be set in persistence via the observer
+        // But let's make sure client_secret is set
+        var browserToken = result && result.browserToken || persistence.get('browserToken');
+        if (browserToken && !_this.get('client_secret')) {
+          console.log('[login-form] Setting client_secret from browserToken');
+          _this.set('client_secret', browserToken);
+          _this.set('client_id', 'browser');
+        }
         _this.set('requesting', false);
-        runLater(function() {
-          _this.check_for_missing_token();
-        }, 2000);
-      }, function() {
+        // If there was a network error, wait a bit longer before retrying
+        var retryDelay = (result && result.networkError) ? 5000 : 2000;
+        console.log('[login-form] Scheduling retry in', retryDelay, 'ms');
+        var timeoutHandle = runLater(function() {
+          if (!_this.isDestroyed && !_this.isDestroying) {
+            _this.check_for_missing_token();
+          }
+        }, retryDelay);
+        _this.get('pendingTimeouts').push(timeoutHandle);
+      }, function(error) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          console.log('[login-form] Component destroyed during token check error');
+          return;
+        }
+        console.log('[login-form] Token check rejected (unexpected)', error);
         _this.set('requesting', false);
-        runLater(function() {
-          _this.check_for_missing_token();
-        }, 2000);
+        // On rejection, wait longer before retrying (likely network issue)
+        console.log('[login-form] Scheduling retry in 5000ms (rejection)');
+        var timeoutHandle = runLater(function() {
+          if (!_this.isDestroyed && !_this.isDestroying) {
+            _this.check_for_missing_token();
+          }
+        }, 5000);
+        _this.get('pendingTimeouts').push(timeoutHandle);
       });
+    } else {
+      console.log('[login-form] Has client_secret, skipping token check');
     }
   },
   check_tmp_token: function(token, code_2fa) {
@@ -164,6 +216,14 @@ export default Component.extend({
   }),
   willDestroyElement: function() {
     persistence.removeObserver('browserToken', this.browserTokenChange);
+    // Cancel all pending timeouts to prevent setting properties on destroyed component
+    var timeouts = this.get('pendingTimeouts') || [];
+    timeouts.forEach(function(timeoutHandle) {
+      if (timeoutHandle) {
+        cancelLater(timeoutHandle);
+      }
+    });
+    this.set('pendingTimeouts', []);
   },
   browserless: computed(function() {
     return capabilities.browserless;
@@ -248,8 +308,9 @@ export default Component.extend({
     },
     confirm_2fa: function() {
       var _this = this;
-      var url = '/api/v1/token_check?access_token=' + _this.get('prompt_2fa.token') + "&include_token=1&rnd=" + Math.round(Math.random() * 999999);
-      url = url + "&2fa_code=" + encodeURIComponent(_this.get('code_2fa'));
+      var token = _this.get('prompt_2fa.token') || 'none';
+      var url = '/api/v1/token_check?access_token=' + token + "&include_token=1&rnd=" + Math.round(Math.random() * 999999);
+      url = url + "&2fa_code=" + encodeURIComponent(_this.get('code_2fa') || '');
       _this.set('status_2fa', {loading: true});
       persistence.ajax(url, {
         type: 'GET'
@@ -274,6 +335,14 @@ export default Component.extend({
       this.set('login_error', null);
       var _this = this;
       var data = this.getProperties('identification', 'password', 'client_secret', 'long_token', 'browserless');
+      console.log('[login-form] authenticate called', {
+        has_identification: !!data.identification,
+        has_password: !!data.password,
+        has_client_secret: !!data.client_secret,
+        client_secret_preview: data.client_secret ? data.client_secret.substring(0, 20) + '...' : 'none',
+        long_token: data.long_token,
+        browserless: data.browserless
+      });
       if(capabilities.browserless || capabilities.installed_app) {
         data.long_token = true;
         data.browserless = true;
@@ -282,12 +351,23 @@ export default Component.extend({
         this.set('password', null);
         _this.set('login_followup_already_long_token', false);
         session.authenticate(data).then(function(data) {
+          console.log('[login-form] Authentication succeeded', {
+            has_redirect: !!data.redirect,
+            has_token: !!data.access_token
+          });
           if(data.redirect) {
             _this.redirect_login(data.redirect);
           } else {
             _this.handle_auth(data);
           }
         }, function(err) {
+          console.log('[login-form] Authentication error', {
+            error: err,
+            error_type: err && err.constructor && err.constructor.name,
+            error_message: err && err.message,
+            error_error: err && err.error,
+            error_status: err && err.status
+          });
           err = err || {};
           _this.set('logging_in', false);
           app_state.set('logging_in', false);
@@ -298,6 +378,7 @@ export default Component.extend({
           } else if(err.error && err.error.match(/user name was changed/i) && err.user_name) {
             _this.set('login_error', i18n.t('user_name_changed', "NOTE: User name has changed to \"%{un}\"", {un: err.user_name}));
           } else {
+            console.log('[login-form] Unexpected error, showing generic message', err);
             _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
           }
         });

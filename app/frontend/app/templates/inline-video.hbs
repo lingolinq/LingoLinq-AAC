@@ -1,4 +1,4 @@
-{{#modal-dialog stretch_ratio=1.5 opening="opening" closing="closing"}}
+{{#modal-dialog stretch_ratio=1.5 opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     {{#if player.error}}
       <div style="width: 100%; margin-top: 30px; text-align: center;">
@@ -16,7 +16,7 @@
     {{else}}
       <div class="video_box">
         {{#if video_url}}
-          <iframe src={{video_url}} id="video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media"></iframe>
+          <iframe src={{video_url}} id="video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
         {{else}}
           {{t "Invalid video resource" key="invalid_video_resource"}}
         {{/if}}

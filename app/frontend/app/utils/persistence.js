@@ -1,3 +1,4 @@
+/* global $ */
 import Ember from 'ember';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -6,7 +7,6 @@ import {
   cancel as runCancel,
   run
 } from '@ember/runloop';
-// import $ from 'jquery';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import lingoLinqExtras from './extras';
@@ -25,7 +25,7 @@ var loaded = (new Date()).getTime() / 1000;
 var persistence = EmberObject.extend({
   setup: function(application) {
     application.register('cough_drop:persistence', persistence, { instantiate: false, singleton: true });
-    ['model', 'controller', 'view', 'route'].forEach(function(component) {
+    $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'cough_drop:persistence');
     });
     persistence.find('settings', 'lastSync').then(function(res) {
@@ -2643,7 +2643,7 @@ var persistence = EmberObject.extend({
                       var necessary_finds = [];
                       // this is probably a protective thing, but I have no idea why anymore,
                       // it may not even be necessary anymore
-                      var tmp_board = LingoLinq.store.createRecord('board', Object.assign({}, b, {id: null}));
+                      var tmp_board = LingoLinq.store.createRecord('board', $.extend({}, b, {id: null}));
                       var missing_image_ids = [];
                       var missing_sound_ids = [];
                       // TODO: does this need to be just for the current user, or the whole map?
@@ -3029,56 +3029,27 @@ var persistence = EmberObject.extend({
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on
       // global ajax for errors instead...
       return new RSVP.Promise(function(resolve, reject) {
-        // Fetch implementation replacing $.ajax
-        var method = (ajax_args[1] || {}).type || (ajax_args[1] || {}).method || 'GET';
-        var opts = ajax_args[1] || {};
-        var url = ajax_args[0];
-        
-        var headers = opts.headers || {};
-        var body = opts.data;
-        
-        if (opts.contentType !== false) {
-           // If contentType is not explicitly false, and we have data that isn't FormData, 
-           // and no Content-Type header is set, we might need to set it.
-           // However, fetch handles strings/FormData well. 
-           // If object, we might need to stringify and set application/json?
-           // Unlikely generic objects are passed without processing in existing usage unless $.ajax handled it.
-           // content_grabbers passes FormData.
-        }
-
-        var fetchOpts = {
-            method: method,
-            headers: headers
-        };
-        if (method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD') {
-            fetchOpts.body = body;
-        }
-
-        fetch(url, fetchOpts).then(function(response) {
-            if (!response.ok) {
-                reject({status: response.status, statusText: response.statusText, xhr: {status: response.status}});
-                return;
+        $.ajax.apply(null, ajax_args).then(function(data, message, xhr) {
+          run(function() {
+            if(data) {
+              data.xhr = xhr;
             }
-            
-            var dataType = opts.dataType || 'json';
-            var responsePromise;
-            
-            if (dataType === 'text') {
-                responsePromise = response.text().then(function(t) { return {text: t}; });
+            resolve(data);
+          });
+        }, function(xhr) {
+          // TODO: for some reason, safari returns the promise instead of the promise's
+          // result to this handler. I'm sure it's something I'm doing wrong, but I haven't
+          // been able to figure it out yet. This is a band-aid.
+          if(xhr.then) { console.log("received the promise instead of the promise's result.."); }
+          var promise = xhr.then ? xhr : RSVP.reject(xhr);
+          promise.then(null, function(xhr) {
+            var allow_offline_error = false;
+            if(allow_offline_error) { // TODO: check for offline error in xhr
+              reject(xhr, {offline: true, error: "not online"});
             } else {
-                responsePromise = response.json(); 
+              reject(xhr);
             }
-            
-            responsePromise.then(function(data) {
-                if (data && typeof data === 'object') {
-                    data.xhr = {status: response.status};
-                }
-                resolve(data);
-            }).catch(function(e) {
-                 reject(e);
-            });
-        }).catch(function(e) {
-            reject(e);
+          });
         });
       });
     } else {

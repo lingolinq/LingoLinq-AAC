@@ -11,7 +11,7 @@
         {{else if blocked_emails}}
           <div class='list-group' style='max-width: 400px; margin-bottom: 5px; max-height: 200px; overflow: auto;'>
             {{#each blocked_emails as |email|}}
-              <a class='list-group-item'>{{email}}</a>
+              <a href="#" class='list-group-item'>{{email}}</a>
             {{/each}}
           </div>
         {{else}}
@@ -43,7 +43,7 @@
         {{else if blocked_cells}}
           <div class='list-group' style='max-width: 400px; margin-bottom: 5px; max-height: 200px; overflow: auto;'>
             {{#each blocked_cells as |cell|}}
-              <a class='list-group-item'>{{cell}}</a>
+              <div class='list-group-item'>{{cell}}</div>
             {{/each}}
           </div>
         {{else}}
@@ -70,7 +70,7 @@
       </div>
       <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
         {{#each gifts as |gift|}}
-          <a class='list-group-item'>
+          <div class='list-group-item'>
             <span style='float: left; font-size: 30px; padding-right: 10px;'>
               {{#if gift.gift_types.bulk_purchase}}
                 {{#if gift.active}}
@@ -159,7 +159,7 @@
                 {{date gift.created "day"}}
               </div>
             {{/if}}
-          </a>
+          </div>
         {{/each}}
       </div>
       <label>{{t "Create a Gift or Bulk Purchase" key="create_a_gift_or_bulk_purchase"}}</label>

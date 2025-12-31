@@ -31,7 +31,7 @@
     </div>
 
   {{else}}
-    {{board-selection-tool load_error="show_advanced" mine="show_mine" advanced="show_advanced" select="select_board" update_scroll=(action "update_scroll")}}
+    {{board-selection-tool loadError=(action "show_advanced") mine=(action "show_mine") advanced=(action "show_advanced") select=(action "select_board") update_scroll=(action "update_scroll")}}
   {{/if}}
 {{else}}
   <div class='col-sm-10 col-sm-offset-1'>

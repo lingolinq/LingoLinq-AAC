@@ -44,6 +44,10 @@ module.exports = function(defaults) {
 
   // Import JS files
   app.import('bower_components/IndexedDBShim/dist/indexeddbshim.min.js');
+  // Import source map to prevent 404 errors
+  app.import('bower_components/IndexedDBShim/dist/indexeddbshim.min.js.map', {
+    destDir: 'assets'
+  });
   // Hammer-Time causes a weird bug in Windows Chrome where if you
   // tap a dropdown, when you touch (not mouse) the element within the dropdown, it
   // triggers a click event on the page with the page-level coordinates

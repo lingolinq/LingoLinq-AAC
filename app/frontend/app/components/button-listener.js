@@ -19,11 +19,17 @@ export default Component.extend({
           return;
         }
         if(_this.get('active_tracking')) {
-          _this.sendAction('compute_height', true);      
+          var computeHeight = _this.get('computeHeight');
+          if (computeHeight && typeof computeHeight === 'function') {
+            computeHeight(true);
+          }
         }
       }, 100);
     });
-    _this.sendAction('compute_height');
+    var computeHeight = _this.get('computeHeight');
+    if (computeHeight && typeof computeHeight === 'function') {
+      computeHeight();
+    }
   },
   willDestroyElement: function() {
     this.set('active_tracking', false);
@@ -33,7 +39,10 @@ export default Component.extend({
     return $button.attr('data-id') || $(event.target).attr('id');
   },
   speakMenuSelect: function(event) {
-    this.sendAction('button_event', 'speakMenuSelect', event.button_id, event);
+    var buttonEvent = this.get('buttonEvent');
+    if (buttonEvent && typeof buttonEvent === 'function') {
+      buttonEvent('speakMenuSelect', event.button_id, event);
+    }
   },
   buttonSelect: function(event) {
     // if(app_state.get('feature_flags.super_fast_html')) {
@@ -60,13 +69,19 @@ export default Component.extend({
     if(app_state.get('edit_mode') && editManager.paint_mode) {
       this.buttonPaint(event);
     } else {
-      this.sendAction('button_event', 'buttonSelect', button_id, event);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('buttonSelect', button_id, event);
+      }
     }
   },
   buttonPaint: function(event) {
     if(editManager.paint_mode) {
       var button_id = this.buttonId(event);
-      this.sendAction('button_event', 'buttonPaint', button_id);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('buttonPaint', button_id);
+      }
     }
   },
   symbolSelect: function(event) {
@@ -75,7 +90,10 @@ export default Component.extend({
         return this.buttonSelect(event);
       }
       var button_id = this.buttonId(event);
-      this.sendAction('button_event', 'symbolSelect', button_id);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('symbolSelect', button_id);
+      }
     }
   },
   actionSelect: function(event) {
@@ -84,26 +102,38 @@ export default Component.extend({
         return this.buttonSelect(event);
       }
       var button_id = this.buttonId(event);
-      this.sendAction('button_event', 'actionSelect', button_id);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('actionSelect', button_id);
+      }
     }
   },
   rearrange: function(event) {
     if(app_state.get('edit_mode')) {
       var dragId = $(event.target).data('drag_id');
       var dropId = $(event.target).data('drop_id');
-      this.sendAction('button_event', 'rearrangeButtons', dragId, dropId);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('rearrangeButtons', dragId, dropId);
+      }
     }
   },
   clear: function(event) {
     if(app_state.get('edit_mode')) {
       var button_id = this.buttonId(event);
-      this.sendAction('button_event', 'clear_button', button_id);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('clear_button', button_id);
+      }
     }
   },
   stash: function(event) {
     if(app_state.get('edit_mode')) {
       var button_id = this.buttonId(event);
-      this.sendAction('button_event', 'stash_button', button_id);
+      var buttonEvent = this.get('buttonEvent');
+      if (buttonEvent && typeof buttonEvent === 'function') {
+        buttonEvent('stash_button', button_id);
+      }
     }
   }
 });

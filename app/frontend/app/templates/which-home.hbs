@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     {{t "This board is not your standard home board. Would you like to temporarily use this board as your home board?" key="not_standard_board"}}
   </div>

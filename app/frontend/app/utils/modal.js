@@ -191,6 +191,7 @@ var modal = EmberObject.extend({
     }
     if(outlet != 'highlight' && outlet != 'highlight-secondary') {
       this.last_template = null;
+      this.component = null; // Clear component reference when closing
       runLater(function() {
         modal.close(null, 'highlight');
         modal.close(null, 'highlight-secondary');
@@ -313,7 +314,7 @@ modal.ModalController = Controller.extend({
       modal.auto_close_timer = null;
       if(settings && settings.inactivity_timeout) {
         modal.auto_close_callback = function() {
-          if(modal.auto_close && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
+          if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
             modal.close();
             modal.auto_close = false;
           }

@@ -93,7 +93,18 @@ var session = EmberObject.extend({
           mobile: (!!capabilities.mobile).toString()
         };
   
+        console.log('[session.authenticate] Sending authentication request', {
+          username: data.username,
+          client_id: data.client_id,
+          has_client_secret: !!data.client_secret,
+          client_secret_preview: data.client_secret ? data.client_secret.substring(0, 10) + '...' : 'none'
+        });
         persistence.ajax('/token', {method: 'POST', data: data}).then(function(response) {
+          console.log('[session.authenticate] Authentication succeeded', {
+            has_auth_redirect: !!response.auth_redirect,
+            has_access_token: !!response.access_token,
+            has_user_name: !!response.user_name
+          });
           if(response && response.auth_redirect) {
             return resolve({redirect: response.auth_redirect});
           } else {
@@ -102,9 +113,21 @@ var session = EmberObject.extend({
             });  
           }
         }, function(data) {
+          console.log('[session.authenticate] Authentication failed', {
+            error_data: data,
+            error: data && data.error,
+            fakeXHR: data && data.fakeXHR ? {
+              status: data.fakeXHR.status,
+              statusText: data.fakeXHR.statusText,
+              responseJSON: data.fakeXHR.responseJSON,
+              responseText: data.fakeXHR.responseText
+            } : null
+          });
           var xhr = data.fakeXHR || {};
+          var errorResponse = xhr.responseJSON || data.error || xhr.responseText || data;
+          console.log('[session.authenticate] Rejecting with error', errorResponse);
           run(function() {
-            reject(xhr.responseJSON || xhr.responseText);
+            reject(errorResponse);
           });
         });  
       };
@@ -128,13 +151,29 @@ var session = EmberObject.extend({
     var key = store_data.access_token || "none";
     persistence.tokens = persistence.tokens || {};
     persistence.tokens[key] = true;
-    var url = '/api/v1/token_check?access_token=' + store_data.access_token + "&rnd=" + Math.round(Math.random() * 999999);
+    var access_token = store_data.access_token || "none";
+    var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
     if(store_data.as_user_id) {
       url = url + "&as_user_id=" + store_data.as_user_id;
     }
+    console.log('[check_token] Starting token check', {
+      url: url,
+      online: persistence.get('online'),
+      has_token: !!store_data.access_token,
+      token_preview: store_data.access_token ? store_data.access_token.substring(0, 10) + '...' : 'none'
+    });
     return persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
+      console.log('[check_token] Token check succeeded', {
+        authenticated: data.authenticated,
+        has_user_name: !!data.user_name,
+        user_id: data.user_id,
+        has_meta_fakeXHR: !!(data.meta && data.meta.fakeXHR),
+        has_fakeXHR: !!data.fakeXHR,
+        browserToken_in_meta: !!(data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken),
+        browserToken_in_fakeXHR: !!(data.fakeXHR && data.fakeXHR.browserToken)
+      });
       // TODO: what happens if the session token gets invalidated mid-session (i.e. without reload?)
       // TODO: if expired, then re-submit with the refresh token
       if(data.authenticated === false) {
@@ -177,20 +216,57 @@ var session = EmberObject.extend({
       }
       return RSVP.resolve({success: true, browserToken: persistence.get('browserToken')});
     }, function(data) {
+      console.log('[check_token] Token check failed', {
+        error_data: data,
+        fakeXHR: data && data.fakeXHR ? {
+          status: data.fakeXHR.status,
+          statusText: data.fakeXHR.statusText
+        } : null,
+        result: data && data.result,
+        online: persistence.get('online')
+      });
+      
       if(!persistence.get('online')) {
+        console.log('[check_token] Already marked as offline, returning success: false');
         return {success: false};
       }
       if(data && data.fakeXHR && data.fakeXHR.browserToken) {
         persistence.set('browserToken', data.fakeXHR.browserToken);
       }
       if(data && data.result && data.result.error == "not online") {
+        console.log('[check_token] Error indicates not online');
         return {success: false};
       }
       if(!data && !persistence.get('online')) {
+        console.log('[check_token] No data and not online');
         return {success: false};
       }
+      // Check for network/connection errors
+      var isNetworkError = false;
+      if(data && data.fakeXHR) {
+        // Status 0 typically means network error (CORS, connection refused, etc.)
+        if(data.fakeXHR.status === 0 || data.fakeXHR.status === undefined) {
+          isNetworkError = true;
+          console.log('[check_token] Detected network error: status is 0 or undefined');
+        } else {
+          console.log('[check_token] HTTP error status:', data.fakeXHR.status);
+        }
+      } else if(!data || (data.status === 0)) {
+        // No response or status 0 indicates network error
+        isNetworkError = true;
+        console.log('[check_token] Detected network error: no data or status 0');
+      }
+      
+      // If it's a network error and we thought we were online, mark as offline
+      if(isNetworkError && persistence.get('online')) {
+        console.log('[check_token] Network error detected, marking as offline');
+        persistence.set('online', false);
+      }
+      
       persistence.tokens[key] = false;
-      return RSVP.resolve({success: false, browserToken: persistence.get('browserToken')});
+      var result = {success: false, browserToken: persistence.get('browserToken'), networkError: isNetworkError};
+      console.log('[check_token] Returning result:', result);
+      return RSVP.resolve(result);
     });
   },
   wait_for_token: function(popout_id) {

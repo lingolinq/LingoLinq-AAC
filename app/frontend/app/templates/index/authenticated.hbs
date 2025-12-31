@@ -153,7 +153,7 @@
             <strong>{{app_state.currentUser.preferences.home_board.key}}</strong>
           {{/link-to}}
           {{#unless app_state.currentUser.subscription.any_limited_supervisor}}
-            <a class="list-group-item" style={{if app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
+            <div class="list-group-item" style={{if app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
               <span class="glyphicon glyphicon-volume-up"></span>
               <span class="btn btn-primary" {{action "homeInSpeakMode"}} style="padding-top: 13px; padding-bottom: 13px; margin-top: -5px;">
               {{t "Open In Speak Mode" key="open_in_speak_mode"}}
@@ -166,7 +166,7 @@
                   </label>
                 </div>
               {{/if}}
-            </a>
+            </div>
           {{/unless}}
           {{#if sync_able}}
             <a href="#" class={{needs_sync_class}} {{action "sync"}}>
@@ -209,7 +209,7 @@
           {{/if}}
         {{/if}}
       {{else if app_state.currentUser.home_board_pending}}
-        <a class="list-group-item">
+        <a href="#" class="list-group-item">
           <span class="glyphicon glyphicon-home"></span>
           {{t "current home board:" key="current_home_board"}}<br>
           <strong>{{t "copying %{brd}..." key="copying_board" brd=app_state.currentUser.home_board_pending}}</strong>
@@ -236,7 +236,7 @@
         </span>
       </a>
       {{#if app_state.currentUser.supervised_units}}
-        <a class="list-group-item half_size subtle">
+        <a href="#" class="list-group-item half_size subtle">
           <span>
             <span class='glyphicon glyphicon-tower'></span>
             {{t "rooms:" key="rooms_colon"}}
@@ -252,7 +252,7 @@
       {{/if}}
       {{#if app_state.currentUser.has_management_responsibility}}
         {{#if app_state.currentUser.manages_multiple_orgs}}
-          <a class="list-group-item half_size">
+          <a href="#" class="list-group-item half_size">
             <span class="glyphicon glyphicon-paperclip"></span>
             {{#each app_state.currentUser.managed_orgs as |org|}}
               <span style="margin-right: 10px;">

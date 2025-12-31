@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
+import { set as emberSet } from '@ember/object';
 import editManager from '../utils/edit_manager';
 import obf from '../utils/obf';
 import stashes from '../utils/_stashes';
@@ -82,7 +83,24 @@ export default Route.extend({
         }
         var obj = _this.store.findRecord('board', key);
         return obj.then(function(data) {
-          data.set('lookup_key', params.key);
+          // Set lookup_key safely - wrap in try/catch to handle state issues
+          if(data) {
+            try {
+              // Use emberSet to avoid triggering state changes that cause notFound errors
+              emberSet(data, 'lookup_key', params.key);
+            } catch(e) {
+              // If setting fails due to state, try again later
+              runLater(function() {
+                if(data && !data.get('isDestroyed') && !data.get('isDestroying')) {
+                  try {
+                    emberSet(data, 'lookup_key', params.key);
+                  } catch(e2) {
+                    // Ignore errors if record is in wrong state
+                  }
+                }
+              }, 100);
+            }
+          }
           return RSVP.resolve(data);
         }, function(err) {
           var error = err;

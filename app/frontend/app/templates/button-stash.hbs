@@ -1,12 +1,11 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     <!-- TODO: this needs better visual cue when in select mode. also could use drag option -->
     {{#if button_stashes}}
       <p>
       {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
       </p>
-      {{#with model as |board|}}
-        {{#each button_stashes as |button|}}
+      {{#each button_stashes as |button|}}
           <span class="stash_button_container" {{action "pickButton" button}}>
             <!-- TODO: I think this is only used in Edit Mode -->
             <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
@@ -49,7 +48,6 @@
             </a>
           </span>
         {{/each}}
-      {{/with}}
       <div style="clear: left;"></div>
     {{else}}
       <p>

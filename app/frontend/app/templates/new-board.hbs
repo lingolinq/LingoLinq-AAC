@@ -1,5 +1,5 @@
-{{#grid-listener grid_event="grid_event"}}
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#grid-listener gridEvent=(action "grid_event")}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="board_drop">
     <div class="modal-header">
       <button type="button" class="close" {{action "close"}}>&times;</button>

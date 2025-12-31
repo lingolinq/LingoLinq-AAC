@@ -1,4 +1,4 @@
-{{#modal-dialog opening="opening" closing="closing" desired_width=625}}
+{{#modal-dialog opening=(action "opening") closing=(action "closing") desired_width=625}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Have You Tried Modeling?" key="have_you_tried_modeling"}}</h3>

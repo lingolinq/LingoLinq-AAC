@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Manage Start Codes" key="manage_start_codes"}} - {{org_or_user.name}}</h3>
@@ -32,7 +32,7 @@
               <tr>
                 <td>
                   {{#if code.disabled}}
-                    <strike>{{code.code}}</strike>
+                    <del>{{code.code}}</del>
                   {{else}}
                     <a href='#' {{action "copy" code.code}}>{{code.code}}</a>
                     {{#if code.to_delete}}

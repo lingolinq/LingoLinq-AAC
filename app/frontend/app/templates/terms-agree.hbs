@@ -1,4 +1,4 @@
-{{#modal-dialog opening="opening" closing="closing"}}
+{{#modal-dialog opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <h3>
       {{t "Complete %app_name% Registration" key="complete_registration"}}

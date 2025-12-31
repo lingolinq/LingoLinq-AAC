@@ -10,7 +10,13 @@ export default Component.extend({
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
-      this.sendAction('opening');
+      var opening = this.get('opening');
+      if (opening && typeof opening === 'function') {
+        opening();
+      } else if (opening && typeof opening === 'string') {
+        // Fallback for string-based actions (legacy support)
+        this.sendAction('opening');
+      }
     }
     this.set('auto_close', !!modal.auto_close);
     if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
@@ -51,8 +57,18 @@ export default Component.extend({
     if(!this.get('already_closed')) {
       this.set('already_closed', true);
       try {
-        this.sendAction('closing');
+        var closing = this.get('closing');
+        if (closing && typeof closing === 'function') {
+          closing();
+        } else if (closing && typeof closing === 'string') {
+          // Fallback for string-based actions (legacy support)
+          this.sendAction('closing');
+        }
       } catch(e) { }
+    }
+    // Clear modal component reference when component is destroyed to prevent null reference errors
+    if(modal.component === this) {
+      modal.component = null;
     }
   },
   touchEnd: function(event) {
@@ -97,7 +113,13 @@ export default Component.extend({
         } catch(e) { }
         console.log("close from event");
         buttonTracker.ignoreUp = true;
-        return this.sendAction();
+        var action = this.get('action');
+        if (action && typeof action === 'function') {
+          return action();
+        } else if (action && typeof action === 'string') {
+          // Fallback for string-based actions (legacy support)
+          return this.sendAction();
+        }
       }
     },
     any_select: function(e) {
