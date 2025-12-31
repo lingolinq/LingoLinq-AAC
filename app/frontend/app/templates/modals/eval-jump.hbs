@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Jump to Eval Section" key="jump_to_eval_section"}}</h3>

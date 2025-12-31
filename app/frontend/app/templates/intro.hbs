@@ -1,4 +1,4 @@
-{{#modal-dialog desired_width=800 action="close" opening="opening" closing="closing"}}
+{{#modal-dialog desired_width=800 action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Getting Started with %app_name%" key="getting_started_with_app"}}</h3>

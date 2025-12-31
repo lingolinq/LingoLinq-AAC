@@ -1,4 +1,4 @@
-{{#modal-dialog opening="opening" closing="closing" desired_width=625}}
+{{#modal-dialog opening=(action "opening") closing=(action "closing") desired_width=625}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Welcome to Speak Mode!" key="welcome_to_speak_mode"}}</h3>

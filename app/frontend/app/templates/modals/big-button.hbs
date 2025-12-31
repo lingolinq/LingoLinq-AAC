@@ -1,4 +1,4 @@
-{{#modal-dialog desired_width=850 action="close" opening="opening" closing="closing"}}
+{{#modal-dialog desired_width=850 action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div class='cursor_holder' style={{if flipped "transform: rotate(180deg);"}}>
       <div class='cursor_navigation repair_buttons'>

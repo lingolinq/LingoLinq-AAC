@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing" desired_width=900}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") desired_width=900}}
   <div class="modal-header" style='padding: 5px 10px;'>
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Share Text" key="share_text"}}</h3>

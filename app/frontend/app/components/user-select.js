@@ -47,7 +47,13 @@ export default Component.extend({
         });
       }
       if(!this.get('buttons') && !this.get('selection')) {
-        this.sendAction('action', 'self');
+        var action = this.get('action');
+        if (action && typeof action === 'function') {
+          action('self');
+        } else if (action && typeof action === 'string') {
+          // Fallback for string-based actions (legacy support)
+          this.sendAction('action', 'self');
+        }
       }
     }
     if(this.get('has_extra_users')) {
@@ -55,7 +61,13 @@ export default Component.extend({
     }
     if(!app_state.get('sessionUser.supervisees') || supervisees.length === 0) {
       if(!app_state.get('sessionUser.communicator_in_supporter_view')) {
-        this.sendAction('action', 'self');
+        var action = this.get('action');
+        if (action && typeof action === 'function') {
+          action('self');
+        } else if (action && typeof action === 'string') {
+          // Fallback for string-based actions (legacy support)
+          this.sendAction('action', 'self');
+        }
       }
     }
     this.set('users', this.get('users') || supervisees);
@@ -151,7 +163,13 @@ export default Component.extend({
       us[user.id] = user;
       app_state.set('quick_users', us);
       this.set('extra_user', user);
-      this.sendAction('action', user.id);
+      var action = this.get('action');
+      if (action && typeof action === 'function') {
+        action(user.id);
+      } else if (action && typeof action === 'string') {
+        // Fallback for string-based actions (legacy support)
+        this.sendAction('action', user.id);
+      }
     }
   }
 });

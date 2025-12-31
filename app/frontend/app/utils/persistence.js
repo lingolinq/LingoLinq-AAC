@@ -1,3 +1,4 @@
+/* global $ */
 import Ember from 'ember';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -6,7 +7,6 @@ import {
   cancel as runCancel,
   run
 } from '@ember/runloop';
-// import $ from 'jquery';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import lingoLinqExtras from './extras';
@@ -25,7 +25,7 @@ var loaded = (new Date()).getTime() / 1000;
 var persistence = EmberObject.extend({
   setup: function(application) {
     application.register('cough_drop:persistence', persistence, { instantiate: false, singleton: true });
-    ['model', 'controller', 'view', 'route'].forEach(function(component) {
+    $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'cough_drop:persistence');
     });
     persistence.find('settings', 'lastSync').then(function(res) {
@@ -717,11 +717,7 @@ var persistence = EmberObject.extend({
           resolve(uri);
         }
       }, function(err) {
-        // Only log unexpected errors, not the expected "url not in storage" case
-        var errorMsg = (err || {}).error || err;
-        if (errorMsg && errorMsg !== 'url not in storage') {
-          LingoLinq.track_error("JSON DATA find_url error", errorMsg);
-        }
+        LingoLinq.track_error("JSON DATA find_url error", (err || {}).error || err);
         reject(err);
       });
     });
@@ -2647,7 +2643,7 @@ var persistence = EmberObject.extend({
                       var necessary_finds = [];
                       // this is probably a protective thing, but I have no idea why anymore,
                       // it may not even be necessary anymore
-                      var tmp_board = LingoLinq.store.createRecord('board', Object.assign({}, b, {id: null}));
+                      var tmp_board = LingoLinq.store.createRecord('board', $.extend({}, b, {id: null}));
                       var missing_image_ids = [];
                       var missing_sound_ids = [];
                       // TODO: does this need to be just for the current user, or the whole map?
@@ -3033,160 +3029,27 @@ var persistence = EmberObject.extend({
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on
       // global ajax for errors instead...
       return new RSVP.Promise(function(resolve, reject) {
-        // Fetch implementation replacing $.ajax
-        var method = (ajax_args[1] || {}).type || (ajax_args[1] || {}).method || 'GET';
-        var opts = ajax_args[1] || {};
-        var url = ajax_args[0];
-        
-        var headers = opts.headers || {};
-        var body = opts.data;
-        
-        // Handle body serialization for POST/PUT/PATCH requests
-        // jQuery's $.ajax automatically stringifies objects, but fetch does not
-        if (method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD' && body !== undefined && body !== null) {
-            // If body is an object (and not FormData or a string), stringify it and set Content-Type
-            if (typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams)) {
-                body = JSON.stringify(body);
-                // Only set Content-Type if not already set and contentType is not explicitly false
-                if (opts.contentType !== false && !headers['Content-Type'] && !headers['content-type']) {
-                    headers['Content-Type'] = 'application/json';
-                }
+        $.ajax.apply(null, ajax_args).then(function(data, message, xhr) {
+          run(function() {
+            if(data) {
+              data.xhr = xhr;
             }
-        }
-
-        var fetchOpts = {
-            method: method,
-            headers: headers
-        };
-        if (method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD') {
-            fetchOpts.body = body;
-        }
-
-        fetch(url, fetchOpts).then(function(response) {
-            // Check for BROWSER_TOKEN header (case-insensitive - backend sends lowercase)
-            var browserTokenHeader = response.headers.get('BROWSER_TOKEN') || response.headers.get('browser_token') || response.headers.get('Browser-Token');
-            // Also check all headers if case-sensitive lookup fails
-            if (!browserTokenHeader) {
-                response.headers.forEach(function(value, key) {
-                    if (key.toLowerCase() === 'browser_token' || key.toLowerCase() === 'browser-token') {
-                        browserTokenHeader = value;
-                    }
-                });
-            }
-            console.log('[persistence.ajax] Fetch response received', {
-                url: url,
-                status: response.status,
-                statusText: response.statusText,
-                ok: response.ok,
-                has_browserToken_header: !!browserTokenHeader,
-                browserToken_preview: browserTokenHeader ? browserTokenHeader.substring(0, 10) + '...' : null,
-                all_headers: Array.from(response.headers.entries()).map(function([k, v]) { return k + ': ' + (k.toLowerCase().includes('token') ? v.substring(0, 20) + '...' : '***'); })
-            });
-            if (!response.ok) {
-                console.log('[persistence.ajax] Response not OK, parsing error body');
-                // Parse the error response body to get the actual error message
-                response.text().then(function(text) {
-                    var errorData = {status: response.status, statusText: response.statusText};
-                    var fakeXHR = {status: response.status, statusText: response.statusText};
-                    try {
-                        var json = JSON.parse(text);
-                        fakeXHR.responseJSON = json;
-                        fakeXHR.responseText = text;
-                        // Extract error message if present
-                        if (json.error) {
-                            errorData.error = json.error;
-                        }
-                        // Copy other error fields
-                        Object.keys(json).forEach(function(key) {
-                            if (key !== 'error') {
-                                errorData[key] = json[key];
-                            }
-                        });
-                    } catch(e) {
-                        fakeXHR.responseText = text;
-                        errorData.error = text || response.statusText;
-                    }
-                    errorData.fakeXHR = fakeXHR;
-                    console.log('[persistence.ajax] Error response parsed', errorData);
-                    reject(errorData);
-                }).catch(function(e) {
-                    console.log('[persistence.ajax] Error parsing error response', e);
-                    reject({
-                        status: response.status, 
-                        statusText: response.statusText, 
-                        error: 'Failed to parse error response',
-                        fakeXHR: {status: response.status}
-                    });
-                });
-                return;
-            }
-            
-            var dataType = opts.dataType || 'json';
-            var responsePromise;
-            
-            if (dataType === 'text') {
-                responsePromise = response.text().then(function(t) { return {text: t}; });
+            resolve(data);
+          });
+        }, function(xhr) {
+          // TODO: for some reason, safari returns the promise instead of the promise's
+          // result to this handler. I'm sure it's something I'm doing wrong, but I haven't
+          // been able to figure it out yet. This is a band-aid.
+          if(xhr.then) { console.log("received the promise instead of the promise's result.."); }
+          var promise = xhr.then ? xhr : RSVP.reject(xhr);
+          promise.then(null, function(xhr) {
+            var allow_offline_error = false;
+            if(allow_offline_error) { // TODO: check for offline error in xhr
+              reject(xhr, {offline: true, error: "not online"});
             } else {
-                responsePromise = response.json(); 
+              reject(xhr);
             }
-            
-            responsePromise.then(function(data) {
-                if (data && typeof data === 'object') {
-                    data.xhr = {status: response.status};
-                    // Check for BROWSER_TOKEN header (case-insensitive - backend sends lowercase 'browser_token')
-                    var browserToken = response.headers.get('BROWSER_TOKEN') || 
-                                        response.headers.get('browser_token') || 
-                                        response.headers.get('Browser-Token');
-                    // If still not found, iterate through headers (fetch headers.get() is case-sensitive)
-                    if (!browserToken) {
-                        response.headers.forEach(function(value, key) {
-                            if (key.toLowerCase() === 'browser_token' || key.toLowerCase() === 'browser-token') {
-                                browserToken = value;
-                            }
-                        });
-                    }
-                    if (browserToken) {
-                        console.log('[persistence.ajax] Found browser_token in response header, setting in persistence');
-                        // Set the browserToken in persistence so observers can react
-                        persistence.set('browserToken', browserToken);
-                        // Set up fakeXHR structure that session.js expects
-                        if (!data.meta) {
-                            data.meta = {};
-                        }
-                        if (!data.meta.fakeXHR) {
-                            data.meta.fakeXHR = {status: response.status};
-                        }
-                        data.meta.fakeXHR.browserToken = browserToken;
-                        // Also set it directly for backward compatibility
-                        if (!data.fakeXHR) {
-                            data.fakeXHR = {status: response.status};
-                        }
-                        data.fakeXHR.browserToken = browserToken;
-                    } else {
-                        console.log('[persistence.ajax] No browser_token header found');
-                    }
-                }
-                console.log('[persistence.ajax] Response data parsed successfully', {
-                    url: url,
-                    has_data: !!data,
-                    has_browserToken: !!(data && data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken)
-                });
-                resolve(data);
-            }).catch(function(e) {
-                console.log('[persistence.ajax] Error parsing response', {
-                    url: url,
-                    error: e
-                });
-                reject(e);
-            });
-        }).catch(function(e) {
-            console.log('[persistence.ajax] Fetch failed (network error)', {
-                url: url,
-                error: e,
-                error_type: e && e.constructor && e.constructor.name,
-                error_message: e && e.message
-            });
-            reject(e);
+          });
         });
       });
     } else {

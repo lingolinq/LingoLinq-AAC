@@ -1,4 +1,4 @@
-{{#modal-dialog stretch_ratio=stretch_ratio action="close" opening="opening" closing="closing"}}
+{{#modal-dialog stretch_ratio=stretch_ratio action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>

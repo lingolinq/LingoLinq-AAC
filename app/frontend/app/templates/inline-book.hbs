@@ -1,4 +1,4 @@
-{{#modal-dialog full_stretch=true opening="opening" closing="closing"}}
+{{#modal-dialog full_stretch=true opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     <div class="book_box">
       <iframe src={{book_url}} id="book_preview" frameborder="0" title="Book preview"></iframe>

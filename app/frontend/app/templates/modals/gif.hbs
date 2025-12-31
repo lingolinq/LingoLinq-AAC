@@ -1,4 +1,4 @@
-{{#modal-dialog desired_width=850 action="close" opening="opening" closing="closing"}}
+{{#modal-dialog desired_width=850 action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3 style='max-width: calc(100% - 30px);white-space: nowrap;text-overflow: ellipsis;overflow: hidden;'>

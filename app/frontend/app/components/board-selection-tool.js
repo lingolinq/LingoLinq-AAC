@@ -126,11 +126,17 @@ export default Component.extend({
         _this.set('status', null);
       } else {
         _this.set('status', {error: true});
-        _this.sendAction('load_error');
+        var loadError = _this.get('loadError');
+        if (loadError && typeof loadError === 'function') {
+          loadError();
+        }
       }
     }, function(err) {
       _this.set('status', {error: true});
-      _this.sendAction('load_error');
+      var loadError = _this.get('loadError');
+      if (loadError && typeof loadError === 'function') {
+        loadError();
+      }
     });
   },
   check_update_scroll: observer('base_level', function() {
@@ -307,7 +313,13 @@ export default Component.extend({
             modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
           });
         }
-        _this.sendAction('select', _this.get('current_board'));
+        var select = _this.get('select');
+        if (select && typeof select === 'function') {
+          select(_this.get('current_board'));
+        } else if (select && typeof select === 'string') {
+          // Fallback for string-based actions (legacy support)
+          _this.sendAction('select', _this.get('current_board'));
+        }
       } else {
         _this.set('current_level', _this.get('base_level'));
         _this.set('level_select', true);

@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     <!-- TODO: this needs better visual cue when in select mode. also could use drag option -->
     {{#if button_stashes}}

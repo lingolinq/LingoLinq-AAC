@@ -6,5 +6,5 @@
     {{board-picker}}
   </div>
 {{else}}
-  {{board-selection-tool search=true load_error="show_advanced" advanced="show_advanced" select="select_board"}}
+  {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") select=(action "select_board")}}
 {{/if}}

@@ -18,7 +18,13 @@ export default Component.extend({
     var $cell = $(event.target).closest('div.cell');
     if($cell.length) {
       event.preventDefault();
-      this.sendAction('grid_event', 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      var gridEvent = this.get('gridEvent');
+      if (gridEvent && typeof gridEvent === 'function') {
+        gridEvent('setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      } else if (gridEvent && typeof gridEvent === 'string') {
+        // Fallback for string-based actions (legacy support)
+        this.sendAction('grid_event', 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      }
     }
   },
   didInsertElement: function() {
@@ -33,10 +39,20 @@ export default Component.extend({
   },
   handleMouseMove: function(event) {
     var $cell = $(event.target).closest('div.cell');
-    if($cell.length) {
-      this.sendAction('grid_event', 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
-    } else {
-      this.sendAction('grid_event', 'hoverOffGrid');
+    var gridEvent = this.get('gridEvent');
+    if (gridEvent && typeof gridEvent === 'function') {
+      if($cell.length) {
+        gridEvent('hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      } else {
+        gridEvent('hoverOffGrid');
+      }
+    } else if (gridEvent && typeof gridEvent === 'string') {
+      // Fallback for string-based actions (legacy support)
+      if($cell.length) {
+        this.sendAction('grid_event', 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      } else {
+        this.sendAction('grid_event', 'hoverOffGrid');
+      }
     }
   }
 });

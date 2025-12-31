@@ -1,4 +1,4 @@
-{{#modal-dialog action="close" opening="opening" closing="closing"}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body advanced_selection modal_targets" id="speak_menu" style="padding: 0; font-size: 18px;">
     {{#if app_state.feature_flags.new_speak_menu}}
       {{#button-listener buttonEvent=(action "button_event")}}

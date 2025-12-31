@@ -1,4 +1,4 @@
-{{#modal-dialog stretch_ratio=1.5 opening="opening" closing="closing"}}
+{{#modal-dialog stretch_ratio=1.5 opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
     {{#if player.error}}
       <div style="width: 100%; margin-top: 30px; text-align: center;">

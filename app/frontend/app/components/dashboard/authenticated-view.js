@@ -429,6 +429,11 @@ export default Component.extend({
     searchBoards: function() {
       this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
     },
+    newBoard: function() {
+      app_state.check_for_needing_purchase().then(function() {
+        modal.open('new-board');
+      });
+    },
     quick_assessment: function(user) {
       if(emberGet(user, 'premium') || emberGet(user, 'currently_premium')) {
         modal.open('quick-assessment', {user: user});

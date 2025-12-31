@@ -1,5 +1,5 @@
 {{#if true}}
-  {{#modal-dialog action="close" opening="opening" closing="closing"}}
+  {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
     <div class="modal-header">
       <button type="button" class="close" {{action "close"}}>&times;</button>
       <h3>{{t "External Link" key="external_link"}}</h3>
@@ -18,7 +18,7 @@
     </div>
   {{/modal-dialog}}
 {{else}}
-  {{#modal-dialog full_stretch=true  action="close" opening="opening" closing="closing"}}
+  {{#modal-dialog full_stretch=true  action=(action "close") opening=(action "opening") closing=(action "closing")}}
     <div class="modal-body">
       <div class="book_box">
         <iframe src={{model.url}} id="book_preview" frameborder="0" sandbox="allow-pointer-lock allow-popups allow-forms allow-same-origin allow-scripts allow-top-navigation" title="Link preview"></iframe>
