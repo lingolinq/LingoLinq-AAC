@@ -95,6 +95,14 @@ export default Component.extend({
   override_count: computed('allow_style', 'board_record.style.options', function() {
     return this.get('allow_style') && (this.get('board_record.style.options') || []).length;
   }),
+  isReady: computed('board_record', 'board_record.key', 'board_record.id', function() {
+    var board_record = this.get('board_record');
+    if(!board_record) { return false; }
+    // Check if board_record has a key or id (indicating it's a valid board)
+    var hasKey = board_record.get && board_record.get('key') || board_record.key;
+    var hasId = board_record.get && board_record.get('id') || board_record.id;
+    return !!(hasKey || hasId);
+  }),
   actions: {
     board_preview: function(board) {
       var _this = this;
@@ -112,54 +120,43 @@ export default Component.extend({
     },
     pick_board: function(board) {
       var _this = this;
-      // Use board_record if available, otherwise fall back to board prop or parameter
-      var board_record = this.get('board_record') || board || this.get('board');
+      // Use board_record if available, otherwise use the parameter
+      var board_record = this.get('board_record') || board;
+      
+      // If board_record is not available, the action should not have been triggered
+      // (template should guard against this), but return early as a safety check
       if(!board_record) {
-        // If board_record is not set yet, try to get it from the board prop
-        var board_prop = this.get('board');
-        if(board_prop && (board_prop.key || board_prop.id)) {
-          // Board record is still loading, wait a bit and retry
-          var _this2 = this;
-          setTimeout(function() {
-            var br = _this2.get('board_record');
-            if(br) {
-              _this2.send('pick_board', br);
-            } else {
-              // If still not loaded, try to use board prop directly
-              if(board_prop.get && (board_prop.get('key') || board_prop.get('id'))) {
-                _this2.send('pick_board', board_prop);
-              }
-            }
-          }, 100);
-          return;
-        }
         return;
       }
+      
       if(_this.get('noop')) {
-
+        return;
       } else if(_this.get('action_override')) {
-        _this.sendAction('action_override', board_record.get('key'));
+        var key = board_record.get ? board_record.get('key') : board_record.key;
+        _this.sendAction('action_override', key);
       } else if(this.get('children')) {
         _this.sendAction('action', this.get('board'));
       } else if(this.get('option') == 'select') {
         board_record.preview_option = 'select';
         if(_this.get('localized')) {
-          board_record.preview_locale = board_record.get('localized_locale');
+          board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
           _this.sendAction('action', board_record);
         });
       } else if(_this.get('allow_style') && _this.get('override_count')) {
         if(_this.get('localized')) {
-          board_record.preview_locale = board_record.get('localized_locale');
+          board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
           // _this.sendAction('action', board_record);
         });
       } else {
-        var opts = {force_board_state: {key: board_record.get('key'), id: board_record.get('id')}};
+        var key = board_record.get ? board_record.get('key') : board_record.key;
+        var id = board_record.get ? board_record.get('id') : board_record.id;
+        var opts = {force_board_state: {key: key, id: id}};
         if(_this.get('localized')) {
-          opts.force_board_state.locale = board_record.get('localized_locale');
+          opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         app_state.home_in_speak_mode(opts);
       }

@@ -1,4 +1,4 @@
-<div {{action "pick_board" board_record}} class={{display_class}} style="cursor: pointer;">
+<div role="button" tabindex="0" {{action "pick_board" board_record}} class={{display_class}} style={{if isReady "cursor: pointer;" "cursor: default; opacity: 0.6; pointer-events: none;"}}>
   {{#unless noinfo}}
     <button type="button" {{action "board_preview" board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;">
       {{#if override_count}}
