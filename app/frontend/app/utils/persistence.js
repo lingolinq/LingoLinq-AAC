@@ -1,4 +1,3 @@
-/* global $ */
 import Ember from 'ember';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -8,6 +7,7 @@ import {
   run
 } from '@ember/runloop';
 import RSVP from 'rsvp';
+import $ from 'jquery';
 import LingoLinq from '../app';
 import lingoLinqExtras from './extras';
 import stashes from './_stashes';

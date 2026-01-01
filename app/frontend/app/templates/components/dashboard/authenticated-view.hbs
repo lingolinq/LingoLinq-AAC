@@ -50,11 +50,11 @@
       {{/if}}
     {{/if}}
     {{#if app_state.currentUser.home_board_pending}}
-      <a href="#" class="list-group-item collapsible">
+      <div class="list-group-item collapsible">
         <span class="glyphicon glyphicon-home"></span>
         {{t "current home board:" key="current_home_board"}}<br>
         <strong>{{t "copying %{brd}..." key="copying_board" brd=app_state.currentUser.home_board_pending}}</strong>
-      </a>
+      </div>
     {{else if home_board_or_supporter}}
       {{#if app_state.currentUser.supporter_view}}
         {{#if app_state.currentUser.modeling_only}}
@@ -206,7 +206,7 @@
     {{/unless}}
     {{#unless app_state.currentUser.modeling_only}}
       {{#if app_state.currentUser.supervised_units}}
-        <a href="#" class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
+        <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
           <span style='white-space: normal;'>
             <span class='glyphicon glyphicon-tower'></span>
             {{t "rooms:" key="rooms_colon"}}
@@ -218,11 +218,11 @@
               </span>
             {{/each}}
           </span>
-        </a>
+        </div>
       {{/if}}
       {{#if app_state.currentUser.has_management_responsibility}}
         {{#if app_state.currentUser.manages_multiple_orgs}}
-          <a href="#" class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
+          <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
             <span class="glyphicon glyphicon-paperclip"></span>
             <span style='white-space: normal;'>
               {{#each app_state.currentUser.managed_orgs as |org|}}
@@ -233,7 +233,7 @@
                 </span>
               {{/each}}
             </span>
-          </a>
+          </div>
         {{else}}
           {{#each app_state.currentUser.managed_orgs as |org|}}
             {{#link-to "organization" org.id class="list-group-item half_size"}}
