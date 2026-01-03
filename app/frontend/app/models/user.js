@@ -20,10 +20,18 @@ import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { getOwner } from '@ember/application';
 
 LingoLinq.User = DS.Model.extend({
   init() {
     this._super(...arguments);
+    // Explicit injection for app_state to fix implicit injection deprecation
+    // If implicit injection already set it, use that; otherwise look it up
+    // This prevents the computed property override deprecation while still allowing
+    // implicit injection to work (which will be removed in a future Ember version)
+    if (!this.app_state) {
+      this.app_state = getOwner(this).lookup('lingolinq:app_state');
+    }
     // Set default preference if not set
     if(this.get('preferences') && !this.get('preferences.stretch_buttons')) {
       this.set('preferences.stretch_buttons', 'none');
@@ -111,7 +119,7 @@ LingoLinq.User = DS.Model.extend({
     return (this.get('supervisors') || []).length > 0 || this.get('managing_org') || this.get('managing_supervision_orgs.length') > 0;
   }),
   has_management_responsibility: computed('managed_orgs', function() {
-    return this.get('managed_orgs').length > 0;
+    return (this.get('managed_orgs') || []).length > 0;
   }),
   is_sponsored: computed('organizations', function() {
     return !!(this.get('organizations') || []).find(function(o) { return o.type == 'user' && o.sponsored; });
@@ -135,7 +143,7 @@ LingoLinq.User = DS.Model.extend({
     return res.uniq();
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
-    return this.get('managed_orgs').length > 1;
+    return (this.get('managed_orgs') || []).length > 1;
   }),
   managed_orgs: computed('organizations', function() {
     return (this.get('organizations') || []).filter(function(o) { return o.type == 'manager' && o.restricted != true; });
@@ -524,7 +532,9 @@ LingoLinq.User = DS.Model.extend({
     'preferences.device.button_text',
     'preferences.device.button_text_position',
     function() {
-      return this.get('preferences.device.button_text') == 'text_only' || this.get('preferences.device.button_text_position') == 'text_only';
+      var device = this.get('preferences.device');
+      if(!device) { return false; }
+      return device.button_text == 'text_only' || device.button_text_position == 'text_only';
     }
   ),
   preferred_symbol_library: function(board) {
