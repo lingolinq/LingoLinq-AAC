@@ -131,11 +131,11 @@
           </tr>
           <tr class='text-muted'>
             <td>{{t "App Version" key="version"}}</td>
-            <td colspan='2'>{{app_state.version}}</td>
+            <td colspan='2'>{{this.app_state.version}}</td>
           </tr>
           <tr class='text-muted'>
             <td>{{t "Recognized Device" key="recognized_device"}}</td>
-            <td colspan='2'>{{app_state.device_name}}</td>
+            <td colspan='2'>{{this.app_state.device_name}}</td>
           </tr>
           {{#if has_debugging}}
             <tr class='text-muted'>

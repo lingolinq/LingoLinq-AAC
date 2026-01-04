@@ -211,7 +211,7 @@
               <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
               <div class="col-sm-10">
                 <div style="margin-top: 10px;">
-                  <video src={{model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
+                  <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
                 </div>
                 <a href="#" {{action "reset_video"}}>{{t "Remove Video" key="remove_video"}}</a>
               </div>

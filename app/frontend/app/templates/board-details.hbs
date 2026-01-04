@@ -7,9 +7,9 @@
   <div class="modal-body">
     <dl class="dl-horizontal">
       <dt>{{t "Name" key="name"}}</dt>
-        <dd>{{model.name}}</dd>
+        <dd>{{this.model.name}}</dd>
       <dt>{{t "Description" key="description"}}</dt>
-        <dd style="white-space: pre-line;">{{model.description}}</dd>
+        <dd style="white-space: pre-line;">{{this.model.description}}</dd>
       <dt>{{t "Created" key="created"}}</dt>
         <dd>{{date model.created "day"}}</dd>
       <dt>{{t "Last Updated" key="updated"}}</dt>
@@ -25,7 +25,7 @@
       {{#if model.parent_board_key}}
         <dt>{{t "Copied From" key="copied_from"}}</dt>
         <dd>
-          {{#link-to "board" model.parent_board_key}}{{model.parent_board_key}}{{/link-to}}
+          {{#link-to "board" model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
         </dd>
       {{/if}}
       <dt>{{t "Public" key="public"}}</dt>
@@ -59,7 +59,7 @@
       {{#unless model.local_only}}
         <dt>{{t "People Using" key="people_using"}}</dt>
           <dd>
-            {{model.non_author_uses}}
+            {{this.model.non_author_uses}}
             <a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a>
           </dd>
       {{/unless}}
@@ -72,15 +72,15 @@
           {{/if}}
       {{/unless}}
       <dt>{{t "Dimensions" key="dimensions"}}</dt>
-        <dd>{{model.grid.rows}} x {{model.grid.columns}}</dd>
+        <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
       {{#unless model.local_only}}
         <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
           <dd>
-            {{model.downstream_boards}}
+            {{this.model.downstream_boards}}
           </dd>
         <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
           <dd>
-            {{model.unlinked_buttons}}
+            {{this.model.unlinked_buttons}}
             {{#if model.button_set}}
               <a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a>
             {{/if}}
@@ -91,7 +91,7 @@
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>
-            {{model.stars}}
+            {{this.model.stars}}
           </dd>
         {{#if model.permissions.edit}}
           <dt>{{t "Rename" key="rename"}}</dt>

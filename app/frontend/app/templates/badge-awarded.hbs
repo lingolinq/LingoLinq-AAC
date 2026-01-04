@@ -3,7 +3,7 @@
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if model.badge.avatar_url}}
-        <img src={{model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
+        <img src={{this.model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
       {{/if}}
       {{#if user_goals_and_badges}}
         {{t "Badges and Goals" key="badges_and_goals"}}
@@ -91,7 +91,7 @@
             <div class='medal-holder'>
               <div class='medal'>
                 {{#if model.badge.image_url}}
-                  <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                  <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{else}}
                   <img src={{path "images/badge-fallback.png"}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{/if}}
@@ -108,14 +108,14 @@
               </div>
             </div>
             {{#if model.badge.sound_url_with_fallback}}
-              <audio src={{model.badge.sound_url_with_fallback}} autoplay='true' />
+              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' />
             {{/if}}
           {{else}}
             <div>
-              <img src={{model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+              <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
             </div>
           {{/if}}
-          <div style='font-weight: bold; font-size: 30px;'>{{model.badge.name}}</div>
+          <div style='font-weight: bold; font-size: 30px;'>{{this.model.badge.name}}</div>
           {{#if model.badge.level}}
             <div style='color: #888; font-size: 16px;'>{{t "Level %{level}" level=model.badge.level key="level_n2"}}</div>
           {{/if}}
@@ -127,12 +127,12 @@
           {{else if model.badge.id}}
             <div style='color: #888; font-size: 25px; margin-top: 10px;'>
               {{#if model.badge.progress}}
-                {{model.badge.time_left}}
+                {{this.model.badge.time_left}}
               {{/if}}
             </div>
             <div style='width: 200px; margin: 0 auto;'>
               <div class="progress" style="border: 1px solid #aaa;height: 25px;">
-                <div class="progress-bar" role="progressbar" aria-value={{model.badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{model.badge.progress_style}}>
+                <div class="progress-bar" role="progressbar" aria-value={{this.model.badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
                   <span class="sr-only">
                     {{t "%{pct}% Complete" key="percent_complete" pct=model.badge.progress_out_of_100}}
                   </span>
@@ -150,7 +150,7 @@
                 {{/if}}
               </span>
 
-              {{model.badge.completion_explanation}}
+              {{this.model.badge.completion_explanation}}
             </div>
           {{/if}}
         {{/if}}

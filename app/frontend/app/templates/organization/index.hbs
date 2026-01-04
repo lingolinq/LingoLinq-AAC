@@ -31,7 +31,7 @@
             {{t "Recently-logged users" key="recently_logged_users"}}
           </div>
           <div class="panel-body">
-            {{user_counts.recent_session_user_count}}{{#if model.total_users}} / {{model.total_users}}{{/if}}
+            {{user_counts.recent_session_user_count}}{{#if model.total_users}} / {{this.model.total_users}}{{/if}}
             {{t "users" key="users_lower"}}
           </div>
         </div>
@@ -58,7 +58,7 @@
             </div>
             <div class="panel-body">
               <span class={{redis_state}}>
-                {{model.site.mem_redis}} / {{model.site.max_redis}}
+                {{this.model.site.mem_redis}} / {{this.model.site.max_redis}}
               </span>
             </div>
           </div>
@@ -91,7 +91,7 @@
         {{#if multi_home_boards}}
           <div class="btn-group">
             <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              {{t "Default Home Boards" key="default_home_boards"}} ({{model.home_board_keys.length}}) <span class="caret"></span>
+              {{t "Default Home Boards" key="default_home_boards"}} ({{this.model.home_board_keys.length}}) <span class="caret"></span>
             </button>
             <ul class="dropdown-menu">
               {{#each model.home_board_keys as |key|}}
@@ -102,7 +102,7 @@
         {{else if model.default_home_board}}
           <div class='text-muted'>
             {{t "default home board:" key="default_home_board"}}
-            {{#link-to "board" model.default_home_board.key}}{{model.default_home_board.key}}{{/link-to}}
+            {{#link-to "board" model.default_home_board.key}}{{this.model.default_home_board.key}}{{/link-to}}
           </div>
         {{/if}}
         <div style='clear: right;'></div>
@@ -146,11 +146,11 @@
     {{#if model.parent_org.permissions.view}}
       {{t "Parent Organization: " key="parent_org_colon"}}
       {{#link-to "organization" model.parent_org.id}}
-        {{model.parent_org.name}}
+        {{this.model.parent_org.name}}
       {{/link-to}}
     {{else}}
       {{t "Parent Organization: " key="parent_org_colon"}}
-      {{model.parent_org.name}}
+      {{this.model.parent_org.name}}
     {{/if}}
   {{/if}}
   <ul class='nav nav-pills' style="margin-bottom: 15px; margin-top: 20px;">
@@ -217,7 +217,7 @@
       <p>
         {{t "supervisor" key="n_supervisors_lower" count=model.total_supervisors}}
         {{#if model.allotted_supervisor_licenses}}
-          ({{model.used_supervisors}} / {{model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key="premium_sponsorships_used"}})
+          ({{this.model.used_supervisors}} / {{this.model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key="premium_sponsorships_used"}})
         {{/if}}
       </p>
       <table class="table table-hover" style="width: 600px;">
@@ -280,8 +280,8 @@
   {{#if show_communicators}}
     {{#if model.permissions}}
       <p>
-        {{model.used_licenses}} {{t "out of" key="out_of" }}
-        {{model.allotted_licenses}} {{t "sponsorships used, " key="sponsored_comma" }}
+        {{this.model.used_licenses}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_licenses}} {{t "sponsorships used, " key="sponsored_comma" }}
         {{t "user" key="n_users" count=model.total_users}} {{t "total" key="total"}}
       </p>
     {{/if}}
@@ -345,8 +345,8 @@
   {{#if show_evals}}
     {{#if model.permissions}}
       <p>
-        {{model.used_evals}} {{t "out of" key="out_of" }}
-        {{model.allotted_eval_licenses}} {{t "eval accounts used" key="evals_used" }}
+        {{this.model.used_evals}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_eval_licenses}} {{t "eval accounts used" key="evals_used" }}
       </p>
     {{/if}}
     {{#if evals.data}}
@@ -399,14 +399,14 @@
   {{#if show_extras}}
     {{#if model.permissions}}
       <p>
-        {{model.used_extras}} {{t "out of" key="out_of" }}
-        {{model.allotted_extras}} {{t "premium symbol accounts used" key="extras_used" }}
+        {{this.model.used_extras}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_extras}} {{t "premium symbol accounts used" key="extras_used" }}
       </p>
     {{/if}}
-    {{#if extras.data}}
+    {{#if org_extras.data}}
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each extras.data as |user|}}
+          {{#each org_extras.data as |user|}}
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
@@ -421,7 +421,7 @@
           {{/each}}
         </tbody>
       </table>
-    {{else if extras.loading}}
+    {{else if org_extras.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>

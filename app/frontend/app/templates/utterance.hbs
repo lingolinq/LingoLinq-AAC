@@ -14,7 +14,7 @@
         <span style='font-size: 0.8em;'>
         {{#if user_showable}}
           {{#link-to "user.index" model.user.user_name}}
-            {{model.user.name}}
+            {{this.model.user.name}}
           {{/link-to}}
           {{t "said:" key="said_colon"}}
         {{else}}
@@ -23,10 +23,10 @@
           </span>
         {{/if}}
         </span>
-        "<span id="sentence">{{model.sentence}}</span>"
+        "<span id="sentence">{{this.model.sentence}}</span>"
       </h2>
       {{#if single_button_full_sentence}}
-        <div style='margin-bottom: 50px;'>{{model.sentence}}</div>
+        <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
       {{else}}
         <div id="utterance" class="button_list" {{ action "vocalize"}}>
           {{#with model.button_list as |button_list|}}
@@ -39,12 +39,12 @@
     {{#if model.permissions.reply}}
       {{#if model.prior}}
         <div style='margin: -10px 0 30px 20px;'>
-          <em>{{t "in reply to" key="in_reply_to"}}{{#if model.prior.author.name}} {{t "message from" key="message_from"}} {{model.prior.author.name}}{{/if}}:</em>
-          <div style="border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line;">{{model.prior.text}}</div>
+          <em>{{t "in reply to" key="in_reply_to"}}{{#if model.prior.author.name}} {{t "message from" key="message_from"}} {{this.model.prior.author.name}}{{/if}}:</em>
+          <div style="border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line;">{{this.model.prior.text}}</div>
         </div>
       {{/if}}
       <h3>
-        {{#if model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if model.user.name}} {{t "to" key="to"}} {{model.user.name}}{{/if}}{{t ":" key="colon"}}
+        {{#if model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if model.user.name}} {{t "to" key="to"}} {{this.model.user.name}}{{/if}}{{t ":" key="colon"}}
       </h3>
       <div style='margin: -5px 0 30px;'>
         {{#if reachable_core}}
@@ -81,7 +81,7 @@
         <p>{{t "This is a private link that can be used to send messages to a %app_name% communicator. Please respect the communicator's privacy and security by not sharing it with others." key="keep_private_link_secure"}}</p>
       {{else}}
         <p>{{t "This is a private link and will expire after 7 days. You can navigate to the public link for this message if the communicator has given you permission and you would like to share it with others." key="private_link_warning"}}</p>
-        <a href={{model.link}} target="_blank" class='btn btn-default btn-lg' rel="noopener"><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
+        <a href={{this.model.link}} target="_blank" class='btn btn-default btn-lg' rel="noopener"><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
       {{/if}}
     {{else}}
       {{#if speakable}}

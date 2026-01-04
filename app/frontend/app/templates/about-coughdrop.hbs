@@ -14,7 +14,7 @@
     {{/if}}
     <div style="margin-top: 20px;">
       <a class='btn btn-lg btn-primary' href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Learn More" key="learn_more"}}</a>
-      <a class='btn btn-lg btn-default' href={{app_state.board_url}} target="_blank" rel="noopener">{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
+      <a class='btn btn-lg btn-default' href={{this.app_state.board_url}} target="_blank" rel="noopener">{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
       <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Back to the Demo" key="back_to_demo"}}</button>
     </div>
   </div>

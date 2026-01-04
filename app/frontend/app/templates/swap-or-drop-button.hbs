@@ -8,9 +8,9 @@
   <div class="modal-body">
     <div class="row" style="margin-bottom: 10px;">
       <div class="col-sm-5" style="text-align: center;">
-        <img src={{model.button.image.best_url}} style="height: 50px;"><br>
+        <img src={{this.model.button.image.best_url}} style="height: 50px;"><br>
         {{#if model.button.label}}
-          {{model.button.label}}
+          {{this.model.button.label}}
         {{else}}
           {{t "Unnamed button" key="unnamed_button"}}
         {{/if}}
@@ -19,16 +19,16 @@
         <span class="glyphicon glyphicon-arrow-right" style="font-size: 30px; padding-top: 20px;"></span>
       </div>
       <div class="col-sm-5" style="text-align: center;">
-        <img src={{model.folder.image.best_url}} style="height: 50px;">
+        <img src={{this.model.folder.image.best_url}} style="height: 50px;">
         <br>
         {{#if model.folder.label}}
-          {{model.folder.label}}
+          {{this.model.folder.label}}
         {{else}}
           {{t "Unnamed button" key="unnamed_button"}}
         {{/if}}
         <br>
         <img src={{path "images/folder.png"}} style="height: 20px;">
-        {{model.folder.load_board.key}}
+        {{this.model.folder.load_board.key}}
       </div>
     </div>
     <div class="row">

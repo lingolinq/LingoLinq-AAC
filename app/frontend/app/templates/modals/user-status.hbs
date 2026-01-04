@@ -2,7 +2,7 @@
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      <img src={{model.user.avatar_url}} style='height: 50px;'>
+      <img src={{this.model.user.avatar_url}} style='height: 50px;'>
       {{t "Progress for %{un}" un=model.user.user_name key="progress_for_user"}}
     </h3>
   </div>
@@ -13,7 +13,7 @@
         {{state}}
         {{#if model.user.org_status.note}}
           <div style='margin-top: 10px; font-size: 16px;'>
-            <p><em>{{model.user.org_status.note}}</em></p>
+            <p><em>{{this.model.user.org_status.note}}</em></p>
           </div>
         {{/if}}
         {{#if model.user.org_status.date}}

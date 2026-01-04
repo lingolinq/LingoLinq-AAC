@@ -9,7 +9,7 @@
     <div class="row">
       <div class="col-xs-12">
         {{#if model.user.avatar_url}}
-          <img src={{model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;">
+          <img src={{this.model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;">
         {{/if}}
         {{t "Select an image from the list below, or upload your own!" key="select_or_upload"}}<br>
         {{#if loading_avatar}}

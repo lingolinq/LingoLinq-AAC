@@ -6,7 +6,7 @@
   <div class="modal-body">
     <p>
       {{#if model.user.avatar_url_with_fallback}}
-        <img src={{model.user.avatar_url_with_fallback}} style='float: left; width: 50px; margin: 0 10px 5px 0;'>
+        <img src={{this.model.user.avatar_url_with_fallback}} style='float: left; width: 50px; margin: 0 10px 5px 0;'>
       {{else}}
         <span class='glyphicon glyphicon-search' style='float: left; font-size: 50px; margin: 0 10px 5px 0;'></span>
       {{/if}}

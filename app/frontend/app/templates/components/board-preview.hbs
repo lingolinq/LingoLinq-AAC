@@ -32,17 +32,17 @@
       {{t "Error loading board" key="error_loading_board"}}
     {{else if model}}
       <div style='text-align: center;'>
-        <h3>{{model.name}}</h3>
-        <div style='margin: -10px 0 10px 0;'>{{t "by" key="by"}} {{model.user_name}}</div>
+        <h3>{{this.model.name}}</h3>
+        <div style='margin: -10px 0 10px 0;'>{{t "by" key="by"}} {{this.model.user_name}}</div>
       </div>
       <div style='max-height: 190px; overflow: auto;'>
-          <span style="white-space: pre-line;">{{model.description}}</span>
+          <span style="white-space: pre-line;">{{this.model.description}}</span>
       </div>
       <dl class="dl-horizontal">
         <dt>{{t "Full Name" key="full_name"}}</dt>
-          <dd>{{model.key}}</dd>
+          <dd>{{this.model.key}}</dd>
         <dt>{{t "Dimensions" key="dimensions"}}</dt>
-          <dd>{{model.grid.rows}} x {{model.grid.columns}}</dd>
+          <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
         <dt>{{t "Created" key="created"}}</dt>
           <dd>{{date model.created "day"}}</dd>
         <dt>{{t "Last Updated" key="updated"}}</dt>
@@ -57,19 +57,19 @@
         {{/if}}
         <dt>{{t "People Using" key="people_using"}}</dt>
           <dd>
-            {{model.non_author_uses}}
+            {{this.model.non_author_uses}}
           </dd>
         <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
           <dd>
-            {{model.downstream_boards}}
+            {{this.model.downstream_boards}}
           </dd>
         <dt>{{t "Available Buttons" key="available_buttons"}}</dt>
           <dd>
-            {{model.unlinked_buttons}}
+            {{this.model.unlinked_buttons}}
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>
-            {{model.stars}}
+            {{this.model.stars}}
           </dd>
       </dl>
     {{else}}

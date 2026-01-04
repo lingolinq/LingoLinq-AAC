@@ -12,9 +12,9 @@
   <div class="modal-body">
     <h4>
       {{#if model.integration.icon_url}}
-        <img src={{model.integration.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
+        <img src={{this.model.integration.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
       {{/if}}
-      {{model.integration.name}}
+      {{this.model.integration.name}}
     </h4>
     {{#if model.integration.user_settings}}
       <dl class='dl-horizontal'>

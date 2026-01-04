@@ -7,7 +7,7 @@
   </div>
   <div class="modal-body">
     {{#if show_reason}}
-      {{model.reason}} -- {{model.action}} -- {{model.user_name}}
+      {{this.model.reason}} -- {{this.model.action}} -- {{this.model.user_name}}
     {{/if}}
     <span class="glyphicon glyphicon-info-sign" style="float: left; margin-right: 10px; font-size: 30px;"></span>
     {{#if model.remind_to_upgrade}}

@@ -6,7 +6,7 @@
       {{#if model.permissions.update_licenses}}
         {{input value=model.name class="form-control" id="name" placeholder="Recording Name"}}
       {{else}}
-        <p class='form-control-static'>{{model.name}}</p>
+        <p class='form-control-static'>{{this.model.name}}</p>
       {{/if}}
     </div>
   </div>
@@ -83,9 +83,9 @@
         {{#if model.parent_org.name}}
           <p class='form-control-static'>
             {{#if model.parent_org.pending}}
-              <i>{{model.parent_org.name}}</i>
+              <i>{{this.model.parent_org.name}}</i>
             {{else}}
-              <b>{{model.parent_org.name}}</b>
+              <b>{{this.model.parent_org.name}}</b>
             {{/if}}
           </p>
         {{/if}}

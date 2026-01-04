@@ -401,7 +401,7 @@
                 {{t "We don't want to shut off anyone's voice, even if funding unexpectedly becomes an issue down the line. When a user's subscription expires %app_name% will still work as a communication system but premium features like reporting and video notes will be disabled." key="expiration_notes_pre"}}
                 {{#if app_state.domain_settings.support_url}}
                   {{t "If you need help with funding please" key="expiration_notes_support"}} 
-                  <a href={{app_state.domain_settings.support_url}}>{{t "contact our support team" key="contact_support_team"}}</a> {{t "for more information." key="expiration_notes"}}
+                  <a href={{this.app_state.domain_settings.support_url}}>{{t "contact our support team" key="contact_support_team"}}</a> {{t "for more information." key="expiration_notes"}}
                 {{/if}}
               </p>
             {{/if}}

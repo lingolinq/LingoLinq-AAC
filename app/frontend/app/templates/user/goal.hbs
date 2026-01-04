@@ -1,4 +1,4 @@
-<h2>{{model.summary}}</h2>
+<h2>{{this.model.summary}}</h2>
 <div class="row">
   <div class="col-sm-3 col-xs-2">
     <div class="panel panel-default summary smaller">
@@ -20,7 +20,7 @@
             <em>{{t "org-created Goal" key="org_created_goal"}}</em>
           {{else}}
             {{t "author: " key="author_colon"}}
-            {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+            {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
           {{/if}}
         </span>
       </div>
@@ -65,7 +65,7 @@
     <div class="panel panel-default summary smaller">
       <div class="panel-heading">{{t "Average" key="average_success"}}</div>
       <div class="panel-body">
-        {{model.stats.weighted_percent_positive}}%
+        {{this.model.stats.weighted_percent_positive}}%
         {{t "weighted" key="weighted"}}
         <br>
         <span class='text-muted'>
@@ -127,7 +127,7 @@
             <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
             <div class="col-sm-10">
               <div style="margin-top: 10px;">
-                <video src={{model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
+                <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
               </div>
               <a href="#" {{action "reset_video"}}>{{t "Remove Video" key="remove_video"}}</a>
             </div>
@@ -208,7 +208,7 @@
   <div class='safe_html' style='margin: 20px 0 50px;'>{{safe model.description}}</div>
   {{#if model.video}}
     <div style="margin-top: 10px;">
-      <video src={{model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
+      <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
     </div>
   {{/if}}
 
@@ -226,7 +226,7 @@
 
   {{#if model.badges}}
     <h4>{{t "Badges" key="badges"}}</h4>
-    {{#if model.badge_name}}{{model.badge_name}}<br>{{/if}}
+    {{#if model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
     <table class='goal_badges'>
       <tbody>
         <tr>

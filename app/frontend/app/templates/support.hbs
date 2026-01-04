@@ -4,7 +4,7 @@
     <h3>
       {{t "%app_name% Support" key="app_support"}}
     </h3>
-    <div class='text-muted' style='text-align: right; margin-right: 50px; margin-bottom: -25px;'>v{{app_state.version}}</div>
+    <div class='text-muted' style='text-align: right; margin-right: 50px; margin-bottom: -25px;'>v{{this.app_state.version}}</div>
   </div>
   <div class="modal-body">
     <p>
@@ -18,7 +18,7 @@
         <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
           {{#if app_state.domain_settings.support_url}}
-            <li><a href={{app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+            <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
           {{/if}}
         </ul>
       {{/if}}
@@ -28,10 +28,10 @@
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
         {{/if}}
         {{#if app_state.domain_settings.support_url}}
-          <li><a href={{app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+          <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
         {{/if}}
         {{#if app_state.domain_settings.youtube_url}}
-          <li><a href={{app_state.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
+          <li><a href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
         {{/if}}
       </ul>
     {{/if}}

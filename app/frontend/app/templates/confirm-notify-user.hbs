@@ -5,12 +5,12 @@
   </div>
   <div class="modal-body">
     <p>
-      <img src={{model.user.avatar_url}} style="height: 50px; max-width: 100px;">
+      <img src={{this.model.user.avatar_url}} style="height: 50px; max-width: 100px;">
       {{t "The following message will be sent to <strong>%{sup}</strong>:" key="user_notification_explanation" sup=model.user.user_name}}
     </p>
 
     <div class="well">
-      {{model.sentence}}
+      {{this.model.sentence}}
     </div>
 
     <div class="row">

@@ -70,7 +70,7 @@
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_inbox_button'>
               {{#if app_state.referenced_user.unread_alerts}}
-                <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>{{app_state.referenced_user.unread_alerts}}</span>
+                <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>{{this.app_state.referenced_user.unread_alerts}}</span>
               {{else if app_state.referenced_user.request_alert}}
                 <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>*</span>
               {{/if}}
@@ -141,7 +141,7 @@
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-envelope'></span></span>
             {{t "Send Reply" key='send_rely'}}
             {{#if app_state.reply_note.author}}
-              {{t "to" key='to'}} {{app_state.reply_note.author.name}}
+              {{t "to" key='to'}} {{this.app_state.reply_note.author.name}}
             {{/if}}
           </a>
         </li>
