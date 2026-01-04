@@ -1,6 +1,5 @@
 import Route from '@ember/routing/route';
 import modal from '../../utils/modal';
-import lingoLinqExtras from '../../utils/extras';
 import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
 
@@ -13,7 +12,7 @@ export default Route.extend({
   setupController: function(controller, model) {
     if(model) { model.reload(); }
     controller.set('model', model);
-    controller.set('extras', lingoLinqExtras);
+    // Note: 'extras' is already injected via dependency injection, no need to set it again
     controller.set('parent_object', null);
     controller.set('password', null);
     controller.set('new_user_name', null);

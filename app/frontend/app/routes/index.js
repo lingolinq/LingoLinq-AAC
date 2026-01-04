@@ -8,7 +8,6 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import capabilities from '../utils/capabilities';
 import LingoLinq from '../app';
-import lingoLinqExtras from '../utils/extras';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
@@ -35,8 +34,7 @@ export default Route.extend({
     LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());
     controller.set('model', model);
-    // TODO: this seems messy. got to be a cleaner way...
-    controller.set('extras', lingoLinqExtras);
+    // Note: 'extras' is already injected via dependency injection, no need to set it again
     var jump_to_speak = !!((stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
 
     var progress = this.get('app_state.sessionUser.preferences.progress') || {};

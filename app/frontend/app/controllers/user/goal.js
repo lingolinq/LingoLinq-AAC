@@ -10,8 +10,13 @@ import { computed } from '@ember/object';
 export default Controller.extend({
   load_logs: function() {
     var _this = this;
+    var user_id = this.get('user.id');
+    // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
+    if(!user_id || user_id == 'cache' || user_id.toString().match(/^cache:/)) {
+      return;
+    }
     _this.set('more_available', false);
-    this.store.query('log', {user_id: this.get('user.id'), goal_id: this.get('model.id')}).then(function(list) {
+    this.store.query('log', {user_id: user_id, goal_id: this.get('model.id')}).then(function(list) {
       _this.set('logs', list.map(function(i) { return i; }));
 
       var meta = $.extend({}, list.meta);

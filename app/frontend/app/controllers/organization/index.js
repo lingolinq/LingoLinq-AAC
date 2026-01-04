@@ -15,7 +15,7 @@ export default Controller.extend({
     this.set('orgs', {});
     this.set('users', {});
     this.set('evals', {});
-    this.set('extras', {});
+    this.set('org_extras', {});
     this.set('logs', {});
     this.set('managers', {});
     this.set('supervisors', {});
@@ -241,14 +241,14 @@ export default Controller.extend({
   },
   refresh_extras: function() {
     var _this = this;
-    this.set('extras.loading', true);
+    this.set('org_extras.loading', true);
     var id = this.get('model.id');
     persistence.ajax('/api/v1/organizations/' + id + '/extras', {type: 'GET'}).then(function(data) {
-      _this.set('extras.loading', null);
-      _this.set('extras.data', data.user);
+      _this.set('org_extras.loading', null);
+      _this.set('org_extras.data', data.user);
     }, function() {
-      _this.set('extras.loading', null);
-      _this.set('extras.data', null);
+      _this.set('org_extras.loading', null);
+      _this.set('org_extras.data', null);
     });
   },
   refresh_managers: function() {
