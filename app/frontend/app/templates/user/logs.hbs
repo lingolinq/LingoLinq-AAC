@@ -3,9 +3,9 @@
 {{else if model.currently_premium_or_premium_supporter}}
   <h2>
     {{#if messages_only}}
-      {{t "Messages about" key="messages_about"}} {{model.user_name}}
+      {{t "Messages about" key="messages_about"}} {{this.model.user_name}}
     {{else}}
-      {{t "Logs for" key="logs_for"}} {{model.user_name}}
+      {{t "Logs for" key="logs_for"}} {{this.model.user_name}}
     {{/if}}
     {{#if filtered_results}}
       {{t "(filtered)" key="filtered"}}

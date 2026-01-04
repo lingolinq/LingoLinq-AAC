@@ -101,8 +101,8 @@
           <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
-          {{t "Played sound:" key="played_sound_colon"}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br>
-          <audio controls src={{model.sound.url}}></audio>
+          {{t "Played sound:" key="played_sound_colon"}} ({{this.model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{this.model.sound.name}}</div><br>
+          <audio controls src={{this.model.sound.url}}></audio>
         </div>
         {{pick-license license=model.sound.license}}
         <br>
@@ -126,9 +126,9 @@
             {{/if}}
           {{else}}
             {{#if model.vocalization}}
-              <strong>"{{model.vocalization}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
+              <strong>"{{this.model.vocalization}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{else}}
-              <strong>"{{model.label}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
+              <strong>"{{this.model.label}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{/if}}
           {{/if}}
         </div>

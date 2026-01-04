@@ -4,28 +4,28 @@
     {{#if app_state.domain_settings.ios_store_url}}
       <h4>{{t "iOS" key="ios"}}</h4>
       <div style='margin-left: 20px; margin-bottom: 20px;'>
-        <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+        <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
           <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;">
         </a>
-        <p>{{t "Please see" key="please_see"}} <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">{{t "listing in the App Store." key="app_store_link"}}</a></p>
+        <p>{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">{{t "listing in the App Store." key="app_store_link"}}</a></p>
       </div>
     {{/if}}
     {{#if app_state.domain_settings.play_store_url}}
       <h4>{{t "Android" key="android"}}</h4>
       <div style='margin-left: 20px; margin-bottom: 20px;'>
-        <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+        <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
           <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;">
         </a>
-        <p>{{t "Please see" key="please_see"}} <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">{{t "listing in the Google Play Store." key="google_app_store_link"}}</a></p>
+        <p>{{t "Please see" key="please_see"}} <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">{{t "listing in the Google Play Store." key="google_app_store_link"}}</a></p>
         </div>
     {{/if}}
     {{#if app_state.domain_settings.kindle_store_url}}
       <h4>{{t "Amazon Kindle" key="amazon_kindle"}}</h4>
       <div style='margin-left: 20px; margin-bottom: 20px;'>
-        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+        <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
           <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
         </a>
-        <p>{{t "Please see" key="please_see"}}<a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">{{t "listing in the Amazon App Store." key="amazon_app_store_link"}}</a></p>
+        <p>{{t "Please see" key="please_see"}}<a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">{{t "listing in the Amazon App Store." key="amazon_app_store_link"}}</a></p>
       </div>
     {{/if}}
     {{#if app_state.domain_settings.windows_64_bit_url}}
@@ -34,10 +34,10 @@
           <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;">
           <p>{{t "You can install %app_name% as a Windows desktop app on your computer or Windows device. %app_name% on Windows has some eye-tracking integrations that will help it work better with more devices. Please make sure to download the right version for your operating system." key="windows_explainer"}}</p>
           {{#if app_state.domain_settings.windows_64_bit_url}}
-            <p><a href={{app_state.domain_settings.windows_64_bit_url}}>64-Bit Windows Download</a></p>
+            <p><a href={{this.app_state.domain_settings.windows_64_bit_url}}>64-Bit Windows Download</a></p>
           {{/if}}
           {{#if app_state.domain_settings.windows_32_bit_url}}
-            <p><a href={{app_state.domain_settings.windows_32_bit_url}}>32-Bit Windows Download</a></p>
+            <p><a href={{this.app_state.domain_settings.windows_32_bit_url}}>32-Bit Windows Download</a></p>
           {{/if}}
         </div>
     {{/if}}

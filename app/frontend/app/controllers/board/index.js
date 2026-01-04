@@ -1083,7 +1083,9 @@ export default Controller.extend({
       if(this.get('app_state.currentUser.hide_symbols') || this.get('model.text_only')) {
         res = res + "no_image ";
       }
-      var position = this.get('app_state.currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
+      var currentUser = app_state.get('currentUser');
+      var devicePrefs = currentUser && currentUser.get && currentUser.get('preferences.device');
+      var position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";
       }

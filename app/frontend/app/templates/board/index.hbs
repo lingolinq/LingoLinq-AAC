@@ -6,7 +6,7 @@
   {{else}}
     {{#if teaser_description}}
       <div id="board_description">
-        <span>{{model.integration_name}}</span>
+        <span>{{this.model.integration_name}}</span>
       </div>
     {{/if}}
     {{#if model.embed_url}}
@@ -71,7 +71,7 @@
     </div>
   {{/if}}
   {{#with model as |board|}}
-  <div style={{board_style}} class={{display_class}} data-id={{board.id}} lang={{app_state.board_lang}}>
+  <div style={{board_style}} class={{display_class}} data-id={{board.id}} lang={{this.app_state.board_lang}}>
     {{#if board.has_background}}
       <div style={{bg_style}} id='board_bg' class={{bg_class}}>
         {{#if board.background.text}}

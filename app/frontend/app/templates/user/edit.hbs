@@ -116,7 +116,7 @@
     <div class="col-sm-5">
       <p class="form-control-static">
         {{#if model.preferences.home_board.key}}
-          {{#link-to "board" model.preferences.home_board.key}}{{model.preferences.home_board.key}}{{/link-to}}
+          {{#link-to "board" model.preferences.home_board.key}}{{this.model.preferences.home_board.key}}{{/link-to}}
         {{else}}
           {{t "None selected. Find the home board you would like and pick it!" key="none_selected_find_one"}}
         {{/if}}
@@ -364,7 +364,7 @@
   <div class="form-group">
     <label for="location" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
     <div class="col-sm-5">
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;">
+      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
       <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
       <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
     </div>

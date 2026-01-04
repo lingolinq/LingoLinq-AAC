@@ -13,10 +13,10 @@
             </div>
             <div class="panel-body">
               {{#if model.template_header}}
-                {{model.related.header.sequence_summary}}
+                {{this.model.related.header.sequence_summary}}
               {{else}}
                 {{#link-to "goals.goal" model.related.header.id}}
-                  {{model.related.header.sequence_summary}}
+                  {{this.model.related.header.sequence_summary}}
                 {{/link-to}}
                 &nbsp;
               {{/if}}
@@ -62,7 +62,7 @@
             <div class="panel-body">
               {{#if model.related.previous}}
                 {{#link-to "goals.goal" model.related.previous.id}}
-                  {{model.related.previous.summary}}
+                  {{this.model.related.previous.summary}}
                 {{/link-to}}
               {{else}}
                 {{t "None" key="none_upper"}}
@@ -79,7 +79,7 @@
             <div class="panel-body">
               {{#if model.related.next}}
                 {{#link-to "goals.goal" model.related.next.id}}
-                  {{model.related.next.summary}}
+                  {{this.model.related.next.summary}}
                 {{/link-to}}
               {{else}}
                 {{t "None" key="none_upper"}}
@@ -251,7 +251,7 @@
     {{/if}}
     {{#if model.badges}}
       <h4 style='margin-top: 40px;'>{{t "Badges" key="badges"}}</h4>
-      {{#if model.badge_name}}{{model.badge_name}}<br>{{/if}}
+      {{#if model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
       <table class='goal_badges'>
         <tbody>
           <tr>

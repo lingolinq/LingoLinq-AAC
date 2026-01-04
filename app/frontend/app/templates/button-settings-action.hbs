@@ -12,8 +12,8 @@
       <div class="col-sm-10">
         <p class="form-control-static">
           {{#if model.load_board.key}}
-            <img src={{model.icon}} style="height: 20px;">
-            <a href={{model.link}} target="_blank" rel="noopener">{{model.load_board.key}}</a>
+            <img src={{this.model.icon}} style="height: 20px;">
+            <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
             {{t "None Set" key="none_set"}}
           {{/if}}
@@ -417,7 +417,7 @@
                 </p>
               {{/if}}
               <p class="form-control-static">
-                <a target="_blank" href={{model.fixed_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
+                <a target="_blank" href={{this.model.fixed_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
               </p>
             </div>
           </div>
@@ -446,8 +446,8 @@
               {{#if model.apps.ios}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
-                    <strong>{{model.apps.ios.name}}</strong><br>
-                    <span class="text-muted">{{model.apps.ios.author_name}}</span>
+                    <strong>{{this.model.apps.ios.name}}</strong><br>
+                    <span class="text-muted">{{this.model.apps.ios.author_name}}</span>
                   </span>
                   <br>
                   {{#if model.apps.ios.custom}}
@@ -524,8 +524,8 @@
               {{#if model.apps.android}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
-                    <strong>{{model.apps.android.name}}</strong><br>
-                    <span class="text-muted">{{model.apps.android.author_name}}</span>
+                    <strong>{{this.model.apps.android.name}}</strong><br>
+                    <span class="text-muted">{{this.model.apps.android.author_name}}</span>
                   </span>
                   <br>
                   {{#if model.apps.android.custom}}

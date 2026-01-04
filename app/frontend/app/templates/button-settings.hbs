@@ -1,7 +1,7 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Button Settings" key="button_settings"}} - {{model.label}}</h3>
+    <h3>{{t "Button Settings" key="button_settings"}} - {{this.model.label}}</h3>
   </div>
   <div class="modal-body" id="button_settings">
     <div class="row">
@@ -361,8 +361,8 @@
       <div class="col-sm-10">
         <p class="form-control-static">
           {{#if model.load_board.key}}
-            <img src={{model.icon}} style="height: 20px;">
-            <a href={{model.link}} target="_blank" rel="noopener">{{model.load_board.key}}</a>
+            <img src={{this.model.icon}} style="height: 20px;">
+            <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
             {{t "None Set" key="none_set"}}
           {{/if}}
@@ -1097,8 +1097,8 @@
           <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
-          {{t "Played sound:" key="played_sound_colon"}} ({{model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{model.sound.name}}</div><br>
-          <audio controls src={{model.sound.url}}></audio>
+          {{t "Played sound:" key="played_sound_colon"}} ({{this.model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{this.model.sound.name}}</div><br>
+          <audio controls src={{this.model.sound.url}}></audio>
         </div>
         {{pick-license license=model.sound.license}}
         <br>
@@ -1122,9 +1122,9 @@
             {{/if}}
           {{else}}
             {{#if model.vocalization}}
-              <strong>"{{model.vocalization}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
+              <strong>"{{this.model.vocalization}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{else}}
-              <strong>"{{model.label}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
+              <strong>"{{this.model.label}}"</strong> {{t "via Text-To-Speech" key="via_tts"}}
             {{/if}}
           {{/if}}
         </div>
@@ -1305,7 +1305,7 @@
                 {{input class="form-control" value=inflections_hash.w placeholder=inflections_suggestions.w}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
-                {{model.label}}
+                {{this.model.label}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
                 {{input class="form-control" value=inflections_hash.e placeholder=inflections_suggestions.e}}

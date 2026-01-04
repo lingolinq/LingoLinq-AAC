@@ -197,24 +197,20 @@ var modal = EmberObject.extend({
         modal.close(null, 'highlight-secondary');
       });
     }
-    if(this.route.disconnectOutlet) {
-      if(outlet == 'highlight') {
-        if(this.highlight_controller && this.highlight_controller.closing) {
-          this.highlight_controller.closing();
-        }
-      } else if(outlet == 'highlight-secondary') {
-        if(this.highlight2_controller && this.highlight2_controller.closing) {
-          this.highlight2_controller.closing();
-        }
-      } else {
-        if(this.last_controller && this.last_controller.closing) {
-          this.last_controller.closing();
-        }
+    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
+    // Call closing callbacks if needed
+    if(outlet == 'highlight') {
+      if(this.highlight_controller && this.highlight_controller.closing) {
+        this.highlight_controller.closing();
       }
-      this.route.disconnectOutlet({
-        outlet: outlet,
-        parentView: 'application'
-      });
+    } else if(outlet == 'highlight-secondary') {
+      if(this.highlight2_controller && this.highlight2_controller.closing) {
+        this.highlight2_controller.closing();
+      }
+    } else {
+      if(this.last_controller && this.last_controller.closing) {
+        this.last_controller.closing();
+      }
     }
     if(this.queued_template) {
       runLater(function() {
@@ -228,10 +224,7 @@ var modal = EmberObject.extend({
   flash: function(text, type, below_header, sticky, opts) {
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
     type = type || 'notice';
-    this.route.disconnectOutlet({
-      outlet: 'flash-message',
-      parentView: 'application'
-    });
+    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
     this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: (opts || {}).action};
     if(below_header) {
       this.settings_for['flash'].below_header = below_header;
@@ -282,12 +275,8 @@ var modal = EmberObject.extend({
     }
   },
   close_board_preview: function() {
-    if(modal.route) {
-      modal.route.disconnectOutlet({
-        outlet: 'board-preview',
-        parentView: 'application'
-      });
-    }
+    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
+    // The outlet will be automatically cleaned up when the route transitions
   }
 }).create();
 

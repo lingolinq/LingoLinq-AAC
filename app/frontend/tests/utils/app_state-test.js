@@ -35,10 +35,10 @@ describe('app_state', function() {
   beforeEach(function() {
     app = {
       register: function(key, obj, args) {
-        app.registered = (key == 'cough_drop:app_state' && obj == app_state && args.singleton === true);
+        app.registered = (key == 'lingolinq:app_state' && obj == app_state && args.singleton === true);
       },
       inject: function(component, name, key) {
-        if(name == 'app_state' && key == 'cough_drop:app_state') {
+        if(name == 'app_state' && key == 'lingolinq:app_state') {
           app.injections.push(component);
         }
       },

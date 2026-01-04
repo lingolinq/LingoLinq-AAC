@@ -21,6 +21,12 @@ export default Component.extend({
   router: service(),
   store: service(),
 
+  init() {
+    this._super(...arguments);
+    // Initialize supervisees_with_badges to empty array
+    this.set('supervisees_with_badges', []);
+  },
+
   sync_able: computed('extras.ready', 'app_state.currentUser.external_device', function() {
     return this.get('extras.ready') && !app_state.get('currentUser.external_device');
   }),
@@ -252,7 +258,9 @@ export default Component.extend({
   reload_logs: observer('model.id', 'persistence.online', function() {
     var model = this.get('model');
     var _this = this;
-    if(model && model.get('id') && persistence.get('online')) {
+    // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
+    var model_id = model && model.get('id');
+    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && persistence.get('online')) {
       var controller = this;
       var find_args = {user_id: model.get('id'), type: 'session'};
       if(model.get('supporter_role')) {
@@ -288,6 +296,9 @@ export default Component.extend({
   update_current_badges: observer(
     'app_state.sessionUser',
     'app_state.sessionUser.known_supervisees',
+    'app_state.currentUser',
+    'app_state.currentUser.known_supervisees',
+    'app_state.currentUser.supervisees',
     'session.modeling_session',
     'current_user_badges',
     function() {
@@ -301,8 +312,9 @@ export default Component.extend({
           b = null;
         }
         // If no badge for the current user use the supervisee if there's only one
-        if(!b && (app_state.get('sessionUser.known_supervisees') || []).length == 1) {
-          var sup = app_state.get('sessionUser.known_supervisees')[0];
+        var known_sups = app_state.get('currentUser.known_supervisees') || app_state.get('sessionUser.known_supervisees') || [];
+        if(!b && known_sups.length == 1) {
+          var sup = known_sups[0];
           if(sup.premium) {
             b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id)
           }
@@ -311,7 +323,16 @@ export default Component.extend({
         emberSet(model, 'earned_badge', eb);
       }
       var sups = [];
-      (app_state.get('sessionUser.known_supervisees') || []).forEach(function(sup) {
+      // Use known_supervisees from currentUser first (since that's what we check for tab visibility), then sessionUser
+      var supervisees_list = app_state.get('currentUser.known_supervisees') || app_state.get('sessionUser.known_supervisees') || [];
+      // If known_supervisees is empty, try to get from supervisees array
+      if(supervisees_list.length === 0) {
+        var raw_supervisees = app_state.get('currentUser.supervisees') || app_state.get('sessionUser.supervisees') || [];
+        // known_supervisees is computed from supervisees, so if supervisees exists, known_supervisees should too
+        // But if it's not computed yet, we can use supervisees directly
+        supervisees_list = raw_supervisees;
+      }
+      supervisees_list.forEach(function(sup) {
         if(for_users[emberGet(sup, 'id')] && emberGet(sup, 'premium')) {
           var b = _this.best_badge(for_users[emberGet(sup, 'id')], (sup.goal || {}).id);
           emberSet(sup, 'current_badge', b);
@@ -327,7 +348,8 @@ export default Component.extend({
         }
         sups.push(sup);
       });
-      _this.set('supervisees_with_badges', sups);
+      // Always set to an array, even if empty
+      _this.set('supervisees_with_badges', sups.length > 0 ? sups : []);
     }
   ),
   modeling_ideas_available: computed(
@@ -355,6 +377,26 @@ export default Component.extend({
   }),
   some_supervisees: computed('app_state.currentUser.supervisees', function() {
     return (app_state.get('currentUser.supervisees') || []).length > 3;
+  }),
+  has_supervisees: computed('app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
+    return (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
+  }),
+  show_communicators_tab: computed('app_state.currentUser.supporter_role', 'app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
+    return app_state.get('currentUser.supporter_role') || (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
+  }),
+  supervisors_count: computed('app_state.currentUser.supervisors', function() {
+    return (app_state.get('currentUser.supervisors') || []).length;
+  }),
+  managed_orgs: computed('app_state.currentUser.organizations', function() {
+    return (app_state.get('currentUser.organizations') || []).filter(function(o) { 
+      return o.type == 'manager' && o.restricted != true; 
+    });
+  }),
+  has_management_responsibility: computed('managed_orgs', function() {
+    return (this.get('managed_orgs') || []).length > 0;
+  }),
+  manages_multiple_orgs: computed('managed_orgs', function() {
+    return (this.get('managed_orgs') || []).length > 1;
   }),
   save_user_pref_change: observer('app_state.currentUser.preferences.auto_open_speak_mode', function() {
     var mode = app_state.get('currentUser.preferences.auto_open_speak_mode');

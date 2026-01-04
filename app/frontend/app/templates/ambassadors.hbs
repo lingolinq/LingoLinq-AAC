@@ -4,7 +4,7 @@
     {{#if app_state.domain_settings.ios_store_url}}
       <h4>{{t "iOS" key="ios"}}</h4>
         <div style='margin-left: 20px; margin-bottom: 20px;'>
-          <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+          <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
             <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;">
           </a>
         </div>
@@ -12,7 +12,7 @@
     {{#if app_state.domain_settings.play_store_url}}
       <h4>{{t "Android" key="android"}}</h4>
         <div style='margin-left: 20px; margin-bottom: 20px;'>
-          <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+          <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
             <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;">
           </a>
         </div>
@@ -20,7 +20,7 @@
     {{#if app_state.domain_settings.kindle_store_url}}
     <h4>{{t "Amazon Kindle" key="amazon_kindle"}}</h4>
       <div style='margin-left: 20px; margin-bottom: 20px;'>
-        <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+        <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
           <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
         </a>
       </div>

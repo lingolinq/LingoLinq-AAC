@@ -45,3 +45,11 @@
 # Ignore temporary logo/backup files
 /backup
 /temp_logos
+COMPLETED_TASKS_SUMMARY.md
+FRONTEND_ORG_CHECK.md
+ORGANIZATION_UI_DEBUG.md
+QUICK_ORG_CHECK.md
+TIMEOUT_DEBUG.md
+USER_ID_CACHE_INVESTIGATION.md
+PHASE3_STATUS_REVIEW.md
+public/.well-known/appspecific/com.chrome.devtools.json

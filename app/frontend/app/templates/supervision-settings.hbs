@@ -1,7 +1,7 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Supervision Settings for" key="supervision_settings_for"}} {{model.user_name}}</h3>
+    <h3>{{t "Supervision Settings for" key="supervision_settings_for"}} {{this.model.user_name}}</h3>
   </div>
   <div class="modal-body">
     <h3 style='margin-top: 0;'>{{t "My Supervisors" key="my_supervisors"}}</h3>

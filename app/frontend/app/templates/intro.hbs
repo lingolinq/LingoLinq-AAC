@@ -155,10 +155,10 @@
             <div class='list-group'>
               <a class='list-group-item' href="#" {{action "video"}}>{{t "Intro Video: Getting Started with %app_name%" key="getting_started_video"}}</a>
               {{#if app_state.domain_settings.youtube_url}}
-                <a class='list-group-item' href={{app_state.domain_settings.youtube_url}} target="_blank" rel="noopener">{{t "%app_name% YouTube Channel, with Walkthroughs" key="youtube_channel"}}</a>
+                <a class='list-group-item' href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener">{{t "%app_name% YouTube Channel, with Walkthroughs" key="youtube_channel"}}</a>
               {{/if}}
               {{#if app_state.domain_settings.support_url}}
-                <a class='list-group-item' href={{app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "%app_name% Support Site, with FAQs" key="support_site"}}</a>
+                <a class='list-group-item' href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "%app_name% Support Site, with FAQs" key="support_site"}}</a>
               {{/if}}
             </div>
           </div>

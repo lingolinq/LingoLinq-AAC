@@ -1,10 +1,10 @@
 <div class="row">
   <div class="dropdown skinny_bio hide_print" style="margin-bottom: 10px;">
     <a class='btn btn-default' href="#" data-toggle="dropdown">
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 30px;">
+      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
       {{ model.name }}
       {{#if model.subroute_name}}
-        <span class="text-muted">- {{model.subroute_name}}</span>
+        <span class="text-muted">- {{this.model.subroute_name}}</span>
       {{/if}}
       <span class="caret"></span>
     </a>
@@ -19,7 +19,7 @@
         {{#link-to "user.goals" model.user_name}}{{t "goals" key="goals_lower"}}{{/link-to}}
       </li>
       {{#if app_state.feature_flags.lessons}}
-        {{#if model.organizations.length}}
+        {{#if this.model.organizations.length}}
           <li role="presentation">
             {{#link-to "user.lessons" model.user_name}}{{t "trainings" key="trainings_lower"}}{{/link-to}}
           </li>
@@ -45,7 +45,7 @@
         {{#link-to "user.logs" model.user_name (query-params type=null)}}
           {{t "logs &amp; messages" key="logs_messages"}}
           {{#if app_state.currentUser.unread_messages}}
-            <span class="label label-danger">{{app_state.currentUser.unread_messages}}</span>
+            <span class="label label-danger">{{this.app_state.currentUser.unread_messages}}</span>
           {{/if}}
         {{/link-to}}
       </li>
@@ -54,7 +54,7 @@
   <div class="col-md-3 col-sm-12 wide_bio hide_print">
     <div class="well" style="text-align: center;">
     <div style='position: relative;'>
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;">
+      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 100px;">
       {{#if model.online}}
         <div title='currently online' class='online_marker'></div>
       {{/if}}
@@ -63,7 +63,7 @@
     <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
     <div>{{ model.description }}</div>
     {{#if model.details_url}}
-    <div><a href={{model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
+    <div><a href={{this.model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
     {{/if}}
     <div>{{ model.location }}</div>
     {{#if model.joined}}
@@ -80,7 +80,7 @@
         {{#link-to "user.stats" model.user_name (query-params highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null) class="btn btn-default"}}{{t "reports" key="reports_lower"}}{{/link-to}}
         {{#link-to "user.goals" model.user_name class="btn btn-default"}}{{t "goals" key="goals_lower"}}{{/link-to}}
         {{#if app_state.feature_flags.lessons}}
-          {{#if model.organizations.length}}
+          {{#if this.model.organizations.length}}
             {{#link-to "user.lessons" model.user_name class="btn btn-default"}}{{t "trainings" key="trainings_lower"}}{{/link-to}}
           {{/if}}
         {{/if}}
@@ -95,7 +95,7 @@
         {{#link-to "user.logs" model.user_name (query-params type=null) class="btn btn-default"}}
           {{t "logs &amp; messages" key="logs_messages"}}
           {{#if app_state.currentUser.unread_messages}}
-            <span class="label label-danger">{{app_state.currentUser.unread_messages}}</span>
+            <span class="label label-danger">{{this.app_state.currentUser.unread_messages}}</span>
           {{/if}}
         {{/link-to}}
       </div>

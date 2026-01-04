@@ -205,7 +205,7 @@
           {{#unless webcam}}
             {{#if model.image.url}}
               <div style="text-align: center; margin-bottom: 10px; margin-top: 10px;">
-                <img src={{model.image.best_url_without_preferred_symbols}} class="button_image">
+                <img src={{this.model.image.best_url_without_preferred_symbols}} class="button_image">
               </div>
               {{pick-license license=model.image.license}}
               {{#if model.image.skinned}}

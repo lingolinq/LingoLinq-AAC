@@ -19,13 +19,13 @@
     <div class="row">
       <div class={{if model.stats2 "col-sm-6" "col-sm-12"}}>
         {{#if model.stats2}}
-          <strong>{{model.stats.label}}</strong>
+          <strong>{{this.model.stats.label}}</strong>
         {{/if}}
         {{stats/word-cloud stats=model.stats ref_stats=model.stats2 zoom=zoom word_cloud_id=word_cloud_id}}
       </div>
       {{#if model.stats2}}
         <div class='col-sm-6'>
-          <strong>{{model.stats2.label}}</strong>
+          <strong>{{this.model.stats2.label}}</strong>
           {{stats/word-cloud stats=model.stats2 ref_stats=model.stats zoom=zoom word_cloud_id=word_cloud_id}}
         </div>
       {{/if}}

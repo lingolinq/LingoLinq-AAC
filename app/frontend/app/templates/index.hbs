@@ -1,6 +1,6 @@
 {{#opening-observer opening=(action "opening_index") closing=(action "closing_index")}}{{/opening-observer}}
-<div id="index_view" class={{if app_state.currentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
-  {{#if app_state.currentUser}}
+<div id="index_view" class={{if this.app_state.currentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
+  {{#if this.app_state.currentUser}}
     <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
   {{else if app_state.domain_settings.full_domain}}
     <Dashboard::UnauthenticatedView @user={{this.user}} />

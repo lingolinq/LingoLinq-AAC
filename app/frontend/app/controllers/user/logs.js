@@ -101,10 +101,15 @@ export default Controller.extend({
       this.send('refresh');
     },
     refresh: function() {
-      if(!this.get('model.id')) { return; }
+      var model_id = this.get('model.id');
+      if(!model_id) { return; }
+      // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
+      if(model_id == 'cache' || model_id.toString().match(/^cache:/)) {
+        return;
+      }
       var controller = this;
       if(this.get('type') == 'all') { this.set('type', null); }
-      var args = {user_id: this.get('model.id')};
+      var args = {user_id: model_id};
       if(this.get('type') && this.get('type') != 'all') {
         args.type = this.get('type');
       }
@@ -145,8 +150,13 @@ export default Controller.extend({
     more: function() {
       var _this = this;
       if(this.get('more_available')) {
+        var model_id = this.get('model.id');
+        // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
+        if(!model_id || model_id == 'cache' || model_id.toString().match(/^cache:/)) {
+          return;
+        }
         var meta = this.get('meta');
-        var args = {user_id: this.get('model.id'), per_page: meta.per_page, offset: (meta.offset + meta.per_page)};
+        var args = {user_id: model_id, per_page: meta.per_page, offset: (meta.offset + meta.per_page)};
         if(this.get('type') && this.get('type') != 'all') {
           args.type = this.get('type');
         }

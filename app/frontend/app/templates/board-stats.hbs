@@ -3,7 +3,7 @@
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       Usage Report for
-      {{model.name}}
+      {{this.model.name}}
     </h3>
   </div>
   <div class="modal-body">
@@ -47,17 +47,17 @@
           </dd>
           <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
             <dd>
-              {{model.downstream_boards}}
+              {{this.model.downstream_boards}}
             </dd>
           <dt>{{t "Dimensions" key="dimensions"}}</dt>
-            <dd>{{model.grid.rows}} x {{model.grid.columns}}</dd>
+            <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
 
           <dt>{{t "Total Buttons" key="total_buttons"}}</dt>
             <dd>
-              {{model.total_buttons}}
+              {{this.model.total_buttons}}
             </dd>
           <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
-            <dd>{{model.unlinked_buttons}}</dd>
+            <dd>{{this.model.unlinked_buttons}}</dd>
         </dl>
       {{/if}}
     {{else}}

@@ -7,7 +7,7 @@
   </div>
   <div class="modal-body">
     {{#if model.user}}
-      <img src={{model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' >
+      <img src={{this.model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' >
     {{else if model.log}}
       <span class='glyphicon glyphicon-time' style='font-size: 60px; float: left; margin: 0 10px 10px 0;'></span>
     {{/if}}

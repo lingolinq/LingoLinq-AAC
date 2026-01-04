@@ -294,7 +294,7 @@
   {{/if}}
   {{#if model.goal.id}}
     <div style='margin: -5px 0 10px; font-size: 16px;'>
-      {{#link-to "user.goal" user.user_name model.goal.id}}{{t "Goal:" key="goal_colon"}} {{model.goal.summary}}{{/link-to}}
+      {{#link-to "user.goal" user.user_name model.goal.id}}{{t "Goal:" key="goal_colon"}} {{this.model.goal.summary}}{{/link-to}}
     </div>
   {{/if}}
   <div class="row">
@@ -322,21 +322,21 @@
           <div class="panel-heading">{{t "Author" key="author"}}</div>
           <div class="panel-body">
             {{#if model.author.contact}}
-              {{model.author.contact.name}}
+              {{this.model.author.contact.name}}
             {{else}}
-              {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+              {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
             {{/if}}
           </div>
         {{else if model.assessment_type}}
           <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
           <div class="panel-body">
-            {{#link-to "user" model.author.user_name}}{{model.author.user_name}}{{/link-to}}
+            {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
           </div>
         {{else}}
           <div class="panel-heading">{{t "Device" key="device"}}</div>
           <div class="panel-body">
             {{#link-to "user.stats" user.user_name (query-params highlighted=null start=null end=null location_id=null device_id=model.device.id split=null start2=null end2=null device_id2=null location_id2=null)}}
-              {{model.device.name}}
+              {{this.model.device.name}}
             {{/link-to}}
           </div>
         {{/if}}
@@ -346,25 +346,25 @@
   {{#if model.note_type}}
     <div class="panel" style="white-space: pre-line; margin-bottom: 50px;">
       {{#if model.goal}}
-        <span class='face_icon'><span class={{model.goal_status_class}}></span></span>{{#if model.goal.summary}} - {{model.goal.summary}}{{/if}}
+        <span class='face_icon'><span class={{this.model.goal_status_class}}></span></span>{{#if model.goal.summary}} - {{this.model.goal.summary}}{{/if}}
       {{/if}}
 
-      {{model.note.text}}
+      {{this.model.note.text}}
       {{#if model.video}}
         <div style="margin-top: 10px;">
-          <video src={{model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
+          <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
         </div>
       {{/if}}
       {{#if model.note.prior}}
         <div style='white-space: normal; margin-top: 30px;'>
-          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}} {{#if model.note.prior_contact}}{{t "message from" key="message_from"}} {{model.note.prior_contact.name}}{{/if}}:</div>
-          <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{model.note.prior}}</div>
+          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}} {{#if model.note.prior_contact}}{{t "message from" key="message_from"}} {{this.model.note.prior_contact.name}}{{/if}}:</div>
+          <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{this.model.note.prior}}</div>
         </div>
       {{/if}}
     </div>
   {{else if model.journal_type}}
     <div class="panel" style="white-space: pre-line; margin-bottom: 50px;">
-      {{model.journal.sentence}}
+      {{this.model.journal.sentence}}
     </div>
   {{else if model.assessment_type}}
     <div class="row">
@@ -372,7 +372,7 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Percent Correct" key="percent_correct"}}</div>
           <div class="panel-body">
-            {{model.assessment.stats.percent_correct}}%
+            {{this.model.assessment.stats.percent_correct}}%
           </div>
         </div>
       </div>
@@ -380,8 +380,8 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Total Correct" key="total_correct"}}</div>
           <div class="panel-body">
-            {{model.assessment.stats.total_correct}} /
-            {{model.assessment.stats.total_tallies}}
+            {{this.model.assessment.stats.total_correct}} /
+            {{this.model.assessment.stats.total_tallies}}
           </div>
         </div>
       </div>
@@ -389,7 +389,7 @@
         <div class="panel panel-default summary smaller">
             <div class="panel-heading">{{t "Longest Streak" key="longest_correct_streak"}}</div>
             <div class="panel-body">
-              {{model.assessment.stats.longest_correct_streak}}
+              {{this.model.assessment.stats.longest_correct_streak}}
             </div>
         </div>
       </div>
@@ -573,7 +573,7 @@
         <dt style="margin-top: 15px;">{{t "IP Address" key="ip_address"}}</dt>
           <dd>
             {{#if model.readable_ip_address}}
-              {{model.readable_ip_address}}
+              {{this.model.readable_ip_address}}
             {{/if}}
             {{#if model.ip_cluster_id}}
               <br>

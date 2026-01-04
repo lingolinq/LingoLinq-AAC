@@ -37,7 +37,7 @@
           <div class="panel-body">
             {{t "hr" key="n_hours_abbrev" count=model.user_counts.recent_session_hours}},
 
-            {{model.user_counts.recent_session_user_count}} / {{model.user_counts.total_users}}
+            {{this.model.user_counts.recent_session_user_count}} / {{this.model.user_counts.total_users}}
             {{t "users" key="users_lower"}}
           </div>
         </div>
@@ -135,7 +135,7 @@
               {{#if organization.premium}}
                 {{#if model.goal}}
                   <div style='font-style: italic; margin-top: 5px;'>
-                    {{#link-to "goals.goal" model.goal.id}}{{model.goal.summary}}{{/link-to}}
+                    {{#link-to "goals.goal" model.goal.id}}{{this.model.goal.summary}}{{/link-to}}
                   </div>
                 {{/if}}
               {{/if}}
@@ -176,7 +176,7 @@
                 {{#if app_state.feature_flags.lessons}}
                   {{#if model.lesson}}
                     <div style='font-style: italic; margin-top: 10px;'>
-                      <a href="#" {{action "launch_lesson"}}>{{model.lesson.title}}</a>
+                      <a href="#" {{action "launch_lesson"}}>{{this.model.lesson.title}}</a>
                       ({{lesson_targets}})
                     </div>
                   {{/if}}

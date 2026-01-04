@@ -45,9 +45,12 @@ import persistence from './persistence';
 // "back button" history
 var app_state = EmberObject.extend({
   setup: function(application) {
-    application.register('cough_drop:app_state', app_state, { instantiate: false, singleton: true });
+    // Register as singleton for injection
+    application.register('lingolinq:app_state', app_state, { instantiate: false, singleton: true });
+    // Implicit injection is deprecated in Ember 3.28, but keep for backward compatibility
+    // Components should use explicit injection via inject() pointing to the legacy registration
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'app_state', 'cough_drop:app_state');
+      application.inject(component, 'app_state', 'lingolinq:app_state');
     });
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);

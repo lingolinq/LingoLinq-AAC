@@ -3,7 +3,7 @@
       <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
       {{#if model.header}}
-        {{model.header}}
+        {{this.model.header}}
       {{else}}
         {{t "Switch Communicators" key="switch_communicators"}}
       {{/if}}

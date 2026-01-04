@@ -8,8 +8,8 @@
       {{t "Are you sure you want to change this board's key?" key="confirm_rename_board"}}
     </p>
     <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
-    <strong>{{model.board.name}}</strong><br>
-    {{model.board.grid.rows}} x {{model.board.grid.columns}}
+    <strong>{{this.model.board.name}}</strong><br>
+    {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
 
     <div style='margin: 20px 0;'>
       {{t "To confirm the change, please enter the board's current key and new key below. The board's current key is <b>%{k}</b>" key="confirm_change_with_entry" k=old_key}}

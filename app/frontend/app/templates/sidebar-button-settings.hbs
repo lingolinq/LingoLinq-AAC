@@ -18,8 +18,8 @@
               </a>
             {{else if model.button.special}}
               {{t "Special Action:" key="special_action"}}
-              {{model.button.action}}
-              {{#if model.button.arg}}({{model.button.arg}}){{/if}}
+              {{this.model.button.action}}
+              {{#if model.button.arg}}({{this.model.button.arg}}){{/if}}
             {{else}}
               {{t "Unrecognized Button Type" key="unrecognized_button_type"}}
             {{/if}}

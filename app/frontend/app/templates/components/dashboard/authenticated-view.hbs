@@ -4,13 +4,13 @@
   <h2 style='padding-left: 5px;'>
     {{#if app_state.currentUser.permissions.delete}}
       {{#link-to "user" app_state.currentUser.user_name class="hidden_link"}}
-        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
-        <span style='vertical-align: middle'>{{app_state.currentUser.user_name}}</span>
+        <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
+        <span style='vertical-align: middle'>{{this.app_state.currentUser.user_name}}</span>
       {{/link-to}}
     {{else}}
       <span>
-        <img src={{app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
-        <span style='vertical-align: middle'>{{app_state.currentUser.user_name}}</span>
+        <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
+        <span style='vertical-align: middle'>{{this.app_state.currentUser.user_name}}</span>
       </span>
     {{/if}}
   </h2>
@@ -62,7 +62,7 @@
           {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item half_size collapsible"}}
             <span class="glyphicon glyphicon-home"></span>
             {{t "home:" key="home_colon"}}
-            <strong>{{app_state.currentUser.preferences.home_board.key}}</strong>
+            <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
           {{/link-to}}
         {{/if}}
         {{#if sync_able}}
@@ -83,18 +83,18 @@
               {{#if persistence.sync_failed}}
                 {{t "Sync Failed, see details below" key="sync_failed"}}
                 {{#if persistence.sync_status_error}}
-                  <span title={{persistence.sync_status_error}}>{{persistence.sync_status_error}}</span>
+                  <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
                 {{/if}}
               {{else}}
                 {{#if persistence.syncing}}
                   {{t "Syncing..." key="syncing_ellipsis"}}
                   {{#if persistence.sync_progress}}
                     {{#if persistence.sync_progress.total}}
-                      {{persistence.sync_progress.visited}} /
+                      {{this.persistence.sync_progress.visited}} /
                       {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
                     {{else if persistence.sync_progress.pre_total}}
                       {{t "checking" key="checking_lower"}}
-                      {{persistence.sync_progress.pre_visited}} /
+                      {{this.persistence.sync_progress.pre_visited}} /
                       {{t "board" key="communication_set_board" count=persistence.sync_progress.pre_total}}
                     {{else}}
                       {{t "initializing..." key="initializing_lower"}}
@@ -120,7 +120,7 @@
         {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item collapsible"}}
           <span class="glyphicon glyphicon-home"></span>
           {{t "current home board:" key="current_home_board"}}<br>
-          <strong>{{app_state.currentUser.preferences.home_board.key}}</strong>
+          <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
         {{/link-to}}
         {{#unless app_state.currentUser.any_limited_supervisor}}
           {{#if app_state.currentUser.currently_premium}}
@@ -168,10 +168,10 @@
             {{#if app_state.currentUser.stats.board_set_ids}}
               <br>
               {{#if persistence.sync_progress}}
-                {{persistence.sync_progress.visited}} /
+                {{this.persistence.sync_progress.visited}} /
                 {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
               {{else if persistence.sync_status_error}}
-                {{persistence.sync_status_error}}
+                {{this.persistence.sync_status_error}}
               {{else}}
                 {{t "board" key="communication_set_board" count=app_state.currentUser.stats.board_set_ids}}
               {{/if}}
@@ -195,8 +195,8 @@
         <a href="#" class="list-group-item collapsible" {{action "manage_supervisors"}}>
           <span>
           <span class="glyphicon glyphicon-user"></span>
-          {{#if app_state.currentUser.supervisors.length}}
-            {{t "Supervisor" key="n_supervisors" count=app_state.currentUser.supervisors.length}}
+          {{#if supervisors_count}}
+            {{t "Supervisor" key="n_supervisors" count=supervisors_count}}
           {{else}}
             {{t "No Supervisors" key="no_supervisors"}}
           {{/if}}
@@ -220,12 +220,12 @@
           </span>
         </div>
       {{/if}}
-      {{#if app_state.currentUser.has_management_responsibility}}
-        {{#if app_state.currentUser.manages_multiple_orgs}}
+      {{#if has_management_responsibility}}
+        {{#if manages_multiple_orgs}}
           <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
             <span class="glyphicon glyphicon-paperclip"></span>
             <span style='white-space: normal;'>
-              {{#each app_state.currentUser.managed_orgs as |org|}}
+              {{#each managed_orgs as |org|}}
                 <span style="margin-right: 10px; white-space: nowrap;">
                   {{#link-to "organization" org.id}}
                     {{org.name}}
@@ -235,7 +235,7 @@
             </span>
           </div>
         {{else}}
-          {{#each app_state.currentUser.managed_orgs as |org|}}
+          {{#each managed_orgs as |org|}}
             {{#link-to "organization" org.id class="list-group-item half_size"}}
               <span class="glyphicon glyphicon-paperclip"></span>
               <span style="margin-right: 10px;">
@@ -268,23 +268,23 @@
         {{#if allow_logs}}
           <span class='text-muted' style='font-size: 12px; margin-top: 10px;'>
             {{t "Last Log" key="latest_session"}}
-            {{#if logs.[0]}}
+            {{#if this.logs.[0]}}
               <span title={{date log.started_at}}>
-                {{date_ago logs.[0].started_at}}
+                {{date_ago this.logs.[0].started_at}}
               </span>
             {{/if}}
           </span>
           <br>
-          {{#if logs.loading}}
+          {{#if this.logs.loading}}
             {{t "Loading..." key="loading"}}
-          {{else if logs.eror}}
+          {{else if this.logs.eror}}
             {{t "Failed to load" key="failed_to_load"}}
-          {{else if logs.[0]}}
+          {{else if this.logs.[0]}}
             <div style='padding-right: 10px; white-space: normal; max-height: 40px; overflow: hidden;'>
             {{#if app_state.currentUser.supporter_role}}
-              {{logs.[0].user.user_name}}:
+              {{this.logs.[0].user.user_name}}:
             {{/if}}
-            {{logs.[0].summary}}
+            {{this.logs.[0].summary}}
             </div>
           {{else}}
             {{t "No recent sessions" key="no_recent_sessions"}}
@@ -314,7 +314,7 @@
       <ul class="nav nav-pills new_pills">
         <li role="presentation" class={{if index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
         {{#unless app_state.currentUser.modeling_only}}
-          {{#if app_state.currentUser.supporter_role}}
+          {{#if show_communicators_tab}}
             <li role="presentation" class={{if index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
           {{/if}}
         {{/unless}}
@@ -368,7 +368,7 @@
                   {{supervisee.goal.summary}}
                 {{else}}
                   <span style='color: #ccc;'>{{t "no goal set" key="no_goal_set"}}</span>
-                  {{#if persistence.online}}
+                  {{#if this.persistence.online}}
                     {{#unless app_state.currentUser.modeling_only}}
                       - <a {{action "set_goal" supervisee}} href="#">{{t "set a goal" key="set_a_goal"}}</a>
                     {{/unless}}
@@ -513,7 +513,7 @@
             <button class='btn btn-lg btn-default' {{action "next_lesson"}}>
             <span class='glyphicon glyphicon-education'></span>
             {{t "Next Lesson: " key="next_lesson"}}
-            {{model.first_incomplete_lesson.title}}
+            {{this.model.first_incomplete_lesson.title}}
             {{#if model.first_incomplete_lesson.due_at}}
               <div style='font-size: 14px;'>due {{date model.first_incomplete_lesson.due_at}}</div>
             {{/if}}
@@ -554,7 +554,7 @@
           {{#if app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               {{#link-to "user" app_state.currentUser.user_name id="nav_secondary" class="btn big_button btn-default"}}
-                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
+                <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
               {{/link-to}}
             </div>
@@ -672,7 +672,7 @@
           {{#if app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               {{#link-to "user" app_state.currentUser.user_name class="btn big_button btn-default bottom_row"}}
-                <img src={{app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
+                <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
               {{/link-to}}
             </div>
@@ -695,7 +695,7 @@
               </div>
             {{/if}}
           {{/if}}
-        {{else if persistence.online}}
+        {{else if this.persistence.online}}
           {{#if app_state.currentUser.current_badge}}
             {{badge-progress badge=app_state.currentUser.current_badge big=true}}
           {{/if}}
@@ -736,7 +736,7 @@
             {{t "current home board:" key="current_home_board"}}<br>
             {{#if app_state.currentUser.preferences.home_board}}
               {{#link-to "board" app_state.currentUser.preferences.home_board.key}}
-                <strong style='font-size: 20px;'>{{app_state.currentUser.preferences.home_board.key}}</strong>
+                <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
               {{/link-to}}
             {{else}}
               {{#link-to "home-boards"}}
@@ -799,17 +799,17 @@
             </div>
             <div>
               {{#if app_state.domain_settings.ios_store_url}}
-                <a href={{app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+                <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
               {{#if app_state.domain_settings.play_store_url}}
-                <a href={{app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+                <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
                 </a><br>
               {{/if}}
               {{#if app_state.domain_settings.kindle_store_url}}
-                <a href={{app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+                <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
@@ -876,12 +876,12 @@
           <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
         {{/if}}
         <div style="margin-left: 20px;">
-          {{#if logs.loading}}
+          {{#if this.logs.loading}}
             <p>{{t "Loading..." key="loading"}}</p>
-          {{else if logs.error}}
+          {{else if this.logs.error}}
             <p>{{t "Failed to load" key="failed_to_load"}}</p>
-          {{else if logs}}
-            {{#each logs as |log|}}
+          {{else if this.logs}}
+            {{#each this.logs as |log|}}
               <p>
                 <span title={{date log.started_at}}>
                   {{date_ago log.started_at}}
@@ -905,7 +905,7 @@
               </p>
             {{/each}}
           {{else}}
-            {{#if show_sessions_explanation}}
+            {{#if this.show_sessions_explanation}}
               <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
             {{else}}
               <p>

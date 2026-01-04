@@ -9,7 +9,7 @@
       {{#if style_missing}}
         <div class="modal-body" style='height: calc(100% - 65px); overflow: auto; padding-bottom: 60px;'>
           {{#if model.board.style.long_description}}
-            <p>{{model.board.style.long_description}}</p>
+            <p>{{this.model.board.style.long_description}}</p>
           {{/if}}
           <p>{{t "This board style has multiple grid sizes. As you choose a grid size, try to focus on the smallest buttons that the user can reliably hit, rather than worrying about showing too many buttons. A many-button grid can be \"turned down\" to show fewer buttons more easily than a few-button grid can be adjusted to add more buttons later." key="grid_size_suggestion_prompt"}}</p>
           <div class='row'>

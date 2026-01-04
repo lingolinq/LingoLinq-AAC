@@ -33,14 +33,14 @@
         {{#if persistence.sync_failed}}
           {{t "Sync Failed, see details below" key="sync_failed"}}
           {{#if persistence.sync_status_error}}
-            <span title={{persistence.sync_status_error}}>{{persistence.sync_status_error}}</span>
+            <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
           {{/if}}
         {{else}}
           {{#if persistence.syncing}}
             {{t "Syncing..." key="syncing_ellipsis"}}
             {{#if persistence.sync_progress}}
               {{#if persistence.sync_progress.total}}
-                {{persistence.sync_progress.visited}} /
+                {{this.persistence.sync_progress.visited}} /
                 {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
               {{else}}
                 {{t "initializing..." key="initializing_lower"}}

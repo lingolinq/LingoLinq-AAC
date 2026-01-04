@@ -276,12 +276,17 @@ export default Controller.extend({
   reload_logs: observer('persistence.online', function() {
     var _this = this;
     if(!persistence.get('online')) { return; }
+    var model_id = this.get('model.id');
+    // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
+    if(model_id && (model_id == 'cache' || model_id.toString().match(/^cache:/))) {
+      return;
+    }
     if(!(_this.get('model.logs') || {}).length) {
       if(this.get('model')) {
         this.set('model.logs', {loading: true});
       }
     }
-    this.store.query('log', {user_id: this.get('model.id'), per_page: 4}).then(function(logs) {
+    this.store.query('log', {user_id: model_id, per_page: 4}).then(function(logs) {
       if(_this.get('model')) {
         _this.set('model.logs', logs.slice(0,4));
       }

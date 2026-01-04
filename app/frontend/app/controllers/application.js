@@ -24,10 +24,17 @@ import { htmlSafe } from '@ember/string';
 import { inject } from '@ember/controller';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { getOwner } from '@ember/application';
 import sync from '../utils/sync';
 
 export default Controller.extend({
   board: inject('board.index'),
+  // Explicit injection for app_state to avoid implicit injection deprecation warning
+  // Uses the 'lingolinq:app_state' registration name (renamed from 'cough_drop:app_state')
+  app_state: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:app_state');
+  }),
   updateTitle: function(str) {
     if(!Ember.testing) {
       if(str) {

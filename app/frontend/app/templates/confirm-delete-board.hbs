@@ -10,9 +10,9 @@
     {{#unless model.orphans}}
       <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
     {{/unless}}
-    <strong>{{model.board.name}}</strong><br>
+    <strong>{{this.model.board.name}}</strong><br>
     {{#unless model.orphans}}
-      {{model.board.grid.rows}} x {{model.board.grid.columns}}
+      {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
       {{#if model.board.non_author_uses}}
         <div style='margin: 20px 0;'>
           {{t "Keep in mind that this board is currently being used by" key="board_used_by_1"}}
@@ -62,7 +62,7 @@
     {{#if model.deleting}}
       <p style='margin: 20px;'>{{t "Deleting Board..." key="deleting_board"}}
         {{#if model.deleting.board_key}}
-          <span class='text-muted'>{{model.deleting.board_key}}</span>
+          <span class='text-muted'>{{this.model.deleting.board_key}}</span>
         {{/if}}
       </p>
     {{else if model.error}}
@@ -70,7 +70,7 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{model.deleting}}>
+    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{this.model.deleting}}>
       {{#if delete_downstream}}
         {{t "Delete Board Set" key="delete_boards"}}
       {{else}}

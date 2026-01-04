@@ -1,46 +1,46 @@
 <div class="skinny_bio">
   <div class="well" style="text-align: center;">
     <div style='position: relative;'>
-      <img src={{model.avatar_url_with_fallback}} style="max-height: 100px;">
-      {{#if model.online}}
+      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 100px;">
+      {{#if this.model.online}}
         <div title='currently online' class='online_marker'></div>
       {{/if}}
     </div>
-    <h2 style="margin-bottom: 0;">{{ model.name }}</h2>
-    <div style="margin-bottom: 10px;">{{ model.user_name }}</div>
-    <div>{{ model.description }}</div>
-    {{#if model.details_url}}
-    <div><a href={{model.details_url}} target="_blank" rel="noopener">{{ model.details_url }}</a></div>
+    <h2 style="margin-bottom: 0;">{{ this.model.name }}</h2>
+    <div style="margin-bottom: 10px;">{{ this.model.user_name }}</div>
+    <div>{{ this.model.description }}</div>
+    {{#if this.model.details_url}}
+    <div><a href={{this.model.details_url}} target="_blank" rel="noopener">{{ this.model.details_url }}</a></div>
     {{/if}}
-    <div>{{ model.location }}</div>
-    {{#if model.joined}}
-      <div title={{date model.joined}}>{{t "joined" key="joined"}} {{date_ago model.joined}}</div>
+    <div>{{ this.model.location }}</div>
+    {{#if this.model.joined}}
+      <div title={{date this.model.joined}}>{{t "joined" key="joined"}} {{date_ago this.model.joined}}</div>
     {{/if}}
-    {{#if model.last_access}}
-      <div class="text-muted" title={{date model.last_access}}>{{t "used" key="used"}} {{date_ago model.last_access "day"}}</div>
+    {{#if this.model.last_access}}
+      <div class="text-muted" title={{date this.model.last_access}}>{{t "used" key="used"}} {{date_ago this.model.last_access "day"}}</div>
     {{/if}}
   </div>
 </div>
-{{#if model.permissions.view_detailed}}
-  {{#if model.permissions.delete}}
-    {{#if model.pending_org}}
+{{#if this.model.permissions.view_detailed}}
+  {{#if this.model.permissions.delete}}
+    {{#if this.model.pending_org}}
       <div class='alert alert-info'>
-        {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=model.pending_org.name}}
-        {{#if model.pending_org.sponsored}}
+        {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=this.model.pending_org.name}}
+        {{#if this.model.pending_org.sponsored}}
           {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}
         {{/if}}
         <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve"}}>{{t "Approve %{org}" org=model.pending_org.name}}</button>
+        <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve"}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject"}}>{{t "Deny Access"}}</button>
       </div>
-    {{else if model.pending_supervision_org}}
+    {{else if this.model.pending_supervision_org}}
       <div class='alert alert-info'>
-        {{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=model.pending_supervision_org.name}}
+        {{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.model.pending_supervision_org.name}}
         <br><br>
-        <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=model.pending_supervision_org.name}}</button>
+        <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access"}}</button>
       </div>
-    {{else if model.pending}}
+    {{else if this.model.pending}}
       <div class='alert alert-success'>
         {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
         {{#if resentConfirmation}}
@@ -49,11 +49,11 @@
           <a href="#" class="alert-link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
         {{/if}}
       </div>
-    {{else if model.expired}}
-      {{#if app_state.feature_flags.subscriptions}}
+    {{else if this.model.expired}}
+      {{#if this.app_state.feature_flags.subscriptions}}
         <div style='margin-bottom: 10px;'>
           <span class="glyphicon glyphicon-info-sign" style="font-size: 20px; vertical-align: middle;"></span>
-          {{#link-to "user.subscription" model.user_name}}
+          {{#link-to "user.subscription" this.model.user_name}}
           {{t "This user's free preview has ended. Please purchase a premium account." key="this_user_needs_to_subscribe"}}
           {{/link-to}}
         </div>
@@ -63,21 +63,21 @@
         <h2>{{t "Getting Started" key="welcome_message"}}</h2>
         <p>
           {{t "Welcome to %app_name%! This is your profile summary, you can always get to it by hitting the button in the top right corner." key="welcome_message2"}}
-          {{#unless model.public}}
+          {{#unless this.model.public}}
             {{t "If you want others to be able to see your profile and easily find your public board then hit 'profile' on the left and make your account public." key="welcome_message_not_public"}}
           {{/unless}}
         </p>
       {{else}}
-        {{#unless model.preferences.home_board.key}}
+        {{#unless this.model.preferences.home_board.key}}
           <h2>{{t "Getting Started" key="welcome_message"}}</h2>
         {{/unless}}
       {{/if}}
-      {{#unless model.preferences.home_board.key}}
+      {{#unless this.model.preferences.home_board.key}}
         <p>{{t "You haven't selected a home board yet. Here's a few pre-built boards that you may like. Or you can always create your own! If you like one, just open it and hit 'Set as Home'." key="some_starting_boards"}}</p>
         <div style="margin-bottom: 50px;">
-        {{#if model.starting_boards}}
+        {{#if this.model.starting_boards}}
           <div class="row" style="margin-left: -5px; margin-right: 0;">
-          {{#each model.starting_boards as |board|}}
+          {{#each this.model.starting_boards as |board|}}
             <div class="col-sm-2 col-xs-4 simple_board_holder">
               {{board-icon board=board}}
             </div>
@@ -91,44 +91,44 @@
     {{/if}}
   {{/if}}
   <div class="row big_buttons">
-    {{#if app_state.currentUser.preferences.new_index}}
+    {{#if this.app_state.currentUser.preferences.new_index}}
       <div class='col-sm-3 col-xs-6 big_button_holder'>
-        {{#if model.external_device}}
+        {{#if this.model.external_device}}
           <a href="#" {{action "external_device"}} class="btn simple_board_icon btn-default">
-            {{#if model.external_device.size}}
+            {{#if this.model.external_device.size}}
               <span style='position: absolute; top: 10px; right: 10px; width: 50px; height: 50px; border-radius: 50px; border: 2px solid #ccc; background: rgba(255, 255, 255, 0.7); color: #777; padding-top: 5px; z-index: 2;'>
-                {{model.external_device.size}}
+                {{this.model.external_device.size}}
               </span>
             {{/if}}
-            {{#if model.device_image.device_url}}
-              {{#if model.device_image.vocab_url}}
-                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);" style='position: absolute; top: 0px; left: 0px; width: 50%;'>
-                <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);" style='position: relative;'>
+            {{#if this.model.device_image.device_url}}
+              {{#if this.model.device_image.vocab_url}}
+                <img src={{this.model.device_image.device_url}} onerror="button_broken_image(this);" style='position: absolute; top: 0px; left: 0px; width: 50%;'>
+                <img src={{this.model.device_image.vocab_url}} onerror="button_broken_image(this);" style='position: relative;'>
               {{else}}
-                <img src={{model.device_image.device_url}} onerror="button_broken_image(this);">
+                <img src={{this.model.device_image.device_url}} onerror="button_broken_image(this);">
               {{/if}}
-            {{else if model.device_image.vocab_url}}
-              <img src={{model.device_image.vocab_url}} onerror="button_broken_image(this);">
+            {{else if this.model.device_image.vocab_url}}
+              <img src={{this.model.device_image.vocab_url}} onerror="button_broken_image(this);">
             {{else}}
               <img src="/images/modeling_ideas.svg" onerror="button_broken_image(this);">
             {{/if}}
             <div class='name' style='font-size: 17px; line-height: 18px;'>
               <div>
-                {{#if model.external_device.device_name}}
-                  {{model.external_device.device_name}}
+                {{#if this.model.external_device.device_name}}
+                  {{this.model.external_device.device_name}}
                 {{else}}
                   {{t "External AAC" key="external_aac"}}
                 {{/if}}
               </div>
-              {{#if model.external_device.vocab_name}}
-                <div>{{model.external_device.vocab_name}}</div>
+              {{#if this.model.external_device.vocab_name}}
+                <div>{{this.model.external_device.vocab_name}}</div>
               {{/if}}
-              {{#if model.external_device.size}}
-                <div style='font-size: 14px; font-style: italic;'>{{t "avg size:" key="average_size_colon"}} {{model.external_device.size}}</div>
+              {{#if this.model.external_device.size}}
+                <div style='font-size: 14px; font-style: italic;'>{{t "avg size:" key="average_size_colon"}} {{this.model.external_device.size}}</div>
               {{/if}}
             </div>
           </a>
-        {{else if model.preferences.sync_starred_boards}}
+        {{else if this.model.preferences.sync_starred_boards}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
           <a href="#" {{action "load_starred"}} class="btn simple_board_icon btn-default">
             <img src="/images/star.svg" onerror="button_broken_image(this);">
@@ -136,12 +136,12 @@
               <div>
                 {{t "Liked Boards" key="liked_boards"}}
               </div>
-              {{#if model.preferences.home_board.key}}
-                <div style='font-size: 12px;'>{{t "including<br>%{bn}" bn=model.preferences.home_board.key key="including_board_name"}}</div>
+              {{#if this.model.preferences.home_board.key}}
+                <div style='font-size: 12px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
               {{/if}}
             </div>
           </a>
-        {{else if model.preferences.home_board.key}}
+        {{else if this.model.preferences.home_board.key}}
           <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
           {{board-icon board=home_board_pref localized=true}}
         {{else}}
@@ -159,7 +159,7 @@
         </button>
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
-        {{#link-to "user.goals" model.user_name class="btn big_button btn-default alternate_button"}}
+        {{#link-to "user.goals" this.model.user_name class="btn big_button btn-default alternate_button"}}
           <span class='glyphicon glyphicon-flag'></span>
           {{t "Goals" key="goals"}}
         {{/link-to}}
@@ -167,43 +167,43 @@
       <div class='col-sm-3 col-xs-6 big_button_holder'>
         <button class='btn big_button btn-default lesser_button' {{action "supervision_settings"}}>
           <span class='glyphicon glyphicon-user'></span>
-          {{#if model.supporter_role}}
+          {{#if this.model.supporter_role}}
             {{t "Supervision" key="supervision"}}
-            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{model.supervisee_names}}</div>
+            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{this.model.supervisee_names}}</div>
           {{else}}
             {{t "Supervisors" key="supervisors"}}
-            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{model.supervisor_names}}</div>
+            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{this.model.supervisor_names}}</div>
           {{/if}}
         </button>
       </div>
-      {{#if model.permissions.supervise}}
+      {{#if this.model.permissions.supervise}}
         <div class='col-sm-3 col-xs-6 big_button_holder'>
-          {{#if app_state.feature_flags.profiles}}
-            <button class='btn big_button btn-default' {{action "profile_preview" model}} style='height: 100px; padding-top: 0;'>
+          {{#if this.app_state.feature_flags.profiles}}
+            <button class='btn big_button btn-default' {{action "profile_preview" this.model}} style='height: 100px; padding-top: 0;'>
               <div style='font-size: 14px; margin-top: -3px;'>{{t "Latest Communication Profile:" key="latest_profile"}}</div>
               <div>
-                <div class={{model.profile_class}}>
-                  {{#if model.last_profile}}
-                    {{date model.last_profile_date "tiny_day"}}
+                <div class={{this.model.profile_class}}>
+                  {{#if this.model.last_profile}}
+                    {{date this.model.last_profile_date "tiny_day"}}
                   {{else}}
                     {{t "None" key="none_upper"}}
                   {{/if}}
                 </div>
               </div>
               <div style='font-size: 12px; color: #888; margin-top: -7px;'>
-                {{#if model.profile_due.overdue}}
+                {{#if this.model.profile_due.overdue}}
                   {{t "overdue" key="overdue"}}
-                {{else if model.profile_due.soon}}
+                {{else if this.model.profile_due.soon}}
                   {{t "due soon" key="due_soon"}}
-                {{else if model.profile_due.encouraged}}
+                {{else if this.model.profile_due.encouraged}}
                   {{t "consider updating soon"}}
                 {{/if}}
               </div>
             </button>
           {{/if}}
         </div>
-        {{#unless model.supporter_role}}
-          {{#if model.external_device}}
+        {{#unless this.model.supporter_role}}
+          {{#if this.model.external_device}}
             <div class='col-sm-3 col-xs-6 big_button_holder'>
               <button class='btn big_button btn-default secondary_button' {{action "manual_log"}} style='height: 100px;'>
                 {{t "Manual Log<br>Session" key="manual_log_session"}}
@@ -217,9 +217,9 @@
           {{else}}
             <div class='col-sm-6 col-xs-6'></div>
           {{/if}}
-          {{#if model.managing_org}}
-            {{#if model.permissions.edit}}
-              {{#unless model.permissions.delete}}
+          {{#if this.model.managing_org}}
+            {{#if this.model.permissions.edit}}
+              {{#unless this.model.permissions.delete}}
                 {{#if external_device_or_no_home}}
                   <div class='col-sm-3 col-xs-6 big_button_holder'>
                     <button class='btn big_button btn-default lesser_button' {{action "external_device"}} style='height: 100px;'>
@@ -232,7 +232,7 @@
           {{/if}}
         {{/unless}}
 
-        {{#unless app_state.currentUser.modeling_only}}
+        {{#unless this.app_state.currentUser.modeling_only}}
           <div class='col-sm-3 col-xs-6' style='float: right; text-align: right; margin-top: -5px; margin-bottom: -10px;'>
             <div class="btn-group">
               <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='border-width: 3px; background: #eee;'>
@@ -243,20 +243,20 @@
                 <li><a href="#" {{action "recordNote" "text"}}>New Note</a></li>
                 <li><a href="#" {{action "quick_assessment"}}>Quick Assessment</a></li>
                 <li><a href="#" {{action "run_eval"}}>Run Evaluation</a></li>
-                {{#if model.preferences.remote_modeling}}
-                  {{#unless model.supporter_role}}
+                {{#if this.model.preferences.remote_modeling}}
+                  {{#unless this.model.supporter_role}}
                     <li><a href="#" {{action "remote_model"}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
                   {{/unless}}
                 {{/if}}
                 <li><a href="#" {{action "view_devices"}}>My Devices</a></li>
-                {{#if model.subscription.eval_expires}}
+                {{#if this.model.subscription.eval_expires}}
                   <li><a href="#" {{action "eval_settings"}}>Eval Status</a></li>
                 {{/if}}
-                {{#if model.permissions.edit}}
+                {{#if this.model.permissions.edit}}
                   <!-- allow supervisors to run setup for a supervisee -->
                   <li><a href="#" {{action "setup"}}>{{t "Getting Started Wizard" key="getting_started_wizard"}}</a></li>
                 {{/if}}
-                {{#if model.permissions.support_actions}}
+                {{#if this.model.permissions.support_actions}}
                   <li><a href="#" {{action "masquerade"}}>{{t "Masquerade as User" key="masquerade_as_user"}}</a></li>
                 {{/if}}
               </ul>
@@ -271,8 +271,8 @@
             {{t "Current home board" key="current_home_board_cap"}}
           </div>
           <div class="panel-body">
-              {{#if model.preferences.home_board.key}}
-                {{#link-to "board" model.preferences.home_board.key}}{{model.preferences.home_board.key}}{{/link-to}}
+              {{#if this.model.preferences.home_board.key}}
+                {{#link-to "board" this.model.preferences.home_board.key}}{{this.model.preferences.home_board.key}}{{/link-to}}
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -285,7 +285,7 @@
             {{t "Current board set" key="current_home_board_set"}}
           </div>
           <div class="panel-body">
-            {{t "board" key="n_boards" count=model.stats.board_set_ids}}
+            {{t "board" key="n_boards" count=this.model.stats.board_set_ids}}
           </div>
         </div>
       </div>
@@ -295,7 +295,7 @@
             {{t "Liked Boards" key="starred_boards"}}
           </div>
           <div class="panel-body">
-            {{t "board" key="n_boards" count=model.stats.starred_boards}}
+            {{t "board" key="n_boards" count=this.model.stats.starred_boards}}
           </div>
         </div>
       </div>
@@ -305,7 +305,7 @@
             {{t "Status" key="status"}}
           </div>
           <div class="panel-body">
-            {{#if model.public}}
+            {{#if this.model.public}}
               {{t "public" key="public_lower"}}
             {{else}}
               {{t "private" key="private_lower"}}
@@ -313,7 +313,7 @@
           </div>
         </div>
       </div>
-      {{#if model.permissions.supervise}}
+      {{#if this.model.permissions.supervise}}
           <div class="col-sm-3 col-xs-6">
             <button style='width: 100%; height: 38px;' class='btn btn-small btn-default' {{action "recordNote" "text"}}>{{t "New Note" key="text_note"}}</button>
             <button style='width: 100%; height: 38px; margin-top: 5px;' class='btn btn-small btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
@@ -324,11 +324,11 @@
                 {{t "My device" key="my_device"}}
               </div>
               <div class="panel-body">
-                {{#if model.devices}}
-                  {{model.current_device_name}}
+                {{#if this.model.devices}}
+                  {{this.model.current_device_name}}
                   <div class="sub_link">
-                    {{#if model.multiple_devices}}
-                        <a href="#" {{action "view_devices"}}>{{t "see all %{tally} devices" tally=model.device_count key="see_all_devices"}}</a>
+                    {{#if this.model.multiple_devices}}
+                        <a href="#" {{action "view_devices"}}>{{t "see all %{tally} devices" tally=this.model.device_count key="see_all_devices"}}</a>
                     {{/if}}
                     &nbsp;
                   </div>
@@ -345,14 +345,14 @@
               </div>
               <div class="panel-body">
                     <span {{action "supervision_settings"}}>
-                      {{#if model.supervisors_or_managing_org}}
-                        <span style="cursor: pointer;">{{model.supervisor_names}}</span>
+                      {{#if this.model.supervisors_or_managing_org}}
+                        <span style="cursor: pointer;">{{this.model.supervisor_names}}</span>
                       {{else}}
                         {{t "none linked" key="none_linked"}}
                       {{/if}}
                     </span>
                     <div class="sub_link">
-                      {{#if model.permissions.manage_supervision}}
+                      {{#if this.model.permissions.manage_supervision}}
                         <a href="#" {{action "add_supervisor"}}>{{t "add supervisor" key="add_supervisor_lower"}}</a>
                       {{/if}}
                       &nbsp;
@@ -361,47 +361,47 @@
             </div>
           </div>
           <div class="col-sm-3 col-xs-6">
-            {{#if model.supervisees}}
+            {{#if this.model.supervisees}}
               <div class="panel panel-default summary smaller">
                 <div class="panel-heading">
                   {{t "People I supervise" key="linked_users"}}
                 </div>
                 <div class="panel-body" {{action "supervision_settings"}}>
-                  <span style="cursor: pointer;">{{model.supervisee_names}}</span>
+                  <span style="cursor: pointer;">{{this.model.supervisee_names}}</span>
                   <div class="sub_link">&nbsp;</div>
                 </div>
               </div>
             {{/if}}
           </div>
       {{/if}}
-      {{#if model.permissions.edit}}
+      {{#if this.model.permissions.edit}}
         <div class='col-xs-12' style='margin-top: 10px; margin-bottom: 15px;'>
           <a href="#" {{action "setup"}} class='btn btn-default'>{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
         </div>
       {{/if}}
     {{/if}}
   </div>
-  {{#unless app_state.currentUser.preferences.new_index}}
+  {{#unless this.app_state.currentUser.preferences.new_index}}
   <div class="row">
     <div class="col-sm-3 col-xs-6">
-      {{#if model.permissions.edit}}
+      {{#if this.model.permissions.edit}}
         <strong>{{t "Recent Sessions:" key="log_colon"}}</strong><br>
         <div style="margin-left: 20px;">
-          {{#if model.logs.loading}}
+          {{#if this.model.logs.loading}}
             <p>
               {{t "Loading..." key="loading"}}
             </p>
-          {{else if model.logs.error}}
+          {{else if this.model.logs.error}}
             <p>
               {{t "Failed to load" key="failed to load"}}
             </p>
-          {{else if model.logs}}
-            {{#each model.logs as |log|}}
+          {{else if this.model.logs}}
+            {{#each this.model.logs as |log|}}
               <p>
                 <span title={{date log.started_at}}>
                   {{date_ago log.started_at}}
                 </span>
-                {{#link-to "user.log" model.user_name log.id}}
+                {{#link-to "user.log" this.model.user_name log.id}}
                   {{#if log.assessment}}
                     {{t "assessment" key="assessment"}}
                   {{else if log.note}}
@@ -423,18 +423,18 @@
       {{/if}}
     </div>
     <div class="col-sm-3 col-sx-6">
-      {{#if model.permissions.edit}}
+      {{#if this.model.permissions.edit}}
         <strong>{{t "Current Goals:" key="current_goals"}}</strong><br>
-        {{#if model.goals.loading}}
+        {{#if this.model.goals.loading}}
           <p>{{t "Loading..." key="loading"}}</p>
-        {{else if model.goals.error}}
+        {{else if this.model.goals.error}}
           <p>{{t "Failed to load" key="failed_to_load"}}</p>
-        {{else if model.goals}}
+        {{else if this.model.goals}}
           <div style="margin-left: 20px;">
-            {{#each model.goals as |goal|}}
+            {{#each this.model.goals as |goal|}}
               <p>
                 <div style='white-space: nowrap; overflow: hidden;'>
-                  {{#link-to "user.goal" model.user_name goal.id}}
+                  {{#link-to "user.goal" this.model.user_name goal.id}}
                     {{goal.summary}}
                   {{/link-to}}
                 </div>
@@ -443,9 +443,9 @@
                 </span>
               </p>
             {{/each}}
-            {{#if model.permissions.supervise}}
+            {{#if this.model.permissions.supervise}}
               <div style='margin-top: 5px;'>
-                {{#link-to "user.goals" model.user_name}}{{t "see all user goals" key="see_all_user_goals"}}{{/link-to}}
+                {{#link-to "user.goals" this.model.user_name}}{{t "see all user goals" key="see_all_user_goals"}}{{/link-to}}
               </div>
             {{/if}}
           </div>
@@ -455,16 +455,16 @@
       {{/if}}
     </div>
     <div class="col-sm-6">
-      {{#if model.badges}}
+      {{#if this.model.badges}}
         <strong>{{t "Badges:" key="badges_colon"}}</strong>
         <div style="margin-left: 20px;">
-          {{#if model.badges.loading}}
+          {{#if this.model.badges.loading}}
             <p>{{t "Loading..." key="loading"}}</p>
-          {{else if model.badges.error}}
+          {{else if this.model.badges.error}}
             <p>{{t "Failed to load" key="failed_to_load"}}</p>
-          {{else if model.badges}}
+          {{else if this.model.badges}}
             <div>
-            {{#each model.badges as |badge|}}
+            {{#each this.model.badges as |badge|}}
               <div style='float: left; padding: 5px; width: 25%; text-align: center;'>
                 {{#if badge.global}}
                   <a href="#" {{action "badge_popup" badge}}>
@@ -479,16 +479,16 @@
                   {{#if badge.global}}
                     {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
                   {{else}}
-                    {{#link-to "user.goal" model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+                    {{#link-to "user.goal" this.model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
                   {{/if}}
                 </div>
               </div>
             {{/each}}
             </div>
             <div style='clear: left;'></div>
-            {{#if model.permissions.supervise}}
+            {{#if this.model.permissions.supervise}}
               <div style='margin-top: 5px;'>
-                {{#link-to "user.badges" model.user_name}}{{t "see all user badges" key="see_all_user_badges"}}{{/link-to}}
+                {{#link-to "user.badges" this.model.user_name}}{{t "see all user badges" key="see_all_user_badges"}}{{/link-to}}
               </div>
             {{/if}}
           {{else}}
@@ -501,10 +501,10 @@
   {{/unless}}
     <div class="row">
       <div class="col-sm-12">
-        {{#if model.topics.length}}
+        {{#if this.model.topics.length}}
           <h4>{{t "Current Curriculum Topics:" key="current_curriculum_topics"}}</h4>
           <ul class='list-group' style='max-width: 350px;'>
-            {{#each model.topics as |topic|}}
+            {{#each this.model.topics as |topic|}}
               {{#if topic.url}}
                 <a class='list-group-item' href={{topic.url}} target="_blank" rel="noopener">{{topic.title}}</a>
               {{else}}
@@ -514,48 +514,48 @@
           </ul>
         {{/if}}
         <h4>
-          {{#if model.external_device}}
+          {{#if this.model.external_device}}
             {{t "%app_name% Boards in this Account:" key="boards_in_this_account"}}
           {{else}}
             {{t "Available Boards:" key="available_boards_colon"}}
           {{/if}}
         </h4>
         <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
-          {{#if model.permissions.edit}}
+          {{#if this.model.permissions.edit}}
             <li role="presentation" class={{if mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
-          {{else if model.permissions.model}}
+          {{else if this.model.permissions.model}}
             <li role="presentation" class={{if mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
           {{/if}}
-          {{#unless app_state.currentUser.modeling_only}}
+          {{#unless this.app_state.currentUser.modeling_only}}
             <li role="presentation" class={{if public_selected "active"}}><a href="#" {{action "set_selected" "public"}}>{{t "Public" key="public"}}</a></li>
           {{/unless}}
-          {{#if model.permissions.model}}
+          {{#if this.model.permissions.model}}
             <li role="presentation" class={{if root_selected "active"}}><a href="#" {{action "set_selected" "root"}}>{{t "Root" key="root"}}</a></li>
           {{/if}}
-          {{#unless app_state.currentUser.modeling_only}}
+          {{#unless this.app_state.currentUser.modeling_only}}
             <li role="presentation" class={{if starred_selected "active"}}><a href="#" {{action "set_selected" "starred"}}>{{t "Liked" key="starred"}}</a></li>
           {{/unless}}
           
-          {{#unless app_state.currentUser.modeling_only}}
-            {{#if model.permissions.model}}
+          {{#unless this.app_state.currentUser.modeling_only}}
+            {{#if this.model.permissions.model}}
               <li role="presentation" class={{if other_selected "dropdown active" "dropdown"}}>
                 <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
                   {{ more_label }}
                   <span class="caret"></span>
                 </a>
                 <ul class="dropdown-menu">
-                  {{#if model.permissions.edit}}
+                  {{#if this.model.permissions.edit}}
                     <li><a href="#" {{action "set_selected" "shared"}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
                   {{/if}}
-                  {{#if model.permissions.model}}
-                    {{#if model.prior_home_boards}}
+                  {{#if this.model.permissions.model}}
+                    {{#if this.model.prior_home_boards}}
                       <li><a href="#" {{action "set_selected" "prior_home"}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
                     {{/if}}
                   {{/if}}
-                  {{#if model.permissions.edit}}
+                  {{#if this.model.permissions.edit}}
                     <li role="presentation" class={{if private_selected "active"}}><a href="#" {{action "set_selected" "private"}}>{{t "Private" key="private"}}</a></li>
                   {{/if}}
-                  {{#each model.board_tags as |tag|}}
+                  {{#each this.model.board_tags as |tag|}}
                     <li><a href="#" {{action "set_tag" tag}}>{{tag}}</a></li>
                   {{/each}}
                 </ul>
@@ -600,7 +600,7 @@
                         {{else}}
                           {{board-icon board=board.board}}
                         {{/if}}
-                        {{#if model.permissions.edit}}
+                        {{#if this.model.permissions.edit}}
                           {{#if board.board.id}}
                             <button class="board_action" {{action "remove_board" board_list.remove_type board.board}}>
                               <span title={{board_list.remove_label}}><span class={{board_list.remove_icon}}></span></span>
@@ -613,7 +613,7 @@
                     {{#if board.children}}
                       <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{if board.hidden "position: absolute; left: -1000px; visibility: hidden;" ""}}>
                         {{board-icon board=board noinfo=true action="load_children"}}
-                        {{#if model.permissions.edit}}
+                        {{#if this.model.permissions.edit}}
                           <button class="board_action" {{action "remove_board" "delete_orphans" board}}>
                             <span title="delete"><span class="glyphicon glyphicon-trash"></span></span>
                           </button>
@@ -637,7 +637,7 @@
         {{/if}}
       </div>
     </div>
-  {{#if model.permissions.support_actions}}
+  {{#if this.model.permissions.support_actions}}
     <div class="row" style="margin-top: 30px;">
       <div class="col-sm-12">
         <h4>{{t "Support Actions" key="support_actions"}}</h4>
@@ -693,31 +693,31 @@
         {{else}}
           <a href="#" {{action "reset_password"}} class="btn btn-default">{{t "Reset Password" key="reset_password"}}</a>
           <a href="#" {{action "rename_user"}} class="btn btn-default">{{t "Change User Name" key="change_user_name"}}</a>
-          {{#link-to "user.history" model.user_name class="btn btn-default"}}{{t "Edit History" key="edit_history"}}{{/link-to}}
+          {{#link-to "user.history" this.model.user_name class="btn btn-default"}}{{t "Edit History" key="edit_history"}}{{/link-to}}
         {{/if}}
-        {{#if model.permissions.admin_support_actions}}
+        {{#if this.model.permissions.admin_support_actions}}
           <h5 style="margin-top: 20px;">{{t "Subscription:" key="subscription_colon"}}</h5>
           <div class="well" style="max-width: 500px;">
             <span class="glyphicon glyphicon-usd" style="font-size: 50px; float: left;"></span>
             <div style="margin-bottom: 5px; margin-top: -5px;">
-              {{model.id}} - {{model.email}} - {{subscription.subscription_plan_description}} - {{model.subscription.billing_state}}
-              {{#if model.subscription.expires}}
+              {{this.model.id}} - {{this.model.email}} - {{subscription.subscription_plan_description}} - {{this.model.subscription.billing_state}}
+              {{#if this.model.subscription.expires}}
                 {{t " -- expires" key="dash_expires"}}
-                {{date model.subscription.expires "day"}}
+                {{date this.model.subscription.expires "day"}}
               {{/if}}
-              {{#if model.purchase_duration}}
-                <br>{{t "premium user for %{n} years" n=model.purchase_duration key="paid_for_n_years"}}
+              {{#if this.model.purchase_duration}}
+                <br>{{t "premium user for %{n} years" n=this.model.purchase_duration key="paid_for_n_years"}}
               {{/if}}
               <div>
-                {{#if model.premium_voices}}
-                  {{t "premium voice" count=model.premium_voices.allowed key="premium_voices_count"}}{{t ", %{cnt} used" key="comma_premium_voices_used" cnt=model.premium_voices.claimed.length}}
+                {{#if this.model.premium_voices}}
+                  {{t "premium voice" count=this.model.premium_voices.allowed key="premium_voices_count"}}{{t ", %{cnt} used" key="comma_premium_voices_used" cnt=this.model.premium_voices.claimed.length}}
                 {{/if}}
-                {{#if model.subscription.extras_enabled}}
+                {{#if this.model.subscription.extras_enabled}}
                   {{t " + premium symbols enabled" key="plus_extras_enabled"}}
                 {{/if}}
-                {{#if model.subscription.purchased_supporters}}
+                {{#if this.model.subscription.purchased_supporters}}
                   {{t " + " key="plus_p"}}
-                  {{model.subscription.available_supporters}} / {{model.subscription.purchased_supporters}}
+                  {{this.model.subscription.available_supporters}} / {{this.model.subscription.purchased_supporters}}
                   {{t "supervisor credits available" key="supervisor_credits_available"}}
                 {{/if}}
               </div>

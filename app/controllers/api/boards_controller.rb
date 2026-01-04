@@ -48,13 +48,15 @@ class Api::BoardsController < ApplicationController
     
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
-      if params['user_id']
+      if params['user_id'] || params[:user_id]
         # Handle special case where user_id is 'cache' (from boards cache endpoint)
         # Return public boards only since there are no user-specific boards for cache
-        if params['user_id'] == 'cache'
+        user_id_param = params['user_id'] || params[:user_id]
+        if user_id_param.to_s == 'cache'
           params['public'] = true
         else
-          user = User.find_by_path(params['user_id'])
+          user = User.find_by_path(user_id_param)
+          return unless user
           return unless allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
