@@ -381,8 +381,8 @@ export default Component.extend({
   has_supervisees: computed('app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
     return (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
   }),
-  show_communicators_tab: computed('app_state.currentUser.supporter_role', 'app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
-    return app_state.get('currentUser.supporter_role') || (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
+  show_communicators_tab: computed('app_state.currentUser.supporter_role', 'has_supervisees', function() {
+    return app_state.get('currentUser.supporter_role') || this.get('has_supervisees');
   }),
   supervisors_count: computed('app_state.currentUser.supervisors', function() {
     return (app_state.get('currentUser.supervisors') || []).length;
