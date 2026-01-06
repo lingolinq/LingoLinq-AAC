@@ -1,7 +1,9 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import app_state from '../utils/app_state';
 
 export default Controller.extend({
+  store: service(),
   update_selected: function() {
     var user = this.get('model');
     if(user && user.get('id') && app_state.controller) {

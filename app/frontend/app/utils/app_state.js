@@ -274,8 +274,21 @@ var app_state = EmberObject.extend({
           console.log(err);
           console.log(err.status);
           console.log(err.error);
-          var do_logout = err.status == 400 && (err.error == 'Not authorized' || err.error == "Invalid token");
-          console.log("will log out: " + (do_logout || last_try));
+          // Only logout if token is explicitly marked as invalid
+          // If invalid_token is undefined/null, token validation may still be in progress
+          var token_explicitly_invalid = session.get('invalid_token') === true;
+          var token_validation_complete = session.get('tokenConfirmed') === true;
+          // Only logout if token validation is complete AND token is invalid
+          // This prevents premature logout while token check is still in progress
+          var do_logout = err.status == 400 && (err.error == 'Not authorized' || err.error == "Invalid token") && token_explicitly_invalid && token_validation_complete;
+          console.log("will log out: " + (do_logout || last_try), {
+            invalid_token: session.get('invalid_token'),
+            tokenConfirmed: session.get('tokenConfirmed'),
+            token_explicitly_invalid: token_explicitly_invalid,
+            token_validation_complete: token_validation_complete,
+            error_status: err.status,
+            error_message: err.error
+          });
           console.error("user initialization failed");
           if(do_logout || last_try) {
             var error = null;
@@ -286,9 +299,13 @@ var app_state = EmberObject.extend({
             }
             session.force_logout(error);
           } else {
+            // If token validation is still pending, wait longer before retrying
+            // This gives time for check_token to complete
+            var token_check_pending = session.get('access_token') && !token_validation_complete;
+            var retry_delay = token_check_pending ? 2000 : 1000;
             runLater(function() {
               find_user(true);
-            }, 1000);
+            }, retry_delay);
           }
         });
       };

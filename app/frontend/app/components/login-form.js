@@ -171,6 +171,46 @@ export default Component.extend({
   },
   handle_auth: function(data) {
     var _this = this;
+    console.log('[login-form] handle_auth called', {
+      has_access_token: !!data.access_token,
+      missing_2fa: !!data.missing_2fa,
+      temporary_device: !!data.temporary_device,
+      long_token: !!data.long_token
+    });
+    // Ensure token is persisted before proceeding
+    // If data has access_token, ensure it's persisted via confirm_authentication
+    var ensure_token_persisted = function() {
+      if(data.access_token) {
+        // Set capabilities.access_token immediately so it's available for API requests
+        capabilities.access_token = data.access_token;
+        session.set('access_token', data.access_token);
+        session.set('isAuthenticated', true);
+        console.log('[login-form] Set capabilities.access_token immediately:', data.access_token.substring(0, 20) + '...');
+        
+        // Ensure token is persisted - confirm_authentication may have already been called,
+        // but we ensure it completes before proceeding
+        return session.confirm_authentication(data).then(function() {
+          // Verify token is still set after persistence
+          var verify = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};
+          if(verify.access_token) {
+            capabilities.access_token = verify.access_token;
+            console.log('[login-form] Token confirmed and persisted, capabilities.access_token verified');
+          } else {
+            console.warn('[login-form] Token not found after persistence, using original');
+            capabilities.access_token = data.access_token;
+          }
+          return RSVP.resolve();
+        }, function(err) {
+          console.error('[login-form] Failed to persist token:', err);
+          // Keep the token set even if persistence fails
+          capabilities.access_token = data.access_token;
+          return RSVP.resolve(); // Continue anyway
+        });
+      } else {
+        return RSVP.resolve();
+      }
+    };
+    
     if(data.missing_2fa) {
       _this.set('prompt_2fa', {needed: true, token: data.access_token});
       if(data.set_2fa) {
@@ -183,17 +223,23 @@ export default Component.extend({
       // TODO: admin UI for resetting 2fa
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
-      _this.send('login_success', false);
+      ensure_token_persisted().then(function() {
+        _this.send('login_success', false);
+      });
       _this.set('login_single_assertion', true);
       _this.set('login_followup', false);
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
-      _this.send('login_success', false);
+      ensure_token_persisted().then(function() {
+        _this.send('login_success', false);
+      });
       _this.set('login_followup', true);
       _this.set('login_single_assertion', false)
       _this.set('login_followup_already_long_token', data.long_token_set);
     } else {
-      _this.send('login_success', true);
+      ensure_token_persisted().then(function() {
+        _this.send('login_success', true);
+      });
     }
   },
   first_login: computed(function() {
@@ -237,16 +283,95 @@ export default Component.extend({
   actions: {
     login_success: function(reload) {
       var _this = this;
+      console.log('[login-form] login_success called', {reload: reload});
+      
+      // Read auth_settings BEFORE flushing to ensure we have the token
+      var auth_settings = stashes.get_object('auth_settings', true) || {};
+      console.log('[login-form] Before flush, auth_settings:', {
+        has_access_token: !!auth_settings.access_token,
+        user_name: auth_settings.user_name,
+        user_id: auth_settings.user_id
+      });
+      
+      // Store the token temporarily so we don't lose it during flush
+      var saved_token = auth_settings.access_token;
+      var saved_user_name = auth_settings.user_name;
+      var saved_user_id = auth_settings.user_id;
+      
       if(reload) {
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
       }
-      var wait = stashes.flush(null, 'auth_').then(function() {
-        stashes.setup();
-      });
-      var auth_settings = stashes.get_object('auth_settings', true) || {};
-      capabilities.access_token = auth_settings.access_token;
+      
+      // Only flush if we're reloading - otherwise the token should already be persisted
+      var wait;
+      if(reload) {
+        // Flush old auth data, but preserve auth_settings by re-storing it after
+        wait = stashes.flush(null, 'auth_').then(function() {
+          stashes.setup();
+          // Re-store the auth_settings after flush to ensure it persists
+          if(saved_token) {
+            console.log('[login-form] Re-storing auth_settings after flush');
+            return session.persist({
+              access_token: saved_token,
+              user_name: saved_user_name,
+              user_id: saved_user_id,
+              token_type: 'bearer'
+            }).then(function() {
+              // Verify it was stored
+              var verify = stashes.get_object('auth_settings', true) || {};
+              console.log('[login-form] After re-store, auth_settings:', {
+                has_access_token: !!verify.access_token,
+                matches: verify.access_token === saved_token
+              });
+              capabilities.access_token = verify.access_token || saved_token;
+              session.set('access_token', verify.access_token || saved_token);
+              session.set('isAuthenticated', true);
+            });
+          } else {
+            // Try to read it again in case it survived the flush
+            var verify = stashes.get_object('auth_settings', true) || {};
+            capabilities.access_token = verify.access_token;
+            if(verify.access_token) {
+              session.set('access_token', verify.access_token);
+              session.set('isAuthenticated', true);
+            }
+            return RSVP.resolve();
+          }
+        });
+      } else {
+        // Not reloading, just ensure token is set
+        wait = RSVP.resolve();
+        // Verify token is still there
+        var verify = stashes.get_object('auth_settings', true) || {};
+        if(verify.access_token) {
+          capabilities.access_token = verify.access_token;
+          session.set('access_token', verify.access_token);
+          session.set('isAuthenticated', true);
+        } else if(saved_token) {
+          // Token was lost, re-store it
+          console.warn('[login-form] Token lost, re-storing');
+          session.persist({
+            access_token: saved_token,
+            user_name: saved_user_name,
+            user_id: saved_user_id,
+            token_type: 'bearer'
+          }).then(function() {
+            capabilities.access_token = saved_token;
+            session.set('access_token', saved_token);
+            session.set('isAuthenticated', true);
+          });
+        }
+      }
+      
+      // Set capabilities immediately with saved token
+      capabilities.access_token = saved_token || capabilities.access_token;
+      if(saved_token) {
+        session.set('access_token', saved_token);
+        session.set('isAuthenticated', true);
+      }
+      
       _this.set('logging_in', false);
       _this.set('login_followup', false);
       _this.set('login_single_assertion', false);

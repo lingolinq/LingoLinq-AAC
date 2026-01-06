@@ -21,9 +21,27 @@ var session = EmberObject.extend({
     LingoLinq.session = session;
   },
   persist: function(data) {
+    // Set fallback data immediately so it's available even if persistence hasn't completed
     session.set('auth_settings_fallback_data', data);
+    // Set capabilities.access_token immediately so Authorization header is sent right away
+    if(data.access_token) {
+      capabilities.access_token = data.access_token;
+      console.log('[session.persist] Set capabilities.access_token immediately:', data.access_token.substring(0, 20) + '...');
+    }
     var res = stashes.persist_object('auth_settings', data, true);
-    res.then(function(r) { console.log("stashes.persist", r) }, function(e) { console.error("stashes.persist", e); });
+    res.then(function(r) { 
+      console.log("stashes.persist", r);
+      // Verify token is still set after persistence
+      if(data.access_token) {
+        capabilities.access_token = data.access_token;
+      }
+    }, function(e) { 
+      console.error("stashes.persist", e);
+      // Keep token set even if persistence fails
+      if(data.access_token) {
+        capabilities.access_token = data.access_token;
+      }
+    });
     return res;
   },
   clear: function() {
@@ -109,6 +127,12 @@ var session = EmberObject.extend({
             return resolve({redirect: response.auth_redirect});
           } else {
             session.confirm_authentication(response).then(function() {
+              // Ensure capabilities.access_token is set after persistence completes
+              var auth_settings = stashes.get_object('auth_settings', true) || {};
+              if(auth_settings.access_token) {
+                capabilities.access_token = auth_settings.access_token;
+                console.log('[session.authenticate] Set capabilities.access_token after confirm_authentication');
+              }
               resolve(response);
             });  
           }
@@ -147,7 +171,18 @@ var session = EmberObject.extend({
     return res;
   },
   check_token: function(allow_invalidate) {
-    var store_data = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};
+    // Try to get token from storage, with fallback to in-memory data
+    var store_data = stashes.get_object('auth_settings', true);
+    if(!store_data || !store_data.access_token) {
+      // If not in storage, check fallback (in-memory data that's being persisted)
+      var fallback = session.auth_settings_fallback();
+      if(fallback && fallback.access_token) {
+        store_data = fallback;
+        console.log('[check_token] Using fallback token data');
+      } else {
+        store_data = store_data || {};
+      }
+    }
     var key = store_data.access_token || "none";
     persistence.tokens = persistence.tokens || {};
     persistence.tokens[key] = true;
@@ -178,17 +213,24 @@ var session = EmberObject.extend({
       // TODO: if expired, then re-submit with the refresh token
       if(data.authenticated === false) {
         session.set('invalid_token', true);
+        session.set('tokenConfirmed', true); // Mark as confirmed even if invalid
         if(allow_invalidate && store_data.access_token) {
           session.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
           return {success: true};
         }
       } else {
         session.set('invalid_token', false);
+        session.set('tokenConfirmed', true); // Mark token validation as complete
       }
       if(data.user_name) {
         session.set('user_name', data.user_name);
         session.set('user_id', data.user_id);
         session.set('modeling_session', data.modeling_session)
+        // Ensure capabilities.access_token is set from stored auth_settings
+        var auth_settings = stashes.get_object('auth_settings', true) || {};
+        if(auth_settings.access_token) {
+          capabilities.access_token = auth_settings.access_token;
+        }
         if(window.ga) {
           window.ga('set', 'userId', data.user_id);
           window.ga('send', 'event', 'authentication', 'user-id available');
@@ -303,7 +345,24 @@ var session = EmberObject.extend({
   restore: function(force_check_for_token) {
     if(!stashes.get('enabled')) { return {}; }
     console.debug('LINGOLINQ: restoring session data');
-    var store_data = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};
+    // Try to get token from storage first, then fallback to in-memory data
+    var store_data = stashes.get_object('auth_settings', true);
+    if(!store_data || !store_data.access_token) {
+      // If not in storage, check fallback (in-memory data that's being persisted)
+      var fallback = session.auth_settings_fallback();
+      if(fallback && fallback.access_token) {
+        store_data = fallback;
+        console.log('[session.restore] Using fallback token data');
+        // Persist the fallback data if it's not already persisted
+        if(fallback.access_token) {
+          session.persist(fallback).then(function() {
+            console.log('[session.restore] Persisted fallback token data');
+          });
+        }
+      } else {
+        store_data = store_data || {};
+      }
+    }
     var key = store_data.access_token || "none";
     persistence.tokens = persistence.tokens || {};
     if(store_data.access_token && !session.get('isAuthenticated')) {
@@ -312,6 +371,9 @@ var session = EmberObject.extend({
       session.set('user_name', store_data.user_name);
       session.set('user_id', store_data.user_id);
       session.set('modeling_session', store_data.modeling_session)
+      // Ensure capabilities.access_token is set so Authorization header is sent
+      capabilities.access_token = store_data.access_token;
+      console.log('[session.restore] Set capabilities.access_token:', store_data.access_token ? store_data.access_token.substring(0, 20) + '...' : 'none');
       if(window.ga && store_data.user_id) {
         window.ga('set', 'userId', store_data.user_id);
         window.ga('send', 'event', 'authentication', 'user-id available');
@@ -423,6 +485,8 @@ var session = EmberObject.extend({
         session.set(' ', null);
         session.set('user_id', null);
         session.set('as_user_id', null);
+        // Clear capabilities.access_token so Authorization header is not sent
+        capabilities.access_token = null;
         if(full_invalidate) {
           later(function() {
             session.reload('/');

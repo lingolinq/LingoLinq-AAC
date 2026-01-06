@@ -1,9 +1,11 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import persistence from '../utils/persistence';
 import RSVP from 'rsvp';
 
 export default Route.extend({
+  store: service(),
   model: function(params) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque) would otherwise be caught by the

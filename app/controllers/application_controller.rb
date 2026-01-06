@@ -49,7 +49,11 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
+    # Rails 7: Ensure params are accessible
+    params.permit! if params.respond_to?(:permit!)
     token = params['access_token']
+    # If token is "none" (default value from frontend), treat it as missing and check Authorization header
+    token = nil if token == 'none' || token.blank?
     PaperTrail.request.whodunnit = nil
     if !token && params['tmp_token'] && (request.path.match(/^\/(auth|saml)\//) || request.path.match(/^\/api\/v1\/token_check/) || (params['check_token'] && Rails.env.test?))
       @tmp_token = true
@@ -60,21 +64,29 @@ class ApplicationController < ActionController::Base
     end
     @token = token
     if token
+      Rails.logger.debug("check_api_token: Token found for path #{request.path}, token preview: #{token[0..30]}...")
       status = Device.check_token(token, request.headers['X-LingoLinq-Version'])
       @cached = true if status[:cached]
       ignorable_error = ['/api/v1/token_check', '/oauth/token/refresh'].include?(request.path) && status[:skip_on_token_check]
+      Rails.logger.debug("check_api_token: status keys: #{status.keys.inspect}, error: #{status[:error]}, skip_on_token_check: #{status[:skip_on_token_check]}, ignorable_error: #{ignorable_error}")
       if status[:error] && !ignorable_error
         set_browser_token_header
         error = {error: status[:error], token: token, invalid_token: status[:invalid_token]}
         error[:refreshable] = true if status[:can_refresh]
+        # Log token validation errors for debugging
+        Rails.logger.warn("Token validation failed: #{status[:error]} for path: #{request.path}")
         api_error 400, error
         return false
       else
         @api_user = status[:user]
         @api_device_id = status[:device_id]
+        Rails.logger.debug("check_api_token: @api_user set: #{!!@api_user}, @api_device_id: #{@api_device_id}")
+        # Log if device_id is missing but user is present (debugging Rails 7 upgrade)
+        if @api_user && !@api_device_id
+          Rails.logger.warn("Device.check_token returned user but no device_id. Token: #{token[0..20]}..., Status keys: #{status.keys.inspect}")
+        end
       end
-
-    # TODO: timezone user setting
+      # TODO: timezone user setting
       Time.zone = "Mountain Time (US & Canada)"
       PaperTrail.request.whodunnit = user_for_paper_trail
 
@@ -108,6 +120,16 @@ class ApplicationController < ActionController::Base
           api_error 400, {error: "Invalid masquerade attempt", token: token, user_id: as_user}
         end
       end
+    else
+      Rails.logger.debug("check_api_token: No token found for path #{request.path}, params['access_token']: #{params['access_token']}, Authorization header: #{request.headers['Authorization'] ? 'present' : 'missing'}")
+      # Log when no token is provided for API requests
+      if request.path.match(/^\/api/) && !request.path.match(/^\/api\/v1\/token/)
+        Rails.logger.debug("No token provided for API request: #{request.path}")
+      end
+
+      # TODO: timezone user setting
+      Time.zone = "Mountain Time (US & Canada)"
+      PaperTrail.request.whodunnit = user_for_paper_trail
     end
   end
   
@@ -116,9 +138,20 @@ class ApplicationController < ActionController::Base
   end
   
   def replace_helper_params
-    params.each do |key, val|
+    # Rails 7: Ensure params are permitted for modification
+    # With permit_all_parameters = true, we can still modify params directly
+    # but we need to ensure they're in a mutable state
+    if params.respond_to?(:permit!)
+      params.permit!
+    end
+    # Convert to hash if needed for iteration and modification
+    params_hash = params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
+    params_hash.each do |key, val|
       if @api_user && (key == 'id' || key.match(/_id$/)) && val == 'self'
         params[key] = @api_user.global_id
+      elsif !@api_user && (key == 'id' || key.match(/_id$/)) && val == 'self'
+        # If user_id=self but no @api_user, this will fail later, but don't crash here
+        # The controller will handle the authentication error
       end
       if @api_user && (key == 'id' || key.match(/_id$/)) && val == 'my_org' && Organization.manager?(@api_user)
         org = @api_user.organization_hash.select{|o| o['type'] == 'manager' }.sort_by{|o| o['added'] || Time.now.iso8601 }[0]
@@ -163,7 +196,8 @@ class ApplicationController < ActionController::Base
       hash[:error] = "unspecified error"
     end
     cachey = request.headers['X-Has-AppCache'] || params['nocache']
-    render json: hash.to_json, status: (cachey ? 200 : status_code)
+    # Rails 7: render json: expects a hash, not a pre-encoded string
+    render json: hash, status: (cachey ? 200 : status_code)
   end
   
   def exists?(obj, ref_id=nil)

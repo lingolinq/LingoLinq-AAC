@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import Subscription from '../utils/subscription';
 import stashes from '../utils/_stashes';
@@ -13,6 +14,7 @@ import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Route.extend({
+  store: service(),
   model: function() {
     if(session.get('access_token')) {
       return LingoLinq.store.findRecord('user', 'self').then(function(user) {
@@ -29,7 +31,7 @@ export default Route.extend({
     }
   },
   setupController: function(controller, model) {
-    controller.set('user', this.get('store').createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
+    controller.set('user', this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
     LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());

@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
@@ -15,6 +16,7 @@ import { htmlSafe } from '@ember/string';
 import session from '../../utils/session';
 
 export default Controller.extend({
+  store: service(),
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
