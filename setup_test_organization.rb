@@ -131,3 +131,4 @@ puts "   app_state.get('currentUser.managed_orgs')"
 puts "   app_state.get('currentUser.has_management_responsibility')"
 puts "\n"
 
+
