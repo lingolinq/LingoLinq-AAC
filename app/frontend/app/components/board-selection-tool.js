@@ -126,14 +126,16 @@ export default Component.extend({
         _this.set('status', null);
       } else {
         _this.set('status', {error: true});
-        var loadError = _this.get('loadError');
+        // Check both camelCase (loadError) and snake_case (load_error) for compatibility
+        var loadError = _this.get('loadError') || _this.get('load_error');
         if (loadError && typeof loadError === 'function') {
           loadError();
         }
       }
     }, function(err) {
       _this.set('status', {error: true});
-      var loadError = _this.get('loadError');
+      // Check both camelCase (loadError) and snake_case (load_error) for compatibility
+      var loadError = _this.get('loadError') || _this.get('load_error');
       if (loadError && typeof loadError === 'function') {
         loadError();
       }

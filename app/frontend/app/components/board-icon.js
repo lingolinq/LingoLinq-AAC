@@ -10,7 +10,14 @@ export default Component.extend({
   willInsertElement: function() {
     this.set_board_record();
   },
-  set_board_record: observer('board', 'board.key', 'board.id', 'board.children', 'board.children.length', function() {
+  // Observer watches only 'board' because nested property watchers ('board.key', 'board.id', etc.)
+  // only work for Ember Data models, not plain JavaScript objects. For plain objects, Ember
+  // observers won't detect changes to nested properties. The observer function handles both
+  // cases by checking if board is an Ember Data model and accessing properties accordingly.
+  // If we need to detect changes to nested properties of Ember Data models, we can add
+  // computed properties that depend on those nested paths, but watching 'board' covers the
+  // common case where the board object itself is replaced.
+  set_board_record: observer('board', function() {
     var board = this.get('board');
     if(!board) { return; }
     if(board.children) {
