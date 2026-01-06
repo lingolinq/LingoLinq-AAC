@@ -139,23 +139,34 @@ class ApplicationController < ActionController::Base
   
   def replace_helper_params
     # Rails 7: Ensure params are permitted for modification
-    # With permit_all_parameters = true, we can still modify params directly
-    # but we need to ensure they're in a mutable state
+    # After permit!, params should be mutable, but we need to iterate over the actual params
+    # object keys, not a copy, to ensure modifications persist
     if params.respond_to?(:permit!)
       params.permit!
     end
-    # Convert to hash if needed for iteration and modification
-    params_hash = params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
-    params_hash.each do |key, val|
-      if @api_user && (key == 'id' || key.match(/_id$/)) && val == 'self'
-        params[key] = @api_user.global_id
-      elsif !@api_user && (key == 'id' || key.match(/_id$/)) && val == 'self'
+    
+    # Get all parameter keys as an array to iterate over (avoids modification during iteration)
+    # Use to_unsafe_h to get all parameters including unpermitted ones
+    param_keys = (params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h).keys.map(&:to_s)
+    
+    # Iterate over the keys and modify params directly
+    # This ensures we're modifying the actual params object, not a copy
+    param_keys.each do |key_str|
+      val = params[key_str]
+      
+      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
+        # Modify params directly - after permit! this should persist
+        params[key_str] = @api_user.global_id
+      elsif !@api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
         # If user_id=self but no @api_user, this will fail later, but don't crash here
         # The controller will handle the authentication error
       end
-      if @api_user && (key == 'id' || key.match(/_id$/)) && val == 'my_org' && Organization.manager?(@api_user)
+      
+      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'my_org' && Organization.manager?(@api_user)
         org = @api_user.organization_hash.select{|o| o['type'] == 'manager' }.sort_by{|o| o['added'] || Time.now.iso8601 }[0]
-        params[key] = org['id'] if org
+        if org
+          params[key_str] = org['id']
+        end
       end
     end
   end

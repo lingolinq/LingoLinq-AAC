@@ -15,6 +15,7 @@ class Api::LogsController < ApplicationController
       return render json: json
     end
     
+    # Validate user exists before proceeding
     user = User.find_by_path(user_id_param)
     return unless user
     return unless allowed?(user, 'supervise')

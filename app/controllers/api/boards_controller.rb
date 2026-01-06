@@ -54,9 +54,22 @@ class Api::BoardsController < ApplicationController
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
           params['public'] = true
+          # For cache case, we don't need a user object, so skip user-specific filtering
+          # The rest of the method will handle public boards correctly
         else
-          user = User.find_by_path(user_id_param)
-          return unless user
+          # Handle user_id='self' or normal user lookup
+          if user_id_param.to_s == 'self'
+            # user_id=self requires authentication
+            if !@api_user
+              # Log for debugging
+              Rails.logger.warn("user_id=self requested but @api_user is nil. Token: #{@token ? 'present' : 'missing'}, Path: #{request.path}")
+              return api_error(400, {error: "Authentication required when user_id=self. Please provide a valid access_token.", token_present: !!@token})
+            end
+            user = @api_user
+          else
+            user = User.find_by_path(user_id_param)
+            return unless user
+          end
           return unless allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
