@@ -6,12 +6,19 @@ import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { getOwner } from '@ember/application';
 
 LingoLinq.Image = DS.Model.extend({
   init() {
     this._super(...arguments);
-    // Set app_state reference on initialization
-    this.set('app_state', app_state);
+    // Get app_state reference - check if already injected first
+    // If implicit injection already set it, use that; otherwise look it up
+    // This prevents the read-only property error while still allowing
+    // implicit injection to work (which will be removed in a future Ember version)
+    if (!this.app_state) {
+      var owner = getOwner(this);
+      this.app_state = owner.lookup('lingolinq:app_state');
+    }
   },
   // Clean license when license attribute is loaded
   // This replicates the old didLoad() behavior since init() runs before data is loaded

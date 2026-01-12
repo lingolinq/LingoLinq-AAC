@@ -569,6 +569,143 @@ var persistence = EmberObject.extend({
       return url;
     }
   },
+  
+  // ============================================================================
+  // TOKEN MANAGEMENT SECTION
+  // ============================================================================
+  // This section handles all token-related functionality including:
+  // - browserToken storage and retrieval
+  // - Token format validation and migration
+  // - Token error handling with retry logic
+  //
+  // Token Flow:
+  // 1. User logs in -> session.confirm_authentication() -> sets access_token in auth_settings
+  // 2. capabilities.access_token is synced from auth_settings (via observer/sync function)
+  // 3. extras.js adds Authorization: Bearer header using capabilities.access_token
+  // 4. browserToken is used for initial authentication (client_secret in login)
+  // 5. access_token is used for all subsequent API requests
+  //
+  // Token Storage:
+  // - access_token: stored in stashes.get_object('auth_settings', true).access_token
+  // - capabilities.access_token: synced from auth_settings (used in request headers)
+  // - browserToken: stored in persistence.get('browserToken') and stashes
+  // ============================================================================
+  
+  /**
+   * Get browserToken with fallback chain for backwards compatibility
+   * Checks multiple sources in order:
+   * 1. persistence.get('browserToken') - primary storage
+   * 2. stashes.get('browserToken') - fallback storage
+   * 3. null if not found
+   * 
+   * @returns {string|null} The browserToken or null if not found
+   */
+  getBrowserToken: function() {
+    var token = null;
+    
+    // Primary source: persistence property
+    token = persistence.get('browserToken');
+    if(token && token !== 'none' && token !== '') {
+      return token;
+    }
+    
+    // Fallback: stashes
+    if(stashes && stashes.get) {
+      token = stashes.get('browserToken');
+      if(token && token !== 'none' && token !== '') {
+        // Sync back to persistence for consistency
+        persistence.set('browserToken', token);
+        return token;
+      }
+    }
+    
+    return null;
+  },
+  /**
+   * Set browserToken and persist to multiple storage locations
+   * Ensures browserToken is available across app restarts and session changes
+   * 
+   * @param {string} token - The browserToken to store
+   */
+  setBrowserToken: function(token) {
+    if(!token || token === 'none' || token === '') {
+      console.warn('[persistence.setBrowserToken] Attempted to set invalid browserToken', token);
+      return;
+    }
+    
+    var old_token = persistence.get('browserToken');
+    if(old_token !== token) {
+      console.log('[persistence.setBrowserToken] Updating browserToken', {
+        old_token_preview: old_token ? old_token.substring(0, 20) + '...' : 'none',
+        new_token_preview: token.substring(0, 20) + '...'
+      });
+      
+      // Store in persistence (primary)
+      persistence.set('browserToken', token);
+      
+      // Also store in stashes for persistence across sessions
+      if(stashes && stashes.persist) {
+        stashes.persist('browserToken', token);
+      }
+    }
+  },
+  /**
+   * Validate token format for backwards/forwards compatibility
+   * Supports both old and new token formats
+   * 
+   * @param {string} token - The token to validate
+   * @returns {object} Validation result with {valid: boolean, format: string, needsMigration: boolean}
+   */
+  validateTokenFormat: function(token) {
+    if(!token || typeof token !== 'string' || token === 'none' || token === '') {
+      return {valid: false, format: 'invalid', needsMigration: false, error: 'Token is empty or invalid'};
+    }
+    
+    // New format: device_id~hash (e.g., "abc123~def456...")
+    // Pattern: alphanumeric device ID, followed by ~, followed by hash
+    var newFormatPattern = /^[a-zA-Z0-9_-]+~[a-zA-Z0-9_\-~]+$/;
+    
+    // Old format: might be just a hash or different structure
+    // Check if it contains ~ separator (new format indicator)
+    var hasSeparator = token.indexOf('~') !== -1;
+    
+    if(hasSeparator && newFormatPattern.test(token)) {
+      return {valid: true, format: 'new', needsMigration: false};
+    } else if(!hasSeparator) {
+      // Old format - might need migration, but could still be valid
+      // Allow it for backwards compatibility
+      return {valid: true, format: 'old', needsMigration: true, warning: 'Token appears to be in old format'};
+    } else {
+      // Invalid format
+      return {valid: false, format: 'invalid', needsMigration: false, error: 'Token format is invalid'};
+    }
+  },
+  /**
+   * Migrate token to new format if needed
+   * This is a placeholder for future migration logic if token format changes
+   * 
+   * @param {string} token - The token to potentially migrate
+   * @returns {string} The token (possibly migrated) or original if no migration needed
+   */
+  migrateTokenIfNeeded: function(token) {
+    var validation = persistence.validateTokenFormat(token);
+    
+    if(!validation.valid) {
+      console.warn('[persistence.migrateTokenIfNeeded] Cannot migrate invalid token', validation);
+      return token;
+    }
+    
+    if(validation.needsMigration && validation.format === 'old') {
+      // For now, old format tokens are still accepted by the backend
+      // This function can be extended in the future if migration is needed
+      console.log('[persistence.migrateTokenIfNeeded] Token in old format, but still valid - no migration needed', {
+        token_preview: token.substring(0, 20) + '...'
+      });
+      return token;
+    }
+    
+    return token;
+  },
   decrypt_json: function(str, encryption_settings) {
     if(str.match(/^aes256-/)) {
       var te = new TextEncoder();
@@ -717,7 +854,13 @@ var persistence = EmberObject.extend({
           resolve(uri);
         }
       }, function(err) {
-        LingoLinq.track_error("JSON DATA find_url error", (err || {}).error || err);
+        var errorMsg = "JSON DATA find_url error";
+        if (err && err.error == 'url not in storage') {
+          // This is expected when URL isn't cached locally - log as warning instead of error
+          console.warn(errorMsg + ": url not in storage", url);
+        } else {
+          LingoLinq.track_error(errorMsg, (err || {}).error || err);
+        }
         reject(err);
       });
     });
@@ -1268,6 +1411,11 @@ var persistence = EmberObject.extend({
               }
               // Strip escape characters before saving
               var url_piece = decodeURIComponent(pieces.pop());
+              // Sanitize to avoid illegal filesystem path characters (for native/cordova storage)
+              // Replace path separators and other invalid characters with underscores
+              url_piece = url_piece.replace(/[\/\\:*?"<>|]/g, '_');
+              // Collapse whitespace into underscores
+              url_piece = url_piece.replace(/\s+/g, '_');
               if(url_piece.length > 20) {
                 url_piece = url_piece.substring(0, 20);
               }
@@ -3023,6 +3171,169 @@ var persistence = EmberObject.extend({
     }
     return null;
   },
+  /**
+   * Debug utility to log current token state for troubleshooting
+   * Call this method to see the state of all tokens in the system
+   * 
+   * Usage: persistence.debug_tokens()
+   * 
+   * @returns {object} Object containing all token state information
+   */
+  debug_tokens: function() {
+    var auth_settings = stashes.get_object('auth_settings', true) || {};
+    var access_token = auth_settings.access_token;
+    var capabilities_token = capabilities ? capabilities.access_token : 'capabilities not available';
+    var browser_token = persistence.getBrowserToken();
+    var session_token = LingoLinq.session ? LingoLinq.session.get('access_token') : 'session not available';
+    
+    var token_state = {
+      auth_settings: {
+        access_token: access_token ? access_token.substring(0, 20) + '...' : 'none',
+        user_name: auth_settings.user_name || 'none',
+        user_id: auth_settings.user_id || 'none',
+        has_token: !!access_token
+      },
+      capabilities: {
+        access_token: capabilities_token && capabilities_token !== 'capabilities not available' ? 
+          capabilities_token.substring(0, 20) + '...' : capabilities_token,
+        has_token: !!(capabilities_token && capabilities_token !== 'capabilities not available' && capabilities_token !== 'none'),
+        in_sync: access_token === capabilities_token
+      },
+      browserToken: {
+        token: browser_token ? browser_token.substring(0, 20) + '...' : 'none',
+        has_token: !!browser_token,
+        source: browser_token ? 'found' : 'not found'
+      },
+      session: {
+        access_token: session_token && session_token !== 'session not available' ? 
+          session_token.substring(0, 20) + '...' : session_token,
+        isAuthenticated: LingoLinq.session ? LingoLinq.session.get('isAuthenticated') : false,
+        invalid_token: LingoLinq.session ? LingoLinq.session.get('invalid_token') : false,
+        has_token: !!(session_token && session_token !== 'session not available' && session_token !== 'none')
+      },
+      sync_status: {
+        tokens_synced: access_token === capabilities_token && access_token === session_token,
+        warnings: []
+      }
+    };
+    
+    // Add warnings for sync issues
+    if(access_token && capabilities_token && access_token !== capabilities_token) {
+      token_state.sync_status.warnings.push('access_token and capabilities.access_token are out of sync');
+    }
+    if(access_token && session_token && access_token !== session_token && session_token !== 'session not available') {
+      token_state.sync_status.warnings.push('access_token and session.access_token are out of sync');
+    }
+    if(!access_token && (capabilities_token && capabilities_token !== 'capabilities not available' && capabilities_token !== 'none')) {
+      token_state.sync_status.warnings.push('capabilities.access_token exists but auth_settings.access_token is missing');
+    }
+    if(!browser_token && access_token) {
+      token_state.sync_status.warnings.push('browserToken is missing (may be needed for login)');
+    }
+    
+    // Log to console
+    console.group('[persistence.debug_tokens] Token State');
+    console.log('Auth Settings:', token_state.auth_settings);
+    console.log('Capabilities:', token_state.capabilities);
+    console.log('Browser Token:', token_state.browserToken);
+    console.log('Session:', token_state.session);
+    console.log('Sync Status:', token_state.sync_status);
+    if(token_state.sync_status.warnings.length > 0) {
+      console.warn('Warnings:', token_state.sync_status.warnings);
+    }
+    console.groupEnd();
+    
+    return token_state;
+  },
+  /**
+   * Handle token-related errors with retry logic and proper error classification
+   * 
+   * @param {object} error - The error object from an AJAX request
+   * @param {function} retryFn - Function to retry the request (optional)
+   * @param {number} attempt - Current attempt number (for exponential backoff)
+   * @returns {object} Error classification and handling result
+   */
+  handleTokenError: function(error, retryFn, attempt) {
+    attempt = attempt || 1;
+    var maxRetries = 3;
+    var baseDelay = 1000; // 1 second base delay
+    
+    // Classify the error type
+    var errorType = 'unknown';
+    var shouldRetry = false;
+    var needsReauth = false;
+    
+    if(error && error.result) {
+      var result = error.result;
+      
+      // Check for token-related errors
+      if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token') {
+        errorType = 'invalid_token';
+        needsReauth = true;
+        shouldRetry = false; // Don't retry invalid tokens
+        console.warn('[persistence.handleTokenError] Invalid or expired token detected', {
+          error: result.error,
+          invalid_token: result.invalid_token
+        });
+      } else if(result.error === 'Token needs refresh') {
+        errorType = 'token_refresh_needed';
+        needsReauth = true;
+        shouldRetry = false; // Token refresh should be handled separately
+        console.warn('[persistence.handleTokenError] Token needs refresh');
+      } else if(result.error === 'not online' || error.offline) {
+        errorType = 'offline';
+        shouldRetry = attempt < maxRetries && persistence.get('online');
+        console.log('[persistence.handleTokenError] Offline error detected', {attempt: attempt});
+      } else if(error.fakeXHR && (error.fakeXHR.status === 0 || error.fakeXHR.status === undefined)) {
+        errorType = 'network_error';
+        shouldRetry = attempt < maxRetries && persistence.get('online');
+        console.log('[persistence.handleTokenError] Network error detected', {
+          status: error.fakeXHR.status,
+          attempt: attempt
+        });
+      } else if(error.fakeXHR && error.fakeXHR.status >= 500) {
+        errorType = 'server_error';
+        shouldRetry = attempt < maxRetries;
+        console.log('[persistence.handleTokenError] Server error detected', {
+          status: error.fakeXHR.status,
+          attempt: attempt
+        });
+      }
+    }
+    
+    // Handle retry with exponential backoff
+    if(shouldRetry && retryFn && typeof retryFn === 'function') {
+      var delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
+      console.log('[persistence.handleTokenError] Retrying request after delay', {
+        attempt: attempt + 1,
+        maxRetries: maxRetries,
+        delay: delay,
+        errorType: errorType
+      });
+      
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          retryFn(attempt + 1).then(resolve, function(retryError) {
+            // If retry also fails, handle it recursively
+            if(attempt + 1 < maxRetries) {
+              persistence.handleTokenError(retryError, retryFn, attempt + 1).then(resolve, reject);
+            } else {
+              reject(retryError);
+            }
+          });
+        }, delay);
+      });
+    }
+    
+    // Return error classification
+    return RSVP.reject({
+      error: error,
+      errorType: errorType,
+      needsReauth: needsReauth,
+      shouldRetry: shouldRetry,
+      attempt: attempt
+    });
+  },
   ajax: function() {
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
@@ -3068,7 +3379,7 @@ var persistence = EmberObject.extend({
         }
         _this.tokens = {};
         if(LingoLinq.session) {
-          LingoLinq.session.restore(!persistence.get('browserToken'));
+          LingoLinq.session.restore(!persistence.getBrowserToken());
         }
       }, 500);
     }

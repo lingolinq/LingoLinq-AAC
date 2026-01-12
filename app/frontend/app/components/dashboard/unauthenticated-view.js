@@ -43,17 +43,21 @@ export default Component.extend({
 
   actions: {
     authenticateSession() {
-      this.sendAction('authenticateSession');
+      // Use closure action if provided
+      var action = this.get('authenticateSession');
+      if (action && typeof action === 'function') {
+        action();
+      }
     },
     intro_video(id) {
         if(window.ga) {
             window.ga('send', 'event', 'Setup', 'video', 'Intro video opened');
         }
-        // Assuming modal service is globally available or we should inject it
-        // Ideally we should fire an action to the controller/route to open modal
-        this.sendAction('openIntroVideo', id); 
-        // But since we want to encapsulate, we can inject modal if it was a service, 
-        // but utils/modal is custom. For now, let's bubble.
+        // Use closure action if provided
+        var action = this.get('openIntroVideo');
+        if (action && typeof action === 'function') {
+          action(id);
+        }
     },
     set_start_code() {
       this.set('start_code', true);

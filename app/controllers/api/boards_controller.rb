@@ -1,6 +1,7 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
   before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
+  before_action :require_api_token_for_cache_user, :only => [:index]
 
   def cache
     render json: { user: { id: 'cache' } }
@@ -51,8 +52,12 @@ class Api::BoardsController < ApplicationController
       if params['user_id'] || params[:user_id]
         # Handle special case where user_id is 'cache' (from boards cache endpoint)
         # Return public boards only since there are no user-specific boards for cache
+        # Security: require_api_token_for_cache_user already ensures authentication
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
+          # Security: Even for cache user, ensure the authenticated user has basic view permissions
+          # This prevents unauthorized access even though we're only returning public boards
+          return unless @api_user
           params['public'] = true
         else
           user = User.find_by_path(user_id_param)
@@ -683,6 +688,15 @@ class Api::BoardsController < ApplicationController
   end
 
   protected
+  def require_api_token_for_cache_user
+    # Security: Require authentication when user_id='cache' is used to prevent
+    # unauthorized access to board listings via the cache endpoint bypass
+    user_id_param = params['user_id'] || params[:user_id]
+    if user_id_param.to_s == 'cache'
+      require_api_token
+    end
+  end
+
   def star_or_unstar(star)
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])

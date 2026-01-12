@@ -48,6 +48,57 @@ var contentGrabbers = EmberObject.extend({
       }
       var original = object;
       var original_url = object.get('url');
+      
+      // For images with URLs (not data URLs), check for duplicates before saving
+      // This prevents Ember Data ID conflicts when the same image URL is saved multiple times
+      if(object.constructor.modelName === 'image' && original_url && !original_url.match(/^data:/)) {
+        var normalized_url = persistence.normalize_url(original_url);
+        var existing_image = LingoLinq.store.peekAll('image').find(function(img) {
+          var img_url = img.get('url');
+          return img_url && persistence.normalize_url(img_url) === normalized_url && 
+                 !img.get('isNew') && !img.get('isDeleted') && 
+                 img.get('id') !== object.get('id');
+        });
+        
+        if(existing_image) {
+          // If we found an existing image, update it with any new metadata and return it
+          var needs_save = false;
+          if(object.get('content_type') && !existing_image.get('content_type')) {
+            existing_image.set('content_type', object.get('content_type'));
+            needs_save = true;
+          }
+          if(object.get('width') && !existing_image.get('width')) {
+            existing_image.set('width', object.get('width'));
+            needs_save = true;
+          }
+          if(object.get('height') && !existing_image.get('height')) {
+            existing_image.set('height', object.get('height'));
+            needs_save = true;
+          }
+          if(object.get('license') && !existing_image.get('license')) {
+            existing_image.set('license', object.get('license'));
+            needs_save = true;
+          }
+          
+          // Unload the duplicate record to prevent ID conflicts
+          if(object.get('isNew')) {
+            LingoLinq.store.unloadRecord(object);
+          }
+          
+          if(needs_save && existing_image.get('hasDirtyAttributes')) {
+            existing_image.save().then(function() {
+              resolve(existing_image);
+            }, function(err) {
+              reject(err);
+            });
+            return; // Don't continue to object.save()
+          } else {
+            resolve(existing_image);
+            return; // Don't continue to object.save()
+          }
+        }
+      }
+      
       object.save().then(function(object) {
         if(!object.get('url') && object.get('data_url')) {
           object.set('url', object.get('data_url'));
@@ -1054,8 +1105,39 @@ var pictureGrabber = EmberObject.extend({
         return RSVP.reject({error: 'invalid image URL'});
       }
 
+      var normalized_url = persistence.normalize_url(url);
+      
+      // Check if an image with this URL already exists in the store
+      // This prevents duplicate records and Ember Data ID conflicts
+      var existing_image = LingoLinq.store.peekAll('image').find(function(img) {
+        return img.get('url') === normalized_url && !img.get('isNew') && !img.get('isDeleted');
+      });
+      
+      if(existing_image) {
+        // Update existing image with any new metadata if needed
+        if(preview.content_type && !existing_image.get('content_type')) {
+          existing_image.set('content_type', preview.content_type);
+        }
+        if(data.width && !existing_image.get('width')) {
+          existing_image.set('width', data.width);
+        }
+        if(data.height && !existing_image.get('height')) {
+          existing_image.set('height', data.height);
+        }
+        if(preview.license && !existing_image.get('license')) {
+          existing_image.set('license', preview.license);
+        }
+        // Save if any changes were made
+        if(existing_image.get('hasDirtyAttributes')) {
+          return existing_image.save().then(function() {
+            return existing_image;
+          });
+        }
+        return RSVP.resolve(existing_image);
+      }
+
       var image = LingoLinq.store.createRecord('image', {
-        url: persistence.normalize_url(url),
+        url: normalized_url,
         content_type: preview.content_type,
         width: data.width,
         height: data.height,

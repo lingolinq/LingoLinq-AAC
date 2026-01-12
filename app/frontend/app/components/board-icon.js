@@ -10,7 +10,11 @@ export default Component.extend({
   willInsertElement: function() {
     this.set_board_record();
   },
-  set_board_record: observer('board', 'board.key', 'board.id', 'board.children', 'board.children.length', function() {
+  // Note: 'board.id' dependency only works for Ember Data models, not plain objects.
+  // Plain objects don't support computed property observation, so changes to board.id
+  // won't trigger this observer for plain objects. The 'board' dependency will catch
+  // board replacements, which is sufficient for most cases.
+  set_board_record: observer('board', 'board.key', 'board.children', 'board.children.length', function() {
     var board = this.get('board');
     if(!board) { return; }
     if(board.children) {

@@ -28,13 +28,13 @@ export default Component.extend({
     this.browserTokenChange = function() {
       if (!_this.isDestroyed && !_this.isDestroying) {
         _this.set('client_id', 'browser');
-        _this.set('client_secret', persistence.get('browserToken'));
+        _this.set('client_secret', persistence.getBrowserToken());
         _this.set('checking_for_secret', false);
       }
     };
     persistence.addObserver('browserToken', this.browserTokenChange);
     this.set('long_token', false);
-    var token = persistence.get('browserToken');
+    var token = persistence.getBrowserToken();
     if(this.get('tmp_token')) {
       this.check_tmp_token(this.get('tmp_token'));
     }
@@ -82,11 +82,11 @@ export default Component.extend({
           networkError: result && result.networkError,
           has_browserToken: !!result && !!result.browserToken,
           browserToken_preview: result && result.browserToken ? result.browserToken.substring(0, 20) + '...' : null,
-          persistence_browserToken: persistence.get('browserToken') ? persistence.get('browserToken').substring(0, 20) + '...' : null
+          persistence_browserToken: persistence.getBrowserToken() ? persistence.getBrowserToken().substring(0, 20) + '...' : null
         });
         // If we got a browserToken, it should already be set in persistence via the observer
         // But let's make sure client_secret is set
-        var browserToken = result && result.browserToken || persistence.get('browserToken');
+        var browserToken = result && result.browserToken || persistence.getBrowserToken();
         if (browserToken && !_this.get('client_secret')) {
           console.log('[login-form] Setting client_secret from browserToken');
           _this.set('client_secret', browserToken);

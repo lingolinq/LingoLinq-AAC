@@ -42,6 +42,22 @@ var session = EmberObject.extend({
     return null;
   },
   confirm_authentication: function(response) {
+    // Immediately update capabilities.access_token so API requests work right away
+    // This is critical for ensuring tokens are sent in subsequent requests
+    if(capabilities && response.access_token) {
+      if(capabilities.access_token !== response.access_token) {
+        console.log('[session.confirm_authentication] Updating capabilities.access_token from authentication response', {
+          old_token_preview: capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none',
+          new_token_preview: response.access_token.substring(0, 10) + '...'
+        });
+        capabilities.access_token = response.access_token;
+      }
+      // Also call sync function if it exists (from capabilities.init)
+      if(capabilities.sync_access_token) {
+        capabilities.sync_access_token();
+      }
+    }
+    
     var promises = [];
     promises.push(session.persist({
       access_token: response.access_token,
@@ -212,9 +228,9 @@ var session = EmberObject.extend({
         }
       }
       if(data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken) {
-        persistence.set('browserToken', data.meta.fakeXHR.browserToken);
+        persistence.setBrowserToken(data.meta.fakeXHR.browserToken);
       }
-      return RSVP.resolve({success: true, browserToken: persistence.get('browserToken')});
+      return RSVP.resolve({success: true, browserToken: persistence.getBrowserToken()});
     }, function(data) {
       console.log('[check_token] Token check failed', {
         error_data: data,
@@ -231,7 +247,27 @@ var session = EmberObject.extend({
         return {success: false};
       }
       if(data && data.fakeXHR && data.fakeXHR.browserToken) {
-        persistence.set('browserToken', data.fakeXHR.browserToken);
+        persistence.setBrowserToken(data.fakeXHR.browserToken);
+      }
+      
+      // Check for token-related errors and handle appropriately
+      if(data && data.result) {
+        var result = data.result;
+        if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token') {
+          console.warn('[check_token] Token is invalid or expired', {
+            invalid_token: result.invalid_token,
+            error: result.error
+          });
+          session.set('invalid_token', true);
+          if(allow_invalidate) {
+            session.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
+            return {success: false, needsReauth: true};
+          }
+        } else if(result.error === 'Token needs refresh') {
+          console.warn('[check_token] Token needs refresh');
+          session.set('invalid_token', true);
+          // Could implement token refresh logic here in the future
+        }
       }
       if(data && data.result && data.result.error == "not online") {
         console.log('[check_token] Error indicates not online');
@@ -264,7 +300,7 @@ var session = EmberObject.extend({
       }
       
       persistence.tokens[key] = false;
-      var result = {success: false, browserToken: persistence.get('browserToken'), networkError: isNetworkError};
+      var result = {success: false, browserToken: persistence.getBrowserToken(), networkError: isNetworkError};
       console.log('[check_token] Returning result:', result);
       return RSVP.resolve(result);
     });
@@ -306,6 +342,23 @@ var session = EmberObject.extend({
     var store_data = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
     persistence.tokens = persistence.tokens || {};
+    
+    // Sync capabilities.access_token from restored auth_settings
+    // This ensures API requests use the correct token after session restore
+    if(capabilities && store_data.access_token) {
+      if(capabilities.access_token !== store_data.access_token) {
+        console.log('[session.restore] Updating capabilities.access_token from restored session', {
+          old_token_preview: capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none',
+          new_token_preview: store_data.access_token.substring(0, 10) + '...'
+        });
+        capabilities.access_token = store_data.access_token;
+      }
+      // Also call sync function if it exists (from capabilities.init)
+      if(capabilities.sync_access_token) {
+        capabilities.sync_access_token();
+      }
+    }
+    
     if(store_data.access_token && !session.get('isAuthenticated')) {
       session.set('isAuthenticated', true);
       session.set('access_token', store_data.access_token);

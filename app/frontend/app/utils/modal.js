@@ -40,8 +40,55 @@ var modal = EmberObject.extend({
         }
       });
     }
+    var _this = this;
+    // Check if there's an existing modal before cleanup
+    var had_existing_modal = (this.last_template && outlet == 'modal');
+    // If there's an existing modal, close it first
     if((this.last_promise || this.last_template)) {
-      this.close(null, outlet);
+      if(outlet == 'modal') {
+        // For modal outlet, resolve the old promise and do immediate cleanup
+        if(this.last_promise) {
+          this.last_promise.resolve({replaced: true});
+          this.last_promise = null;
+        }
+        this.last_template = null;
+        this.component = null;
+        // Do synchronous DOM cleanup for modal outlet
+        var modalElement = document.querySelector('.modal.fade.in') || document.querySelector('.modal');
+        if(modalElement && modalElement.parentNode) {
+          modalElement.parentNode.removeChild(modalElement);
+        }
+        // Clear outlet wrappers
+        var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
+        for(var i = 0; i < outletWrappers.length; i++) {
+          var wrapper = outletWrappers[i];
+          if(wrapper.querySelector && wrapper.querySelector('.modal')) {
+            wrapper.innerHTML = '';
+            break;
+          }
+        }
+        // Clear the outlet element directly - this is critical for reopening modals
+        var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                           document.querySelector('[id="modal"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                           document.querySelector('[data-outlet-name="modal"]');
+        if(outletElement) {
+          outletElement.innerHTML = '';
+        }
+        // Also clear any Ember outlet containers that might be holding onto the old modal
+        var emberOutlets = document.querySelectorAll('[data-ember-outlet], [id^="ember"]');
+        for(var j = 0; j < emberOutlets.length; j++) {
+          var outlet = emberOutlets[j];
+          if(outlet.querySelector && outlet.querySelector('.modal')) {
+            outlet.innerHTML = '';
+          }
+        }
+        // Note: disconnectOutlet is deprecated and not needed - Ember manages outlets automatically
+        // Removing it prevents deprecation warnings and doesn't affect functionality
+      } else {
+        // For non-modal outlets, use the existing close logic
+        this.close(null, outlet);
+      }
     }
     if(!this.route) { throw "must call setup before trying to open a modal"; }
 
@@ -50,16 +97,56 @@ var modal = EmberObject.extend({
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.last_template = template;
     }
-    this.route.render(render_template, { into: 'application', outlet: outlet});
-    var _this = this;
-    return new RSVP.Promise(function(resolve, reject) {
-      if(template != 'highlight' && template != 'highlight-secondary') {
-        _this.last_promise = {
-          resolve: resolve,
-          reject: reject
-        };
-      }
-    });
+    // Small delay to ensure DOM is fully cleaned up before rendering new modal
+    // Only needed if we just cleaned up an existing modal
+    // Increased delay to ensure Ember has time to process the cleanup
+    if(had_existing_modal) {
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          try {
+            // Double-check that outlet is clear before rendering
+            var outletCheck = document.querySelector('[data-ember-outlet="modal"]') ||
+                             document.querySelector('[id="modal"]') ||
+                             document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                             document.querySelector('[data-outlet-name="modal"]');
+            if(outletCheck && outletCheck.innerHTML.trim()) {
+              outletCheck.innerHTML = '';
+            }
+            // NOTE: route.render() is deprecated in Ember 3.x+ but still functional
+            // The proper fix would require refactoring the modal system to use:
+            // - A service-based approach instead of route.render()
+            // - Components rendered via outlet helpers
+            // - Modern Ember patterns for modal management
+            // This is a known limitation that requires architectural changes
+            _this.route.render(render_template, { into: 'application', outlet: outlet});
+            if(template != 'highlight' && template != 'highlight-secondary') {
+              _this.last_promise = {
+                resolve: resolve,
+                reject: reject
+              };
+            } else {
+              resolve();
+            }
+          } catch(e) {
+            reject(e);
+          }
+        }, 50); // Increased from 10ms to 50ms to ensure cleanup completes
+      });
+    } else {
+      // NOTE: route.render() is deprecated in Ember 3.x+ but still functional
+      // See comment above for details on the proper fix
+      this.route.render(render_template, { into: 'application', outlet: outlet});
+      return new RSVP.Promise(function(resolve, reject) {
+        if(template != 'highlight' && template != 'highlight-secondary') {
+          _this.last_promise = {
+            resolve: resolve,
+            reject: reject
+          };
+        } else {
+          resolve();
+        }
+      });
+    }
   },
   is_open: function(template) {
     if(template == 'highlight') {
@@ -165,10 +252,12 @@ var modal = EmberObject.extend({
     outlet = outlet || 'modal';
     if(!this.route) { return; }
     if(this.last_promise && outlet != 'highlight' && outlet != 'highlight-secondary') {
-      if(success || success === undefined) {
-        this.last_promise.resolve(success);
-      } else {
+      // Treat null, undefined, or any truthy value as success
+      // Only reject if explicitly passed false
+      if(success === false) {
         this.last_promise.reject({reason: 'force close'});
+      } else {
+        this.last_promise.resolve(success);
       }
       this.last_promise = null;
     }
@@ -197,7 +286,59 @@ var modal = EmberObject.extend({
         modal.close(null, 'highlight-secondary');
       });
     }
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
+    // Actually remove the rendered template from the outlet
+    // Even though route.render() is deprecated, we still need to explicitly remove what was rendered
+    // disconnectOutlet is deprecated and not needed - Ember manages outlets automatically
+    // We manually clear the DOM to ensure proper cleanup
+    // For modal outlet, clear DOM synchronously to prevent race conditions
+    // when opening a new modal immediately after closing
+    if(outlet === 'modal') {
+      // Clear DOM immediately for modal outlet to ensure it's ready for next render
+      var modalElement = document.querySelector('.modal.fade.in') || document.querySelector('.modal');
+      if(modalElement && modalElement.parentNode) {
+        modalElement.parentNode.removeChild(modalElement);
+      }
+      // Clear the outlet element to ensure it's ready for the next modal
+      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                         document.querySelector('[id="modal"]') ||
+                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                         document.querySelector('[data-outlet-name="modal"]');
+      if(outletElement) {
+        outletElement.innerHTML = '';
+      }
+      // Also clear outlet wrappers synchronously
+      var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
+      for(var i = 0; i < outletWrappers.length; i++) {
+        var wrapper = outletWrappers[i];
+        // Check if this wrapper contains a modal
+        if(wrapper.querySelector && wrapper.querySelector('.modal')) {
+          wrapper.innerHTML = '';
+          break;
+        }
+      }
+      // Also try to find and clear the outlet element directly
+      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                         document.querySelector('[id="modal"]') ||
+                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                         document.querySelector('[data-outlet-name="modal"]');
+      if(outletElement) {
+        outletElement.innerHTML = '';
+      }
+    } else {
+      // For other outlets, do async cleanup
+      var _this = this;
+      runLater(function() {
+        // For other outlets, try multiple selectors to find the outlet element
+        var outletElement = document.querySelector('[data-ember-outlet="' + outlet + '"]') ||
+                           document.querySelector('[id="' + outlet + '"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="' + outlet + '"]') ||
+                           document.querySelector('[data-outlet-name="' + outlet + '"]');
+        if(outletElement) {
+          // Clear the content
+          outletElement.innerHTML = '';
+        }
+      }, 0);
+    }
     // Call closing callbacks if needed
     if(outlet == 'highlight') {
       if(this.highlight_controller && this.highlight_controller.closing) {
