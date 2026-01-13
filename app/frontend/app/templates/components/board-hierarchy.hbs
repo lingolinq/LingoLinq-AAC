@@ -17,11 +17,13 @@
       <p class='text-danger'>{{t "NOTE: One or more sub-boards may be missing from this list" key="missing_boards"}}</p>
     {{/if}}
   {{/if}}
-  {{#with hierarchy.root as |board|}}
-    <div class="board_hierarchy" style='margin-top: 10px;'>
-      <ul>
-        <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{action "toggle_board_hierarchy"}} />
-      </ul>
-    </div>
-  {{/with}}
+  {{#let hierarchy.root as |board|}}
+    {{#if board}}
+      <div class="board_hierarchy" style='margin-top: 10px;'>
+        <ul>
+          <RecursiveBoard @board={{board}} @selectable={{this.selectable}} @toggleBoardHierarchy={{action "toggle_board_hierarchy"}} />
+        </ul>
+      </div>
+    {{/if}}
+  {{/let}}
 </div>

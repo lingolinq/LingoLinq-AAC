@@ -243,7 +243,7 @@
     {{else if app_state.domain_settings.full_domain}}
       <p>
         {{t "Ready to try it out yourself?" key="read_to_try_it_out"}}
-        {{#link-to "register"}}{{t "Sign up for a %app_name% account" key="sign_up_for_account"}}{{/link-to}}
+        <LinkTo @route="register">{{t "Sign up for a %app_name% account" key="sign_up_for_account"}}</LinkTo>
         {{t "to see how powerful and flexible %app_name% really is!" key="to_see_app_for_yourself"}}
       </p>
     {{else}}

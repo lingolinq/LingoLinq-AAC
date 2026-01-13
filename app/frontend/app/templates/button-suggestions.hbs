@@ -41,9 +41,9 @@
       {{else}}
         {{t "Extra Ideas is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1e"}}
         {{#if user}}
-          {{#link-to "user.subscription" user.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+          <LinkTo @route="user.subscription" @model={{user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
         {{else if app_state.currentUser}}
-          {{#link-to "user.subscription" app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+          <LinkTo @route="user.subscription" @model={{app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
         {{else}}
           {{t "purchase a premium account" key="purchase_subscription_2"}}
         {{/if}}
