@@ -1,5 +1,5 @@
-<div id="within_ember" class={{background_class}} style={{if speak_mode_needing_hammer_js "touch-action: auto;" }}>
-<header class={{header_class}}>
+<div id="within_ember" class={{this.background_class}} style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<header class={{this.header_class}}>
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
     <span id="speak">
@@ -8,9 +8,9 @@
           <span class="sr-only">{{t "Home" key="home"}}</span>
           <span class="glyphicon glyphicon-home button_icon"></span>
           {{#unless this.app_state.eval_mode}}
-            {{#if stashes.temporary_root_board_state}}
+            {{#if this.stashes.temporary_root_board_state}}
               <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key="home_or_board_lock_set"}}></span>
-            {{else if stashes.sticky_board}}
+            {{else if this.stashes.sticky_board}}
               <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key="board_lock_set"}}></span>
             {{/if}}
           {{/unless}}
@@ -228,8 +228,8 @@
             {{/if}}
             {{this.app_state.current_board_name}}
           {{/if}}
-          {{#if stashes.board_level}}
-            <span style='margin-left: 5px;'>L{{stashes.board_level}}</span>
+          {{#if this.stashes.board_level}}
+            <span style='margin-left: 5px;'>L{{this.stashes.board_level}}</span>
           {{/if}}
         </span>
       {{/unless}}
@@ -239,10 +239,10 @@
     {{#if this.app_state.empty_header}}
       {{#if this.persistence.online}}
         {{#unless this.app_state.super_no_linky}}
-          {{#if allow_search}}
+          {{#if this.allow_search}}
             <form id="header_search">
               <div style="float: left; margin-right: 4px; width: 150px;">
-              {{input type="text" value=searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+              {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
               </div>
               <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
               <div style="clear: left;"></div>
@@ -993,7 +993,7 @@
     </span>
   </div>
 </header>
-<div id="content" class={{content_class}}>
+<div id="content" class={{this.content_class}}>
   {{ outlet }}
 </div>
 {{#if this.app_state.sidebar_visible}}
@@ -1059,21 +1059,24 @@
   {{/if}}
 {{/if}}
 
-{{outlet "modal"}}
+{{modal-container}}
+{{#unless this.hasComponentBasedModal}}
+  {{outlet "modal"}}
+{{/unless}}
 {{outlet "highlight"}}
 {{outlet "highlight-secondary"}}
 {{outlet "board-preview"}}
 {{outlet "flash-message"}}
-{{#if setup_footer}}
+{{#if this.setup_footer}}
   <div id='setup_footer'>
     <span style='display: inline-block; font-size: 18px; margin-top: 10px;'>
-      {{#if setup_for_other}}
-        <img src={{setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'>
+      {{#if this.setup_for_other}}
+        <img src={{this.setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'>
       {{/if}}
-      {{#if footer_status.error}}
-        <span class='text-danger'>{{footer_status.error}}</span>
-      {{else if footer_status.message}}
-        {{footer_status.message}}
+      {{#if this.footer_status.error}}
+        <span class='text-danger'>{{this.footer_status.error}}</span>
+      {{else if this.footer_status.message}}
+        {{this.footer_status.message}}
       {{else if this.app_state.currentBoardState.id}}
         <span style='font-size: 14px;'>
           <a href='#' {{action "back_to_from_route"}}>{{t "Back to Board List" key="back_to_board_list"}}</a>
@@ -1098,14 +1101,14 @@
     </span>
     <div style='float: right;'>
       <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
-        {{t "step" key="step"}} {{setup_index}} {{t "of" key="of"}} {{setup_order.length}}
+        {{t "step" key="step"}} {{this.setup_index}} {{t "of" key="of"}} {{this.setup_order.length}}
       </span>
-      <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless setup_previous "visibility: hidden;"}} >Previous</button>
-      <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless setup_next "visibility: hidden;"}} >Next</button>
+      <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless this.setup_previous "visibility: hidden;"}} >Previous</button>
+      <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless this.setup_next "visibility: hidden;"}} >Next</button>
     </div>
     <div class='clear'></div>
   </div>
-{{else if footer}}
+{{else if this.footer}}
   {{page-footer support=(action "support") language=(action "language")}}
 {{/if}}
 
