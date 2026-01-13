@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import modal from '../../utils/modal';
 import { computed, observer } from '@ember/object';
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 
 export default Controller.extend({

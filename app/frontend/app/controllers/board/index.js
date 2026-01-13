@@ -13,7 +13,7 @@ import modal from '../../utils/modal';
 import Button from '../../utils/button';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';

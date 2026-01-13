@@ -5,7 +5,7 @@ import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 import modal from '../../utils/modal';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default Component.extend({
   didInsertElement: function() {

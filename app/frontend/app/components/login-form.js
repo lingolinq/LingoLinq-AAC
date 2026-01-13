@@ -10,7 +10,7 @@ import app_state from '../utils/app_state';
 import session from '../utils/session';
 import { isEmpty } from '@ember/utils';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';

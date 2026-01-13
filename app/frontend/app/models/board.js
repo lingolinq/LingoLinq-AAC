@@ -20,7 +20,7 @@ import boundClasses from '../utils/bound_classes';
 import word_suggestions from '../utils/word_suggestions';
 import ButtonSet from '../models/buttonset';
 import Utils from '../utils/misc';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';

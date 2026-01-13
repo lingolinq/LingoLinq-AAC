@@ -1,7 +1,7 @@
 import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import Button from '../../utils/button';
 import { computed,  observer } from '@ember/object';

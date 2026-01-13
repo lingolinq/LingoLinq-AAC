@@ -20,20 +20,37 @@ import speecher from '../utils/speecher';
 import session from '../utils/session';
 import obf from '../utils/obf';
 import Button from '../utils/button';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { inject } from '@ember/controller';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import sync from '../utils/sync';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  modalService: service('modal'),
   board: inject('board.index'),
   // Explicit injection for app_state to avoid implicit injection deprecation warning
   // Uses the 'lingolinq:app_state' registration name (renamed from 'cough_drop:app_state')
   app_state: computed(function() {
     var owner = getOwner(this);
     return owner.lookup('lingolinq:app_state');
+  }),
+  // Explicit injection for stashes to avoid implicit injection deprecation warning
+  stashes: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:stashes');
+  }),
+  // Explicit injection for persistence to avoid implicit injection deprecation warning
+  persistence: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:persistence');
+  }),
+  // Explicit injection for session to avoid implicit injection deprecation warning
+  session: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:session');
   }),
   updateTitle: function(str) {
     if(!Ember.testing) {
@@ -1519,5 +1536,11 @@ export default Controller.extend({
       }
       return res;
     }
-  )
+  ),
+  // Check if a component-based modal is active (so we can conditionally hide the outlet)
+  hasComponentBasedModal: computed('modalService.currentTemplate', function() {
+    const template = this.get('modalService.currentTemplate');
+    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+    return template && convertedModals.indexOf(template) >= 0;
+  })
 });

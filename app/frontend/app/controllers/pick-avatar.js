@@ -6,7 +6,7 @@ import i18n from '../utils/i18n';
 import contentGrabbers from '../utils/content_grabbers';
 import Utils from '../utils/misc';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import editManager from '../utils/edit_manager';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';

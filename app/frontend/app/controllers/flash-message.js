@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Controller.extend({

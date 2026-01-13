@@ -8,7 +8,7 @@ import Ember from 'ember';
 import EmberObject from '@ember/object';
 import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { assign as emberAssign } from '@ember/polyfills';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';

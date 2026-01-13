@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';

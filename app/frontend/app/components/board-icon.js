@@ -1,4 +1,4 @@
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import app_state from '../utils/app_state';

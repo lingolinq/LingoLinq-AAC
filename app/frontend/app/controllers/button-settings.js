@@ -18,7 +18,7 @@ import Button from '../utils/button';
 import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
   opening: function() {

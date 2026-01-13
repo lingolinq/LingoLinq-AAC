@@ -5,7 +5,7 @@ import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 import Utils from '../../utils/misc';
 import lessons from '../../routes/organization/lessons';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import app_state from '../../utils/app_state';
 import capabilities from '../../utils/capabilities';
 

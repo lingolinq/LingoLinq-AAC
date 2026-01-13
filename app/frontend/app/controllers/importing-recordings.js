@@ -1,5 +1,5 @@
 import modal from '../utils/modal';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({

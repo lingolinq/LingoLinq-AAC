@@ -29,7 +29,7 @@ import geolocation from './geo';
 import i18n from './i18n';
 import frame_listener from './frame_listener';
 import Button from './button';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from './sync';

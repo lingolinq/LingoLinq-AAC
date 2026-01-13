@@ -11,10 +11,23 @@ import progress_tracker from '../../utils/progress_tracker';
 import Subscription from '../../utils/subscription';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
+import { getOwner } from '@ember/application';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  store: service('store'),
+  // Explicit injection for app_state to avoid implicit injection deprecation warning
+  app_state: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:app_state');
+  }),
+  // Explicit injection for persistence to avoid implicit injection deprecation warning
+  persistence: computed(function() {
+    var owner = getOwner(this);
+    return owner.lookup('lingolinq:persistence');
+  }),
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
@@ -23,7 +36,8 @@ export default Controller.extend({
   }),
   needs_sync: computed('persistence.last_sync_at', function() {
     var now = (new Date()).getTime();
-    return (now - persistence.get('last_sync_at')) > (7 * 24 * 60 * 60 * 1000);
+    var persistenceService = this.get('persistence');
+    return (now - persistenceService.get('last_sync_at')) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.permissions.admin_support_actions', function() {
     var current_user_name = this.get('daily_use.user_name');

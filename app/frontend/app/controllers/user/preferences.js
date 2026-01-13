@@ -13,7 +13,7 @@ import { set as emberSet } from '@ember/object';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
 
 export default Controller.extend({

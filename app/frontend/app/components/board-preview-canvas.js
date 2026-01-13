@@ -4,7 +4,7 @@ import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';

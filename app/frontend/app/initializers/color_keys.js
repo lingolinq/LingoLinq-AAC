@@ -1,5 +1,5 @@
 import app_state from '../utils/app_state';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
 export default {

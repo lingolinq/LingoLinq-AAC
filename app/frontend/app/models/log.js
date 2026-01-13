@@ -2,7 +2,7 @@ import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import DS from 'ember-data';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed, observer } from '@ember/object';
 import contentGrabbers from '../utils/content_grabbers';
 import modal from '../utils/modal';

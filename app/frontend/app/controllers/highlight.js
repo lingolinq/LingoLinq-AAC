@@ -7,7 +7,7 @@ import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import scanner from '../utils/scanner';
 import buttonTracker from '../utils/raw_events';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer, computed } from '@ember/object';
 
 export default modal.ModalController.extend({
