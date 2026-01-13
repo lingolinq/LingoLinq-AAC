@@ -3,8 +3,10 @@ import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   setupController: function(controller) {
     var _this = this;
     app_state.controller.set('simple_board_header', true);

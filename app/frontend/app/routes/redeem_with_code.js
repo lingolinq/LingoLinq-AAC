@@ -2,8 +2,10 @@ import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   controllerName: 'redeem',
   model: function(params) {
     var obj = this.store.findRecord('gift', params.code);

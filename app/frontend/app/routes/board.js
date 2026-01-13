@@ -10,8 +10,10 @@ import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import session from '../utils/session';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   model: function(params) {
     // TODO: when on the home screen if you have a large board and hit to open
     // it, it takes a while to change views. This does not, however, happen

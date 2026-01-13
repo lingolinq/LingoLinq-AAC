@@ -3,8 +3,10 @@ import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import LingoLinq from '../app';
 import progress_tracker from '../utils/progress_tracker';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   model: function(params) {
     var res = this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer});
     res.set('watch_user_name_and_cookies', true);

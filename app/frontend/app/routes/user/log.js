@@ -1,8 +1,10 @@
 import Route from '@ember/routing/route';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   model: function(params) {
     var user = this.modelFor('user');
     if(user) {

@@ -11,8 +11,10 @@ import LingoLinq from '../app';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   model: function() {
     if(session.get('access_token')) {
       return LingoLinq.store.findRecord('user', 'self').then(function(user) {
@@ -29,7 +31,7 @@ export default Route.extend({
     }
   },
   setupController: function(controller, model) {
-    controller.set('user', this.get('store').createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
+    controller.set('user', this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
     LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());

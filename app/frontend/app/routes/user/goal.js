@@ -2,8 +2,10 @@ import Route from '@ember/routing/route';
 import i18n from '../../utils/i18n';
 import { resolve } from 'rsvp';
 import { later } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   model: function(params) {
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('goals', 'goals'));

@@ -1,7 +1,9 @@
 import Route from '@ember/routing/route';
 import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
   title: "Inflections",
   model: function(params) {
     this.set('user_token', params.user_token);
