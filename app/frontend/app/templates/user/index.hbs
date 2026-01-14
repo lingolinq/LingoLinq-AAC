@@ -563,15 +563,15 @@
             {{/if}}
           {{/unless}}
         </ul>
-        {{#if board_list}}
-          {{#if board_list.loading}}
+        {{#if this.board_list}}
+          {{#if this.board_list.loading}}
             {{t "Loading..." key="loading"}}
-          {{else if board_list.error}}
+          {{else if this.board_list.error}}
             {{t "Failed to load" key="failed_to_load"}}
-          {{else if board_list.results}}
+          {{else if this.board_list.results}}
             {{#if prior_home_selected}}
               <ul class="list-group" style="max-width: 350px;">
-                {{#each board_list.filtered_results as |board|}}
+                {{#each this.board_list.filtered_results as |board|}}
                   <li class="list-group-item">
                     {{#link-to "board" board.board.key}}{{board.board.key}}{{/link-to}}
                   </li>
@@ -581,7 +581,7 @@
                 <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
               {{/unless}}
             {{else}}
-              {{#if board_list.sub_result}}
+              {{#if this.board_list.sub_result}}
                 <div style='margin-bottom: 5px;'><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=parent_object.board.key}}</em></div>
                 <a href="#" class='btn btn-default' {{action "load_children"}} style='margin-bottom: 10px;'><span class='glyphicon glyphicon-arrow-left'></span> {{t "Back to Full List" key="back_to_full_list"}}</a>
               {{/if}}
@@ -602,8 +602,8 @@
                         {{/if}}
                         {{#if this.model.permissions.edit}}
                           {{#if board.board.id}}
-                            <button class="board_action" {{action "remove_board" board_list.remove_type board.board}}>
-                              <span title={{board_list.remove_label}}><span class={{board_list.remove_icon}}></span></span>
+                            <button class="board_action" {{action "remove_board" this.board_list.remove_type board.board}}>
+                              <span title={{this.board_list.remove_label}}><span class={{this.board_list.remove_icon}}></span></span>
                             </button>
                           {{/if}}
                         {{/if}}
