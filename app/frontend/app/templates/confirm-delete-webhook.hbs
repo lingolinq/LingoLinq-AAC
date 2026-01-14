@@ -8,13 +8,13 @@
       {{t "Are you sure you want to delete this event handler?" key="confirm_delete_event_handler"}}
     </p>
     <strong>{{this.model.webhook.name}}</strong><br>
-    {{#if model.error}}
+    {{#if this.model.error}}
       <p class='text-danger'>{{t "There was an error trying to delete the event handler" key="error_deleting_event_handler"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
     <button class='btn btn-primary' {{action "delete_webhook" "delete"}} disabled={{this.model.deleting}}>
-      {{#if model.deleting}}
+      {{#if this.model.deleting}}
         {{t "Deleting Event Handler..." key="deleting_event_handler"}}
       {{else}}
         {{t "Delete Event Handler" key="delete_event_handler"}}

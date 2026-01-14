@@ -9,19 +9,19 @@
 
     <p style='margin-bottom: 20px;'>{{t "%app_name% users can opt-in to recording their usage data for personal and team analysis and reference. Whenever someone opts-in to data logging, we also ask if they would be willing to share an anonymized record of their usage data with independent researchers. We collaborate with non-profit research organizations to analyze this data in aggregate to provide better insights into AAC use and to investigate how supports can be improved." key="trends_explainer"}}</p>
     <p style='margin-bottom: 20px;'>{{t "If you are interested in conducting AAC research, please consider reaching out to us to learn more about this important project. Below are some examples of the types of data that can be collected, anonymously and in aggregate, to help aid AAC research. All word usage information is based on aggregate data only from users who have opted in to anonymized research and reporting." key="trends_explainer2"}}</p>
-    {{#if trends.loading}}
+    {{#if this.trends.loading}}
       {{t "Loading anonymized snapshot..." key="loading_trends"}}
-    {{else if trends.error}}
+    {{else if this.trends.error}}
       {{t "Error loading anonymized snapshot." key="error_loading_trends"}}
-    {{else if trends}}
-      <p><em style='font-weight: bold; font-size: 18px;'>{{t "Anonymized Aggregate Research Data for %{start} to %{end}" start=trends.started_at end=trends.ended_at key="data_for_start_to_end"}}</em></p>
-      <div class="col-sm-3 col-xs-6" style={{elem_style}}>
+    {{else if this.trends}}
+      <p><em style='font-weight: bold; font-size: 18px;'>{{t "Anonymized Aggregate Research Data for %{start} to %{end}" start=this.trends.started_at end=this.trends.ended_at key="data_for_start_to_end"}}</em></p>
+      <div class="col-sm-3 col-xs-6" style={{this.elem_style}}>
         <div class="panel panel-default summary">
           <div class="panel-heading">
             {{t "Time Logged" key="total_session_time"}}
           </div>
           <div class="panel-body" style='font-size: 22px; padding: 9px 0;'>
-            {{seconds_ago trends.total_session_seconds}}
+            {{seconds_ago this.trends.total_session_seconds}}
           </div>
         </div>
       </div>
@@ -31,7 +31,7 @@
             {{t "Avg. Sessions per User" key="average_sessions_per_user"}}
           </div>
           <div class="panel-body">
-            {{trends.sessions_per_user}}
+            {{this.trends.sessions_per_user}}
           </div>
         </div>
       </div>
@@ -41,7 +41,7 @@
             {{t "Modeling Frequency" key="percent_modeling"}}
           </div>
           <div class="panel-body">
-            {{trends.modeled_percent}}%
+            {{this.trends.modeled_percent}}%
           </div>
         </div>
       </div>
@@ -51,9 +51,9 @@
             {{t "Total Words" key="total_words"}}
           </div>
           <div class="panel-body">
-            {{delimit trends.total_words}}
-            {{#if showing_private_info}}
-              <span style='font-size: 14px; padding-left: 5px; color: #888;'>({{delimit trends.admin_total_words}})</span>
+            {{delimit this.trends.total_words}}
+            {{#if this.showing_private_info}}
+              <span style='font-size: 14px; padding-left: 5px; color: #888;'>({{delimit this.trends.admin_total_words}})</span>
             {{/if}}
           </div>
         </div>
@@ -64,7 +64,7 @@
             {{t "Core Buttons" key="core_buttons"}}
           </div>
           <div class="panel-body">
-            {{trends.core_percent}}%
+            {{this.trends.core_percent}}%
           </div>
         </div>
       </div>
@@ -74,7 +74,7 @@
             {{t "Avg. Words per Minute" key="avg_words_per_minute"}}
           </div>
           <div class="panel-body">
-            {{trends.words_per_minute}}
+            {{this.trends.words_per_minute}}
           </div>
         </div>
       </div>
@@ -85,7 +85,7 @@
             {{t "Auto-Home Enabled" key="auto_home_enabled"}}
           </div>
           <div class="panel-body">
-            {{auto_home_pct}}%
+            {{this.auto_home_pct}}%
           </div>
         </div>
       </div>
@@ -95,7 +95,7 @@
             {{t "Touch-Based Hits" key="touch-based hits"}}
           </div>
           <div class="panel-body">
-            {{touch_pct}}%
+            {{this.touch_pct}}%
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@
             {{t "Avg. Available Words" key="average_access"}}
           </div>
           <div class="panel-body">
-            {{delimit trends.average_access}}
+            {{delimit this.trends.average_access}}
           </div>
         </div>
       </div>
@@ -116,7 +116,7 @@
             {{t "Avg. Unique Words Used" key="average_breadth"}}
           </div>
           <div class="panel-body">
-            {{trends.average_breadth}}
+            {{this.trends.average_breadth}}
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@
             {{t "Avg. Unique Words Modeled" key="average_modeled_breadth"}}
           </div>
           <div class="panel-body">
-            {{trends.average_modeled_breadth}}
+            {{this.trends.average_modeled_breadth}}
           </div>
         </div>
       </div>
@@ -136,14 +136,14 @@
             {{t "Total Languages" key="total_languages"}}
           </div>
           <div class="panel-body">
-            {{locales_count}}
+            {{this.locales_count}}
           </div>
         </div>
       </div>
 
 
-      {{#if trends.total_users}}
-        {{#unless showing_private_info}}
+      {{#if this.trends.total_users}}
+        {{#unless this.showing_private_info}}
           <div class='col-sm-12' style='margin-bottom: 5px; text-align: right;'>
             <a href="#" {{action "show_private_info"}}>{{t "show internal metrics" key="show_internal_metrics"}}</a>
           </div>
@@ -196,21 +196,21 @@
 
       <div class='col-sm-12' style='margin-bottom: 50px;'>
         <h4>{{t "Frequently-Used Core Words" key="most_common_core_words"}}</h4>
-        {{stats/word-cloud stats=word_cloud_stats zoom=1}}
+        {{stats/word-cloud stats=this.word_cloud_stats zoom=1}}
       </div>
 
-      {{stats/core-usage trends=trends}}
-      {{stats/modeling-frequency trends=trends}}
+      {{stats/core-usage trends=this.trends}}
+      {{stats/modeling-frequency trends=this.trends}}
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Common Home Boards" key="common_home_boards"}}</h4>
-        {{#if home_boards}}
+        {{#if this.home_boards}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each home_boards as |board|}}
+              {{#each this.home_boards as |board|}}
                 {{#link-to "board" board.key class="list-group-item"}}
                   {{board.key}}
-                  {{#if showing_private_info}}
+                  {{#if this.showing_private_info}}
                     <span class='text-muted'>({{board.pct}}%)</span>
                   {{/if}}
                 {{/link-to}}
@@ -224,14 +224,14 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Board Languages" key="board_languages"}}</h4>
-        {{#if locales}}
+        {{#if this.locales}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each locales as |loc|}}
+              {{#each this.locales as |loc|}}
                 <span class='list-group-item'>
                   {{loc.name}} <span class='text-muted'>{{loc.locale}}</span>
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{delimit loc.total}})
                     {{else}}
                       ({{loc.percent}}%)
@@ -246,16 +246,16 @@
         {{/if}}
       </div>
 
-      {{#if showing_private_info}}
+      {{#if this.showing_private_info}}
         <div class='col-sm-6' style='margin-bottom: 50px;'>
           <h4>{{t "Most-Commonly-Used Boards" key="most_common_boards"}}</h4>
-          {{#if common_boards}}
+          {{#if this.common_boards}}
             <div style='height: 300px; overflow: auto;'>
               <div class="list-group">
-                {{#each common_boards as |board|}}
+                {{#each this.common_boards as |board|}}
                   {{#link-to "board" board.key class="list-group-item"}}
                     {{board.key}}
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       <span class='text-muted'>({{delimit board.pct}})</span>
                     {{/if}}
                   {{/link-to}}
@@ -270,14 +270,14 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Hardware Device" key="hardware_device"}}</h4>
-        {{#if systems}}
+        {{#if this.systems}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each systems as |system|}}
+              {{#each this.systems as |system|}}
                 <span class='list-group-item'>
                   {{system.name}}
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{delimit system.total}})
                     {{else}}
                       ({{system.percent}}%)
@@ -294,14 +294,14 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Access Method" key="access_method"}}</h4>
-        {{#if access_methods}}
+        {{#if this.access_methods}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each access_methods as |access|}}
+              {{#each this.access_methods as |access|}}
                 <span class='list-group-item'>
                   {{access.name}}
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{delimit access.total}})
                     {{else}}
                       ({{access.percent}}%)
@@ -316,17 +316,17 @@
         {{/if}}
       </div>
 
-      {{#if showing_private_info}}
+      {{#if this.showing_private_info}}
         <div class='col-sm-6' style='margin-bottom: 50px;'>
           <h4>{{t "Voice Output" key="voice_output"}}</h4>
-          {{#if voices}}
+          {{#if this.voices}}
             <div style='height: 300px; overflow: auto;'>
               <div class="list-group">
-                {{#each voices as |voice|}}
+                {{#each this.voices as |voice|}}
                   <span class='list-group-item'>
                     {{voice.name}}
                     <span class='text-muted'>
-                      {{#if showing_private_info}}
+                      {{#if this.showing_private_info}}
                         ({{delimit voice.total}})
                       {{else}}
                         ({{voice.percent}}%)
@@ -345,15 +345,15 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Button Hit Levels" key="button_hit-levels"}}</h4>
-        {{#if depths}}
+        {{#if this.depths}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each depths as |depth|}}
+              {{#each this.depths as |depth|}}
                 <span class='list-group-item'>
                   {{t "button hit" count=depth.level key="n_button_hits"}}
                   {{t "to select" key="to_select"}}
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{delimit depth.total}})
                     {{else}}
                       ({{depth.percent}}%)
@@ -370,10 +370,10 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Core Words by Frequency" key="common_words"}}</h4>
-        {{#if words}}
+        {{#if this.words}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each words as |word|}}
+              {{#each this.words as |word|}}
                 <span class='list-group-item'>
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 12px;'>
@@ -397,10 +397,10 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Modeled Core Words by Frequency" key="modeled_common_words"}}</h4>
-        {{#if modeled_words}}
+        {{#if this.modeled_words}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each modeled_words as |word|}}
+              {{#each this.modeled_words as |word|}}
                 <span class='list-group-item'>
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 12px;'>
@@ -423,14 +423,14 @@
       </div>
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Most-Frequent Core Word Pairings" key="common_word_pairs"}}</h4>
-        {{#if word_pairs}}
+        {{#if this.word_pairs}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each word_pairs as |pair|}}
+              {{#each this.word_pairs as |pair|}}
                 <span class='list-group-item'>
                   {{pair.a}} - {{pair.b}}
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{pair.pct}}%)
                     {{/if}}
                   </span>
@@ -445,10 +445,10 @@
       
       <div class='col-sm-6' style='margin-bottom: 50px; clear: both;'>
         <h4>{{t "Popular Goals" key="popular_goals"}}</h4>
-        {{#if goals}}
+        {{#if this.goals}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each goals as |goal|}}
+              {{#each this.goals as |goal|}}
                 {{#link-to "goals.goal" goal.id class="list-group-item"}}
                   {{#if goal.image_url}}
                     <img src={{goal.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' >
@@ -456,7 +456,7 @@
                     <span style='display: inline-block; float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;'></span>
                   {{/if}}
                   {{goal.name}}
-                  {{#if showing_private_info}}
+                  {{#if this.showing_private_info}}
                     <span class='text-muted'>({{goal.num}}, {{goal.pct}}%)</span>
                   {{/if}}
                 {{/link-to}}
@@ -470,10 +470,10 @@
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Most-Earned Goal Badges" key="most_earned_goal_badges"}}</h4>
-        {{#if badges}}
+        {{#if this.badges}}
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
-              {{#each badges as |badge|}}
+              {{#each this.badges as |badge|}}
                 <span class='list-group-item'>
                   {{#if badge.image_url}}
                     <img src={{badge.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' >
@@ -482,7 +482,7 @@
                   {{/if}}
                   {{badge.name}}
                   <span class='text-muted'>
-                    {{#if showing_private_info}}
+                    {{#if this.showing_private_info}}
                       ({{badge.num}}, {{badge.pct}}%)
                     {{/if}}
                   </span>
@@ -507,7 +507,7 @@
 
       <div class='col-sm-6'>
         <h4>{{t "Have More Questions?" key="have_more_questions"}}</h4>
-        <p>{{t "We hope this small data sample has helped you think of some of the additional questions we could  all benefit from answering with the help of anonymized AAC usage data. We have over <b>%{cnt}</b> communicators who have opted in to sharing their anonymized usage data with researchers, in a strictly private and protected manner." key="data_summary_2" cnt=trends.research_communicators}}</p>
+        <p>{{t "We hope this small data sample has helped you think of some of the additional questions we could  all benefit from answering with the help of anonymized AAC usage data. We have over <b>%{cnt}</b> communicators who have opted in to sharing their anonymized usage data with researchers, in a strictly private and protected manner." key="data_summary_2" cnt=this.trends.research_communicators}}</p>
         <p>{{#link-to "contact"}}{{t "Please contact us" key="please_contact_us"}}{{/link-to}} {{t "if you'd like to collaborate on an AAC research project." key="for_research_project"}}</p>
       </div>
 
