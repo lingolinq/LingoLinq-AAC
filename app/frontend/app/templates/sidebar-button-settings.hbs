@@ -9,17 +9,17 @@
         <label for="name" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
         <div class="col-sm-10">
           <p class='form-control-static'>
-            {{#if model.button.key}}
-              {{#link-to "board" model.button.key}}{{t "Open board %{board}" key="open_board_key" board=model.button.key}}{{/link-to}}
-            {{else if model.button.alert}}
+            {{#if this.model.button.key}}
+              {{#link-to "board" this.model.button.key}}{{t "Open board %{board}" key="open_board_key" board=this.model.button.key}}{{/link-to}}
+            {{else if this.model.button.alert}}
               <a href="#" {{action "alert"}}>
                 <span class="glyphicon glyphicon-bullhorn"></span>
                 {{t "Play Alert Sound" key="play_alert_sound"}}
               </a>
-            {{else if model.button.special}}
+            {{else if this.model.button.special}}
               {{t "Special Action:" key="special_action"}}
               {{this.model.button.action}}
-              {{#if model.button.arg}}({{this.model.button.arg}}){{/if}}
+              {{#if this.model.button.arg}}({{this.model.button.arg}}){{/if}}
             {{else}}
               {{t "Unrecognized Button Type" key="unrecognized_button_type"}}
             {{/if}}
@@ -30,77 +30,77 @@
         <label for="name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           <div style="width: 100px;">
-            {{input value=model.button.name class="form-control" id="name" placeholder="Board"}}
+            {{input value=this.model.button.name class="form-control" id="name" placeholder="Board"}}
           </div>
         </div>
       </div>
       <div class="form-group">
         <label for="icon" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-10">
-          {{icon-select selection=model.button.image action=(action (mut model.button.image)) }}
+          {{icon-select selection=this.model.button.image action=(action (mut this.model.button.image)) }}
         </div>
       </div>
-      {{#unless model.button.alert}}
+      {{#unless this.model.button.alert}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.button.home_lock}}
+                {{input type="checkbox" checked=this.model.button.home_lock}}
                 {{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}
               </label>
             </div>
           </div>
         </div>
       {{/unless}}
-      {{#if app_state.feature_flags.geo_sidebar}}
+      {{#if this.app_state.feature_flags.geo_sidebar}}
         <div class="form-group">
           <label for="highlighting" class="col-sm-2 control-label">{{t "Highlighting" key="highlightin"}}</label>
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.button.fenced}}
+                {{input type="checkbox" checked=this.model.button.fenced}}
                 {{t "Highlight this board at certain locations/times" key="geo_fence_button"}}
               </label>
             </div>
           </div>
         </div>
-        {{#if model.button.fenced}}
+        {{#if this.model.button.fenced}}
           <div class="form-group">
             <label for="highlight_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
             <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="highlight_type" content=highlight_types selection=model.button.highlight_type action=(action (mut model.button.highlight_type)) }}
+              {{bound-select select_class="form-control" select_id="highlight_type" content=this.highlight_types selection=this.model.button.highlight_type action=(action (mut this.model.button.highlight_type)) }}
             </div>
           </div>
-          {{#if location_setting}}
+          {{#if this.location_setting}}
             <div class="form-group">
               <label for="geos" class="col-sm-2 control-label">{{t "GPS" key="gps"}}</label>
               <div class="col-sm-10">
-                {{map-with-geos geos=model.button.geos action=(action (mut model.button.geos)) }}
+                {{map-with-geos geos=this.model.button.geos action=(action (mut this.model.button.geos)) }}
               </div>
             </div>
             <div class="form-group">
               <label for="ssids" class="col-sm-2 control-label">{{t "Network" key="network"}}</label>
               <div class="col-sm-5">
-                {{input value=model.button.ssids class="form-control" id="ssids" placeholder="comma-separated wi-fi network names"}}
+                {{input value=this.model.button.ssids class="form-control" id="ssids" placeholder="comma-separated wi-fi network names"}}
               </div>
               <div class="col-sm-5">
-                {{#if app_state.current_ssid}}
-                  <button class='btn btn-default' {{action "add_ssid"}}>{{t "Add %{ssid}" ssid=app_state.current_ssid key="add_current_network"}}</button>
+                {{#if this.app_state.current_ssid}}
+                  <button class='btn btn-default' {{action "add_ssid"}}>{{t "Add %{ssid}" ssid=this.app_state.current_ssid key="add_current_network"}}</button>
                 {{/if}}
               </div>
             </div>
           {{/if}}
-          {{#if time_setting}}
+          {{#if this.time_setting}}
             <div class="form-group">
               <label for="times" class="col-sm-2 control-label">{{t "Time" key="time"}}</label>
               <div class="col-sm-10" style='margin-bottom: 5px;'>
                 <div>
                   <span style='display: inline-block; width: 30%;'>
-                    {{input type="time" value=start class="form-control" placeholder="HH:MMam/pm"}}
+                    {{input type="time" value=this.start class="form-control" placeholder="HH:MMam/pm"}}
                   </span>
                   to
                   <span style='display: inline-block; width: 30%;'>
-                    {{input type="time" value=end class="form-control" placeholder="HH:MMam/pm"}}
+                    {{input type="time" value=this.end class="form-control" placeholder="HH:MMam/pm"}}
                   </span>
                   <span style='display: inline-block; width: 10%;'>
                     <button {{action "add_time"}} class='btn btn-default'>{{t "Add" key="add"}}</button>
@@ -108,14 +108,14 @@
                 </div>
               </div>
               <div class="col-sm-7 col-sm-offset-2">
-                {{input value=model.button.times class="form-control" id="times" placeholder="comma-separated time-blocks"}}
+                {{input value=this.model.button.times class="form-control" id="times" placeholder="comma-separated time-blocks"}}
               </div>
             </div>
           {{/if}}
-          {{#if place_setting}}
+          {{#if this.place_setting}}
             <div class="form_group">
               <div class='col-sm-10 col-sm-offset-2'>
-                {{#if model.button.fenced}}
+                {{#if this.model.button.fenced}}
                   <em>{{t "NOTE: Place-based highlighting will send anonymous GPS data to Google APIs for place identification" key="gps_uses_google"}}</em>
                 {{/if}}
               </div>
@@ -125,13 +125,13 @@
                 {{t "Places" key="places"}}
               </label>
               <div class='col-sm-7'>
-                {{bound-select select_class="form-control" select_id="place" content=places_list selection=place action=(action (mut place)) }}
+                {{bound-select select_class="form-control" select_id="place" content=this.places_list selection=this.place action=(action (mut this.place)) }}
               </div>
               <div class='col-sm-2' style='margin-bottom: 5px;'>
                 <button {{action "add_place"}} class='btn btn-default'>{{t "Add" key="add"}}</button>
               </div>
               <div class="col-sm-7 col-sm-offset-2">
-                {{input value=model.button.places class="form-control" id="places" placeholder="comma-separated location names"}}
+                {{input value=this.model.button.places class="form-control" id="places" placeholder="comma-separated location names"}}
               </div>
               <div class='col-sm-2' style='font-weight: normal; font-size: 12px;'>
                 <p class='form-control-static'>{{t "(needs wifi)" key="requires_wifi"}}</p>
