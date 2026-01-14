@@ -224,16 +224,16 @@
             {{input value=model.copy_key class="form-control" id="copy_key" placeholder="Root board key"}}
           </div>
         </div>
-        {{#if model.home_board}}
-          {{#if app_state.feature_flags.find_multiple_buttons}}
+        {{#if this.model.home_board}}
+          {{#if this.app_state.feature_flags.find_multiple_buttons}}
             <div class="form-group">
               <label for="board_intro" class="col-sm-3 control-label">{{t "Board Intro" key="board_intro"}}</label>
-              {{#unless model.intro.sections}}
+              {{#unless this.model.intro.sections}}
                 <div class="col-sm-9" style='margin-bottom: 10px;'>
                   <em class='form-control-static'>{{t "You can build a short lesson that people will walk through when they choose this board set, including explanations and practice phrases for them to find using the board set." key="board_intro_explainer"}}</em>
                 </div>
               {{/unless}}
-              {{#each model.intro.sections as |section index|}}
+              {{#each this.model.intro.sections as |section index|}}
                 <div class={{if index "col-sm-7 col-sm-offset-3" "col-sm-7"}}>
                   {{textarea value=section.description class="form-control" placeholder="Explanation, notes, etc."}}
                   <div style='margin-top: 3px; margin-bottom: 15px;'>
