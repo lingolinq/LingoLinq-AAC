@@ -1,10 +1,10 @@
-<div class="col-sm-3 col-xs-6" style={{elem_style}}>
+<div class="col-sm-3 col-xs-6" style={{this.elem_style}}>
   <div class="panel panel-default summary">
     <div class="panel-heading">
       {{t "Total Sessions" key="total_sessions"}}
     </div>
     <div class="panel-body">
-      {{delimit usage_stats.total_sessions}}
+      {{delimit this.usage_stats.total_sessions}}
     </div>
   </div>
 </div>
@@ -14,7 +14,7 @@
       {{t "Total Words" key="total_words"}}
     </div>
     <div class="panel-body">
-      {{delimit usage_stats.total_words}}
+      {{delimit this.usage_stats.total_words}}
     </div>
   </div>
 </div>

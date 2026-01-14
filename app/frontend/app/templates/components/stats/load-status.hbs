@@ -1,17 +1,17 @@
-{{#if status}}
-  <div class={{elem_class}} style={{elem_style}}>
-    {{#if status.loading}}
+{{#if this.status}}
+  <div class={{this.elem_class}} style={{this.elem_style}}>
+    {{#if this.status.loading}}
       {{t "Loading..." key="loading"}}
-    {{else if status.error}}
+    {{else if this.status.error}}
       {{t "Reports failed to load" key="reports_failed_to_load"}}
-    {{else if status.no_data}}
+    {{else if this.status.no_data}}
       {{t "No data available" key="no_data_available"}}
     {{else}}
       {{t "Unknown status" key="unknown_status"}}
     {{/if}}
   </div>
-{{else if ref_status}}
-  <div class={{elem_class}} style={{elem_style}}>
+{{else if this.ref_status}}
+  <div class={{this.elem_class}} style={{this.elem_style}}>
     &nbsp;
   </div>
 {{/if}}
