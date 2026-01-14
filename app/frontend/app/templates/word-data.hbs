@@ -2,7 +2,7 @@
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Word Data For \"%{word}\"" word=model.word key="word_data_for_word"}}
+      {{t "Word Data For \"%{word}\"" word=this.model.word key="word_data_for_word"}}
     </h3>
   </div>
   <div class="modal-body">
@@ -19,66 +19,66 @@
     -->
 
     <dl class="dl-horizontal">
-      {{#if model.button}}
+      {{#if this.model.button}}
         <dt>{{t "Button" key="button"}}</dt>
         <dd>
-          {{button-preview button=model.button}}
+          {{button-preview button=this.model.button}}
         </dd>
       {{/if}}
       <dt>{{t "Part of speech:" key="common_part_of_speech"}}</dt>
       <dd>
-        {{#if part_of_speech}}
-          <span class={{part_of_speech_class}}></span>
-          {{part_of_speech}}
-        {{else if parts_of_speech.loading}}
+        {{#if this.part_of_speech}}
+          <span class={{this.part_of_speech_class}}></span>
+          {{this.part_of_speech}}
+        {{else if this.parts_of_speech.loading}}
           {{t "Loading..." key="loading"}}
-        {{else if parts_of_speech.error}}
+        {{else if this.parts_of_speech.error}}
           {{t "Error loading word data" key="error_loading_word_data"}}
         {{else}}
           {{t "Data not available" key="data_not_available"}}
         {{/if}}
       </dd>
-      {{#if model.usage_stats}}
+      {{#if this.model.usage_stats}}
         <dt>{{t "Usage:" key="usage_colon"}}</dt>
         <dd>
-          {{#if frequency.total}}
-            {{t "time" count=frequency.total key="n_times"}} ({{frequency.percent}}%) {{t "for the time period" key="for_the_period"}}
+          {{#if this.frequency.total}}
+            {{t "time" count=this.frequency.total key="n_times"}} ({{this.frequency.percent}}%) {{t "for the time period" key="for_the_period"}}
           {{else}}
             {{t "not used in the time period" key="not_used_in_the_period"}}
           {{/if}}
         </dd>
       {{/if}}
-      {{#if model.user.core_lists}}
+      {{#if this.model.user.core_lists}}
         <dt>{{t "Availability:" key="availability"}}</dt>
         <dd>
-          {{#if reachability.core}}
-            {{#if reachability.reachable}}
-              {{t "This word is in the board set for <em>%{user_name}</em>" user_name=model.user.user_name key="in_user_board_set"}}
-            {{else if reachability.unreachable}}
-              <span class='text-danger'>{{t "This word is NOT in the board set for <em>%{user_name}</em>" user_name=model.user.user_name key="not_in_user_board_set"}}</span>
+          {{#if this.reachability.core}}
+            {{#if this.reachability.reachable}}
+              {{t "This word is in the board set for <em>%{user_name}</em>" user_name=this.model.user.user_name key="in_user_board_set"}}
+            {{else if this.reachability.unreachable}}
+              <span class='text-danger'>{{t "This word is NOT in the board set for <em>%{user_name}</em>" user_name=this.model.user.user_name key="not_in_user_board_set"}}</span>
             {{/if}}
-          {{else if reachability.not_core}}
-            {{t "This word is not a core word for <em>%{user_name}</e>" user_name=model.user.user_name key="not_in_core"}}
+          {{else if this.reachability.not_core}}
+            {{t "This word is not a core word for <em>%{user_name}</e>" user_name=this.model.user.user_name key="not_in_core"}}
           {{else}}
             <span class='text-muted'>{{t "Information not currently available" key="information_not_currently_available"}}</span>
           {{/if}}
         </dd>
       {{/if}}
-      {{#if part_of_speech}}
+      {{#if this.part_of_speech}}
         <dt>{{t "Suggestions:" key="suggestions_colon"}}</dt>
         <dd>
-          {{#if suggestions}}
+          {{#if this.suggestions}}
             <br>
             <div style="margin: 20px 50px 0 -50px;">
-              <p>{{t "Language learning works better when you can find multiple ways to use the same word. Here are some examples using \"%{word}\" that might be helpful." word=model.word key="word_usage_examples"}}</p>
+              <p>{{t "Language learning works better when you can find multiple ways to use the same word. Here are some examples using \"%{word}\" that might be helpful." word=this.model.word key="word_usage_examples"}}</p>
               <div class='list-group'>
-                {{#each suggestions as |suggestion|}}
+                {{#each this.suggestions as |suggestion|}}
                   <span class='list-group-item'>"{{suggestion.sentence}}"</span>
                 {{/each}}
               </div>
             </div>
           {{else}}
-            <p>{{t "No suggestions currently available for \"%{word}\"" word=model.word key="no_suggestions_for_word"}}</p>
+            <p>{{t "No suggestions currently available for \"%{word}\"" word=this.model.word key="no_suggestions_for_word"}}</p>
           {{/if}}
         </dd>
       {{/if}}
@@ -87,20 +87,20 @@
         <button class='btn btn-default' {{action "program_nfc"}}>{{t "Program NFC Tag" key="program_nfc_tag"}}</button>
       </dd>
     </dl>
-    {{#if part_of_speech}}
-      {{#if app_state.currentUser.permissions.admin_support_actions}}
+    {{#if this.part_of_speech}}
+      {{#if this.app_state.currentUser.permissions.admin_support_actions}}
         <div class='row'>
           <div class='col-sm-3'>
             <p class='form-control-static'>New Suggestion:</p>
           </div>
           <div class='col-sm-5'>
-            {{input type="text" value=sentence class="form-control"}}
+            {{input type="text" value=this.sentence class="form-control"}}
           </div>
           <div class='col-sm-4'>
-            <button class='btn btn-default' {{action "add_sentence"}} disabled={{sentence.loading}}>
-              {{#if sentence_state.loading}}
+            <button class='btn btn-default' {{action "add_sentence"}} disabled={{this.sentence.loading}}>
+              {{#if this.sentence_state.loading}}
                 {{t "Adding Suggestion..." key="adding_suggestion"}}
-              {{else if sentence_state.error}}
+              {{else if this.sentence_state.error}}
                 {{t "Error Adding Suggestion" key="error_adding_suggestion"}}
               {{else}}
                 {{t "Add Suggestion" key="add_suggestion"}}

@@ -7,30 +7,30 @@
     <div class="row">
       <div class="col-sm-3">
         <ul class="nav nav-pills nav-stacked">
-          <li class={{if helpState "active" "inactive"}} {{action "setState" "help"}}><a href="#">{{t "Help" key="help"}}</a></li>
-          <li class={{if generalState "active" "inactive"}} {{action "setState" "general"}}><a href="#">{{t "General" key="general"}}</a></li>
-          <li class={{if pictureState "active" "inactive"}} {{action "setState" "picture"}}><a href="#">{{t "Picture" key="picture"}}</a></li>
-          <li class={{if actionState "active" "inactive"}} {{action "setState" "action"}}><a href="#">{{t "Action" key="action"}}</a></li>
-          <li class={{if soundState "active" "inactive"}} {{action "setState" "sound"}}><a href="#">{{t "Sound" key="sound"}}</a></li>
-          {{#if board.translations}}
-            <li class={{if languageState "active" "inactive"}} {{action "setState" "language"}}><a href="#">{{t "Language" key="language"}}</a></li>
+          <li class={{if this.helpState "active" "inactive"}} {{action "setState" "help"}}><a href="#">{{t "Help" key="help"}}</a></li>
+          <li class={{if this.generalState "active" "inactive"}} {{action "setState" "general"}}><a href="#">{{t "General" key="general"}}</a></li>
+          <li class={{if this.pictureState "active" "inactive"}} {{action "setState" "picture"}}><a href="#">{{t "Picture" key="picture"}}</a></li>
+          <li class={{if this.actionState "active" "inactive"}} {{action "setState" "action"}}><a href="#">{{t "Action" key="action"}}</a></li>
+          <li class={{if this.soundState "active" "inactive"}} {{action "setState" "sound"}}><a href="#">{{t "Sound" key="sound"}}</a></li>
+          {{#if this.board.translations}}
+            <li class={{if this.languageState "active" "inactive"}} {{action "setState" "language"}}><a href="#">{{t "Language" key="language"}}</a></li>
           {{/if}}
-          {{#if app_state.feature_flags.board_levels}}
-            <li class={{if extrasState "active" "inactive"}} {{action "setState" "extras"}}><a href="#">{{t "Extras" key="extras"}}</a></li>
+          {{#if this.app_state.feature_flags.board_levels}}
+            <li class={{if this.extrasState "active" "inactive"}} {{action "setState" "extras"}}><a href="#">{{t "Extras" key="extras"}}</a></li>
           {{/if}}
         </ul>
       </div>
       <div class="col-sm-9 content">
         {{!-- Help tab content --}}
         <form class="form-horizontal">
-        <div class={{if helpState "active" "hidden"}}>
+        <div class={{if this.helpState "active" "hidden"}}>
           <div class="form-group">
             <div class="col-sm-12">
               <div style='position: relative;'>
                 <h4>{{t "Button Settings" key="button_settings"}}</h4>
-                {{#if auto_help}}
+                {{#if this.auto_help}}
                   <button {{action "disable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key="skip_help"}}</button>
-                {{else if app_state.currentUser.preferences.disable_button_help}}
+                {{else if this.app_state.currentUser.preferences.disable_button_help}}
                   <button {{action "enable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key="re_enable_help"}}</button>
                 {{/if}}
               </div>
@@ -46,13 +46,13 @@
                 <button {{action "quick_action" "folder"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-folder-open' style='margin-right: 3px;'></span> {{t "Link to Another Board" key="link_to_board"}}</button>
                 <button {{action "quick_action" "url"}} class='btn btn-lg btn-default' style='text-align: left;'><span class='glyphicon glyphicon-link' style='margin-right: 3px;'></span> {{t "Link to a Web Site or Video" key="link_to_web_site"}}</button>
                 <button {{action "quick_action" "hide"}} class='btn btn-lg btn-default' style='text-align: left;'>
-                  {{#if model.hidden}}
+                  {{#if this.model.hidden}}
                     <span class='glyphicon glyphicon-eye-open' style='margin-right: 3px;'></span> {{t "Un-Hide this Button" key="unhide_this_button"}}
                   {{else}}
                     <span class='glyphicon glyphicon-eye-close' style='margin-right: 3px;'></span> {{t "Hide this Button" key="hide_this_button"}}
                   {{/if}}
                 </button>
-                {{#if paint_hide_reminder}}
+                {{#if this.paint_hide_reminder}}
                   <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key="hide_and_show_using_paint"}}</em>
                 {{/if}}
               </div>
@@ -63,18 +63,18 @@
 
         {{!-- General tab content --}}
         <form class="form-horizontal">
-        <div class={{if generalState "active" "hidden"}}>
+        <div class={{if this.generalState "active" "hidden"}}>
           <div class="form-group">
             <label for="label" class="col-sm-2 control-label">{{t "Label" key="label"}}</label>
             <div class="col-sm-10">
-              {{input value=model.label class="form-control" id="label"}}
+              {{input value=this.model.label class="form-control" id="label"}}
             </div>
           </div>
           <div class="form-group" style='margin-top: -20px;'>
             <div class="col-sm-10 col-sm-offset-2">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input checked=model.hide_label type="checkbox"}}
+                  {{input checked=this.model.hide_label type="checkbox"}}
                   {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>
@@ -83,15 +83,15 @@
           <div class="form-group">
             <label for="part_of_speech" class="col-sm-2 control-label">{{t "Word" key="part_of_speech"}}</label>
             <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="part_of_speech" content=parts_of_speech selection=model.part_of_speech action=(action (mut model.part_of_speech)) }}
+              {{bound-select select_class="form-control" select_id="part_of_speech" content=this.parts_of_speech selection=this.model.part_of_speech action=(action (mut this.model.part_of_speech)) }}
             </div>
           </div>
           <div class="form-group">
             <label for="fill" class="col-sm-2 control-label">{{t "Fill" key="fill"}}</label>
             <div class="col-sm-10">
-              <span {{action "toggle_color" "fill"}} style="display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom;" class={{fake_button_class}}></span>
+              <span {{action "toggle_color" "fill"}} style="display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom;" class={{this.fake_button_class}}></span>
               <span class="button_field">
-                {{input value=model.background_color class="form-control" id="fill"}}
+                {{input value=this.model.background_color class="form-control" id="fill"}}
               </span>
               <br>
               <em style="font-size: 12px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
@@ -100,9 +100,9 @@
           <div class="form-group">
             <label for="border" class="col-sm-2 control-label">{{t "Border" key="border"}}</label>
             <div class="col-sm-10">
-              <span {{action "toggle_color" "border"}} id="background_pattern" style="display: inline-block; border-width: 3px; height: 34px; width: 70px; vertical-align: bottom;" class={{fake_button_class}}></span>
+              <span {{action "toggle_color" "border"}} id="background_pattern" style="display: inline-block; border-width: 3px; height: 34px; width: 70px; vertical-align: bottom;" class={{this.fake_button_class}}></span>
               <span class="button_field">
-                {{input value=model.border_color class="form-control" id="border"}}
+                {{input value=this.model.border_color class="form-control" id="border"}}
               </span>
             </div>
           </div>
@@ -111,7 +111,7 @@
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input checked=model.hidden type="checkbox"}}
+                  {{input checked=this.model.hidden type="checkbox"}}
                   {{t "Hide this button from view" key="hide_this_button_from_view"}}
                 </label>
               </div>
@@ -122,7 +122,7 @@
               <button type="button" class="btn btn-default" {{action "clear_button"}}>{{t "Clear" key="clear"}}</button>
               <button type="button" class="btn btn-default" {{action "swapButton"}}>{{t "Swap With..." key="swap_with"}}</button>
               <button type="button" class="btn btn-default" {{action "stash_button"}}>
-                {{#if stashed}}
+                {{#if this.stashed}}
                   <span class="glyphicon glyphicon-check"></span>
                   {{t "Copied to Stash" key="copied_to_stash"}}
                 {{else}}
@@ -136,22 +136,22 @@
 
         {{!-- Picture tab content (inlined) --}}
         <form class="form-horizontal" {{action "nothing" on="submit"}}>
-        <div class={{if pictureState "active" "hidden"}}>
-  {{#if show_libraries}}
-    {{#if image_libraries}}
+        <div class={{if this.pictureState "active" "hidden"}}>
+  {{#if this.show_libraries}}
+    {{#if this.image_libraries}}
       <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
-        {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=image_libraries selection=image_library action=(action (mut image_library)) }}
+        {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(action (mut this.image_library)) }}
       </div>
     {{else}}
       <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
-    {{#if app_state.feature_flags.skin_tones}}
+    {{#if this.app_state.feature_flags.skin_tones}}
       <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
     {{/if}}
     <div style="clear: left;"></div>
-    {{#if premium_symbol_library}}
-      {{#if app_state.currentUser.subscription.grace_trial_period}}
+    {{#if this.premium_symbol_library}}
+      {{#if this.app_state.currentUser.subscription.grace_trial_period}}
         <div class='text-danger'>
           {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
         </div>
@@ -163,18 +163,18 @@
   {{/if}}
   <div style="margin-bottom: 10px;" class="options">
     <span class="picture_search_field">
-      <span style={{if multi_locales "display: inline-block; width: calc(100% - 60px); vertical-align: middle;" "display: inline-block; width: 100%; vertical-align: middle;"}}>
-        {{input id="find_picture" value=model.image_field enter=(action "find_picture") placeholder=search_prompt class="form-control inline select_on_click"}}
+      <span style={{if this.multi_locales "display: inline-block; width: calc(100% - 60px); vertical-align: middle;" "display: inline-block; width: 100%; vertical-align: middle;"}}>
+        {{input id="find_picture" value=this.model.image_field enter=(action "find_picture") placeholder=this.search_prompt class="form-control inline select_on_click"}}
       </span>
-      {{#if multi_locales}}
+      {{#if this.multi_locales}}
         <span style='display: inline-block; width: 55px; vertical-align: middle;'>
           <div class="btn-group" style='vertical-align: middle;'>
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='width: 100%;'>
-              <span style='vertical-align: middle; max-width: 20px; overflow: hidden; display: inline-block;'>{{search_locale}}</span> 
+              <span style='vertical-align: middle; max-width: 20px; overflow: hidden; display: inline-block;'>{{this.search_locale}}</span> 
               <span class="caret"></span>
             </button>
             <ul class="dropdown-menu">
-              {{#each locales as |loc|}}
+              {{#each this.locales as |loc|}}
                 <li><a href="#" {{action "set_locale" loc.id}}>{{loc.name}}</a></li>
               {{/each}}
             </ul>
@@ -183,7 +183,7 @@
       {{/if}}
     </span>
     <button type="button" class='btn btn-default' {{action "find_picture"}}>{{t "Search" key="search"}}</button>
-    <button type="button" {{action "webcamPicture" on="click"}} disabled={{webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
+    <button type="button" {{action "webcamPicture" on="click"}} disabled={{this.webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
       <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
     </button>
     <span class="file_select_holder">
@@ -192,10 +192,10 @@
       </button>
       <input type="file" name="image_upload" id="image_upload" accept="image/*">
     </span>
-    {{#if show_library_options}}
+    {{#if this.show_library_options}}
       <div style='margin-top: 3px;'>
         <div style='width: calc(100% - 170px); float: left;'>
-          {{bound-select select_class="form-control skip_select" select_id="skin_preference" short=true content=skin_options selection=skin_preference action=(action (mut skin_preference)) }}
+          {{bound-select select_class="form-control skip_select" select_id="skin_preference" short=true content=this.skin_options selection=this.skin_preference action=(action (mut this.skin_preference)) }}
         </div>
         <div style='width: 150px; float: left; margin-left: 5px;'>
           <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>

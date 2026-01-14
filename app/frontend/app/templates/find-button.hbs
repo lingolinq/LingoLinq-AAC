@@ -6,11 +6,11 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{focus-input force="true" type="text" id="button_search_string" value=searchString class="form-control" select="pick_result" placeholder="Word or phrase you're looking for"}}
-    {{#if searchString}}
+    {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="form-control" select="pick_result" placeholder="Word or phrase you're looking for"}}
+    {{#if this.searchString}}
       <div class="row" id="button_results">
-        {{#if results}}
-          {{#each results as |result|}}
+        {{#if this.results}}
+          {{#each this.results as |result|}}
             <div {{action "pick_result" result}} class="result col-sm-12">
               {{#if result.sequence}}
                 <div class='img_holder'>
@@ -76,17 +76,17 @@
           {{/each}}
         {{else}}
           <div class="col-sm-12">
-            {{#if loading}}
+            {{#if this.loading}}
               {{t "Loading..." key="loading"}}
             {{else}}
-              {{#if error}}
-                {{error}}
+              {{#if this.error}}
+                {{this.error}}
               {{else}}
-                {{#if button_set.buttons.length}}
+                {{#if this.button_set.buttons.length}}
                   {{t "No buttons found" key="no_buttons_found"}}
-                {{else if button_set}}
+                {{else if this.button_set}}
                   {{t "No buttons loaded" key="no_buttons_loaded"}}
-                {{else if model.board}}
+                {{else if this.model.board}}
                   {{t "Couldn't load button set" key="couldnt_load_button_set"}}
                 {{else}}
                   {{t "No board found for searching" key="no_board_found"}}
