@@ -6,12 +6,12 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if model.progress}}
-      {{#if model.progress.percent}}
+    {{#if this.model.progress}}
+      {{#if this.model.progress.percent}}
         <div class="progress">
-          <div class="progress-bar" role="progressbar" aria-value={{num_percent}} aria-valuemin="0" aria-valuemax="100" style={{num_style}}>
+          <div class="progress-bar" role="progressbar" aria-value={{this.num_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.num_style}}>
             <span class="sr-only">
-              {{t "%{pct}% Complete" key="percent_complete" pct=num_percent}}
+              {{t "%{pct}% Complete" key="percent_complete" pct=this.num_percent}}
             </span>
           </div>
         </div>
@@ -19,10 +19,10 @@
     {{/if}}
     <p>
       <img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;">
-      {{#if model.status.errored}}
+      {{#if this.model.status.errored}}
         {{t "There was an error importing your boards. Please make sure you uploaded a valid file and try again." key="bad_board_import"}}
       {{else}}
-        {{#if model.status.finished}}
+        {{#if this.model.status.finished}}
           {{t "Import finished! You should be directed to the new board..." key="import_board_finished_redirecting"}}
         {{else}}
           {{t "Importing boards, this could take a few minutes..." key="importing_boards_please_wait"}}
