@@ -1,9 +1,9 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body advanced_selection modal_targets" id="speak_menu" style="padding: 0; font-size: 18px;">
-    {{#if app_state.feature_flags.new_speak_menu}}
+    {{#if this.app_state.feature_flags.new_speak_menu}}
       {{#button-listener buttonEvent=(action "button_event")}}
         <div class='row' style='margin-left: -1px; margin-top: -1px; width: calc(100% + 2px); border-bottom: 1px solid #000;'>
-          {{#if repeat_menu}}
+          {{#if this.repeat_menu}}
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_quieter'>
               <span class='glyphicon glyphicon-volume-down'></span>
               {{t "Quiet" key="quiet"}}
@@ -24,7 +24,7 @@
               <span class='glyphicon glyphicon-repeat'></span>
               {{t "Flip Text" key="flip_text"}}
             </div>
-            {{#if app_state.referenced_user.preferences.hide_gif}}
+            {{#if this.app_state.referenced_user.preferences.hide_gif}}
               <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button'>
                 <span class='glyphicon glyphicon-share'></span>
                 {{t "Share" key="share"}}
@@ -35,9 +35,9 @@
                 {{t "GIF" key="gif"}}
               </div>
             {{/if}}
-          {{else if punctuation_menu}}
+          {{else if this.punctuation_menu}}
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_contraction_button'>
-              <span style='font-size: 25px; display: block; line-height: 50px'>{{contraction.label}}</span>
+              <span style='font-size: 25px; display: block; line-height: 50px'>{{this.contraction.label}}</span>
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_quote_buttoon'>
               <span style='font-size: 80px; display: block; line-height: 60px'>"</span>
@@ -69,9 +69,9 @@
               {{t "Repairs" key='repairs'}}
             </div>
             <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_inbox_button'>
-              {{#if app_state.referenced_user.unread_alerts}}
+              {{#if this.app_state.referenced_user.unread_alerts}}
                 <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>{{this.app_state.referenced_user.unread_alerts}}</span>
-              {{else if app_state.referenced_user.request_alert}}
+              {{else if this.app_state.referenced_user.request_alert}}
                 <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>*</span>
               {{/if}}
               <span class='glyphicon glyphicon-inbox'></span>
@@ -91,12 +91,12 @@
     {{else}}
       <ul class="nav nav-pills nav-stacked">
         <li style="padding: 15px 10px 0; font-size: 14px; color: #888;">
-          {{working_vocalization_text}}
+          {{this.working_vocalization_text}}
         </li>
         <li>
           <a href="#" {{action "selectButton" "remember"}}>{{t "Remember this" key='remember_this'}}</a>
         </li>
-        {{#if sharing_allowed}}
+        {{#if this.sharing_allowed}}
           <li>
             <a href="#" {{action "selectButton" "share"}}>{{t "Share this" key='share_this'}}</a>
           </li>
@@ -112,7 +112,7 @@
           <span style='font-size: 80px; display: block; line-height: 20px'>.</span>
         </div>
         <div class='speak_menu_button' id='menu_punctuation_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-bottom-width: 2px; position: relative;'>
-          {{#if punctuation_menu}}
+          {{#if this.punctuation_menu}}
             <span class='glyphicon glyphicon-arrow-left' style='opacity: 0.7;'></span>
             <span style='opacity: 0.7;'>{{t "Back" key='back'}}</span>
           {{else}}
@@ -128,31 +128,31 @@
       <li style='text-align: left; float: left; width: 50%;'>
         <a href="#" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
       </li>
-      {{#if app_state.feature_flags.new_speak_menu}}
-        {{#if working_vocalization_text}}
+      {{#if this.app_state.feature_flags.new_speak_menu}}
+        {{#if this.working_vocalization_text}}
           <li style='text-align: right; float: left; width: 50%;'>
             <a href="#" {{action "selectButton" "remember"}}>{{t "Remember this" key="remember_this"}}</a>
           </li>
         {{/if}}
       {{/if}}
-      {{#if app_state.reply_note}}
+      {{#if this.app_state.reply_note}}
         <li style='clear: left;'>
           <a href="#" {{action 'reply_note'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-envelope'></span></span>
             {{t "Send Reply" key='send_rely'}}
-            {{#if app_state.reply_note.author}}
+            {{#if this.app_state.reply_note.author}}
               {{t "to" key='to'}} {{this.app_state.reply_note.author.name}}
             {{/if}}
           </a>
         </li>
-      {{else if app_state.insertion}}
+      {{else if this.app_state.insertion}}
         <li style='clear: left;'>
           <a href="#" {{action 'end_insertion'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-console'></span></span>
             {{t "Done Inserting Text" key='done_inserting_text'}}
           </a>
         </li>
-      {{else if app_state.flipped}}
+      {{else if this.app_state.flipped}}
         <li style='clear: left;'>
           <a href="#" {{action 'flip_text'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-repeat'></span></span>
@@ -160,7 +160,7 @@
           </a>
         </li>
       {{/if}}
-      {{#each rememberedUtterances as |utterance|}}
+      {{#each this.rememberedUtterances as |utterance|}}
         <li style='clear: left;'>
           <a href="#" {{action "selectButton" utterance}} style='font-size: 13px; height: 55px; padding-top: 15px;'>
             {{#if utterance.stash }}
