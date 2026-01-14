@@ -1,10 +1,9 @@
 {
   "recommendations": [
     "castwide.ruby-lsp",
+    "rebornix.ruby",
     "bung87.ruby-rubocop",
     "google.generative-ai-vscode",
-    "Anthropic.claude-dev",
-    "GitHub.copilot",
-    "GitHub.copilot-chat"
+    "Anthropic.claude-dev"
   ]
 }
