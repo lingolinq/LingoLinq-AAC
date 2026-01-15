@@ -1,4 +1,4 @@
-{{#if app_state.currentUser.modeling_only}}
+{{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if this.model.currently_premium_or_premium_supporter}}
   <h2>
@@ -7,16 +7,16 @@
     {{else}}
       {{t "Logs for" key="logs_for"}} {{this.model.user_name}}
     {{/if}}
-    {{#if filtered_results}}
+    {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
       <span style='font-size: 12px; padding-left: 5px;'>
-      {{#link-to "user.logs" this.model.user_name (query-params type=type highlighted=null start="" end="" device_id="" location_id="")}}
+      {{#link-to "user.logs" this.model.user_name (query-params type=this.type highlighted=null start="" end="" device_id="" location_id="")}}
         {{t "clear filter" key="clear_filter"}}
       {{/link-to}}
       </span>
     {{else}}
       <span style='font-size: 12px; padding-left: 5px;'>
-        {{#if all_logs}}
+        {{#if this.all_logs}}
           {{#link-to "user.logs" this.model.user_name (query-params type="note" highlighted=null)}}{{t "Show Only Messages" key="show_only_messages"}}{{/link-to}} 
           {{#if this.model.currently_premium}}
             | 
@@ -31,7 +31,7 @@
       </span>
     {{/if}}
   {{#if this.messages_only}}
-  {{else if filtered_results}}
+  {{else if this.filtered_results}}
   {{else if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
       <div class='row big_buttons' style='margin-top: 20px;'>
@@ -49,15 +49,15 @@
     {{/if}}
   {{/if}}
   </h2>
-  {{#if logs.loading}}
+  {{#if this.logs.loading}}
     <p>{{t "Loading..." key="loading..."}}</p>
-  {{else if logs.error}}
+  {{else if this.logs.error}}
     <p>{{t "Failed to load" key="failed_to_load"}}</p>
-  {{else if logs}}
-    {{#if meta.logging_cutoffs}}
+  {{else if this.logs}}
+    {{#if this.meta.logging_cutoffs}}
       <div class='alert alert-warning'>
         {{t "NOTE: The results you are seeing are limited based on the user's preferences. You are currently only able to see results from the last " key="limited_logging_results"}}
-        {{seconds_ago logging_cutoff_seconds}}.
+        {{seconds_ago this.logging_cutoff_seconds}}.
         {{#if this.model.permissions.delete}}
           {{#if this.model.has_logging_code}}
             {{t "If you know the logging access code, you may enter that to temporarily unlock full access to the user's logs." key="logging_code_for_full_access"}}
@@ -65,7 +65,7 @@
             <form class="form-horizontal" {{action "update_logging_code" on="submit"}}>
               <div class="form-group">
                 <div class="col-sm-2">
-                  {{input type="text" value=logging_code class="form-control"}}
+                  {{input type="text" value=this.logging_code class="form-control"}}
                 </div>
                 <div class="col-sm-2">
                   <button class='btn btn-default'>{{t "Submit Code" key="submit_code"}}</button>
@@ -113,19 +113,19 @@
               <td style="white-space: nowrap;">{{t "..." key="ellipsis"}}</td>
             </tr>
           {{/if}}
-          {{#each logs as |log|}}
+          {{#each this.logs as |log|}}
             <LogItem @log={{log}} @user={{this.user}} @model={{this.model}} @messagesOnly={{this.messages_only}} />
           {{/each}}
         </tbody>
       </table>
     </div>
-    {{#if more_available}}
+    {{#if this.more_available}}
       <button class="btn btn-default" {{action "more"}}>{{t "More" key="more"}}</button>
     {{/if}}
   {{else}}
     <p>{{t "No records currently available" key="no_logs_found"}}</p>
   {{/if}}
-  {{#if all_logs}}
+  {{#if this.all_logs}}
     <!-- TODO
     <button class="btn btn-default" {{action "exportLogs"}}>{{t "Export Logs" key="export_logs"}}</button>
     -->
@@ -161,11 +161,11 @@
       {{/if}}
     {{/if}}
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1g"}}
-    {{#if app_state.feature_flags.subscriptions}}
+    {{#if this.app_state.feature_flags.subscriptions}}
       {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}

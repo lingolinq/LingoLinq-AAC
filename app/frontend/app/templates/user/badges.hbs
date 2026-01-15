@@ -1,16 +1,16 @@
-{{#if app_state.currentUser.modeling_only}}
+{{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
-{{else if model.currently_premium}}
+{{else if this.model.currently_premium}}
   <h2>{{t "Current Badges" key="current_badges"}}</h2>
-  {{#if badges.loading}}
+  {{#if this.badges.loading}}
     {{t "Loading badges..." key="loading_badges"}}
-  {{else if badges.error}}
+  {{else if this.badges.error}}
     {{t "Badges failed to load" key="badges_failed_to_load"}}
-  {{else if badges}}
-    {{#each badges as |badge|}}
+  {{else if this.badges}}
+    {{#each this.badges as |badge|}}
       <div class='well listed_badge sparkle_list_item'>
         <div style='float: right;'>
-          {{#if user.permissions.edit}}
+          {{#if this.user.permissions.edit}}
             {{#if badge.earned}}
               {{#if badge.highlighted}}
                 <button {{action "highlight_badge" badge false}} class='btn btn-lg btn-default' title={{t "un-highlight badge" key="unhighlight_badge"}}><span class='glyphicon glyphicon-star'></span></button>
@@ -36,7 +36,7 @@
             {{#if badge.global}}
               {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
             {{else}}
-              {{#link-to "user.goal" model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+              {{#link-to "user.goal" this.model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
             {{/if}}
           </div>
           <div style='margin-bottom: 10px;'>
@@ -75,12 +75,12 @@
   {{else}}
     {{t "No badges earned yet" key="no_badges_earned_yet"}}
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1d"}}
-    {{#if app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+    {{#if this.app_state.feature_flags.subscriptions}}
+      {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}
