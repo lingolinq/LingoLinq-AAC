@@ -1,35 +1,35 @@
-{{#if model.permissions.manage}}
+{{#if this.model.permissions.manage}}
   <h2>{{t "Billing Details" key="subscription_details"}}</h2>
-  {{#if model.permissions.manage_subscription}}
+  {{#if this.model.permissions.manage_subscription}}
     <form class="form-horizontal" {{action "update_org" on="submit"}}>
       <div class="form-group">
         <label for="allotted_licenses" class="col-sm-2 control-label">{{t "Purchased Licenses" key="purchased_licenses"}}</label>
         <div class="col-sm-1">
-          {{input value=model.allotted_licenses class="form-control" id="allotted_licenses" placeholder="0"}}
+          {{input value=this.model.allotted_licenses class="form-control" id="allotted_licenses" placeholder="0"}}
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_supervisor_licenses" class="col-sm-2 control-label">{{t "Premium Supervisors" key="premium_supervisors"}}</label>
         <div class="col-sm-1">
-          {{input value=model.allotted_supervisor_licenses class="form-control" id="allotted_supervisor_licenses" placeholder="0"}}
+          {{input value=this.model.allotted_supervisor_licenses class="form-control" id="allotted_supervisor_licenses" placeholder="0"}}
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_eval_licenses" class="col-sm-2 control-label">{{t "Eval Accounts" key="eval_accounts"}}</label>
         <div class="col-sm-1">
-          {{input value=model.allotted_eval_licenses class="form-control" id="allotted_eval_licenses" placeholder="0"}}
+          {{input value=this.model.allotted_eval_licenses class="form-control" id="allotted_eval_licenses" placeholder="0"}}
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_extras" class="col-sm-2 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
         <div class="col-sm-1">
-          {{input value=model.allotted_extras class="form-control" id="allotted_extras" placeholder="0"}}
+          {{input value=this.model.allotted_extras class="form-control" id="allotted_extras" placeholder="0"}}
         </div>
       </div>
       <div class="form-group">
         <label for="licenses_expire" class="col-sm-2 control-label">{{t "Expires" key="expires"}}</label>
         <div class="col-sm-3">
-          {{input type="date" value=model.licenses_expire class="form-control" id="licenses_expire" placeholder="YYYY-MM-DD"}}
+          {{input type="date" value=this.model.licenses_expire class="form-control" id="licenses_expire" placeholder="YYYY-MM-DD"}}
         </div>
       </div>
       <div class="form-group">
@@ -40,16 +40,16 @@
     </form>
   {{else}}
     <p>
-      {{#if model.allotted_licenses}}
-        {{t "license" key="licenses" count=model.allotted_licenses}}
-        {{t ", expires" key="comma_expires"}} {{date model.licenses_expire}}
+      {{#if this.model.allotted_licenses}}
+        {{t "license" key="licenses" count=this.model.allotted_licenses}}
+        {{t ", expires" key="comma_expires"}} {{date this.model.licenses_expire}}
       {{else}}
         {{t "No licenses allotted, unless attached to subscribers" key="no_licenses_allotted"}}
       {{/if}}
     </p>
     <p>{{t "Thank you for supporting %app_name%, and the many communicators who use it!" key="thanks_for_supporting_app"}}</p>
   {{/if}}
-  {{#if model.org_subscriptions}}
+  {{#if this.model.org_subscriptions}}
     <h3>{{t "Associated Purchases" key="associated_subscriptions"}}</h3>
     <table class='table table-striped table-hover'>
       <thead>
@@ -60,7 +60,7 @@
         </tr>
       </thead>
       <tbody>
-      {{#each model.processed_org_subscriptions as |sub|}}
+      {{#each this.model.processed_org_subscriptions as |sub|}}
         <tr>
           <td>
             {{#link-to "user" sub.user_name}}
@@ -81,10 +81,10 @@
       </tbody>
     </table>
   {{/if}}
-  {{#if model.purchase_history}}
+  {{#if this.model.purchase_history}}
     <h3>{{t "Purchase History" key="purchase_history"}}</h3>
     <ul class="list-group">
-      {{#each model.processed_purchase_history as |event|}}
+      {{#each this.model.processed_purchase_history as |event|}}
         {{#if event.update_license_count}}
           <li class="list-group-item">
             {{t "License count was updated to %{num} - " key="license_count_updated" num=event.count}}

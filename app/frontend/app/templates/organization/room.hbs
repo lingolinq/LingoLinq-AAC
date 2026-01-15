@@ -1,6 +1,6 @@
-{{#if model.permissions.view}}
-  <h2>{{ model.name }}</h2>
-  {{#if model.permissions.view_stats}}
+{{#if this.model.permissions.view}}
+  <h2>{{ this.model.name }}</h2>
+  {{#if this.model.permissions.view_stats}}
     <div class="row">
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
@@ -8,8 +8,8 @@
             {{t "Last logged session" key="last_logged_session"}}
           </div>
           <div class="panel-body">
-            {{#if first_log}}
-              {{date_ago first_log.started_at}}
+            {{#if this.first_log}}
+              {{date_ago this.first_log.started_at}}
             {{else}}
               {{t "..." key="ellipsis"}}
             {{/if}}
@@ -22,10 +22,10 @@
             {{t "Recent Sessions" key="recent_sessions"}}
           </div>
           <div class="panel-body">
-            {{#if log_stats.loaded}}
-              {{delimit log_stats.total_words}} {{t "words" key="words"}},
+            {{#if this.log_stats.loaded}}
+              {{delimit this.log_stats.total_words}} {{t "words" key="words"}},
             {{/if}}
-            {{t "session" key="n_sessions" count=model.user_counts.recent_session_count}}
+            {{t "session" key="n_sessions" count=this.model.user_counts.recent_session_count}}
           </div>
         </div>
       </div>
@@ -35,7 +35,7 @@
             {{t "Recently-logged Usage" key="recently_logged_usage"}}
           </div>
           <div class="panel-body">
-            {{t "hr" key="n_hours_abbrev" count=model.user_counts.recent_session_hours}},
+            {{t "hr" key="n_hours_abbrev" count=this.model.user_counts.recent_session_hours}},
 
             {{this.model.user_counts.recent_session_user_count}} / {{this.model.user_counts.total_users}}
             {{t "users" key="users_lower"}}
@@ -43,24 +43,24 @@
         </div>
       </div>
 
-      {{#if log_stats.loaded}}
+      {{#if this.log_stats.loaded}}
         <div class="col-sm-3 col-xs-6">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
               {{t "Avg. Usage" key="words_per_day"}}
             </div>
             <div class="panel-body">
-              {{t "word" count=log_stats.avg_words_per_day key="n_words"}}/{{t "day" key="day_lower"}}, 
-              {{t "session" count=log_stats.avg_sessions_per_user_week key="n_sessions"}}/{{t "wk" key="wk"}}
+              {{t "word" count=this.log_stats.avg_words_per_day key="n_words"}}/{{t "day" key="day_lower"}}, 
+              {{t "session" count=this.log_stats.avg_sessions_per_user_week key="n_sessions"}}/{{t "wk" key="wk"}}
             </div>
           </div>
         </div>
       {{/if}}
-      {{#if model.permissions.view}}
+      {{#if this.model.permissions.view}}
         <div style='clear: left;'></div>
         <div class='col-sm-6' style='margin-bottom: 10px;'>
-          {{#if model.permissions.edit}}
-            {{#if organization.premium}}
+          {{#if this.model.permissions.edit}}
+            {{#if this.organization.premium}}
               <span class="dropdown">
                 <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                   <span class='glyphicon glyphicon-envelope'></span>
@@ -74,28 +74,28 @@
                 </ul>
               </span>
             {{/if}}
-            {{#if model.permissions.delete}}
+            {{#if this.model.permissions.delete}}
               <button class='btn btn-default' {{action "add_users"}}>{{t "Add Users" key="add_users"}}</button>
             {{/if}}
             <button class='btn btn-default' {{action "edit_unit"}}>{{t "Edit Room" key="edit_room"}}</button>
           {{/if}}
-          {{#if model.permissions.edit}}
+          {{#if this.model.permissions.edit}}
           <span class="dropdown">
             <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
               {{t "Actions" key="actions"}}
               <span class="caret"></span>
             </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
-              {{#if organization.premium}}
+              {{#if this.organization.premium}}
                 <li><a href="#" {{action "set_goal"}}>
-                  {{#if model.goal}}
+                  {{#if this.model.goal}}
                     {{t "Remove Room-Wide Goal" key="remove_room_wide_goal"}}
                   {{else}}
                     {{t "Set Room-Wide Goal" key="set_room_wide_goal"}}
                   {{/if}}
                 </a></li>
-                {{#if app_state.feature_flags.lessons}}
-                  {{#if model.lesson}}
+                {{#if this.app_state.feature_flags.lessons}}
+                  {{#if this.model.lesson}}
                     <li><a href="#" {{action "remove_lesson"}}>{{t "Remove Training" key="remove_training"}}</a></li>
                   {{else}}
                     <li><a href="#" {{action "set_lesson"}}>{{t "Assign Training" key="assign_training"}}</a></li>
@@ -103,7 +103,7 @@
                 {{/if}}
                 <li><a href="#" {{action "update_curriculum"}}>{{t "Update Curriculum" key="update_curriculum"}}</a></li>
               {{/if}}
-              {{#if model.permissions.delete}}
+              {{#if this.model.permissions.delete}}
                 <li><a href="#" {{action "delete_unit"}}>{{t "Delete Room" key="delete_room"}}</a></li>
               {{/if}}
             </ul>
@@ -111,7 +111,7 @@
           {{/if}}
         </div>
       {{/if}}
-      {{#if log_stats.loaded}}
+      {{#if this.log_stats.loaded}}
         <div class="col-sm-3 col-xs-6">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
@@ -119,31 +119,31 @@
             </div>
             <div class="panel-body" style='max-height: 90px; font-size: 13px; overflow: auto; white-space: normal;'>
 
-              {{#if log_stats.goal_word_counts}}
-                {{#each log_stats.goal_word_counts as |wrd|}}
+              {{#if this.log_stats.goal_word_counts}}
+                {{#each this.log_stats.goal_word_counts as |wrd|}}
                   <span style='padding-right: 10px; font-size: 16px; font-weight: bold;'>
                     {{wrd.word}}
                   </span>
                 {{/each}}
-              {{else if model.goal}}
-              {{else if model.user_counts.goal_set}}
+              {{else if this.model.goal}}
+              {{else if this.model.user_counts.goal_set}}
                 <em style='font-size: 12px;'>{{t "No words targeted in user goals" key="no_words_targeted_in_user_goals"}}</em>
               {{else}}
                 <em style='font-size: 12px;'>{{t "No user goals set" key="no_user_goals_set"}}</em>
               {{/if}}
 
-              {{#if organization.premium}}
-                {{#if model.goal}}
+              {{#if this.organization.premium}}
+                {{#if this.model.goal}}
                   <div style='font-style: italic; margin-top: 5px;'>
-                    {{#link-to "goals.goal" model.goal.id}}{{this.model.goal.summary}}{{/link-to}}
+                    {{#link-to "goals.goal" this.model.goal.id}}{{this.model.goal.summary}}{{/link-to}}
                   </div>
                 {{/if}}
               {{/if}}
 
-              {{#if organization.premium}}
-                {{#if model.permissions.edit}}
+              {{#if this.organization.premium}}
+                {{#if this.model.permissions.edit}}
                   <div style='text-align: right; margin-top: 10px;'>
-                    {{#if model.goal}}
+                    {{#if this.model.goal}}
                     {{else}}
                       <a href="#" {{action "set_goal"}} style='font-size: 12px;'>{{t "set goal" key="set_goal"}}</a>
                     {{/if}}
@@ -154,16 +154,16 @@
           </div>
         </div>
       {{/if}}
-      {{#if organization.premium}}
+      {{#if this.organization.premium}}
         <div class="col-sm-3">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
               {{t "Curriculum & Training" key="training_and_curriculum"}}
             </div>
             <div class="panel-body" style='max-height: 90px; font-size: 13px; overflow: auto; white-space: normal;'>
-              {{#if lesson_or_topics}}
-                {{#if model.topics}}
-                  {{#each model.topics as |topic|}}
+              {{#if this.lesson_or_topics}}
+                {{#if this.model.topics}}
+                  {{#each this.model.topics as |topic|}}
                     <span style='padding-right: 15px; font-size: 16px;'>
                     {{#if topic.url}}
                       <a href={{topic.url}} target="_blank" rel="noopener">{{topic.title}}</a>
@@ -173,18 +173,18 @@
                     </span>
                   {{/each}}
                 {{/if}}
-                {{#if app_state.feature_flags.lessons}}
-                  {{#if model.lesson}}
+                {{#if this.app_state.feature_flags.lessons}}
+                  {{#if this.model.lesson}}
                     <div style='font-style: italic; margin-top: 10px;'>
                       <a href="#" {{action "launch_lesson"}}>{{this.model.lesson.title}}</a>
-                      ({{lesson_targets}})
+                      ({{this.lesson_targets}})
                     </div>
                   {{/if}}
                 {{/if}}
               {{else}}
                 {{t "None Set" key="none_set"}}
               {{/if}}
-              {{#if model.permissions.edit}}
+              {{#if this.model.permissions.edit}}
                 <div style='text-align: right; margin-top: 10px;'>
                   <a href="#" {{action "update_curriculum"}}>{{t "update curriculum" key="update_curriculum_lower"}}</a>
                 </div>
@@ -194,11 +194,11 @@
         </div>
       {{/if}}
       <div style='clear: both;'></div>
-      {{#if model.permissions.edit}}
-        {{#if model.adding_users}}
+      {{#if this.model.permissions.edit}}
+        {{#if this.model.adding_users}}
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=organization.supervisor_options selection=model.supervisor_user_name action=(action (mut model.supervisor_user_name)) }}
+              {{bound-select select_class="form-control" content=this.organization.supervisor_options selection=this.model.supervisor_user_name action=(action (mut this.model.supervisor_user_name)) }}
             </span>
             <div class="btn-group dropdown">
               <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -212,7 +212,7 @@
           </div>
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=organization.communicator_options selection=model.communicator_user_name action=(action (mut model.communicator_user_name)) }}
+              {{bound-select select_class="form-control" content=this.organization.communicator_options selection=this.model.communicator_user_name action=(action (mut this.model.communicator_user_name)) }}
             </span>
             <button class='btn btn-default' {{action "add_unit_user" "communicator"}}>{{t "Add Communicator" key="add_communicator"}}</button>
           </div>
@@ -220,34 +220,34 @@
       {{/if}}
 
       <div class="col-sm-6" style="padding: 0; page-break-inside: avoid;">
-        {{#if model.weekly_stats.loading}}
+        {{#if this.model.weekly_stats.loading}}
           {{t "Loading reports..." key="loading_reports"}}
-        {{else if model.weekly_stats.error}}
+        {{else if this.model.weekly_stats.error}}
           {{t "There was a problem loading this report" key="problem_loading_report"}}
         {{else}}
-          {{stats/sessions-per-week weekly_stats=model.weekly_stats}}
+          {{stats/sessions-per-week weekly_stats=this.model.weekly_stats}}
         {{/if}}
       </div>
       <div class="col-sm-3 col-xs-6" style="padding: 0;">
-        {{stats/recent-sessions total=model.user_counts.total_users recent=model.user_counts.recent_session_user_count}}
+        {{stats/recent-sessions total=this.model.user_counts.total_users recent=this.model.user_counts.recent_session_user_count}}
       </div>
-      {{#if model.user_counts}}
+      {{#if this.model.user_counts}}
         <div class="col-sm-3 col-xs-6" style="padding: 0;">
-          {{stats/recent-goals total=model.user_counts.total_users goal_set=model.user_counts.goal_set tracked=model.user_counts.goal_recently_logged}}
+          {{stats/recent-goals total=this.model.user_counts.total_users goal_set=this.model.user_counts.goal_set tracked=this.model.user_counts.goal_recently_logged}}
         </div>
       {{/if}}
       <div class='col-sm-6' style='clear: both;'>
         <strong>{{t "Recent Words" key="recent_words"}}</strong>
-        {{#if log_stats.word_count}}
-          {{stats/word-cloud stats=words_cloud short=true zoom=1}}
+        {{#if this.log_stats.word_count}}
+          {{stats/word-cloud stats=this.words_cloud short=true zoom=1}}
         {{else}}
           <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
         {{/if}}
       </div>
       <div class='col-sm-6'>
         <strong>{{t "Modeled Words" key="modeled_words"}}</strong>
-        {{#if modeled_words_cloud.words_by_frequency.length}}
-          {{stats/word-cloud stats=modeled_words_cloud short=true zoom=1}}
+        {{#if this.modeled_words_cloud.words_by_frequency.length}}
+          {{stats/word-cloud stats=this.modeled_words_cloud short=true zoom=1}}
         {{else}}
           <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
         {{/if}}
@@ -256,24 +256,24 @@
     </div>
   {{/if}}
   <h3>{{t "Supervisors" key="supervisors"}}</h3>
-  {{#if model.supervisors}}
-    {{stats/user-weeks unit=model user_type="supervisor" users=model.supervisors weeks=model.supervisor_weeks delete_user="delete_unit_user" user_profile="supervisor_profile" refresh="refresh" deletable=model.permissions.edit profiles=model.org_profile show_profiles=model.org_supervisor_profile lesson=model.lesson}}
+  {{#if this.model.supervisors}}
+    {{stats/user-weeks unit=this.model user_type="supervisor" users=this.model.supervisors weeks=this.model.supervisor_weeks delete_user="delete_unit_user" user_profile="supervisor_profile" refresh="refresh" deletable=this.model.permissions.edit profiles=this.model.org_profile show_profiles=this.model.org_supervisor_profile lesson=this.model.lesson}}
   {{else}}
     <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
   {{/if}}
 
   <h3>{{t "Communicators" key="communicators"}}</h3>
-  {{#if model.communicators}}
-    {{stats/user-weeks unit=model user_type="communicator" org=organization users=model.communicators weeks=model.user_weeks room_goal_id=model.goal_id delete_user="delete_unit_user" user_profile="communicator_profile" user_status="communicator_status" refresh_id=refresh_id refresh="refresh" deletable=model.permissions.edit max_session_count=model.max_session_count profiles=model.org_profile show_profiles=model.org_communicator_profile lesson=model.lesson}}
+  {{#if this.model.communicators}}
+    {{stats/user-weeks unit=this.model user_type="communicator" org=this.organization users=this.model.communicators weeks=this.model.user_weeks room_goal_id=this.model.goal_id delete_user="delete_unit_user" user_profile="communicator_profile" user_status="communicator_status" refresh_id=this.refresh_id refresh="refresh" deletable=this.model.permissions.edit max_session_count=this.model.max_session_count profiles=this.model.org_profile show_profiles=this.model.org_communicator_profile lesson=this.model.lesson}}
   {{else}}
     <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
   {{/if}}
 
-  {{#if model.permissions.view_stats}}
+  {{#if this.model.permissions.view_stats}}
     <h3 style='margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;'>{{t "Recent Usage" key="recent_usage"}}</h3>
-    {{#if model.logs.data}}
+    {{#if this.model.logs.data}}
       <ul class="list-unstyled">
-      {{#each model.logs.data as |log|}}
+      {{#each this.model.logs.data as |log|}}
         <li>
           <p>
             {{#link-to "user" log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
@@ -289,7 +289,7 @@
         </li>
       {{/each}}
       </ul>
-    {{else if logs.loading}}
+    {{else if this.logs.loading}}
       <p>{{t "Loading sessions..." key="loading_sessions"}}</p>
     {{else}}
       <p>{{t "None found" key="none_found"}}</p>
