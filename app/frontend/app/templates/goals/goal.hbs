@@ -1,10 +1,10 @@
-{{#if model.template_or_unit}}
-  <h2>{{ model.summary }}</h2>
-  {{#if model.unit_id}}
-    {{#link-to "organization.room" model.unit_org_id model.unit_id}}{{t "Return to " key="return_to"}}{{#if model.unit_name}}{{ model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}{{/link-to}}
+{{#if this.model.template_or_unit}}
+  <h2>{{ this.model.summary }}</h2>
+  {{#if this.model.unit_id}}
+    {{#link-to "organization.room" this.model.unit_org_id this.model.unit_id}}{{t "Return to " key="return_to"}}{{#if this.model.unit_name}}{{ this.model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}{{/link-to}}
   {{/if}}
-  {{#if model.sequence}}
-    {{#if model.related.header}}
+  {{#if this.model.sequence}}
+    {{#if this.model.related.header}}
       <div class="row">
         <div class="col-sm-3 col-xs-6">
           <div class="panel panel-default summary smaller">
@@ -12,17 +12,17 @@
               {{t "Goal Sequence" key="goal_sequence"}}
             </div>
             <div class="panel-body">
-              {{#if model.template_header}}
+              {{#if this.model.template_header}}
                 {{this.model.related.header.sequence_summary}}
               {{else}}
-                {{#link-to "goals.goal" model.related.header.id}}
+                {{#link-to "goals.goal" this.model.related.header.id}}
                   {{this.model.related.header.sequence_summary}}
                 {{/link-to}}
                 &nbsp;
               {{/if}}
               <div class='sub_link text-muted'>
-                {{t "goal" count=model.related.header.template_stats.goals key="n_goals"}}
-                {{#if model.related.header.template_stats.loop}}
+                {{t "goal" count=this.model.related.header.template_stats.goals key="n_goals"}}
+                {{#if this.model.related.header.template_stats.loop}}
                   {{t "repeating" key="in_a_loop"}}
                 {{else}}
                   {{t "in sequence" key="in_sequence"}}
@@ -37,15 +37,15 @@
               {{t "Advances" key="advances"}}
             </div>
             <div class="panel-body">
-              {{#if model.advance}}
-                {{date model.advance "short_day"}}
-              {{else if model.duration}}
-                {{seconds_ago model.duration "long"}}
+              {{#if this.model.advance}}
+                {{date this.model.advance "short_day"}}
+              {{else if this.model.duration}}
+                {{seconds_ago this.model.duration "long"}}
               {{else}}
                 {{t "Not Set" key="not_set"}}
               {{/if}}
               <div class='sub_link text-muted'>
-                {{#if model.template_header}}
+                {{#if this.model.template_header}}
                   {{t "(first in sequence)" key="first_in_sequence_paren"}}
                 {{else}}
                   &nbsp;
@@ -60,8 +60,8 @@
               {{t "Previous Goal" key="previous_goal"}}
             </div>
             <div class="panel-body">
-              {{#if model.related.previous}}
-                {{#link-to "goals.goal" model.related.previous.id}}
+              {{#if this.model.related.previous}}
+                {{#link-to "goals.goal" this.model.related.previous.id}}
                   {{this.model.related.previous.summary}}
                 {{/link-to}}
               {{else}}
@@ -77,8 +77,8 @@
               {{t "Next Goal" key="next_goal"}}
             </div>
             <div class="panel-body">
-              {{#if model.related.next}}
-                {{#link-to "goals.goal" model.related.next.id}}
+              {{#if this.model.related.next}}
+                {{#link-to "goals.goal" this.model.related.next.id}}
                   {{this.model.related.next.summary}}
                 {{/link-to}}
               {{else}}
@@ -91,85 +91,85 @@
       </div>
     {{/if}}
   {{/if}}
-  {{#if editing}}
+  {{#if this.editing}}
     <form class="form-horizontal" {{action "save" on="submit"}}>
-      {{#if model.template_header}}
+      {{#if this.model.template_header}}
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
           <div class="col-sm-5">
-            {{input value=model.sequence_summary class="form-control" id="sequence_summary" placeholder="short sequence summary"}}
+            {{input value=this.model.sequence_summary class="form-control" id="sequence_summary" placeholder="short sequence summary"}}
           </div>
         </div>
         <div class="form-group">
           <label for="sequence_description" class="col-sm-2 control-label">{{t "Details" key="details"}}</label>
           <div class="col-sm-5">
-            {{textarea value=model.sequence_description class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence"}}
+            {{textarea value=this.model.sequence_description class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence"}}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
         <div class="col-sm-5">
-          {{input value=model.summary class="form-control" id="summary" placeholder="short goal summary"}}
+          {{input value=this.model.summary class="form-control" id="summary" placeholder="short goal summary"}}
         </div>
       </div>
       <div class="form-group">
         <label for="description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-5">
-          {{textarea value=model.description class="form-control" id="description" placeholder="longer, detailed description of the goal"}}
+          {{textarea value=this.model.description class="form-control" id="description" placeholder="longer, detailed description of the goal"}}
         </div>
       </div>
-      {{#if model.sequence}}
+      {{#if this.model.sequence}}
         <div class="form-group">
           <label for="advancement" class="col-sm-2 control-label">{{t "Advances" key="advances"}}</label>
           <div class="col-sm-2">
-            {{bound-select select_class="form-control" select_id="advancement" content=advance_options selection=model.advance_type action=(action (mut model.advance_type)) }}
+            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(action (mut this.model.advance_type)) }}
           </div>
-          {{#if model.date_advance}}
+          {{#if this.model.date_advance}}
             <div class='col-sm-3'>
-              {{input value=model.goal_advances_at class="form-control" id="date_advance" placeholder="month, day"}}
+              {{input value=this.model.goal_advances_at class="form-control" id="date_advance" placeholder="month, day"}}
             </div>
-          {{else if model.duration_advance}}
+          {{else if this.model.duration_advance}}
             <div class='col-sm-1'>
-              {{input type="number" value=model.goal_duration_number class="form-control" id="duration_advance" placeholder="##"}}
+              {{input type="number" value=this.model.goal_duration_number class="form-control" id="duration_advance" placeholder="##"}}
             </div>
             <div class='col-sm-2'>
-              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=advance_unit_options selection=model.goal_duration_unit action=(action (mut model.goal_duration_unit)) }}
+              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(action (mut this.model.goal_duration_unit)) }}
             </div>
           {{/if}}
         </div>
       {{/if}}
-      {{#if model.any_advance}}
+      {{#if this.model.any_advance}}
         <div class="form-group">
           <label for="next_template_id" class="col-sm-2 control-label">{{t "Next Template" key="next_template"}}</label>
           <div class="col-sm-2">
-            {{#if status.loading_templates}}
+            {{#if this.status.loading_templates}}
               <p class='form-control-static'>{{t "Loading templates..." key="loading_templates"}}</p>
-            {{else if status.loading_templates_error}}
+            {{else if this.status.loading_templates_error}}
               <p class='form-control-static'>{{t "There was an unexpected error loading templates..." key="error_loading_templates2"}}</p>
             {{else}}
-              {{bound-select select_class="form-control" select_id="next_template_id" content=template_options selection=model.next_template_id action=(action (mut model.next_template_id)) }}
+              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(action (mut this.model.next_template_id)) }}
             {{/if}}
           </div>
         </div>
       {{/if}}
-      {{#if model.new_next_template_id}}
+      {{#if this.model.new_next_template_id}}
         <div class="form-group">
           <label for="new_summary" class="col-sm-2 control-label">&nbsp;</label>
           <div class="col-sm-5">
-            {{input value=model.new_next_template_summary class="form-control" id="new_summary" placeholder="short sequence summary"}}
+            {{input value=this.model.new_next_template_summary class="form-control" id="new_summary" placeholder="short sequence summary"}}
           </div>
         </div>
       {{/if}}
-      {{#unless model.related.header}}
-        {{#unless model.global}}
-          {{#if app_state.currentUser.permissions.admin_support_actions}}
+      {{#unless this.model.related.header}}
+        {{#unless this.model.global}}
+          {{#if this.app_state.currentUser.permissions.admin_support_actions}}
             <div class="form-group">
               <label for="template_header" class="col-sm-2 control-label">{{t "Template" key="template_header"}}</label>
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    {{input type="checkbox" checked=model.template_header id="template_header"}}
+                    {{input type="checkbox" checked=this.model.template_header id="template_header"}}
                     {{t "This goal is a public template for others to use" key="make_goal_a_template"}}
                   </label>
                 </div>
@@ -179,20 +179,20 @@
         {{/unless}}
       {{/unless}}
 
-      {{#unless model.global}}
+      {{#unless this.model.global}}
         <div class="form-group">
           <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key="auto_assessment"}}</label>
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.auto_assessment id="auto_assessment"}}
+                {{input type="checkbox" checked=this.model.auto_assessment id="auto_assessment"}}
                 {{t "Assess this goal daily based on usage data" key="assess_goal_daily"}}
               </label>
             </div>
           </div>
         </div>
-        {{#if model.assessment_badge}}
-          {{badge-settings badge=model.assessment_badge assessment=true}}
+        {{#if this.model.assessment_badge}}
+          {{badge-settings badge=this.model.assessment_badge assessment=true}}
         {{/if}}
       {{/unless}}
       <div class="form-group">
@@ -200,20 +200,20 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=model.badges_enabled id="badges"}}
+              {{input type="checkbox" checked=this.model.badges_enabled id="badges"}}
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
         </div>
       </div>
-      {{#if model.badges_enabled}}
+      {{#if this.model.badges_enabled}}
         <div class="form-group">
           <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
-            {{input value=model.badge_name class="form-control" id="badge_name" placeholder="optional badge name"}}
+            {{input value=this.model.badge_name class="form-control" id="badge_name" placeholder="optional badge name"}}
           </div>
         </div>
-        {{#each model.badges as |badge index|}}
+        {{#each this.model.badges as |badge index|}}
           {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
         {{/each}}
         <div class="form-group">
@@ -225,15 +225,15 @@
 
       <div class="form-group">
         <div class="col-sm-offset-2 col-sm-4">
-          <button type="submit" class="btn btn-primary" disabled={{status.saving}}>
-            {{#if status.saving}}
+          <button type="submit" class="btn btn-primary" disabled={{this.status.saving}}>
+            {{#if this.status.saving}}
               {{t "Saving Goal..." key="saving_goal"}}
             {{else}}
               {{t "Save Goal" key="save_goal"}}
             {{/if}}
           </button>
           <button type="button" class="btn btn-default" {{action "cancel_save"}}>{{t "Cancel" key="cancel"}}</button>
-          {{#if status.saving_error}}
+          {{#if this.status.saving_error}}
             <p class='text-danger'>{{t "There was an unexpected error creating the goal" key="error_creating_goal"}}</p>
         {{/if}}
         </div>
@@ -241,21 +241,21 @@
     </form>
   {{else}}
     <div class='safe_html'>
-      {{safe model.description}}
+      {{safe this.model.description}}
     </div>
-    {{#if assessment_badge_description}}
+    {{#if this.assessment_badge_description}}
       <p style='margin-top: 20px;'>
         <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
-        {{assessment_badge_description}}
+        {{this.assessment_badge_description}}
       </p>
     {{/if}}
-    {{#if model.badges}}
+    {{#if this.model.badges}}
       <h4 style='margin-top: 40px;'>{{t "Badges" key="badges"}}</h4>
-      {{#if model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
+      {{#if this.model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
       <table class='goal_badges'>
         <tbody>
           <tr>
-          {{#each mapped_badges as |badge|}}
+          {{#each this.mapped_badges as |badge|}}
               <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
                 <span style='display: inline-block; position: relative;'>
                   <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
@@ -290,19 +290,19 @@
         </tbody>
       </table>
     {{/if}}
-    {{#if model.sequence}}
-      {{#if model.related.header}}
+    {{#if this.model.sequence}}
+      {{#if this.model.related.header}}
         <h4 style='margin-top: 50px;'>{{t "Sequence Description:" key="sequence_description"}}</h4>
         <div class='safe_html'>
-          {{safe model.related.header.sequence_description}}
+          {{safe this.model.related.header.sequence_description}}
         </div>
       {{/if}}
-      {{#if model.template_header}}
-        {{#if status.loading_templates}}
+      {{#if this.model.template_header}}
+        {{#if this.status.loading_templates}}
           <p>{{t "Loading templates..." key="loading_templates"}}</p>
-        {{else if status.loading_templates_error}}
+        {{else if this.status.loading_templates_error}}
           <p>{{t "Error loading templates" key="error_loading_templates"}}</p>
-        {{else if templates}}
+        {{else if this.templates}}
           <h4 style='margin-top: 30px;'>{{t "Sequence Goals" key="sequence_goals"}}</h4>
           <table class='table table-striped table-hover' style='max-width: 600px;'>
             <thead>
@@ -314,7 +314,7 @@
               </tr>
             </thead>
             <tbody>
-              {{#each templates as |goal|}}
+              {{#each this.templates as |goal|}}
                 <tr>
                   <td>
                     {{#if goal.template_header}}
@@ -356,14 +356,14 @@
     {{/if}}
   {{/if}}
 
-  {{#unless editing}}
-    {{#if model.permissions.edit}}
+  {{#unless this.editing}}
+    {{#if this.model.permissions.edit}}
       <div style='margin-top: 50px;'>
         <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>
-        {{#if model.permissions.delete}}
+        {{#if this.model.permissions.delete}}
           <button class='btn btn-default' {{action "delete_goal"}}>{{t "Delete Goal" key="delete_goal"}}</button>
         {{/if}}
-        {{#if model.unit_id}}
+        {{#if this.model.unit_id}}
           <button class='btn btn-default' {{action "unlink_goal"}}>{{t "Unlink from Room" key="unlink_from_room"}}</button>
         {{/if}}
       </div>
