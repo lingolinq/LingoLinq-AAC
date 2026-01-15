@@ -1,9 +1,9 @@
 {{#modal-dialog stretch_ratio=1.5 opening=(action "opening") closing=(action "closing")}}
   <div class="modal-body">
-    {{#if player.error}}
+    {{#if this.player.error}}
       <div style="width: 100%; margin-top: 30px; text-align: center;">
         <p>
-          {{#if player.embed_error}}
+          {{#if this.player.embed_error}}
             {{t "This video isn't allowed to be shown inside %app_name%" key="embed_forbidden"}}
           {{else}}
             {{t "There was an unexpected error loading the video" key="video_error"}}
@@ -15,22 +15,22 @@
       </div>
     {{else}}
       <div class="video_box">
-        {{#if video_url}}
-          <iframe src={{video_url}} id="video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
+        {{#if this.video_url}}
+          <iframe src={{this.video_url}} id="video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
         {{else}}
           {{t "Invalid video resource" key="invalid_video_resource"}}
         {{/if}}
-        {{#if player.started}}
-          {{#unless model.hide_overlay}}
+        {{#if this.player.started}}
+          {{#unless this.model.hide_overlay}}
             <div class="video_box_overlay"></div>
           {{/unless}}
         {{/if}}
       </div>
     {{/if}}
     <p style="margin-top: 10px;">
-      {{#unless player.error}}
+      {{#unless this.player.error}}
         <button class="btn btn-lg btn-default" {{action "toggle_video"}} style="width: 160px;">
-          {{#if player.paused}}
+          {{#if this.player.paused}}
             {{t "Resume Video" key="resume_video"}}
           {{else}}
             {{t "Pause Video" key="pause_video"}}
@@ -38,9 +38,9 @@
         </button>
       {{/unless}}
       <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
-      {{#if player.time}}
-        {{#if player.duration}}
-          <span class="text-muted" style="margin-left: 10px;">{{duration player.time}} / {{duration player.duration}}</span>
+      {{#if this.player.time}}
+        {{#if this.player.duration}}
+          <span class="text-muted" style="margin-left: 10px;">{{duration this.player.time}} / {{duration this.player.duration}}</span>
         {{/if}}
       {{/if}}
     </p>

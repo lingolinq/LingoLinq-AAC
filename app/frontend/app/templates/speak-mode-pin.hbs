@@ -30,15 +30,15 @@
           <td>&nbsp;</td>
         </tr>
       </tbody></table>
-      {{#if invalid_pin}}
+      {{#if this.invalid_pin}}
         <p class="text-danger">{{t "Invalid PIN. Try again!" key="invalid_pin_try_again"}}</p>
       {{/if}}
-      <input type="text" class="form-control" value={{pin_dots}} rel={{pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;">
+      <input type="text" class="form-control" value={{this.pin_dots}} rel={{this.pin}} style="font-size: 50px; height: 55px; text-align: center; line-height: 20px; padding-top: 0;">
     </div>
     <div class="modal-footer">
-      {{#unless model.hide_hint}}
-        {{#if show_pin}}
-          PIN: {{ model.actual_pin }}
+      {{#unless this.model.hide_hint}}
+        {{#if this.show_pin}}
+          PIN: {{ this.model.actual_pin }}
         {{else}}
           <a href="#" {{action "reveal_pin" on="click"}}>touch here to show the PIN</a>
         {{/if}}
