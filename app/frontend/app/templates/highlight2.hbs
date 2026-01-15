@@ -8,10 +8,10 @@
   </div>
   <div class="highlight" style={{this.model.bottom_style}} {{action "close"}}>
   </div>
-  <div class={{highlight_class}} style={{this.model.highlight_style}} {{action "select"}}>
+  <div class={{this.highlight_class}} style={{this.model.highlight_style}} {{action "select"}}>
   </div>
-  <div class={{highlight_inner_class}} id='highlight_box' style={{this.model.inner_highlight_style}} {{action "select"}}>
-    {{#if model.icon_class}}
+  <div class={{this.highlight_inner_class}} id='highlight_box' style={{this.model.inner_highlight_style}} {{action "select"}}>
+    {{#if this.model.icon_class}}
       <span class={{this.model.icon_class}} style={{this.model.icon_style}}></span>
     {{/if}}
   </div>

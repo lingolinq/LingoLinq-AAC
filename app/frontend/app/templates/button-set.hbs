@@ -1,15 +1,15 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Button List for %{board_name}" key="button_list_for" board_name=model.board.name}}</h3>
+    <h3>{{t "Button List for %{board_name}" key="button_list_for" board_name=this.model.board.name}}</h3>
   </div>
   <div class="modal-body">
-    {{#if translating}}
-      <h4>{{t "Translating from %{lang1} to %{lang2}" lang1=source_language lang2=destination_language key="translating_to_lang"}}</h4>
+    {{#if this.translating}}
+      <h4>{{t "Translating from %{lang1} to %{lang2}" lang1=this.source_language lang2=this.destination_language key="translating_to_lang"}}</h4>
       <div>
-      {{#if translating.loading}}
+      {{#if this.translating.loading}}
         {{t "Loading translations..." key="loading_translations"}}
-      {{else if translating.error}}
+      {{else if this.translating.error}}
         {{t "Error loading translations, you can enter the translations by hand." key="error_loading_translations"}}
       {{else}}
         {{t "The translations below are auto-generated. Please review them to make sure they are correct for your communicator's language." key="please_review_translations"}}
@@ -20,26 +20,26 @@
         <a href="#" {{action "download_list"}}>{{t "Download this list" key="download_this_list"}}</a>
       </div>
       <div class="filters">
-        <a href="#" {{action "filter" "all"}} class={{if show_all "active"}}>{{t "Show All" key="show_all"}}</a> |
-        <a href="#" {{action "filter" "repeats"}} class={{if show_repeats "active"}}>{{t "Show Repeats" key="show_repeats"}}</a>
+        <a href="#" {{action "filter" "all"}} class={{if this.show_all "active"}}>{{t "Show All" key="show_all"}}</a> |
+        <a href="#" {{action "filter" "repeats"}} class={{if this.show_repeats "active"}}>{{t "Show Repeats" key="show_repeats"}}</a>
       </div>
     {{/if}}
     <div style='clear: right;'></div>
     <div class="list-group">
-      {{#if translating}}
+      {{#if this.translating}}
         <div class="list-group-item" style="font-size: 20px;">
           <div style='float: left; width: 45%;'>
             {{this.model.board.name}}
           </div>
           <div style='float: left; width: 45%;'>
-            {{input type="text" value=model.board.translated_name class="form-control" placeholder="translation"}}
+            {{input type="text" value=this.model.board.translated_name class="form-control" placeholder="translation"}}
           </div>
           <div style='clear: left;'></div>
         </div>
       {{/if}}
-      {{#each sorted_filtered_buttons as |button|}}
+      {{#each this.sorted_filtered_buttons as |button|}}
         <div class={{if button.repeat "list-group-item repeat" "list-group-item"}} style="font-size: 20px;">
-          {{#if translating}}
+          {{#if this.translating}}
             <div style='float: left; width: 45%;'>
               {{button.label}}
               {{#if button.linked_board_id}}
@@ -63,7 +63,7 @@
             <div style='clear: left;'></div>
           {{else}}
             {{button.label}}
-            {{#if show_all}}
+            {{#if this.show_all}}
               {{#if button.repeat}}
                 <span style='font-size: 16px;' class='text-muted'>{{t "(repeat)" key="repeat_paren"}}</span>
               {{/if}}
@@ -80,11 +80,11 @@
     </div>
   </div>
   <div class='modal-footer'>
-    {{#if translating}}
-      <button class='btn btn-primary' {{action "save_translations"}} disabled={{saving_translations}}>
-        {{#if saving_translations}}
+    {{#if this.translating}}
+      <button class='btn btn-primary' {{action "save_translations"}} disabled={{this.saving_translations}}>
+        {{#if this.saving_translations}}
           {{t "Accepting Translations..." key="accepting_translations"}}
-        {{else if error_saving_translations}}
+        {{else if this.error_saving_translations}}
           {{t "Error Accepting Translations" key="error_accepting_translations"}}
         {{else}}
           {{t "Accept Translations" key="accept_translations"}}

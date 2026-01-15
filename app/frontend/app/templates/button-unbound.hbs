@@ -1,28 +1,28 @@
 <!-- TODO: I think this is never used anymore -->
-<a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
-  {{#if button.pending}}
+<a href='#' style={{this.button.computed_style}} class={{this.button.computed_class}} data-id={{this.button.id}} tabindex="0">
+  {{#if this.button.pending}}
     <div class="pending">
       <img src={{path "images/spinner.gif"}} draggable='false' >
     </div>
   {{/if}}
-  <div class={{button.action_class}}>
+  <div class={{this.button.action_class}}>
     <span class="action">
-      <img src={{button.action_image}} draggable='false' alt={{button.action_alt}} >
+      <img src={{this.button.action_image}} draggable='false' alt={{this.button.action_alt}} >
     </span>
   </div>
-  <span style={{button.image_holder_style}}>
-    {{#unless app_state.currentUser.hide_symbols}}
-      {{#unless button.board.text_only}}
-        {{#unless button.text_only}}
-          <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class="symbol">
+  <span style={{this.button.image_holder_style}}>
+    {{#unless this.app_state.currentUser.hide_symbols}}
+      {{#unless this.button.board.text_only}}
+        {{#unless this.button.text_only}}
+          <img src={{this.button.local_image_url}} rel={{this.button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{this.button.image_style}} class="symbol">
         {{/unless}}
       {{/unless}}
     {{/unless}}
   </span>
-  {{#if button.sound}}
-    <audio style="display: none;" preload="auto" src={{button.local_sound_url}} rel={{button.sound.url}}></audio>
+  {{#if this.button.sound}}
+    <audio style="display: none;" preload="auto" src={{this.button.local_sound_url}} rel={{this.button.sound.url}}></audio>
   {{/if}}
-  <div class={{if button.text_only text_only_button_symbol_class button_symbol_class}}>
-    <span class={{if button.hide_label "button-label hide-label" "button-label"}}>!{{button.label}}</span>
+  <div class={{if this.button.text_only this.text_only_button_symbol_class this.button_symbol_class}}>
+    <span class={{if this.button.hide_label "button-label hide-label" "button-label"}}>!{{this.button.label}}</span>
   </div>
 </a>
