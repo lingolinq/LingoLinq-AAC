@@ -66,10 +66,10 @@
             </LinkTo>
           {{/if}}
         {{/unless}}
-        {{#if sync_able}}
-          <a href="#" class={{small_needs_sync_class}} {{action "sync"}}>
+        {{#if this.sync_able}}
+          <a href="#" class={{this.small_needs_sync_class}} {{action "sync"}}>
             <span>
-            <span class={{refreshing_class}}></span>
+            <span class={{this.refreshing_class}}></span>
             {{#if this.persistence.sync_succeeded}}
               {{#if this.session.invalid_token}}
                 {{t "Please re-login and sync again" key="please_resync"}}
@@ -102,7 +102,7 @@
                     {{/if}}
                   {{/if}}
                 {{else}}
-                  {{#if needs_sync}}
+                  {{#if this.needs_sync}}
                     {{#if this.app_state.installed_app}}
                       {{t "Sync before going offline!" key="needs_update"}}
                     {{else}}
@@ -141,10 +141,10 @@
             </div>
           {{/if}}
         {{/unless}}
-        {{#if sync_able}}
-          <a href="#" class={{needs_sync_class}} {{action "sync"}}>
+        {{#if this.sync_able}}
+          <a href="#" class={{this.needs_sync_class}} {{action "sync"}}>
             <span>
-            <span class={{refreshing_class}}></span>
+            <span class={{this.refreshing_class}}></span>
             {{#if this.persistence.sync_succeeded}}
               {{t "Sync Done!" key="sync_done"}}
             {{else}}
@@ -222,11 +222,11 @@
         </div>
       {{/if}}
       {{#if this.has_management_responsibility}}
-        {{#if manages_multiple_orgs}}
+        {{#if this.manages_multiple_orgs}}
           <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
             <span class="glyphicon glyphicon-paperclip"></span>
             <span style='white-space: normal;'>
-              {{#each managed_orgs as |org|}}
+              {{#each this.managed_orgs as |org|}}
                 <span style="margin-right: 10px; white-space: nowrap;">
                   {{#link-to "organization" org.id}}
                     {{org.name}}
@@ -236,7 +236,7 @@
             </span>
           </div>
         {{else}}
-          {{#each managed_orgs as |org|}}
+          {{#each this.managed_orgs as |org|}}
             <LinkTo @route="organization" @model={{org.id}} class="list-group-item half_size">
               <span class="glyphicon glyphicon-paperclip"></span>
               <span style="margin-right: 10px;">
@@ -266,7 +266,7 @@
           {{/if}}<br>
         {{/unless}}
 
-        {{#if allow_logs}}
+        {{#if this.allow_logs}}
           <span class='text-muted' style='font-size: 12px; margin-top: 10px;'>
             {{t "Last Log" key="latest_session"}}
             {{#if this.logs.[0]}}
@@ -569,7 +569,7 @@
           </div>
         {{/if}}
         {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
-          {{#if modeling_ideas_available}}
+          {{#if this.modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
                 <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
@@ -632,7 +632,7 @@
               </div>
             {{/if}}
           {{/unless}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default middle_row' {{action "manage_supervisors"}}>
                 <span class='glyphicon glyphicon-user'></span>
@@ -640,7 +640,7 @@
               </button>
             </div>
           {{/if}}
-          {{#if sync_able}}
+          {{#if this.sync_able}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default middle_row' {{action "sync_details"}}>
                 <span class='glyphicon glyphicon-refresh'></span>
@@ -648,7 +648,7 @@
               </button>
             </div>
           {{/if}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default bottom_row' {{action "goals"}}>
                 <span class='glyphicon glyphicon-flag'></span>
@@ -670,7 +670,7 @@
               </button>
             </div>
           {{/unless}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn big_button btn-default bottom_row">
                 <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
@@ -678,7 +678,7 @@
               </LinkTo>
             </div>
           {{/if}}
-          {{#if app_state.feature_flags.emergency_boards}}
+          {{#if this.app_state.feature_flags.emergency_boards}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <LinkTo @route="offline_boards" class="btn big_button btn-default emergency_button">
                 <span class='glyphicon glyphicon-exclamation-sign'></span>
@@ -687,7 +687,7 @@
             </div>
           {{/if}}
           {{#if this.app_state.feature_flags.lessons}}
-            {{#if app_state.currentUser.currently_premium_or_fully_purchased}}
+            {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default bottom_row' {{action "lessons"  "pick"}}>
                   <span class='glyphicon glyphicon-education'></span>
@@ -703,10 +703,10 @@
         {{/if}}
       </div>
     {{else if this.index_nav.boards}}
-      {{#if showOffline}}
+      {{#if this.showOffline}}
         <h4>{{t "Recent boards" key="available_boards"}}</h4>
-        {{#if recentOfflineBoards}}
-          {{#each recentOfflineBoards as |board|}}
+        {{#if this.recentOfflineBoards}}
+          {{#each this.recentOfflineBoards as |board|}}
             {{#if board.key}}
               <div class="col-md-2 col-xs-4 big_button_holder">
                 <button class='btn big_button btn-default'>
@@ -725,10 +725,10 @@
         <div class='col-xs-8 col-sm-6'>
           <h4>{{t "Browse Boards" key="browse_boards"}}</h4>
           <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
-            <li role="presentation" class={{if suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
-            <li role="presentation" class={{if personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
-            <li role="presentation" class={{if popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
-            <li role="presentation" class={{if recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
+            <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
+            <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
+            <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
+            <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
           </ul>
         </div>
         <div class='col-xs-4 col-sm-6'>
@@ -750,7 +750,7 @@
           </div>
         </div>
         <div style='clear: left;'></div>
-        {{#if suggested_selected}}
+        {{#if this.suggested_selected}}
           {{#unless this.app_state.currentUser.supporter_role}}
             <div class="col-xs-12" style="margin-bottom: 10px;">
               {{#link-to "home-boards"}}
@@ -762,18 +762,18 @@
             </div>
           {{/unless}}
         {{/if}}
-        {{#if current_boards}}
-          {{#if current_boards.loading}}
+        {{#if this.current_boards}}
+          {{#if this.current_boards.loading}}
             <div class='col-sm-4'>{{t "Loading..." key="loading"}}</div>
-          {{else if current_boards.error}}
+          {{else if this.current_boards.error}}
             <div class='col-sm-4'>{{t "Failed to load" key="failed_to_load"}}</div>
           {{else}}
-            {{#each current_boards as |board|}}
+            {{#each this.current_boards as |board|}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
-                {{board-icon board=board localized=true allow_style=suggested_selected}}
+                {{board-icon board=board localized=true allow_style=this.suggested_selected}}
               </div>
             {{/each}}
-            {{#if personal_selected}}
+            {{#if this.personal_selected}}
               <div class='col-xs-12'>
                 <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn btn-default btn-lg thick_border">
                   {{t "See All My Boards" key="see_all_my_boards"}}
@@ -789,7 +789,7 @@
       {{/if}}
     {{else if this.index_nav.updates}}
       <div class='col-md-8 col-md-offset-2 col-xs-12'>
-        {{#if device.needs_install_reminder}}
+        {{#if this.device.needs_install_reminder}}
           <div style="margin-bottom: 20px; text-align: center;">
             <h2>
               <span class="glyphicon glyphicon-phone"></span>
@@ -822,18 +822,18 @@
         {{/if}}
         <h4>{{t "Notifications" key="notifications"}}</h4>
         <div style="margin-left: 20px;">
-          {{#if app_state.currentUser.pending_org}}
+          {{#if this.app_state.currentUser.pending_org}}
             <p>
-              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=app_state.currentUser.pending_org.name}}{{/link-to}}
+              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}{{/link-to}}
             </p>
           {{/if}}
-          {{#if app_state.currentUser.pending_supervision_org}}
+          {{#if this.app_state.currentUser.pending_supervision_org}}
             <p>
-              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
+              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
             </p>
           {{/if}}
-          {{#if app_state.currentUser.pending_board_shares}}
-            {{#each app_state.currentUser.pending_board_shares as |share|}}
+          {{#if this.app_state.currentUser.pending_board_shares}}
+            {{#each this.app_state.currentUser.pending_board_shares as |share|}}
               <p>
                 <span class="glyphicon glyphicon-share"></span>
                 {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
@@ -858,7 +858,7 @@
           {{#unless this.app_state.currentUser.unread_messages}}
             {{#unless this.app_state.currentUser.parsed_notifications}}
               {{#unless this.app_state.currentUser.pending_board_shares}}
-                {{#if show_notifications_explanation}}
+                {{#if this.show_notifications_explanation}}
                   <em style="font-size: 11px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
                 {{else}}
                   {{t "You have no new messages" key="no_new_messages"}}
