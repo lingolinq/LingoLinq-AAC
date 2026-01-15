@@ -1,9 +1,9 @@
-{{#if session.isAuthenticated}}
+{{#if this.session.isAuthenticated}}
   <h2>
     {{t "Current Trainings" key="current_trainings"}}
   </h2>
-  {{#if styled_lessons}}
-    {{#each styled_lessons as |lesson|}}
+  {{#if this.styled_lessons}}
+    {{#each this.styled_lessons as |lesson|}}
       <div class={{if lesson.completed_ts "well lesson done" "well lesson"}}>
         <span class='summary'>
           <span style='display: inline-block; width: 20px; vertical-align: middle;'>
