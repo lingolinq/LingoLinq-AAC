@@ -1,19 +1,19 @@
 <div style="margin: 20px 50px;">
-  {{#if model.error}}
+  {{#if this.model.error}}
     <div style='max-width: 500px; margin: 0 auto;'>
-      {{#if model.not_found}}
+      {{#if this.model.not_found}}
         <h2>{{t "Message Not Found" key="message_not_found"}}</h2>
-      {{else if model.expired}}
+      {{else if this.model.expired}}
         <h2>{{t "Message Not Available" key="message_not_available"}}</h2>
       {{/if}}
       <p>{{t "The message you were looking for is no longer available through this link. For privacy and security reasons message links are only active for 7 days. You can still message %app_name% users by logging in and sharing a message with them from your dashboard." key="message_no_longer_available"}}</p>
     </div>
   {{else}}
-    {{#unless model.private_only}}
+    {{#unless this.model.private_only}}
       <h2>
         <span style='font-size: 0.8em;'>
-        {{#if user_showable}}
-          {{#link-to "user.index" model.user.user_name}}
+        {{#if this.user_showable}}
+          {{#link-to "user.index" this.model.user.user_name}}
             {{this.model.user.name}}
           {{/link-to}}
           {{t "said:" key="said_colon"}}
@@ -25,79 +25,79 @@
         </span>
         "<span id="sentence">{{this.model.sentence}}</span>"
       </h2>
-      {{#if single_button_full_sentence}}
+      {{#if this.single_button_full_sentence}}
         <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
       {{else}}
         <div id="utterance" class="button_list" {{ action "vocalize"}}>
-          {{#with model.button_list as |button_list|}}
+          {{#with this.model.button_list as |button_list|}}
             {{button-list buttonList=button_list}}
           {{/with}}
         </div>
       {{/if}}
     {{/unless}}
     <div style="clear: both;"></div>
-    {{#if model.permissions.reply}}
-      {{#if model.prior}}
+    {{#if this.model.permissions.reply}}
+      {{#if this.model.prior}}
         <div style='margin: -10px 0 30px 20px;'>
-          <em>{{t "in reply to" key="in_reply_to"}}{{#if model.prior.author.name}} {{t "message from" key="message_from"}} {{this.model.prior.author.name}}{{/if}}:</em>
+          <em>{{t "in reply to" key="in_reply_to"}}{{#if this.model.prior.author.name}} {{t "message from" key="message_from"}} {{this.model.prior.author.name}}{{/if}}:</em>
           <div style="border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line;">{{this.model.prior.text}}</div>
         </div>
       {{/if}}
       <h3>
-        {{#if model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if model.user.name}} {{t "to" key="to"}} {{this.model.user.name}}{{/if}}{{t ":" key="colon"}}
+        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if this.model.user.name}} {{t "to" key="to"}} {{this.model.user.name}}{{/if}}{{t ":" key="colon"}}
       </h3>
       <div style='margin: -5px 0 30px;'>
-        {{#if reachable_core}}
-          {{#if reachable_core.length}}
-            <span class='text-muted'>{{t "%{n} high-frequency words in the user's vocabulary" n=reachable_core.length key="n_core_words"}}</span>
-            {{#if expanded_list}}
-               - {{spaced_core}}
+        {{#if this.reachable_core}}
+          {{#if this.reachable_core.length}}
+            <span class='text-muted'>{{t "%{n} high-frequency words in the user's vocabulary" n=this.reachable_core.length key="n_core_words"}}</span>
+            {{#if this.expanded_list}}
+               - {{this.spaced_core}}
             {{else}}
               <a href="#" {{action "expand_core"}}>{{t "Show All" key="show_all"}}</a>
               <div class='text-muted'>
                 {{t "Used vocabulary words: " key="used_words"}}
-                <span style='color: #000;'>{{used_core}}</span>
+                <span style='color: #000;'>{{this.used_core}}</span>
               </div>
             {{/if}}
           {{/if}}
         {{/if}}
-        {{textarea value=message class="form-control" id="utterance_reply"}}
-        <button class='btn btn-lg btn-primary' {{action "reply"}} disabled={{reply_status.loading}}>
-          {{#if reply_status.loading}}
+        {{textarea value=this.message class="form-control" id="utterance_reply"}}
+        <button class='btn btn-lg btn-primary' {{action "reply"}} disabled={{this.reply_status.loading}}>
+          {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}
-          {{else if reply_status.error}}
+          {{else if this.reply_status.error}}
             {{t "Error Sending Reply" key="error_sending_reply"}}
           {{else}}
             {{t "Send Reply" key="send_reply"}}
           {{/if}}
         </button>
         <button class='btn btn-lg btn-default' {{action "clear_reply"}}>{{t "Clear" key="clear"}}</button>
-        {{#if reply_status.sent}}
+        {{#if this.reply_status.sent}}
           <p class='text-success'>{{t "Message successfully sent!" key="message_sent"}}</p>
         {{/if}}
       </div>
 
-      {{#if model.private_only}}
+      {{#if this.model.private_only}}
         <p>{{t "This is a private link that can be used to send messages to a %app_name% communicator. Please respect the communicator's privacy and security by not sharing it with others." key="keep_private_link_secure"}}</p>
       {{else}}
         <p>{{t "This is a private link and will expire after 7 days. You can navigate to the public link for this message if the communicator has given you permission and you would like to share it with others." key="private_link_warning"}}</p>
         <a href={{this.model.link}} target="_blank" class='btn btn-default btn-lg' rel="noopener"><span class='glyphicon glyphicon-hand-up'></span> {{t "Public Link" key="public_link"}}</a>
       {{/if}}
     {{else}}
-      {{#if speakable}}
+      {{#if this.speakable}}
         <div style="float: left; margin-right: 15px;">
           <button class='btn btn-primary btn-lg' {{action "vocalize"}}>{{t "Speak This Sentence" key="speak_this_sentence"}}</button>
         </div>
       {{/if}}
-      {{share-bar url=model.link text=model.sentence element_id="sentence" user=app_state.currentUser utterance=model copy_event="copy_event"}}
+      {{share-bar url=this.model.link text=this.model.sentence element_id="sentence" user=this.app_state.currentUser utterance=this.model copy_event="copy_event"}}
       <div style="clear: left;"></div>
       <p style="margin-top: 15px; margin-bottom: 15px;">
         {{t "This person uses software running on a tablet, phone or computer to help them communicate. People use " key="stash_explanation_1"}}
         <a href="https://www.asha.org/public/speech/disorders/AAC/">{{t "Augmentative and Alternative Communication" key="aac"}}</a>
         {{t "for many different reasons. It's really not that different from using a keyboard to write messages online, except some people have to type even what they want to say out loud. Using pictures to help identify words and ideas can sometimes make it easier to find the right words to say." key="stash_explanation_2"}}
       </p>
-      {{#if model.permissions.edit}}
-        {{#unless single_button_full_sentence}}
+      {{#if this.model.permissions.edit}}
+        {{#unless this.single_button_full_sentence}}
           <div class="row"><div class="col-sm-6">
           <form class="form-horizontal well" {{action "update_utterance" on="submit"}} style="margin-top: 20px;">
             <div class="form-group">
@@ -109,7 +109,7 @@
               <div class="col-sm-8">
                 <div class="checkbox big_checkbox">
                   <label>
-                    {{input type="checkbox" checked=model.show_user}}
+                    {{input type="checkbox" checked=this.model.show_user}}
                     {{t "Show author name when sharing" key="show_author"}}
                   </label>
                 </div>
@@ -121,7 +121,7 @@
                   {{t "In some web sites, an image preview will be shown. You can select the image you would like to appear in these cases." key="preview_symbol"}}<br>
                   <button type='button' {{action "change_image" "prev"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-left'></span></button>
                   <span style="width: 400px; height: 200px; display: inline-block; overflow: hidden; vertical-align: middle; text-align: center;">
-                  <img src={{image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol">
+                  <img src={{this.image_url}} style="max-height: 200px; max-width: 400px;" alt="preview symbol">
                   </span>
                   <button type='button' {{action "change_image" "next"}} class='btn btn-default'><span class='glyphicon glyphicon-chevron-right'></span></button>
                 </p>
@@ -136,12 +136,12 @@
           </div></div>
         {{/unless}}
       {{/if}}
-      {{#unless model.show_attribution}}
+      {{#unless this.model.show_attribution}}
         <p><a href="#" {{action "show_attribution"}}>{{t "show attributions" key="show_attribution"}}</a></p>
       {{else}}
         <h4>{{t "Image License Attribution" key="image_license_attribution"}}</h4>
         <ul class="list-unstyled">
-          {{#each model.button_list as |button|}}
+          {{#each this.model.button_list as |button|}}
             {{#if button.image}}
               <li>
                 <img src={{button.image}} alt={{button.label}} title={{button.label}} style="width: 30px;">
@@ -149,7 +149,7 @@
               </li>
             {{/if}}
           {{/each}}
-          {{#each model.button_list as |button|}}
+          {{#each this.model.button_list as |button|}}
             {{#if button.sound}}
               <li>
                 <strong>{{button.label}}</strong><br>
