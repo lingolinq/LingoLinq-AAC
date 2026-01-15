@@ -5,12 +5,12 @@
   </div>
   <div class="modal-body">
     <p>{{t "Sometimes it's hard to know what words or phrases to add. Below are some suggestions for things to add to the user's board set." key="button_suggestions_explainer"}}</p>
-    {{#if full}}
+    {{#if this.full}}
       <p class='text-danger' style='margin-top: 10px;'>{{t "There's nowhere on the board to add buttons. You can still browse ideas, but to add ideas you'll need to add rows/columns or find another board." key="add_buttons"}}</p>
     {{else}}
-      <p style='margin-top: 10px;'>{{t "button" count=empty key="n_buttons"}} {{t "available" key="available"}}</p>
+      <p style='margin-top: 10px;'>{{t "button" count=this.empty key="n_buttons"}} {{t "available" key="available"}}</p>
     {{/if}}
-    {{#if has_supervisees}}
+    {{#if this.has_supervisees}}
       <div class='row' style='margin-bottom: 5px;'>
         <div class='col-sm-3'>
           <label for='for_user_id' style='margin-top: 5px;'>
@@ -18,32 +18,32 @@
           </label>
         </div>
         <div class='col-sm-9'>
-          {{user-select select_id="for_user_id" selection=for_user_id action=(action (mut for_user_id)) }}
+          {{user-select select_id="for_user_id" selection=this.for_user_id action=(action (mut this.for_user_id)) }}
         </div>
       </div>
     {{/if}}
     <ul class="nav nav-pills" style='margin-bottom: 10px;'>
-      <li role="presentation" class={{if core "active"}}><a href="#" {{action "select_list" "core"}}>{{t "Core Words" key="core_words"}}</a></li>
-      <li role="presentation" class={{if fringe "active"}}><a href="#" {{action "select_list" "fringe"}}>{{t "Fringe Words" key="fringe_words"}}</a></li>
-      <li role="presentation" class={{if recordings "active"}}><a href="#" {{action "select_list" "recordings"}}>{{t "Recordings" key="recordings"}}</a></li>
-      <li role="presentation" class={{if requests "active"}}><a href="#" {{action "select_list" "requests"}}>{{t "Requests" key="requests"}}</a></li>
-      <li role="presentation" class={{if extras "active"}}><a href="#" {{action "select_list" "extras"}}>{{t "Extras" key="extras"}}</a></li>
+      <li role="presentation" class={{if this.core "active"}}><a href="#" {{action "select_list" "core"}}>{{t "Core Words" key="core_words"}}</a></li>
+      <li role="presentation" class={{if this.fringe "active"}}><a href="#" {{action "select_list" "fringe"}}>{{t "Fringe Words" key="fringe_words"}}</a></li>
+      <li role="presentation" class={{if this.recordings "active"}}><a href="#" {{action "select_list" "recordings"}}>{{t "Recordings" key="recordings"}}</a></li>
+      <li role="presentation" class={{if this.requests "active"}}><a href="#" {{action "select_list" "requests"}}>{{t "Requests" key="requests"}}</a></li>
+      <li role="presentation" class={{if this.extras "active"}}><a href="#" {{action "select_list" "extras"}}>{{t "Extras" key="extras"}}</a></li>
     </ul>
-    {{#if extras}}
-      {{#if premium_ideas}}
+    {{#if this.extras}}
+      {{#if this.premium_ideas}}
         {{t "Now you can search for images and pictures from Tar Heel Reader books! Just search for the book you're using and add the pictures and text from any of the pages you want to use." key="extras_explainer"}}
         <div style='margin-top: 10px;'>
           <span style='display: inline-block; width: 300px;'>
-            {{input type="text" value=extras_search class="form-control"}}
+            {{input type="text" value=this.extras_search class="form-control"}}
           </span>
           <button class='btn btn-default' {{action "search_extras"}}>{{t "Go" key="go"}}</button>
         </div>
       {{else}}
         {{t "Extra Ideas is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1e"}}
-        {{#if user}}
-          <LinkTo @route="user.subscription" @model={{user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
-        {{else if app_state.currentUser}}
-          <LinkTo @route="user.subscription" @model={{app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
+        {{#if this.user}}
+          <LinkTo @route="user.subscription" @model={{this.user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
+        {{else if this.app_state.currentUser}}
+          <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
         {{else}}
           {{t "purchase a premium account" key="purchase_subscription_2"}}
         {{/if}}
@@ -51,50 +51,50 @@
       {{/if}}
     {{/if}}
 
-    {{#if list.loading}}
+    {{#if this.list.loading}}
       <p>{{t "Loading data..." key="loading_data"}}</p>
-    {{else if list.error}}
+    {{else if this.list.error}}
       <p>{{t "Error loading data" key="error_loading_data"}}</p>
-    {{else if list}}
+    {{else if this.list}}
       <div style='margin-bottom: 10px;'>
-        {{#if core}}
+        {{#if this.core}}
           {{t "Core words are frequently-used words that often have multiple meanings or intents. They are useful in lots of different settings, and are valuable high-frequency words for many communicators. Browse the list for any core words that might make sense for the current board." key="core_explainer"}}
-        {{else if fringe}}
-          {{#unless category}}
+        {{else if this.fringe}}
+          {{#unless this.category}}
             {{t "Fringe words are specialized or specific words, like people or types of food. Communicators should have access to fringe words that represent their interests, connections, and things they are learning about. Browse the categories to find words or get ideas for words that could be added to the current board." key="fringe_explainer"}}
           {{/unless}}
-        {{else if recordings}}
-          {{#unless category}}
+        {{else if this.recordings}}
+          {{#unless this.category}}
             {{t "It can be useful for some communicators to record words or phrases that they will want to use more easily in the future. You can select phrases from the list of recordings to have them quickly added to the current board." key="recordings_explainer"}}
           {{/unless}}
-        {{else if requests}}
+        {{else if this.requests}}
           {{t "Communicators and supervisors can request to have words added to their vocabulary set. This list includes all the words that have been requested for a communicator. You can select any to have them added to the current board." key="requests_explainer"}}
         {{/if}}
       </div>
-      {{#if category.items}}
-        {{#if list.name}}
-          <button class='btn btn-default' {{action "select_category"}} style='float: left; margin-right: 5px; height: 50px;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to %{list}" key="back_to_named_list" list=list.name}}</span></button>
+      {{#if this.category.items}}
+        {{#if this.list.name}}
+          <button class='btn btn-default' {{action "select_category"}} style='float: left; margin-right: 5px; height: 50px;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to %{list}" key="back_to_named_list" list=this.list.name}}</span></button>
           <h4 style='margin-bottom: 0;'>
-            {{category.name}}
+            {{this.category.name}}
           </h4>
           <span class='text-muted' style='overflow: hidden; width: 100%;'>
-           {{list.name}}
+           {{this.list.name}}
           </span>
         {{/if}}
         <div style='clear: both; margin-bottom: 10px;'></div>
-        {{#if category.items.loading}}
+        {{#if this.category.items.loading}}
           <p>{{t "Loading data..." key="loading_data"}}</p>
-        {{else if category.items.error}}
+        {{else if this.category.items.error}}
           <p>{{t "Error loading data" key="error_loading_data"}}</p>
         {{else}}
-          {{#if category.total}}
-            {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=category.used total=category.total}}
+          {{#if this.category.total}}
+            {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.category.used total=this.category.total}}
           {{/if}}
           <div class='btn-group-vertical' style='width: 100%; cursor: default;'>
-            {{#each category.items as |item|}}
+            {{#each this.category.items as |item|}}
               <span class='btn btn-default' style={{if item.image "height: 100px; text-align: left;" "height: 50px; text-align: left;"}}>
                 <span style='float: right;'>
-                  <button class='btn btn-default' disabled={{full}} {{action "add_item" item}}>{{t "add" key="add_lower"}}</button>
+                  <button class='btn btn-default' disabled={{this.full}} {{action "add_item" item}}>{{t "add" key="add_lower"}}</button>
                 </span>
                 {{#if item.image}}
                   <div style='height: 80px; width: 80px; overflow: hidden; float: left; margin-right: 10px;'>
@@ -112,12 +112,12 @@
             {{/each}}
           </div>
         {{/if}}
-      {{else if list.categories}}
-        {{#if list.total}}
-          {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=list.used total=list.total}}
+      {{else if this.list.categories}}
+        {{#if this.list.total}}
+          {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.list.used total=this.list.total}}
         {{/if}}
         <div class='btn-group-vertical' style='width: 100%;'>
-          {{#each list.categories as |category|}}
+          {{#each this.list.categories as |category|}}
             <button class='btn btn-default' style={{if category.image "height: 100px; text-align: left;" "height: 50px; text-align: left;"}} {{action "select_category" category}}>
               {{#if category.image}}
                 <span style='float: left; width: 80px; height: 80px; overflow: hidden; margin-right: 10px;'>

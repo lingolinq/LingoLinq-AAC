@@ -238,9 +238,9 @@
       </tbody>
     </table>
     <p>{{t "As you can see, we're pretty proud of everything %app_name% can do. We wanted to build something that could stay with communicators as their needs develop and change over time, so there are a lot of customizations built-in to help support the needs of each individual." key="proud_of_features"}}</p>
-    {{#if app_state.currentUser}}
+    {{#if this.app_state.currentUser}}
       <p>{{t "Excited by what you see? Please share %app_name% with others to help spread the good word!" key="please_share_app"}}</p>
-    {{else if app_state.domain_settings.full_domain}}
+    {{else if this.app_state.domain_settings.full_domain}}
       <p>
         {{t "Ready to try it out yourself?" key="read_to_try_it_out"}}
         <LinkTo @route="register">{{t "Sign up for a %app_name% account" key="sign_up_for_account"}}</LinkTo>
