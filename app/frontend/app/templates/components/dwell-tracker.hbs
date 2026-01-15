@@ -1,56 +1,56 @@
 <div style='margin-top: 10px;'>
   <div style='float: left; width: 60%;'>
     <strong>{{t "Dwell Status" key="dwell_status"}}</strong><br>
-    {{#if pending}}
+    {{#if this.pending}}
       {{t "waiting for data..." key="waiting_for_data"}}
-    {{else if current_dwell}}
-      {{#if hardware}}
+    {{else if this.current_dwell}}
+      {{#if this.hardware}}
         {{t "receiving data" key="receiving_data"}}
       {{else}}
         {{t "receiving data" key="receiving_data"}}
       {{/if}}
-    {{else if has_coords}}
+    {{else if this.has_coords}}
       {{t "not receiving data" key="no_recent_data"}}
     {{else}}
       {{t "no events detected" key="no_hardware_detected"}}
     {{/if}}
-    {{#if has_coords}}
+    {{#if this.has_coords}}
       <br><br>
       <strong>{{t "Source" key="source"}}</strong><br>
-      {{#if hardware_type}}
-        {{#if hardware_type.eyex}}
+      {{#if this.hardware_type}}
+        {{#if this.hardware_type.eyex}}
           {{t "EyeX Hardware" key="eyex_hardware"}}
-        {{else if hardware_type.eyetribe}}
+        {{else if this.hardware_type.eyetribe}}
           {{t "EyeTribe Hardware" key="eyetribe_hardware"}}
-        {{else if hardware_type.mygaze}}
+        {{else if this.hardware_type.mygaze}}
           {{t "MyGaze Hardware" key="mygaze_hardware"}}
-        {{else if hardware_type.eyegaze_edge}}
+        {{else if this.hardware_type.eyegaze_edge}}
           {{t "Eyegaze Edge Hardware" key="eyegaze_edge_hardware"}}
-        {{else if hardware_type.irisbond}}
+        {{else if this.hardware_type.irisbond}}
           {{t "IrisBond Hardware" key="irisbond_hardware"}}
-        {{else if hardware_type.system}}
+        {{else if this.hardware_type.system}}
           {{t "Built-In Tracker" key="built_in_tracker"}}
         {{else}}
           {{t "Unspecified Eye Tracker" key="unspecified_eye_tracker"}}
         {{/if}}
-      {{else if source.keyboard}}
+      {{else if this.source.keyboard}}
         {{t "arrow keys" key="keyboard_arrow_keys"}}
-      {{else if source.head}}
+      {{else if this.source.head}}
         {{t "head-tracking" key="head_tracking_lower"}}
-      {{else if source.eyegaze}}
+      {{else if this.source.eyegaze}}
         {{t "eye-gaze-tracking" key="eye_gaze_tracking_lower"}}
-      {{else if source.cursor}}
+      {{else if this.source.cursor}}
         {{t "cursor-based events" key="cursor_based_events"}}
       {{else}}
         {{t "cursor-based events" key="cursor_based_events"}}
       {{/if}}
     {{/if}}
     <br>
-    {{#if eye_tracking}}
-      {{#if advanced}}
+    {{#if this.eye_tracking}}
+      {{#if this.advanced}}
         <br>
-        {{#if with_status}}
-          {{#each with_status as |status|}}
+        {{#if this.with_status}}
+          {{#each this.with_status as |status|}}
             <strong>{{status.name}}</strong>
             {{status.status}}<br>
           {{/each}}
