@@ -37,7 +37,7 @@
                   <span title={{date item.started_at}}>
                     {{date_ago item.started_at}}
                   </span>
-                  {{#link-to "user.log" item.user.user_name log.id}}
+                  {{#link-to "user.log" item.user.user_name this.log.id}}
                     {{t "button" count=item.button_count key="button_count"}}
                   {{/link-to}}
                   <span> -

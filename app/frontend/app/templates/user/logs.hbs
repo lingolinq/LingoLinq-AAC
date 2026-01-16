@@ -90,10 +90,10 @@
           </tr>
         </thead>
         <tbody>
-          {{#if pending_eval}}
+          {{#if this.pending_eval}}
             <tr>
               <td>
-                {{#link-to "user.log" user.user_name "last-eval"}}
+                {{#link-to "user.log" this.user.user_name "last-eval"}}
                   <span class="glyphicon glyphicon-list-alt"></span>
                   <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
                 {{/link-to}}
@@ -103,7 +103,7 @@
               </td>
               {{#unless this.messages_only}}
                 <td style="white-space: nowrap;">
-                  {{#link-to "user.log" user.user_name "last-eval"}}
+                  {{#link-to "user.log" this.user.user_name "last-eval"}}
                     {{t "pending" key="pending"}}
                   {{/link-to}}
                 </td>

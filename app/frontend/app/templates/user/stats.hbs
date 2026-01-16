@@ -134,7 +134,7 @@
     <h2>{{t "Usage Reports" key="usage_reports"}}</h2>
     <p>{{t "Looks like this user has logging turned off, and you don't have permission to enable it for the user." key="unauthorized_reports"}}</p>
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   {{#if this.app_state.currentUser.supervisees.length}}
     <button class='btn btn-default' style='margin-left: 10px;' {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>

@@ -10,27 +10,27 @@
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-7">
-          {{input value=model.name class="form-control" id="name" placeholder="Board Name"}}
+          {{input value=this.model.name class="form-control" id="name" placeholder="Board Name"}}
         </div>
       </div>
       <div class="form-group">
         <label for="decription" class="col-sm-3 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-7">
           <!-- TODO: placeholder i18n magic for textarea too -->
-          {{textarea value=model.description class="form-control" id="decription" placeholder="Details about this board"}}
+          {{textarea value=this.model.description class="form-control" id="decription" placeholder="Details about this board"}}
         </div>
       </div>
       <div class="form-group">
         <label for="image_url" class="col-sm-3 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-7">
-          {{input value=model.image_url class="form-control" id="image_url" placeholder="URL or pick from the list"}}
+          {{input value=this.model.image_url class="form-control" id="image_url" placeholder="URL or pick from the list"}}
           <div style="margin-top: 12px; float: left; height: 42px; width: 42px; border: 1px solid #ccc; overflow: hidden;">
-            {{#if model.image_url}}
-              <img src={{this.model.image_url}} {{action "pickImageUrl" model.image_url}} style="width: 40px; height: 40px;" alt="current image">
+            {{#if this.model.image_url}}
+              <img src={{this.model.image_url}} {{action "pickImageUrl" this.model.image_url}} style="width: 40px; height: 40px;" alt="current image">
             {{/if}}
           </div>
           <div class="icon_urls">
-            {{#each iconUrls as |icon|}}
+            {{#each this.iconUrls as |icon|}}
               <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} >
             {{/each}}
           </div>
@@ -48,30 +48,30 @@
       <div class="form-group">
         <label for="license" class="col-sm-3 control-label">{{t "License" key="license"}}</label>
         <div class="col-sm-7">
-          {{bound-select select_class="form-control" select_id="license" content=licenseOptions selection=model.license.type action=(action (mut model.license.type)) }}
+          {{bound-select select_class="form-control" select_id="license" content=this.licenseOptions selection=this.model.license.type action=(action (mut this.model.license.type)) }}
         </div>
       </div>
-      {{#if attributable_license_type}}
+      {{#if this.attributable_license_type}}
         <div class="form-group">
           <label for="author" class="col-sm-3 control-label">{{t "Author" key="author"}}</label>
           <div class="col-sm-4">
-            {{input value=model.license.author_name class="form-control" id="author" placeholder="Name"}}
+            {{input value=this.model.license.author_name class="form-control" id="author" placeholder="Name"}}
           </div>
           <div class="col-sm-5">
-            {{input value=model.license.author_url class="form-control" title="Author URL" placeholder="Author URL"}}
+            {{input value=this.model.license.author_url class="form-control" title="Author URL" placeholder="Author URL"}}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="locale" class="col-sm-3 control-label">{{t "Default Language" key="default_language"}}</label>
         <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="locale" content=locales selection=model.locale action=(action (mut model.locale)) }}
+          {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.locale action=(action (mut this.model.locale)) }}
         </div>
       </div>
       <div class="form-group">
         <label for="locale" class="col-sm-3 control-label">{{t "Current Language" key="button_locale"}}</label>
         <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="locale" content=locales selection=model.button_locale action=(action (mut model.button_locale)) }}
+          {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.button_locale action=(action (mut this.model.button_locale)) }}
         </div>
       </div>
       <div class="form-group">
@@ -79,17 +79,17 @@
         <div class="col-sm-9">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=model.home_board}}
+              {{input type="checkbox" checked=this.model.home_board}}
               {{t "This board can be used as a home board" key="is_home_board"}}
             </label>
           </div>
         </div>
       </div>
-      {{#if model.home_board}}
+      {{#if this.model.home_board}}
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
           {{t "Select any categories that this home board may fit well into." key="select_categories"}}
-          {{#each board_categories as |category|}}
+          {{#each this.board_categories as |category|}}
             <div><div class='checkbox big_checkbox'>
               <label>
                 {{input type="checkbox" checked=category.selected}}
@@ -103,23 +103,23 @@
       <div class="form-group">
         <label for="public" class="col-sm-3 control-label">{{t "Visibility" key="visibility"}}</label>
         <div class="col-sm-9">
-          {{#if model.copying_state}}
+          {{#if this.model.copying_state}}
             <p class='form-control-static'><em>{{t "Boards with protected content can't be made public" key="protected_boards_no_public"}}</em></p>
           {{else}}
-            {{bound-select select_class="form-control" select_id="license" content=public_options selection=model.visibility action=(action (mut model.visibility)) }}
-            {{#unless model.visibility_setting.private}}
-              {{#if model.protected_material}}
+            {{bound-select select_class="form-control" select_id="license" content=this.public_options selection=this.model.visibility action=(action (mut this.model.visibility)) }}
+            {{#unless this.model.visibility_setting.private}}
+              {{#if this.model.protected_material}}
                 <em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key="premium_public_fallbacks_warning"}}</em>
               {{/if}}
             {{/unless}}
           {{/if}}
         </div>
-        {{#if model.downstream_boards}}
-          {{#if visibility_changed}}
+        {{#if this.model.downstream_boards}}
+          {{#if this.visibility_changed}}
             <div class="col-sm-9 col-sm-offset-3">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=model.update_visibility_downstream}}
+                  {{input type="checkbox" checked=this.model.update_visibility_downstream}}
                   {{t "Update all linked boards to the same visibility" key="update_downstream_visibility"}}
                 </label>
               </div>
@@ -127,14 +127,14 @@
           {{/if}}
         {{/if}}
       </div>
-      {{#if advanced}}
-        {{#if model.visibility_setting.private}}
+      {{#if this.advanced}}
+        {{#if this.model.visibility_setting.private}}
           <div class="form-group">
             <label for="public" class="col-sm-3 control-label">{{t "Copying" key="copying"}}</label>
             <div class="col-sm-9">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=protected_vocabulary disabled=model.copying_state.none}}
+                  {{input type="checkbox" checked=this.protected_vocabulary disabled=this.model.copying_state.none}}
                   {{t "Only the author can make copies of this board, and any copies cannot be re-copied by others" key="protected_vocabulary"}}
                 </label>
               </div>
@@ -146,7 +146,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.word_suggestions}}
+                {{input type="checkbox" checked=this.model.word_suggestions}}
                 {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
             </div><br>
@@ -158,7 +158,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.dim_header}}
+                {{input type="checkbox" checked=this.model.dim_header}}
                 {{t "Dim the header and vocalization box while on this board" key="dim_header_on_this_board"}}
               </label>
             </div>
@@ -166,7 +166,7 @@
           <div class="col-sm-9 col-sm-offset-3">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.small_header}}
+                {{input type="checkbox" checked=this.model.small_header}}
                 {{t "Shrink the header and vocalization box while on this board" key="small_header_on_this_board"}}
               </label>
             </div>
@@ -177,24 +177,24 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=background_enabled}}
+                {{input type="checkbox" checked=this.background_enabled}}
                 {{t "Use a custom background for this board" key="add_custom_background"}}
               </label>
             </div>
 
           </div>
-          {{#if model.background}}
+          {{#if this.model.background}}
             <div class="col-sm-9 col-sm-offset-3" style='margin-top: 10px;'>
-              {{input value=model.background.image class="form-control" id="background_image_url" placeholder="URL for background"}}
+              {{input value=this.model.background.image class="form-control" id="background_image_url" placeholder="URL for background"}}
               <div style="margin-top: 12px; float: left; height: 60px; width: 80px; border: 1px solid #ccc; overflow: hidden;">
-                {{#if model.background.image}}
+                {{#if this.model.background.image}}
                   <img src={{this.model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image">
                 {{/if}}
               </div>
               <div style="clear: left;"></div>
             </div>
             <div class="col-sm-6 col-sm-offset-3" style='margin-top: 10px;'>
-              {{input value=model.background.position class="form-control" id="background_image_position" placeholder="image positioning"}}
+              {{input value=this.model.background.position class="form-control" id="background_image_position" placeholder="image positioning"}}
             </div>
             <div class='col-sm-2' style='margin-left: -50px; margin-top: 10px;'>
               <div class="btn-group dropup">
@@ -211,9 +211,9 @@
             </div>
 
             <div class="col-sm-9 col-sm-offset-3" style='margin-top: 10px;'>
-              <span {{action "toggle_color" "fill"}} style={{bg_style}}></span>
+              <span {{action "toggle_color" "fill"}} style={{this.bg_style}}></span>
               <span class="button_field">
-                {{input value=model.background.color class="form-control" id="background"}}
+                {{input value=this.model.background.color class="form-control" id="background"}}
               </span>
             </div>
           {{/if}}
@@ -221,7 +221,7 @@
         <div class="form-group">
           <label for="copy_key" class="col-sm-3 control-label">{{t "Root Key" key="root_key"}}</label>
           <div class="col-sm-7">
-            {{input value=model.copy_key class="form-control" id="copy_key" placeholder="Root board key"}}
+            {{input value=this.model.copy_key class="form-control" id="copy_key" placeholder="Root board key"}}
           </div>
         </div>
         {{#if this.model.home_board}}
