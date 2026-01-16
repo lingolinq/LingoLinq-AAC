@@ -32,4 +32,7 @@ LingoLinq::Application.configure do
   config.assets.debug = true
   
   config.action_mailer.delivery_method = :ses
+  
+  # Allow sandbox hosts for development testing
+  config.hosts.clear
 end
