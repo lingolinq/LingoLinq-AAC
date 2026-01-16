@@ -68,7 +68,9 @@ module.exports = function(environment) {
   }
 
   if (environment === 'production') {
-
+    // Production build also needs API_HOST for sandbox/deployed environments
+    // Use environment variable or default to same-origin (empty host)
+    ENV.API_HOST = process.env.API_HOST || '';
   }
 
   return ENV;
