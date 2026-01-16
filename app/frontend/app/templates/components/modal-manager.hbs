@@ -1,0 +1,18 @@
+{{!-- Modal Manager Component Template --}}
+{{!-- Renders modals based on modal service state --}}
+
+{{#if currentModal}}
+  {{#unless isHighlight}}
+    <div class="modal-backdrop fade in"></div>
+  {{/unless}}
+
+  <div class="modal fade in" style="display: block;" role="dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        {{!-- Dynamically render the current modal component --}}
+        {{!-- The modal template will be looked up by name --}}
+        {{component currentModal options=modalOptions close=(action "closeModal")}}
+      </div>
+    </div>
+  </div>
+{{/if}}
