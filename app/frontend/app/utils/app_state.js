@@ -47,9 +47,10 @@ var app_state = EmberObject.extend({
   setup: function(application) {
     // Register as singleton for injection
     application.register('lingolinq:app_state', app_state, { instantiate: false, singleton: true });
-    // Implicit injection is deprecated in Ember 3.28, but keep for backward compatibility
-    // Components should use explicit injection via inject() pointing to the legacy registration
-    $.each(['model', 'controller', 'view', 'route'], function(i, component) {
+    // CRITICAL FIX: Do NOT inject into 'model' - models are immutable in Ember 3.28+
+    // Models that need app_state must use explicit injection: inject('lingolinq:app_state')
+    // Keep implicit injection for controllers/routes/views temporarily during migration
+    $.each(['controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'app_state', 'lingolinq:app_state');
     });
     this.set('browser', capabilities.browser);
