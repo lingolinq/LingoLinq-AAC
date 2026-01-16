@@ -1,7 +1,7 @@
 <div class="row">
   <div class="col-sm-8 col-sm-offset-2">
     <h2>{{t "Download %app_name%" key="download_app"}}</h2>
-    {{#if app_state.domain_settings.ios_store_url}}
+    {{#if this.app_state.domain_settings.ios_store_url}}
       <h4>{{t "iOS" key="ios"}}</h4>
         <div style='margin-left: 20px; margin-bottom: 20px;'>
           <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
@@ -9,7 +9,7 @@
           </a>
         </div>
     {{/if}}
-    {{#if app_state.domain_settings.play_store_url}}
+    {{#if this.app_state.domain_settings.play_store_url}}
       <h4>{{t "Android" key="android"}}</h4>
         <div style='margin-left: 20px; margin-bottom: 20px;'>
           <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
@@ -17,7 +17,7 @@
           </a>
         </div>
     {{/if}}
-    {{#if app_state.domain_settings.kindle_store_url}}
+    {{#if this.app_state.domain_settings.kindle_store_url}}
     <h4>{{t "Amazon Kindle" key="amazon_kindle"}}</h4>
       <div style='margin-left: 20px; margin-bottom: 20px;'>
         <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">

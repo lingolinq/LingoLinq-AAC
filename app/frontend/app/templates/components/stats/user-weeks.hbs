@@ -1,6 +1,6 @@
 <table class="table table-hover">
   <tbody>
-    {{#each communicators_with_stats as |user|}}
+    {{#each this.communicators_with_stats as |user|}}
       <tr>
         <td style='width: 20%; white-space: nowrap; position: relative;'>
           {{#if user.totals}}
@@ -16,13 +16,13 @@
               </div>
             {{/if}}
           {{/if}}
-          {{#if notable}}
+          {{#if this.notable}}
             <button {{action "note" user}} class='btn_tooltip btn btn-default' style='position: absolute; right: 5px; width: 30px; padding: 6px 0;'><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "Record note for %{un}" un=user.user_name key="record_note_for_user"}}</span></button>
           {{/if}}
         </td>
-        {{#if profiles}} <!-- if org has default communicator or supporter profile, and org is premium -->
+        {{#if this.profiles}} <!-- if org has default communicator or supporter profile, and org is premium -->
           <td style='width: 110px; padding-bottom: 0;'>
-            {{#if show_profiles}}
+            {{#if this.show_profiles}}
               <div class='profile_box' title={{t "Communication Profiles (%{state})" state=user.profile_state key="communication_profiles"}} data-toggle="tooltip" data-placement="top" style='display: inline-block;'>
                 {{#if user.second_profile_history}}
                   <button class='btn btn-default' {{action "user_profile" user}} style='position: absolute; margin-left: -3px; margin-top: -3px;'>
@@ -104,7 +104,7 @@
           {{/if}}
         </td>
         <td style='width: 3%;'>
-          {{#if deletable}}
+          {{#if this.deletable}}
             <a href="#" {{action "delete_action" user.id}}>
               <span class='glyphicon glyphicon-remove'></span>
               <span class='sr-only'>{{t "Remove User" key="remove_user"}}</span>
@@ -115,12 +115,12 @@
     {{/each}}
     <tr>
       <td style='width: 20%;' class='text-muted'>{{t "week of" key="week_of"}}</td>
-      {{#if profiles}}
+      {{#if this.profiles}}
         <td></td>
       {{/if}}
       <td style='padding: 5px 0 0;'>
         <div class='user_weeks'>
-          {{#each labeled_weeks as |label|}}
+          {{#each this.labeled_weeks as |label|}}
             <div class='week_label'>
               {{label}}
             </div>

@@ -1,12 +1,12 @@
 <h2>{{t "Organization Rooms" key="org_rooms"}}</h2>
-{{#if units.loading}}
+{{#if this.units.loading}}
   <p>{{t "Loading Rooms..." key="loading_rooms"}}</p>
-{{else if units.error}}
+{{else if this.units.error}}
   <p>{{t "There was an unexpected problem loading rooms" key="error_loading_rooms"}}</p>
-{{else if units}}
+{{else if this.units}}
   <table class='table table-striped'>
     <tbody>
-      {{#each units as |unit|}}
+      {{#each this.units as |unit|}}
         <tr>
           <td style='padding: 10px 10px 30px;'>
             <h4 style='margin-top: 0;'>
@@ -20,7 +20,7 @@
               <div class='row' style='margin-bottom: 20px;'>
                 <div class='col-sm-6'>
                   <span style="display: inline-block; width: 150px;">
-                    {{bound-select select_class="form-control" content=model.supervisor_options selection=unit.supervisor_user_name action=(action (mut unit.supervisor_user_name)) }}
+                    {{bound-select select_class="form-control" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(action (mut unit.supervisor_user_name)) }}
                   </span>
                   <div class="btn-group dropdown">
                     <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -34,7 +34,7 @@
                 </div>
                 <div class='col-sm-6'>
                   <span style="display: inline-block; width: 150px;">
-                    {{bound-select select_class="form-control" content=model.communicator_options selection=unit.communicator_user_name action=(action (mut unit.communicator_user_name)) }}
+                    {{bound-select select_class="form-control" content=this.model.communicator_options selection=unit.communicator_user_name action=(action (mut unit.communicator_user_name)) }}
                   </span>
                   <button class='btn btn-default' {{action "add_unit_user" unit "communicator"}}>{{t "Add Communicator" key="add_communicator"}}</button>
                 </div>
@@ -46,7 +46,7 @@
             {{else if unit.weekly_stats.error}}
               {{t "Error loading activity data" key="error_loading_activity_data"}}
             {{else}}
-              {{stats/user-weeks unit=unit user_type="total" users=unit.supervisors more_users=unit.communicators weeks=unit.supervisor_weeks more_weeks=unit.user_weeks max_session_count=max_session_count}}
+              {{stats/user-weeks unit=unit user_type="total" users=unit.supervisors more_users=unit.communicators weeks=unit.supervisor_weeks more_weeks=unit.user_weeks max_session_count=this.max_session_count}}
               <a href="#" class='btn btn-default' {{action "toggle_details" unit}} style='font-size: 15px; display: inline-block; margin-top: -10px;'>
                 {{#if unit.expanded}}
                   <span class='glyphicon glyphicon-triangle-bottom' style='vertical-align: middle; margin-right: -3px; margin-top: -3px;'></span>
@@ -60,11 +60,11 @@
             {{#if unit.expanded}}
               <div style='margin-top: 20px; margin-left: 30px;'>
                 <strong>{{t "Supervisors" key="supervisors"}}</strong>
-                {{stats/user-weeks unit=unit user_type="supervisor" users=unit.supervisors weeks=unit.supervisor_weeks refresh="refresh" delete_user="delete_unit_user" deletable=model.permissions.edit}}
+                {{stats/user-weeks unit=unit user_type="supervisor" users=unit.supervisors weeks=unit.supervisor_weeks refresh="refresh" delete_user="delete_unit_user" deletable=this.model.permissions.edit}}
               </div>
               <div style='margin-top: 20px; margin-left: 30px;'>
                 <strong>{{t "Communicators" key="communicators"}}</strong>
-                {{stats/user-weeks unit=unit user_type="communicator" org=model users=unit.communicators weeks=unit.user_weeks refresh="refresh" room_goal_id=unit.goal_id delete_user="delete_unit_user" deletable=model.permissions.edit max_session_count=max_session_count}}
+                {{stats/user-weeks unit=unit user_type="communicator" org=this.model users=unit.communicators weeks=unit.user_weeks refresh="refresh" room_goal_id=unit.goal_id delete_user="delete_unit_user" deletable=this.model.permissions.edit max_session_count=this.max_session_count}}
               </div>
             {{else}}
               <div style='margin-top: 20px; margin-left: 30px;'>
@@ -75,7 +75,7 @@
               </div>
             {{/if}}
           </td>
-          {{#if model.permissions.edit}}
+          {{#if this.model.permissions.edit}}
             <td style='width: 100px; padding: 10px 0 30px;'>
               <div>
                 <button class='btn btn-default' {{action "add_users" unit}}><span class='glyphicon glyphicon-plus'></span><span class='sr-only'>{{t "Add Users" key="add_users"}}</span></button>
@@ -91,13 +91,13 @@
   <p>{{t "No rooms created" key="no_rooms_created"}}</p>
   <p>{{t "Rooms are a way to organize supervisors and communicators into groups. Supervisors are automatically added to the accounts of all communicators in their rooms, and are automatically removed as supervisors when room changes happen." key="rooms_explainer"}}</p>
 {{/if}}
-{{#if model.permissions.edit}}
+{{#if this.model.permissions.edit}}
   <form class="form-inline" {{action "add_unit" on="submit"}}>
     <div class="form-group">
       <p class="form-control-static"><strong>{{t "Add a Room" key="add_a_room"}} </strong></p>
     </div>
     <div class="form-group">
-      {{input type="text" value=new_unit_name placeholder="Room Name" class="form-control"}}
+      {{input type="text" value=this.new_unit_name placeholder="Room Name" class="form-control"}}
     </div>
     <button type="submit" class="btn btn-default">{{t "Add Room" key="add_room"}}</button>
   </form>

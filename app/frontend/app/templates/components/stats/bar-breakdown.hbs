@@ -1,12 +1,12 @@
 <div style='margin-left: 25px;'>
-  {{#unless rows}}
+  {{#unless this.rows}}
     <p>{{t "No results" key="no_results"}}</p>
   {{/unless}}
-  {{#each rows as |row|}}
+  {{#each this.rows as |row|}}
     <div class='row'>
       <div class='col-sm-4' style={{row.label_style}}>
         {{#if row.link}}
-          {{#link-to "organization.reports" org_id (query-params current_report=row.link)}}
+          {{#link-to "organization.reports" this.org_id (query-params current_report=row.link)}}
             {{#if row.glyph}}
               <span class={{row.glyph}}></span>
             {{/if}}

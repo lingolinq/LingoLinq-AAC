@@ -6,14 +6,14 @@
     <div class="form-group">
       <label for="role" class="col-sm-3 control-label">{{t "Account Type" key='role'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="role" content=dashboardViewList selection=this.pending_preferences.role action=(action (mut this.pending_preferences.role)) }}
+        {{bound-select select_class="form-control" select_id="role" content=this.dashboardViewList selection=this.pending_preferences.role action=(action (mut this.pending_preferences.role)) }}
       </div>
     </div>
-    {{#unless non_communicator}}
+    {{#unless this.non_communicator}}
       <div class="form-group">
         <label for="device_role" class="col-sm-3 control-label">{{t "Device Purpose" key='device_purpose'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="device_role" content=device_type_list selection=this.pending_preferences.device.role action=(action (mut this.pending_preferences.device.role)) }}
+          {{bound-select select_class="form-control" select_id="device_role" content=this.device_type_list selection=this.pending_preferences.device.role action=(action (mut this.pending_preferences.device.role)) }}
         </div>
       </div>
       <div class="form-group">

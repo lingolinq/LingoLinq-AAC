@@ -43,7 +43,7 @@
     {{else if this.model.pending}}
       <div class='alert alert-success'>
         {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
-        {{#if resentConfirmation}}
+        {{#if this.resentConfirmation}}
           {{t "Confirmation Email Sent!" key="confirmation_sent"}}
         {{else}}
           <a href="#" class="alert-link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
@@ -59,7 +59,7 @@
         </div>
       {{/if}}
     {{else}}
-      {{#if blank_slate}}
+      {{#if this.blank_slate}}
         <h2>{{t "Getting Started" key="welcome_message"}}</h2>
         <p>
           {{t "Welcome to %app_name%! This is your profile summary, you can always get to it by hitting the button in the top right corner." key="welcome_message2"}}
@@ -220,7 +220,7 @@
           {{#if this.model.managing_org}}
             {{#if this.model.permissions.edit}}
               {{#unless this.model.permissions.delete}}
-                {{#if external_device_or_no_home}}
+                {{#if this.external_device_or_no_home}}
                   <div class='col-sm-3 col-xs-6 big_button_holder'>
                     <button class='btn big_button btn-default lesser_button' {{action "external_device"}} style='height: 100px;'>
                       {{t "Update Device"}}
@@ -522,25 +522,25 @@
         </h4>
         <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
           {{#if this.model.permissions.edit}}
-            <li role="presentation" class={{if mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
+            <li role="presentation" class={{if this.mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
           {{else if this.model.permissions.model}}
-            <li role="presentation" class={{if mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
+            <li role="presentation" class={{if this.mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
           {{/if}}
           {{#unless this.app_state.currentUser.modeling_only}}
-            <li role="presentation" class={{if public_selected "active"}}><a href="#" {{action "set_selected" "public"}}>{{t "Public" key="public"}}</a></li>
+            <li role="presentation" class={{if this.public_selected "active"}}><a href="#" {{action "set_selected" "public"}}>{{t "Public" key="public"}}</a></li>
           {{/unless}}
           {{#if this.model.permissions.model}}
-            <li role="presentation" class={{if root_selected "active"}}><a href="#" {{action "set_selected" "root"}}>{{t "Root" key="root"}}</a></li>
+            <li role="presentation" class={{if this.root_selected "active"}}><a href="#" {{action "set_selected" "root"}}>{{t "Root" key="root"}}</a></li>
           {{/if}}
           {{#unless this.app_state.currentUser.modeling_only}}
-            <li role="presentation" class={{if starred_selected "active"}}><a href="#" {{action "set_selected" "starred"}}>{{t "Liked" key="starred"}}</a></li>
+            <li role="presentation" class={{if this.starred_selected "active"}}><a href="#" {{action "set_selected" "starred"}}>{{t "Liked" key="starred"}}</a></li>
           {{/unless}}
           
           {{#unless this.app_state.currentUser.modeling_only}}
             {{#if this.model.permissions.model}}
-              <li role="presentation" class={{if other_selected "dropdown active" "dropdown"}}>
+              <li role="presentation" class={{if this.other_selected "dropdown active" "dropdown"}}>
                 <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-                  {{ more_label }}
+                  {{ this.more_label }}
                   <span class="caret"></span>
                 </a>
                 <ul class="dropdown-menu">
@@ -553,7 +553,7 @@
                     {{/if}}
                   {{/if}}
                   {{#if this.model.permissions.edit}}
-                    <li role="presentation" class={{if private_selected "active"}}><a href="#" {{action "set_selected" "private"}}>{{t "Private" key="private"}}</a></li>
+                    <li role="presentation" class={{if this.private_selected "active"}}><a href="#" {{action "set_selected" "private"}}>{{t "Private" key="private"}}</a></li>
                   {{/if}}
                   {{#each this.model.board_tags as |tag|}}
                     <li><a href="#" {{action "set_tag" tag}}>{{tag}}</a></li>
@@ -569,7 +569,7 @@
           {{else if this.board_list.error}}
             {{t "Failed to load" key="failed_to_load"}}
           {{else if this.board_list.results}}
-            {{#if prior_home_selected}}
+            {{#if this.prior_home_selected}}
               <ul class="list-group" style="max-width: 350px;">
                 {{#each this.board_list.filtered_results as |board|}}
                   <li class="list-group-item">
@@ -577,21 +577,21 @@
                   </li>
                 {{/each}}
               </ul>
-              {{#unless show_all_boards}}
+              {{#unless this.show_all_boards}}
                 <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
               {{/unless}}
             {{else}}
               {{#if this.board_list.sub_result}}
-                <div style='margin-bottom: 5px;'><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=parent_object.board.key}}</em></div>
+                <div style='margin-bottom: 5px;'><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.parent_object.board.key}}</em></div>
                 <a href="#" class='btn btn-default' {{action "load_children"}} style='margin-bottom: 10px;'><span class='glyphicon glyphicon-arrow-left'></span> {{t "Back to Full List" key="back_to_full_list"}}</a>
               {{/if}}
               <form style="margin-bottom: 10px;" {{action "nothing" on="submit"}}>
                 <div style="width: 250px;">
-                {{input type="text" value=filterString class="form-control" placeholder="Filter Results"}}
+                {{input type="text" value=this.filterString class="form-control" placeholder="Filter Results"}}
                 </div>
               </form>
               <div class="row">
-                {{#each filtered_results as |board|}}
+                {{#each this.filtered_results as |board|}}
                   {{#if board.board.key}}
                     {{#unless board.board.removed}}
                       <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{if board.hidden "position: absolute; left: -1000px; visibility: hidden;" ""}}>
@@ -622,8 +622,8 @@
                     {{/if}}
                   {{/if}}
                 {{/each}}
-                {{#unless show_all_boards}}
-                  {{#unless filterString}}
+                {{#unless this.show_all_boards}}
+                  {{#unless this.filterString}}
                     <div class="col-sm-12" style='clear: left;'>
                       <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
                     </div>
@@ -641,45 +641,45 @@
     <div class="row" style="margin-top: 30px;">
       <div class="col-sm-12">
         <h4>{{t "Support Actions" key="support_actions"}}</h4>
-        {{#if password}}
+        {{#if this.password}}
           <div>
-            {{#unless password.pw}}
+            {{#unless this.password.pw}}
               {{t "Are you sure you want to reset this user's password? They will receive an email notifying them of the reset." key="confirm_reset_password"}}<br>
               <button class='btn btn-default' {{action "reset_password" true}}>{{t "Reset Password" key="reset_password"}}</button>
               <button class='btn btn-default' {{action "reset_password" false}}>{{t "Cancel" key="cancel"}}</button>
             {{/unless}}
-            {{#if password.loading}}
-              {{t "Setting password to <strong>%{pw}</strong>..." key="setting_password_to" pw=password.pw}}
-            {{else if password.error}}
+            {{#if this.password.loading}}
+              {{t "Setting password to <strong>%{pw}</strong>..." key="setting_password_to" pw=this.password.pw}}
+            {{else if this.password.error}}
               {{t "Password reset failed" key="password_reset_failed"}}
-            {{else if password.pw}}
-              {{t "Password reset to <strong>%{pw}</strong>" key="password_was_reset" pw=password.pw}}
+            {{else if this.password.pw}}
+              {{t "Password reset to <strong>%{pw}</strong>" key="password_was_reset" pw=this.password.pw}}
             {{/if}}
           </div>
-        {{else if new_user_name}}
+        {{else if this.new_user_name}}
           <div>
             {{t "Are you sure you want to change the user's user name? They will receive an email notifying them of the change." key="confirm_change"}}<br>
             <form class="form-horizontal" {{action "nothing"}}>
               <div class="form-group">
                 <label for="old_key" class="col-sm-3 control-label">{{t "Current User Name" key="current_user_name"}}</label>
                 <div class="col-sm-5">
-                  {{input type="text" class="form-control" id="old_key" value=new_user_name.old_value placeholder="current user name"}}
+                  {{input type="text" class="form-control" id="old_key" value=this.new_user_name.old_value placeholder="current user name"}}
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="new_key" class="col-sm-3 control-label">{{t "New User Name" key="new_user_name"}}</label>
                 <div class="col-sm-5">
-                  {{input type="text" class="form-control" id="new_key" value=new_user_name.value placeholder="new key"}}
+                  {{input type="text" class="form-control" id="new_key" value=this.new_user_name.value placeholder="new key"}}
                 </div>
               </div>
 
               <div class="form-group">
                 <div class='col-sm-5 col-sm-offset-3'>
                   <button class='btn btn-default' {{action "rename_user" true}}>
-                    {{#if new_user_name.renaming}}
+                    {{#if this.new_user_name.renaming}}
                       {{t "Changing User Name" key="changing_user_name"}}
-                    {{else if new_user_name.error}}
+                    {{else if this.new_user_name.error}}
                       {{t "Error Changing User Name" key="error_changing_user_name"}}
                     {{else}}
                       {{t "Change User Name" key="change_user_name"}}
@@ -722,14 +722,14 @@
                 {{/if}}
               </div>
             </div>
-            {{#if subscription_settings.type}}
+            {{#if this.subscription_settings.type}}
               <div>
-                {{#if subscription_settings.loading}}
+                {{#if this.subscription_settings.loading}}
                   {{t "Updating subscription..." key="updating_subscription"}}
-                {{else if subscription_settings.error}}
-                  {{subscription_settings.error}}
+                {{else if this.subscription_settings.error}}
+                  {{this.subscription_settings.error}}
                 {{else}}
-                  {{t "Are you sure you want to set this user as a %{type}?" type=subscription_settings.type key="confirm_subscription_set"}}<br>
+                  {{t "Are you sure you want to set this user as a %{type}?" type=this.subscription_settings.type key="confirm_subscription_set"}}<br>
                   <button class='btn btn-default' {{action "set_subscription" "confirm"}}>{{t "Update Subscription" key="update_subscription"}}</button>
                   <button class='btn btn-default' {{action "set_subscription" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
                 {{/if}}
@@ -759,20 +759,20 @@
           </div>
 
           <h5 style="margin-top: 20px;">{{t "Recent Usage:" key="recent usage"}}</h5>
-          {{#if daily_use.loading}}
+          {{#if this.daily_use.loading}}
             <p>{{t "Loading..." key="loading"}}</p>
-          {{else if daily_use.error}}
+          {{else if this.daily_use.error}}
             <p>{{t "Error loading data" key="error_loading_data"}}</p>
-          {{else if daily_use.daily_use_history}}
+          {{else if this.daily_use.daily_use_history}}
             <div class='daily_use'>
-              {{raw_daily_use}}
+              {{this.raw_daily_use}}
             </div>
           {{else}}
             <p>{{t "No data loaded" key="no_data_loaded"}}</p>
           {{/if}}
 
           <h5 style="margin-top: 20px;">{{t "Devices:" key="devices_colon"}}</h5>
-            {{#if model.devices}}
+            {{#if this.model.devices}}
               <table class="table table-striped table-hover">
                 <thead>
                   <tr>
@@ -784,7 +784,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {{#each filtered_devices as |device|}}
+                  {{#each this.filtered_devices as |device|}}
                     <tr>
                       <td>{{device.name}}
                         <div style='font-size: 12px; color: #888;'>{{device.ref_id}}</div>

@@ -160,31 +160,6 @@
             </div>
           {{/unless}}
         {{/unless}}
-        {{/each}}
-      {{else}}
-        {{#unless this.goals.loading}}
-          {{#unless this.goals.error}}
-            <p>{{t "No goals to show" key="no_goals"}}</p>
-          {{/unless}}
-        {{/unless}}
-      {{/if}}
-      {{#if this.goals.loading}}
-        <p>{{t "Loading goals..." key="loading_goals"}}</p>
-      {{else if this.goals.error}}
-        <p>{{t "There was an error loading goals" key="error_loading_goals_lower"}}</p>
-      {{/if}}
-    {{else}}
-      <form class="form-horizontal">
-        <!-- TODO: form should wrap to include submit button, no? -->
-        {{#unless this.goal.id}}
-          {{#unless this.model.unit}}
-            <div class="form-group">
-              <div class="col-sm-10 col-sm-offset-2">
-                <a href="#" {{action "browse_goals"}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
-              </div>
-            </div>
-          {{/unless}}
-        {{/unless}}
         <div class="form-group">
           <label for="new_goal_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
           <div class="col-sm-10">
