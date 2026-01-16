@@ -45,6 +45,7 @@ gem 'resque'
 gem 'rails_12factor', group: :production
 # gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
 gem 'puma'
+gem 'rack-cors'  # Enable CORS for development testing
 gem 'rack-offline'
 gem 'paper_trail'
 gem 'geokit'

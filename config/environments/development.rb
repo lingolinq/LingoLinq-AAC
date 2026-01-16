@@ -35,4 +35,14 @@ LingoLinq::Application.configure do
   
   # Allow sandbox hosts for development testing
   config.hosts.clear
+  
+  # Enable CORS for development (allows Ember frontend to call Rails API directly)
+  config.middleware.insert_before 0, Rack::Cors do
+    allow do
+      origins '*'  # Allow all origins in development
+      resource '*',
+        headers: :any,
+        methods: [:get, :post, :put, :patch, :delete, :options, :head]
+    end
+  end
 end
