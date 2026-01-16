@@ -1,18 +1,18 @@
 <div class='row'>
-  <div class={{if include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}}>
+  <div class={{if this.include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}}>
     <button class='btn btn-lg btn-primary' style='width: 100%;' {{action "select"}}>
-      {{#if select_option}}
+      {{#if this.select_option}}
         {{t "Choose This Board" key="choose_this_board"}}
       {{else}}
         {{t "Try This Board" key="try_this_board"}}
       {{/if}}
     </button>
-    {{#if back}}
-      <button class='btn btn-lg btn-default' style='width: 100%; margin-top: 2px;' {{action back}}>
+    {{#if this.back}}
+      <button class='btn btn-lg btn-default' style='width: 100%; margin-top: 2px;' {{action this.back}}>
         {{t "Back to List" key="back_to_list"}}
       </button>
     {{/if}}
-    {{#if select_option}}
+    {{#if this.select_option}}
       <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "close"}}>
         {{t "Cancel" key="cancel"}}
       </button>
@@ -21,16 +21,16 @@
         {{t "Board Actions" key="board_actions"}}
       </button>
     {{/if}}
-    {{#if app_state.currentUser.supervisees}}
+    {{#if this.app_state.currentUser.supervisees}}
       <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "copy"}}>
         {{t "Copy For..." key="copy_for_ellipses"}}
       </button>
     {{/if}}
-    {{#if model.loading}}
+    {{#if this.model.loading}}
       {{t "Loading board..." key="loading_board"}}
-    {{else if model.error}}
+    {{else if this.model.error}}
       {{t "Error loading board" key="error_loading_board"}}
-    {{else if model}}
+    {{else if this.model}}
       <div style='text-align: center;'>
         <h3>{{this.model.name}}</h3>
         <div style='margin: -10px 0 10px 0;'>{{t "by" key="by"}} {{this.model.user_name}}</div>
@@ -44,16 +44,16 @@
         <dt>{{t "Dimensions" key="dimensions"}}</dt>
           <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
         <dt>{{t "Created" key="created"}}</dt>
-          <dd>{{date model.created "day"}}</dd>
+          <dd>{{date this.model.created "day"}}</dd>
         <dt>{{t "Last Updated" key="updated"}}</dt>
-          <dd>{{date model.updated "day"}}</dd>
-        {{#if model.locale}}
+          <dd>{{date this.model.updated "day"}}</dd>
+        {{#if this.model.locale}}
           <dt>{{t "Default Language" key="default_language"}}</dt>
-            <dd>{{language}}</dd>
+            <dd>{{this.language}}</dd>
         {{/if}}
-        {{#if multiple_locales}}
+        {{#if this.multiple_locales}}
           <dt>{{t "Translations" key="translations"}}</dt>
-            <dd>{{languages}}</dd>
+            <dd>{{this.languages}}</dd>
         {{/if}}
         <dt>{{t "People Using" key="people_using"}}</dt>
           <dd>
@@ -76,9 +76,9 @@
       {{t "No data to show" key="no_data_to_show"}}
     {{/if}}
   </div>
-  {{#if include_canvas}}
+  {{#if this.include_canvas}}
     <div class='col-sm-8'>
-      {{board-preview-canvas board=model locale=locale show_links=true size="modal"}}
+      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal"}}
     </div>
   {{/if}}
 </div>

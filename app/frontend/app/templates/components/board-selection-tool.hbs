@@ -3,18 +3,18 @@
     {{t "Loading Layouts..." key="loading_layouts"}}
   {{else if this.status.error}}
     {{t "Error Loading Layouts" key="error_loading_layouts"}}
-  {{else if boards}}
+  {{else if this.boards}}
     {{#if this.base_level_and_style}}
-      <button class='btn btn-default btn-lg' disabled={{no_previous}} {{action "previous"}} style='float: left; position: absolute; left: 5px; top: calc(50vh - 35px); height: 110px; box-shadow: 10px 10px 10px; border-width: 4px; z-index: 2;'>
+      <button class='btn btn-default btn-lg' disabled={{this.no_previous}} {{action "previous"}} style='float: left; position: absolute; left: 5px; top: calc(50vh - 35px); height: 110px; box-shadow: 10px 10px 10px; border-width: 4px; z-index: 2;'>
         <span class='glyphicon glyphicon-chevron-left'></span> 
-        {{#if level_select}}
+        {{#if this.level_select}}
           {{t "Fewer Buttons" key="fewer_buttons"}}
         {{else}}
           {{t "Bigger Buttons" key="bigger_buttons"}}
         {{/if}}
       </button>
-      <button class='btn btn-default btn-lg' disabled={{no_next}} {{action "next"}} style='float: right; position: absolute; right: 5px; top: calc(50vh - 35px); height: 110px; box-shadow: -10px 10px 10px; border-width: 4px; z-index: 2;'>
-        {{#if level_select}}
+      <button class='btn btn-default btn-lg' disabled={{this.no_next}} {{action "next"}} style='float: right; position: absolute; right: 5px; top: calc(50vh - 35px); height: 110px; box-shadow: -10px 10px 10px; border-width: 4px; z-index: 2;'>
+        {{#if this.level_select}}
           {{t "More Buttons" key="more_buttons"}}
         {{else}}
           {{t "More Buttons" key="more_buttons"}}
@@ -23,18 +23,18 @@
       </button>
     {{/if}}
     <div style='text-align: center;'>
-      {{#if level_select}}
+      {{#if this.level_select}}
         <button class='btn btn-primary btn-lg' {{action "select"}} style='position: relative; box-shadow: 0 3px 8px #000;height: 70px; border-width: 4px;'>{{t "Make This my Home Board" key="make_home_board"}}
         </button>
         <button class='btn btn-default btn-sm' {{action "deselect"}}>{{t "Change Layouts" key="change_layouts"}}</button>
         <div style='margin-bottom: -60px; position: relative; margin-top: 10px;'>
           <span style='display: inline-block; background: rgba(255, 255, 255, 0.85); padding: 10px; border-radius: 5px; border: 1px solid #aaa;'>
-            {{current_board.name}},
+            {{this.current_board.name}},
             <b>{{t "Level" key="level"}} 
-              {{#if current_level}}
-                {{current_level}}
-              {{else if base_level}}
-                {{base_level}}
+              {{#if this.current_level}}
+                {{this.current_level}}
+              {{else if this.base_level}}
+                {{this.base_level}}
               {{/if}}
             </b>
             {{#if this.level_buttons}}
@@ -49,7 +49,7 @@
         {{/if}}
         <button class='btn btn-default btn-sm' {{action "advanced"}}>{{t "Let Me Browse On My Own" key="browse_on_my_own"}}</button>
         {{#if this.app_state.currentUser.supporter_role}}
-          {{#if mine}}
+          {{#if this.mine}}
             <button class='btn btn-default btn-sm' {{action "mine"}}>{{t "Choose From My Home Boards" key="choose_from_mine"}}</button>
           {{/if}}
         {{/if}}
@@ -60,10 +60,10 @@
   {{/if}}
 </div>
 {{#if this.base_level_and_style}}
-  {{#if prompt}}
+  {{#if this.prompt}}
     <div style='position: absolute; width: 100%;'>
       <div style='width: 400px; max-width: 80vw; max-height: calc(100vh - 200px); overflow: auto; margin: -20px auto 0; background: #fff; border: 2px solid #aaa; border-radius: 10px; padding: 10px; font-size: 16px; box-shadow: 1px 1px 10px, -1px -1px 10px;'>
-        {{#if level_select}}
+        {{#if this.level_select}}
           {{t "Great! Here's what your home board will look like right now. If you want, you can fine-tune it to show fewer or more button to start off. You can start at a basic level with only a few buttons, or show everything right away.<br><br>You can easily change the number of buttons shown later by adjusting the level for the communicator." key="button_count_prompt"}}
         {{else}}
           {{t "Splendid! Next let's figure out what size of buttons will work best! If the buttons are too big then there won't be room to grow over time -- try to find the smallest size that your communicator can reliably use.<br><br>Remember that you can always hide buttons if a large board is overwhelming at first, but it's harder to change the grid size later." key="grid_prompt"}}
@@ -74,8 +74,8 @@
       </div>
     </div>
   {{/if}}
-  {{#if current_board}}
-    {{board-preview-canvas board=current_board size="selection" show_links=level_select base_level=base_level current_level=current_level}}
+  {{#if this.current_board}}
+    {{board-preview-canvas board=this.current_board size="selection" show_links=this.level_select base_level=this.base_level current_level=this.current_level}}
   {{/if}}
 {{else}}
   <div style='margin: 10px auto; max-width: 600px;'>
@@ -83,7 +83,7 @@
       <p class='prompt'>{{t "Next, you can choose which style of vocabulary you would prefer if available in the right size. Different layouts have different strengths, but you can always come back and change your mind later." key="choose_board_style"}}</p>
     {{else}}
       {{#if this.app_state.currentUser.preferences.home_board}}
-        {{#if search}}
+        {{#if this.search}}
           <p class='prompt'>{{t "Let's help you find a new home board! First thing, how comfortable is the communicator with speech apps and tapping to make choices? You can skip this step if you've already got the right home board." key="base_level_search_prompt"}}</p>
         {{else}}
           <p class='prompt'>{{t "If you'd like, you can use this step to choose a new home board. First thing, how comfortable is the communicator with speech apps and tapping to make choices? You can skip this step if you've already got the right home board." key="base_level_setup_prompt"}}</p>
@@ -94,7 +94,7 @@
     {{/if}}
     <div class='row grid_choices' style='margin-top: 30px;'>
       {{#if this.board_style_needed}}
-        {{#each board_styles as |style|}}
+        {{#each this.board_styles as |style|}}
           <div class={{style.col_class}}>
             <button class='btn btn-default' {{action "set_board_style" style}} style='overflow: hidden;'>
               {{style.name}}<br>
