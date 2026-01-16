@@ -63,3 +63,4 @@ app/frontend/build_log.txt
 # Editor/Tool artifacts
 bin/ruby-lsp*
 bin/bundle.cmd
+app/frontend/build_debug.log
