@@ -11,44 +11,44 @@
       <dt>{{t "Description" key="description"}}</dt>
         <dd style="white-space: pre-line;">{{this.model.description}}</dd>
       <dt>{{t "Created" key="created"}}</dt>
-        <dd>{{date model.created "day"}}</dd>
+        <dd>{{date this.model.created "day"}}</dd>
       <dt>{{t "Last Updated" key="updated"}}</dt>
-        <dd>{{date model.updated "day"}}</dd>
-      {{#if model.locale}}
+        <dd>{{date this.model.updated "day"}}</dd>
+      {{#if this.model.locale}}
         <dt>{{t "Default Language" key="default_language"}}</dt>
-          <dd>{{language}}</dd>
+          <dd>{{this.language}}</dd>
       {{/if}}
-      {{#if multiple_locales}}
+      {{#if this.multiple_locales}}
         <dt>{{t "Translations" key="translations"}}</dt>
-          <dd>{{languages}}</dd>
+          <dd>{{this.languages}}</dd>
       {{/if}}
-      {{#if model.parent_board_key}}
+      {{#if this.model.parent_board_key}}
         <dt>{{t "Copied From" key="copied_from"}}</dt>
         <dd>
-          {{#link-to "board" model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
+          {{#link-to "board" this.model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
         </dd>
       {{/if}}
       <dt>{{t "Public" key="public"}}</dt>
         <dd>
-        {{#if model.public}}
+        {{#if this.model.public}}
           {{t "Anyone can see this board" key="anyone_can_see"}}
         {{else}}
           {{t "This board is private" key="this_board_is_private"}}
         {{/if}}
         </dd>
-      {{#if model.word_suggestions}}
+      {{#if this.model.word_suggestions}}
         <dt>{{t "Suggestions" key="suggestions"}}</dt>
         <dd>{{t "Shows word completion suggestions" key="shows_word_completion_suggestions"}}</dd>
       {{/if}}
 
       <dt>{{t "License" key="license"}}</dt>
         <dd>
-          {{license-attribution license=model.license}}
-          {{#if model.protected_material}}
+          {{license-attribution license=this.model.license}}
+          {{#if this.model.protected_material}}
             <div style='margin-bottom: 10px; margin-top: 5px;'>
-              {{#if model.has_fallbacks}}
+              {{#if this.model.has_fallbacks}}
                 <em>{{t "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent" key="protected_fallback_material"}}</em>
-              {{else if model.copying_state}}
+              {{else if this.model.copying_state}}
                 <em>{{t "This board contains protected material, and cannot be made public" key="board_contains_protected_material"}}</em>
               {{else}}
                 <em>{{t "This board contains protected material which cannot be made public. If this board is shared or made public, users without proper access will see free images and sounds instead which may not perfectly match the author's intent." key="board_contains_protected_material_will_use_fallbacks"}}</em>
