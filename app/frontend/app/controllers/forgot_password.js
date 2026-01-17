@@ -1,14 +1,17 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 
 export default Controller.extend({
+  persistence: service(),
+
   title: "Forgot Password",
   actions: {
     submitKey: function() {
       var name = this.get('name');
       var _this = this;
-      persistence.ajax('/api/v1/forgot_password', {
+      this.persistence.ajax('/api/v1/forgot_password', {
         type: 'POST',
         data: {key: name}
       }).then(function(data) {

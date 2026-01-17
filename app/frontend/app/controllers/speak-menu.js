@@ -1,4 +1,5 @@
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import modal from '../utils/modal';
 import stashes from '../utils/_stashes';
@@ -12,11 +13,15 @@ import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
-    var utterances = stashes.get('remembered_vocalizations') || [];
-    if(app_state.get('currentUser')) {
+    var utterances = this.stashes.get('remembered_vocalizations') || [];
+    if(this.appState.get('currentUser')) {
       utterances = utterances.filter(function(u) { return u.stash; }).slice(0, 2);
-      (app_state.get('currentUser.vocalizations') || []).filter(function(v) { return !v.category || v.category == 'default'; }).forEach(function(u) {
+      (this.appState.get('currentUser.vocalizations') || []).filter(function(v) { return !v.category || v.category == 'default'; }).forEach(function(u) {
         utterances.push({
           sentence: u.list.map(function(v) { return v.label; }).join(" "),
           vocalizations: u.list,
@@ -28,7 +33,7 @@ export default modal.ModalController.extend({
     this.set('punctuation_menu', false);
     this.set('repeat_menu', false);
     this.set('rememberedUtterances', utterances.slice(0, 7));
-    var height = app_state.get('header_height');
+    var height = this.appState.get('header_height');
     $("#speak_menu").closest(".modal-dialog").css('top', (height - 40) + 'px');
     runLater(function() {
       $("#speak_menu").closest(".modal-dialog").css('top', (height - 40) + 'px');
@@ -42,7 +47,7 @@ export default modal.ModalController.extend({
     }
   ),
   working_vocalization_text: computed('stashes.working_vocalization', function() {
-    var buttons = stashes.get('working_vocalization') || [{label: "no text"}];
+    var buttons = this.stashes.get('working_vocalization') || [{label: "no text"}];
     return buttons.map(function(b) { return b.label; }).join(" ");
   }),
   contraction: computed('working_vocalization_text', function() {
@@ -51,19 +56,19 @@ export default modal.ModalController.extend({
   }),
   actions: {
     selectButton: function(button) {
-      modal.close(true);
+      this.modal.close(true);
       if(button == 'remember') {
-        app_state.save_phrase(stashes.get('working_vocalization'));
+        app_state.save_phrase(this.stashes.get('working_vocalization'));
       } else if(button == 'share') {
-        if(stashes.get('working_vocalization.length')) {
-          modal.open('share-utterance', {utterance: stashes.get('working_vocalization')});
+        if(this.stashes.get('working_vocalization.length')) {
+          this.modal.open('share-utterance', {utterance: this.stashes.get('working_vocalization')});
         }
       } else if(button == 'sayLouder') {
         app_state.say_louder();
       } else {
-        var existing = [].concat(stashes.get('working_vocalization') || []);
+        var existing = [].concat(this.stashes.get('working_vocalization') || []);
         var ids = existing.map(function(b){ return b.button_id + ":" + (b.board || {}).id}).join('::');
-        var already_there = (stashes.get('remembered_vocalizations') || []).find(function(list) { 
+        var already_there = (this.stashes.get('remembered_vocalizations') || []).find(function(list) { 
           return ids == (list.vocalizations || []).map(function(b) { return b.button_id + ":" + (b.board || {}).id}).join('::');
         });
         if(button.stash) {
@@ -71,15 +76,15 @@ export default modal.ModalController.extend({
           // when you swap this one out
           utterance.set('rawButtonList', button.vocalizations);
           utterance.set('list_vocalized', false);
-          var list = (stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash && v.sentence != button.sentence; });
-          stashes.persist('remembered_vocalizations', list);
+          var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash && v.sentence != button.sentence; });
+          this.stashes.persist('remembered_vocalizations', list);
           if(existing.length > 0 && !already_there) {
             stashes.remember({override: existing, stash: true});
           }
         } else {
           // If there is nothing in the held thought,
           // but there is a working vocalization, stash it
-          if(existing.length > 0 && !(stashes.get('remembered_vocalizations') || []).find(function(v) { return v.stash; })) {
+          if(existing.length > 0 && !(this.stashes.get('remembered_vocalizations') || []).find(function(v) { return v.stash; })) {
             stashes.remember({override: existing, stash: true});
           }
           app_state.set_and_say_buttons(button.vocalizations);
@@ -87,44 +92,44 @@ export default modal.ModalController.extend({
       }
     },
     end_insertion: function() {
-      app_state.set('insertion', null);
-      modal.close();
+      this.appState.set('insertion', null);
+      this.modal.close();
     },
     reply_note: function() {
-      if(app_state.get('reply_note')) {
-        var user = app_state.get('reply_note.author');
+      if(this.appState.get('reply_note')) {
+        var user = this.appState.get('reply_note.author');
         if(user) {
           emberSet(user, 'user_name', user.user_name || user.name);
           emberSet(user, 'avatar_url', user.avatar_url || user.image_url);
-          var voc = stashes.get('working_vocalization') || [];
+          var voc = this.stashes.get('working_vocalization') || [];
           var sentence = voc.map(function(v) { return v.label; }).join(' ');
-          modal.open('confirm-notify-user', {user: user, reply_id: app_state.get('reply_note.id'), raw: stashes.get('working_vocalization'), sentence: sentence, utterance: null, scannable: true});
+          this.modal.open('confirm-notify-user', {user: user, reply_id: this.appState.get('reply_note.id'), raw: this.stashes.get('working_vocalization'), sentence: sentence, utterance: null, scannable: true});
         }
       }
     },
     flip_text: function() {
       app_state.flip_text();
-      modal.close(true);
+      this.modal.close(true);
     },
     button_event: function(event, button, full_event) {
       if(event == 'speakMenuSelect') {
         var click = function() {
-          if(app_state.get('currentUser.preferences.click_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.click_buttons') && this.appState.get('speak_mode')) {
             speecher.click();
           }
-          if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
             capabilities.vibrate();
           }
         };
         if(button != 'menu_repeat_button' && button != 'menu_punctuation_button') {
-          modal.close(true);
+          this.modal.close(true);
         }
         if(button == 'menu_share_button') {
-          modal.open('share-utterance', {utterance: stashes.get('working_vocalization'), inactivity_timeout: true, scannable: true});
+          this.modal.open('share-utterance', {utterance: this.stashes.get('working_vocalization'), inactivity_timeout: true, scannable: true});
           click();
         } else if(button == 'menu_repeat_button') {
           if(full_event.swipe_direction) {
-            modal.close(true);
+            this.modal.close(true);
             if(full_event.swipe_direction == 'e') {
               app_state.say_louder();
             } else if(full_event.swipe_direction == 'w') {
@@ -134,7 +139,7 @@ export default modal.ModalController.extend({
               app_state.flip_text();
             } else if(full_event.swipe_direction == 's') {
               click();
-              modal.open('modals/big-button', {text: this.get('working_vocalization_text'), text_only: app_state.get('referenced_user.preferences.device.button_text_position') == 'text_only'});
+              this.modal.open('modals/big-button', {text: this.get('working_vocalization_text'), text_only: this.appState.get('referenced_user.preferences.device.button_text_position') == 'text_only'});
             }
           } else {
             this.set('repeat_menu', !this.get('repeat_menu'));
@@ -147,31 +152,31 @@ export default modal.ModalController.extend({
           app_state.say_louder(0.3);
         } else if(button == 'menu_repeat_text') {
           click();
-          modal.open('modals/big-button', {text: this.get('working_vocalization_text'), text_only: app_state.get('referenced_user.preferences.device.button_text_position') == 'text_only'});
+          this.modal.open('modals/big-button', {text: this.get('working_vocalization_text'), text_only: this.appState.get('referenced_user.preferences.device.button_text_position') == 'text_only'});
         } else if(button == 'menu_repeat_flip') {
           click();
           app_state.flip_text();
         } else if(button == 'menu_repeat_gif') {
           click();
-          modal.open('modals/gif');
+          this.modal.open('modals/gif');
         } else if(button == 'menu_hold_thought_button') {
           stashes.remember({stash: true});
           utterance.clear();
           click();
         } else if(button == 'menu_phrases_button') {
-          modal.open('modals/phrases', {inactivity_timeout: true, scannable: true});
+          this.modal.open('modals/phrases', {inactivity_timeout: true, scannable: true});
           click();
         } else if(button == 'menu_inbox_button') {
-          modal.open('modals/inbox', {inactivity_timeout: true, scannable: true});
+          this.modal.open('modals/inbox', {inactivity_timeout: true, scannable: true});
           click();
         } else if(button == 'menu_repair_button') {
           if(full_event.swipe_direction) {
-            modal.close(true);
+            this.modal.close(true);
             if(full_event.swipe_direction == 'n') {
               speecher.oops();
             }
           } else {
-            modal.open('modals/repairs', {inactivity_timeout: true, scannable: true});
+            this.modal.open('modals/repairs', {inactivity_timeout: true, scannable: true});
             click();  
           }
         } else if(button == 'menu_contraction_button') {
@@ -283,7 +288,7 @@ export default modal.ModalController.extend({
     },
     close: function() {
       modal.set('speak_menu_last_closed', Date.now());
-      modal.close();
+      this.modal.close();
     }
   },
 });

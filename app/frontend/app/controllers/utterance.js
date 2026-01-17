@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import speecher from '../utils/speecher';
 import utterance from '../utils/utterance';
 import i18n from '../utils/i18n';
@@ -9,6 +10,9 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/string';
 
 export default Controller.extend({
+  persistence: service(),
+  modal: service(),
+
   title: computed('model.sentence', 'model.show_user', 'model.user', function() {
     var sentence = this.get('model.sentence') || "something";
     if(this.get('model.show_user') && this.get('model.user')) {
@@ -21,7 +25,7 @@ export default Controller.extend({
     var _this = this;
     if(_this.get('model.permissions.reply') && !_this.get('reachable_core')) {
       _this.set('reachable_core', {pending: true});
-      persistence.ajax("/api/v1/words/reachable_core?user_id=" + _this.get('model.user.id') + "&utterance_id=" + _this.get('model.id'), {type: 'GET'}).then(function(res) {
+      this.persistence.ajax("/api/v1/words/reachable_core?user_id=" + _this.get('model.user.id') + "&utterance_id=" + _this.get('model.id'), {type: 'GET'}).then(function(res) {
         _this.set('reachable_core', res.words.sort());
       }, function(err) { 
         _this.set('reachable_core', null);
@@ -109,7 +113,7 @@ export default Controller.extend({
       var _this = this;
       if(!_this.get('message') || !_this.get('model.reply_code')) { return; }
       _this.set('reply_status', {loading: true});
-      persistence.ajax('/api/v1/utterances/' + _this.get('model.id') + '/reply', {
+      this.persistence.ajax('/api/v1/utterances/' + _this.get('model.id') + '/reply', {
         type: 'POST',
         data: {
           message: _this.get('message'),
@@ -168,12 +172,12 @@ export default Controller.extend({
     },
     copy_event(res) {
       if(res) { modal.success(i18n.t('copied', "Copied to clipboard!")); }
-      else { modal.error(i18n.t('copy_failed', "Copying to the clipboard failed.")); }
+      else { this.modal.error(i18n.t('copy_failed', "Copying to the clipboard failed.")); }
     },
     update_utterance: function() {
       this.set('model.image_url', this.get('image_url'));
       this.get('model').save().then(null, function() {
-        modal.error(i18n.t('utterance_update_failed', "Sentence update failed"));
+        this.modal.error(i18n.t('utterance_update_failed', "Sentence update failed"));
       });
     }
   }

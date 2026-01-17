@@ -1,14 +1,19 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import Subscription from '../utils/subscription';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
-    if(app_state.get('currentUser')) {
+    if(this.appState.get('currentUser')) {
       this.set('model', {
-        user: app_state.get('currentUser'),
-        subscription: Subscription.create({user: app_state.get('currentUser')})
+        user: this.appState.get('currentUser'),
+        subscription: Subscription.create({user: this.appState.get('currentUser')})
       });
       Subscription.init();
     } else {
@@ -27,19 +32,19 @@ export default modal.ModalController.extend({
       this.send('subscription_skip');
     },
     subscription_skip: function() {
-      modal.close();
+      this.modal.close();
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'launch', 'Setup started');
       }
-      app_state.get('auto_setup', true);
+      this.appState.get('auto_setup', true);
       this.transitionToRoute('setup', {queryParams: {user_id: null, page: null}});
     },
     subscription_error: function(err) {
       this.set('error', err);
     },
     subscription_success: function(msg) {
-      modal.close();
-      app_state.get('auto_setup', true);
+      this.modal.close();
+      this.appState.get('auto_setup', true);
       this.transitionToRoute('setup', {queryParams: {user_id: null, page: null}});
       modal.success(msg);
     }

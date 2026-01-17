@@ -2,14 +2,19 @@ import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
-    var labels = app_state.get('label_locale') || this.get('model.board.translations.current_label') || this.get('model.board.locale') || 'en';
-    var vocalizations = app_state.get('vocalization_locale') || this.get('model.board.translations.current_vocalization') || this.get('model.board.locale') || 'en';
+    var labels = this.appState.get('label_locale') || this.get('model.board.translations.current_label') || this.get('model.board.locale') || 'en';
+    var vocalizations = this.appState.get('vocalization_locale') || this.get('model.board.translations.current_vocalization') || this.get('model.board.locale') || 'en';
     this.set('label_locale', labels);
     this.set('vocalization_locale', vocalizations);
     if(labels == vocalizations) { this.set('same_locale', true); }
@@ -68,22 +73,22 @@ export default modal.ModalController.extend({
       this.set(type + '_locale', val);
     },
     set_languages: function() {
-      app_state.set('label_locale', this.get('label_locale'));
-      stashes.persist('label_locale', this.get('label_locale'));
-      app_state.set('vocalization_locale', this.get('vocalization_locale'));
-      stashes.persist('vocalization_locale', this.get('vocalization_locale'));
-      stashes.persist('override_label_locale', this.get('label_locale'));
-      stashes.persist('override_vocalization_locale', this.get('vocalization_locale'));
-      modal.close({switched: true});
+      this.appState.set('label_locale', this.get('label_locale'));
+      this.stashes.persist('label_locale', this.get('label_locale'));
+      this.appState.set('vocalization_locale', this.get('vocalization_locale'));
+      this.stashes.persist('vocalization_locale', this.get('vocalization_locale'));
+      this.stashes.persist('override_label_locale', this.get('label_locale'));
+      this.stashes.persist('override_vocalization_locale', this.get('vocalization_locale'));
+      this.modal.close({switched: true});
     },
     clear_languages: function() {
-      app_state.set('label_locale', this.get('model.board.locale'));
-      stashes.persist('label_locale', null);
-      app_state.set('vocalization_locale', this.get('model.board.locale'));
-      stashes.persist('vocalization_locale', null);
-      stashes.persist('override_label_locale', null);
-      stashes.persist('override_vocalization_locale', null);
-      modal.close({switched: true});
+      this.appState.set('label_locale', this.get('model.board.locale'));
+      this.stashes.persist('label_locale', null);
+      this.appState.set('vocalization_locale', this.get('model.board.locale'));
+      this.stashes.persist('vocalization_locale', null);
+      this.stashes.persist('override_label_locale', null);
+      this.stashes.persist('override_vocalization_locale', null);
+      this.modal.close({switched: true});
     }
   }
 });

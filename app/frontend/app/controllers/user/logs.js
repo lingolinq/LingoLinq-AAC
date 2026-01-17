@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -11,6 +12,9 @@ import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
   reset_params: function() {
     var _this = this;
@@ -54,13 +58,13 @@ export default Controller.extend({
   }),
   pending_eval: computed(function() {
     var user_id = this.get('model.id');
-    var assessment = app_state.get('last_assessment_for_' + user_id) || {};
+    var assessment = this.appState.get('last_assessment_for_' + user_id) || {};
     var saved = false;
     var _this = this;
     (_this.get('logs') || []).forEach(function(log) {
       if(assessment.uid && log.get('eval.uid') == assessment.uid) {
         saved = true;
-        app_state.set('last_assessment_for_' + user_id, null);
+        this.appState.set('last_assessment_for_' + user_id, null);
       }
     });
     if(!saved && assessment.uid) {
@@ -69,19 +73,19 @@ export default Controller.extend({
   }),
   actions: {
     obl_export: function() {
-      modal.open('download-log', {user: this.get('model')});
+      this.modal.open('download-log', {user: this.get('model')});
     },
     recordNote: function(type) {
       var _this = this;
       var user = this.get('model');
-      modal.open('record-note', {note_type: type, user: user}).then(function() {
+      this.modal.open('record-note', {note_type: type, user: user}).then(function() {
         _this.send('refresh');
       });
     },
     quick_assessment: function() {
       var _this = this;
       app_state.check_for_currently_premium(_this.get('model'), 'quick_assessment').then(function() {
-        modal.open('quick-assessment', {user: _this.get('model')}).then(function() {
+        this.modal.open('quick-assessment', {user: _this.get('model')}).then(function() {
           _this.send('refresh');
         });
       }, function() { });
@@ -174,11 +178,11 @@ export default Controller.extend({
       }
     },
     clearLogs: function() {
-      modal.open('confirm-delete-logs', {user: this.get('model')});
+      this.modal.open('confirm-delete-logs', {user: this.get('model')});
     },
     generate: function() {
       var _this = this;
-      modal.open('modals/manual-log', {external_device: !!_this.get('model.external_device')}).then(function(res) {
+      this.modal.open('modals/manual-log', {external_device: !!_this.get('model.external_device')}).then(function(res) {
         if(res && res.words && res.words.length > 0 && res.date) {
           var file = LingoLinq.Log.generate_obf(res.words, res.date);
           _this.send('import', file);
@@ -197,7 +201,7 @@ export default Controller.extend({
           modal.success(i18n.t('logs_imported', "Your logs have been imported!"));
         }
       }, function(err) {
-        modal.error(i18n.t('log_import_failed', "There was an unexpected error importing the specified logs"));
+        this.modal.error(i18n.t('log_import_failed', "There was an unexpected error importing the specified logs"));
       });
     }
   }

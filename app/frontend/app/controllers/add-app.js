@@ -1,7 +1,10 @@
 import modal from '../utils/modal';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   device: computed(function() {
     return {
       standalone: navigator.standalone,
@@ -11,7 +14,7 @@ export default modal.ModalController.extend({
   }),
   actions: {
     close: function() {
-      modal.close();
+      this.modal.close();
     }
   }
 });

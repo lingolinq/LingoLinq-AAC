@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
@@ -13,6 +14,10 @@ import profiles from '../../utils/profiles';
 import persistence from '../../utils/persistence';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   title: computed('model.user_name', function() {
     return "Log Details";
   }),
@@ -61,7 +66,7 @@ export default Controller.extend({
     var template_id = _this.get('processed_profile.template.id');
     if(template_id && _this.get('expected_profile.id') != template_id) {
       _this.set('expected_profile', {id: template_id});
-      persistence.ajax('/api/v1/profiles/latest?include_suggestions=1&user_id=' + this.get('user.id') + '&profile_id=' + this.get('processed_profile.template.id'), {type: 'GET'}).then(function(res) {
+      this.persistence.ajax('/api/v1/profiles/latest?include_suggestions=1&user_id=' + this.get('user.id') + '&profile_id=' + this.get('processed_profile.template.id'), {type: 'GET'}).then(function(res) {
         if(res[0] && res[0].expected) {
           var exp = {id: template_id, state: {}};
           exp.state[res[0].expected] = true;
@@ -110,7 +115,7 @@ export default Controller.extend({
           if(!nonce && this.get('model.user.id') && this.get('model.id') && !this.get('model.nonce_attempt')) {
             // AJAX call to retrieve nonce referencing log_id
             _this.set('model.nonce_attempt', true);
-            persistence.ajax("/api/v1/users/" + this.get('user.id') + "/external_nonce/" + profile.encrypted_results.nonce_id + "?ref_type=log_session&ref_id=" + this.get('model.id'), {type: 'GET'}).then(function(nonce) {
+            this.persistence.ajax("/api/v1/users/" + this.get('user.id') + "/external_nonce/" + profile.encrypted_results.nonce_id + "?ref_type=log_session&ref_id=" + this.get('model.id'), {type: 'GET'}).then(function(nonce) {
               _this.set('model.enc_nonce', nonce);
             }, function(err) { _this.set('model.nonce_attempt', false); });
           } else if(nonce) {
@@ -123,7 +128,7 @@ export default Controller.extend({
           if(_this.get('model.eval_in_memory') && _this.get('history_result.id') != processed_profile.get('template.id')) {
             _this.set('history_result', {id: processed_profile.get('template.id')});
             processed_profile.set('history', []);
-            persistence.ajax('/api/v1/profiles/latest?user_id=' + this.get('user.id') + '&profile_id=' + processed_profile.get('template.id'), {type: 'GET'}).then(function(res) {
+            this.persistence.ajax('/api/v1/profiles/latest?user_id=' + this.get('user.id') + '&profile_id=' + processed_profile.get('template.id'), {type: 'GET'}).then(function(res) {
               _this.set('history_result', {id: processed_profile.get('template.id'), results: res.map(function(hist) {
                 var res = hist.profile;
                 res.log_id = hist.log_id;
@@ -153,7 +158,7 @@ export default Controller.extend({
       if(this.get('model.type') == 'eval') {
         var assessment = this.get('model.evaluation');
         if(this.get('model.eval_in_memory')) {
-          assessment = app_state.get('last_assessment_for_' + this.get('user.id')) || {};
+          assessment = this.appState.get('last_assessment_for_' + this.get('user.id')) || {};
         }
         window.current_assesment = assessment;
         return evaluation.analyze(assessment);
@@ -161,13 +166,13 @@ export default Controller.extend({
     }
   ),
   same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
-    return this.get('model.author.id') == app_state.get('sessionUser.id');
+    return this.get('model.author.id') == this.appState.get('sessionUser.id');
   }),
   actions: {
     reply: function() {
       var _this = this;
       var user = _this.get('user');
-      modal.open('record-note', {note_type: 'text', user: user, prior: _this.get('model')});
+      this.modal.open('record-note', {note_type: 'text', user: user, prior: _this.get('model')});
     },
     print: function() {
       capabilities.print();
@@ -177,7 +182,7 @@ export default Controller.extend({
       capabilities.window_open('/api/v1/logs/' + this.get('model.id') + '/lam?nonce=' + this.get('model.nonce'), '_system');
     },
     obl_export: function() {
-      modal.open('download-log', {log: this.get('model')});
+      this.modal.open('download-log', {log: this.get('model')});
     },
     toggle_notes: function(id, action) {
       this.get('model').toggle_notes(id);
@@ -197,7 +202,7 @@ export default Controller.extend({
     resume: function() {
       var assessment = this.get('model.evaluation');
       if(this.get('model.eval_in_memory')) {
-        assessment = app_state.get('last_assessment_for_' + this.get('user.id')) || {};
+        assessment = this.appState.get('last_assessment_for_' + this.get('user.id')) || {};
         // TODO: how to get log_session_id for in-memory evaluation
         assessment.log_session_id;
       } else {

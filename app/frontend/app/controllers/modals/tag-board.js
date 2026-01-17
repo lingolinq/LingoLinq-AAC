@@ -7,8 +7,11 @@ import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('status', null);
     if(!this.get('model.user.board_tags')) {
@@ -22,7 +25,7 @@ export default modal.ModalController.extend({
       _this.set('status', {loading: true});
       _this.get('model.user').tag_board(_this.get('model.board'), this.get('tag'), false, downstream).then(function() {
         _this.set('status', null);
-        modal.close();
+        this.modal.close();
         modal.success(i18n.t('categorization_complete', "Board Categorization Complete"));
       }, function() {
         _this.set('status', {error: true});

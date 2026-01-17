@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
@@ -10,6 +11,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  persistence: service(),
+  modal: service(),
+
   registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
     {name: i18n.t('email_shares', "Email Me When People I Supervise Share a Message with Me"), id: 'email'},
@@ -96,7 +100,7 @@ export default Controller.extend({
       if(action == 'confirm') {
         opts.code_2fa = _this.get('code_2fa');
       }
-      persistence.ajax('/api/v1/users/' + _this.get('model.id') + '/2fa', {
+      this.persistence.ajax('/api/v1/users/' + _this.get('model.id') + '/2fa', {
         type: 'POST',
         data: opts
       }).then(function(res) {
@@ -112,7 +116,7 @@ export default Controller.extend({
     },
     pick_avatar: function() {
       var _this = this;
-      modal.open('pick-avatar', {user: this.get('model')}).then(function(res) {
+      this.modal.open('pick-avatar', {user: this.get('model')}).then(function(res) {
         if(res && res.image_url) {
           _this.set('model.avatar_url', res.image_url);
         }
@@ -139,13 +143,13 @@ export default Controller.extend({
       user.set('preferences.progress.profile_edited', true);
       var _this = this;
       if(user.get('password') && user.get('password').length < 6) {
-        modal.error(i18n.t('short_password_warning', "Password must be at least 6 characters long"));
+        this.modal.error(i18n.t('short_password_warning', "Password must be at least 6 characters long"));
         return;
       } else if(user.get('valet_login') && (user.get('valet_password') || '').length > 0 && (user.get('valet_password') || '').length < 6) {
-        modal.error(i18n.t('short_valet_password', "Valet Password must be at least 6 characters long"));
+        this.modal.error(i18n.t('short_valet_password', "Valet Password must be at least 6 characters long"));
         return;
       } else if(user.get('valet_login') && !user.get('valet_password_set') && (user.get('valet_password') || '').length == 0) {
-        modal.error(i18n.t('valet_password_required', "Valet Password must be set to enable valet login"));
+        this.modal.error(i18n.t('valet_password_required', "Valet Password must be set to enable valet login"));
         return;
       }
       if(user.get('supporter_role') && user.get('valet_login')) {
@@ -183,15 +187,15 @@ export default Controller.extend({
         user.set('password', null);
         user.set('valet_password', null);
         if(action == 'qr') {
-          modal.open('modals/valet-mode', {user: user});
+          this.modal.open('modals/valet-mode', {user: user});
         } else {
           _this.transitionToRoute('user', user.get('user_name'));
         }
       }, function(err) {
         if(err.responseJSON && err.responseJSON.errors && err.responseJSON.errors[0] == "incorrect current password") {
-          modal.error(i18n.t('incorrect_password', "Incorrect current password"));
+          this.modal.error(i18n.t('incorrect_password', "Incorrect current password"));
         } else {
-          modal.error(i18n.t('save_failed', "Save failed."));
+          this.modal.error(i18n.t('save_failed', "Save failed."));
         }
       });
     },
@@ -208,7 +212,7 @@ export default Controller.extend({
     },
     add_webhook: function() {
       var _this = this;
-      modal.open('add-webhook', {user: this.get('model')}).then(function(res) {
+      this.modal.open('add-webhook', {user: this.get('model')}).then(function(res) {
         if(res && res.created) {
           _this.load_webhooks();
         }
@@ -216,7 +220,7 @@ export default Controller.extend({
     },
     delete_webhook: function(webhook) {
       var _this = this;
-      modal.open('confirm-delete-webhook', {user: this.get('model'), webhook: webhook}).then(function(res) {
+      this.modal.open('confirm-delete-webhook', {user: this.get('model'), webhook: webhook}).then(function(res) {
         if(res && res.deleted) {
           _this.load_integrations(true);
           _this.load_webhooks();
@@ -224,11 +228,11 @@ export default Controller.extend({
       });
     },
     test_webhook: function(webhook) {
-      modal.open('test-webhook', {user: this.get('model'), webhook: webhook});
+      this.modal.open('test-webhook', {user: this.get('model'), webhook: webhook});
     },
     add_integration: function() {
       var _this = this;
-      modal.open('add-integration', {user: this.get('model')}).then(function(res) {
+      this.modal.open('add-integration', {user: this.get('model')}).then(function(res) {
         if(res && res.created) {
           _this.load_integrations(true);
           _this.load_webhooks();
@@ -237,7 +241,7 @@ export default Controller.extend({
     },
     browse_tools: function(tool) {
       var _this = this;
-      modal.open('add-tool', {user: this.get('model'), tool: tool}).then(function(res) {
+      this.modal.open('add-tool', {user: this.get('model'), tool: tool}).then(function(res) {
         if(res && res.added) {
           _this.load_integrations(true);
           _this.load_webhooks();
@@ -245,11 +249,11 @@ export default Controller.extend({
       });
     },
     integration_details: function(integration) {
-      modal.open('integration-details', {integration: integration, user: this.get('model')});
+      this.modal.open('integration-details', {integration: integration, user: this.get('model')});
     },
     delete_integration: function(integration) {
       var _this = this;
-      modal.open('confirm-delete-integration', {user: this.get('model'), integration: integration}).then(function(res) {
+      this.modal.open('confirm-delete-integration', {user: this.get('model'), integration: integration}).then(function(res) {
         if(res && res.deleted) {
           _this.load_integrations(true);
           _this.load_webhooks();
@@ -257,11 +261,11 @@ export default Controller.extend({
       });
     },
     delete_user: function() {
-      modal.open('modals/confirm-delete-user', {user: this.get('model')});
+      this.modal.open('modals/confirm-delete-user', {user: this.get('model')});
     },
     set_picture: function() {
       var _this = this;
-      modal.open('pick-avatar', {user: {}}).then(function(res) {
+      this.modal.open('pick-avatar', {user: {}}).then(function(res) {
         if(res && res.image_url) {
           _this.set('contact_image_url', res.image_url);
           _this.send('add_contact');
@@ -283,9 +287,9 @@ export default Controller.extend({
       }
       var _this = this;
       u.save().then(function(u) {
-        modal.open('confirm-notify-user', {user: user, private_only: true, sharer: _this.get('model'), raw: u.get('button_list'), sentence: u.get('sentence'), utterance: u});
+        this.modal.open('confirm-notify-user', {user: user, private_only: true, sharer: _this.get('model'), raw: u.get('button_list'), sentence: u.get('sentence'), utterance: u});
       }, function() {
-        modal.error(i18n.t('error_creating_utterance', "There was an unexpected error generating the message"));
+        this.modal.error(i18n.t('error_creating_utterance', "There was an unexpected error generating the message"));
       });
   
     },

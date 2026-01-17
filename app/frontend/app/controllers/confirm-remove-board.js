@@ -2,8 +2,12 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     this.set('loading', false);
     this.set('error', false);
@@ -27,12 +31,12 @@ export default modal.ModalController.extend({
       var _this = this;
       _this.set('loading', true);
       _this.set('error', false);
-      persistence.ajax('/api/v1/boards/unlink', {type: 'POST', data: {board_id: board.get('id'), user_id: user.get('id'), tag: this.get('model.tag'), type: this.get('model.action')}}).then(function(res) {
+      this.persistence.ajax('/api/v1/boards/unlink', {type: 'POST', data: {board_id: board.get('id'), user_id: user.get('id'), tag: this.get('model.tag'), type: this.get('model.action')}}).then(function(res) {
         _this.set('loading', false);
         _this.set('error', false);
         board.set('removed', true);
 
-        modal.close({update: true});
+        this.modal.close({update: true});
       }, function() {
         _this.set('loading', false);
         _this.set('error', true);

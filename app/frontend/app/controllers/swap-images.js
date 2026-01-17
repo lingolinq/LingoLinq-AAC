@@ -6,8 +6,14 @@ import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('hierarchy', {loading: true});
@@ -17,16 +23,16 @@ export default modal.ModalController.extend({
     }, function(err) {
       _this.set('hierarchy', {error: true});
     });
-    _this.set('premium_symbols_enabled', app_state.get('currentUser.subscription.extras_enabled'));
-    (app_state.get('currentUser.supervisees') || []).forEach(function(sup) {
+    _this.set('premium_symbols_enabled', this.appState.get('currentUser.subscription.extras_enabled'));
+    (this.appState.get('currentUser.supervisees') || []).forEach(function(sup) {
       if(sup.user_name == _this.get('model.board.user_name') && sup.extras_enabled) {
         _this.set('premium_symbols_enabled', true);
       }
     });
     if(this.get('model.library')) { this.set('library', this.get('model.library')); }
-    app_state.get('currentUser').find_integration('lessonpix', this.get('model.board.user_name')).then(function(res) {
+    this.appState.get('currentUser').find_integration('lessonpix', this.get('model.board.user_name')).then(function(res) {
       _this.set('lessonpix_enabled', true);
-      if(stashes.get('last_image_library') == 'lessonpix') { _this.set('image_library', 'lessonpix'); }
+      if(this.stashes.get('last_image_library') == 'lessonpix') { _this.set('image_library', 'lessonpix'); }
     }, function(err) { });
   },
   libraries: computed('lessonpix_enabled', 'premium_symbols_enabled', function() {
@@ -64,7 +70,7 @@ export default modal.ModalController.extend({
       }
 
       _this.set('status', {loading: true});
-      persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/swap_images', {
+      this.persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/swap_images', {
         type: 'POST',
         data: {
           library: _this.get('library'),
@@ -77,8 +83,8 @@ export default modal.ModalController.extend({
           } else if(event.status == 'finished') {
             _this.set('status', {finished: true});
             _this.get('model.board').reload(true).then(function() {
-              app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
-              modal.close('swap-images');
+              this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+              this.modal.close('swap-images');
             }, function() {
             });
           }

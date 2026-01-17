@@ -7,8 +7,12 @@ import { htmlSafe } from '@ember/string';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     this.get('model.text');
     this.get('model.text_only');
@@ -66,11 +70,11 @@ export default modal.ModalController.extend({
     speak: function(close) {
       if(this.get('holding')) { return; }
       utterance.vocalize_list(null, {button_triggered: true});
-      if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+      if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
         capabilities.vibrate();
       }
       if(close) {
-        modal.close();
+        this.modal.close();
       }
     },
     flip: function() {

@@ -4,9 +4,13 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import progress_tracker from '../utils/progress_tracker';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     this.set('existing_user', true);
     this.set('new_user', false);
@@ -38,7 +42,7 @@ export default modal.ModalController.extend({
   }),
   actions: {
     close: function() {
-      modal.close();
+      this.modal.close();
     },
     set_user_type: function(type) {
       if(type == 'new') {
@@ -88,10 +92,10 @@ export default modal.ModalController.extend({
         return user.save().then(function(user) {
           var add_done = function() {
             controller.set('linking', false);
-            // if(app_state.get('currentUser') && app_state.get('currentUser.id') != user.get('id')) {
-              app_state.get('currentUser').reload();
+            // if(this.appState.get('currentUser') && this.appState.get('currentUser.id') != user.get('id')) {
+              this.appState.get('currentUser').reload();
             // }
-            modal.close();
+            this.modal.close();
           }
           if(user.get('start_progress')) {
             controller.set('linking', {start_code: true});

@@ -7,12 +7,16 @@ import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('code', {loading: true});
-    persistence.ajax('/api/v1/users/' + this.get('model.user.user_name') + '/valet_credentials', {type: 'GET'}).then(function(cred) {
+    this.persistence.ajax('/api/v1/users/' + this.get('model.user.user_name') + '/valet_credentials', {type: 'GET'}).then(function(cred) {
       if(cred && cred.url) {
         _this.set('code', {ready: true, url: cred.url});
         _this.generate_qr();
@@ -37,7 +41,7 @@ export default modal.ModalController.extend({
       var url = this.get('code.url');
       if(url) {
         capabilities.sharing.copy_text(url);
-        modal.close();
+        this.modal.close();
         modal.success(i18n.t('link_copied', "Link copied to the clipboard!"));
       }
     },
@@ -51,11 +55,11 @@ export default modal.ModalController.extend({
           navigator.clipboard.write([
             new window.ClipboardItem({"image/png": file})
           ]).then(function() {
-            modal.close();
+            this.modal.close();
             modal.success(i18n.t('code_copied', "QR Code Image copied to the clipboard!"));
           }, function() {
-            modal.close();
-            modal.error(i18n.t('code_copy_failed', "QR Code Image failed to copy to the clipboard"));
+            this.modal.close();
+            this.modal.error(i18n.t('code_copy_failed', "QR Code Image failed to copy to the clipboard"));
           });
         }
       } catch(e) { debugger}        

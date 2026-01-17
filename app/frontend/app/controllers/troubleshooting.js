@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
@@ -15,6 +16,9 @@ import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   tests: [
     {key: 'javascript', name: i18n.t('javascript', "JavaScript"), description: i18n.t('javscript_info', "This page wouldn't even load without a relatively-modern JavaScript engine.")},
     {key: 'local_storage', name: i18n.t('local_storage', "localStorage"), description: i18n.t('local_storage_info', "localStorage is used instead of cookies to remember whether a user is already logged in, what board they were on, etc.")},
@@ -352,7 +356,7 @@ export default Controller.extend({
     }
 
     if(lingoLinqExtras.storage) {
-      var user_name = app_state.get('currentUser.user_name');
+      var user_name = this.appState.get('currentUser.user_name');
       lingoLinqExtras.storage.find_all('board').then(function(list) {
         _this.set('local_boards', list.filter(function(d) { return d.data && d.data.raw && d.data.raw.user_name == user_name; }).length);
       }, function(err) {
@@ -377,7 +381,7 @@ export default Controller.extend({
       }
     },
     push_to_cloud: function() {
-      modal.open('modals/push_to_cloud', {type: 'board'});
+      this.modal.open('modals/push_to_cloud', {type: 'board'});
     },
     clear_file_storage: function() {
       var _this = this;
@@ -420,11 +424,11 @@ export default Controller.extend({
     test_feature: function(feature, num) {
       if(feature == 'speech_synthesis') {
         if(num == '1') {
-          modal.notice(i18n.t('speech_test_1', "You should hear \"this is test number one\" being spoken by the speech synthesis engine."));
+          this.modal.notice(i18n.t('speech_test_1', "You should hear \"this is test number one\" being spoken by the speech synthesis engine."));
           speecher.speak_text("this is test number one");
           return;
         } else if(num == '2') {
-          modal.notice(i18n.t('speech_test_2', "You should hear \"this is test number two\" being spoken by the speech synthesis engine."));
+          this.modal.notice(i18n.t('speech_test_2', "You should hear \"this is test number two\" being spoken by the speech synthesis engine."));
           var utterance = new speecher.scope.SpeechSynthesisUtterance();
           utterance.text = "this is test number two";
           utterance.rate = speecher.rate || 1.0;
@@ -438,7 +442,7 @@ export default Controller.extend({
           speecher.scope.speechSynthesis.speak(utterance);
           return;
         } else if(num == '3') {
-          modal.notice(i18n.t('speech_test_3', "You should hear \"this is test number three\" being spoken by the speech synthesis engine."));
+          this.modal.notice(i18n.t('speech_test_3', "You should hear \"this is test number three\" being spoken by the speech synthesis engine."));
           if(window.originalSpeechSynthesis) {
             var utterance = new window.originalSpeechSynthesisUtterance();
             utterance.text = "this is test number three";
@@ -448,11 +452,11 @@ export default Controller.extend({
         }
       } else if(feature == 'audio_playback') {
         if(num == '1') {
-          modal.notice(i18n.t('audio_test_1', "You should hear a beeping sound"));
+          this.modal.notice(i18n.t('audio_test_1', "You should hear a beeping sound"));
           speecher.beep();
           return;
         } else if(num == '2') {
-          modal.notice(i18n.t('audio_test_2', "You should hear a beeping sound"));
+          this.modal.notice(i18n.t('audio_test_2', "You should hear a beeping sound"));
           var audio = document.createElement('audio');
           audio.style.display = "none";
           audio.src = "https://opensymbols.s3.amazonaws.com/beep.mp3";
@@ -470,7 +474,7 @@ export default Controller.extend({
               if(check_played.count < 20) {
                 runLater(check_played, 300);
               } else {
-                modal.error(i18n.t('audio_never_played', "Oops! The audio element never triggered a play event."));
+                this.modal.error(i18n.t('audio_never_played', "Oops! The audio element never triggered a play event."));
               }
             }
           };
@@ -483,23 +487,23 @@ export default Controller.extend({
             wav_audio.src = "data:audio/x-wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==";
             wav_audio.onerror = function(err) {
               wav_audio.errored = true;
-              modal.error(i18n.t('audio_test_3_error', "Oops, that one didn't work. Your device might not be able to play back all audio types."));
+              this.modal.error(i18n.t('audio_test_3_error', "Oops, that one didn't work. Your device might not be able to play back all audio types."));
             };
             wav_audio.onended = function() {
               if(!wav_audio.errored) {
-                modal.notice(i18n.t('audio_test_3_success', "You should hear a beeping sound"));
+                this.modal.notice(i18n.t('audio_test_3_success', "You should hear a beeping sound"));
                 speecher.beep();
               }
             };
             wav_audio.load();
             wav_audio.play();
           } else {
-            modal.error(i18n.t('audio_class_missing', "Audio class not found"));
+            this.modal.error(i18n.t('audio_class_missing', "Audio class not found"));
           }
           return;
         }
       }
-      modal.error(i18n.t('no_feature_found', "No test was run, something appears to be wrong with this test."));
+      this.modal.error(i18n.t('no_feature_found', "No test was run, something appears to be wrong with this test."));
     }
   }
 });

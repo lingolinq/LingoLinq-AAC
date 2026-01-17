@@ -1,6 +1,10 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('status', null);
@@ -13,7 +17,7 @@ export default modal.ModalController.extend({
       sound.deleteRecord();
       sound.save().then(function() {
         _this.set('status', null);
-        modal.close({deleted: true});
+        this.modal.close({deleted: true});
       }, function(err) {
         _this.set('status', {error: true});
       });

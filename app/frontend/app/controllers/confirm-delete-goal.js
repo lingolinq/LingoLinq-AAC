@@ -1,6 +1,10 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('model.error', null);
     this.set('model.updating', null);
@@ -16,7 +20,7 @@ export default modal.ModalController.extend({
       var goal = _this.get('model.goal');
       goal.deleteRecord();
       goal.save().then(function() {
-        modal.close({updated: true});
+        this.modal.close({updated: true});
       }, function() {
         _this.set('model.updating', false);
         _this.set('model.deleting', false);
@@ -30,7 +34,7 @@ export default modal.ModalController.extend({
       var goal = _this.get('model.goal');
       goal.set('active', false);
       goal.save().then(function() {
-        modal.close({updated: true});
+        this.modal.close({updated: true});
       }, function() {
         _this.set('model.updating', false);
         _this.set('model.retiring', false);

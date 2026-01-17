@@ -7,8 +7,13 @@ import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('hierarchy', {loading: true});
@@ -30,7 +35,7 @@ export default modal.ModalController.extend({
         board_ids_to_include = this.get('hierarchy').selected_board_ids();
       }
       _this.set('status', {loading: true});
-      persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/privacy', {
+      this.persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/privacy', {
         type: 'POST',
         data: {
           privacy: _this.get('privacy'),
@@ -43,8 +48,8 @@ export default modal.ModalController.extend({
           } else if(event.status == 'finished') {
             _this.set('status', {finished: true});
             _this.get('model.board').reload(true).then(function() {
-              app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
-              modal.close('modals/board-privacy');
+              this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+              this.modal.close('modals/board-privacy');
             }, function() {
             });
           }

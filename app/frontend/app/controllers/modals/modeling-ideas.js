@@ -6,8 +6,12 @@ import i18n from '../../utils/i18n';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     var users = this.get('model.users');
 
@@ -21,11 +25,11 @@ export default modal.ModalController.extend({
     if(!any_premium) {
       var user_name = null;
       if(users && users.length == 1) { user_name = emberGet(users[0], 'user_name'); }
-      modal.open('premium-required', {user_name: user_name, action: 'modeling-ideas'});
+      this.modal.open('premium-required', {user_name: user_name, action: 'modeling-ideas'});
       return;
     }
 
-    var user = app_state.get('currentUser');
+    var user = this.appState.get('currentUser');
     var _this = this;
     _this.set('activity_index', 0);
 
@@ -75,7 +79,7 @@ export default modal.ModalController.extend({
     var res = [];
 
     var empty_num = 0;
-    if(this.get('force_intro') || !app_state.get('currentUser.preferences.progress.modeling_ideas_viewed')) {
+    if(this.get('force_intro') || !this.appState.get('currentUser.preferences.progress.modeling_ideas_viewed')) {
       res.push({intro: true});
       empty_num++;
     }
@@ -130,7 +134,7 @@ export default modal.ModalController.extend({
         }
       }
     });
-    if(middles.length > 0 && !app_state.get('currentUser.preferences.progress.modeling_ideas_target_words_reviewed')) {
+    if(middles.length > 0 && !this.appState.get('currentUser.preferences.progress.modeling_ideas_target_words_reviewed')) {
       res.push({target_words: true});
       empty_num++;
     }
@@ -153,9 +157,9 @@ export default modal.ModalController.extend({
     if(index > 0 && index >= cutoff_chunk) {
       offset = ((index - cutoff_chunk) * units * 2) + units;
     }
-    var check_word = app_state.get('speak_mode_modeling_ideas.word');
+    var check_word = this.appState.get('speak_mode_modeling_ideas.word');
     var for_word = [];
-    if(app_state.get('speak_mode_modeling_ideas.enabled')) {
+    if(this.appState.get('speak_mode_modeling_ideas.enabled')) {
       for_word = middles.filter(function(a) { return a.word == check_word; });
     }
     middles = for_word.concat(middles.slice(offset, offset + 8)).uniq().slice(0, 8);
@@ -237,7 +241,7 @@ export default modal.ModalController.extend({
       this.set('activity_index', Math.min(this.get('user_activities.length') - 1, this.get('activity_index') + 1));
       this.set('show_target_words', false);
 
-      var user = app_state.get('currentUser');
+      var user = this.appState.get('currentUser');
       if(user && !user.get('preferences.progress.modeling_ideas_viewed')) {
         var progress = user.get('preferences.progress') || {};
 
@@ -264,7 +268,7 @@ export default modal.ModalController.extend({
       this.set('activity_index', 0);
     },
     attempt: function() {
-      app_state.get('currentUser').log_word_activity({
+      this.appState.get('currentUser').log_word_activity({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
@@ -278,7 +282,7 @@ export default modal.ModalController.extend({
       this.set('current_activity.complete_score', null);
     },
     dismiss: function() {
-      app_state.get('currentUser').log_word_activity({
+      this.appState.get('currentUser').log_word_activity({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
@@ -291,7 +295,7 @@ export default modal.ModalController.extend({
       this.set('current_activity.complete_score', null);
     },
     complete: function(score) {
-      app_state.get('currentUser').log_word_activity({
+      this.appState.get('currentUser').log_word_activity({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
@@ -316,7 +320,7 @@ export default modal.ModalController.extend({
         if(attempting) {
           this.send('attempt');
         }
-        modal.open('inline-video', {video: {type: 'youtube', id: youtube_id}});
+        this.modal.open('inline-video', {video: {type: 'youtube', id: youtube_id}});
       }
     },
     book: function(attempting) {
@@ -324,11 +328,11 @@ export default modal.ModalController.extend({
       if(attempting) {
         this.send('attempt');
       }
-      modal.open('inline-book', {url: act.url});
+      this.modal.open('inline-book', {url: act.url});
     },
     make_goal: function() {
       var _this = this;
-      modal.open('new-goal', {users: _this.get('model.users') }).then(function(res) {
+      this.modal.open('new-goal', {users: _this.get('model.users') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
           _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
@@ -338,7 +342,7 @@ export default modal.ModalController.extend({
     },
     badges: function() {
       if(this.get('model.users.length') == 1) {
-        modal.open('badge-awarded', {speak_mode: true, user_id: emberGet(this.get('model.users')[0], 'id')});
+        this.modal.open('badge-awarded', {speak_mode: true, user_id: emberGet(this.get('model.users')[0], 'id')});
       }
       
     }

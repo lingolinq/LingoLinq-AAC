@@ -3,8 +3,11 @@ import i18n from '../../utils/i18n';
 import editManager from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
   },
   paint_types: [
@@ -21,7 +24,7 @@ export default modal.ModalController.extend({
     paint: function() {
       if(this.get('paint_type') && (!this.get('level_select') || this.get('paint_level'))) {
         editManager.set_paint_mode('level', this.get('paint_type'), parseInt(this.get('paint_level'), 10),);
-        modal.close();
+        this.modal.close();
       }
     }
   }

@@ -4,12 +4,16 @@ import app_state from '../../utils/app_state';
 import LingoLinq from '../../app';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     this.set('modeling_type', 'follow');
-    if(app_state.get('pairing.model')) {
+    if(this.appState.get('pairing.model')) {
       _this.set('modeling_type', 'model');
     }
     LingoLinq.store.findRecord('user', this.get('model.user_id')).then(function(user) {
@@ -25,8 +29,8 @@ export default modal.ModalController.extend({
     return this.get('model.status.connecting');
   }),
   paired_with_current_user: computed('app_state.speak_mode', 'model.communicator', 'model.user.id', 'app_state.pairing.user.id', function() {
-    if(!this.get('model.communicator') && app_state.get('speak_mode') && app_state.get('pairing')) {
-      return this.get('model.user.id') == app_state.get('pairing.user.id');
+    if(!this.get('model.communicator') && this.appState.get('speak_mode') && this.appState.get('pairing')) {
+      return this.get('model.user.id') == this.appState.get('pairing.user.id');
     }
     return false;
   }),
@@ -85,10 +89,10 @@ export default modal.ModalController.extend({
       this.set('modeling_type', type);
     },
     end: function() {
-      if(app_state.get('pairing.user_id')) {
+      if(this.appState.get('pairing.user_id')) {
         sync.unpair();
       }
-      modal.close();
+      this.modal.close();
     },
     request: function() {
       var _this = this;
@@ -118,8 +122,8 @@ export default modal.ModalController.extend({
               if(message.type == 'update' && message.data.board_state) {
                 sync_handled = true;
                 sync.stop_listening(listen_id);
-                modal.close();
-                app_state.set('pairing', {partner: true, follow: true, user: _this.get('model.user'), user_id: _this.get('model.user.id'), communicator_id: _this.get('model.user.id')});
+                this.modal.close();
+                this.appState.set('pairing', {partner: true, follow: true, user: _this.get('model.user'), user_id: _this.get('model.user.id'), communicator_id: _this.get('model.user.id')});
                 app_state.set_speak_mode_user(_this.get('model.user.id'), true, true);      
                 sync.send(_this.get('model.user.id'), {type: 'query'});
               }
@@ -145,8 +149,8 @@ export default modal.ModalController.extend({
             }
           }, 60000);
           sync.request_pair(_this.get('model.user.id')).then(function(res) {
-            modal.close();
-            app_state.set('pairing', {partner: true, model: true, user: _this.get('model.user'), user_id: _this.get('model.user.id'), communicator_id: _this.get('model.user.id')});
+            this.modal.close();
+            this.appState.set('pairing', {partner: true, model: true, user: _this.get('model.user'), user_id: _this.get('model.user.id'), communicator_id: _this.get('model.user.id')});
             app_state.set_speak_mode_user(_this.get('model.user.id'), true, true);
             setTimeout(function() {
               sync.send(_this.get('model.user.id'), {type: 'query'});

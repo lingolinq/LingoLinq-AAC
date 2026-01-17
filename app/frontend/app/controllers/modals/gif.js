@@ -7,23 +7,27 @@ import { htmlSafe } from '@ember/string';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import contentGrabbers from '../../utils/content_grabbers';
 import stashes from '../../utils/_stashes';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  stashes: service(),
+
   opening: function() {
     this.set('selected_gif', null);
     this.set('results', null);
     this.set('flipped', false);
-    var voc = stashes.get('working_vocalization') || [];
+    var voc = this.stashes.get('working_vocalization') || [];
     this.set('search', voc.map(function(v) { return v.label; }).join(' '));
     this.search_gifs();
   },
   search_gifs: function() {
     this.set('selected_gif', null);
     var str = this.get('search');
-    var user_name = app_state.get('referenced_user.user_name');
-    var locale = app_state.get('label_locale')
+    var user_name = this.appState.get('referenced_user.user_name');
+    var locale = this.appState.get('label_locale')
     var _this = this;
     _this.set('results', {loading: true});
     contentGrabbers.pictureGrabber.protected_search(str, 'giphy', user_name, locale).then(function(res) {

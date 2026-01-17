@@ -1,11 +1,15 @@
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
-    var user = app_state.get('currentUser');
-    app_state.set('show_intro', false);
+    var user = this.appState.get('currentUser');
+    this.appState.set('show_intro', false);
     if(user) {
       user.set('preferences.progress.intro_watched', true);
       user.save().then(null, function() { });
@@ -27,7 +31,7 @@ export default modal.ModalController.extend({
     next: function() {
       var page = this.get('page') || 1;
       page++;
-      if(app_state.get('currentUser.modeling_only')) {
+      if(this.appState.get('currentUser.modeling_only')) {
         
       }
       if(page > this.get('total_pages')) { page = this.get('total_pages'); }
@@ -43,7 +47,7 @@ export default modal.ModalController.extend({
       if(window.ga) {
         window.ga('send', 'event', 'Intro', 'video', 'Intro Video Opened');
       }
-      modal.open('inline-video', {video: {type: 'youtube', id: 'TSlGz7g9LIs'}, hide_overlay: true});
+      this.modal.open('inline-video', {video: {type: 'youtube', id: 'TSlGz7g9LIs'}, hide_overlay: true});
     }
   }
 });

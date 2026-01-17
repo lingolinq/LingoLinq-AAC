@@ -2,8 +2,11 @@ import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import { get as emberGet, set as emberSet } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var unit = this.get('model.unit');
     unit.set('topics', unit.get('topics') || []);
@@ -27,7 +30,7 @@ export default modal.ModalController.extend({
     },
     close: function() {
       this.get('model.unit').rollbackAttributes();
-      modal.close(false);
+      this.modal.close(false);
     },
     save: function() {
       var _this = this;
@@ -43,7 +46,7 @@ export default modal.ModalController.extend({
       _this.set('error', false);
       _this.set('saving', true);
       unit.save().then(function() {
-        modal.close({updated: true});
+        this.modal.close({updated: true});
         _this.set('saving', false);
       }, function() {
         _this.set('error', true);

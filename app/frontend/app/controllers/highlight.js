@@ -9,8 +9,11 @@ import scanner from '../utils/scanner';
 import buttonTracker from '../utils/raw_events';
 import { htmlSafe } from '@ember/string';
 import { observer, computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     modal.highlight_controller = this;
     this.set('pending', false);
@@ -171,8 +174,8 @@ export default modal.ModalController.extend({
         });
       }
       if(!this.get('model.prevent_close')) {
-        modal.close(null, 'highlight');
-        modal.close(null, 'highlight-secondary');
+        this.modal.close(null, 'highlight');
+        this.modal.close(null, 'highlight-secondary');
       }
     },
     select_release: function(e) {
@@ -192,8 +195,8 @@ export default modal.ModalController.extend({
           this.get('model.defer').reject();
         }
         if(!this.get('model.prevent_close')) {
-          modal.close(null, 'highlight');
-          modal.close(null, 'highlight-secondary');
+          this.modal.close(null, 'highlight');
+          this.modal.close(null, 'highlight-secondary');
         }
       }
     },

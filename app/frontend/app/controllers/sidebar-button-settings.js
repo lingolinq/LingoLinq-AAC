@@ -3,8 +3,11 @@ import speecher from '../utils/speecher';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+
   opening: function() {
     var _this = this;
     if(this.get('model.button')) {
@@ -188,10 +191,10 @@ export default modal.ModalController.extend({
       speecher.beep();
     },
     add_ssid: function() {
-      if(app_state.get('current_ssid')) {
+      if(this.appState.get('current_ssid')) {
         var ssids = (this.get('model.button.ssids') || '').split(/,/);
         if(ssids.length == 1 && ssids[0] === '') { ssids = []; }
-        ssids.push(app_state.get('current_ssid'));
+        ssids.push(this.appState.get('current_ssid'));
         this.set('model.button.ssids', ssids.uniq().join(','));
       }
     },

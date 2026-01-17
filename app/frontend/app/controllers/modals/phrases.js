@@ -7,14 +7,19 @@ import LingoLinq from '../../app';
 import { set as emberSet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
-    var voc = stashes.get('working_vocalization') || [];
+    var voc = this.stashes.get('working_vocalization') || [];
     this.set('sentence', voc.map(function(v) { return v.label; }).join(' '));
     this.set('app_state', app_state);
     this.set('stashes', stashes);
-    this.set('user', this.get('model.user') || app_state.get('referenced_user'));
+    this.set('user', this.get('model.user') || this.appState.get('referenced_user'));
     this.set('current_category', 'default');
     this.set('recent_category', null);
     this.update_list();
@@ -30,7 +35,7 @@ export default modal.ModalController.extend({
     'user.vocalizations',
     'user.vocalizations.@each.id',
     function() {
-      var utterances = stashes.get('remembered_vocalizations') || [];
+      var utterances = this.stashes.get('remembered_vocalizations') || [];
       var _this = this;
       var categories = this.get('user.preferences.phrase_categories') || [];
       categories = ['default'].concat(categories).concat(['journal']);
@@ -78,7 +83,7 @@ export default modal.ModalController.extend({
     function() {
       if(this.get('recent_category')) {
         var now = (new Date()).getTime();
-        var priors = (stashes.get('prior_utterances') || []).filter(function(p) { return p.cleared > (now - (24 * 60 * 60 * 1000))} ).reverse();
+        var priors = (this.stashes.get('prior_utterances') || []).filter(function(p) { return p.cleared > (now - (24 * 60 * 60 * 1000))} ).reverse();
         priors.forEach(function(p) { 
           emberSet(p, 'sentence', utterance.sentence(p.vocalizations));
           emberSet(p, 'date', new Date(p.cleared));
@@ -99,12 +104,12 @@ export default modal.ModalController.extend({
       if(button.stash) {
         utterance.set('rawButtonList', button.vocalizations);
         utterance.set('list_vocalized', false);
-        var list = (stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence != button.sentence; });
-        stashes.persist('remembered_vocalizations', list);
+        var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence != button.sentence; });
+        this.stashes.persist('remembered_vocalizations', list);
       } else {
         app_state.set_and_say_buttons(button.vocalizations);
       }
-      modal.close();
+      this.modal.close();
     },
     set_recent: function() {
       this.set('current_category', null);
@@ -116,8 +121,8 @@ export default modal.ModalController.extend({
     },
     remove: function(phrase) {
       if(this.get('recent_category')) {
-        var list = (stashes.get('prior_utterances') || []).filter(function(p) { return p != phrase; });
-        stashes.persist('prior_utterances', list);
+        var list = (this.stashes.get('prior_utterances') || []).filter(function(p) { return p != phrase; });
+        this.stashes.persist('prior_utterances', list);
       } else {
         app_state.remove_phrase(phrase);
       }
@@ -130,7 +135,7 @@ export default modal.ModalController.extend({
     add: function() {
       var sentence = this.get('sentence');
       if(!sentence) { return; }
-      var voc = stashes.get('working_vocalization') || [];
+      var voc = this.stashes.get('working_vocalization') || [];
       var working = voc.map(function(v) { return v.label; }).join(' ');
       if(sentence != working) {
         voc = [

@@ -1,7 +1,11 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var integration = LingoLinq.store.createRecord('integration', {
       custom_integration: true,
@@ -24,8 +28,8 @@ export default modal.ModalController.extend({
       }
       var hooks = [];
       integration.save().then(function(res) {
-        modal.close({created: true});
-        modal.open('integration-details', {integration: integration});
+        this.modal.close({created: true});
+        this.modal.open('integration-details', {integration: integration});
       }, function(err) {
         _this.set('status', {error: true});
       });

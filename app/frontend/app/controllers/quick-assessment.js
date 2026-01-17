@@ -3,8 +3,13 @@ import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
     if(this.get('model.user')) {
       if(this.get('model.user').load_active_goals) {
@@ -95,7 +100,7 @@ export default modal.ModalController.extend({
         totals: this.get('totals')
       };
       stashes.track_daily_event('quick_assessments');
-      if(persistence.get('online')) {
+      if(this.persistence.get('online')) {
         var log = this.store.createRecord('log', {
           user_id: this.get('model.user.id'),
           goal_id: this.get('goal_id'),
@@ -103,12 +108,12 @@ export default modal.ModalController.extend({
         });
         var _this = this;
         log.save().then(function() {
-          modal.close(true);
+          this.modal.close(true);
         }, function() { });
       } else {
-        stashes.log_event(assessment, this.get('model.user.id'));
-        stashes.push_log(true);
-        modal.close();
+        this.stashes.log_event(assessment, this.get('model.user.id'));
+        this.stashes.push_log(true);
+        this.modal.close();
       }
     }
   }

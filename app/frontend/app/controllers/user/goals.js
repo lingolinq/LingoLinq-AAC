@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
@@ -8,6 +9,8 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  modal: service(),
+
   load_goals: function() {
     var controller = this;
     controller.set('goals', {loading: true});
@@ -53,7 +56,7 @@ export default Controller.extend({
   actions: {
     add_goal: function() {
       var _this = this;
-      modal.open('new-goal', {user: this.get('model') }).then(function(res) {
+      this.modal.open('new-goal', {user: this.get('model') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
           _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
@@ -63,12 +66,12 @@ export default Controller.extend({
     },
     new_note: function(goal) {
       var _this = this;
-      modal.open('record-note', {note_type: 'text', user: this.get('model'), goal: goal}).then(function(res) {
+      this.modal.open('record-note', {note_type: 'text', user: this.get('model'), goal: goal}).then(function(res) {
       }, function() { });
     },
     quick_assessment: function(goal) {
       var _this = this;
-      modal.open('quick-assessment', {user: this.get('model'), goal: goal}).then(function(res) {
+      this.modal.open('quick-assessment', {user: this.get('model'), goal: goal}).then(function(res) {
       }, function() { });
     },
     update: function(goal, attribute, action) {
@@ -87,7 +90,7 @@ export default Controller.extend({
     },
     delete: function(goal) {
       var _this = this;
-      modal.open('confirm-delete-goal', {user: this.get('model'), goal: goal}).then(function(res) {
+      this.modal.open('confirm-delete-goal', {user: this.get('model'), goal: goal}).then(function(res) {
         if(res.updated) {
           _this.load_goals();
         }
@@ -95,7 +98,7 @@ export default Controller.extend({
     },
     find_goal: function() {
       var _this = this;
-      modal.open('new-goal', {browse: true, user: this.get('model') }).then(function(res) {
+      this.modal.open('new-goal', {browse: true, user: this.get('model') }).then(function(res) {
         if(res) {
           _this.load_goals();
         }

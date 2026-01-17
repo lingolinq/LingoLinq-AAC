@@ -1,9 +1,12 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  persistence: service(),
+
   title: "Reset Password",
   checkPassword: observer('model.password', 'model.password2', function() {
     var pw = this.get('model.password');
@@ -30,7 +33,7 @@ export default Controller.extend({
       var token = this.get('model.reset_token');
       var _this = this;
       this.set('password_reset', {pending: true});
-      persistence.ajax('/api/v1/users/' + user_name, {
+      this.persistence.ajax('/api/v1/users/' + user_name, {
         type: 'POST',
         data: {
           '_method': 'PUT',

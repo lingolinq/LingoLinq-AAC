@@ -1,14 +1,17 @@
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   pin: "",
   compare_pin: observer('pin', function() {
     var pin = this.get('pin');
     if(pin == this.get('model.actual_pin')) {
       this.set('pin', '');
-      modal.close({correct_pin: true});
+      this.modal.close({correct_pin: true});
       if(this.get('model.action') == 'none') { return; }
       if(this.get('model.action') == 'edit') {
         app_state.toggle_edit_mode();

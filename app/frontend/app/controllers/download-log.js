@@ -1,9 +1,13 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import LingoLinq from '../app';
 import progress_tracker from '../utils/progress_tracker';
 import persistence from '../utils/persistence';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+
   opening: function() {
     this.set('status', null);
     if(this.get('model.log')) {
@@ -18,7 +22,7 @@ export default modal.ModalController.extend({
       if(type == 'obla') {
         params = params + "&anonymized=1";
       }
-      persistence.ajax('/api/v1/logs/obl?' + params, {method: 'GET'}).then(function(data) {
+      this.persistence.ajax('/api/v1/logs/obl?' + params, {method: 'GET'}).then(function(data) {
         progress_tracker.track(data.progress, function(event) {
           if(event.status == 'errored') {
             _this.set('status', {errored: true});

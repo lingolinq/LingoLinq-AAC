@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';

@@ -1,3 +1,5 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import contentGrabbers from '../utils/content_grabbers';
 import app_state from '../utils/app_state';
@@ -7,6 +9,8 @@ import editManager from '../utils/edit_manager';
 import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('loading', null);
     this.set('custom_badge_status', null);
@@ -19,7 +23,7 @@ export default modal.ModalController.extend({
           _this.set('custom_badge_status', {loading: true});
         } else {
           _this.set('model.badge.image_url', result.get('url'));
-          modal.close('badge-image');
+          this.modal.close('badge-image');
         }
       } else {
         _this.set('custom_badge_status', {error: true});
@@ -39,7 +43,7 @@ export default modal.ModalController.extend({
           if(editManager.badgeEditingCallback && editManager.badgeEditingCallback.state) {
             _this.set('model.badge.state', editManager.badgeEditingCallback.state);
           }
-          modal.close('badge-image');
+          this.modal.close('badge-image');
         });
       });
       res.then(null, function() {

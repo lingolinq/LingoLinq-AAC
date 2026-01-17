@@ -2,8 +2,11 @@ import LingoLinq from '../app';
 import modal from '../utils/modal';
 import Utils from '../utils/misc';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('error', false);
     this.set('saving', false);
@@ -33,7 +36,7 @@ export default modal.ModalController.extend({
   }),
   actions: {
     close: function() {
-      modal.close(false);
+      this.modal.close(false);
     },
     save: function() {
       var _this = this;
@@ -45,7 +48,7 @@ export default modal.ModalController.extend({
       _this.set('snapshot.error', false);
       _this.set('snapshot.saving', true);
       snapshot.save().then(function() {
-        modal.close({created: true});
+        this.modal.close({created: true});
         _this.set('snapshot.saving', false);
       }, function() {
         _this.set('snapshot.error', true);

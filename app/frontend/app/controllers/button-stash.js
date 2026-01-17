@@ -5,8 +5,11 @@ import stashes from '../utils/_stashes';
 import Button from '../utils/button';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('model', {});
     var time_cutoff = (new Date()).getTime() - (7 * 24 * 60 * 60 * 1000);
@@ -24,7 +27,7 @@ export default modal.ModalController.extend({
   actions: {
     pickButton: function(button) {
       editManager.get_ready_to_apply_stashed_button(button);
-      modal.close(true);
+      this.modal.close(true);
     }
   },
   outer_button_style: computed('model.id', function() {

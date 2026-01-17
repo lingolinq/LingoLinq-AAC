@@ -2,8 +2,11 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import contentGrabbers from '../utils/content_grabbers';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     contentGrabbers.soundGrabber.setup(null, this);
   },
@@ -37,7 +40,7 @@ export default modal.ModalController.extend({
       contentGrabbers.soundGrabber.select_sound_preview().then(function(res) {
         _this.send('clear_sound');
         _this.send('clear_sound_work');
-        modal.close(res);
+        this.modal.close(res);
       }, function() {
 
       });
@@ -52,7 +55,7 @@ export default modal.ModalController.extend({
       this.send('clear_sound');
       this.send('clear_sound_work');
       this.set('model.sound_id', null);
-      modal.close();
+      this.modal.close();
     }
   }
 });

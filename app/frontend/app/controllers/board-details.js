@@ -4,8 +4,12 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     this.set('model', this.get('model.board'));
     var _this = this;
@@ -33,38 +37,38 @@ export default modal.ModalController.extend({
   }),
   actions: {
     close: function() {
-      modal.close();
+      this.modal.close();
     },
     show_licenses: function() {
       this.set('showing_licenses', true);
     },
     boardStats: function() {
-      modal.open('board-stats', {board: this.get('model')});
+      this.modal.open('board-stats', {board: this.get('model')});
     },
     renameBoard: function() {
-      modal.open('rename-board', {board: this.get('model')});
+      this.modal.open('rename-board', {board: this.get('model')});
     },
     delete: function(decision) {
-      modal.open('confirm-delete-board', {board: this.get('model'), redirect: true});
+      this.modal.open('confirm-delete-board', {board: this.get('model'), redirect: true});
     },
     button_set_words: function() {
-      modal.open('button-set', {board: this.get('model'), button_set: this.get('model.button_set')});
+      this.modal.open('button-set', {board: this.get('model'), button_set: this.get('model.button_set')});
     },
     translate: function() {
-      modal.open('translation-select', {board: this.get('model'), button_set: this.get('model.button_set')});
+      this.modal.open('translation-select', {board: this.get('model'), button_set: this.get('model.button_set')});
     },
     swap_images: function() {
-      modal.open('swap-images', {board: this.get('model'), button_set: this.get('model.button_set')});
+      this.modal.open('swap-images', {board: this.get('model'), button_set: this.get('model.button_set')});
     },
     privacy: function() {
-      modal.open('modals/board-privacy', {board: this.get('model'), button_set: this.get('model.button_set')});
+      this.modal.open('modals/board-privacy', {board: this.get('model'), button_set: this.get('model.button_set')});
     },
     categorize: function() {
-      modal.open('modals/tag-board', {board: this.get('model'), user: app_state.get('currentUser')});
+      this.modal.open('modals/tag-board', {board: this.get('model'), user: this.appState.get('currentUser')});
     },
     batch_recording: function() {
       var _this = this;
-      modal.open('batch-recording', {user: app_state.get('currentUser'), board: this.get('model')}).then(function() {
+      this.modal.open('batch-recording', {user: this.appState.get('currentUser'), board: this.get('model')}).then(function() {
         _this.get('model').reload().then(function() {
           _this.get('model').load_button_set(true);
           editManager.process_for_displaying();

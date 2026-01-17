@@ -1,8 +1,11 @@
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   app: computed('model.apps', function() {
     var apps = this.get('model.apps') || {};
     if(capabilities.system == 'iOS' && apps.ios && apps.ios.launch_url) {
@@ -17,7 +20,7 @@ export default modal.ModalController.extend({
   }),
   actions: {
     open_link: function() {
-      modal.close();
+      this.modal.close();
       var apps = this.get('model.apps') || {};
       if(capabilities.system == 'iOS' && apps.ios && apps.ios.launch_url) {
         capabilities.window_open(apps.ios.launch_url, '_blank');

@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
 import utterance from '../../utils/utterance';
@@ -17,6 +18,10 @@ import { htmlSafe } from '@ember/string';
 import editManager from '../../utils/edit_manager';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   setup: function() {
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
@@ -408,7 +413,7 @@ export default Controller.extend({
   check_core_words: function() {
     var _this = this;
     _this.set('core_lists', {loading: true});
-    persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
+    this.persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
       _this.set('core_lists', res);
       _this.set('model.core_lists', res);
     }, function(err) {
@@ -664,7 +669,7 @@ export default Controller.extend({
     if(this.get('pending_preferences.logging')) {
       if(this.get('logging_set') === false) {
         var _this = this;
-        modal.open('enable-logging', {save: false, user: this.get('model')}).then(function() {
+        this.modal.open('enable-logging', {save: false, user: this.get('model')}).then(function() {
           _this.set('pending_preferences.allow_log_reports', _this.get('model.preferences.allow_log_reports'));
           _this.set('pending_preferences.allow_log_publishing', _this.get('model.preferences.allow_log_publishing'));
           _this.set('pending_preferences.geo_logging', _this.get('model.preferences.geo_logging'));
@@ -819,7 +824,7 @@ export default Controller.extend({
     },
     phrases: function() {
       this.set('model.preferences.phrase_categories', this.get('phrase_categories_string').split(/\s*,\s*/).filter(function(s) { return s; }));
-      modal.open('modals/phrases', {user: this.get('model')})
+      this.modal.open('modals/phrases', {user: this.get('model')})
     },
     clear_home: function() {
       this.set('pending_preferences.home_board', {id: 'none'});
@@ -888,8 +893,8 @@ export default Controller.extend({
       user.save().then(function(user) {
         _this.check_core_words();
         _this.set('status', null);
-        if(user.get('id') == app_state.get('currentUser.id')) {
-          app_state.set('currentUser', user);
+        if(user.get('id') == this.appState.get('currentUser.id')) {
+          this.appState.set('currentUser', user);
         }
         if(!skip_redirect) {
           _this.transitionToRoute('user', user.get('user_name'));
@@ -909,7 +914,7 @@ export default Controller.extend({
       var _this = this;
       _this.set('pin_status', {checking: true});
       var code = _this.get('logging_code_check');
-      persistence.ajax('/api/v1/logs/code_check', {type: 'POST', data: {
+      this.persistence.ajax('/api/v1/logs/code_check', {type: 'POST', data: {
         user_id: _this.get('model.id'),
         code: code
       }}).then(function(res) {
@@ -924,7 +929,7 @@ export default Controller.extend({
       })
     },
     sidebar_button_settings: function(button) {
-      modal.open('sidebar-button-settings', {button: button});
+      this.modal.open('sidebar-button-settings', {button: button});
     },
     include_prior_sidebar_buttons: function() {
       this.set('include_prior_sidebar_buttons', true);
@@ -965,7 +970,7 @@ export default Controller.extend({
     },
     premium_voices: function() {
       var _this = this;
-      modal.open('premium-voices', {user: _this.get('model')});
+      this.modal.open('premium-voices', {user: _this.get('model')});
     },
     test_voice: function(which) {
       if(which == 'alternate') {
@@ -975,14 +980,14 @@ export default Controller.extend({
       }
     },
     delete_logs: function() {
-      modal.open('confirm-delete-logs', {user: this.get('model')});
+      this.modal.open('confirm-delete-logs', {user: this.get('model')});
     },
     toggle_advanced: function() {
       this.set('advanced', !this.get('advanced'));
     },
     modify_core: function() {
       var _this = this;
-      modal.open('modify-core-words', {user: this.get('model')}).then(function() {
+      this.modal.open('modify-core-words', {user: this.get('model')}).then(function() {
         _this.check_core_words();
       });
     },
@@ -998,7 +1003,7 @@ export default Controller.extend({
         if(res) {
           capabilities.eye_gaze.calibrate();
         } else {
-          modal.error(i18n.t('cannot_calibrate', "Eye gaze cannot be calibrated at this time"));
+          this.modal.error(i18n.t('cannot_calibrate', "Eye gaze cannot be calibrated at this time"));
         }
       });
     },
@@ -1009,7 +1014,7 @@ export default Controller.extend({
       this.set('pending_preferences.requested_phrase_changes', list);
     },
     program_tag: function() {
-      modal.open('modals/program-nfc', {listen: true});
+      this.modal.open('modals/program-nfc', {listen: true});
     },
     clear_nfc_tags: function() {
       this.set('pending_preferences.tag_ids', []);

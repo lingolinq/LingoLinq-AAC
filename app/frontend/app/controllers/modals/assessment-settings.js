@@ -7,9 +7,13 @@ import evaluation from '../../utils/eval';
 import { set as emberSet } from '@ember/object';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     this.set('aborting', false);
     this.update_symbol_options();
@@ -17,13 +21,13 @@ export default modal.ModalController.extend({
     // library and default to that if it's an eval library
     var settings = Object.assign({}, this.get('model.assessment'));
     if(!settings.user_id) {
-      settings.user_id = app_state.get('currentUser.id') || settings.initiator_user_id;
-      settings.user_name = app_state.get('currentUser.name') || settings.initiator_user_name;
+      settings.user_id = this.appState.get('currentUser.id') || settings.initiator_user_id;
+      settings.user_name = this.appState.get('currentUser.name') || settings.initiator_user_name;
     }
     if(settings.user_id && !settings.for_user) {
       settings.for_user = {user_id: settings.user_id, user_name: settings.user_name};
     }
-    if(settings.for_user.user_id == app_state.get('sessionUser.id')) {
+    if(settings.for_user.user_id == this.appState.get('sessionUser.id')) {
       settings.for_user.user_id = 'self';
     }
     settings.prompts_delay || '';
@@ -31,8 +35,8 @@ export default modal.ModalController.extend({
       settings.name = "";
     }
     this.set('settings', settings);
-    if(app_state.get('currentUser.preferences.preferred_symbols')) {
-      var pref = app_state.get('currentUser.preferences.preferred_symbols');
+    if(this.appState.get('currentUser.preferences.preferred_symbols')) {
+      var pref = this.appState.get('currentUser.preferences.preferred_symbols');
       if((evaluation.libraries || []).indexOf(pref) != -1) {
         this.set('settings.default_library', pref);
       }
@@ -42,17 +46,17 @@ export default modal.ModalController.extend({
     var user_id = this.get('settings.for_user.user_id');
     if(user_id) {
       // this.set('settings.for_user.user_name', 'user');
-      if(user_id == 'self' || user_id == app_state.get('currentUser.id')) {
-        this.set('settings.for_user.user_name', app_state.get('currentUser.user_name'));
+      if(user_id == 'self' || user_id == this.appState.get('currentUser.id')) {
+        this.set('settings.for_user.user_name', this.appState.get('currentUser.user_name'));
       } else {  
         var _this = this;
-        app_state.get('currentUser.known_supervisees').forEach(function(u) {
+        this.appState.get('currentUser.known_supervisees').forEach(function(u) {
           if(u.id == user_id) {
             _this.set('settings.for_user.user_name', u.user_name);
           }
         });
         var u = LingoLinq.store.peekRecord('user', user_id);
-        u = u || (app_state.get('quick_users') || {})[user_id];
+        u = u || (this.appState.get('quick_users') || {})[user_id];
         if(u) {
           _this.set('settings.for_user.user_name', u.user_name);
         }
@@ -60,7 +64,7 @@ export default modal.ModalController.extend({
     }
   }),
   name_placeholder: computed('settings.user_name', 'settings.for_user.user_name', function() {
-    return i18n.t('eval_for', "Eval for ") + (this.get('settings.for_user.user_name') || this.get('settings.user_name') || app_state.get('currentUser.user_name')) + " - " + window.moment().format('MMM Do YYYY');
+    return i18n.t('eval_for', "Eval for ") + (this.get('settings.for_user.user_name') || this.get('settings.user_name') || this.appState.get('currentUser.user_name')) + " - " + window.moment().format('MMM Do YYYY');
   }),
   save_option: computed('model.action', function() {
     return this.get('model.action') == 'results';
@@ -71,8 +75,8 @@ export default modal.ModalController.extend({
       {name: i18n.t('photos', "Photos"), id: 'photos'},
     ];
     var lessonpix_added = false;
-    if(app_state.get('currentUser')) {
-      app_state.get('currentUser').find_integration('lessonpix').then(function(integration) {
+    if(this.appState.get('currentUser')) {
+      this.appState.get('currentUser').find_integration('lessonpix').then(function(integration) {
         if(!lessonpix_added) {
           lessonpix_added = true;
           res.pushObject({
@@ -82,14 +86,14 @@ export default modal.ModalController.extend({
         }
       }, function(err) { });
     }
-    if(app_state.get('currentUser.subscription.lessonpix') && !lessonpix_added) {
+    if(this.appState.get('currentUser.subscription.lessonpix') && !lessonpix_added) {
       lessonpix_added = true;
       res.push({
         name: i18n.t('lessonpix_symbols', "LessonPix Symbols"),
         id: 'lessonpix'
       });
     }
-    if(app_state.get('currentUser.subscription.extras_enabled')) {
+    if(this.appState.get('currentUser.subscription.extras_enabled')) {
       res.pushObject({
         name: i18n.t('pcs_boardmaker', "PCS (BoardMaker) symbols from Tobii-Dynavox"),
         id: 'pcs'
@@ -169,7 +173,7 @@ export default modal.ModalController.extend({
     },
     abort: function(confirm) {
       if(confirm) {
-        if(app_state.get('speak_mode')) {
+        if(this.appState.get('speak_mode')) {
           app_state.toggle_speak_mode();
         }
         app_state.return_to_index();
@@ -179,7 +183,7 @@ export default modal.ModalController.extend({
     },
     confirm: function() {
       // update assessment settings
-      modal.close();
+      this.modal.close();
       if(this.get('settings.prompts_delay')) {
         var del = parseInt(this.get('settings.prompts_delay'), 10);
         if(del && del > 0) {

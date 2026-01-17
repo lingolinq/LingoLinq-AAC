@@ -7,9 +7,12 @@ import evaluation from '../../utils/eval';
 import { set as emberSet } from '@ember/object';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     if(this.get('model.lesson.editable')) {
       this.set('lesson', this.get('model.lesson'));
@@ -77,7 +80,7 @@ export default modal.ModalController.extend({
       }
       lesson.save().then(function(res) {
         _this.set('status', null);
-        modal.close({lesson: lesson});
+        this.modal.close({lesson: lesson});
       }, function(err) {
         _this.set('status', {error: true});
       });

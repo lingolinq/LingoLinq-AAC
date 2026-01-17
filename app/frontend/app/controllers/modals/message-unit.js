@@ -6,9 +6,13 @@ import i18n from '../../utils/i18n';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     this.set('note_type', 'text');
     this.set('status', null);
@@ -63,7 +67,7 @@ export default modal.ModalController.extend({
       var _this = this;
 
       _this.set('status', {sending: true});
-      persistence.ajax('/api/v1/units/' + _this.get('model.unit.id') + '/note', {
+      this.persistence.ajax('/api/v1/units/' + _this.get('model.unit.id') + '/note', {
         type: 'POST',
         data: {
           note: _this.get('note'),
@@ -74,7 +78,7 @@ export default modal.ModalController.extend({
         }
       }).then(function(res) {
         _this.set('status', null);
-        modal.close();
+        this.modal.close();
         modal.success(i18n.t('message_sent', "Message successfully sent!"));
       }, function(err) {
         _this.set('status', {error: true});

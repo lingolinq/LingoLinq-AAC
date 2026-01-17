@@ -1,4 +1,5 @@
 import EmberObject from '@ember/object';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
@@ -8,6 +9,8 @@ import persistence from '../utils/persistence';
 import tts_voices from '../utils/tts_voices';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+
   opening: function() {
     this.refresh_voices();
   },
@@ -18,7 +21,7 @@ export default modal.ModalController.extend({
     var _this = this;
     if(capabilities.installed_app) {
       capabilities.tts.status().then(function() {
-        if((app_state.get('currentUser.currently_premium') && app_state.get('currentUser.premium_voices.allowed') > 0) || app_state.get('currentUser.premium_voices.always_allowed')) {
+        if((this.appState.get('currentUser.currently_premium') && this.appState.get('currentUser.premium_voices.allowed') > 0) || this.appState.get('currentUser.premium_voices.always_allowed')) {
           _this.set('premium_available', true);
         }
       }, function() {

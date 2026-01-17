@@ -3,8 +3,12 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import lingoLinqExtras from '../utils/extras';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     var controller = this;
     var board = controller.get('model.board');
@@ -16,11 +20,11 @@ export default modal.ModalController.extend({
   },
   supervisee_share: computed('share_user_name', 'app_state.currentUser.known_supervisees', function() {
     var un = this.get('share_user_name');
-    return un && (app_state.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un; });
+    return un && (this.appState.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un; });
   }),
   not_copyable: computed('share_user_name', 'app_state.currentUser.known_supervisees', function() {
     var un = this.get('share_user_name');
-    return !(un && (app_state.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un && s.edit_permission; }));
+    return !(un && (this.appState.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un && s.edit_permission; }));
   }),
   actions: {
     share_with_user: function() {
@@ -43,7 +47,7 @@ export default modal.ModalController.extend({
       board.save().then(function() {
       }, function(xhr) {
         console.log(xhr.responseJSON);
-        modal.error(i18n.t('board_sharing_failed', "Board sharing action failed"));
+        this.modal.error(i18n.t('board_sharing_failed', "Board sharing action failed"));
       });
     },
     unshare: function(id) {
@@ -53,7 +57,7 @@ export default modal.ModalController.extend({
       board.save().then(function() {
       }, function(xhr) {
         console.log(xhr.responseJSON);
-        modal.error(i18n.t('unsharing_failed', "Board unsharing action failed"));
+        this.modal.error(i18n.t('unsharing_failed', "Board unsharing action failed"));
       });
     },
     make_public: function(action) {
@@ -66,7 +70,7 @@ export default modal.ModalController.extend({
         board.save().then(function() {
           board.set('update_visibility_downstream', false);
           if(needs_refresh) {
-            app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+            this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
           }
           _this.set('confirm_public_board', false);
         }, function() {

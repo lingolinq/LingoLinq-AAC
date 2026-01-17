@@ -2,8 +2,11 @@ import modal from '../../utils/modal';
 import obf from '../../utils/obf';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('current_section_id', this.get('model.section_id'));
   },
@@ -41,7 +44,7 @@ export default modal.ModalController.extend({
       _this.set('current_section_id', sections[idx].id);
     },
     jump: function() {
-      modal.close();
+      this.modal.close();
       obf.eval.jump_to(this.get('current_section_id'));
     }
   }

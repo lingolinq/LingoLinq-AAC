@@ -4,12 +4,17 @@ import lingoLinqExtras from '../../utils/extras';
 import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('status', null);
-    var user_name = app_state.get('currentUser.user_name');
+    var user_name = this.appState.get('currentUser.user_name');
     lingoLinqExtras.storage.find_all('board').then(function(list) {
       _this.set('local_boards', list.filter(function(i) { return i.data && i.data.raw && i.data.raw.user_name == user_name; }).length);
     }, function() { _this.set('local_boards', null)});
@@ -18,12 +23,12 @@ export default modal.ModalController.extend({
     push: function() {
       var _this = this;
       _this.set('status', {pushing: true});
-      app_state.get('currentUser').assert_local_boards().then(function(res) {
+      this.appState.get('currentUser').assert_local_boards().then(function(res) {
         _this.set('status', null);
-        modal.close();
+        this.modal.close();
         modal.success(i18n.t('records_pushed', "Local records have been successfully pushed to the cloud!"));
         runLater(function() {
-          persistence.sync('self', null, null, 'push_to_cloud');
+          this.persistence.sync('self', null, null, 'push_to_cloud');
         }, 5000);
       }, function(err) {
         if(err.save_failed) {

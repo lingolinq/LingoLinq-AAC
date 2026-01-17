@@ -4,8 +4,12 @@ import persistence from '../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/string';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('state', null);
@@ -84,12 +88,12 @@ export default modal.ModalController.extend({
       };
       var _this = this;
       _this.set('state', {saving: true});
-      persistence.ajax('/api/v1/users/' + _this.get('model.user.id') + '/core_list', {
+      this.persistence.ajax('/api/v1/users/' + _this.get('model.user.id') + '/core_list', {
         type: 'POST',
         data: data
       }).then(function(res) {
         _this.set('state', null);
-        modal.close('modify-core-words');
+        this.modal.close('modify-core-words');
       }, function(err) {
         _this.set('state', {error: true});
       });

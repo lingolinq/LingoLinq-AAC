@@ -8,8 +8,12 @@ import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/string';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     this.set('editing', false);
     this.set('save_status', null);
@@ -62,7 +66,7 @@ export default modal.ModalController.extend({
       _this.set('save_status', {loading: true});
       var status = _this.get('status') || {};
       status.note = _this.get('status_note');
-      persistence.ajax('/api/v1/organizations/' + _this.get('model.organization.id') + '/status/' + _this.get('model.user.id'), {
+      this.persistence.ajax('/api/v1/organizations/' + _this.get('model.organization.id') + '/status/' + _this.get('model.user.id'), {
         type: 'POST',
         data: {
           status: _this.get('status')
@@ -70,7 +74,7 @@ export default modal.ModalController.extend({
       }).then(function(res) {
         _this.set('save_status', null);
         _this.set('model.user.org_status', Object.assign({}, status));
-        modal.close({status: status});
+        this.modal.close({status: status});
       }, function(err) {
         _this.set('save_status', {error: true});
       })

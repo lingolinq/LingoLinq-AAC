@@ -3,11 +3,16 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
-    if(app_state.get('sessionUser')) {
-      this.set('cookies', !!app_state.get('sessionUser.preferences.cookies'));
+    if(this.appState.get('sessionUser')) {
+      this.set('cookies', !!this.appState.get('sessionUser.preferences.cookies'));
     } else {
       this.set('cookies', localStorage['enable_cookies'] == 'true');
     }
@@ -17,24 +22,24 @@ export default modal.ModalController.extend({
   }),
   author_ids: computed('sessionUser.supervisors', function() {
     var list = [];
-    list.push({id: app_state.get('sessionUser.id'), name: app_state.get('sessionUser.name') + " <" + app_state.get('sessionUser.email') + ">"});
-    app_state.get('sessionUser.supervisors').forEach(function(sup) {
+    list.push({id: this.appState.get('sessionUser.id'), name: this.appState.get('sessionUser.name') + " <" + this.appState.get('sessionUser.email') + ">"});
+    this.appState.get('sessionUser.supervisors').forEach(function(sup) {
       list.push({id: sup.id, name: sup.name + " (" + sup.user_name + ")"});
     });
     list.push({id: 'custom', name: i18n.t('other_account', "Other Account")});
     return list;
   }),
   prompt_user: computed('app_state.sessionUser', 'author_id', function() {
-    return !app_state.get('sessionUser') || this.get('author_id') == 'custom';
+    return !this.appState.get('sessionUser') || this.get('author_id') == 'custom';
   }),
   actions: {
     toggle_cookies: function() {
       var _this = this;
-      if(app_state.get('sessionUser')) {
-        app_state.set('sessionUser.watch_cookies');
-        app_state.set('sessionUser.preferences.cookies', !app_state.get('sessionUser.preferences.cookies'));
-        app_state.get('sessionUser').save().then(function() {
-          _this.set('cookies', !!app_state.get('sessionUser.preferences.cookies'));
+      if(this.appState.get('sessionUser')) {
+        this.appState.set('sessionUser.watch_cookies');
+        this.appState.set('sessionUser.preferences.cookies', !this.appState.get('sessionUser.preferences.cookies'));
+        this.appState.get('sessionUser').save().then(function() {
+          _this.set('cookies', !!this.appState.get('sessionUser.preferences.cookies'));
         }, function() { });
       } else {
         app_state.toggle_cookies(localStorage['enable_cookies'] != 'true');
@@ -42,7 +47,7 @@ export default modal.ModalController.extend({
       }
     },
     submit_message: function() {
-      if(!this.get('email') && !app_state.get('currentUser')) { return; }
+      if(!this.get('email') && !this.appState.get('currentUser')) { return; }
       var message = {
         name: this.get('name'),
         email: this.get('email'),
@@ -55,7 +60,7 @@ export default modal.ModalController.extend({
       var _this = this;
       this.set('disabled', true);
       this.set('error', false);
-      persistence.ajax('/api/v1/messages', {
+      this.persistence.ajax('/api/v1/messages', {
         type: 'POST',
         data: {
           message: message
@@ -63,7 +68,7 @@ export default modal.ModalController.extend({
       }).then(function(res) {
         _this.set('disabled', false);
         modal.success(i18n.t('message_delivered', "Message sent! Thank you for reaching out!"));
-        modal.close();
+        this.modal.close();
       }, function() {
         _this.set('error', true);
         _this.set('disabled', false);

@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
@@ -8,6 +9,8 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  modal: service(),
+
   load_logs: function() {
     var _this = this;
     var user_id = this.get('user.id');
@@ -96,13 +99,13 @@ export default Controller.extend({
     },
     new_note: function(goal) {
       var _this = this;
-      modal.open('record-note', {note_type: 'text', user: this.get('user'), goal: this.get('model')}).then(function(res) {
+      this.modal.open('record-note', {note_type: 'text', user: this.get('user'), goal: this.get('model')}).then(function(res) {
         _this.load_logs();
       }, function() { });
     },
     quick_assessment: function(goal) {
       var _this = this;
-      modal.open('quick-assessment', {user: this.get('user'), goal: this.get('model')}).then(function(res) {
+      this.modal.open('quick-assessment', {user: this.get('user'), goal: this.get('model')}).then(function(res) {
         _this.load_logs();
       }, function() { });
     },
@@ -166,7 +169,7 @@ export default Controller.extend({
         });
       }
       if(ub) {
-        modal.open('badge-awarded', {badge: ub, user_id: this.get('user.id')});
+        this.modal.open('badge-awarded', {badge: ub, user_id: this.get('user.id')});
       }
     }
   }

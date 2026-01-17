@@ -4,8 +4,11 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var user = LingoLinq.store.createRecord('user', {
       preferences: {
@@ -229,7 +232,7 @@ export default modal.ModalController.extend({
         if(controller.get('model.org') && add_symbols) {
           controller.get('model.org').reload();
         }
-        modal.close({
+        this.modal.close({
           created: true,
           user: user
         });

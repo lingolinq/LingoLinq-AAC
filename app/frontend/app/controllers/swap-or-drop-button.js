@@ -2,8 +2,11 @@ import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('status', null);
   },
@@ -15,7 +18,7 @@ export default modal.ModalController.extend({
       var a = this.get('model.button.id');
       var b = this.get('model.folder.id');
       editManager.switch_buttons(a, b, 'swap');
-      modal.close(true);
+      this.modal.close(true);
     },
     move_button: function(decision) {
       var a = this.get('model.button.id');
@@ -25,12 +28,12 @@ export default modal.ModalController.extend({
       var _this = this;
       editManager.move_button(a, b, decision).then(function(res) {
         _this.set('status', null);
-        modal.close(true);
+        this.modal.close(true);
         if(res.visible) {
           modal.success(i18n.t('button_moved', "Button successfully added to the board!"));
         } else {
           editManager.stash_button(res.button);
-          modal.warning(i18n.t('button_moved_to_stash', "There wasn't room for the button on the board, so it's been added to the stash instead."));
+          this.modal.warning(i18n.t('button_moved_to_stash', "There wasn't room for the button on the board, so it's been added to the stash instead."));
         }
       }, function(err) {
         if(err.error == 'view only' && !decision) {
@@ -44,7 +47,7 @@ export default modal.ModalController.extend({
         if(modal.is_open('swap-or-drop-button')) {
           _this.set('status', {error: message});
         } else {
-          modal.error(message);
+          this.modal.error(message);
         }
       });
     }

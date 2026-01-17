@@ -4,9 +4,15 @@ import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
     // which step are we on?
     var step = this.get('model.step') || 0;
@@ -19,13 +25,13 @@ export default modal.ModalController.extend({
       key: this.get('model.board.key'),
       level: 10
     };
-    stashes.set('root_board_state', state);
-    stashes.set('board_level', state.level);
-    stashes.set('temporary_root_board_state', null);
-    app_state.set('temporary_root_board_key', null);
+    this.stashes.set('root_board_state', state);
+    this.stashes.set('board_level', state.level);
+    this.stashes.set('temporary_root_board_state', null);
+    this.appState.set('temporary_root_board_key', null);
 
-    var user = app_state.get('currentUser');
-    var intros = app_state.get('currentUser.preferences.progress.board_intros') || [];
+    var user = this.appState.get('currentUser');
+    var intros = this.appState.get('currentUser.preferences.progress.board_intros') || [];
     if(intros.indexOf(this.get('model.board.id')) == -1) {
       intros.push(this.get('model.board.id'));
     }
@@ -42,7 +48,7 @@ export default modal.ModalController.extend({
   actions: {
     close: function() {
       // clear step and modal.close
-      modal.close();
+      this.modal.close();
     },
     next: function() {
       var step = (this.get('model.step') || 0) + 1;
@@ -61,7 +67,7 @@ export default modal.ModalController.extend({
         return;
       }
       if(board.get('button_set')) {
-        var user = app_state.get('currentUser');
+        var user = this.appState.get('currentUser');
         var search = null;
         var prompt = _this.get('current_step.prompt');
         var level = _this.get('current_step.level');
@@ -94,17 +100,17 @@ export default modal.ModalController.extend({
           }
 
           // Allow setting the level as part of the steps
-          stashes.set('board_level', level || 10);
+          this.stashes.set('board_level', level || 10);
           app_state.controller.highlight_button(buttons, board.get('button_set'), {wait_to_prompt: true}).then(function() {
             // re-open the modal at the next step
-            modal.open('modals/board-intro', {board: _this.get('model.board'), step: (_this.get('model.step') + 1)});
+            this.modal.open('modals/board-intro', {board: _this.get('model.board'), step: (_this.get('model.step') + 1)});
           }, function() {
             // should only happen if the user cancels out of the help
             debugger
           });
         };
         search.then(function(results) {
-          if(window.persistence.get('online')) {
+          if(window.this.persistence.get('online')) {
             show_sequence(results[0]);
           } else {
             var new_results = [];

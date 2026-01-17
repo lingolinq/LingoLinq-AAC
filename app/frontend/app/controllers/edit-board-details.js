@@ -6,15 +6,19 @@ import modal from '../utils/modal';
 import { set as emberSet } from '@ember/object';
 import { computed, observer } from '@ember/object';
 import { htmlSafe } from '@ember/string';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     var board = this.get('model.board');
     this.set('model', board);
     this.set('starting_vis', board.get('visibility'));
     this.set('visibility_changed', false);
     if(!board.get('button_locale')) {
-      board.set('button_locale', app_state.get('label_locale') || board.get('locale'));
+      board.set('button_locale', this.appState.get('label_locale') || board.get('locale'));
     }
     this.set('advanced', false);
     this.set('originally_public', board.get('public'));
@@ -104,12 +108,12 @@ export default modal.ModalController.extend({
     return this.get('model.license.type') != 'private';
   }),
   update_license() {
-    this.set('model.license.author_name', this.get('model.license.author_name') || app_state.get('currentUser.name'));
-    this.set('model.license.author_url',this.get('model.license.author_url') || app_state.get('currentUser.profile_url'));
+    this.set('model.license.author_name', this.get('model.license.author_name') || this.appState.get('currentUser.name'));
+    this.set('model.license.author_url',this.get('model.license.author_url') || this.appState.get('currentUser.profile_url'));
   },
   actions: {
     close: function() {
-      modal.close();
+      this.modal.close();
     },
     pickImageUrl: function(url) {
       this.set('model.image_url', url);

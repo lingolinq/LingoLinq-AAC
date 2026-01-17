@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater, scheduleOnce } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -14,6 +15,10 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {
       return "Usage Reports for " + this.get('model.user_name');
@@ -134,7 +139,7 @@ export default Controller.extend({
   load_core: function() {
     var _this = this;
     if(!this.get('model.core_lists')) {
-      persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
+      this.persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
         _this.set('model.core_lists', res);
       }, function(err) {
       });
@@ -221,7 +226,7 @@ export default Controller.extend({
     var status_key = side == 'left' ? 'status' : 'status2';
     var stats_key = side == 'left' ? 'usage_stats' : 'usage_stats2';
     controller.set(status_key, status);
-    persistence.ajax('/api/v1/users/' + controller.get('model.id') + '/stats/daily', {type: 'GET', data: args}).then(function(data) {
+    this.persistence.ajax('/api/v1/users/' + controller.get('model.id') + '/stats/daily', {type: 'GET', data: args}).then(function(data) {
       if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
       var stats = Stats.create(data);
       stats.setProperties({
@@ -264,20 +269,20 @@ export default Controller.extend({
       user.set('preferences.logging', true);
       var _this = this;
       user.save().then(function(user) {
-        if(user.get('id') == app_state.get('currentUser.id')) {
-          app_state.set('currentUser', user);
+        if(user.get('id') == this.appState.get('currentUser.id')) {
+          this.appState.set('currentUser', user);
         }
         _this.load_charts();
       }, function() { });
-      modal.open('enable-logging', {save: true, user: user});
+      this.modal.open('enable-logging', {save: true, user: user});
     },
     enable_geo_logging: function() {
       var user = this.get('model');
       user.set('preferences.geo_logging', true);
       var _this = this;
       user.save().then(function(user) {
-        if(user.get('id') == app_state.get('currentUser.id')) {
-          app_state.set('currentUser', user);
+        if(user.get('id') == this.appState.get('currentUser.id')) {
+          this.appState.set('currentUser', user);
         }
         _this.load_charts();
       }, function() { });
@@ -323,13 +328,13 @@ export default Controller.extend({
       }
     },
     word_cloud_left: function() {
-      modal.open('word-cloud', {stats: this.get('usage_stats'), stats2: this.get('usage_stats2'), user: this.get('model')});
+      this.modal.open('word-cloud', {stats: this.get('usage_stats'), stats2: this.get('usage_stats2'), user: this.get('model')});
     },
     word_cloud_right: function() {
-      modal.open('word-cloud', {stats: this.get('usage_stats'), stats2: this.get('usage_stats2'), user: this.get('model')});
+      this.modal.open('word-cloud', {stats: this.get('usage_stats'), stats2: this.get('usage_stats2'), user: this.get('model')});
     },
     word_data: function(word) {
-      modal.open('word-data', {word: word, usage_stats: this.get('usage_stats'), user: this.get('model')});
+      this.modal.open('word-data', {word: word, usage_stats: this.get('usage_stats'), user: this.get('model')});
     },
     show_logs: function(opts) {
       opts = opts || {};
@@ -337,14 +342,14 @@ export default Controller.extend({
     },
     modify_core: function() {
       var _this = this;
-      modal.open('modify-core-words', {user: this.get('model')}).then(function() {
+      this.modal.open('modify-core-words', {user: this.get('model')}).then(function() {
         _this.set('model.core_lists', null);
         _this.load_core();
       });
     },
     save_snapshot: function() {
       var _this = this;
-      modal.open('save-snapshot', {usage_stats: this.get('usage_stats'), user: this.get('model')}).then(function(res) {
+      this.modal.open('save-snapshot', {usage_stats: this.get('usage_stats'), user: this.get('model')}).then(function(res) {
         if(res.created) {
           modal.success(i18n.t('snapshot_created', "Snapshot successfully created! Now you can filter reports using your new snapshot."));
           _this.load_snapshots();
@@ -353,7 +358,7 @@ export default Controller.extend({
     },
     switch_communicators: function() {
       var prompt = i18n.t('select_user_for_reports', "Select User for Reports");
-      app_state.controller.send('switch_communicators', {stay: true, modeling: true, skip_me: !app_state.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.stats', header: prompt});
+      app_state.controller.send('switch_communicators', {stay: true, modeling: true, skip_me: !this.appState.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.stats', header: prompt});
     }
   }
 });

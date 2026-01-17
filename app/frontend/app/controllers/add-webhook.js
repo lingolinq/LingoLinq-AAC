@@ -1,7 +1,11 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var webhook = LingoLinq.store.createRecord('webhook', {
       user_id: this.get('model.user.id'),
@@ -20,7 +24,7 @@ export default modal.ModalController.extend({
       if(webhook.get('new_utterance_event')) { hooks.push('new_utterance'); }
       webhook.set('webhooks', hooks);
       webhook.save().then(function(res) {
-        modal.close({created: true});
+        this.modal.close({created: true});
       }, function(err) {
         _this.set('status', {error: true});
       });

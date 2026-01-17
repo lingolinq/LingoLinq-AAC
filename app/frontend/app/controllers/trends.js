@@ -1,6 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
@@ -9,10 +10,12 @@ import modal from '../utils/modal';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  persistence: service(),
+
   load_trends: function() {
     var _this = this;
     _this.set('trends', {loading: true});
-    persistence.ajax('/api/v1/logs/trends', {type: 'GET'}).then(function(res) {
+    this.persistence.ajax('/api/v1/logs/trends', {type: 'GET'}).then(function(res) {
       if(res.progress) {
         progress_tracker.track(res.progress, function(event) {
           if(event.status == 'errored') {

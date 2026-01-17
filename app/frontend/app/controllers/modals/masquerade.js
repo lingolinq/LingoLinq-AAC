@@ -2,6 +2,7 @@ import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import session from '../../utils/session';
 import { later as runLater } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
   opening: function() {

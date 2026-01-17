@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import Subscription from '../../utils/subscription';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -7,12 +8,16 @@ import app_state from '../../utils/app_state';
 import progress_tracker from '../../utils/progress_tracker';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   queryParams: ['code', 'confirmation'],
   code: null,
   confirmation: null,
   actions: {
     subscription_error: function(err) {
-      modal.error(err);
+      this.modal.error(err);
     },
     subscription_success: function(msg) {
       modal.success(msg);
@@ -32,7 +37,7 @@ export default Controller.extend({
       var _this = this;
       var subscribe = function(token) {
         _this.set('extras_status', {confirming: true});
-        persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
+        this.persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
           type: 'POST',
           data: {
             token: token,
@@ -62,7 +67,7 @@ export default Controller.extend({
         });
       };
 
-      var subscription = Subscription.create({user: app_state.get('currentUser')});
+      var subscription = Subscription.create({user: this.appState.get('currentUser')});
       subscription.set('user_type', 'communicator');
       subscription.set('subscription_type', 'extras');
       subscription.set('subscription_amount', 'long_term_custom');
@@ -90,7 +95,7 @@ export default Controller.extend({
       this.get('subscription').reset();
     },
     show_options: function() {
-      if(!app_state.get('installed_app') || !this.get('subscription.no_purchasing')) {
+      if(!this.appState.get('installed_app') || !this.get('subscription.no_purchasing')) {
         this.set('subscription.show_options', true);
         this.set('subscription.show_cancel', false);
       }
@@ -102,7 +107,7 @@ export default Controller.extend({
       if(frd) {
         this.set('subscription.canceling', true);
         var reason = _this.get('cancel_reason');
-        persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
+        this.persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
           type: 'DELETE',
           data: {
             reason: reason
@@ -110,7 +115,7 @@ export default Controller.extend({
         }).then(function(data) {
           progress_tracker.track(data.progress, function(event) {
             if(event.status == 'errored') {
-              modal.error(i18n.t('user_subscription_cancel_failed', "Subscription cancellation failed. Please try again or contact support for help."));
+              this.modal.error(i18n.t('user_subscription_cancel_failed', "Subscription cancellation failed. Please try again or contact support for help."));
               console.log(event);
             } else if(event.status == 'finished') {
               modal.success(i18n.t('user_subscription_canceled', "Your subscription has been canceled."));
@@ -120,7 +125,7 @@ export default Controller.extend({
             }
           });
         }, function() {
-          modal.error(i18n.t('user_subscription_cancel_failed', "Subscription cancellation failed. Please try again or contact support for help."));
+          this.modal.error(i18n.t('user_subscription_cancel_failed', "Subscription cancellation failed. Please try again or contact support for help."));
         });
       } else {
         this.set('subscription.show_options', true);

@@ -5,14 +5,19 @@ import persistence from '../utils/persistence';
 import LingoLinq from '../app';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('sentence_state', {});
     _this.load_part_of_speech();
     if(!this.get('model.user.core_lists') && this.get('model.user.id')) {
-      persistence.ajax('/api/v1/users/' + this.get('model.user.id') + '/core_lists', {type: 'GET'}).then(function(res) {
+      this.persistence.ajax('/api/v1/users/' + this.get('model.user.id') + '/core_lists', {type: 'GET'}).then(function(res) {
         _this.set('model.user.core_lists', res);
       }, function(err) { });
     }
@@ -25,7 +30,7 @@ export default modal.ModalController.extend({
   load_part_of_speech: function() {
     var _this = this;
     _this.set('parts_of_speech', {loading: true});
-    persistence.ajax('/api/v1/search/parts_of_speech?suggestions=true&q=' + encodeURIComponent(_this.get('model.word')), {
+    this.persistence.ajax('/api/v1/search/parts_of_speech?suggestions=true&q=' + encodeURIComponent(_this.get('model.word')), {
       type: 'GET'
     }).then(function(res) {
       _this.set('parts_of_speech', res);
@@ -91,11 +96,11 @@ export default modal.ModalController.extend({
     add_sentence: function() {
       var _this = this;
       var sentence = _this.get('sentence');
-      var org = (app_state.get('currentUser.organizations') || []).find(function(o) { return o.admin && o.full_manager; });
+      var org = (this.appState.get('currentUser.organizations') || []).find(function(o) { return o.admin && o.full_manager; });
       if(!sentence) { return; }
       if(org) {
         _this.set('sentence_state', {loading: true});
-        persistence.ajax('/api/v1/organizations/' + org.id + '/extra_action', {
+        this.persistence.ajax('/api/v1/organizations/' + org.id + '/extra_action', {
           type: 'POST',
           data: {
             extra_action: 'add_sentence_suggestion',
@@ -116,7 +121,7 @@ export default modal.ModalController.extend({
     program_nfc: function() {
       var button = this.get('model.button');
       if(button) {
-        modal.open('modals/program-nfc', {button: button});
+        this.modal.open('modals/program-nfc', {button: button});
       }
     }
   }

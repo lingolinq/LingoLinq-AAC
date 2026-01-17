@@ -3,11 +3,14 @@ import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+
   opening: function() {
     this.set('research', false);
-    this.set('sessionUser', app_state.get('sessionUser'));
+    this.set('sessionUser', this.appState.get('sessionUser'));
     this.set('model.user.preferences.allow_log_reports', false);
     this.set('publishing', false);
     this.set('research_use', null);

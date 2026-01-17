@@ -4,10 +4,13 @@ import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  stashes: service(),
+
   opening: function() {
-    this.set('lang', stashes.get('display_lang'));
+    this.set('lang', this.stashes.get('display_lang'));
   },
   locales: computed(function() {
     var list = i18n.locales_translated || ['en'];
@@ -27,7 +30,7 @@ export default modal.ModalController.extend({
   }),
   actions: {
     update: function() {
-      stashes.persist('display_lang', this.get('lang'));
+      this.stashes.persist('display_lang', this.get('lang'));
       setTimeout(function() {
         location.reload();
       }, 1000);

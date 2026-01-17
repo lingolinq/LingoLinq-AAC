@@ -1,3 +1,5 @@
+import { inject as service } from '@ember/service';
+
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
@@ -5,6 +7,11 @@ import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  stashes: service(),
+  modal: service(),
+
   opening: function() {
     this.set('loading', false);
     this.set('error', false);
@@ -12,7 +19,7 @@ export default modal.ModalController.extend({
     var _this = this;
     var canceled = false;
     if(this.get('model.reply_id')) {
-      app_state.set('reply_note', null);
+      this.appState.set('reply_note', null);
     }
     this.set('cancel', function() {
       canceled = true;
@@ -42,26 +49,26 @@ export default modal.ModalController.extend({
       }
       var _this = this;
       _this.set('loading', true);
-      var sharer = _this.get('model.sharer') || app_state.get('referenced_user');
+      var sharer = _this.get('model.sharer') || this.appState.get('referenced_user');
       if(!sharer) { return; }
       // We set this so app_state knows to check
       // more often for replies for a little while
       sharer.set('last_share', (new Date()).getTime());
       var fallback = function() {
         if(_this.get('model.raw')) {
-          stashes.log_event({
+          this.stashes.log_event({
             share: true,
             utterance: _this.get('model.raw'),
             message_uid: Math.random() + ":" + (new Date()).getTime(),
             private_only: _this.get('model.private_only'),
-            text_only: !!(app_state.get('text_only_shares') || stashes.get('text_only_shares')),
+            text_only: !!(this.appState.get('text_only_shares') || this.stashes.get('text_only_shares')),
             sentence: _this.get('model.sentence'),
             recipient_id: _this.get('model.user.id'),
             reply_id: _this.get('model.reply_id')
           }, sharer.get('id'));
-          modal.close('confirm-notify-user');
-          if(persistence.get('online')) {
-            stashes.push_log();
+          this.modal.close('confirm-notify-user');
+          if(this.persistence.get('online')) {
+            this.stashes.push_log();
             modal.success(i18n.t('user_notified', "Message will be sent with logs or next sync."));
           } else {
             modal.success(i18n.t('message_queued', "Message queued to be sent when online."));
@@ -73,17 +80,17 @@ export default modal.ModalController.extend({
       if(!this.get('model.utterance') && this.get('model.raw')) {
         fallback();
       } else {
-        persistence.ajax('/api/v1/utterances/' + this.get('model.utterance.id') + '/share', {
+        this.persistence.ajax('/api/v1/utterances/' + this.get('model.utterance.id') + '/share', {
           type: 'POST',
           data: {
             sharer_id: sharer.get('id'),
-            text_only: !!(app_state.get('text_only_shares') || stashes.get('text_only_shares')),
+            text_only: !!(this.appState.get('text_only_shares') || this.stashes.get('text_only_shares')),
             user_id: _this.get('model.user.id'),
             reply_id: _this.get('model.reply_id')
           }
         }).then(function(data) {
           _this.set('loading', false);
-          modal.close('confirm-notify-user');
+          this.modal.close('confirm-notify-user');
           modal.success(i18n.t('message_sent_excl', "Message sent!"));
         }, function(err) {
           _this.set('loading', false);

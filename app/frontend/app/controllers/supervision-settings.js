@@ -2,10 +2,15 @@ import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 import persistence from '../utils/persistence';
 import capabilities from '../utils/capabilities';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     this.set('model', this.get('model.user'));
     this.get('model').reload();
@@ -17,7 +22,7 @@ export default modal.ModalController.extend({
     function() {
       var my_orgs = {};
       var admin = false;
-      (app_state.get('currentUser.organizations') || []).forEach(function(org) {
+      (this.appState.get('currentUser.organizations') || []).forEach(function(org) {
         if(org.type == 'manager') {
           my_orgs[org.id] = org;
           if(org.admin) {
@@ -53,7 +58,7 @@ export default modal.ModalController.extend({
   ),
   actions: {
     close: function() {
-      modal.close();
+      this.modal.close();
     },
     remove_supervisor: function(id, type) {
       var user = this.get('model');
@@ -83,7 +88,7 @@ export default modal.ModalController.extend({
     add_supervisor: function() {
       var _this = this;
       app_state.check_for_currently_premium(_this.get('model'), 'add_supervisor', true).then(function() {
-        modal.open('add-supervisor', {user: _this.get('model')});
+        this.modal.open('add-supervisor', {user: _this.get('model')});
       }, function() { });
     },
     add_supervisee: function() {
@@ -95,7 +100,7 @@ export default modal.ModalController.extend({
       var org_id = org.id;
       var alias = emberGet(org, 'external_auth_alias');
       emberSet(org, 'alias_state', {updating: true});
-      persistence.ajax("/api/v1/organizations/" + org_id + "/alias", {
+      this.persistence.ajax("/api/v1/organizations/" + org_id + "/alias", {
         type: 'POST', data: {
           user_id: user_id,
           alias: alias
@@ -116,7 +121,7 @@ export default modal.ModalController.extend({
       var _this = this;
       emberSet(org, 'alias_state', {temping: true});
       // first generate temp token
-      persistence.ajax('/saml/tmp_token', {type: 'POST'}).then(function(res) {
+      this.persistence.ajax('/saml/tmp_token', {type: 'POST'}).then(function(res) {
         var token = res.tmp_token;
         emberSet(org, 'alias_state', {temp_go: true});
         setTimeout(function() {
@@ -136,7 +141,7 @@ export default modal.ModalController.extend({
       });
     },
     start_codes: function() {
-      modal.open('modals/start-codes', {user: this.get('model')});
+      this.modal.open('modals/start-codes', {user: this.get('model')});
     }
   }
 });

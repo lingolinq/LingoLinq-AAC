@@ -4,8 +4,11 @@ import persistence from '../../utils/persistence';
 import session from '../../utils/session';
 import { later as runLater } from '@ember/runloop';
 import { computed, observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
   },
   set_home_board: computed('model.action', function() {
@@ -68,9 +71,9 @@ export default modal.ModalController.extend({
       if(this.get('set_home_board')) {
         // Only add premium symbols on an existing user if copying board is selected and symbol-adding is checked
         var add = this.get('add_symbols') && this.get('model.org.extras_available') && this.get('board_will_copy');
-        modal.close({confirmed: true, extras: add, home: this.get('home_board_template'), symbols: this.get('preferred_symbols')});
+        this.modal.close({confirmed: true, extras: add, home: this.get('home_board_template'), symbols: this.get('preferred_symbols')});
       } else if(this.get('confirmed') == 'confirmed' || this.get('model.user_name') || this.get('model.unit_user_name') || this.get('model.lesson_name')) {
-        modal.close({confirmed: true});
+        this.modal.close({confirmed: true});
       }
     }
   }

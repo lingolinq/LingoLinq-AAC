@@ -6,8 +6,12 @@ import editManager from '../utils/edit_manager';
 import { htmlSafe } from '@ember/string';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  modal: service(),
+
   opening: function() {
     this.load_badge();
     if(this.get('model.user_id') && !this.get('model.badge')) {
@@ -19,7 +23,7 @@ export default modal.ModalController.extend({
     this.set('has_modeling_activities', false);
     if(this.get('model.speak_mode')) {
       var _this = this;
-      app_state.get('referenced_user').load_word_activities().then(function(activities) {
+      this.appState.get('referenced_user').load_word_activities().then(function(activities) {
         if(activities && activities.list && activities.list.length > 0) {
           _this.set('has_modeling_activities', true);
         }
@@ -103,11 +107,11 @@ export default modal.ModalController.extend({
       var _this = this;
       var user_id = _this.get('model.badge.user_id');
       _this.store.findRecord('user', user_id).then(function(user) {
-        modal.open('new-goal', {user: user});
+        this.modal.open('new-goal', {user: user});
       });
     },
     modeling_ideas: function() {
-      modal.open('modals/modeling-ideas', {speak_mode: true, users: [app_state.get('referenced_user')]});
+      this.modal.open('modals/modeling-ideas', {speak_mode: true, users: [this.appState.get('referenced_user')]});
     }
   }
 });

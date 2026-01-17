@@ -1,10 +1,13 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  modal: service(),
+
   load_badges: function() {
     var _this = this;
     this.set('badges', {loading: true});
@@ -22,7 +25,7 @@ export default Controller.extend({
       badge.save().then(function() {
         _this.load_badges();
       }, function() {
-        modal.error(i18n.t('badge_update_failed', "Badge Update Failed"));
+        this.modal.error(i18n.t('badge_update_failed', "Badge Update Failed"));
       });
     },
     delete_badge: function(badge) {
@@ -31,11 +34,11 @@ export default Controller.extend({
       badge.save().then(function() {
         _this.load_badges();
       }, function() {
-        modal.error(i18n.t('badge_update_failed', "Badge Update Failed"));
+        this.modal.error(i18n.t('badge_update_failed', "Badge Update Failed"));
       });
     },
     badge_popup: function(badge) {
-      modal.open('badge-awarded', {badge: badge});
+      this.modal.open('badge-awarded', {badge: badge});
     }
   }
 });

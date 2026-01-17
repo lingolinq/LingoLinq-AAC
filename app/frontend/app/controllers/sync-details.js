@@ -1,10 +1,13 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+
   opening: function() {
     this.set('persistence', persistence);
   },
@@ -13,7 +16,7 @@ export default modal.ModalController.extend({
     'persistence.sync_log.length',
     'persistence.sync_log.@each.status',
     function() {
-      var details = ([].concat(persistence.get('sync_log') || [])).reverse();
+      var details = ([].concat(this.persistence.get('sync_log') || [])).reverse();
       (details || []).forEach(function(sync) {
         emberSet(sync, 'cached', sync.statuses.filter(function(s) { return s.status == 'cached'; }).length);
         emberSet(sync, 'downloaded', sync.statuses.filter(function(s) { return s.status == 'downloaded'; }).length);
@@ -55,14 +58,14 @@ export default modal.ModalController.extend({
       emberSet(sync, 'toggled', !emberGet(sync, 'toggled'));
     },
     cancel_sync: function() {
-      if(persistence.get('syncing')) {
+      if(this.persistence.get('syncing')) {
         persistence.cancel_sync();
       }
     },
     sync: function() {
-      if(!persistence.get('syncing')) {
+      if(!this.persistence.get('syncing')) {
         console.debug('syncing because manually triggered');
-        persistence.sync('self', true).then(null, function() { });
+        this.persistence.sync('self', true).then(null, function() { });
       }
     },
   }

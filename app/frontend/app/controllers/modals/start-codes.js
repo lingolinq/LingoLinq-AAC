@@ -7,9 +7,13 @@ import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import { computed, set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 import capabilities from '../../utils/capabilities';
 
 export default modal.ModalController.extend({
+  persistence: service(),
+  modal: service(),
+
   opening: function() {
     this.set('status', null);
     this.set('new_start_code', null);
@@ -82,7 +86,7 @@ export default modal.ModalController.extend({
           path = '/api/v1/organizations/' + _this.get('model.org.id') + '/start_code';
         }
         emberSet(code, 'status', {deleting: true});
-        persistence.ajax(path, {type: 'POST', data: {
+        this.persistence.ajax(path, {type: 'POST', data: {
           code: code.code,
           delete: true
         }}).then(function(res) {
@@ -112,7 +116,7 @@ export default modal.ModalController.extend({
         capabilities.sharing.copy_elem(elem, this.get('link_code.url'));
         modal.success(i18n.t('qr_code_copied_to_clipboard', "QR Code Copied to Clipboard!"));
       } else {
-        modal.error(i18n.t('copy_failed_try_manual', "Failed to Copy Image, please try copying manually"));
+        this.modal.error(i18n.t('copy_failed_try_manual', "Failed to Copy Image, please try copying manually"));
       }
     },
     code_link: function(code) {
@@ -163,7 +167,7 @@ export default modal.ModalController.extend({
       }
       if(_this.get('model.user') || _this.get('model.org')) {
         _this.set('status', {generating: true});
-        persistence.ajax(path, {type: 'POST', data: {
+        this.persistence.ajax(path, {type: 'POST', data: {
           overrides: ovr
         }}).then(function(res) {
           _this.set('status', null);

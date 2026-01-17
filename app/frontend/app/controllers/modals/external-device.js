@@ -2,12 +2,15 @@ import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import session from '../../utils/session';
 import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     this.set('status', null);
     this.set('system', this.get('model.user.external_device') ? 'other' : 'default');
@@ -97,7 +100,7 @@ export default modal.ModalController.extend({
       _this.set('status', {loading: true});
       user.save().then(function() {
         _this.set('status', null);
-        modal.close();
+        this.modal.close();
       }, function(err) { 
         _this.set('status', {error: true});
       });

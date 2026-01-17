@@ -1,3 +1,5 @@
+import { inject as service } from '@ember/service';
+
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
@@ -6,6 +8,8 @@ import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
 
 export default modal.ModalController.extend({
+  modal: service(),
+
   opening: function() {
     var _this = this;
     _this.set('loading', true);
@@ -72,7 +76,7 @@ export default modal.ModalController.extend({
               old_board_ids_to_translate: board_ids_to_include,
               new_board_ids_to_translate: new_board_ids
             };
-            return modal.open('button-set', translate_opts).then(function(res) {
+            return this.modal.open('button-set', translate_opts).then(function(res) {
               if(res && res.translated) {
                 return board.reload(true).then(function() {
                   return RSVP.resolve({translated: true});
@@ -98,22 +102,22 @@ export default modal.ModalController.extend({
             id: board.get('id'),
             key: board.get('key')
           });
-          modal.close({copied: true, id: board.get('id'), key: board.get('key')});
+          this.modal.close({copied: true, id: board.get('id'), key: board.get('key')});
         } else {
-          modal.notice(i18n.t('copy_created', "Copy created! You can find the new board in your profile."));
+          this.modal.notice(i18n.t('copy_created', "Copy created! You can find the new board in your profile."));
         }
       }, function(err) {
         if(modal.is_open('copying-board')) {
           _this.set('error', err);
         } else {
-          modal.error(err);
+          this.modal.error(err);
         }
       });
     }, function(err) {
       if(modal.is_open('copying-board')) {
         _this.set('error', err);
       } else {
-        modal.error(err);
+        this.modal.error(err);
       }
     });
   },
