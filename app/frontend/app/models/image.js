@@ -6,12 +6,15 @@ import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 LingoLinq.Image = DS.Model.extend({
+  // Explicit service injections (Ember 3.28 migration)
+  appState: service('app-state'),
+  persistence: service(),
+
   init() {
     this._super(...arguments);
-    // Set app_state reference on initialization
-    this.set('app_state', app_state);
   },
   // Clean license when license attribute is loaded
   // This replicates the old didLoad() behavior since init() runs before data is loaded
@@ -127,22 +130,22 @@ LingoLinq.Image = DS.Model.extend({
       return _this;
     };
     if(!this.get('data_url_no_sym') && LingoLinq.remote_url(this.get('personalized_url_without_preferred_symbols'))) {
-      return persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
+      return this.persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
         _this.set('data_url_no_sym', data_uri);
       });
     }
     if(!this.get('data_url') && LingoLinq.remote_url(this.get('personalized_url'))) {
-      return persistence.find_url(this.get('personalized_url'), 'image').then(function(data_uri) {
+      return this.persistence.find_url(this.get('personalized_url'), 'image').then(function(data_uri) {
         // Found as expected!
         return found_one(data_uri);
       }, function(err) {
         var unvarianted_image_url = _this.get('personalized_url') && _this.get('personalized_url').replace(/\.variant-.+\.(png|svg)$/, '');
         if(unvarianted_image_url != _this.get('personalized_url')) {
-          return persistence.find_url(unvarianted_image_url, 'image').then(function(data_uri) {
+          return this.persistence.find_url(unvarianted_image_url, 'image').then(function(data_uri) {
             // Found, but without the correct variant
             return found_one(data_uri);
           }, function(err) {
-            return persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
+            return this.persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
               // Found but without the correct symbol preference
               return found_one(data_uri);
             });

@@ -20,8 +20,8 @@ LingoLinq.Utterance = DS.Model.extend({
   show_user: DS.attr('boolean'),
   assert_remote_urls: function() {
     var find_remote = function(local) {
-      for(var url in (persistence.url_cache || {})) {
-        if(persistence.url_cache[url] == local) {
+      for(var url in (this.persistence.url_cache || {})) {
+        if(this.persistence.url_cache[url] == local) {
           return url;
         }
       }

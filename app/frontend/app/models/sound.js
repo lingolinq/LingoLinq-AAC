@@ -63,7 +63,7 @@ LingoLinq.Sound = DS.Model.extend({
         }
         this.set('transcription_checks', attempts + 1);
         runLater(function() {
-          if(persistence.get('online')) {
+          if(this.persistence.get('online')) {
             _this.reload().then(function(res) {
               _this.check_transcription();
             }, function(err) {
@@ -132,8 +132,8 @@ LingoLinq.Sound = DS.Model.extend({
   checkForDataURL: function() {
     this.set('checked_for_data_url', true);
     var _this = this;
-    if(!this.get('data_url') && LingoLinq.remote_url(this.get('url')) && !persistence.online) {
-      return persistence.find_url(this.get('url'), 'sound').then(function(data_uri) {
+    if(!this.get('data_url') && LingoLinq.remote_url(this.get('url')) && !this.persistence.online) {
+      return this.persistence.find_url(this.get('url'), 'sound').then(function(data_uri) {
         _this.set('data_url', data_uri);
         return _this;
       });

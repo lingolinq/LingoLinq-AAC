@@ -97,7 +97,7 @@ LingoLinq.Log = DS.Model.extend({
     _this.set('events_state', {checking: true});
     if(!_this.get('events')) {
       if(_this.get('data_url') && _this.get('encryption_settings')) {
-        persistence.remote_json(_this.get('data_url'), _this.get('encryption_settings')).then(function(data) {
+        this.persistence.remote_json(_this.get('data_url'), _this.get('encryption_settings')).then(function(data) {
           _this.set('events', data);
           _this.set('events_state', {ready: true});
         }, function() {
@@ -276,15 +276,15 @@ LingoLinq.Log = DS.Model.extend({
 });
 
 LingoLinq.Log.manual_log = function(user_id, external_device) {
-  modal.open('modals/manual-log', {external_device: external_device}).then(function(res) {
+  this.modal.open('modals/manual-log', {external_device: external_device}).then(function(res) {
     if(res && res.words && res.words.length > 0 && res.date) {
       var file = LingoLinq.Log.generate_obf(res.words, res.date);
 
       var log_type = 'unspecified';
       LingoLinq.Log.import(file, log_type, user_id).then(function(logs) {
-        modal.success(i18n.t('log_imported', "Your log session has been imported!"));
+        this.modal.success(i18n.t('log_imported', "Your log session has been imported!"));
       }, function(err) {
-        modal.error(i18n.t('log_import_failed', "There was an unexpected error importing the specified logs"));
+        this.modal.error(i18n.t('log_import_failed', "There was an unexpected error importing the specified logs"));
       });
     }
   }, function() { });
@@ -329,12 +329,12 @@ LingoLinq.Log.generate_obf = function(text, date) {
 LingoLinq.Log.import = function(file, log_type, user_id) {
   return new RSVP.Promise(function(resolve, reject) {
     var progressor = EmberObject.create();
-    modal.open('modals/importing-logs', progressor);
+    this.modal.open('modals/importing-logs', progressor);
     // do the hard stuff
     var progress = contentGrabbers.upload_for_processing(file, '/api/v1/logs/import', {type: log_type, user_id: user_id}, progressor);
 
     progress.then(function(logs) {
-      modal.close('importing-logs');
+      this.modal.close('importing-logs');
       resolve(logs);
     }, function(err) { 
       reject(err);

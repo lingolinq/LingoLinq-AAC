@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
 ## Project Overview
 
 LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
@@ -12,6 +14,69 @@ Key characteristics:
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
 - Deployed on Heroku with background job processing via Resque
+
+---
+
+## 🔥 Current Focus: Ember 3.28 Migration
+
+We are in the middle of an **Ember 3.28 migration** focused on:
+
+1. **Implicit → explicit injection migration**
+   - Old pattern: implicit injections of services/utilities (e.g. `app_state`, `persistence`, `stashes`, `modal`)
+   - New pattern: explicit `@service` injections and dedicated Ember services
+   - Critical services being introduced (in `app/frontend/app/services/`):
+     - `app-state.js` – logic from `app/utils/app_state.js`
+     - `persistence.js` – logic from `app/utils/persistence.js`
+     - `stashes.js` – extracted from `app/utils/_stashes.js`
+     - `modal.js` – service wrapper for modal management
+
+2. **Modal system refactor (route.render → component/service)**
+   - Current system relies on `route.render()` (deprecated in Ember 3.x+).
+   - This causes deprecation warnings, rendering conflicts, and assertion errors.
+   - Goal: move to a **component- and service-based modal architecture**:
+     - Introduce `app/frontend/app/components/modal-manager.js`
+     - Centralize modal behavior and make it testable and maintainable.
+
+3. **Online/offline sync stabilization**
+   - Offline/online sync uses IndexedDB/SQLite via `persistence` and related utilities.
+   - Broken or implicit injections have caused “Cannot assign to read only property” errors and sync failures.
+   - Goal: ensure `persistence` (and related services) are explicitly injected and initialized in the correct order.
+
+**IMPORTANT RULES for Claude Code during migration:**
+- Do **not** attempt to complete the entire migration in one pass.
+- Work in **phases**, each with:
+  - A clear plan
+  - A small, verifiable change set
+  - `npm run build` (or `ember build`) verification
+  - A git commit with a conventional commit message.
+- Prefer **creating new services/components in Phase 1** rather than modifying existing utilities. Later phases can wire them in and migrate usages.
+
+---
+
+## Branch & Git Workflow
+
+- Main PR target: `main`
+- Active migration branch (as of early 2026): `feature/ember-3.16-with-tools`
+- Before any changes, Claude Code should:
+  - Confirm current branch:
+    ```bash
+    git branch --show-current
+    ```
+  - Fetch & pull latest for that branch:
+    ```bash
+    git fetch origin
+    git status
+    # if behind:
+    git pull origin feature/ember-3.16-with-tools
+    ```
+
+**Git conventions:**
+- Use **conventional commit messages**, e.g.:
+  - `feat(services): create modern Ember services for Phase 1 migration`
+  - `refactor(modals): migrate route.render modals to service/component pattern`
+- Make **small, focused commits** per phase or per logical change.
+
+---
 
 ## Development Commands
 
@@ -27,10 +92,10 @@ rails extras:assert_js  # Fixes symbolic links
 rails db:create
 rails db:migrate
 rails db:seed  # Optional: creates example user (username: example, password: password)
-```
 
-**Running servers:**
-```bash
+Running servers:
+
+bash
 # Fresh start (kills existing processes, checks dependencies, starts all services)
 bin/fresh_start
 
@@ -48,10 +113,9 @@ rails server
 
 # Background jobs (Resque workers)
 env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
-```
+Testing:
 
-**Testing:**
-```bash
+bash
 # Run all specs
 bundle exec rspec
 
@@ -60,19 +124,17 @@ bundle exec rspec spec/models/user_spec.rb
 
 # Run specific test
 bundle exec rspec spec/models/user_spec.rb:42
-```
+Console access:
 
-**Console access:**
-```bash
+bash
 # Local console (includes audit safeguards)
 bin/heroku_console
 
 # Production console (on Heroku)
 bin/heroku_console  # Not just 'rails console'
-```
+Scheduled tasks (run periodically in production):
 
-**Scheduled tasks (run periodically in production):**
-```bash
+bash
 rake check_for_expiring_subscriptions  # daily
 rake generate_log_summaries            # hourly
 rake push_remote_logs                  # hourly
@@ -81,45 +143,43 @@ rake advance_goals                     # hourly
 rake transcode_errored_records         # daily
 rake flush_users                       # daily
 rake clean_old_deleted_boards          # daily
-```
+Frontend (Ember)
+Setup:
 
-### Frontend (Ember)
-
-**Setup:**
-```bash
+bash
 cd app/frontend
 npm install
 bower install
-```
+Running:
 
-**Running:**
-```bash
+bash
 cd app/frontend
 ember serve  # Runs on port 8184, auto-compiles on changes
-```
+Testing:
 
-**Testing:**
-```bash
+bash
 cd app/frontend
 ember test
-```
+Linting:
 
-**Linting:**
-```bash
+bash
 cd app/frontend
 npm run lint:js
 npm run lint:hbs
-```
+Build:
 
-**Build:**
-```bash
+bash
 cd app/frontend
 ember build --environment production
-```
+For migration phases, prefer:
 
-### Deployment
+bash
+cd app/frontend
+npm run build
+as a quick verification step after changes.
 
-```bash
+Deployment
+bash
 # Precompile assets for production
 bin/deploy_prep
 
@@ -128,220 +188,326 @@ rake extras:mobile
 
 # Desktop app preparation
 rake extras:desktop
-```
+Architecture
+Backend Architecture
+Database: PostgreSQL with Redis for caching and background jobs
 
-## Architecture
+ID System: Custom global_id format (#shardnum#_#dbid#) used instead of raw database IDs for future sharding support. Key methods:
 
-### Backend Architecture
+Model.find_by_global_id(id) - lookup by global ID only
 
-**Database:** PostgreSQL with Redis for caching and background jobs
+Model.find_by_path(path) - lookup by ID, board key, or username
 
-**ID System:** Custom `global_id` format (`#shardnum#_#dbid#`) used instead of raw database IDs for future sharding support. Key methods:
-- `Model.find_by_global_id(id)` - lookup by global ID only
-- `Model.find_by_path(path)` - lookup by ID, board key, or username
-- `Model.find_all_by_global_id([ids])`
-- Some records use protected IDs (id-and-nonce) to prevent snooping
+Model.find_all_by_global_id([ids])
 
-**JSON API:** All API responses generated in `lib/json_api/` (not using Rails standard JSON serializers)
+Some records use protected IDs (id-and-nonce) to prevent snooping
 
-**Key Model Concerns:** (in `app/models/concerns/`)
-- `global_id` - ID lookup helpers for sharding-ready IDs
-- `extra_data` - Stores large datasets (LogSession, BoardDownstreamButtonSet) in S3 instead of DB
-- `permissions` - Access control (`add_permissions`, `allowed?`)
-- `processable` - Standardized client data processing with uniqueness enforcement
-- `relinking` - Server-side board set copying
-- `upstream_downstream` - Keeps linked boards up-to-date when children change
-- `secure_serialize` - Encryption layer for sensitive data (privacy compliance)
-- `subscription` - Subscription/purchase event management
-- `supervising` - Supervisor relationship management
-- `board_caching` - Tracks available board IDs for users
+JSON API: All API responses generated in lib/json_api/ (not using Rails standard JSON serializers)
 
-**Key Libraries:** (in `lib/`)
-- `worker.rb` / `slow_worker.rb` - Background job management (Resque)
-- `purchasing.rb` - Stripe API integration
-- `stats.rb` - Log data ingestion and report generation
-- `exporter.rb` - OBF/OBL format exports with anonymization
-- `feature_flags.rb` - Feature flag system for gradual rollouts
-- `converters/` - OBF/OBZ file conversion
-- `uploader.rb` - File upload helpers (client and server-side)
-- `transcoder.rb` - AWS transcoding event handling
+Key Model Concerns: (in app/models/concerns/)
 
-**Key Models:**
-- `User` - Large model with subscription, permission, and board management logic
-- `Board` - Large model with button processing, copying, sharing functionality
-- `ButtonSet` (BoardDownstreamButtonSet) - Tracks all buttons in board hierarchy for find-a-button feature
-- `LogSession` - User interaction tracking with large data stored in S3
-- `BoardContent` - Copy-by-reference system to minimize storage
+global_id - ID lookup helpers for sharding-ready IDs
 
-### Frontend Architecture
+extra_data - Stores large datasets (LogSession, BoardDownstreamButtonSet) in S3 instead of DB
 
-**Framework:** Ember.js 3.12 with Ember Data for models
+permissions - Access control (add_permissions, allowed?)
 
-**Offline Support:** IndexedDB (web) or SQLite (mobile) via `dbman.js` abstraction layer
+processable - Standardized client data processing with uniqueness enforcement
 
-**Key Utilities:** (in `app/frontend/app/utils/`)
-- `app_state.js` - Application state management, button activation logic
-- `persistence.js` - Local database abstraction, sync logic, Ember-Data caching
-- `edit_manager.js` - Board editing state, undo/redo, board rendering preparation
-- `capabilities.js` - Platform-specific code (file storage, gaze tracking, clipboard, etc.)
-- `button.js` - Button helper methods (buttons stored on board objects, not persisted separately)
-- `content_grabbers.js` - Image/sound/video search and insertion
-- `raw_events.js` - Low-level DOM listeners (clicks, drags, dwell, eye-gaze)
-- `scanner.js` - Scanning mode implementation
-- `speecher.js` - Speech synthesis
-- `utterance.js` - Sentence box content tracking and rendering
-- `modal.js` - Modal and flash notice helpers
-- `i18n.js` - Internationalization with English grammar helpers
-- `sync.js` - Online status tracking, remote modeling sessions
-- `eval.js` - Assessment system (special OBF type)
-- `profiles.js` - Survey and assessment tools
+relinking - Server-side board set copying
 
-**Key Models:** (in `app/frontend/app/models/`)
-- Most client-side models match server names
-- `User`, `Board`, `ButtonSet` are particularly large with extensive functionality
+upstream_downstream - Keeps linked boards up-to-date when children change
 
-**Components:** (in `app/frontend/app/components/`)
-- UI components for charts, graphs, data visualization
+secure_serialize - Encryption layer for sensitive data (privacy compliance)
 
-### Critical Code Paths
+subscription - Subscription/purchase event management
 
-**Frontend hotspots:**
-- `editManager.process_for_displaying` - Converts server data to renderable format
-- `Board.contextualized_buttons` - Language/symbol/inflection display logic
-- `app_state.activate_button` - Main button selection handler (sentence box, speech, actions)
-- `persistence.sync` - Offline sync logic
-- `persistence.getJSON` - Encrypted URL processing for extra_data
-- `LingoLinq.Buttonset.load_button_set` - Button set loading with caching
-- `User.currently_premium` - Feature access determination
-- `controllers/board/index.js:computeHeight` - Board rendering sizing
-- `initializers/attempt_lang.js` - Language file loading on startup
+supervising - Supervisor relationship management
 
-**Backend hotspots:**
-- `boards_controller#index` - Board search (performance-sensitive, needs indexes)
-- `BoardDownstreamButtonSet.update_for` - Button set updates (can run very frequently)
-- `Board.process_buttons` - Board update processing
-- `models/concerns/relinking.rb` - Board set copying logic
-- `models/concerns/upstream_downstream.rb#track_downstream_boards!` - Runs often, queue bottleneck risk
-- `Purchasing.purchase` - Stripe subscription activation
+board_caching - Tracks available board IDs for users
 
-## Development Conventions
+Key Libraries: (in lib/)
 
-### Code Style
+worker.rb / slow_worker.rb - Background job management (Resque)
 
-**String Quoting Convention:**
-- **User-facing strings:** ALWAYS use double quotes `"string"`
-- **All other strings:** ALWAYS use single quotes `'string'`
-- This convention is CRITICAL - i18n generator depends on it
+purchasing.rb - Stripe API integration
 
-**Internationalization:**
-- NEVER add raw text strings to user-facing code
-- Templates: `{{t "displayed text" key='translation_key'}}`
-- Controllers/JS: `i18n.t('translation_key', "default text")`
-- Translation files: `public/locales/*.json`
-- Generation script: `i18n_generator.rb`
+stats.rb - Log data ingestion and report generation
 
-**Platform-Specific Code:**
-- Extract platform-specific code or wrap in `capabilities` library
-- Use capability checks to enable features conditionally
-- System deployed as web, mobile (Cordova), and desktop (Electron) apps
+exporter.rb - OBF/OBL format exports with anonymization
 
-### Feature Flags
+feature_flags.rb - Feature flag system for gradual rollouts
 
-New user-facing features MUST be added behind a feature flag (`lib/feature_flags.rb`):
-- AAC users can find unexpected UI changes disruptive
-- Allows beta testing and gradual rollout
-- Some users/orgs are opted into beta features for testing
-- Add to `AVAILABLE_FRONTEND_FEATURES` and conditionally to `ENABLED_FRONTEND_FEATURES`
+converters/ - OBF/OBZ file conversion
 
-### Security
+uploader.rb - File upload helpers (client and server-side)
 
-- Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
-- User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/heroku_console`, not `rails console`)
-- Protected IDs require nonce to prevent snooping
+transcoder.rb - AWS transcoding event handling
 
-## Environment Setup
+Key Models:
 
-**Required services:**
-- PostgreSQL (database)
-- Redis (background jobs, caching)
-- Node.js (managed via nvm):
-  - Default: Node 20 (for newer tools, deployment)
-  - Frontend: Node 18 (for Ember 3.12)
-  - Automatic switching configured via `.nvmrc` files
-- Ruby 3.4.3
-- ImageMagick (`convert`, `identify`, `montage`)
-- Ghostscript (`gs`)
+User - Large model with subscription, permission, and board management logic
 
-**Node Version Management:**
-- Root `/.nvmrc`: Node 20 (default)
-- `app/frontend/.nvmrc`: Node 18 (Ember requirement)
-- `foreman start` automatically handles version switching in Procfile
-- For manual work: `cd app/frontend && nvm use` to switch to Node 18
+Board - Large model with button processing, copying, sharing functionality
 
-**Environment variables:**
-- Copy `.env.example` to `.env`
-- Uncomment required variables (REDIS_URL, database config)
-- Default Redis: `redis://localhost:6379/`
-- AWS integrations: S3 (storage), SES (email), SNS (notifications), Elastic Transcoder (media)
-- Google API: Places, Translate, Maps, TTS
-- Optional: Websocket server for online status/real-time features
-- Optional: OpenSymbols.org endpoint for image search
+ButtonSet (BoardDownstreamButtonSet) - Tracks all buttons in board hierarchy for find-a-button feature
 
-**Database setup:**
-- Update `config/database.yml` for your Postgres config
-- Development DB: `lingolinq-development`
-- Test DB: `lingolinq-test`
+LogSession - User interaction tracking with large data stored in S3
 
-## Troubleshooting
+BoardContent - Copy-by-reference system to minimize storage
 
-**Redis memory issues:**
-```ruby
+Frontend Architecture
+Framework: Ember.js 3.12 (migrating toward 3.28) with Ember Data for models
+
+Offline Support: IndexedDB (web) or SQLite (mobile) via dbman.js abstraction layer
+
+Key Utilities: (in app/frontend/app/utils/)
+
+app_state.js - Application state management, button activation logic
+
+persistence.js - Local database abstraction, sync logic, Ember-Data caching
+
+edit_manager.js - Board editing state, undo/redo, board rendering preparation
+
+capabilities.js - Platform-specific code (file storage, gaze tracking, clipboard, etc.)
+
+button.js - Button helper methods (buttons stored on board objects, not persisted separately)
+
+content_grabbers.js - Image/sound/video search and insertion
+
+raw_events.js - Low-level DOM listeners (clicks, drags, dwell, eye-gaze)
+
+scanner.js - Scanning mode implementation
+
+speecher.js - Speech synthesis
+
+utterance.js - Sentence box content tracking and rendering
+
+modal.js - Modal and flash notice helpers (being migrated to service + component)
+
+i18n.js - Internationalization with English grammar helpers
+
+sync.js - Online status tracking, remote modeling sessions
+
+eval.js - Assessment system (special OBF type)
+
+profiles.js - Survey and assessment tools
+
+Key Models: (in app/frontend/app/models/)
+
+Most client-side models match server names
+
+User, Board, ButtonSet are particularly large with extensive functionality
+
+Components: (in app/frontend/app/components/)
+
+UI components for charts, graphs, data visualization
+
+New modal-manager component will centralize modal behavior.
+
+Critical Code Paths
+Frontend hotspots:
+
+editManager.process_for_displaying - Converts server data to renderable format
+
+Board.contextualized_buttons - Language/symbol/inflection display logic
+
+app_state.activate_button - Main button selection handler (sentence box, speech, actions)
+
+persistence.sync - Offline sync logic
+
+persistence.getJSON - Encrypted URL processing for extra_data
+
+LingoLinq.Buttonset.load_button_set - Button set loading with caching
+
+User.currently_premium - Feature access determination
+
+controllers/board/index.js:computeHeight - Board rendering sizing
+
+initializers/attempt_lang.js - Language file loading on startup
+
+Backend hotspots:
+
+boards_controller#index - Board search (performance-sensitive, needs indexes)
+
+BoardDownstreamButtonSet.update_for - Button set updates (can run very frequently)
+
+Board.process_buttons - Board update processing
+
+models/concerns/relinking.rb - Board set copying logic
+
+models/concerns/upstream_downstream.rb#track_downstream_boards! - Runs often, queue bottleneck risk
+
+Purchasing.purchase - Stripe subscription activation
+
+Development Conventions
+Code Style
+String Quoting Convention:
+
+User-facing strings: ALWAYS use double quotes "string"
+
+All other strings: ALWAYS use single quotes 'string'
+
+This convention is CRITICAL - i18n generator depends on it
+
+Internationalization:
+
+NEVER add raw text strings to user-facing code
+
+Templates: {{t "displayed text" key='translation_key'}}
+
+Controllers/JS: i18n.t('translation_key', "default text")
+
+Translation files: public/locales/*.json
+
+Generation script: i18n_generator.rb
+
+Platform-Specific Code:
+
+Extract platform-specific code or wrap in capabilities library
+
+Use capability checks to enable features conditionally
+
+System deployed as web, mobile (Cordova), and desktop (Electron) apps
+
+Feature Flags
+New user-facing features MUST be added behind a feature flag (lib/feature_flags.rb):
+
+AAC users can find unexpected UI changes disruptive
+
+Allows beta testing and gradual rollout
+
+Some users/orgs are opted into beta features for testing
+
+Add to AVAILABLE_FRONTEND_FEATURES and conditionally to ENABLED_FRONTEND_FEATURES
+
+Security
+Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
+
+User data is privacy-regulated - use secure_serialize concern for sensitive fields
+
+Console access audited via AuditEvent model (use bin/heroku_console, not rails console)
+
+Protected IDs require nonce to prevent snooping
+
+Environment Setup
+Required services:
+
+PostgreSQL (database)
+
+Redis (background jobs, caching)
+
+Node.js (managed via nvm):
+
+Default: Node 20 (for newer tools, deployment)
+
+Frontend: Node 18 (for Ember 3.12/3.28)
+
+Automatic switching configured via .nvmrc files
+
+Ruby 3.4.3
+
+ImageMagick (convert, identify, montage)
+
+Ghostscript (gs)
+
+Node Version Management:
+
+Root /.nvmrc: Node 20 (default)
+
+app/frontend/.nvmrc: Node 18 (Ember requirement)
+
+foreman start automatically handles version switching in Procfile
+
+For manual work:
+
+bash
+cd app/frontend && nvm use
+to switch to Node 18.
+
+Environment variables:
+
+Copy .env.example to .env
+
+Uncomment required variables (REDIS_URL, database config)
+
+Default Redis: redis://localhost:6379/
+
+AWS integrations: S3 (storage), SES (email), SNS (notifications), Elastic Transcoder (media)
+
+Google API: Places, Translate, Maps, TTS
+
+Optional: Websocket server for online status/real-time features
+
+Optional: OpenSymbols.org endpoint for image search
+
+Database setup:
+
+Update config/database.yml for your Postgres config
+
+Development DB: lingolinq-development
+
+Test DB: lingolinq-test
+
+Troubleshooting
+Redis memory issues:
+
+ruby
 RedisInit.size_check
 rake extras:clear_report_tallies
-```
+Background job queue issues:
 
-**Background job queue issues:**
-```ruby
+ruby
 Worker.method_stats('queue_name')
 Worker.prune_jobs('queue_name', 'method_name')
-```
+Console examples:
 
-**Console examples:**
-```ruby
+ruby
 b = Board.find_by_path('example/keyboard')
 downs = Board.find_all_by_global_id(b.downstream_board_ids)
 u = User.find_by_path('username')
 s = u.log_sessions.last
 bi = ButtonImage.last
-```
-
 See CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
 
-## Testing
+Testing
+Backend:
 
-**Backend:**
-- RSpec for model, controller, library specs
-- Specs in `spec/` directory matching file structure
-- Run single spec: `bundle exec rspec spec/path/to/file_spec.rb`
-- Run with line number: `bundle exec rspec spec/path/to/file_spec.rb:42`
+RSpec for model, controller, library specs
 
-**Frontend:**
-- QUnit tests via Ember testing framework
-- Run: `cd app/frontend && ember test`
+Specs in spec/ directory matching file structure
 
-## Translation Management
+Run single spec: bundle exec rspec spec/path/to/file_spec.rb
 
-- Translation files: `public/locales/*.json`
-- Word data import tool available in admin org for inflections/parts of speech
-- Template files at OpenAAC tools site for rules.json and words.json
-- See TRANSLATIONS.md for contributor guidelines
-- Use `i18n_generator.rb` scripts to manage translation files
+Run with line number: bundle exec rspec spec/path/to/file_spec.rb:42
 
-## Additional Notes
+Frontend:
 
-- Main branch for PRs: `main`
-- License: AGPLv3
-- Contributor agreement required for code contributions
-- OpenAAC Slack channel available for questions
-- Background jobs use Resque with multiple queues: priority, default, slow, whenever
+QUnit tests via Ember testing framework
+
+Run:
+
+bash
+cd app/frontend && ember test
+Translation Management
+Translation files: public/locales/*.json
+
+Word data import tool available in admin org for inflections/parts of speech
+
+Template files at OpenAAC tools site for rules.json and words.json
+
+See TRANSLATIONS.md for contributor guidelines
+
+Use i18n_generator.rb scripts to manage translation files
+
+Additional Notes
+Main branch for PRs: main
+
+License: AGPLv3
+
+Contributor agreement required for code contributions
+
+OpenAAC Slack channel available for questions
+
+Background jobs use Resque with multiple queues: priority, default, slow, whenever
+

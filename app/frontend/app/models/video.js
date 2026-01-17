@@ -57,8 +57,8 @@ LingoLinq.Video = DS.Model.extend({
   checkForDataURL: function() {
     this.set('checked_for_data_url', true);
     var _this = this;
-    if(!this.get('data_url') && LingoLinq.remote_url(this.get('url')) && !persistence.online) {
-      return persistence.find_url(this.get('url'), 'video').then(function(data_uri) {
+    if(!this.get('data_url') && LingoLinq.remote_url(this.get('url')) && !this.persistence.online) {
+      return this.persistence.find_url(this.get('url'), 'video').then(function(data_uri) {
         _this.set('data_url', data_uri);
         return _this;
       });

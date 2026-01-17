@@ -39,7 +39,7 @@ LingoLinq.Unit = DS.Model.extend({
     _this.set('user_counts', null);
     _this.set('user_weeks', null);
     _this.set('supervisor_weeks', null);
-    persistence.ajax('/api/v1/units/' + _this.get('id') + '/stats', {type: 'GET'}).then(function(stats) {
+    this.persistence.ajax('/api/v1/units/' + _this.get('id') + '/stats', {type: 'GET'}).then(function(stats) {
       _this.set('weekly_stats', stats.weeks);
       _this.set('user_counts', stats.user_counts);
       stats.user_weeks.populated = true;
@@ -65,7 +65,7 @@ LingoLinq.Unit = DS.Model.extend({
   refresh_logs: function() {
     var _this = this;
     _this.set('logs', {loading: true});
-    persistence.ajax('/api/v1/units/' + _this.get('id') + '/logs', {type: 'GET'}).then(function(data) {
+    this.persistence.ajax('/api/v1/units/' + _this.get('id') + '/logs', {type: 'GET'}).then(function(data) {
       _this.set('logs.loading', null);
       _this.set('logs.data', data.log);
     }, function() {
