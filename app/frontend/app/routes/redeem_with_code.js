@@ -1,9 +1,10 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import app_state from '../utils/app_state';
 
 export default Route.extend({
+  appState: service('app-state'),
   controllerName: 'redeem',
   model: function(params) {
     var obj = this.store.findRecord('gift', params.code);
@@ -19,7 +20,7 @@ export default Route.extend({
   },
   setupController: function(controller, model) {
     var _this = this;
-    if(!app_state.get('domain_settings.full_domain')) {
+    if(!this.appState.get('domain_settings.full_domain')) {
       controller.transitionToRoute('index');
       return;
     }

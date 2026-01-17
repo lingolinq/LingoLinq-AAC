@@ -1,9 +1,11 @@
 import Route from '@ember/routing/route';
-import persistence from '../utils/persistence';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
+import this.persistence.from '../utils/this.persistence.;
 import CoughDrop from '../app';
 
 export default Route.extend({
+  appState: service('app-state'),
+  this.persistence. service(),
   model: function() {
     var res = this.store.createRecord('user', {preferences: {}, referrer: CoughDrop.referrer, ad_referrer: CoughDrop.ad_referrer});
     res.set('watch_user_name_and_cookies', true);
@@ -12,7 +14,7 @@ export default Route.extend({
   setupController: function(controller, model) {
     controller.set('model', model);
     controller.set('user', model);
-    if(!app_state.get('domain_settings.full_domain')) {
+    if(!this.appState.get('domain_settings.full_domain')) {
       controller.transitionToRoute('index');
       return;
     }
@@ -24,7 +26,7 @@ export default Route.extend({
       var user = controller.get('model');
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
-      if(!persistence.get('online')) { return; }
+      if(!this.persistence.get('online')) { return; }
       if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName')) {
         return;
       }
@@ -35,7 +37,7 @@ export default Route.extend({
         user.set('password', null);
         controller.set('triedToSave', false);
         _this.transitionTo('index');
-        var meta = persistence.meta('user', null);
+        var meta = this.persistence.meta('user', null);
         if(meta && meta.access_token) {
           _this.get('session').override(meta);
         }

@@ -1,15 +1,16 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
-import app_state from '../utils/app_state';
 
 export default Route.extend({
+  appState: service('app-state'),
   activate: function() {
     this._super();
     window.scrollTo(0, 0);
   },
   actions: {
     didTransition: function() {
-      if(app_state.get('no_linky')) {
+      if(this.appState.get('no_linky')) {
         var kill = function() {
           var links = document.getElementById('content').getElementsByTagName('A');
           for(var idx = 0; idx < links.length; idx++) {

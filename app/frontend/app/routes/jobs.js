@@ -1,9 +1,10 @@
 import Route from '@ember/routing/route';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  appState: service('app-state'),
   setupController: function(controller, model) {
-    if(!app_state.get('domain_settings.full_domain')) {
+    if(!this.appState.get('domain_settings.full_domain')) {
       controller.transitionToRoute('index');
       return;
     }

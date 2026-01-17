@@ -1,8 +1,6 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
-import app_state from '../utils/app_state';
 import speecher from '../utils/speecher';
-import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import { inject as service } from '@ember/service';
 
@@ -27,8 +25,10 @@ import { inject as service } from '@ember/service';
 //   }
 // });
 export default Route.extend({
+  appState: service('app-state'),
+  modal: service(),
   setupController: function(controller) {
-    app_state.setup_controller(this, controller);
+    this.appState.setup_controller(this, controller);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },
@@ -49,7 +49,7 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
-      app_state.global_transition({
+      this.appState.global_transition({
         aborted: transition.isAborted,
         source: transition,
         from_route: (transition.from || {}).name,
@@ -82,10 +82,10 @@ export default Route.extend({
   },
   actions: {
     willTransition: function(transition) {
-//      app_state.global_transition(transition);
+//      this.appState.global_transition(transition);
     },
     didTransition: function() {
-      app_state.finish_global_transition();
+      this.appState.finish_global_transition();
       runLater(function() {
         speecher.load_beep().then(null, function() { });
       }, 100);
@@ -95,18 +95,18 @@ export default Route.extend({
       if(last_closed && last_closed > Date.now() - 500) {
         return;
       }
-      modal.open('speak-menu', {inactivity_timeout: true, scannable: true});
+      this.modal.open('speak-menu', {inactivity_timeout: true, scannable: true});
     },
     newBoard: function() {
-      app_state.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+      this.appState.check_for_needing_purchase().then(function() {
+        this.modal.open('new-board');
       });
     },
     pickWhichHome: function() {
-      modal.open('which-home');
+      this.modal.open('which-home');
     },
     confirmDeleteBoard: function() {
-      modal.open('confirm-delete-board', {board: this.get('controller.board.model'), redirect: true});
+      this.modal.open('confirm-delete-board', {board: this.get('controller.board.model'), redirect: true});
     }
   }
 });

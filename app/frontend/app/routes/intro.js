@@ -1,9 +1,10 @@
 import Route from '@ember/routing/route';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  appState: service('app-state'),
   beforeModel: function() {
-    app_state.set('show_intro', true);
+    this.appState.set('show_intro', true);
     this.transitionTo('index');
   }
 });

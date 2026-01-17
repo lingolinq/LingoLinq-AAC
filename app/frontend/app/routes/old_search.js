@@ -1,6 +1,5 @@
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
-import app_state from '../utils/app_state';
 
 export default Route.extend({
   title: "Search",
