@@ -7,8 +7,11 @@ import persistence from '../utils/persistence';
 import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 LingoLinq.Lesson = DS.Model.extend({
+  // Explicit service injections (Ember 3.28 migration)
+  persistence: service(),
   title: DS.attr('string'),
   url: DS.attr('string'),
   original_url: DS.attr('string'),

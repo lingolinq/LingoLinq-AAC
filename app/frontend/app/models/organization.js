@@ -8,8 +8,12 @@ import modal from '../utils/modal';
 import Subscription from '../utils/subscription';
 import Utils from '../utils/misc';
 import { computed, observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 LingoLinq.Organization = DS.Model.extend({
+  // Explicit service injections (Ember 3.28 migration)
+  persistence: service(),
+  modal: service(),
   init() {
     this._super(...arguments);
   },
