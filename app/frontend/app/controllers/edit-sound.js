@@ -1,9 +1,9 @@
 import { inject as service } from '@ember/service';
+import modal from '../utils/modal';
 
 import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import contentGrabbers from '../utils/content_grabbers';
-import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
   modal: service(),

@@ -6,7 +6,6 @@ import app_state from '../../utils/app_state';
 import utterance from '../../utils/utterance';
 import capabilities from '../../utils/capabilities';
 import buttonTracker from '../../utils/raw_events';
-import modal from '../../utils/modal';
 import speecher from '../../utils/speecher';
 import persistence from '../../utils/persistence';
 import Button from '../../utils/button';

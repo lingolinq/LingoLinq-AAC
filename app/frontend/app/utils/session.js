@@ -391,7 +391,7 @@ var session = EmberObject.extend({
         session.alert(message);
         session.invalidate(true);
       } else {
-        modal.open('force-logout', {message: message});
+        this.modal.open('force-logout', {message: message});
       }
     } else {
       var store_data = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};

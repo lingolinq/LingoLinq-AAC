@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
-
 import modal from '../utils/modal';
+
 import LingoLinq from '../app';
 import progress_tracker from '../utils/progress_tracker';
 import persistence from '../utils/persistence';

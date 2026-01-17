@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import speecher from '../utils/speecher';
+import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';

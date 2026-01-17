@@ -3,7 +3,6 @@ import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
-import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
 import LingoLinq from '../../app';
 import { computed } from '@ember/object';

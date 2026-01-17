@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import sync from '../../utils/sync';
+import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
 import LingoLinq from '../../app';
 import { computed } from '@ember/object';

@@ -5,7 +5,6 @@ import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
-import modal from '../utils/modal';
 import lingoLinqExtras from '../utils/extras';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';

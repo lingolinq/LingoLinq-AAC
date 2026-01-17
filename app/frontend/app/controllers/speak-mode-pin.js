@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import app_state from '../utils/app_state';
+import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { inject as service } from '@ember/service';
 

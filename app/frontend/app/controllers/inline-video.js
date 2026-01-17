@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import Button from '../utils/button';
 import LingoLinq from '../app';

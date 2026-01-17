@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
+import modal from '../../utils/modal';
 import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 import speecher from '../../utils/speecher';

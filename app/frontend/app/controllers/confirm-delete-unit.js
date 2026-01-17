@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
-
 import modal from '../utils/modal';
+
 import persistence from '../utils/persistence';
 
 export default modal.ModalController.extend({

@@ -1,5 +1,4 @@
 import Component from '@ember/component';
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
@@ -46,7 +45,7 @@ export default Component.extend({
   }),
   actions: {
     badge_popup: function(user_id) {
-      modal.open('badge-awarded', {badge: {id: this.get('badge.id')}});
+      this.modal.open('badge-awarded', {badge: {id: this.get('badge.id')}});
     }
   }
 });

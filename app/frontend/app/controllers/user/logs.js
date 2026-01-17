@@ -2,7 +2,6 @@ import Controller from '@ember/controller';
 import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import $ from 'jquery';
-import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import contentGrabbers from '../../utils/content_grabbers';
 import app_state from '../../utils/app_state';

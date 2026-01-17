@@ -5,7 +5,6 @@ import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import LingoLinq from '../../app';
-import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
 import progress_tracker from '../../utils/progress_tracker';

@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
+import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';

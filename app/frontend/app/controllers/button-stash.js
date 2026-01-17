@@ -1,6 +1,6 @@
 import LingoLinq from '../app';
-import editManager from '../utils/edit_manager';
 import modal from '../utils/modal';
+import editManager from '../utils/edit_manager';
 import stashes from '../utils/_stashes';
 import Button from '../utils/button';
 import { htmlSafe } from '@ember/string';

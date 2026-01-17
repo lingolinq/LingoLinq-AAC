@@ -1,6 +1,6 @@
 import EmberObject from '@ember/object';
-import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
+import { inject as service } from '@ember/service';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';

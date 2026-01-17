@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
+import modal from '../../utils/modal';
 import editManager from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import { computed } from '@ember/object';

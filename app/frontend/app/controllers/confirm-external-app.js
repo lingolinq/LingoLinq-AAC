@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
+import modal from '../utils/modal';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 

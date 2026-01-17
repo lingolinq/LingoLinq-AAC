@@ -59,7 +59,7 @@ var editManager = EmberObject.extend({
     if(!app_state.get('edit_mode')) {
       if(opts.button_id && app_state.get('speak_mode') && app_state.get('currentUser.preferences.long_press_edit_disabled')) {
         if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-          modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
+          this.modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
         } else if(app_state.get('currentUser.preferences.long_press_edit')) {
           app.toggleMode('edit');
         }
@@ -87,7 +87,7 @@ var editManager = EmberObject.extend({
       } else if(app_state.get('default_mode') && opts.button_id) {
         var button = editManager.find_button(opts.button_id);
         if(button && (button.label || button.vocalization)) {
-          modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: app_state.get('currentUser')});
+          this.modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: app_state.get('currentUser')});
         }
         return true;
       }
@@ -1295,7 +1295,7 @@ var editManager = EmberObject.extend({
       buttona.set('id', a);
       buttonb = buttonb && editManager.Button.create(buttonb.raw());
       buttonb.set('id', b);
-      modal.open('swap-or-drop-button', {button: buttona, folder: buttonb});
+      this.modal.open('swap-or-drop-button', {button: buttona, folder: buttonb});
       return;
     }
     var ob = this.controller.get('ordered_buttons');

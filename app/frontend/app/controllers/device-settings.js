@@ -1,7 +1,7 @@
 import EmberObject from '@ember/object';
+import modal from '../utils/modal';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
-import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
   actions: {

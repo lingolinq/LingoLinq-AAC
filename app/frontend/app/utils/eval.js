@@ -58,7 +58,7 @@ var evaluation = {
     working = {};
   },
   conclude: function() {
-    modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
+    this.modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
   },
   update: function(settings, reload) {
     assessment.name = settings.name;
@@ -98,7 +98,7 @@ var evaluation = {
     working = {};
   },
   settings: function() {
-    modal.open('modals/assessment-settings', {assessment: assessment});
+    this.modal.open('modals/assessment-settings', {assessment: assessment});
   },
   sections: function() {
     var res = [];
@@ -128,7 +128,7 @@ var evaluation = {
     } else {
       var section_id = working.level_id;
       if(section_id.match(/^intro/)) { section_id = 'intro'; }
-      modal.open('modals/eval-jump', {section_id: section_id});
+      this.modal.open('modals/eval-jump', {section_id: section_id});
     }
   },
   move: function(direction) {
@@ -631,7 +631,7 @@ var evaluation = {
           evaluation.conclude();
         }
       } else {
-        modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+        this.modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
       }
       return {ignore: true, highlight: false, auto_return: false};
     };
@@ -1913,7 +1913,7 @@ evaluation.callback = function(key) {
           return {ignore: true, highlight: false, sound: false};
         }
       } else {
-        modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+        this.modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
       }
       handling = false;
       return {auto_return: false};

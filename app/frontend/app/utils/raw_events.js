@@ -192,7 +192,7 @@ $(document).on('mousedown touchstart', function(event) {
     }
   } else if(event.keyCode == 27 || event.code == 'Escape') { // esc
     if(modal.is_open() && modal.is_closeable()) {// && (event.target.tagName == 'INPUT' || event.target.tagName == 'BUTTON' || event.target.tagName == 'TEXTAREA' || event.target.tagName == 'A')) {
-      modal.close();
+      this.modal.close();
     } else if(buttonTracker.check('keyboard_listen') && !modal.is_open()) {
       $("#hidden_input").val("");
       app_state.activate_button({vocalization: ':clear'}, {
@@ -1052,8 +1052,8 @@ var buttonTracker = EmberObject.extend({
             // even if scanning
             document.elementsFromPoint(event.clientX, event.clientY).forEach(function(e) {
               if(e.id == 'identity_button') {
-                modal.close(null, 'highlight');
-                modal.close(null, 'highlight-secondary');
+                this.modal.close(null, 'highlight');
+                this.modal.close(null, 'highlight-secondary');
                 elem_wrap = {dom: e, wait: true};
               }
             });

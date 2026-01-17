@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
+import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';

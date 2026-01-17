@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
+import modal from '../../utils/modal';
 import utterance from '../../utils/utterance';
 import RSVP from 'rsvp';
 import stashes from '../../utils/_stashes';

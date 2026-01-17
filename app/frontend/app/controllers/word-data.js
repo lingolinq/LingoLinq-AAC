@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import LingoLinq from '../app';

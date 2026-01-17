@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import obf from '../../utils/obf';
+import modal from '../../utils/modal';
 import { htmlSafe } from '@ember/string';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';

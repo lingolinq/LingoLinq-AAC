@@ -5,7 +5,6 @@ import LingoLinq from '../app';
 import { htmlSafe } from '@ember/string';
 import { computed, observer } from '@ember/object';
 import contentGrabbers from '../utils/content_grabbers';
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';

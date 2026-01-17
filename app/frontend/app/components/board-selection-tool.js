@@ -4,7 +4,6 @@ import contentGrabbers from '../utils/content_grabbers';
 import app_state from '../utils/app_state';
 import word_suggestions from '../utils/word_suggestions';
 import Utils from '../utils/misc';
-import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
@@ -310,7 +309,7 @@ export default Component.extend({
         if(_this.get('current_board.key')) {
           user.set('preferences.sync_starred_boards', false);
           user.copy_home_board(_this.get('current_board'), true, _this.get('current_level')).then(function() { }, function(err) {
-            modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+            this.modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
           });
         }
         var select = _this.get('select');
@@ -341,7 +340,7 @@ export default Component.extend({
           _this.send('select');
         });
       }, function(err) {
-        modal.error(i18n.t('error_loading_board', "Error loading board"));
+        this.modal.error(i18n.t('error_loading_board', "Error loading board"));
         _this.set('org_board', null);
       });
     },

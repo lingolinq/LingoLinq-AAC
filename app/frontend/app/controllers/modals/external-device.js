@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
+import modal from '../../utils/modal';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';

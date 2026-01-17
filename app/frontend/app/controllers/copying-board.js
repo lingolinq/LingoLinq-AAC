@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
+import modal from '../utils/modal';
 
 import RSVP from 'rsvp';
-import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import app_state from '../utils/app_state';
 import BoardHierarchy from '../utils/board_hierarchy';

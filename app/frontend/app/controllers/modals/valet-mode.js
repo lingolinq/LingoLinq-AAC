@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import contentGrabbers from '../../utils/content_grabbers';
+import modal from '../../utils/modal';
 import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import speecher from '../../utils/speecher';

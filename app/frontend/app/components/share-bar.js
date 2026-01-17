@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import $ from 'jquery';
 import lingoLinqExtras from '../utils/extras';
 import app_state from '../utils/app_state';
-import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
@@ -61,7 +60,7 @@ export default Component.extend({
   }),
   actions: {
     message: function(supervisor) {
-      modal.open('confirm-notify-user', {user: supervisor, utterance: this.get('utterance'), sentence: this.get('utterance.sentence')});
+      this.modal.open('confirm-notify-user', {user: supervisor, utterance: this.get('utterance'), sentence: this.get('utterance.sentence')});
     },
     share_via: function(medium) {
       if(this.get('native.' + medium)) {
@@ -72,7 +71,7 @@ export default Component.extend({
       } else if(medium == 'twitter') {
         capabilities.window_open(this.get('twitter_url'));
       } else if(medium == 'email') {
-        modal.open('share-email', {url: this.get('url'), text: this.get('text'), utterance_id: this.get('utterance.id') });
+        this.modal.open('share-email', {url: this.get('url'), text: this.get('text'), utterance_id: this.get('utterance.id') });
       } else if(medium == 'clipboard' && this.get('clipboard_enabled')) {
         var res = false
         if(this.get('native.clipboard')) {

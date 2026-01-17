@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import modal from '../utils/modal';
 import contentGrabbers from '../utils/content_grabbers';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';

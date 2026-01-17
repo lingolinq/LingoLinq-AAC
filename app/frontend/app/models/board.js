@@ -9,7 +9,6 @@ import DS from 'ember-data';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
-import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import Button from '../utils/button';
 import editManager from '../utils/edit_manager';

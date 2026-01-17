@@ -1304,7 +1304,7 @@ var pictureGrabber = EmberObject.extend({
         promise.then(function(stream) {
           _this.user_media_ready(stream, stream_id);
         }, function(err) {
-          modal.error(i18n.t('error_swapping_streams', "There was an unexpected error while swapping streams"));
+          this.modal.error(i18n.t('error_swapping_streams', "There was an unexpected error while swapping streams"));
           console.log("permission not granted", err);
         });
       }
@@ -1523,7 +1523,7 @@ var videoGrabber = EmberObject.extend({
         promise.then(function(stream) {
           _this.user_media_ready(stream, stream_id);
         }, function(err) {
-          modal.error(i18n.t('error_swapping_streams', "There was an unexpected error while swapping streams"));
+          this.modal.error(i18n.t('error_swapping_streams', "There was an unexpected error while swapping streams"));
           console.log("permission not granted", err);
         });
       }
@@ -1854,7 +1854,7 @@ var soundGrabber = EmberObject.extend({
       });
     } else if(type == 'zip') {
       var progressor = EmberObject.create();
-      modal.open('importing-recordings', progressor);
+      this.modal.open('importing-recordings', progressor);
       // do the hard stuff
       var progress = contentGrabbers.upload_for_processing(file, '/api/v1/sounds/imports', {}, progressor);
 
@@ -1862,11 +1862,11 @@ var soundGrabber = EmberObject.extend({
         if(_this.recordings_controller) {
           _this.recordings_controller.load_recordings();
         }
-        modal.close('importing-recordings');
+        this.modal.close('importing-recordings');
         modal.success(i18n.t('sounds_imported', "Your recordings have been imported or updated!"));
       }, function() { });
     } else {
-      modal.error(i18n.t('unrecognized_sound_type', "The file you uploaded doesn't appear to be a valid audio or zip file"));
+      this.modal.error(i18n.t('unrecognized_sound_type', "The file you uploaded doesn't appear to be a valid audio or zip file"));
       return;
     }
   },
@@ -2387,8 +2387,8 @@ var boardGrabber = EmberObject.extend({
     var data_uri = null;
 
     if(!board) {
-      modal.close();
-      modal.error(i18n.t('invalid_board_file', "Please select a valid board file (.obf or .obz)"));
+      this.modal.close();
+      this.modal.error(i18n.t('invalid_board_file', "Please select a valid board file (.obf or .obz)"));
       return;
     }
     var generate_data_uri = contentGrabbers.read_file(board);
@@ -2397,7 +2397,7 @@ var boardGrabber = EmberObject.extend({
     var error = modal.error;
 
     // TODO: add a confirmation step, including option for privacy level
-    modal.open('importing-boards', progressor);
+    this.modal.open('importing-boards', progressor);
 
     var type = 'obf';
     if(board.name && board.name.match(/\.obz$/)) {
@@ -2411,21 +2411,21 @@ var boardGrabber = EmberObject.extend({
         if(modal.is_open('importing-boards')) {
           boardGrabber.transitioner.transitionTo('board', boards[0].key);
         } else {
-          modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
+          this.modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
         }
       } else {
         if(modal.is_open('importing-boards')) {
-          modal.close();
+          this.modal.close();
         }
         if(boards.error && boards.error.protected) {
-          modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+          this.modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
         } else {
-          modal.error(i18n.t('board_import_failed', "Board Import failed"));          
+          this.modal.error(i18n.t('board_import_failed', "Board Import failed"));          
         }
       }
     }, function() {
       if(modal.is_open('importing-boards')) {
-        modal.close();
+        this.modal.close();
       }
       error(i18n.t('upload_failed', "Upload failed"));
     });

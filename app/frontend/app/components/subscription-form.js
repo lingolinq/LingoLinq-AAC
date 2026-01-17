@@ -1,6 +1,5 @@
 import Component from '@ember/component';
 import Subscription from '../utils/subscription';
-import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
 import app_state from '../utils/app_state';
@@ -142,7 +141,7 @@ export default Component.extend({
       var subscription = this.get('subscription');
       var user = this.get('user');
       if(!Subscription.ready || !subscription || !user) {
-        modal.error(i18n.t('purchasing_not_read', "There was a problem initializing the purchasing system. Please contact support."));
+        this.modal.error(i18n.t('purchasing_not_read', "There was a problem initializing the purchasing system. Please contact support."));
         return;
       } else if(!subscription.get('valid')) {
         return;
@@ -236,9 +235,9 @@ export default Component.extend({
         }, function(err) {
           _this.set('purchase_state', null);
           if(err && err.wrong_user) {
-            modal.error(i18n.t('purchasing_wrong_user', "This device has already been used to purchase the app, but for a different user"));
+            this.modal.error(i18n.t('purchasing_wrong_user', "This device has already been used to purchase the app, but for a different user"));
           } else {
-            modal.error(i18n.t('purchasing_not_completed', "There was an unexpected problem completing your purchase"));
+            this.modal.error(i18n.t('purchasing_not_completed', "There was an unexpected problem completing your purchase"));
           }
           console.error('purchase_promise_rejected');
         });

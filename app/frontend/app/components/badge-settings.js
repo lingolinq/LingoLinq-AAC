@@ -1,5 +1,4 @@
 import Component from '@ember/component';
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -309,14 +308,14 @@ export default Component.extend({
   }),
   actions: {
     change_image: function() {
-      modal.open('badge-image', {badge: this.get('badge') });
+      this.modal.open('badge-image', {badge: this.get('badge') });
     },
     delete_badge: function(state) {
       this.sendAction('remove_badge', this.get('badge'));
     },
     change_sound: function() {
       var _this = this;
-      modal.open('new-sound').then(function(sound) {
+      this.modal.open('new-sound').then(function(sound) {
 //        debugger
         if(sound && sound.url) {
           _this.set('badge.sound_url', sound.url);

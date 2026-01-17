@@ -10,7 +10,6 @@ import LingoLinqImage from '../models/image';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import utterance from '../utils/utterance';
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import editManager from '../utils/edit_manager';
@@ -48,7 +47,7 @@ export default Controller.extend({
   copy_board: function(decision, for_editing, selected_user_name) {
     var oldBoard = this.get('board').get('model');
     if(!this.this.persistence.get('online')) {
-      this.this.modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
+      this.modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
       return RSVP.reject();
     }
     // If a board has any sub-boards or if the current user has any supervisees,
@@ -63,7 +62,7 @@ export default Controller.extend({
       // their own copy. We just don't make it easy but it's totally doable.
       // As such, there isn't really any protection from this on the backend.
       if(oldBoard.get('copying_state.none')) {
-        this.this.modal.error(i18n.t('cant_copy_protected_boards', "This board contains purchased content which can't be copied."));
+        this.modal.error(i18n.t('cant_copy_protected_boards', "This board contains purchased content which can't be copied."));
         return RSVP.reject();
       } else {
         needs_decision = true;
@@ -76,7 +75,7 @@ export default Controller.extend({
     needs_decision = true;
 
     if(!decision && needs_decision) {
-      return this.this.modal.open('copy-board', {board: oldBoard, for_editing: for_editing, selected_user_name: selected_user_name}).then(function(opts) {
+      return this.modal.open('copy-board', {board: oldBoard, for_editing: for_editing, selected_user_name: selected_user_name}).then(function(opts) {
         return _this.copy_board(opts, for_editing);
       });
     }
@@ -85,7 +84,7 @@ export default Controller.extend({
     decision.action = decision.action || "nothing";
     oldBoard.set('copy_name', decision.board_name);
     oldBoard.set('copy_prefix', decision.board_prefix);
-    return this.this.modal.open('copying-board', {
+    return this.modal.open('copying-board', {
       board: oldBoard, 
       action: decision.action, 
       user: decision.user, 
@@ -166,9 +165,9 @@ export default Controller.extend({
       this.set('last_highlight_explore_action', (new Date()).getTime());
       this.set('last_highlight_options', options);
       utterance.set('hint_button', null);
-      this.this.modal.close();
+      this.modal.close();
       if(options.wait_to_prompt) {
-        this.this.modal.notice(i18n.t('find_sentence_box_hint', "Try to find each word as it appears in the sentence box above"), true);
+        this.modal.notice(i18n.t('find_sentence_box_hint', "Try to find each word as it appears in the sentence box above"), true);
       }
     } else if(buttons == 'resume') {
       options = this.get('last_highlight_options') || options;
@@ -310,10 +309,10 @@ export default Controller.extend({
       app_state.return_to_index();
     },
     support: function() {
-      this.this.modal.open('support');
+      this.modal.open('support');
     },
     language: function() {
-      this.this.modal.open('modals/choose-locale');
+      this.modal.open('modals/choose-locale');
     },
     stickSidebar: function() {
       var user = this.appState.get('currentUser');
@@ -382,7 +381,7 @@ export default Controller.extend({
           sync.send_update(this.appState.get('referenced_user.id') || this.appState.get('currentUser.id'), {assertion: {focus_words: []}});
         }
       } else {
-        this.this.modal.open('modals/focus-words', {user: this.appState.get('sessionUser'), root_board_id: this.this.stashes.get('root_board_state.id'), inactivity_timeout: true});
+        this.modal.open('modals/focus-words', {user: this.appState.get('sessionUser'), root_board_id: this.this.stashes.get('root_board_state.id'), inactivity_timeout: true});
       }
     },
     end_evaluation: function() {
@@ -407,7 +406,7 @@ export default Controller.extend({
       this.appState.set('last_activation', (new Date()).getTime());
       opts = opts || {};
       if(this.appState.get('eval_mode') && this.appState.get('speak_mode')) {
-        this.this.modal.notice(i18n.t('eval_mode_home_disabled', "Home is disabled during an evaluation, you can end the evaluation using the menu icon"), true);
+        this.modal.notice(i18n.t('eval_mode_home_disabled', "Home is disabled during an evaluation, you can end the evaluation using the menu icon"), true);
         return;
       }
       var state = this.this.stashes.get('temporary_root_board_state') || this.this.stashes.get('root_board_state');
@@ -421,18 +420,18 @@ export default Controller.extend({
       if(state && current && state.key == current.key) {
         editManager.clear_history();
         if(state == this.this.stashes.get('temporary_root_board_state')) {
-          this.this.modal.notice(i18n.t('already_temporary_home', "This board was set as the home board temporarily. To cancel hit the icon in the top right corner and select 'Release Home Lock'."), true);
+          this.modal.notice(i18n.t('already_temporary_home', "This board was set as the home board temporarily. To cancel hit the icon in the top right corner and select 'Release Home Lock'."), true);
         } else {
           if(state.meta_home) {
-            this.this.modal.notice(i18n.t('already_home2', "You are already on the home board. To return to the home board list, hit the icon in the top right corner."), true);
+            this.modal.notice(i18n.t('already_home2', "You are already on the home board. To return to the home board list, hit the icon in the top right corner."), true);
           } else {
-            this.this.modal.notice(i18n.t('already_home', "You are already on the home board. To exit Speak Mode hit the icon in the top right corner."), true);
+            this.modal.notice(i18n.t('already_home', "You are already on the home board. To exit Speak Mode hit the icon in the top right corner."), true);
           }
           this.highlight_button('resume');
         }
       } else {
         if(this.this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
-          this.this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+          this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
         } else {
           app_state.track_depth('home');
           this.rootBoard({index_as_fallback: true, button_triggered: opts.button_triggered});
@@ -447,7 +446,7 @@ export default Controller.extend({
     },
     jump: function(path, source, board) {
       if(this.this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
-        this.this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         this.jumpToBoard({
           key: path,
@@ -500,7 +499,7 @@ export default Controller.extend({
             }
           }
           if(needs_confirmation && !option) {
-            this.this.modal.open('set-as-home', {board: board, user_id: _this.get('setup_user_id')}).then(function(res) {
+            this.modal.open('set-as-home', {board: board, user_id: _this.get('setup_user_id')}).then(function(res) {
               if(res && res.updated) {
                 done(true);
               }
@@ -509,7 +508,7 @@ export default Controller.extend({
             if(user) {
               if(option == 'starting') {
                 user.copy_home_board(board, true).then(function() { }, function() {
-                  this.this.modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+                  this.modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
                 });
                 done();
               } else {
@@ -522,7 +521,7 @@ export default Controller.extend({
                 user.save().then(function() {
                   done(true);
                 }, function() {
-                  this.this.modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+                  this.modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
                 });
               }
             }
@@ -535,7 +534,7 @@ export default Controller.extend({
       app_state.check_for_needing_purchase().then(function() {
         app_state.assert_source().then(function() {
           var board = _this.get('board').get('model');
-          this.this.modal.open('add-to-sidebar', {board: {
+          this.modal.open('add-to-sidebar', {board: {
             name: board.get('name'),
             key: board.get('key'),
             levels: board.get('levels'),
@@ -575,7 +574,7 @@ export default Controller.extend({
         this.get('board.model').clear_overrides().then(function() {
           editManager.process_for_displaying();
         }, function() {
-          this.this.modal.error(i18n.t('error_clearing_overrides', "There was an unexpected error while clearing overrides"));
+          this.modal.error(i18n.t('error_clearing_overrides', "There was an unexpected error while clearing overrides"));
         })
       }
     },
@@ -596,7 +595,7 @@ export default Controller.extend({
       // of backward.
       this.appState.set('last_activation', (new Date()).getTime());
       if(this.this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
-        this.this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         app_state.track_depth('back');
         this.backOneBoard(opts);
@@ -612,7 +611,7 @@ export default Controller.extend({
       this.set('last_highlight_explore_action', (new Date()).getTime());
     },
     board_intro: function() {
-      this.this.modal.open('modals/board-intro', {board: this.get('board.model'), step: 0});
+      this.modal.open('modals/board-intro', {board: this.get('board.model'), step: 0});
     },
     vocalize: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
@@ -620,9 +619,9 @@ export default Controller.extend({
     },
     remote_modeling: function() {
       if(this.appState.get('pairing.user_id')) {
-        this.this.modal.open('modals/remote-model', {communicator: !this.appState.get('pairing.partner'), user_id: this.appState.get('pairing.user_id')});
+        this.modal.open('modals/remote-model', {communicator: !this.appState.get('pairing.partner'), user_id: this.appState.get('pairing.user_id')});
       } else {
-        this.this.modal.error(i18n.t('remote_modeling_error', "Error loading remote modeling"));
+        this.modal.error(i18n.t('remote_modeling_error', "Error loading remote modeling"));
       }
     },
     alert: function() {
@@ -634,10 +633,10 @@ export default Controller.extend({
       if(opts.action == ':app') {
         if(capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android')) {
           capabilities.apps.launch(opts.arg).then(null, function(err) {
-            this.this.modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
+            this.modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
           });
         } else {
-          this.this.modal.error(i18n.t('no_app_launches', "App launches not available in this view"), true);
+          this.modal.error(i18n.t('no_app_launches', "App launches not available in this view"), true);
         }
       } else {
         var obj = {
@@ -675,7 +674,7 @@ export default Controller.extend({
     toggleEditMode: function(decision) {
       if(!this.appState.get('edit_mode')) {
         if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
-          this.this.modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+          this.modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
         } else {
           app_state.toggle_edit_mode(decision);
         }
@@ -687,7 +686,7 @@ export default Controller.extend({
     },
     editBoardDetails: function() {
       if(!this.appState.get('edit_mode')) { return; }
-      this.this.modal.open('edit-board-details', {board: this.get('board.model')});
+      this.modal.open('edit-board-details', {board: this.get('board.model')});
     },
     toggle_sticky_board: function() {
       this.this.stashes.persist('sticky_board', !this.this.stashes.get('sticky_board'));
@@ -702,17 +701,17 @@ export default Controller.extend({
     switch_communicators: function(opts) {
       var ready = RSVP.resolve({correct_pin: true});
       if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
-        ready = this.this.modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+        ready = this.modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
       }
       ready.then(function(res) {
         if(res && res.correct_pin) {
-          this.this.modal.open('switch-communicators', opts || {});
+          this.modal.open('switch-communicators', opts || {});
         }
       }, function() { });
     },
     find_button: function() {
       var include_other_boards = this.appState.get('speak_mode') && ((this.this.stashes.get('root_board_state') || {}).key) == this.appState.get('currentUser.preferences.home_board.key');
-      this.this.modal.open('find-button', {
+      this.modal.open('find-button', {
         inactivity_timeout: this.appState.get('speak_mode'),
         board: this.get('board').get('model'),
         include_other_boards: include_other_boards
@@ -721,7 +720,7 @@ export default Controller.extend({
     shareBoard: function() {
       var _this = this;
       app_state.assert_source().then(function() {
-        this.this.modal.open('share-board', {board: _this.get('board.model')});
+        this.modal.open('share-board', {board: _this.get('board.model')});
       }, function() { }); 
     },
     copy_and_edit_board: function() {
@@ -775,14 +774,14 @@ export default Controller.extend({
       var _this = this;
       app_state.assert_source().then(function() {
         var has_links = _this.get('board').get('model').get('linked_boards').length > 0;
-        this.this.modal.open('download-board', {type: 'obf', has_links: has_links, id: _this.get('board.model.id')});
+        this.modal.open('download-board', {type: 'obf', has_links: has_links, id: _this.get('board.model.id')});
       }, function() { });
     },
     printBoard: function() {
       var _this = this;
       app_state.assert_source().then(function() {
         var has_links = _this.get('board').get('model').get('linked_boards').length > 0;
-        this.this.modal.open('download-board', {type: 'pdf', has_links: has_links, id: _this.get('board.model.id')});
+        this.modal.open('download-board', {type: 'pdf', has_links: has_links, id: _this.get('board.model.id')});
       }, function() { });
     },
     saveBoard: function() {
@@ -812,7 +811,7 @@ export default Controller.extend({
     },
     paint: function(fill, border, parts_of_speech) {
       if(fill == 'level') {
-        this.this.modal.open('modals/paint-level', {});
+        this.modal.open('modals/paint-level', {});
       } else {
         var part_of_speech = (parts_of_speech || [])[0];
         editManager.set_paint_mode(fill, border, part_of_speech);
@@ -833,7 +832,7 @@ export default Controller.extend({
       app_state.check_scanning();
     },
     boardDetails: function() {
-      this.this.modal.open('board-details', {board: this.get('board.model')});
+      this.modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {
       this.appState.set('label_locale', loc);
@@ -847,7 +846,7 @@ export default Controller.extend({
     openButtonStash: function() {
       if(!this.appState.get('edit_mode')) { return; }
       editManager.clear_paint_mode();
-      this.this.modal.open('button-stash');
+      this.modal.open('button-stash');
     },
     preview_levels: function() {
       if(!this.appState.get('edit_mode')) { return; }
@@ -880,10 +879,10 @@ export default Controller.extend({
       }
     },
     list_copies: function() {
-      this.this.modal.open('board-copies', {board: this.get('board.model')});
+      this.modal.open('board-copies', {board: this.get('board.model')});
     },
     board_actions: function() {
-      this.this.modal.open('modals/board-actions', {board: this.get('board.model')})
+      this.modal.open('modals/board-actions', {board: this.get('board.model')})
     },
     highlight_button: function(options) {
       options = options || {};
@@ -1047,11 +1046,11 @@ export default Controller.extend({
       }
     },
     about_modal: function() {
-      this.this.modal.open('about-lingolinq');
+      this.modal.open('about-lingolinq');
     },
     full_screen: function() {
       capabilities.fullscreen(true).then(null, function() {
-        this.this.modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
+        this.modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
       });
     },
     launch_board: function() {
@@ -1060,7 +1059,7 @@ export default Controller.extend({
       }
     },
     confirm_update: function() {
-      this.this.modal.open('confirm-update-app');
+      this.modal.open('confirm-update-app');
     },
     toggle_modeling: function() {
       app_state.toggle_modeling_if_possible(true);
@@ -1071,7 +1070,7 @@ export default Controller.extend({
       app_state.meta_home_if_possible();
     },
     switch_languages: function() {
-      this.this.modal.open('switch-languages', {board: this.get('board.model')}).then(function(res) {
+      this.modal.open('switch-languages', {board: this.get('board.model')}).then(function(res) {
         if(res && res.switched) {
           editManager.process_for_displaying();
         }
@@ -1085,7 +1084,7 @@ export default Controller.extend({
       }
     },
     suggestions: function() {
-      this.this.modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
+      this.modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
     },
     setup_go: function(direction) {
       var order = this.get('setup_order');
@@ -1129,11 +1128,11 @@ export default Controller.extend({
     },
     speak_mode_notification: function() {
       if(this.appState.get('speak_mode_modeling_ideas.enabled')) {
-        this.this.modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
+        this.modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
       } else if(this.appState.get('user_badge')) {
-        this.this.modal.open('badge-awarded', {inactivity_timeout: true, speak_mode: true, badge: {id: this.appState.get('user_badge.id')}});
+        this.modal.open('badge-awarded', {inactivity_timeout: true, speak_mode: true, badge: {id: this.appState.get('user_badge.id')}});
       } else if(this.appState.get('speak_mode_modeling_ideas.timeout')) {
-        this.this.modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
+        this.modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
       }
     }
   },
@@ -1301,7 +1300,7 @@ export default Controller.extend({
         this.get('board.model').prompt();
       }
     } else if(this.appState.get('currentUser.preferences.repair_on_vocalize')) {
-      this.this.modal.open('modals/repairs', {inactivity_timeout: true, speak_on_done: true});
+      this.modal.open('modals/repairs', {inactivity_timeout: true, speak_on_done: true});
     } else {
       utterance.vocalize_list(volume, opts);
       if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {

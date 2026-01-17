@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import app_state from '../utils/app_state';
+import modal from '../utils/modal';
 import stashes from '../utils/_stashes';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';

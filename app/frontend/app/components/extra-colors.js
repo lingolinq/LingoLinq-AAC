@@ -8,7 +8,6 @@ import { htmlSafe } from '@ember/string';
 import EmberObject from  '@ember/object';
 import { computed } from '@ember/object';
 import Button from '../utils/button';
-import modal from '../utils/modal';
 
 export default Component.extend({
   didInsertElement: function() {
@@ -26,7 +25,7 @@ export default Component.extend({
     modify: function() {
       var _this = this;
       this.set('colors', this.get('colors') || []);
-      modal.open('modals/extra-colors', {colors: this.get('colors')}).then(function(res) {
+      this.modal.open('modals/extra-colors', {colors: this.get('colors')}).then(function(res) {
         if(res && res.colors) {
           _this.set('colors', res.colors);
         }

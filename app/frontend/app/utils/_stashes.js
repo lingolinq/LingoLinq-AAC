@@ -650,13 +650,13 @@ var stashes = EmberObject.extend({
       var sixty_minutes_ago = (new Date()).getTime() - (60 * 60 * 1000);
       var six_hours_ago = (new Date()).getTime() - (6 * 60 * 60 * 1000);
       if(last_event && last_event.timestamp > pause && last_event < sixty_minutes_ago) {
-//         modal.warning(i18n.t('logging_resumed_inactivity', "Logging has resumed automatically after at least an hour of inactivity"));
+//         this.modal.warning(i18n.t('logging_resumed_inactivity', "Logging has resumed automatically after at least an hour of inactivity"));
         if(stashes.controller) {
           stashes.controller.set('logging_paused_at', null);
         }
         stashes.persist('logging_paused_at', null);
       } else if(last_event && last_event.timestamp > pause && last_event < six_hours_ago) {
-//         modal.warning(i18n.t('logging_resumed_pause_expired', "Logging has resumed automatically after being paused for over six hours"));
+//         this.modal.warning(i18n.t('logging_resumed_pause_expired', "Logging has resumed automatically after being paused for over six hours"));
         if(stashes.controller) {
           stashes.controller.set('logging_paused_at', null);
         }

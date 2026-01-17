@@ -1,6 +1,5 @@
 import Component from '@ember/component';
 import LingoLinq from '../app';
-import modal from '../utils/modal';
 import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
@@ -51,13 +50,13 @@ export default Component.extend({
     copy: function() {
       var oldBoard = this.get('model');
       modal.close_board_preview();
-      modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
+      this.modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
         decision = decision || {};
         decision.user = decision.user || app_state.get('currentUser');
         decision.action = decision.action || "nothing";
         oldBoard.set('copy_name', decision.board_name);
         oldBoard.set('copy_prefix', decision.board_prefix);
-        return modal.open('copying-board', {
+        return this.modal.open('copying-board', {
           board: oldBoard, 
           action: decision.action, 
           user: decision.user, 

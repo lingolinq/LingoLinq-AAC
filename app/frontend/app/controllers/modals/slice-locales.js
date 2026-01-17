@@ -1,5 +1,5 @@
-import modal from '../../utils/modal';
 import BoardHierarchy from '../../utils/board_hierarchy';
+import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import stashes from '../../utils/_stashes';
 import app_state from '../../utils/app_state';

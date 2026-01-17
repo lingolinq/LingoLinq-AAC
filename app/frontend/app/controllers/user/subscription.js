@@ -1,7 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import Subscription from '../../utils/subscription';
-import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';

@@ -2,7 +2,6 @@ import { htmlSafe } from '@ember/string';
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import app_state from '../utils/app_state';
-import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 

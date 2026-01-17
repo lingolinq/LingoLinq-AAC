@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import app_state from '../utils/app_state';
+import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
   actions: {

@@ -1,6 +1,6 @@
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
+import app_state from '../utils/app_state';
 import { get as emberGet, set as emberSet } from '@ember/object';
 import { inject as service } from '@ember/service';
 

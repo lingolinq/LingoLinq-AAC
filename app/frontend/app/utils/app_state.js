@@ -227,7 +227,7 @@ var app_state = EmberObject.extend({
     this.speak_mode_handlers();
     this.dom_changes_on_board_state_change();
     LingoLinq.session = route.get('session');
-    modal.close();
+    this.modal.close();
     if(session.get('access_token')) {
       // this shouldn't run until the db is initialized, otherwise if the user is offline
       // or has a spotty connection, then looking up the user will not succeed, and
@@ -366,7 +366,7 @@ var app_state = EmberObject.extend({
       }
     }, controller && controller.updateTitle ? 0 : 500);
     
-    modal.close();
+    this.modal.close();
     modal.close_board_preview();
     if(app_state.get('edit_mode')) {
       app_state.toggle_edit_mode();
@@ -605,7 +605,7 @@ var app_state = EmberObject.extend({
   },
   toggle_modeling_if_possible: function(enable) {
     if(app_state.get('modeling_for_user')) {
-      modal.warning(i18n.t('cant_clear_session_modeling', "You are in a modeling session. To leave modeling mode, Exit Speak Mode and then Speak As the communicator"), true);
+      this.modal.warning(i18n.t('cant_clear_session_modeling', "You are in a modeling session. To leave modeling mode, Exit Speak Mode and then Speak As the communicator"), true);
     } else {
       app_state.toggle_modeling(enable);
     }
@@ -778,7 +778,7 @@ var app_state = EmberObject.extend({
   },
   toggle_speak_mode: function(decision) {
     if(decision) {
-      modal.close(true);
+      this.modal.close(true);
     }
     var current = app_state.get('currentBoardState');
     var preferred = app_state.get('speakModeUser.preferences.home_board') || app_state.get('currentUser.preferences.home_board');
@@ -806,9 +806,9 @@ var app_state = EmberObject.extend({
       this.toggle_mode('speak', {override_state: stashes.get('root_board_state') || preferred});
     } else if(stashes.get('current_mode') == 'speak') {
       if(this.get('embedded')) {
-        modal.open('about-lingolinq', {no_exit: true});
+        this.modal.open('about-lingolinq', {no_exit: true});
       } else if(app_state.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && app_state.get('currentUser.preferences.speak_mode_pin')) {
-        modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
+        this.modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
       } else {
         this.toggle_mode('speak');
       }
@@ -860,14 +860,14 @@ var app_state = EmberObject.extend({
     var _this = this;
     this.assert_source().then(function() {
       if(!_this.get('controller.board.model.permissions.edit')) {
-        modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
+        this.modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
           if(res == 'confirm') {
             _this.toggle_mode('edit', {copy_on_save: true});
           }
         });
         return;
       } else if(decision == null && !app_state.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
-        modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
+        this.modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
           }
@@ -905,7 +905,7 @@ var app_state = EmberObject.extend({
         var level = {};
         var state = board_state || opts.override_state;
         if(app_state.get('sessionUser.eval_ended')) {
-          modal.open('modals/eval-status', {user: app_state.get('sessionUser')});
+          this.modal.open('modals/eval-status', {user: app_state.get('sessionUser')});
           return;
         }
         // If already on a board, and board level is manually set,
@@ -1060,7 +1060,7 @@ var app_state = EmberObject.extend({
         var communicator_limited = speaking_user && speaking_user.get('expired');
         var supervisor_limited = app_state.get('currentUser.supporter_role') && app_state.get('currentUser.modeling_only') && !app_state.get('speakModeUser') && !session.get('modeling_session');
         if(app_state.get('currentUser') && !opts.reminded && (communicator_limited || supervisor_limited) && !already_speaking_as_someone_else) {
-          return modal.open('premium-required', {user_name: app_state.get('currentUser.user_name'), user: app_state.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
+          return this.modal.open('premium-required', {user_name: app_state.get('currentUser.user_name'), user: app_state.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
             opts.reminded = true;
             app_state.toggle_mode(mode, opts);
           });
@@ -1198,7 +1198,7 @@ var app_state = EmberObject.extend({
     var communicator_limited = speak_mode_user && speak_mode_user.get('expired');
     var supervisor_limited = speak_mode_user && speak_mode_user.get('supporter_role') && speak_mode_user.get('modeling_only') && !session.get('modeling_session');
     if(speak_mode_user && !opts.reminded && (communicator_limited || supervisor_limited)) {
-      return modal.open('premium-required', {user_name: speak_mode_user.get('user_name'), user: speak_mode_user, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), remind_to_upgrade: true, limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
+      return this.modal.open('premium-required', {user_name: speak_mode_user.get('user_name'), user: speak_mode_user, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), remind_to_upgrade: true, limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
         opts.reminded = true;
         app_state.home_in_speak_mode(opts);
       });
@@ -1233,10 +1233,10 @@ var app_state = EmberObject.extend({
         buttonTracker.left_screen_action = _this.get('currentUser.preferences.device.scanning_left_screen_action');
         buttonTracker.right_screen_action = _this.get('currentUser.preferences.device.scanning_right_screen_action');
         if(capabilities.system == 'iOS' && !capabilities.installed_app && !buttonTracker.left_screen_action && !buttonTracker.right_screen_action) {
-          modal.warning(i18n.t('keyboard_may_jump', "NOTE: if you don't have a bluetooth switch installed, the keyboard may keep popping up while trying to scan."));
+          this.modal.warning(i18n.t('keyboard_may_jump', "NOTE: if you don't have a bluetooth switch installed, the keyboard may keep popping up while trying to scan."));
         }
         if(modal.is_open() && (!modal.highlight_settings || modal.highlight_settings.highlight_type != 'button_search')) {
-          modal.close();
+          this.modal.close();
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
         scanner.start({
@@ -1418,10 +1418,10 @@ var app_state = EmberObject.extend({
             stashes.persist('temporary_root_board_state', current);
           }
         }, function() {
-          modal.error(i18n.t('user_retrive_failed2', "Failed to retrieve user details for Speak Mode"));
+          this.modal.error(i18n.t('user_retrive_failed2', "Failed to retrieve user details for Speak Mode"));
         });
       }, function() {
-        modal.error(i18n.t('user_retrive_failed', "Failed to retrieve user for Speak Mode"));
+        this.modal.error(i18n.t('user_retrive_failed', "Failed to retrieve user for Speak Mode"));
       });
     }
   },
@@ -1766,7 +1766,7 @@ var app_state = EmberObject.extend({
       return RSVP.resolve({dialog: false});
     } else {
       // prevent action if not currently_premium
-      return modal.open('premium-required', {user_name: (user && user.get('user_name')), user: user, reason: "combo-" + allow_fully_purchased + "." + (user && user.get('fully_purchased')) + "-" + allow_premium_supporter + "." + (user && user.get('currently_premium_or_premium_supporter')), action: action}).then(function() {
+      return this.modal.open('premium-required', {user_name: (user && user.get('user_name')), user: user, reason: "combo-" + allow_fully_purchased + "." + (user && user.get('fully_purchased')) + "-" + allow_premium_supporter + "." + (user && user.get('currently_premium_or_premium_supporter')), action: action}).then(function() {
         return RSVP.reject({dialog: true});
       });
     }
@@ -1780,7 +1780,7 @@ var app_state = EmberObject.extend({
     // and possibly prevent the action.
     if(!user || (user.get('really_expired') || user.get('modeling_only'))) {
       var user_name = user && user.get('user_name');
-      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + (user.get('really_expired')+  "." + user.get('modeling_only')), cancel_on_close: false, remind_to_upgrade: true}).then(function() {
+      return this.modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + (user.get('really_expired')+  "." + user.get('modeling_only')), cancel_on_close: false, remind_to_upgrade: true}).then(function() {
         if(user.get('modeling_only') || prevent_unless_purchased) {
           // modeling-only are prevented from the actions
           // not just reminded about them.
@@ -1854,18 +1854,18 @@ var app_state = EmberObject.extend({
           var noticed = false;
           if(stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
+            this.modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
           }
           if(this.get('currentBoardState.has_fallbacks')) {
-            modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);
+            this.modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);
           }
           if(!(speecher.get('voices') || []).find(function(v) { return !v.remote_voice; })) {
-            modal.warning(i18n.t('no_local_voices', "This device doesn't have any local voices, so an Internet connection will be required for any speech output until you download a premium voice"), true);
+            this.modal.warning(i18n.t('no_local_voices', "This device doesn't have any local voices, so an Internet connection will be required for any speech output until you download a premium voice"), true);
           }
           if(!capabilities.mobile && this.get('currentUser.preferences.device.fullscreen')) {
             capabilities.fullscreen(true).then(null, function() {
               if(!noticed) {
-                modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
+                this.modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
               }
             });
           }
@@ -1878,15 +1878,15 @@ var app_state = EmberObject.extend({
             console.log("volume is " + level);
             if(level === 0) {
               noticed = true;
-              modal.warning(i18n.t('volume_is_off', "Volume is muted, you will not be able to hear speech"), true);
+              this.modal.warning(i18n.t('volume_is_off', "Volume is muted, you will not be able to hear speech"), true);
             } else if(level < 0.2) {
               noticed = true;
-              modal.warning(i18n.t('volume_is_low', "Volume is low, you may not be able to hear speech"), true);
+              this.modal.warning(i18n.t('volume_is_low', "Volume is low, you may not be able to hear speech"), true);
             }
           });
           capabilities.silent_mode().then(function(silent) {
             if(silent && capabilities.system == 'iOS') {
-              modal.warning(i18n.t('ios_muted', "The app is currently muted, so you will not hear speech. To unmute, check the mute switch, and also swipe up from the bottom of the screen to check for app-level muting"), true);
+              this.modal.warning(i18n.t('ios_muted', "The app is currently muted, so you will not hear speech. To unmute, check the mute switch, and also swipe up from the bottom of the screen to check for app-level muting"), true);
             }
           });
           var ref_user = this.get('referenced_speak_mode_user') || this.get('currentUser');
@@ -1895,7 +1895,7 @@ var app_state = EmberObject.extend({
               noticed = true;
               var str = i18n.t('user_apostrophe', "%{user_name}'s ", {user_name: ref_user.get('user_name')});
               str = str + i18n.t('current_goal', "Current Goal: %{summary}", {summary: ref_user.get('goal.summary')});
-              modal.notice(str, true);
+              this.modal.notice(str, true);
             }, 100);
           }
           speecher.set_output_target({}, function() { });
@@ -1905,13 +1905,13 @@ var app_state = EmberObject.extend({
               if(app_state.get('currentBoardState.id') && !res[app_state.get('currentBoardState.id')]) {
                 if(!window.persistence.get('last_sync_at')) {
                   // if not ever synced, remind them to sync before trying to use Speak Mode
-                  modal.warning(i18n.t('remember_to_sync', "Remember to sync before trying to use boards somewhere without a strong Internet connection!"), true);
+                  this.modal.warning(i18n.t('remember_to_sync', "Remember to sync before trying to use boards somewhere without a strong Internet connection!"), true);
                 } else if(app_state.get('current_board_in_extended_board_set')) {
                   // if synced and this is in home board set, remind them to sync
-                  modal.warning(i18n.t('need_to_re_sync', "Remember to sync so you have access to all your boards offline!"), true);
+                  this.modal.warning(i18n.t('need_to_re_sync', "Remember to sync so you have access to all your boards offline!"), true);
                 } else {
                   // otherwise, remind them about unsynced boards
-                  modal.warning(i18n.t('unsynced_boards_may_not_work', "This board isn't available from you home board or sidebar so it won't be synced, and may not work properly without a strong Internet connection"), true);
+                  this.modal.warning(i18n.t('unsynced_boards_may_not_work', "This board isn't available from you home board or sidebar so it won't be synced, and may not work properly without a strong Internet connection"), true);
                 }
               }
             }, function() { });
@@ -1924,14 +1924,14 @@ var app_state = EmberObject.extend({
           var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
           if(!intro && !app_state.get('speak-mode-intro')) {
             if(modal.route && !modal.is_open('speak-mode-intro')) {
-              modal.open('speak-mode-intro');
+              this.modal.open('speak-mode-intro');
             }
           } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !app_state.get('modeling-intro')) {
             var now = (new Date()).getTime();
             if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
             if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
               if(modal.route && !modal.is_open('modeling-intro')) {
-                modal.open('modeling-intro');
+                this.modal.open('modeling-intro');
               }
             }
           }
@@ -2176,7 +2176,7 @@ var app_state = EmberObject.extend({
 
       if(done) {
         this.toggle_speak_mode();
-        modal.notice(done, true, true, {redirect: redirect_option});
+        this.modal.notice(done, true, true, {redirect: redirect_option});
         this.set('speak_mode_started', null);
       }
     } else {
@@ -2794,7 +2794,7 @@ var app_state = EmberObject.extend({
       if(expecting_key && native_keyboard_available && user_prefers_native_keyboard && window.Keyboard && window.Keyboard.hide) {
         scanner.native_keyboard();
       } else if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
-        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         runLater(function() {
           app_state.track_depth('link');
@@ -2810,23 +2810,23 @@ var app_state = EmberObject.extend({
     } else if(button.url) {
       app_state.track_depth('clear');
       if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
-        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(app_state.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        this.modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
       } else {
         app_state.launch_url(button, null, obj.board);
       }
     } else if(button.apps) {
       app_state.track_depth('clear');
       if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
-        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(app_state.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        this.modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
       } else {
         if((!app_state.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (app_state.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
-          modal.open('confirm-external-app', {apps: button.apps});
+          this.modal.open('confirm-external-app', {apps: button.apps});
         } else if((!app_state.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || app_state.get('currentUser.preferences.confirm_external_links')) {
-          modal.open('confirm-external-app', {apps: button.apps});
+          this.modal.open('confirm-external-app', {apps: button.apps});
         } else {
           if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
             capabilities.window_open(button.apps.ios.launch_url, '_blank');
@@ -3113,7 +3113,7 @@ var app_state = EmberObject.extend({
         var current = app_state.get('currentBoardState');
         if(state && current && state.key == current.key) {
         } else {
-          modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+          this.modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
         }
         runLater(function() { app_state.check_scanning(); }, 200);
       } else if(obj && obj.vocalization && obj.vocalization.match(/^\+/)) {
@@ -3132,7 +3132,7 @@ var app_state = EmberObject.extend({
   launch_url: function(button, force, board) {
     var _this = this;
     if(!force && _this.get('currentUser.preferences.external_links') == 'confirm_all') {
-      modal.open('confirm-external-link', {url: button.url}).then(function(res) {
+      this.modal.open('confirm-external-link', {url: button.url}).then(function(res) {
         if(res && res.open) {
           _this.launch_url(button, true, board);
         }
@@ -3145,7 +3145,7 @@ var app_state = EmberObject.extend({
         real_url = button.book.url;
       }
       if(button.video && button.video.popup) {
-        modal.open('inline-video', button);
+        this.modal.open('inline-video', button);
       } else if(button.book && button.book.popup && book_integration) {
         var opts = $.extend({}, button.book || {});
         delete opts['base_url'];
@@ -3164,7 +3164,7 @@ var app_state = EmberObject.extend({
         var do_confirm = (!_this.get('currentUser') && window.user_preferences.any_user.external_links == 'confirm_custom') || _this.get('currentUser.preferences.external_links') == 'confirm_custom';
         do_confirm = do_confirm || (!_this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || _this.get('currentUser.preferences.confirm_external_links');
         if(!force && do_confirm) {
-          modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
+          this.modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
             if(res && res.open) {
               capabilities.window_open(real_url || button.url, '_blank');
             }

@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import persistence from '../utils/persistence';
+import modal from '../utils/modal';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';

@@ -145,9 +145,9 @@ var modal = EmberObject.extend({
         }
         modal[controller_name].set('model', settings);
       } else {
-        modal.close(null, template);
+        this.modal.close(null, template);
         runLater(function() {
-          modal.open(template, settings);
+          this.modal.open(template, settings);
         });
       }
       modal[promise_name] = settings.get('defer');
@@ -157,8 +157,8 @@ var modal = EmberObject.extend({
   },
   close_highlight: function() {
     if(this.highlight_controller) {
-      modal.close(null, 'highlight');
-      modal.close(null, 'highlight-secondary');
+      this.modal.close(null, 'highlight');
+      this.modal.close(null, 'highlight-secondary');
     }
   },
   close: function(success, outlet) {
@@ -193,8 +193,8 @@ var modal = EmberObject.extend({
       this.last_template = null;
       this.component = null; // Clear component reference when closing
       runLater(function() {
-        modal.close(null, 'highlight');
-        modal.close(null, 'highlight-secondary');
+        this.modal.close(null, 'highlight');
+        this.modal.close(null, 'highlight-secondary');
       });
     }
     // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
@@ -215,7 +215,7 @@ var modal = EmberObject.extend({
     if(this.queued_template) {
       runLater(function() {
         if(!modal.is_open()) {
-          modal.open(modal.queued_template);
+          this.modal.open(modal.queued_template);
           modal.queued_template = null;
         }
       }, 2000);
@@ -304,7 +304,7 @@ modal.ModalController = Controller.extend({
       if(settings && settings.inactivity_timeout) {
         modal.auto_close_callback = function() {
           if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
-            modal.close();
+            this.modal.close();
             modal.auto_close = false;
           }
         }
@@ -334,7 +334,7 @@ modal.ModalController = Controller.extend({
       }
     },
     close: function() {
-      modal.close();
+      this.modal.close();
     }
   }
 });

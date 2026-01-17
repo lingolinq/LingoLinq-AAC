@@ -1535,7 +1535,7 @@ var persistence = EmberObject.extend({
         eventuallies.push(function() {
           window.app_state.check_free_space().then(function(res) {
             if(res && res.too_little) {
-              modal.error(i18n.t('too_little_free_space', "Your device is almost out of free space, you may need to delete some data to make room for LingoLinq"));
+              this.modal.error(i18n.t('too_little_free_space', "Your device is almost out of free space, you may need to delete some data to make room for LingoLinq"));
             }
           }, function() { });
         });
@@ -1704,7 +1704,7 @@ var persistence = EmberObject.extend({
         if(!ignore_supervisees) {
           spread_out(function() {
             return persistence.time_promise(speecher.load_beep().then(null, function(err) {
-              modal.warning(i18n.t('sound_sync_failed', "Sound effects failed to sync"));
+              this.modal.warning(i18n.t('sound_sync_failed', "Sound effects failed to sync"));
               console.error("sound sync error", err);
               return RSVP.resolve();
             }), "syncing beep sounds");
@@ -1864,7 +1864,7 @@ var persistence = EmberObject.extend({
         persistence.set('last_sync_event_at', (new Date()).getTime());
         persistence.set('sync_log', log);
         if(err && err.error) {
-          modal.error(err.error);
+          this.modal.error(err.error);
         }
         console.log(err);
       }
@@ -2019,7 +2019,7 @@ var persistence = EmberObject.extend({
         var complete = sync_supervisee.then(null, function(err) {
           console.log(err);
           console.error("supervisee sync failed");
-          modal.warning(i18n.t('supervisee_sync_failed', "Couldn't sync boards for supervisee \"" + supervisee.user_name + "\""));
+          this.modal.warning(i18n.t('supervisee_sync_failed', "Couldn't sync boards for supervisee \"" + supervisee.user_name + "\""));
           return RSVP.resolve({});
         });
         supervisee_promises.push(complete);

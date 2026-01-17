@@ -1,6 +1,6 @@
 import RSVP from 'rsvp';
-import LingoLinq from '../app';
 import modal from '../utils/modal';
+import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import { computed } from '@ember/object';

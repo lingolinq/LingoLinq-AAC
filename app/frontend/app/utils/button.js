@@ -1319,7 +1319,7 @@ Button.load_actions = function() {
       description: i18n.t('share_window', "Open the Share window"),
       trigger: function() {
         if(app_state.get('speak_mode')) {
-          modal.open('share-utterance', {utterance: stashes.get('working_vocalization')});
+          this.modal.open('share-utterance', {utterance: stashes.get('working_vocalization')});
         }    
       }
     },
@@ -1332,9 +1332,9 @@ Button.load_actions = function() {
           var sentence = voc.map(function(v) { return v.label; }).join(' ');
           var res = capabilities.sharing.copy_text(sentence);
           if(res) {
-            modal.notice(i18n.t('text_copied', "Sentence box copied to the clipboard!"));
+            this.modal.notice(i18n.t('text_copied', "Sentence box copied to the clipboard!"));
           } else {
-            modal.error(i18n.t('text_failed', "Nothing copied to the clipboard"));
+            this.modal.error(i18n.t('text_failed', "Nothing copied to the clipboard"));
           }
         }    
       }
@@ -1348,10 +1348,10 @@ Button.load_actions = function() {
             navigator.clipboard.readText().then(function(text) {
               utterance.add_button({label: text});
             }, function(err) {
-              modal.error(i18n.t('paste_failed', "Failed to retrieve clipboard contents"));
+              this.modal.error(i18n.t('paste_failed', "Failed to retrieve clipboard contents"));
             });
           } catch(e) {
-            modal.error(i18n.t('paste_failed', "Failed to retrieve clipboard contents"));
+            this.modal.error(i18n.t('paste_failed', "Failed to retrieve clipboard contents"));
           }
           return {auto_return_possible: true};
         }    
@@ -1362,7 +1362,7 @@ Button.load_actions = function() {
       description: i18n.t('alerts_window', "Open the Alerts window"),
       trigger: function() {
         if(app_state.get('speak_mode')) {
-          modal.open('modals/inbox', {inactivity_timeout: true});
+          this.modal.open('modals/inbox', {inactivity_timeout: true});
         }    
       }
     },
@@ -1371,7 +1371,7 @@ Button.load_actions = function() {
       description: i18n.t('repairs_window', "Open the Repairs window"),
       trigger: function() {
         if(app_state.get('speak_mode')) {
-          modal.open('modals/repairs', {inactivity_timeout: true});
+          this.modal.open('modals/repairs', {inactivity_timeout: true});
         }
       }
     },
@@ -1396,7 +1396,7 @@ Button.load_actions = function() {
       description: i18n.t('phrases_window', "Open the Phrases window"),
       trigger: function() {
         if(app_state.get('speak_mode')) {
-          modal.open('modals/phrases', {inactivity_timeout: true});
+          this.modal.open('modals/phrases', {inactivity_timeout: true});
         }    
       }
     },
@@ -1789,14 +1789,14 @@ Button.load_actions = function() {
       action: ':gif-search',
       description: i18n.t('gif_search_description', "Search online GIFs that match the current contents of the sentence"),
       trigger: function() {
-        modal.open('modals/gif');
+        this.modal.open('modals/gif');
       }
     },
     {
       action: ':gif-lucky',
       description: i18n.t('gif_lucky_description', "Show the first online GIF that matches the current contents of the sentence"),
       trigger: function() {
-        modal.open('modals/gif', {lucky: true});
+        this.modal.open('modals/gif', {lucky: true});
       }
     },
     {
@@ -1833,7 +1833,7 @@ Button.load_actions = function() {
               speecher.beep();
             }, 500);
           }, function(err) {
-            modal.error(i18n.t('volume_change_failed', "Device volume change failed"));
+            this.modal.error(i18n.t('volume_change_failed', "Device volume change failed"));
           });
         } else {
           var num = parseInt(match[1], 10);
@@ -1843,7 +1843,7 @@ Button.load_actions = function() {
               speecher.beep();
             }, 500);
           }, function(err) {
-            modal.error(i18n.t('volume_change_failed', "Device volume change failed"));
+            this.modal.error(i18n.t('volume_change_failed', "Device volume change failed"));
           });
         }
       }
@@ -1915,7 +1915,7 @@ Button.load_actions = function() {
               runLater(function() {
                 speecher.beep();
               }, 1500);
-              modal.open('modals/timer');
+              this.modal.open('modals/timer');
             } else {
               runLater(tick, 500);
             }

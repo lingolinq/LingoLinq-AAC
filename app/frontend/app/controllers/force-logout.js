@@ -1,5 +1,5 @@
-import modal from '../utils/modal';
 import session from '../utils/session';
+import modal from '../utils/modal';
 
 export default modal.ModalController.extend({
   actions: {

@@ -16,7 +16,6 @@ import { later as runLater } from '@ember/runloop';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
 import ButtonSet from '../models/buttonset';
-import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
