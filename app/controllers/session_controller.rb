@@ -558,10 +558,16 @@ class SessionController < ApplicationController
         begin
           if UserIntegration.respond_to?(:global_integrations)
             integrations = UserIntegration.global_integrations
-            global_integrations = integrations.is_a?(Hash) ? integrations.keys : []
+            # Ensure integrations is a Hash before calling .keys to prevent NoMethodError
+            if integrations && integrations.is_a?(Hash)
+              global_integrations = integrations.keys
+            else
+              global_integrations = []
+            end
           end
         rescue => e
           Rails.logger.warn("Error getting global_integrations: #{e.message}")
+          global_integrations = []
         end
         
         # Safely get current sale
@@ -613,10 +619,16 @@ class SessionController < ApplicationController
         begin
           if UserIntegration.respond_to?(:global_integrations)
             integrations = UserIntegration.global_integrations
-            global_integrations = integrations.is_a?(Hash) ? integrations.keys : []
+            # Ensure integrations is a Hash before calling .keys to prevent NoMethodError
+            if integrations && integrations.is_a?(Hash)
+              global_integrations = integrations.keys
+            else
+              global_integrations = []
+            end
           end
         rescue => e
           Rails.logger.warn("Error getting global_integrations: #{e.message}")
+          global_integrations = []
         end
         
         sale = nil
@@ -646,10 +658,11 @@ class SessionController < ApplicationController
     end
     
     # Single render point to avoid double render errors
+    # Note: render json: automatically calls .to_json, so don't call it explicitly
     if json
-      render json: json.to_json, status: (json[:error] ? 500 : 200)
+      render json: json, status: (json[:error] ? 500 : 200)
     else
-      render json: {authenticated: false, error: "Unknown error"}.to_json, status: 500
+      render json: {authenticated: false, error: "Unknown error"}, status: 500
     end
   end
 

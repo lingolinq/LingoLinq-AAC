@@ -11,7 +11,7 @@ export default Component.extend({
   didInsertElement: function() {
     var _this = this;
     _this.set('active_tracking', true);
-    $(window).on('resize orientationchange', function() {
+    var resizeHandler = function() {
       runLater(function() {
         // on mobile devices, keyboard popup shouldn't trigger a redraw
         if(app_state.get('window_inner_width') && capabilities.mobile && window.innerWidth == app_state.get('window_inner_width')) {
@@ -25,7 +25,10 @@ export default Component.extend({
           }
         }
       }, 100);
-    });
+    };
+    $(window).on('resize orientationchange', resizeHandler);
+    // Store handler reference for cleanup
+    _this.set('resizeHandler', resizeHandler);
     var computeHeight = _this.get('computeHeight');
     if (computeHeight && typeof computeHeight === 'function') {
       computeHeight();
@@ -33,6 +36,12 @@ export default Component.extend({
   },
   willDestroyElement: function() {
     this.set('active_tracking', false);
+    // Remove event listener to prevent memory leak
+    var resizeHandler = this.get('resizeHandler');
+    if (resizeHandler) {
+      $(window).off('resize orientationchange', resizeHandler);
+      this.set('resizeHandler', null);
+    }
   },
   buttonId: function(event) {
     var $button = $(event.target).closest('.button');

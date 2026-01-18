@@ -156,7 +156,8 @@ class Api::SearchController < ApplicationController
     end
     
     a, b = url_param.split(/\/\//, 2)
-    b = (b || '').sub(/\/\//, '/').to_s if b.match(/^opensymbols/)
+    # Check if b exists and matches pattern before calling .match() to avoid NoMethodError on nil
+    b = (b || '').sub(/\/\//, '/').to_s if b && b.match(/^opensymbols/)
     url = [a, b].join("//")
     
     # Validate that we have a proper absolute URL

@@ -171,6 +171,19 @@ export default Component.extend({
   },
   handle_auth: function(data) {
     var _this = this;
+    // Ensure access_token is immediately available in capabilities for subsequent API requests
+    if(data && data.access_token && capabilities) {
+      if(capabilities.access_token !== data.access_token) {
+        console.log('[login-form.handle_auth] Setting capabilities.access_token from auth data', {
+          token_preview: data.access_token.substring(0, 10) + '...'
+        });
+        capabilities.access_token = data.access_token;
+        if(capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+      }
+    }
+    
     if(data.missing_2fa) {
       _this.set('prompt_2fa', {needed: true, token: data.access_token});
       if(data.set_2fa) {
@@ -281,26 +294,162 @@ export default Component.extend({
     },
     login_followup: function(choice) {
       var _this = this;
-      LingoLinq.store.findRecord('user', 'self').then(function(u) {
-        u.set('preferences.device.long_token', !!choice);
-        u.set('preferences.device.asserted', true);
-        u.save().then(function() {
-          _this.send('login_success', true);
-        }, function(err) {
-          _this.set('login_followup', false);
-          _this.set('login_single_assertion', false);
-          app_state.set('logging_in', false);
-          _this.set('logging_in', false);
-          _this.set('logged_in', false);
-          _this.set('login_error', i18n.t('user_update_failed', "Updating login preferences failed"));
-        });
-      }, function(err) {
+      // Check if component is already destroyed
+      if (_this.isDestroyed || _this.isDestroying) {
+        return;
+      }
+      
+      // Helper function to set error state consistently
+      var setErrorState = function(errorMessage) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         _this.set('login_followup', false);
         _this.set('login_single_assertion', false);
         app_state.set('logging_in', false);
         _this.set('logging_in', false);
         _this.set('logged_in', false);
-        _this.set('login_error', i18n.t('user_retrieve_failed', "Retrieving login preferences failed"));
+        if (errorMessage) {
+          _this.set('login_error', errorMessage);
+        }
+      };
+      
+      // Ensure capabilities.access_token is set before making the user request
+      // This prevents 401 errors when fetching user preferences
+      var ensureToken = function() {
+        // Check if component is destroyed
+        if (_this.isDestroyed || _this.isDestroying) {
+          return RSVP.reject(new Error('Component destroyed'));
+        }
+        
+        // Check if token is already available
+        var hasToken = capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '';
+        if(!hasToken) {
+          // Check auth_settings as fallback
+          var auth_settings = stashes.get_object('auth_settings', true) || {};
+          if(auth_settings.access_token && auth_settings.access_token !== 'none' && auth_settings.access_token !== '') {
+            // Token exists in auth_settings, sync it to capabilities
+            if(capabilities) {
+              capabilities.access_token = auth_settings.access_token;
+              if(capabilities.sync_access_token) {
+                capabilities.sync_access_token();
+              }
+            }
+            hasToken = true;
+          }
+        }
+        if(hasToken) {
+          return RSVP.resolve();
+        }
+        // Wait a bit for token to sync, then check again
+        var timeoutHandle = null;
+        return new RSVP.Promise(function(resolve, reject) {
+          var attempts = 0;
+          var maxAttempts = 10;
+          var checkToken = function() {
+            // Check if component is destroyed
+            if (_this.isDestroyed || _this.isDestroying) {
+              reject(new Error('Component destroyed'));
+              return;
+            }
+            
+            attempts++;
+            var tokenAvailable = capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '';
+            if(!tokenAvailable) {
+              // Check auth_settings again
+              var auth_settings = stashes.get_object('auth_settings', true) || {};
+              if(auth_settings.access_token && auth_settings.access_token !== 'none' && auth_settings.access_token !== '') {
+                if(capabilities) {
+                  capabilities.access_token = auth_settings.access_token;
+                  if(capabilities.sync_access_token) {
+                    capabilities.sync_access_token();
+                  }
+                }
+                tokenAvailable = true;
+              }
+            }
+            if(tokenAvailable) {
+              resolve();
+            } else if(attempts < maxAttempts) {
+              timeoutHandle = runLater(checkToken, 100);
+              _this.get('pendingTimeouts').push(timeoutHandle);
+            } else {
+              // Token not available after max attempts - reject instead of proceeding
+              reject(new Error('Token not available after maximum attempts'));
+            }
+          };
+          timeoutHandle = runLater(checkToken, 50);
+          _this.get('pendingTimeouts').push(timeoutHandle);
+        });
+      };
+      
+      ensureToken().then(function() {
+        // Check if component is destroyed
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        
+        // Sync token once - no need for multiple delayed calls
+        if(capabilities && capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+        
+        // Double-check token is available before making request
+        var token = capabilities && capabilities.access_token;
+        if(!token || token === 'none' || token === '') {
+          var auth_settings = stashes.get_object('auth_settings', true) || {};
+          token = auth_settings.access_token;
+          if(token && token !== 'none' && token !== '') {
+            if(capabilities) {
+              capabilities.access_token = token;
+              if(capabilities.sync_access_token) {
+                capabilities.sync_access_token();
+              }
+            }
+          }
+        }
+        
+        if(!token || token === 'none' || token === '') {
+          console.warn('[login-form.login_followup] No access token available, cannot fetch user preferences', {
+            has_capabilities: !!capabilities,
+            capabilities_token: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
+            auth_settings: stashes.get_object('auth_settings', true) ? 'exists' : 'missing'
+          });
+          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+          return;
+        }
+        
+        console.log('[login-form.login_followup] Token available, fetching user preferences', {
+          token_preview: token.substring(0, 10) + '...',
+          has_capabilities: !!capabilities,
+          capabilities_token_set: !!(capabilities && capabilities.access_token)
+        });
+        
+        LingoLinq.store.findRecord('user', 'self').then(function(u) {
+          // Check if component is destroyed
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
+          u.set('preferences.device.long_token', !!choice);
+          u.set('preferences.device.asserted', true);
+          u.save().then(function() {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
+            _this.send('login_success', true);
+          }, function(err) {
+            setErrorState(i18n.t('user_update_failed', "Updating login preferences failed"));
+          });
+        }, function(err) {
+          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed"));
+        });
+      }, function(error) {
+        // Handle token fetch failure
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        console.warn('[login-form.login_followup] Token ensure failed', error);
+        setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
       });
     },
     logout: function() {

@@ -103,9 +103,17 @@ export default Component.extend({
     var board_record = this.get('board_record');
     if(!board_record) { return false; }
     // Check if board_record has a key or id (indicating it's a valid board)
-    var hasKey = board_record.get && board_record.get('key') || board_record.key;
-    var hasId = board_record.get && board_record.get('id') || board_record.id;
+    // Explicitly check if get is a function before calling it to avoid operator precedence issues
+    var hasKey = (typeof board_record.get === 'function' && board_record.get('key')) || board_record.key;
+    var hasId = (typeof board_record.get === 'function' && board_record.get('id')) || board_record.id;
     return !!(hasKey || hasId);
+  }),
+  cursor_style: computed('isReady', function() {
+    if(this.get('isReady')) {
+      return htmlSafe('cursor: pointer;');
+    } else {
+      return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
+    }
   }),
   actions: {
     board_preview: function(board) {

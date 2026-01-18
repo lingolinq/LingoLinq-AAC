@@ -23,8 +23,8 @@ export default Component.extend({
         gridEvent('setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       } else if (gridEvent && typeof gridEvent === 'string') {
         // Fallback for string-based actions (legacy support)
-        // Use the gridEvent value as the action name, not a hard-coded 'grid_event'
-        this.sendAction(gridEvent, 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+        // Use the property name 'gridEvent' as the action name (Ember routes to the handler named by the string value)
+        this.sendAction('gridEvent', 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       }
     }
   },
@@ -49,11 +49,11 @@ export default Component.extend({
       }
     } else if (gridEvent && typeof gridEvent === 'string') {
       // Fallback for string-based actions (legacy support)
-      // Use the gridEvent value as the action name, not a hard-coded 'grid_event'
+      // Use the property name 'gridEvent' as the action name (Ember routes to the handler named by the string value)
       if($cell.length) {
-        this.sendAction(gridEvent, 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+        this.sendAction('gridEvent', 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       } else {
-        this.sendAction(gridEvent, 'hoverOffGrid');
+        this.sendAction('gridEvent', 'hoverOffGrid');
       }
     }
   }
