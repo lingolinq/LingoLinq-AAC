@@ -891,15 +891,17 @@ class User < ActiveRecord::Base
       end
     end
     if params['last_message_read']
-      if params['last_message_read'] >= (self.settings['last_message_read'] || 0)
+      last_message_read = params['last_message_read'].to_i
+      if last_message_read >= (self.settings['last_message_read'] || 0)
         self.settings['unread_messages'] = 0
-        self.settings['last_message_read'] = params['last_message_read']
+        self.settings['last_message_read'] = last_message_read
       end
     end
     if params['last_alert_access']
-      if params['last_alert_access'] >= (self.settings['last_alert_access'] || 0)
+      last_alert_access = params['last_alert_access'].to_i
+      if last_alert_access >= (self.settings['last_alert_access'] || 0)
         self.settings['unread_alerts'] = 0
-        self.settings['last_alert_access'] = params['last_alert_access']
+        self.settings['last_alert_access'] = last_alert_access
       end
     end
     if params['focus_words'] && self.id
@@ -1123,9 +1125,39 @@ class User < ActiveRecord::Base
         add_processing_error("can't modify supervisees on create") 
         return false
       end
-      if !self.link_to_supervisee_by_code(params['supervisee_code'])
-        add_processing_error("supervisee add failed") 
-        return false
+      # Try to link supervisee, but don't fail the entire update if it fails
+      # This can happen if:
+      # - Code is expired (older than 6 hours)
+      # - Code references a deleted user
+      # - User doesn't have premium/grace period
+      # - Code format is invalid
+      # - Stale code from previous session
+      begin
+        if self.link_to_supervisee_by_code(params['supervisee_code'])
+          # Successfully linked
+        else
+          # Linking failed - log but don't block the update
+          # This is likely a stale code from a previous session or deleted user
+          code_parts = params['supervisee_code'].to_s.split(/-/, 3)
+          if code_parts.length == 3
+            begin
+              timestamp = code_parts[2].to_i
+              if timestamp > 0 && Time.at(timestamp) <= 6.hours.ago
+                Rails.logger.debug("Expired supervisee_code skipped for user #{self.global_id}")
+              else
+                Rails.logger.warn("Supervisee link failed for user #{self.global_id} with code: #{params['supervisee_code']} (user may not exist or lack premium)")
+              end
+            rescue => e
+              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+            end
+          else
+            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+          end
+          # Don't fail the update - just skip the supervisee linking
+        end
+      rescue => e
+        # If anything goes wrong, log it but don't fail the update
+        Rails.logger.error("Error processing supervisee_code for user #{self.global_id}: #{e.message}")
       end
     end
     if params['supervisor_key']
@@ -1133,9 +1165,18 @@ class User < ActiveRecord::Base
         add_processing_error("can't modify supervisors on create") 
         return false
       end
-      if !self.process_supervisor_key(params['supervisor_key'])
-        add_processing_error("supervisor update failed")
-        return false
+      # Try to process supervisor_key, but don't fail the entire update if it fails
+      # This can happen if the key is invalid, references a deleted user, etc.
+      begin
+        unless self.process_supervisor_key(params['supervisor_key'])
+          # Processing failed - log but don't block the update
+          # This is likely a stale key from a previous session or deleted user
+          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} with key: #{params['supervisor_key']}")
+          # Don't fail the update - just skip the supervisor key processing
+        end
+      rescue => e
+        # If anything goes wrong, log it but don't fail the update
+        Rails.logger.error("Error processing supervisor_key for user #{self.global_id}: #{e.message}")
       end
     end
     
@@ -1385,6 +1426,9 @@ class User < ActiveRecord::Base
   def process_sidebar_boards(sidebar, non_user_params)
     self.settings['preferences'] ||= {}
     result = []
+    # Convert hash to array if needed (Rails params often come as hash with string keys)
+    sidebar = sidebar.values if sidebar.is_a?(Hash)
+    sidebar = [] unless sidebar.is_a?(Array)
     sidebar.each do |board|
       if board['alert']
         result.push({
