@@ -3570,6 +3570,24 @@ persistence.DSExtend = {
         var check_remote = function() {
           // if nothing found locally and system is online (and it's not a local-only id), make a remote request
           if(persistence.get('online') && !id.match(/^tmp[_\/]/) && !id.match(/^tmpimg_/)) {
+            // For 'self' user requests, check if we have a token before making the request
+            // This prevents 401 errors during app initialization when token isn't loaded yet
+            if(type.modelName === 'user' && id === 'self') {
+              var has_token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ||
+                              (LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token'));
+              if(!has_token) {
+                // No token available, skip remote request and use local data or reject
+                if(skip_db) {
+                  return find_reject({error: 'authentication required', unauthorized: true});
+                } else {
+                  if(local_data) {
+                    return local_processed(local_data);
+                  } else {
+                    return find_reject({error: 'authentication required', unauthorized: true});
+                  }
+                }
+              }
+            }
             if(!persistence.get('syncing')) {
               persistence.remember_access('find', type.modelName, id);
             }
@@ -3586,6 +3604,16 @@ persistence.DSExtend = {
                 local_fallback = true;
               } else if(err && err.fakeXHR && err.fakeXHR.status && err.fakeXHR.status.toString().substring(0, 1) == '5') {
                 // for other 500 errors, allow local results as a fallback
+                local_fallback = true;
+              } else if(err && err.fakeXHR && err.fakeXHR.status === 401) {
+                // for 401 Unauthorized errors, allow local results as a fallback
+                // This handles cases where the request is made before authentication is complete
+                local_fallback = true;
+              } else if(err && err.errors && err.errors[0] && err.errors[0].status === 401) {
+                // for 401 errors in Ember Data format, allow local results as a fallback
+                local_fallback = true;
+              } else if(err && err.errors && err.errors[0] && err.errors[0].unauthorized) {
+                // for unauthorized errors, allow local results as a fallback
                 local_fallback = true;
               } else {
                 // any other exceptions?
