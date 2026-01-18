@@ -3,6 +3,10 @@ class Api::UsersController < ApplicationController
 
   before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
   def show
+    # If requesting 'self' but no authenticated user, return 401 instead of 404
+    if params['id'] == 'self' && !@api_user
+      return api_error 401, {error: "Authentication required to access current user", unauthorized: true}
+    end
     user = User.find_by_path(params['id'])
     user_device = (user && @api_user && @api_user.global_id == user.global_id) && Device.find_by_global_id(@api_device_id)
     allowed = false
