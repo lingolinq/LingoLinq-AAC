@@ -27,7 +27,7 @@ import { inject as service } from '@ember/service';
 export default Route.extend({
   appState: service('app-state'),
   modal: service(),
-  setupController: function(controller) {
+  setupController: function (controller) {
     this.appState.setup_controller(this, controller);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
@@ -36,14 +36,14 @@ export default Route.extend({
   init() {
     this._super(...arguments);
     this.router.on('routeWillChange', transition => {
-      var params_list = function(elem) {
+      var params_list = function (elem) {
         var res = [];
-        if(elem && elem.paramNames && elem.paramNames.length > 0) {
-          elem.paramNames.forEach(function(p) {
+        if (elem && elem.paramNames && elem.paramNames.length > 0) {
+          elem.paramNames.forEach(function (p) {
             res.push(elem.params[p]);
           });
         }
-        if(elem && elem.parent) {
+        if (elem && elem.parent) {
           res = res.concat(params_list(elem.parent));
         }
         return res;
@@ -78,35 +78,35 @@ export default Route.extend({
       // console.log(`To QPs: ${JSON.stringify(toRouteInfo.queryParams)}`);
       // console.log(`To Params: ${JSON.stringify(toRouteInfo.params)}`);
       // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
-    });    
+    });
   },
   actions: {
-    willTransition: function(transition) {
-//      this.appState.global_transition(transition);
+    willTransition: function (transition) {
+      //      this.appState.global_transition(transition);
     },
-    didTransition: function() {
+    didTransition: function () {
       this.appState.finish_global_transition();
-      runLater(function() {
-        speecher.load_beep().then(null, function() { });
+      runLater(function () {
+        speecher.load_beep().then(null, function () { });
       }, 100);
     },
-    speakOptions: function() {
-      var last_closed = modal.get('speak_menu_last_closed');
-      if(last_closed && last_closed > Date.now() - 500) {
+    speakOptions: function () {
+      var last_closed = this.modal.get('speak_menu_last_closed');
+      if (last_closed && last_closed > Date.now() - 500) {
         return;
       }
-      this.modal.open('speak-menu', {inactivity_timeout: true, scannable: true});
+      this.modal.open('speak-menu', { inactivity_timeout: true, scannable: true });
     },
-    newBoard: function() {
-      this.appState.check_for_needing_purchase().then(function() {
+    newBoard: function () {
+      this.appState.check_for_needing_purchase().then(function () {
         this.modal.open('new-board');
       });
     },
-    pickWhichHome: function() {
+    pickWhichHome: function () {
       this.modal.open('which-home');
     },
-    confirmDeleteBoard: function() {
-      this.modal.open('confirm-delete-board', {board: this.get('controller.board.model'), redirect: true});
+    confirmDeleteBoard: function () {
+      this.modal.open('confirm-delete-board', { board: this.get('controller.board.model'), redirect: true });
     }
   }
 });

@@ -12,23 +12,23 @@ import { inject as service } from '@ember/service';
 export default modal.ModalController.extend({
   modal: service(),
 
-  opening: function() {
+  opening: function () {
     this.set('status', null);
-    if(!this.get('model.user.board_tags')) {
+    if (!this.get('model.user.board_tags')) {
       this.get('model.user').reload();
     }
   },
   actions: {
-    update: function() {
+    update: function () {
       var downstream = !!this.get('downstream');
       var _this = this;
-      _this.set('status', {loading: true});
-      _this.get('model.user').tag_board(_this.get('model.board'), this.get('tag'), false, downstream).then(function() {
+      _this.set('status', { loading: true });
+      _this.get('model.user').tag_board(_this.get('model.board'), this.get('tag'), false, downstream).then(function () {
         _this.set('status', null);
         this.modal.close();
-        modal.success(i18n.t('categorization_complete', "Board Categorization Complete"));
-      }, function() {
-        _this.set('status', {error: true});
+        this.modal.success(i18n.t('categorization_complete', "Board Categorization Complete"));
+      }, function () {
+        _this.set('status', { error: true });
       });
     }
   }

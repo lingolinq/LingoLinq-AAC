@@ -31,7 +31,7 @@ gem 'pg' #, '0.19.0' #, '>=1.1.3'
 gem 'sass-rails'
 gem 'sprockets-rails', '~> 3.4.2'
 gem 'uglifier', '>= 1.3.0'
-gem 'mimemagic', '0.4.3'
+gem 'marcel' # Modern MIME type detection (replaces mimemagic for Windows compatibility)
 
 gem 'typhoeus'
 gem 'coffee-rails'

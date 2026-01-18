@@ -10,7 +10,7 @@ export default modal.ModalController.extend({
   persistence: service(),
   modal: service(),
 
-  opening: function() {
+  opening: function () {
     this.set('pending', null);
     this.set('error', null);
   },
@@ -22,26 +22,26 @@ export default modal.ModalController.extend({
       data: {
         approve: approve
       }
-    }).then(function(data) {
+    }).then(function (data) {
       _this.get('model.board').reload_including_all_downstream();
       this.appState.get('currentUser').reload();
       this.modal.close('approve-board-share');
-      if(approve) {
-        modal.success(i18n.t('board_share_approved', "Board share successfully approved"));
+      if (approve) {
+        this.modal.success(i18n.t('board_share_approved', "Board share successfully approved"));
       } else {
-        modal.success(i18n.t('board_share_rejected', "Board share successfully rejected"));
+        this.modal.success(i18n.t('board_share_rejected', "Board share successfully rejected"));
       }
-    }, function() {
+    }, function () {
       _this.set('pending', false);
       _this.set('error', true);
     });
-//    reload_including_all_downstream
+    //    reload_including_all_downstream
   },
   actions: {
-    approve: function() {
+    approve: function () {
       this.approve_or_reject(true);
     },
-    reject: function() {
+    reject: function () {
       this.approve_or_reject(false);
     }
   }

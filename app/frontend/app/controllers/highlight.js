@@ -1,8 +1,8 @@
 import {
-import modal from '../utils/modal';
   debounce as runDebounce,
   later as runLater
 } from '@ember/runloop';
+import modal from '../utils/modal';
 import $ from 'jquery';
 import app_state from '../utils/app_state';
 import scanner from '../utils/scanner';

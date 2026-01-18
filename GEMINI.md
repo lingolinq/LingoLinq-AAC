@@ -16,32 +16,39 @@ Key characteristics:
 
 ## ⚠️ CRITICAL: Node Version Management
 
-**IMPORTANT: Gemini CLI requires Node 20 but Ember frontend requires Node 18!**
+**IMPORTANT: This project uses Node 20 by default, with Node 18 for Ember frontend!**
 
-**This project uses TWO different Node versions:**
+**Node version strategy:**
 
-- **Node 20**: Root directory - **REQUIRED for Gemini CLI** (you will crash with Node 18!)
+- **Node 20**: Root directory (default) - **REQUIRED for Gemini CLI** (you will crash with Node 18!)
 - **Node 18**: `app/frontend` directory - **REQUIRED for Ember 3.16** (do NOT use Node 20!)
 
-**Before suggesting ANY Node/NPM command, ALWAYS specify the correct version:**
+**Auto-switching via .nvmrc files:**
+
+- Root `.nvmrc` contains `20` (default for Gemini CLI and general development)
+- `app/frontend/.nvmrc` contains `18` (auto-switches when you `cd app/frontend`)
+
+**Usage:**
 
 ```bash
-# For Gemini CLI commands (Node 20 required)
-nvm use 20 && gemini <command>
+# In root directory - Node 20 is active (for Gemini CLI)
+nvm use  # Uses root .nvmrc (Node 20)
 
-# For root directory npm commands
-nvm use 20 && npm <command>
+# When working with Ember frontend
+cd app/frontend
+nvm use  # Auto-switches to Node 18 via app/frontend/.nvmrc
+npm install
+ember serve
 
-# For Ember frontend commands (Node 18 required)
-cd app/frontend && nvm use 18 && npm <command>
+# Return to root
+cd ../..
+nvm use  # Back to Node 20
 ```
-
-**Auto-switching is configured** via `.nvmrc` files, but always verify with `node -v` before running commands.
 
 **Critical mistakes to avoid:**
 - ❌ Running Gemini CLI with Node 18 (crashes: "SyntaxError: Invalid regular expression flags")
 - ❌ Running frontend npm commands with Node 20 (subtle breakage)
-- ✅ ALWAYS prefix commands with correct `nvm use` version
+- ✅ Use `nvm use` when changing directories to auto-switch based on .nvmrc files
 
 See `node-version-guide.md` for complete reference.
 
