@@ -55,3 +55,5 @@ PHASE3_STATUS_REVIEW.md
 public/.well-known/appspecific/com.chrome.devtools.json
 FRONTEND_DEPRECATIONS_PLAN.md
 SYNC_CODE_REVIEW.md
+BOARD_CREATION_FLOW.md
+MODAL_REFACTOR_STATUS.md
