@@ -2,7 +2,6 @@ import { later as runLater } from '@ember/runloop';
 import modal from '../utils/modal';
 import { inject as service } from '@ember/service';
 import $ from 'jquery';
-import stashes from '../utils/_stashes';
 import app_state from '../utils/app_state';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
@@ -79,13 +78,13 @@ export default modal.ModalController.extend({
           var list = (this.stashes.get('remembered_vocalizations') || []).filter(function (v) { return !v.stash && v.sentence != button.sentence; });
           this.stashes.persist('remembered_vocalizations', list);
           if (existing.length > 0 && !already_there) {
-            stashes.remember({ override: existing, stash: true });
+            this.stashes.remember({ override: existing, stash: true });
           }
         } else {
           // If there is nothing in the held thought,
           // but there is a working vocalization, stash it
           if (existing.length > 0 && !(this.stashes.get('remembered_vocalizations') || []).find(function (v) { return v.stash; })) {
-            stashes.remember({ override: existing, stash: true });
+            this.stashes.remember({ override: existing, stash: true });
           }
           app_state.set_and_say_buttons(button.vocalizations);
         }
@@ -160,7 +159,7 @@ export default modal.ModalController.extend({
           click();
           this.modal.open('modals/gif');
         } else if (button == 'menu_hold_thought_button') {
-          stashes.remember({ stash: true });
+          this.stashes.remember({ stash: true });
           utterance.clear();
           click();
         } else if (button == 'menu_phrases_button') {

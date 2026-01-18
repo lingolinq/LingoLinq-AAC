@@ -1,6 +1,4 @@
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
-import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -42,7 +40,7 @@ export default modal.ModalController.extend({
           _this.set('cookies', !!this.appState.get('sessionUser.preferences.cookies'));
         }, function () { });
       } else {
-        app_state.toggle_cookies(localStorage['enable_cookies'] != 'true');
+        this.appState.toggle_cookies(localStorage['enable_cookies'] != 'true');
         this.set('cookies', localStorage['enable_cookies'] == 'true');
       }
     },
