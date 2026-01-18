@@ -862,7 +862,7 @@ export default Controller.extend({
     'app_state.currentUser.preferences.device.button_spacing',
     'app_state.window_inner_width',
     function() {
-      var spacing = app_state.get('currentUser.preferences.device.button_spacing') || window.user_preferences.device.button_spacing;
+      var spacing = app_state.get('currentUser.preferences.device.button_spacing') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_spacing);
       if(spacing == 'none') {
         return 0;
       } else if(spacing == 'minimal' || app_state.get('window_inner_width') < 600) {
@@ -884,7 +884,7 @@ export default Controller.extend({
     'app_state.currentUser.preferences.device.button_border',
     'window_inner_width',
     function() {
-      var spacing = app_state.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
+      var spacing = app_state.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
       if(spacing == "none") {
         return 0;
       } else if(app_state.get('window_inner_width') < 600) {
@@ -903,8 +903,8 @@ export default Controller.extend({
   base_text_height: computed(
     'app_state.currentUser.preferences.device.button_text',
     function() {
-      var text = app_state.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
-      var position = app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
+      var text = app_state.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = app_state.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(text == "small") {
         return 14;
       } else if(text == "none" || position == "none") {
@@ -922,7 +922,7 @@ export default Controller.extend({
     'app_state.currentUser.preferences.device.button_text',
     'app_state.currentUser.preferences.device.button_text_position',
     function() {
-      var size = app_state.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
+      var size = app_state.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
       if(app_state.get('currentUser.preferences.device.button_text_position') == 'none') {
         size = 'none';
       }
@@ -943,7 +943,7 @@ export default Controller.extend({
       if(this.get('model.text_only')) {
         return 'text_position_text_only';
       }
-      return "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
+      return "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position));
     }
   ),
   symbol_background: computed('app_state.currentUser.preferences.symbol_background', function() {
@@ -958,7 +958,7 @@ export default Controller.extend({
     return "symbol_background_" + bg;
   }),
   border_style: computed('app_state.currentUser.preferences.device.button_border', function() {
-    var spacing = app_state.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
+    var spacing = app_state.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
     return "border_" + spacing;
   }),
   button_style: computed('app_state.currentUser.preferences.device.button_style', function() {

@@ -558,6 +558,11 @@ export default Component.extend({
     set_index_nav: function(nav) {
       if(nav == 'main' || nav == 'supervisees') {
         var u = app_state.get('currentUser');
+        // Ensure preferences and preferences.device exist before setting nested value
+        var preferences = u.get('preferences') || {};
+        var device = preferences.device || {};
+        u.set('preferences', preferences);
+        u.set('preferences.device', device);
         u.set('preferences.device.last_index_nav', nav);
         u.save().then(null, function() { });
       } else if(nav == 'updates') {

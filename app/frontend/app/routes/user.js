@@ -17,6 +17,10 @@ export default Route.extend({
       return RSVP.reject({status: 404, reserved_path: true});
     }
     
+    // Note: When requesting user 'example', the API may return the current user (id 'self')
+    // instead of the 'example' user, causing an Ember Data warning. This is a backend
+    // behavior (possibly due to permissions or routing) and the warning is informational.
+    // The functionality works correctly - see PHASE2_STATUS.md for more details.
     var obj = this.store.findRecord('user', params.user_id);
     var _this = this;
     return obj.then(function(data) {

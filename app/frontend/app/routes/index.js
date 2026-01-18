@@ -51,8 +51,27 @@ export default Route.extend({
     }
 
     if(model && model.get('eval_ended')) { jump_to_speak = false; }
+    // Only check terms_agree if user data is fresh (from server), not from stale local storage
+    // This prevents showing the modal when data is incomplete due to API errors (like 401)
     if(model && model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
-      modal.open('terms-agree');
+      // If data is not fresh, try to reload first before showing modal
+      if(!model.get('really_fresh') && persistence.get('online')) {
+        var _this = this;
+        model.reload().then(function() {
+          // After successful reload, check again if terms_agree is still missing
+          if(model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
+            modal.open('terms-agree');
+          }
+        }, function(err) {
+          // If reload fails (e.g., 401 error), don't show modal
+          // We can't be sure the data is complete, so don't assume terms_agree is missing
+          // The modal will show on next successful load if terms_agree is actually false
+        });
+      } else if(model.get('really_fresh')) {
+        // Data is fresh from server, safe to check terms_agree
+        modal.open('terms-agree');
+      }
+      // If data is not fresh and we're offline, don't show modal (can't verify)
     } else {
       if(stashes.get('current_mode') == 'edit') {
         stashes.persist('current_mode', 'default');

@@ -12,6 +12,11 @@ export default Route.extend({
     var user = app_state.get('currentUser');
     app_state.set('show_intro', false);
     if(user && !user.get('preferences.progress.intro_watched')) {
+      // Ensure preferences and preferences.progress exist before setting a value on it
+      var preferences = user.get('preferences') || {};
+      var progress = preferences.progress || {};
+      user.set('preferences', preferences);
+      user.set('preferences.progress', progress);
       user.set('preferences.progress.intro_watched', true);
       user.save().then(null, function() { });
     }

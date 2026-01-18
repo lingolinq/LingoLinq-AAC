@@ -675,6 +675,10 @@ var i18n = EmberObject.extend({
     if(window.persistence) {
       var path = "/api/v1/lang/" + encodeURIComponent(lang);
       var handle_result = function(res) {
+        if(!res) {
+          i18n.lang_overrides[lang] = false;
+          return;
+        }
         var loc = res._locale || lang;
         i18n.lang_overrides[loc] = {
           rules: res.rules,

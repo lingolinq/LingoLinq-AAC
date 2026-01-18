@@ -1368,7 +1368,12 @@ var app_state = EmberObject.extend({
       // TODO: this won't get the device-specific settings correctly unless
       // device_key matches across the users
       var _this = this;
-
+      
+      // Note: board_user_id can be either a username (e.g., 'example') or a global ID (e.g., '1_123')
+      // The backend's find_by_path treats non-numeric strings as usernames.
+      // Using global IDs would avoid ambiguity, but we often only have the username from board keys.
+      // If the API returns a different user than requested (e.g., 'self' instead of 'example'),
+      // Ember Data will warn about the ID mismatch. This is a backend behavior issue.
       LingoLinq.store.findRecord('user', board_user_id).then(function(u) {
         var data = RSVP.resolve(u);
         if(!u.get('preferences') || (!u.get('fresh') && stashes.get('online'))) {
