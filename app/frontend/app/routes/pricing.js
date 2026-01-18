@@ -1,14 +1,15 @@
 import Subscription from '../utils/subscription';
-import this.persistence.from '../utils/this.persistence.;
+import app_state from '../utils/app_state';
+import persistence from '../utils/persistence';
 import CoughDrop from '../app';
 
-export default this.appState.ScrollTopRoute.extend({
+export default app_state.ScrollTopRoute.extend({
   setupController: function(controller, model) {
-    if(this.appState.get('no_linky')) {
+    if(app_state.get('no_linky')) {
       controller.transitionToRoute('limited');
       return;
     }
-    if(!this.appState.get('domain_settings.full_domain')) {
+    if(!app_state.get('domain_settings.full_domain')) {
       controller.transitionToRoute('index');
       return;
     }
@@ -16,7 +17,7 @@ export default this.appState.ScrollTopRoute.extend({
     controller.set('subscription', Subscription.create());
 
     var url = '/api/v1/token_check?access_token=none';
-    this.persistence.ajax(url, {
+    persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
       if(data.sale !== undefined) {

@@ -1,6 +1,5 @@
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
-import this.persistence.from '../utils/this.persistence.;
+import persistence from '../utils/persistence';
 
 export default Route.extend({
   setupController: function(controller, model) {
