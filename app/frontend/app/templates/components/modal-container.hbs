@@ -1,0 +1,15 @@
+{{#if this.isOpen}}
+  {{! Render modal component based on current template }}
+  {{! For now, we support both component-based modals (converted) and template-based (via outlets) }}
+  {{! Component-based modals are rendered here, template-based modals still use outlets }}
+  {{#if (is-equal this.currentTemplate "about-lingolinq")}}
+    {{about-lingolinq}}
+  {{else if (is-equal this.currentTemplate "supervision-settings")}}
+    {{supervision-settings}}
+  {{else if (is-equal this.currentTemplate "new-board")}}
+    {{new-board}}
+  {{else}}
+    {{! Other modals still use outlet-based rendering during migration }}
+    {{! This will be expanded as more modals are converted to components }}
+  {{/if}}
+{{/if}}

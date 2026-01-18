@@ -20,6 +20,11 @@ export default Component.extend({
     this.set('auto_close', !!modal.auto_close);
     if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
       modal.component = this;
+      // Also set component in service if available
+      var service = modal._getService();
+      if (service) {
+        service.setComponent(this);
+      }
     }
     var height = $(window).height() - 50;
     $(this.get('element')).find(".modal-content").css('maxHeight', height).css('overflow', 'auto');
