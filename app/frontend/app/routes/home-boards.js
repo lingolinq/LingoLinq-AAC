@@ -1,17 +1,17 @@
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
-import persistence from '../utils/persistence';
-import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service('store'),
+  persistence: service('persistence'),
+  appState: service('app-state'),
   setupController: function(controller) {
     var _this = this;
-    app_state.controller.set('simple_board_header', true);
+    _this.appState.controller.set('simple_board_header', true);
     function loadBoards() {
-      if(persistence.get('online')) {
+      if(_this.persistence.get('online')) {
         controller.set('home_boards', {loading: true});
         _this.store.query('board', {user_id: 'self', starred: true, public: true}).then(function(boards) {
           controller.set('home_boards', boards);
@@ -19,7 +19,7 @@ export default Route.extend({
           controller.set('home_boards', null);
         });
         controller.set('core_vocabulary', {loading: true});
-        _this.store.query('board', {user_id: app_state.get('currentUser.id') || 'self', starred: true, public: true, per_page: 6}).then(function(boards) {
+        _this.store.query('board', {user_id: _this.appState.get('currentUser.id') || 'self', starred: true, public: true, per_page: 6}).then(function(boards) {
           controller.set('core_vocabulary', boards);
         }, function() {
           controller.set('core_vocabulary', null);
@@ -44,7 +44,7 @@ export default Route.extend({
       }
     }
 //     loadBoards();
-//     persistence.addObserver('online', function() {
+//     _this.persistence.addObserver('online', function() {
 //       loadBoards();
 //     });
   }

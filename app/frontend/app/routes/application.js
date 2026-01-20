@@ -1,10 +1,10 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
-import app_state from '../utils/app_state';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 
 // ApplicationRouteMixin.reopen({
 //   actions: {
@@ -27,14 +27,27 @@ import { inject as service } from '@ember/service';
 //   }
 // });
 export default Route.extend({
+  router: service(),
+  appState: service('app-state'),
   setupController: function(controller) {
-    app_state.setup_controller(this, controller);
+    this.appState.setup_controller(this, controller);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },
-  router: service(),
   init() {
     this._super(...arguments);
+    // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
+    var owner = getOwner(this);
+    var sessionService = owner.lookup('lingolinq:session');
+    if(sessionService) {
+      // Use defineProperty to set it without triggering read-only error
+      Object.defineProperty(this, 'session', {
+        value: sessionService,
+        writable: false,
+        configurable: true
+      });
+    }
+    var _this = this;
     this.router.on('routeWillChange', transition => {
       var params_list = function(elem) {
         var res = [];
@@ -49,7 +62,7 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
-      app_state.global_transition({
+      _this.appState.global_transition({
         aborted: transition.isAborted,
         source: transition,
         from_route: (transition.from || {}).name,
@@ -82,10 +95,10 @@ export default Route.extend({
   },
   actions: {
     willTransition: function(transition) {
-//      app_state.global_transition(transition);
+//      this.appState.global_transition(transition);
     },
     didTransition: function() {
-      app_state.finish_global_transition();
+      this.appState.finish_global_transition();
       runLater(function() {
         speecher.load_beep().then(null, function() { });
       }, 100);
@@ -98,7 +111,8 @@ export default Route.extend({
       modal.open('speak-menu', {inactivity_timeout: true, scannable: true});
     },
     newBoard: function() {
-      app_state.check_for_needing_purchase().then(function() {
+      var _this = this;
+      this.appState.check_for_needing_purchase().then(function() {
         modal.open('new-board');
       });
     },

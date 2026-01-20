@@ -3,9 +3,7 @@ import RSVP from 'rsvp';
 import { set as emberSet } from '@ember/object';
 import editManager from '../utils/edit_manager';
 import obf from '../utils/obf';
-import stashes from '../utils/_stashes';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import session from '../utils/session';
@@ -14,7 +12,10 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service('store'),
+  stashes: service('stashes'),
+  appState: service('app-state'),
   model: function(params) {
+    var _this = this;
     // TODO: when on the home screen if you have a large board and hit to open
     // it, it takes a while to change views. This does not, however, happen
     // if you hit the same board in the 'popular boards' list since those
@@ -25,10 +26,10 @@ export default Route.extend({
       var id = parts[1];
       parts = id.split(/:/);
       var integration_id = parts.shift();
-      if(app_state.get('sessionUser.global_integrations.' + integration_id)) {
-        integration_id = app_state.get('sessionUser.global_integrations.' + integration_id);
-      } else if(stashes.get('global_integrations.' + integration_id)) {
-        integration_id = stashes.get('global_integrations.' + integration_id);
+      if(_this.appState.get('sessionUser.global_integrations.' + integration_id)) {
+        integration_id = _this.appState.get('sessionUser.global_integrations.' + integration_id);
+      } else if(_this.stashes.get('global_integrations.' + integration_id)) {
+        integration_id = _this.stashes.get('global_integrations.' + integration_id);
       }
       var action = parts.join(':');
       var obj = LingoLinq.store.createRecord('board');
@@ -42,8 +43,8 @@ export default Route.extend({
         }
         return reload.then(function(tool) {
           var user_token = tool.get('user_token');
-          if(user_token && app_state.get('currentUser.id') != app_state.get('sessionUser.id')) {
-            user_token = user_token + ":as_user_id=" + app_state.get('currentUser.id');
+          if(user_token && _this.appState.get('currentUser.id') != _this.appState.get('sessionUser.id')) {
+            user_token = user_token + ":as_user_id=" + _this.appState.get('currentUser.id');
           }
           obj.set('embed_url', tool.get('render_url'));
           obj.set('integration_name', tool.get('name') || i18n.t('external_integration', "External Integration"));
@@ -58,11 +59,11 @@ export default Route.extend({
       });
     } else if(params.key.match(/^obf\//)) {
       var wait_for_user = RSVP.resolve();
-      if(session.get('access_token') && !app_state.get('currentUser')) {
+      if(session.get('access_token') && !_this.appState.get('currentUser')) {
         wait_for_user = new RSVP.Promise(function(res, rej) {
           var trying = function() {
             trying.tries = (trying.tries || 0) + 1;
-            if(app_state.get('currentUser') || trying.tries > 3) {
+            if(_this.appState.get('currentUser') || trying.tries > 3) {
               res();
             } else {
               runLater(trying, 500);
@@ -75,13 +76,12 @@ export default Route.extend({
         return obf.lookup(params.key.split(/\//)[1]);
       });
     } else {
-      var _this = this;
       var find_board = function(allow_retry) {
         var key = params.key;
-        if(app_state.get('referenced_user.preferences.home_board.key') == key) {
-          key = app_state.get('referenced_user.preferences.home_board.id') || params.key;
-        } else if(app_state.get('referenced_board.key') == key) {
-          key = app_state.get('referenced_board.id') || params.key;
+        if(_this.appState.get('referenced_user.preferences.home_board.key') == key) {
+          key = _this.appState.get('referenced_user.preferences.home_board.id') || params.key;
+        } else if(_this.appState.get('referenced_board.key') == key) {
+          key = _this.appState.get('referenced_board.id') || params.key;
         }
         var obj = _this.store.findRecord('board', key);
         return obj.then(function(data) {

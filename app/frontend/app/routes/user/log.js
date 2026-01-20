@@ -1,10 +1,10 @@
 import Route from '@ember/routing/route';
 import i18n from '../../utils/i18n';
-import app_state from '../../utils/app_state';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service('store'),
+  appState: service('app-state'),
   model: function(params) {
     var user = this.modelFor('user');
     if(user) {
@@ -14,8 +14,8 @@ export default Route.extend({
       var log = this.store.createRecord('log', {});
       log.set('type', 'eval');
       log.set('author', {
-        id: app_state.get('sessionUser.id'),
-        user_name: app_state.get('sessionUser.user_name')
+        id: this.appState.get('sessionUser.id'),
+        user_name: this.appState.get('sessionUser.user_name')
       });
       log.set('eval_in_memory', true);
       return log;
@@ -24,8 +24,8 @@ export default Route.extend({
       log.set('type', 'profile');
       log.set('user_id', user.get('id'));
       log.set('author', {
-        id: app_state.get('sessionUser.id'),
-        user_name: app_state.get('sessionUser.user_name')
+        id: this.appState.get('sessionUser.id'),
+        user_name: this.appState.get('sessionUser.user_name')
       });
       log.set('guid', params.log_id.replace(/^profile-/, ''));
       log.set('eval_in_memory', true);

@@ -1,11 +1,11 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
-import persistence from '../utils/persistence';
 import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service('store'),
+  persistence: service('persistence'),
   model: function(params) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque) would otherwise be caught by the
@@ -24,7 +24,7 @@ export default Route.extend({
     var obj = this.store.findRecord('user', params.user_id);
     var _this = this;
     return obj.then(function(data) {
-      if(!data.get('really_fresh') && persistence.get('online')) {
+      if(!data.get('really_fresh') && _this.persistence.get('online')) {
         runLater(function() {data.reload();});
       }
       return data;
