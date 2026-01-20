@@ -1,5 +1,7 @@
 import Ember from 'ember';
 import Route from '@ember/routing/route';
+import Service from '@ember/service';
+import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
 import {
   set as emberSet,
@@ -13,27 +15,27 @@ import {
 } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
-import stashes from './_stashes';
-import boundClasses from './bound_classes';
-import utterance from './utterance';
-import modal from './modal';
+// stashes now injected as service
+// persistence now injected as service
+import boundClasses from '../utils/bound_classes';
+import utterance from '../utils/utterance';
+import modal from '../utils/modal';
 import LingoLinq from '../app';
-import contentGrabbers from './content_grabbers';
-import editManager from './edit_manager';
-import buttonTracker from './raw_events';
-import capabilities from './capabilities';
-import scanner from './scanner';
-import session from './session';
-import speecher from './speecher';
-import geolocation from './geo';
-import i18n from './i18n';
-import frame_listener from './frame_listener';
-import Button from './button';
+import contentGrabbers from '../utils/content_grabbers';
+import editManager from '../utils/edit_manager';
+import buttonTracker from '../utils/raw_events';
+import capabilities from '../utils/capabilities';
+import scanner from '../utils/scanner';
+import session from '../utils/session';
+import speecher from '../utils/speecher';
+import geolocation from '../utils/geo';
+import i18n from '../utils/i18n';
+import frame_listener from '../utils/frame_listener';
+import Button from '../utils/button';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import sync from './sync';
-import persistence from './persistence';
+import sync from '../utils/sync';
 
 // tracks:
 // current mode (edit mode, speak mode, default)
@@ -43,19 +45,131 @@ import persistence from './persistence';
 // who we're acting as for speak mode
 // whether logging is temporarily disabled
 // "back button" history
-var app_state = EmberObject.extend({
-  setup: function(application) {
-    // Register as singleton for injection
-    application.register('lingolinq:app_state', app_state, { instantiate: false, singleton: true });
-    // Implicit injection is deprecated in Ember 3.28, but keep for backward compatibility
-    // Components should use explicit injection via inject() pointing to the legacy registration
-    $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-      application.inject(component, 'app_state', 'lingolinq:app_state');
-    });
+export default Service.extend({
+  stashes: service('stashes'),
+  persistence: service('persistence'),
+  init() {
+    // CRITICAL: Fix stashes injection BEFORE calling _super() to prevent errors
+    // If this.stashes is a class (not an instance), use window.stashes or lookup the service
+    if(this.stashes && typeof this.stashes.create === 'function') {
+      // this.stashes is a class, not an instance - fix it before _super() is called
+      console.warn('[APP-STATE INIT] WARNING: this.stashes is a class, not an instance. Fixing before _super()...');
+      // Try to get the instance from the owner first (but don't use this.get() before _super())
+      try {
+        var owner = (this.constructor && this.constructor.owner) || (this.owner);
+        if(owner && typeof owner.lookup === 'function') {
+          var stashesService = owner.lookup('service:stashes');
+          if(stashesService && typeof stashesService.get === 'function') {
+            console.log('[APP-STATE INIT] Found stashes service via owner.lookup (before _super)');
+            this.stashes = stashesService;
+          }
+        }
+      } catch(e) {
+        console.warn('[APP-STATE INIT] Error looking up stashes service (before _super):', e);
+      }
+      // Fallback to window.stashes if owner lookup didn't work
+      if(!this.stashes || typeof this.stashes.get !== 'function') {
+        if(window.stashes && typeof window.stashes.get === 'function') {
+          console.log('[APP-STATE INIT] Using window.stashes as fallback (before _super)');
+          this.stashes = window.stashes;
+        } else {
+          console.warn('[APP-STATE INIT] WARNING: stashes service not available, setting to null to prevent errors');
+          this.stashes = null;
+        }
+      }
+    }
+    
+    this._super(...arguments);
+    
+    // Fix stashes injection again after _super() in case it got reset
+    if(this.stashes && typeof this.stashes.create === 'function') {
+      // this.stashes is still a class, not an instance - fix it after _super()
+      console.warn('[APP-STATE INIT] WARNING: this.stashes is still a class after _super(). Fixing...');
+      try {
+        var owner = this.get('owner') || (this.constructor && this.constructor.owner);
+        if(owner && typeof owner.lookup === 'function') {
+          var stashesService = owner.lookup('service:stashes');
+          if(stashesService && typeof stashesService.get === 'function') {
+            console.log('[APP-STATE INIT] Found stashes service via owner.lookup (after _super)');
+            this.stashes = stashesService;
+          }
+        }
+      } catch(e) {
+        console.warn('[APP-STATE INIT] Error looking up stashes service (after _super):', e);
+      }
+      // Fallback to window.stashes if owner lookup didn't work
+      if(!this.stashes || typeof this.stashes.get !== 'function') {
+        if(window.stashes && typeof window.stashes.get === 'function') {
+          console.log('[APP-STATE INIT] Using window.stashes as fallback (after _super)');
+          this.stashes = window.stashes;
+        } else {
+          console.warn('[APP-STATE INIT] WARNING: stashes service not available, setting to null to prevent errors');
+          this.stashes = null;
+        }
+      }
+    }
+    
+    this.setup();
+    // Defer refresh timers to ensure all services are initialized
+    // This prevents errors if window.persistence isn't ready yet
+    var _this = this;
+    runLater(function() {
+      _this._setupRefreshTimers();
+    }, 0);
+  },
+
+  setup: function() {
+    // CRITICAL: Fix stashes injection FIRST, before any code that uses it
+    // This prevents "Cannot read properties of undefined (reading 'get')" errors
+    if(this.stashes && typeof this.stashes.create === 'function') {
+      // this.stashes is a class, not an instance - fix it immediately
+      try {
+        // Try window.stashes first (set by instance initializer)
+        if(window.stashes && typeof window.stashes.get === 'function') {
+          this.stashes = window.stashes;
+        } else {
+          // Try owner lookup
+          var owner = this.get('owner') || (this.constructor && this.constructor.owner);
+          if(owner && typeof owner.lookup === 'function') {
+            var stashesService = owner.lookup('service:stashes');
+            if(stashesService && typeof stashesService.get === 'function') {
+              this.stashes = stashesService;
+            }
+          }
+          // Final fallback: set to null to prevent errors
+          if(!this.stashes || typeof this.stashes.get !== 'function') {
+            this.stashes = null;
+          }
+        }
+      } catch(e) {
+        console.warn('[APP-STATE SETUP] Error fixing stashes injection:', e);
+        this.stashes = null;
+      }
+    }
+    
+    // Guard: ensure stashes is available before proceeding
+    if(!this.stashes || typeof this.stashes.set !== 'function') {
+      console.error('[APP-STATE SETUP] ERROR: stashes service not available! Cannot proceed with setup.');
+      console.error('[APP-STATE SETUP] this.stashes:', this.stashes);
+      console.error('[APP-STATE SETUP] window.stashes:', window.stashes);
+      // Try one more time to get stashes
+      if(window.stashes && typeof window.stashes.set === 'function') {
+        console.warn('[APP-STATE SETUP] Using window.stashes as emergency fallback');
+        this.stashes = window.stashes;
+      } else {
+        console.error('[APP-STATE SETUP] CRITICAL: Cannot proceed without stashes service!');
+        return; // Exit early to prevent errors
+      }
+    }
+    
+    var _this = this;
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
     this.set('button_list', []);
-    this.set('stashes', stashes);
+    // Defer stashes access until after service initialization is complete
+    runLater(function() {
+      _this.set('stashes', _this.stashes);
+    }, 0);
     this.set('geolocation', geolocation);
     this.set('installed_app', capabilities.installed_app);
     this.set('no_linky', capabilities.installed_app && capabilities.system == 'iOS');
@@ -103,7 +217,7 @@ var app_state = EmberObject.extend({
         }
         var maybe_sound = function(type, attempt) {
           attempt = attempt || 0;
-          if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.battery_sounds')) {
+          if(_this.get('speak_mode') && _this.get('currentUser.preferences.battery_sounds')) {
             if(speecher.speaking) {
               if(attempt < 5) {
                 runLater(function() {
@@ -116,7 +230,7 @@ var app_state = EmberObject.extend({
           }
         };
         if(battery.level <= 15 && !battery.charging) {
-          if(app_state.get('speak_mode')) {
+          if(_this.get('speak_mode')) {
             if(battery.level <= 4) {
               if(!warns.critical) {
                 warns.critical = true; warns.dangerous = true; warns.low = true;
@@ -139,7 +253,7 @@ var app_state = EmberObject.extend({
           _this.set('battery.progress_class', "progress-bar progress-bar-warning");
         } else {
           _this.set('battery.progress_class', "progress-bar progress-bar-success");
-          if(app_state.get('speak_mode')) {
+          if(_this.get('speak_mode')) {
             if(battery.charging && battery.level >= 85) {
               if(battery.level == 100) {
                 if(!fulls.complete) {
@@ -180,8 +294,9 @@ var app_state = EmberObject.extend({
     });
     capabilities.nfc.available().then(function(res) {
       if(res && res.background) {
+        var _this_service = _this;
         capabilities.nfc.listen('global', function(tag) {
-          app_state.handle_tag(tag);
+          _this_service.handle_tag(tag);
         }).then(null, function() {
         })
       }
@@ -197,16 +312,17 @@ var app_state = EmberObject.extend({
     this.set('sessionUser', null);
     this.set('speakModeUser', null);
     this.set('referenced_speak_mode_user', null);
-    stashes.set('current_mode', 'default');
-    stashes.set('root_board_state', null);
-    stashes.set('boardHistory', []);
-    stashes.set('browse_history', []);
+    this.stashes.set('current_mode', 'default');
+    this.stashes.set('root_board_state', null);
+    this.stashes.set('boardHistory', []);
+    this.stashes.set('browse_history', []);
     this.controller = null;
     this.route = null;
     modal.reset();
     boundClasses.clear();
   },
   setup_controller: function(route, controller) {
+    var _this = this;
     this.route = route;
     this.controller = controller;
     if(!session.get('isAuthenticated') && capabilities.mobile && capabilities.browserless) {
@@ -219,7 +335,7 @@ var app_state = EmberObject.extend({
     this.set('system', capabilities.system);
     contentGrabbers.boardGrabber.transitioner = route;
     LingoLinq.controller = controller;
-    stashes.controller = controller;
+    this.stashes.controller = controller;
     boundClasses.setup();
 //    controller.set('model', EmberObject.create());
     utterance.setup(controller);
@@ -236,69 +352,148 @@ var app_state = EmberObject.extend({
 
         find.then(function(user) {
           console.log("user initialization working..");
+          console.log('[APP-STATE] find_user: IMMEDIATELY after user initialization log');
+          try {
+            console.log('[APP-STATE] find_user: user found', {
+              has_user: !!user,
+              user_type: typeof user,
+              user_constructor: user ? user.constructor.name : 'no user',
+              has_get: user && typeof user.get === 'function',
+              user_id: user && user.get ? user.get('id') : 'no get method',
+              session_user_id: session.get('user_id'),
+              session_as_user_id: session.get('as_user_id')
+            });
+            
+            // CRITICAL FIX: Set sessionUser and currentUser immediately to ensure they're available
+            // This bypasses the promise chain that might be failing
+            if (user && typeof user.get === 'function') {
+              try {
+                user.set('modeling_session', session.get('modeling_session'));
+                console.log('[APP-STATE] find_user: DIRECTLY setting sessionUser (bypassing promise chain)', {
+                  has_user: !!user,
+                  user_id: user.get('id')
+                });
+                _this.set('sessionUser', user);
+                console.log('[APP-STATE] find_user: sessionUser set, checking current value', {
+                  sessionUser: !!_this.get('sessionUser'),
+                  sessionUser_id: _this.get('sessionUser') ? _this.get('sessionUser.id') : null
+                });
+                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+                  _this.set('currentUser', user);
+                  console.log('[APP-STATE] find_user: DIRECTLY set currentUser', {
+                    has_currentUser: !!_this.get('currentUser'),
+                    currentUser_id: _this.get('currentUser') ? _this.get('currentUser.id') : null
+                  });
+                  // Force notify property change to ensure reactivity
+                  _this.notifyPropertyChange('currentUser');
+                  console.log('[APP-STATE] find_user: notified property change for currentUser');
+                }
+              } catch(e) {
+                console.error('[APP-STATE] find_user: ERROR setting sessionUser/currentUser', e, e.stack);
+              }
+            } else {
+              console.error('[APP-STATE] find_user: user object is invalid', {
+                has_user: !!user,
+                user_type: typeof user,
+                has_get: user && typeof user.get === 'function'
+              });
+            }
+          } catch(e) {
+            console.error('[APP-STATE] find_user: ERROR in find.then() callback', e, e.stack);
+          }
+          
           var valid_user = RSVP.resolve(user);
           if(!session.get('as_user_id') && session.get('user_id') && session.get('user_id') != user.get('id')) {
             // mismatch due to a user being renamed
+            console.log('[APP-STATE] find_user: user ID mismatch, fetching by session user_id');
             valid_user = LingoLinq.store.findRecord('user', session.get('user_id'));
           } else if(session.get('as_user_id') && user.get('user_name') && session.get('as_user_id') != user.get('user_name')) {
             // mismatch due to a user being renamed
+            console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
             valid_user = LingoLinq.store.findRecord('user', session.get('as_user_id'));
           }
+          console.log('[APP-STATE] find_user: about to call valid_user.then()', {
+            valid_user_type: typeof valid_user,
+            is_promise: valid_user && typeof valid_user.then === 'function',
+            valid_user: valid_user
+          });
           valid_user.then(function(user) {
-            // CRITICAL FIX: Use window.app_state (new service) instead of old utility object
-            var appStateService = window.app_state || app_state;
-            if(!user.get('fresh') && stashes.get('online')) {
+            console.log('[APP-STATE] find_user: valid_user.then() called', {
+              has_user: !!user,
+              user_type: typeof user,
+              user_id: user && user.get ? user.get('id') : 'no get method'
+            });
+            try {
+              if(!user.get('fresh') && _this.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
               user.reload().then(function(user) {
                 user.set('modeling_session', session.get('modeling_session'));
-                appStateService.set('sessionUser', user);
-                // CRITICAL FIX: Also set currentUser immediately
-                if (!appStateService.get('speak_mode') || !appStateService.get('speakModeUser')) {
-                  appStateService.set('currentUser', user);
-                  console.log('[OLD APP_STATE] find_user: reload - set currentUser via window.app_state');
+                _this.set('sessionUser', user);
+                // Manually set currentUser after reload
+                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+                  _this.set('currentUser', user);
+                  console.log('[APP-STATE] find_user: reload - manually set currentUser');
                 }
               }, function() { });
             }
             user.set('modeling_session', session.get('modeling_session'));
-            appStateService.set('sessionUser', user);
-            console.log('[OLD APP_STATE] find_user: set sessionUser via window.app_state', {
-              has_sessionUser: !!appStateService.get('sessionUser'),
-              sessionUser_id: appStateService.get('sessionUser') ? appStateService.get('sessionUser.id') : null
+            console.log('[APP-STATE] find_user: setting sessionUser', {
+              has_user: !!user,
+              user_id: user ? user.get('id') : null
             });
-            // CRITICAL FIX: Also set currentUser immediately
-            if (!appStateService.get('speak_mode') || !appStateService.get('speakModeUser')) {
-              appStateService.set('currentUser', user);
-              console.log('[OLD APP_STATE] find_user: set currentUser via window.app_state', {
-                has_currentUser: !!appStateService.get('currentUser'),
-                currentUser_id: appStateService.get('currentUser') ? appStateService.get('currentUser.id') : null
+            _this.set('sessionUser', user);
+            console.log('[APP-STATE] find_user: sessionUser set', {
+              has_sessionUser: !!_this.get('sessionUser'),
+              sessionUser_id: _this.get('sessionUser') ? _this.get('sessionUser.id') : null
+            });
+            // Manually trigger the observer to ensure currentUser is set
+            // The observer should fire automatically, but we'll also manually set currentUser
+            // to ensure it happens immediately
+            if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+              if(user && user.get && !user.get('preferences.progress.app_added') && (navigator.standalone || (capabilities.installed_app && capabilities.mobile))) {
+                user.set('preferences.progress.app_added', true);
+                user.save().then(null, function() { });
+              }
+              _this.set('currentUser', user);
+              console.log('[APP-STATE] find_user: manually set currentUser', {
+                has_currentUser: !!_this.get('currentUser'),
+                currentUser_id: _this.get('currentUser') ? _this.get('currentUser.id') : null
               });
             }
+            } catch(e) {
+              console.error('[APP-STATE] find_user: error in valid_user.then() callback', e, e.stack);
+            }
 
-            if(stashes.get('speak_mode_user_id') || stashes.get('referenced_speak_mode_user_id')) {
-              var ref_id = stashes.get('speak_mode_user_id') || stashes.get('referenced_speak_mode_user_id');
+            if(_this.stashes.get('speak_mode_user_id') || _this.stashes.get('referenced_speak_mode_user_id')) {
+              var ref_id = _this.stashes.get('speak_mode_user_id') || _this.stashes.get('referenced_speak_mode_user_id');
               LingoLinq.store.findRecord('user', ref_id).then(function(user) {
-                // CRITICAL FIX: Use window.app_state (new service) instead of old utility object
-                var appStateService = window.app_state || app_state;
-                if(stashes.get('speak_mode_user_id')) {
-                  appStateService.set('speakModeUser', user);
+                if(_this.stashes.get('speak_mode_user_id')) {
+                  _this.set('speakModeUser', user);
                 }
-                appStateService.set('referenced_speak_mode_user', user);
+                _this.set('referenced_speak_mode_user', user);
               }, function() {
                 console.error('failed trying to speak as ' + ref_id);
               });
             }
+          }, function(err) {
+            console.error('[APP-STATE] find_user: valid_user promise rejected', err);
           });
         }, function(err) {
-          if(stashes.get('current_mode') == 'edit') {
+          if(_this.stashes.get('current_mode') == 'edit') {
             controller.toggleMode('edit');
           }
           console.log(err);
           console.log(err.status);
           console.log(err.error);
+          // Check if it's an auth error (should force logout)
           var do_logout = err.status == 400 && (err.error == 'Not authorized' || err.error == "Invalid token");
-          console.log("will log out: " + (do_logout || last_try));
+          // Check if it's a timeout/network error (should NOT force logout, just retry or fail gracefully)
+          var is_timeout = !err.status || err.status === 0 || err.error === 'timeout' || (err.errors && err.errors[0] === 'timeout');
+          console.log("will log out: " + (do_logout || (last_try && !is_timeout)));
           console.error("user initialization failed");
-          if(do_logout || last_try) {
+          // Only force logout on auth errors, not on timeouts
+          // For timeouts, we'll retry a few times, but won't force logout
+          if(do_logout || (last_try && !is_timeout)) {
             var error = null;
             if(last_try) {
               error = i18n.t('error_logging_in', "We couldn't retrieve your user account, please try logging back in");
@@ -306,10 +501,15 @@ var app_state = EmberObject.extend({
               error = i18n.t('session_expired', "This session has expired, please log back in");
             }
             session.force_logout(error);
-          } else {
+          } else if(is_timeout && !last_try) {
+            // For timeouts, retry (but only once to avoid infinite loops)
+            console.log("Retrying user initialization after timeout...");
             runLater(function() {
               find_user(true);
-            }, 1000);
+            }, 2000); // Wait 2 seconds before retry
+          } else {
+            // Other errors or timeout on last try - don't force logout, just log
+            console.warn("User initialization failed, but not forcing logout (timeout or non-auth error)");
           }
         });
       };
@@ -318,9 +518,10 @@ var app_state = EmberObject.extend({
       }
     }
     session.addObserver('access_token', function() {
+      var _this_service = _this;
       runLater(function() {
         if(session.get('access_token')) {
-          app_state.refresh_session_user();
+          _this_service.refresh_session_user();
         }
       }, 10);
     });
@@ -355,27 +556,27 @@ var app_state = EmberObject.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
-    app_state.set('from_url', app_state.get('route._router.url') || app_state.get('route.router.url'));
+    this.set('from_url', this.get('route._router.url') || this.get('route.router.url'));
     var from = [transition.from_route].concat(transition.from_params);
     if(from[0] && from[0] != 'board.index') {
-      app_state.set('from_route', from);
+      this.set('from_route', from);
     }
-    app_state.set('latest_board_id', null);
-    app_state.set('login_modal', false);
-    app_state.set('to_target', transition.to_route);
-    var from_route = (app_state.get('from_route') || [])[0] || transition.from_route;
+    this.set('latest_board_id', null);
+    this.set('login_modal', false);
+    this.set('to_target', transition.to_route);
+    var from_route = (this.get('from_route') || [])[0] || transition.from_route;
     if(transition.to_route == 'board.index' && (from_route == 'setup' || from_route == 'home-boards')) {
-      app_state.set('set_as_root_board_state', true);
+      this.set('set_as_root_board_state', true);
     }
 
     // On desktop, setting too soon causes a re-render, but on mobile
     // calling it too late does.
     if(capabilities.mobile) {
-//       app_state.set('index_view', transition.to_route == 'index');
+//       this.set('index_view', transition.to_route == 'index');
     }
     if(transition.to_route == 'board.index') {
       boundClasses.setup();
-      var delay = app_state.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
+      var delay = this.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
       LingoLinq.log.track('global transition handled');
       runLater(this, this.check_for_board_readiness, delay, 50);
     }
@@ -388,24 +589,24 @@ var app_state = EmberObject.extend({
     
     modal.close();
     modal.close_board_preview();
-    if(app_state.get('edit_mode')) {
-      app_state.toggle_edit_mode();
+    if(this.get('edit_mode')) {
+      this.toggle_edit_mode();
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
     if(transition.to_route != 'board.index') {
-      app_state.set('currentBoardState', null);
+      this.set('currentBoardState', null);
     }
-    if(!app_state.get('sessionUser') && session.get('isAuthenticated')) {
-      app_state.refresh_session_user();
+    if(!this.get('sessionUser') && session.get('isAuthenticated')) {
+      this.refresh_session_user();
     }
-    app_state.set('current_route', transition.to_route);
+    this.set('current_route', transition.to_route);
   },
   finish_global_transition: function() {
-    app_state.set('already_homed', true);
+    this.set('already_homed', true);
     runNext(function() {
-      var target = app_state.get('current_route');
-//       app_state.set('index_view', target == 'index');
+      var target = this.get('current_route');
+//       this.set('index_view', target == 'index');
     });
     // footer was showing up too quickly and looking weird when the rest of the page hadn't
     // re-rendered yet.
@@ -432,20 +633,20 @@ var app_state = EmberObject.extend({
       window._trackJs.disabled = protect_user;
     }
     LingoLinq.protected_user = protect_user;
-    stashes.persist('protected_user', protect_user);
+    this.stashes.persist('protected_user', protect_user);
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
     // automatically set them as the temporary root board for browsing
     if(this.get('set_as_root_board_state') && this.get('currentBoardState')) {
-      stashes.persist('board_level', this.get('currentBoardState.default_level'));
-      console.log("root state", stashes.get('board_level'));
-      stashes.persist('root_board_state', this.get('currentBoardState'));
+      this.stashes.persist('board_level', this.get('currentBoardState.default_level'));
+      console.log("root state", this.stashes.get('board_level'));
+      this.stashes.persist('root_board_state', this.get('currentBoardState'));
       this.set('set_as_root_board_state', false);
     }
   }),
   current_board_level: computed('stashes.board_level', function() {
-    return stashes.get('board_level') || 10;
+    return this.stashes.get('board_level') || 10;
   }),
   board_url: computed('currentBoardState.key', function() {
     if(this.get('currentBoardState.key')) {
@@ -481,7 +682,7 @@ var app_state = EmberObject.extend({
     if(this.check_for_board_readiness.timer) {
       runCancel(this.check_for_board_readiness.timer);
     }
-    var id = app_state.get('latest_board_id');
+    var id = this.get('latest_board_id');
     if(id) {
       var $board = $(".board[data-id='" + id + "']");
       var $integration = $("#integration_frame");
@@ -524,21 +725,21 @@ var app_state = EmberObject.extend({
       buttonTracker.transitioning = false;
     }
     if(new_state && (new_state.source == 'sidebar' || new_state.source == 'swipe')) {
-      if(new_state && new_state.locale && stashes.get('override_label_locale') && new_state.locale != stashes.get('override_label_locale')) {
-        stashes.persist('override_label_locale', null);
+      if(new_state && new_state.locale && this.stashes.get('override_label_locale') && new_state.locale != this.stashes.get('override_label_locale')) {
+        this.stashes.persist('override_label_locale', null);
       }
-      if(new_state && new_state.locale && stashes.get('override_vocalization_locale') && new_state.locale != stashes.get('override_vocalization_locale')) {
-        stashes.persist('override_vocalization_locale', null);
+      if(new_state && new_state.locale && this.stashes.get('override_vocalization_locale') && new_state.locale != this.stashes.get('override_vocalization_locale')) {
+        this.stashes.persist('override_vocalization_locale', null);
       }
-      stashes.persist('last_root', new_state);
+      this.stashes.persist('last_root', new_state);
     }
     var history = this.get_history();
     old_state = old_state || this.get('currentBoardState');
-    if(stashes.get('board_level') && old_state) {
-      emberSet(old_state, 'level', stashes.get('board_level'));
+    if(this.stashes.get('board_level') && old_state) {
+      emberSet(old_state, 'level', this.stashes.get('board_level'));
     }
     history.push(old_state);
-    stashes.log({
+    this.stashes.log({
       action: 'open_board',
       previous_key: old_state,
       new_id: new_state
@@ -546,8 +747,8 @@ var app_state = EmberObject.extend({
     if(new_state && new_state.home_lock) {
       if(new_state.meta_home) {
         this.set('temporary_root_board_key', null);
-        stashes.persist('temporary_root_board_state', null);
-        var root_state = stashes.get('root_board_state') || old_state;
+        this.stashes.persist('temporary_root_board_state', null);
+        var root_state = this.stashes.get('root_board_state') || old_state;
         this.set('meta_home', {state: root_state, unassigned: true, new_key: new_state.key})
       } else {
         this.set('temporary_root_board_key', new_state.key);
@@ -556,13 +757,13 @@ var app_state = EmberObject.extend({
     this.controller.send('hide_temporary_sidebar');
     this.set_history([].concat(history));
     if(new_state.level) {
-      stashes.persist('board_level', new_state.level);
+      this.stashes.persist('board_level', new_state.level);
     }
     if(new_state.locale) {
-      stashes.persist('label_locale', new_state.locale);
-      stashes.persist('vocalization_locale', new_state.locale);
-      app_state.set('label_locale', new_state.locale);
-      app_state.set('vocalization_locale', new_state.locale);
+      this.stashes.persist('label_locale', new_state.locale);
+      this.stashes.persist('vocalization_locale', new_state.locale);
+      this.set('label_locale', new_state.locale);
+      this.set('vocalization_locale', new_state.locale);
     }
     this.set('referenced_board', new_state);
     var _this = this;
@@ -575,7 +776,7 @@ var app_state = EmberObject.extend({
       var check = function() {
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
-        if(app_state.get('currentBoardState.key') == new_state.key) {
+        if(this.get('currentBoardState.key') == new_state.key) {
           resolve();
         } else {
           if(check.attempts > 20) {
@@ -600,49 +801,49 @@ var app_state = EmberObject.extend({
     }
   }),
   toggle_home_lock: function(force) {
-    var state = stashes.get('root_board_state');
-    var current = app_state.get('currentBoardState');
-    if(force === false || (stashes.get('temporary_root_board_state') && force !== true)) {
-      stashes.persist('temporary_root_board_state', null);
+    var state = this.stashes.get('root_board_state');
+    var current = this.get('currentBoardState');
+    if(force === false || (this.stashes.get('temporary_root_board_state') && force !== true)) {
+      this.stashes.persist('temporary_root_board_state', null);
     } else {
       if(state && current && state.key != current.key) {
-        stashes.persist('temporary_root_board_state', app_state.get('currentBoardState'));
-        app_state.set_history([]);
+        this.stashes.persist('temporary_root_board_state', this.get('currentBoardState'));
+        this.set_history([]);
       }
     }
   },
   meta_home_if_possible: function() {
-    if(app_state.get('speak_mode') && stashes.get('root_board_state.meta_home')) {
+    if(this.get('speak_mode') && this.stashes.get('root_board_state.meta_home')) {
       this.set('temporary_root_board_key', null);
-      stashes.persist('temporary_root_board_state', null);
-      this.set('meta_home', {unassigned: true, new_key: stashes.get('root_board_state.meta_home.key')});
+      this.stashes.persist('temporary_root_board_state', null);
+      this.set('meta_home', {unassigned: true, new_key: this.stashes.get('root_board_state.meta_home.key')});
       this.jump_to_board({
-        id: stashes.get('root_board_state.meta_home.id'),
-        key: stashes.get('root_board_state.meta_home.key')
+        id: this.stashes.get('root_board_state.meta_home.id'),
+        key: this.stashes.get('root_board_state.meta_home.key')
       });
     }
-    app_state.set_history([]);
+    this.set_history([]);
   },
   toggle_modeling_if_possible: function(enable) {
-    if(app_state.get('modeling_for_user')) {
+    if(this.get('modeling_for_user')) {
       modal.warning(i18n.t('cant_clear_session_modeling', "You are in a modeling session. To leave modeling mode, Exit Speak Mode and then Speak As the communicator"), true);
     } else {
-      app_state.toggle_modeling(enable);
+      this.toggle_modeling(enable);
     }
   },
   toggle_modeling: function(enable) {
     if(enable === undefined || enable === null) {
-      enable = !app_state.get('manual_modeling');
+      enable = !this.get('manual_modeling');
     }
-    app_state.set('last_activation', (new Date()).getTime());
-    app_state.set('manual_modeling', !!enable);
+    this.set('last_activation', (new Date()).getTime());
+    this.set('manual_modeling', !!enable);
     if(enable) {
-      app_state.set('modeling_started', (new Date()).getTime());
+      this.set('modeling_started', (new Date()).getTime());
     }
   },
   update_modeling: observer('modeling', function() {
     if(this.get('modeling') !== undefined && this.get('modeling') !== null) {
-      stashes.set('modeling', !!this.get('modeling'));
+      this.stashes.set('modeling', !!this.get('modeling'));
     }
   }),
   modeling: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'modeling_ts', function(ch) {
@@ -650,7 +851,7 @@ var app_state = EmberObject.extend({
     return res;
   }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
-    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && app_state.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
+    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
@@ -662,11 +863,11 @@ var app_state = EmberObject.extend({
   auto_clear_modeling: observer('short_refresh_stamp', 'modeling', function() {
     if(this.get('manual_modeling')) {
       var now = (new Date()).getTime();
-      if(!app_state.get('last_activation')) {
-        app_state.set('last_activation', now);
+      if(!this.get('last_activation')) {
+        this.set('last_activation', now);
       }
       // progressively get more aggressive at auto-clearing modeling flag
-      var duration = now - app_state.get('modeling_started');
+      var duration = now - this.get('modeling_started');
       // by default, clear manual modeling mode after 5 minutes of inactivity
       var cutoff = 5 * 60 * 1000;
       // if you've been modeling for more than 30 minutes, then auto-clear after
@@ -681,8 +882,8 @@ var app_state = EmberObject.extend({
       } else if(duration > (5 * 60 * 1000)) {
         cutoff = 60 * 1000;
       }
-      if(now - app_state.get('last_activation') > cutoff) {
-        app_state.toggle_modeling();
+      if(now - this.get('last_activation') > cutoff) {
+        this.toggle_modeling();
       }
     }
   }),
@@ -700,7 +901,7 @@ var app_state = EmberObject.extend({
     var history = this.get_history();
     var state = history.pop();
     if(!state) { 
-      if(app_state.get('currentBoardState.extra_back') == 'emergency') {
+      if(this.get('currentBoardState.extra_back') == 'emergency') {
         this.controller.transitionToRoute('offline_boards');
       }
       return; 
@@ -709,13 +910,13 @@ var app_state = EmberObject.extend({
     if(state && state.id && state.id == this.get('currentBoardState.id')) {
       buttonTracker.transitioning = false;
     }
-    stashes.log({
+    this.stashes.log({
       action: 'back',
       button_triggered: opts.button_triggered
     });
     this.set_history([].concat(history));
     if(state.level) {
-      stashes.persist('board_level', state.level);
+      this.stashes.persist('board_level', state.level);
     }
     this.set('referenced_board', state);
     this.controller.transitionToRoute('board', state.key);
@@ -728,26 +929,26 @@ var app_state = EmberObject.extend({
 
     this.set_history([]);
     var current = this.get('currentBoardState');
-    var state = stashes.get('temporary_root_board_state') || stashes.get('root_board_state');
+    var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
     state = state || this.get('currentUser.preferences.home_board');
 
     var do_log = false;
     if(state && state.key) {
-      if(app_state.get('currentBoardState.key') != state.key) {
+      if(this.get('currentBoardState.key') != state.key) {
         buttonTracker.transitioning = true;
         if(state.level || state.default_level) {
-          stashes.persist('board_level', state.level || state.default_level);
+          this.stashes.persist('board_level', state.level || state.default_level);
         }
-        if(stashes.get('override_label_locale')) {
+        if(this.stashes.get('override_label_locale')) {
           // If manually-set for the session, revert
           // to the preferred value
-          stashes.persist('label_locale', stashes.get('override_label_locale'));
-          stashes.persist('vocalization_locale', stashes.get('override_vocalization_locale'));
+          this.stashes.persist('label_locale', this.stashes.get('override_label_locale'));
+          this.stashes.persist('vocalization_locale', this.stashes.get('override_vocalization_locale'));
         } else if(state.locale) {
           // Otherwise revert to the original
           // state in case it got changed during navigation
-          stashes.persist('label_locale', state.locale);
-          stashes.persist('vocalization_locale', state.locale);
+          this.stashes.persist('label_locale', state.locale);
+          this.stashes.persist('vocalization_locale', state.locale);
         }
         this.set('referenced_board', state);
         this.controller.transitionToRoute('board', state.key);
@@ -758,7 +959,7 @@ var app_state = EmberObject.extend({
       do_log = current && current.key;
     }
     if(do_log) {
-      stashes.log({
+      this.stashes.log({
         action: (auto_home ? 'auto_home' : 'home'),
         button_triggered: options.button_triggered,
         new_id: {
@@ -771,14 +972,14 @@ var app_state = EmberObject.extend({
   jump_to_next(forward) {
     var jump_between_boards = true;
     if(jump_between_boards) {
-      var last_root = stashes.get('last_root') || app_state.get('referenced_user.home_board') || {};
-      var roots = [app_state.get('referenced_user.preferences.home_board') || {}];
-      if(app_state.get('referenced_user.preferences.sync_starred_boards')) {
-        (app_state.get('referenced_user.stats.starred_board_refs') || []).forEach(function(ref) {
+      var last_root = this.stashes.get('last_root') || this.get('referenced_user.home_board') || {};
+      var roots = [this.get('referenced_user.preferences.home_board') || {}];
+      if(this.get('referenced_user.preferences.sync_starred_boards')) {
+        (this.get('referenced_user.stats.starred_board_refs') || []).forEach(function(ref) {
           roots.push(ref);
         });
       }
-      roots = roots.concat((app_state.get('current_sidebar_boards') || []).filter(function(i) { return i.key; }));
+      roots = roots.concat((this.get('current_sidebar_boards') || []).filter(function(i) { return i.key; }));
       var found = roots.find(function(r) { return r && ((r.key && r.key == last_root.key) || (r.id && r.id == last_root.id)); });
       var current = Math.max(0, roots.indexOf(found));
       if(forward) { current++; } else { current--; }
@@ -787,7 +988,7 @@ var app_state = EmberObject.extend({
       if(roots[current]) {
         var ref = Object.assign({}, roots[current]);
         ref.source = 'swipe';
-        app_state.jump_to_board(ref);
+        this.jump_to_board(ref);
       }
       // for the list of boards including home and sidebar, figure out
       // which board they jumped to using the sidebar/home/entering speak mode
@@ -800,20 +1001,20 @@ var app_state = EmberObject.extend({
     if(decision) {
       modal.close(true);
     }
-    var current = app_state.get('currentBoardState');
-    var preferred = app_state.get('speakModeUser.preferences.home_board') || app_state.get('currentUser.preferences.home_board');
+    var current = this.get('currentBoardState');
+    var preferred = this.get('speakModeUser.preferences.home_board') || this.get('currentUser.preferences.home_board');
     if(preferred && current) {
       emberSet(preferred, 'text_direction', current.text_direction);
     }
-    if(preferred && app_state.get('label_locale') && app_state.get('label_locale') == app_state.get('vocalization_locale')) {
-      emberSet(preferred, 'locale', app_state.get('label_locale'));
+    if(preferred && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
+      emberSet(preferred, 'locale', this.get('label_locale'));
     }
     
-    if(!app_state.get('speak_mode')) {
+    if(!this.get('speak_mode')) {
       // if it's in the speak-mode-user's board set, keep the original home board,
       // otherwise set the current board to home for now
-      var user = app_state.get('speakModeUser') || app_state.get('currentUser');
-      if(user && (user.get('stats.board_set_ids') || []).indexOf(app_state.get('currentBoardState.id')) >= 0) {
+      var user = this.get('speakModeUser') || this.get('currentUser');
+      if(user && (user.get('stats.board_set_ids') || []).indexOf(this.get('currentBoardState.id')) >= 0) {
         decision = decision || 'rememberRealHome';
       } else {
         decision = decision || 'currentAsHome';
@@ -823,12 +1024,12 @@ var app_state = EmberObject.extend({
     if(!current || decision == 'goHome') {
       this.home_in_speak_mode();
     } else if(decision == 'goBrowsedHome') {
-      this.toggle_mode('speak', {override_state: stashes.get('root_board_state') || preferred});
-    } else if(stashes.get('current_mode') == 'speak') {
+      this.toggle_mode('speak', {override_state: this.stashes.get('root_board_state') || preferred});
+    } else if(this.stashes.get('current_mode') == 'speak') {
       if(this.get('embedded')) {
         modal.open('about-lingolinq', {no_exit: true});
-      } else if(app_state.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && app_state.get('currentUser.preferences.speak_mode_pin')) {
-        modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
+      } else if(this.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && this.get('currentUser.preferences.speak_mode_pin')) {
+        modal.open('speak-mode-pin', {actual_pin: this.get('currentUser.preferences.speak_mode_pin'), hide_hint: this.get('currentUser.preferences.hide_pin_hint')});
       } else {
         this.toggle_mode('speak');
       }
@@ -845,15 +1046,15 @@ var app_state = EmberObject.extend({
     var board = _this.controller.get('board.model');
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
-      if(board.get('locale') && !app_state.get('speak_mode')) {
-        stashes.persist('label_locale', board.get('locale'));
-        stashes.persist('vocalization_locale', board.get('locale'));
-        app_state.set('label_locale', stashes.get('label_locale'));
-        app_state.set('vocalization_locale', stashes.get('vocalization_locale'));
+      if(board.get('locale') && !this.get('speak_mode')) {
+        this.stashes.persist('label_locale', board.get('locale'));
+        this.stashes.persist('vocalization_locale', board.get('locale'));
+        this.set('label_locale', this.stashes.get('label_locale'));
+        this.set('vocalization_locale', this.stashes.get('vocalization_locale'));
       }
       if(board.get('editable_source_key')) {
         var load_board = function() {
-          return app_state.jump_to_board({
+          return this.jump_to_board({
             key: board.get('editable_source_key')
           });
         };
@@ -886,7 +1087,7 @@ var app_state = EmberObject.extend({
           }
         });
         return;
-      } else if(decision == null && !app_state.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
+      } else if(decision == null && !this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
         modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
@@ -898,34 +1099,34 @@ var app_state = EmberObject.extend({
     }, function() { });
   },
   clear_mode: function() {
-    stashes.persist('current_mode', 'default');
-    stashes.persist('last_mode', null);
+    this.stashes.persist('current_mode', 'default');
+    this.stashes.persist('last_mode', null);
     editManager.clear_paint_mode();
   },
   toggle_mode: function(mode, opts) {
     LingoLinq.log.track('setting mode to ' + mode);
     opts = opts || {};
     utterance.clear({skip_logging: true});
-    var current_mode = stashes.get('current_mode');
+    var current_mode = this.stashes.get('current_mode');
     var temporary_root_state = null;
     if(opts && opts.force) { current_mode = null; }
     if(mode == 'speak') {
-      var board_state = app_state.get('currentBoardState');
+      var board_state = this.get('currentBoardState');
       // use the current board's level setting unless forcing the user's home board to be root
       var board_level = board_state && board_state.default_level;
       if(!board_state) {
         // if we're not launching from a currently-viewed board, clear stashed level,
         // which will feel less arbitrary, at least
-        stashes.persist('board_level', null);
+        this.stashes.persist('board_level', null);
       }
 
-      var user = app_state.get('referenced_speak_mode_user') || app_state.get('currentUser');
+      var user = this.get('referenced_speak_mode_user') || this.get('currentUser');
       if(user && current_mode != 'speak') {
-        var speak_mode_user = app_state.get('speakModeUser') || app_state.get('currentUser');
+        var speak_mode_user = this.get('speakModeUser') || this.get('currentUser');
         var level = {};
         var state = board_state || opts.override_state;
-        if(app_state.get('sessionUser.eval_ended')) {
-          modal.open('modals/eval-status', {user: app_state.get('sessionUser')});
+        if(this.get('sessionUser.eval_ended')) {
+          modal.open('modals/eval-status', {user: this.get('sessionUser')});
           return;
         }
         // If already on a board, and board level is manually set,
@@ -955,16 +1156,16 @@ var app_state = EmberObject.extend({
             var save_user = false;
           }
         }
-        if(stashes.get('label_locale'))
+        if(this.stashes.get('label_locale'))
         if(level.preferred || level.source) {
           // If the user has a preference for the currently-launching board,
           // then we take that into account. If already on a board and not in
           // modelling mode, assume this is the user's new preference and
           // update automatically. If not launching from a board, just use the
           // user's preference.
-          if(board_state && stashes.get('board_level') && stashes.get('board_level') != level.preferred) {
-            level.current = stashes.get('board_level');
-            stashes.persist('board_level', level.current); // TODO: isn't this redundant?
+          if(board_state && this.stashes.get('board_level') && this.stashes.get('board_level') != level.preferred) {
+            level.current = this.stashes.get('board_level');
+            this.stashes.persist('board_level', level.current); // TODO: isn't this redundant?
             if(opts.override_state) {
               opts.override_state = $.extend({}, opts.override_state, {level: level.current});
             }
@@ -986,7 +1187,7 @@ var app_state = EmberObject.extend({
             }
             board_level = level.current;
           } else if(level.preferred) {
-            stashes.persist('board_level', level.preferred);
+            this.stashes.persist('board_level', level.preferred);
             if(opts.override_state) {
               opts.override_state = $.extend({}, opts.override_state, {level: level.preferred});
             }
@@ -1008,7 +1209,7 @@ var app_state = EmberObject.extend({
         } else {
           // If starting on the user's home board, use that level
           // unless a different one has already been set
-          if(opts.temporary_home || stashes.get('board_level')) {
+          if(opts.temporary_home || this.stashes.get('board_level')) {
             board_level = null;
           } else {
             board_level = opts.override_state.level || board_level;
@@ -1019,33 +1220,33 @@ var app_state = EmberObject.extend({
       }
 
       if(board_level) {
-        stashes.persist('board_level', board_level);
-        console.log("toggling to level", stashes.get('board_level'));
+        this.stashes.persist('board_level', board_level);
+        console.log("toggling to level", this.stashes.get('board_level'));
       }
-      if(app_state.get('currentBoardState') && stashes.get('board_level')) {
+      if(this.get('currentBoardState') && this.stashes.get('board_level')) {
         // set the level for currentBoardState
         // possibly affecting root_board_state/temporary_root_board_state
-        app_state.set('currentBoardState.level', stashes.get('board_level'));
+        this.set('currentBoardState.level', this.stashes.get('board_level'));
       }
-      stashes.persist('root_board_state', board_state);
+      this.stashes.persist('root_board_state', board_state);
     }
     if(current_mode == mode) {
-      if(mode == 'edit' && stashes.get('last_mode')) {
-        stashes.persist('current_mode', stashes.get('last_mode'));
+      if(mode == 'edit' && this.stashes.get('last_mode')) {
+        this.stashes.persist('current_mode', this.stashes.get('last_mode'));
       } else {
-        stashes.persist('current_mode', 'default');
+        this.stashes.persist('current_mode', 'default');
       }
-      if(mode == 'speak' && app_state.get('currentBoardState')) {
-        app_state.set('currentBoardState.reload_token', Math.random());
+      if(mode == 'speak' && this.get('currentBoardState')) {
+        this.set('currentBoardState.reload_token', Math.random());
       }
-      stashes.persist('last_mode', null);
-      stashes.persist('copy_on_save', null);
+      this.stashes.persist('last_mode', null);
+      this.stashes.persist('copy_on_save', null);
     } else {
       if(mode == 'edit') {
-        var brd = app_state.controller.get('board.model');
+        var brd = this.controller.get('board.model');
         if(brd) {
-          var pref_locale = app_state.get('label_locale');
-          app_state.controller.set('board.model.button_locale', app_state.controller.get('board.model.locale'));
+          var pref_locale = this.get('label_locale');
+          this.controller.set('board.model.button_locale', this.controller.get('board.model.locale'));
           if(!brd.get('translated_locales').includes(pref_locale)) {
             if(brd.get('translated_locales').includes(pref_locale.split(/-|_/)[0])) {
               pref_locale = pref_locale.split(/-|_/)[0];
@@ -1058,17 +1259,17 @@ var app_state = EmberObject.extend({
               }
             }
           }
-          if(pref_locale && app_state.controller.get('board.model.locale') != pref_locale) {
-            app_state.controller.set('board.model.button_locale', pref_locale);
+          if(pref_locale && this.controller.get('board.model.locale') != pref_locale) {
+            this.controller.set('board.model.button_locale', pref_locale);
           }
         }
-        stashes.persist('last_mode', stashes.get('current_mode'));
+        this.stashes.persist('last_mode', this.stashes.get('current_mode'));
         if(opts.copy_on_save) {
-          stashes.persist('copy_on_save', app_state.get('currentBoardState.id'));
+          this.stashes.persist('copy_on_save', this.get('currentBoardState.id'));
         }
       } else if(mode == 'speak') {
-        var already_speaking_as_someone_else = app_state.get('speakModeUser.id') && app_state.get('speakModeUser.id') != app_state.get('sessionUser.id');
-        if(app_state.get('currentBoardState')) { delete app_state.get('currentBoardState').reload_token }
+        var already_speaking_as_someone_else = this.get('speakModeUser.id') && this.get('speakModeUser.id') != this.get('sessionUser.id');
+        if(this.get('currentBoardState')) { delete this.get('currentBoardState').reload_token }
         // when entering speak mode, if the user is expired,
         // or modeling-only w/o hany premium supervisees,
         // pop up a closeable notice about purchasing the app
@@ -1076,28 +1277,28 @@ var app_state = EmberObject.extend({
         // NOTE: For a paid supporter, it seems out of place
         // to pester them every time they enter Speak Mode
         // w/o supervisees, so we'll just tell them when it times out instead
-        var speaking_user = (app_state.get('speakModeUser') || app_state.get('currentUser'))
+        var speaking_user = (this.get('speakModeUser') || this.get('currentUser'))
         var communicator_limited = speaking_user && speaking_user.get('expired');
-        var supervisor_limited = app_state.get('currentUser.supporter_role') && app_state.get('currentUser.modeling_only') && !app_state.get('speakModeUser') && !session.get('modeling_session');
-        if(app_state.get('currentUser') && !opts.reminded && (communicator_limited || supervisor_limited) && !already_speaking_as_someone_else) {
-          return modal.open('premium-required', {user_name: app_state.get('currentUser.user_name'), user: app_state.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
+        var supervisor_limited = this.get('currentUser.supporter_role') && this.get('currentUser.modeling_only') && !this.get('speakModeUser') && !session.get('modeling_session');
+        if(this.get('currentUser') && !opts.reminded && (communicator_limited || supervisor_limited) && !already_speaking_as_someone_else) {
+          return modal.open('premium-required', {user_name: this.get('currentUser.user_name'), user: this.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
             opts.reminded = true;
-            app_state.toggle_mode(mode, opts);
+            this.toggle_mode(mode, opts);
           });
         }
-        if(app_state.get('currentBoardState')) {
-          stashes.persist('last_root', {id: app_state.get('currentBoardState.id'), key: app_state.get('currentBoardState.key')});
+        if(this.get('currentBoardState')) {
+          this.stashes.persist('last_root', {id: this.get('currentBoardState.id'), key: this.get('currentBoardState.key')});
         }
         // if scanning mode... has to be here because focus will only reliably work when
         // a user-controlled event has occurred, so can't be on a listener
-        if(app_state.get('currentUser.preferences.device.scanning') && capabilities.mobile && capabilities.installed_app) { // scanning mode
+        if(this.get('currentUser.preferences.device.scanning') && capabilities.mobile && capabilities.installed_app) { // scanning mode
           scanner.listen_for_input();
         }
       }
-      stashes.persist('current_mode', mode);
+      this.stashes.persist('current_mode', mode);
     }
-    stashes.persist('temporary_root_board_state', temporary_root_state);
-    stashes.persist('sticky_board', false);
+    this.stashes.persist('temporary_root_board_state', temporary_root_state);
+    this.stashes.persist('sticky_board', false);
     var $stash_hover = $("#stash_hover");
     $stash_hover.removeClass('on_button').data('button_id', null);
     editManager.clear_paint_mode();
@@ -1110,7 +1311,7 @@ var app_state = EmberObject.extend({
     }
   }), 
   sync_reconnect: observer('refresh_stamp', function() {
-    if(app_state.get('sessionUser.permissions.supervise')) {
+    if(this.get('sessionUser.permissions.supervise')) {
       sync.connect();
     }
   }),
@@ -1118,73 +1319,73 @@ var app_state = EmberObject.extend({
     if(!LingoLinq || !LingoLinq.store) { return; }
     var shareable_voc = function() {
       var u = LingoLinq.store.createRecord('utterance', {
-        button_list: stashes.get('working_vocalization') || [], 
+        button_list: this.stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
-        user_id: app_state.get('referenced_user.id')
+        user_id: this.get('referenced_user.id')
       });
       u.assert_remote_urls();
       return u.get('button_list');
     };
 
-    if(!app_state.get('sessionUser.supporter_view')) {
+    if(!this.get('sessionUser.supporter_view')) {
       // TODO: DRY this check, it's in sync too
-      if(app_state.get('sessionUser.preferences.remote_modeling') && (app_state.get('pairing') || app_state.get('sessionUser.preferences.remote_modeling_auto_follow') || app_state.get('followers.allowed'))) {
+      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed'))) {
         var str = JSON.stringify(shareable_voc());
         // If the sentence has changed or hasn't been
         // encoded, then send it through encoding
-        if((str != app_state.get('sync_utterance.json') || !app_state.get('sync_utterance.encoded')) && window.persistence) {
-          app_state.set('sync_utterance', {
+        if((str != this.get('sync_utterance.json') || !this.get('sync_utterance.encoded')) && window.persistence) {
+          this.set('sync_utterance', {
             json: str
           });
-          window.persistence.ajax('/api/v1/users/' + app_state.get('sessionUser.id') + '/ws_encrypt', {
+          window.persistence.ajax('/api/v1/users/' + this.get('sessionUser.id') + '/ws_encrypt', {
             type: 'POST',
             data: {text: str}
           }).then(function(res) {
             if(JSON.stringify(shareable_voc()) == str) {
-              app_state.set('sync_utterance', {
+              this.set('sync_utterance', {
                 json: str,
                 encoded: res.encoded,
                 attempted: true
               });
-              sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {utterance: res.encoded});
+              sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: res.encoded});
             }
           }, function(err) { });
         } else {
-          var encoded = app_state.get('sync_utterance.encoded');
+          var encoded = this.get('sync_utterance.encoded');
           if(encoded) {
-            sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {utterance: encoded});
-            app_state.set('sync_utterance.attempted', true);
+            sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: encoded});
+            this.set('sync_utterance.attempted', true);
           }
         }
       }
     }
   }),
   sync_keepalive: observer('short_refresh_stamp', function() {
-    var last = app_state.get('last_keepalive') || 0;
+    var last = this.get('last_keepalive') || 0;
     var now = (new Date()).getTime();
-    if(app_state.get('speak_mode') && !app_state.get('currentUser.supporter_view')) {
+    if(this.get('speak_mode') && !this.get('currentUser.supporter_view')) {
       // every 20 seconds, re-assert board state
       if(last < now - (20 * 1000))     {
         sync.check_following();
         var obj = {};
-        if(app_state.get('sync_utterance.encoded')) {
-          obj.utterance = app_state.get('sync_utterance.encoded');
-        } else if(!app_state.get('sync_utterance.attempted')) {
-          app_state.sync_send_utterance();
+        if(this.get('sync_utterance.encoded')) {
+          obj.utterance = this.get('sync_utterance.encoded');
+        } else if(!this.get('sync_utterance.attempted')) {
+          this.sync_send_utterance();
         }
-        sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), obj);
-        app_state.set('last_keepalive', now);
+        sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), obj);
+        this.set('last_keepalive', now);
         sync.keepalive();
       }
     } else {
       // every 5 minutes, send a keepalive
       var cutoff = now - (2 * 60 * 1000);
-      if(app_state.get('pairing.partner') && app_state.get('pairing.follow')) {
+      if(this.get('pairing.partner') && this.get('pairing.follow')) {
         // If following, let them know more often you're watching
         cutoff = now - (20 * 1000);
       }
       if(last < cutoff) {
-        app_state.set('last_keepalive', now);
+        this.set('last_keepalive', now);
         sync.keepalive();
       }
     }
@@ -1192,13 +1393,13 @@ var app_state = EmberObject.extend({
   home_in_speak_mode: function(opts) {
     // This is only entered for the current
     // user, not for supervisees (see set_speak_mode_user)
-    stashes.persist('label_locale', null);
-    stashes.persist('vocalization_locale', null);
+    this.stashes.persist('label_locale', null);
+    this.stashes.persist('vocalization_locale', null);
     opts = opts || {};
-    var speak_mode_user = opts.user || app_state.get('currentUser');
+    var speak_mode_user = opts.user || this.get('currentUser');
     // TODO: if preferred matches user's home board, pass the user's level instead of the board's default level
     if(!opts.remember_level) {
-      stashes.persist('board_level', null);
+      this.stashes.persist('board_level', null);
     }
     var user_preferred = null;
     if(speak_mode_user) {
@@ -1210,17 +1411,17 @@ var app_state = EmberObject.extend({
         user_preferred = speak_mode_user.get('preferences.home_board');
       }
     }
-    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || stashes.get('root_board_state') || {key: 'example/yesno'};
+    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || {key: 'example/yesno'};
     if(preferred.locale) {
-      stashes.persist('label_locale', preferred.locale);
-      stashes.persist('vocalization_locale', preferred.locale);
+      this.stashes.persist('label_locale', preferred.locale);
+      this.stashes.persist('vocalization_locale', preferred.locale);
     }
     var communicator_limited = speak_mode_user && speak_mode_user.get('expired');
     var supervisor_limited = speak_mode_user && speak_mode_user.get('supporter_role') && speak_mode_user.get('modeling_only') && !session.get('modeling_session');
     if(speak_mode_user && !opts.reminded && (communicator_limited || supervisor_limited)) {
       return modal.open('premium-required', {user_name: speak_mode_user.get('user_name'), user: speak_mode_user, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), remind_to_upgrade: true, limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
         opts.reminded = true;
-        app_state.home_in_speak_mode(opts);
+        this.home_in_speak_mode(opts);
       });
     }
     if(preferred && speak_mode_user && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
@@ -1231,17 +1432,17 @@ var app_state = EmberObject.extend({
     this.toggle_mode('speak', {force: true, override_state: preferred});
     this.set('referenced_board', preferred);
     this.controller.transitionToRoute('board', preferred.key);
-    if(speak_mode_user && speak_mode_user == app_state.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
+    if(speak_mode_user && speak_mode_user == this.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
       // Supporter devices for communicators should start in modeling mode
-      app_state.set('modeling_for_self', true);
+      this.set('modeling_for_self', true);
     }
   },
   check_scanning: function() {
     var _this = this;
-    sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'));
+    sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'));
     runLater(function() {
       buttonTracker.scan_modeling = false;
-      if(app_state.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
+      if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
         buttonTracker.scanning_enabled = true;
         buttonTracker.any_select = _this.get('currentUser.preferences.device.scanning_select_on_any_event');
         buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode');
@@ -1280,7 +1481,7 @@ var app_state = EmberObject.extend({
         }
       }
       runLater(function() {
-        app_state.retry_images();
+        _this.retry_images();
       }, 1000);
       buttonTracker.multi_touch_modeling = _this.get('currentUser.preferences.multi_touch_modeling');
       buttonTracker.keyboard_listen = _this.get('currentUser.preferences.device.external_keyboard');
@@ -1288,7 +1489,7 @@ var app_state = EmberObject.extend({
       buttonTracker.dwell_enabled = false;
 
       var head_pointer = _this.get('currentUser.preferences.device.dwell_type') == 'head' && _this.get('currentUser.preferences.device.dwell_head_pointer');
-      if(app_state.get('speak_mode') && _this.get('currentUser.preferences.device.dwell')) {
+      if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.dwell')) {
         buttonTracker.dwell_enabled = true;
         buttonTracker.dwell_timeout = parseInt(_this.get('currentUser.preferences.device.dwell_duration'), 10);
         buttonTracker.dwell_delay = _this.get('currentUser.preferences.device.dwell_delay');
@@ -1326,34 +1527,40 @@ var app_state = EmberObject.extend({
     }, 1000);
   },
   refresh_session_user: function() {
+    var _this = this;
     LingoLinq.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
         user.reload().then(function(user) {
           user.set('modeling_session', session.get('modeling_session'));
-          app_state.set('sessionUser', user);
+          _this.set('sessionUser', user);
         }, function() { });
       }
       user.set('modeling_session', session.get('modeling_session'));
-      app_state.set('sessionUser', user);
+      _this.set('sessionUser', user);
     }, function() { });
   },
   set_auto_synced: observer('sessionUser', 'sessionUser.auto_sync', function() {
+    // Guard: check this before accessing properties
+    if(!this || typeof this !== 'object') {
+      return;
+    }
     var auto_sync = this.get('sessionUser.auto_sync');
     if(auto_sync == null) {
       auto_sync = !!capabilities.installed_app;
     }
-    if(window.persistence) {
-      window.persistence.set('auto_sync', auto_sync);
+    if(this.persistence) {
+      this.persistence.set('auto_sync', auto_sync);
     }
   }),
   check_free_space: function() {
+    var _this = this;
     return capabilities.storage.free_space().then(function(res) {
       if(res && res.mb && res.mb < 70) {
         res.too_little = true;
         if(res.gb < 1) { res.gb = null; }
-        app_state.set('limited_free_space', res);
+        _this.set('limited_free_space', res);
       } else {
-        app_state.set('limited_free_space', false);
+        _this.set('limited_free_space', false);
       }
       return res;
     }, function(err) { });
@@ -1364,16 +1571,16 @@ var app_state = EmberObject.extend({
     // or if not already on a board (i.e. starting a new
     // speak mode session) then clear the
     // stashed locale settings
-    if(jump_home || !app_state.get('currentBoardState')) {
-      stashes.persist('label_locale', null);
-      stashes.persist('vocalization_locale', null);
+    if(jump_home || !this.get('currentBoardState')) {
+      this.stashes.persist('label_locale', null);
+      this.stashes.persist('vocalization_locale', null);
     }
     if(board_user_id == 'self' || (session_user_id && board_user_id == session_user_id)) {
-      app_state.set('speakModeUser', null);
-      app_state.set('referenced_speak_mode_user', null);
-      stashes.persist('speak_mode_user_id', null);
-      stashes.persist('referenced_speak_mode_user_id', null);
-      if(!board_key && !app_state.get('speak_mode') && jump_home !== true) {
+      this.set('speakModeUser', null);
+      this.set('referenced_speak_mode_user', null);
+      this.stashes.persist('speak_mode_user_id', null);
+      this.stashes.persist('referenced_speak_mode_user_id', null);
+      if(!board_key && !this.get('speak_mode') && jump_home !== true) {
         this.toggle_speak_mode();
       } else {
         var opts = {};
@@ -1382,8 +1589,8 @@ var app_state = EmberObject.extend({
         }
         this.home_in_speak_mode(opts);
       }
-      if(keep_as_self && app_state.get('sessionUser.communicator_in_supporter_view')) {
-        app_state.set('modeling_for_self', true);
+      if(keep_as_self && this.get('sessionUser.communicator_in_supporter_view')) {
+        this.set('modeling_for_self', true);
       }
     } else {
       // TODO: this won't get the device-specific settings correctly unless
@@ -1397,7 +1604,7 @@ var app_state = EmberObject.extend({
       // Ember Data will warn about the ID mismatch. This is a backend behavior issue.
       LingoLinq.store.findRecord('user', board_user_id).then(function(u) {
         var data = RSVP.resolve(u);
-        if(!u.get('preferences') || (!u.get('fresh') && stashes.get('online'))) {
+        if(!u.get('preferences') || (!u.get('fresh') && _this.stashes.get('online'))) {
           data = u.reload();
         }
         data.then(null, function() {
@@ -1409,22 +1616,22 @@ var app_state = EmberObject.extend({
           }
         }).then(function(u) {
           if(keep_as_self) {
-            app_state.set('speakModeUser', null);
-            stashes.persist('speak_mode_user_id', null);
+            _this.set('speakModeUser', null);
+            _this.stashes.persist('speak_mode_user_id', null);
           } else {
-            app_state.set('speakModeUser', u);
-            stashes.persist('speak_mode_user_id', (u && u.get('id')));
+            _this.set('speakModeUser', u);
+            _this.stashes.persist('speak_mode_user_id', (u && u.get('id')));
           }
-          app_state.set('referenced_speak_mode_user', u);
-          stashes.persist('referenced_speak_mode_user_id', (u && u.get('id')));
+          _this.set('referenced_speak_mode_user', u);
+          _this.stashes.persist('referenced_speak_mode_user_id', (u && u.get('id')));
           var user_state = u.get('preferences.home_board');
-          var current = app_state.get('currentBoardState') || user_state;
+          var current = _this.get('currentBoardState') || user_state;
           if(board_key) {
             _this.home_in_speak_mode({
               user: u,
               reminded: !jump_home,
               remember_level: !jump_home,
-              fallback_board_state: user_state || app_state.get('sessionUser.preferences.home_board'),
+              fallback_board_state: user_state || _this.get('sessionUser.preferences.home_board'),
               force_board_state: {key: board_key}
             });
           } else if(jump_home || (user_state && current && user_state.id == current.id)) {
@@ -1432,15 +1639,15 @@ var app_state = EmberObject.extend({
               user: u,
               reminded: !jump_home,
               remember_level: !jump_home,
-              fallback_board_state: user_state || app_state.get('sessionUser.preferences.home_board')
+              fallback_board_state: user_state || _this.get('sessionUser.preferences.home_board')
             });
           } else {
-            if(!app_state.get('speak_mode')) {
+            if(!_this.get('speak_mode')) {
               _this.toggle_speak_mode();
             }
             var user_state = u.get('preferences.home_board');
-            var current = app_state.get('currentBoardState') || user_state;
-            stashes.persist('temporary_root_board_state', current);
+            var current = _this.get('currentBoardState') || user_state;
+            _this.stashes.persist('temporary_root_board_state', current);
           }
         }, function() {
           modal.error(i18n.t('user_retrive_failed2', "Failed to retrieve user details for Speak Mode"));
@@ -1457,7 +1664,7 @@ var app_state = EmberObject.extend({
     this.set('flipped', !this.get('flipped'));
   },
   save_phrase: function(voc, category) {
-    var user = app_state.get('currentUser');
+    var user = this.get('currentUser');
     if(user) {
       // TODO: needs to peresist locally if offline
       var vocs = user.get('vocalizations') || []
@@ -1473,12 +1680,12 @@ var app_state = EmberObject.extend({
       user.set('vocalizations', vocs);
       user.save().then(function() { user.set('offline_actions', null); }, function() { });
     } else {
-      stashes.remember({override: voc});
+      this.stashes.remember({override: voc});
     }
   },
   remove_phrase: function(phrase) {
-    var voc = app_state.get('currentUser.vocalizations') || [];
-    var stash = stashes.get('remembered_vocalizations');
+    var voc = this.get('currentUser.vocalizations') || [];
+    var stash = this.stashes.get('remembered_vocalizations');
     var matches = 0;
     if(phrase.id) {
       voc = voc.filter(function(v) { 
@@ -1495,8 +1702,8 @@ var app_state = EmberObject.extend({
         return true;
       });
     }
-    if(app_state.get('currentUser')) {
-      var u = app_state.get('currentUser');
+    if(this.get('currentUser')) {
+      var u = this.get('currentUser');
       u.set('vocalizations', voc);
       u.add_action({
         action: 'remove_vocalization',
@@ -1504,11 +1711,11 @@ var app_state = EmberObject.extend({
       });
       u.save().then(function() { u.set('offline_actions', null); }, function() { });
     }
-    stashes.persist('remembered_vocalizations', stash);
+    this.stashes.persist('remembered_vocalizations', stash);
   },
   shift_phrase: function(phrase, direction) {
-    if(app_state.get('currentUser')) {
-      var u = app_state.get('currentUser');
+    if(this.get('currentUser')) {
+      var u = this.get('currentUser');
       var list = u.get('vocalizations') || [];
       var voc = list.find(function(v) { return v && v.id && phrase.id && v.id == phrase.id; });
       var idx = list.indexOf(voc);
@@ -1545,20 +1752,35 @@ var app_state = EmberObject.extend({
   },
   set_current_user: observer('sessionUser', 'speak_mode', 'speakModeUser', function() {
     this.did_set_current_user = true;
-    if(app_state.get('speak_mode') && app_state.get('speakModeUser')) {
-      app_state.set('currentUser', app_state.get('speakModeUser'));
+    console.log('[APP-STATE] set_current_user observer fired', {
+      has_sessionUser: !!this.get('sessionUser'),
+      sessionUser_id: this.get('sessionUser') ? this.get('sessionUser.id') : null,
+      speak_mode: this.get('speak_mode'),
+      has_speakModeUser: !!this.get('speakModeUser')
+    });
+    if(this.get('speak_mode') && this.get('speakModeUser')) {
+      this.set('currentUser', this.get('speakModeUser'));
+      console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser');
     } else {
-      var user = app_state.get('sessionUser');
+      var user = this.get('sessionUser');
+      console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
+        has_user: !!user,
+        user_id: user ? user.get('id') : null
+      });
       if(user && user.get && !user.get('preferences.progress.app_added') && (navigator.standalone || (capabilities.installed_app && capabilities.mobile))) {
         user.set('preferences.progress.app_added', true);
         user.save().then(null, function() { });
       }
-      app_state.set('currentUser', user);
+      this.set('currentUser', user);
+      console.log('[APP-STATE] set_current_user: currentUser set', {
+        has_currentUser: !!this.get('currentUser'),
+        currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
+      });
     }
-    if(app_state.get('currentUser')) {
-      app_state.set('currentUser.load_all_connections', true);
+    if(this.get('currentUser')) {
+      this.set('currentUser.load_all_connections', true);
     }
-    if(app_state.get('sessionUser.permissions.supervise')) {
+    if(this.get('sessionUser.permissions.supervise')) {
       sync.connect();
     }
   }),
@@ -1604,7 +1826,7 @@ var app_state = EmberObject.extend({
     if(!this.get('currentBoardState')) {
       $('#speak_mode').popover('destroy');
       $('html,body').css('overflow', '');
-    } else if(!app_state.get('testing')) {
+    } else if(!this.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
       try {
         this.controller.set('footer', false);
@@ -1619,7 +1841,7 @@ var app_state = EmberObject.extend({
     'currentUser.preferences.activation_on_start',
     'currentUser.preferences.debounce',
     function() {
-      if(app_state.get('speak_mode')) {
+      if(this.get('speak_mode')) {
         buttonTracker.minimum_press = this.get('currentUser.preferences.activation_minimum');
         buttonTracker.activation_location = this.get('currentUser.preferences.activation_location');
         buttonTracker.clear_on_wiggle = true; // TODO: make this a user pref
@@ -1645,14 +1867,14 @@ var app_state = EmberObject.extend({
     'button_list.length',
     'insertion.index',
     function() {
-      if(app_state.get('speak_mode')) {
+      if(this.get('speak_mode')) {
         runLater(function() {
           var $button_list = $("#button_list");
           var $item = null;
-          if(app_state.get('insertion.index')) {
+          if(this.get('insertion.index')) {
             $item = $button_list.find(".utterance_cursor");
             if($item.length == 0) {
-              $item = $button_list.find(".history_button:not(.utterance_cursor)").eq(app_state.get('insertion.index'));
+              $item = $button_list.find(".history_button:not(.utterance_cursor)").eq(this.get('insertion.index'));
             }
           }
           if(!$item || $item.length == 0) { $item = $button_list.find(".history_button").last(); }
@@ -1675,12 +1897,12 @@ var app_state = EmberObject.extend({
   }),
   extra_colored_keys: computed('currentUser.all_extra_colors', 'currentUser.preferences.extra_colors', 'color_key_id', function() {
     var list = [];
-    if(app_state.get('currentUser.all_extra_colors')) {
-      list = [].concat(app_state.get('currentUser.all_extra_colors'));
-    // } else if(app_state.get('currentUser.preferences.extra_colors')) {
+    if(this.get('currentUser.all_extra_colors')) {
+      list = [].concat(this.get('currentUser.all_extra_colors'));
+    // } else if(this.get('currentUser.preferences.extra_colors')) {
     //   list = [].concat(LingoLinq.extra_keyed_colors);
     } else {
-      if(app_state.controller && app_state.controller.get('board.model') && window.tinycolor && editManager.controller.get('ordered_buttons')) {
+      if(this.controller && this.controller.get('board.model') && window.tinycolor && editManager.controller.get('ordered_buttons')) {
         var knowns = {};
         LingoLinq.keyed_colors.forEach(function(clr) {
           var a = window.tinycolor(clr.border);
@@ -1690,7 +1912,8 @@ var app_state = EmberObject.extend({
           knowns[a.toHexString() + b.toHexString()] = true;
           knowns[a.toRgbString() + b.toRgbString()] = true;
         });
-        app_state.set('colored_keys', true);
+        // eslint-disable-next-line ember/no-side-effects
+        this.set('colored_keys', true);
 
         editManager.controller.get('ordered_buttons').forEach(function(row) {
           row.forEach(function(button) {
@@ -1710,20 +1933,20 @@ var app_state = EmberObject.extend({
     return list;
   }),
   board_lang: computed('label_locale', function() {
-    return (app_state.get('label_locale') || 'en').split(/-|_/)[0];
+    return (this.get('label_locale') || 'en').split(/-|_/)[0];
   }),
   get_history: function() {
-    if(app_state.get('speak_mode')) {
-      return stashes.get('boardHistory');
+    if(this.get('speak_mode')) {
+      return this.stashes.get('boardHistory');
     } else {
-      return stashes.get('browse_history');
+      return this.stashes.get('browse_history');
     }
   },
   set_history: function(hist) {
-    if(app_state.get('speak_mode')) {
-      stashes.persist('boardHistory', hist);
+    if(this.get('speak_mode')) {
+      this.stashes.persist('boardHistory', hist);
     } else {
-      stashes.persist('browse_history', hist);
+      this.stashes.persist('browse_history', hist);
     }
   },
   feature_flags: computed('currentUser.feature_flags', function() {
@@ -1744,14 +1967,27 @@ var app_state = EmberObject.extend({
     'flipped',
     'currentUser.preferences.device.flipped_override',
     function() {
+      // Guard: ensure this is valid
+      if(!this || typeof this !== 'object' || typeof this.get !== 'function') {
+        return 'medium'; // default size
+      }
       var size = this.get('currentUser.preferences.device.vocalization_height') || ((window.user_preferences || {}).device || {}).vocalization_height || 100;
       if(this.get('currentUser.preferences.device.flipped_override') && this.get('flipped') && this.get('currentUser.preferences.device.flipped_height')) {
         size = this.get('currentUser.preferences.device.flipped_height');
       }
-      if(this.controller.get('board.model.small_header')) {
-        if(size != 'tiny' && size != 'small') {
-          size = 'small';
+      // Guard: ensure controller exists and has get method before accessing it
+      try {
+        if(this.controller && typeof this.controller.get === 'function') {
+          var small_header = this.controller.get('board.model.small_header');
+          if(small_header) {
+            if(size != 'tiny' && size != 'small') {
+              size = 'small';
+            }
+          }
         }
+      } catch(e) {
+        // Silently ignore if controller.get fails
+        console.warn('header_size: error accessing controller.get:', e);
       }
       if(window.innerHeight < 400) {
         size = 'tiny';
@@ -1797,7 +2033,7 @@ var app_state = EmberObject.extend({
     }
   },
   check_for_needing_purchase: function(prevent_unless_purchased) {
-    var user = app_state.get('sessionUser');
+    var user = this.get('sessionUser');
     // Modeling-only and expired communicator accounts have 
     // a number of features that they are prevented from using.
     // If the user is very expired, or they are modeling-only
@@ -1830,16 +2066,16 @@ var app_state = EmberObject.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
-      if(session.get('isAuthenticated') && !app_state.get('currentUser.id')) {
+      if(session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
       }
       if(this.get('speak_mode')) {
-        stashes.set('logging_enabled', !!(this.get('speak_mode') && (this.get('currentUser.preferences.logging') || this.get('referenced_user.preferences.logging'))));
-        stashes.set('geo_logging_enabled', !!(this.get('speak_mode') && this.get('currentUser.preferences.geo_logging')));
-        stashes.set('speaking_user_id', this.get('currentUser.id'));
-        stashes.set('session_user_id', this.get('sessionUser.id'));
-        stashes.set('session_preferred_symbols', app_state.get('referenced_user.preferences.preferred_symbols'));
+        this.stashes.set('logging_enabled', !!(this.get('speak_mode') && (this.get('currentUser.preferences.logging') || this.get('referenced_user.preferences.logging'))));
+        this.stashes.set('geo_logging_enabled', !!(this.get('speak_mode') && this.get('currentUser.preferences.geo_logging')));
+        this.stashes.set('speaking_user_id', this.get('currentUser.id'));
+        this.stashes.set('session_user_id', this.get('sessionUser.id'));
+        this.stashes.set('session_preferred_symbols', this.get('referenced_user.preferences.preferred_symbols'));
 
         var voices = speecher.get('voices');
         // Android Chrome seems to have a short delay before voices get loaded
@@ -1849,9 +2085,9 @@ var app_state = EmberObject.extend({
           }, 500);
         }
 
-        var geo_enabled = app_state.get('currentUser.preferences.geo_logging') || app_state.get('sidebar_boards').find(function(b) { return b.highlight_type == 'locations' || b.highlight_type == 'custom'; });
+        var geo_enabled = this.get('currentUser.preferences.geo_logging') || this.get('sidebar_boards').find(function(b) { return b.highlight_type == 'locations' || b.highlight_type == 'custom'; });
         if(geo_enabled) {
-          stashes.geo.poll();
+          this.stashes.geo.poll();
         }
         this.set('speak_mode_started', (new Date()).getTime());
         this.set('battery_after_speak_mode', false);
@@ -1872,12 +2108,12 @@ var app_state = EmberObject.extend({
           // When entering Speak Mode, use the board's default locale
           // if(this.get('currentBoardState.default_locale')) {
           //   var loc = this.get('currentBoardState.default_locale');
-          //   app_state.set('label_locale', loc);
-          //   app_state.set('vocalization_locale', loc);
+          //   this.set('label_locale', loc);
+          //   this.set('vocalization_locale', loc);
           // }
           this.set_history([]);
           var noticed = false;
-          if(stashes.get('logging_enabled')) {
+          if(this.stashes.get('logging_enabled')) {
             noticed = true;
             modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
           }
@@ -1924,14 +2160,15 @@ var app_state = EmberObject.extend({
             }, 100);
           }
           speecher.set_output_target({}, function() { });
-          app_state.load_user_badge();
-          if(app_state.get('installed_app') && window.persistence) {
-            var get_local_revisions = window.persistence.find('settings', 'synced_full_set_revisions').then(function(res) {
-              if(app_state.get('currentBoardState.id') && !res[app_state.get('currentBoardState.id')]) {
-                if(!window.persistence.get('last_sync_at')) {
+          this.load_user_badge();
+          if(this.get('installed_app') && window.persistence) {
+            var _this = this;
+            var get_local_revisions = this.persistence.find('settings', 'synced_full_set_revisions').then(function(res) {
+              if(_this.get('currentBoardState.id') && !res[_this.get('currentBoardState.id')]) {
+                if(!_this.persistence.get('last_sync_at')) {
                   // if not ever synced, remind them to sync before trying to use Speak Mode
                   modal.warning(i18n.t('remember_to_sync', "Remember to sync before trying to use boards somewhere without a strong Internet connection!"), true);
-                } else if(app_state.get('current_board_in_extended_board_set')) {
+                } else if(this.get('current_board_in_extended_board_set')) {
                   // if synced and this is in home board set, remind them to sync
                   modal.warning(i18n.t('need_to_re_sync', "Remember to sync so you have access to all your boards offline!"), true);
                 } else {
@@ -1947,11 +2184,11 @@ var app_state = EmberObject.extend({
         this.set('full_screen_capable', capabilities.fullscreen_capable());
         if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
           var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          if(!intro && !app_state.get('speak-mode-intro')) {
+          if(!intro && !this.get('speak-mode-intro')) {
             if(modal.route && !modal.is_open('speak-mode-intro')) {
               modal.open('speak-mode-intro');
             }
-          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !app_state.get('modeling-intro')) {
+          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
             var now = (new Date()).getTime();
             if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
             if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
@@ -1964,36 +2201,36 @@ var app_state = EmberObject.extend({
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
         capabilities.fullscreen(false);
-        app_state.check_scanning();
+        this.check_scanning();
         buttonTracker.hit_spots = [];
-        app_state.set('suggestion_id', null);
+        this.set('suggestion_id', null);
         if(this.get('last_speak_mode') !== false) {
-          if(app_state.get('sessionUser')) {
-            app_state.set('sessionUser.request_alert', null);
+          if(this.get('sessionUser')) {
+            this.set('sessionUser.request_alert', null);
           }
-          app_state.set('pairing', null);
-          app_state.set('followers', null);
-          app_state.set('focus_words', null);
-          app_state.set('sync_utterance', null);
-          app_state.set('modeling_for_self', null);
+          this.set('pairing', null);
+          this.set('followers', null);
+          this.set('focus_words', null);
+          this.set('sync_utterance', null);
+          this.set('modeling_for_self', null);
 
           sync.end_follows();
           sync.current_pairing = null;
-          stashes.persist('temporary_root_board_state', null);
-          stashes.persist('sticky_board', false);
-          stashes.persist('speak_mode_user_id', null);
-          stashes.persist('all_buttons_enabled', null);
-          app_state.set('manual_modeling', false);
-          app_state.set('referenced_speak_mode_user', null);
-          stashes.persist('referenced_speak_mode_user_id', null);
+          this.stashes.persist('temporary_root_board_state', null);
+          this.stashes.persist('sticky_board', false);
+          this.stashes.persist('speak_mode_user_id', null);
+          this.stashes.persist('all_buttons_enabled', null);
+          this.set('manual_modeling', false);
+          this.set('referenced_speak_mode_user', null);
+          this.stashes.persist('referenced_speak_mode_user_id', null);
           if(LingoLinq.Board) {
             LingoLinq.Board.clear_fast_html();
           }
         }
       }
-      app_state.refresh_suggestions();
+      this.refresh_suggestions();
       
-      if(!session.get('isAuthenticated') || app_state.get('currentUser')) {
+      if(!session.get('isAuthenticated') || this.get('currentUser')) {
         this.set('last_speak_mode', !!this.get('speak_mode'));
       }
     }
@@ -2044,18 +2281,18 @@ var app_state = EmberObject.extend({
     }
   ),
   refresh_suggestions: function() {
-    if(app_state.controller && app_state.controller.get('board.model')) {
+    if(this.controller && this.controller.get('board.model')) {
       // TODO: only load this if we know we need it?
-      var history_string = (stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
-      var ref = app_state.controller.get('board.model.id') + "::" + history_string + "::" + app_state.get('shift');
-      if(true || ref != app_state.get('suggestion_id')) {
-        var $board = $(".board[data-id='" + app_state.controller.get('board.model.id') + "']");
+      var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
+      var ref = this.controller.get('board.model.id') + "::" + history_string + "::" + this.get('shift');
+      if(true || ref != this.get('suggestion_id')) {
+        var $board = $(".board[data-id='" + this.controller.get('board.model.id') + "']");
         if($board.length > 0) {
-          app_state.set('suggestion_id', ref);
-          app_state.controller.get('board.model').clear_real_time_changes();
-          app_state.controller.get('board.model').load_word_suggestions([app_state.get('currentUser.preferences.home_board.id'), stashes.get('temporary_root_board_state.id')]);
-          if(app_state.get('referenced_user.preferences.auto_inflections') || app_state.get('inflection_shift') || app_state.get('shift')) {
-            app_state.controller.get('board.model').load_real_time_inflections();
+          this.set('suggestion_id', ref);
+          this.controller.get('board.model').clear_real_time_changes();
+          this.controller.get('board.model').load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
+          if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
+            this.controller.get('board.model').load_real_time_inflections();
           }
         }
       }
@@ -2064,12 +2301,12 @@ var app_state = EmberObject.extend({
   inflection_prefix: computed('stashes.working_vocalization', 'referenced_user.preferences.auto_inflections', 'inflection_shift', function() {
       var sentence = null;
       if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift')) {
-        sentence = (stashes.get('working_vocalization') || []).map(function(v) { return v.label; }).join(' ');
+        sentence = (this.stashes.get('working_vocalization') || []).map(function(v) { return v.label; }).join(' ');
       }
       return sentence;
   }),
   handle_tag: function(tag) {
-    if(!app_state.get('speak_mode')) { return; }
+    if(!this.get('speak_mode')) { return; }
     var text_fallback = function(text) {
       if(!text) { return; }
       var obj = {
@@ -2078,11 +2315,11 @@ var app_state = EmberObject.extend({
         prevent_return: true,
         button_id: null,
         source: 'tag',
-        board: {id: app_state.get('currentBoardState.id'), parent_id: app_state.get('currentBoardState.parent_id'), key: app_state.get('currentBoardState.key')},
+        board: {id: this.get('currentBoardState.id'), parent_id: this.get('currentBoardState.parent_id'), key: this.get('currentBoardState.key')},
         type: 'speak'
       };
   
-      app_state.activate_button({}, obj);
+      this.activate_button({}, obj);
     };
     if(tag.uri) {
       var tag_id = (tag.uri.match(/^cough:\/\/tag\/([^\/]+)$/) || [])[1];
@@ -2092,7 +2329,7 @@ var app_state = EmberObject.extend({
         LingoLinq.store.findRecord('tag', tag_id).then(function(tag_object) {
           if(tag_object.get('button')) {
             var button = Button.create(tag_object.get('button'));
-            app_state.controller.activateButton(button, {board: editManager.controller.get('model'), trigger_source: 'tag'});
+            this.controller.activateButton(button, {board: editManager.controller.get('model'), trigger_source: 'tag'});
           } else {
             text_fallback(tag_object.get('label'));
           }
@@ -2109,13 +2346,13 @@ var app_state = EmberObject.extend({
     }
   },
   speak_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+    return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
   }),
   edit_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+    return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
   }),
   default_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
+    return !!(this.stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
   }),
   limited_speak_mode_options: computed(
     'speak_mode',
@@ -2130,6 +2367,11 @@ var app_state = EmberObject.extend({
     return this.get('speak_mode') && this.get('embedded');
   }),
   retry_images: observer('medium_refresh_stamp', 'persistence.online', function() {
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
+    var _this = this; // Capture outer 'this' for use in callbacks
     document.querySelectorAll('img.broken_image').forEach(function(img) {
       if(img.getAttribute('rel-url') && img.src.match(/square\.svg/)) {
         // try to recover images from being broken
@@ -2141,26 +2383,36 @@ var app_state = EmberObject.extend({
         i.onerror = function() {
           if(i.already_errored) { return; }
           i.already_errored = true;
+          // Guard: ensure persistence exists before accessing it
+          // Use window.persistence or _this.persistence, not 'this' (which is Image)
+          var persistence = window.persistence || (_this && _this.persistence);
+          if(!persistence) {
+            return;
+          }
           if(i.src.match(/^file/) || i.src.match(/^localhost/)) {
-            for(var key in persistence.url_cache) {
-              if(persistence.url_cache[key] == i.src) {
-                setTimeout(function() {
-                  i.src = key;
-                }, 10);
+            if(persistence.url_cache) {
+              for(var key in persistence.url_cache) {
+                if(persistence.url_cache[key] == i.src) {
+                  setTimeout(function() {
+                    i.src = key;
+                  }, 10);
+                }
               }
             }
           } else {
-            persistence.find_url(i.src).then(function(data_uri) {
-              i.src = data_uri;
-            }, function() {
-              // try falling back to variant-less
-              var alt = i.src && i.src.replace(/\.variant-.+\.(png|svg)$/, '');
-              if(alt != i.src) {
-                persistence.find_url(alt).then(function(data_uri) {
-                  i.src = data_uri;
-                });
-              }
-            });
+            if(persistence.find_url && typeof persistence.find_url === 'function') {
+              persistence.find_url(i.src).then(function(data_uri) {
+                i.src = data_uri;
+              }, function() {
+                // try falling back to variant-less
+                var alt = i.src && i.src.replace(/\.variant-.+\.(png|svg)$/, '');
+                if(alt != i.src && persistence.find_url) {
+                  persistence.find_url(alt).then(function(data_uri) {
+                    i.src = data_uri;
+                  });
+                }
+              });
+            }
           }
         };
         i.src = img.getAttribute('rel-url');
@@ -2170,7 +2422,7 @@ var app_state = EmberObject.extend({
   auto_exit_speak_mode: observer('speak_mode_started', 'medium_refresh_stamp', function() {
     var now = (new Date()).getTime();
     var redirect_option = false;
-    if(app_state.controller && app_state.controller.get('board.model.local_only') && app_state.controller.get('board.model.obf_type') == 'emergency') {
+    if(this.controller && this.controller.get('board.model.local_only') && this.controller.get('board.model.obf_type') == 'emergency') {
       return;
     }
     // if we're speaking as the current user and they're a limited supervisor, or if
@@ -2209,8 +2461,12 @@ var app_state = EmberObject.extend({
     }
   }),
   check_inbox: observer('referenced_user.id', 'medium_refresh_stamp', function() {
-    var ref_user = app_state.get('referenced_user');
-    if(window.persistence && window.persistence.get('online') && app_state.get('speak_mode') && ref_user) {
+    // Guard: check this before accessing properties
+    if(!this || typeof this !== 'object') {
+      return;
+    }
+    var ref_user = this.get('referenced_user');
+    if(this.persistence && this.persistence.get('online') && this.get('speak_mode') && ref_user) {
       var last_share = ref_user.get('last_share') || 0;
       var last_check = ref_user.get('retrieved') || ref_user.get('last_sync_stamp.checked') || 1;
       var now = (new Date()).getTime();
@@ -2265,7 +2521,7 @@ var app_state = EmberObject.extend({
     'stashes.root_board_state',
     'stashes.temporary_root_board_state',
     function() {
-      var state = stashes.get('temporary_root_board_state') || stashes.get('root_board_state');
+      var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
       var current = this.get('currentBoardState');
       return this.get('speak_mode') && state && current && state.key == current.key;
     }
@@ -2275,7 +2531,7 @@ var app_state = EmberObject.extend({
     'stashes.temporary_root_board_state',
     'currentUser.preferences.home_board.id',
     function() {
-      var state = stashes.get('temporary_root_board_state') || stashes.get('root_board_state');
+      var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
       var user = this.get('currentUser');
       return !!(state && user && user.get('preferences.home_board.id') == state.id);
     }
@@ -2321,7 +2577,7 @@ var app_state = EmberObject.extend({
     'eval_mode',
     function() {
       // TODO: does this need to trigger board resize event? maybe...
-      return this.get('speak_mode') && !this.get('eval_mode') && (stashes.get('sidebarEnabled') || this.get('currentUser.preferences.quick_sidebar'));
+      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('currentUser.preferences.quick_sidebar'));
     }
   ),
   sidebar_relegated: computed('speak_mode', 'window_inner_width', function() {
@@ -2350,7 +2606,7 @@ var app_state = EmberObject.extend({
       if(_this.get('nearby_places') && any_places) {
         // set current_place_types to the list of places for the closest-retrieved place
         (_this.get('nearby_places') || []).forEach(function(place) {
-          var d = geolocation.distance(place.latitude, place.longitude, stashes.get('geo.latest.coords.latitude'), stashes.get('geo.latest.coords.longitude'));
+          var d = geolocation.distance(place.latitude, place.longitude, this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'));
           // anything with 500ft could be a winner
           if(d && d < 500) {
             place.types.forEach(function(type) {
@@ -2375,12 +2631,12 @@ var app_state = EmberObject.extend({
           matches['ssid'] = true;
         }
         var geo_set = false;
-        if(brd.geos && stashes.get('geo.latest.coords')) {
+        if(brd.geos && this.stashes.get('geo.latest.coords')) {
           var geos = brd.geos || [];
           if(geos.split) { geos = geos.split(/;/).map(function(g) { return g.split(/,/).map(function(n) { return parseFloat(n); }); }); }
           brd.geo_distance = -1;
           geos.forEach(function(geo) {
-            var d = geolocation.distance(stashes.get('geo.latest.coords.latitude'), stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
+            var d = geolocation.distance(this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
             if(d && d < loose_tolerance && (brd.geo_distance == -1 || d < brd.geo_distance)) {
               brd.geo_distance = d;
               geo_set = true;
@@ -2474,6 +2730,10 @@ var app_state = EmberObject.extend({
     'referenced_speak_mode_user',
     'referenced_speak_mode_user.sidebar_boards_with_fallback',
     function() {
+      // Guard: ensure this is valid before accessing it
+      if(!this || typeof this.get !== 'function') {
+        return RSVP.resolve([]);
+      }
       if(!this.get('speak_mode')) { return RSVP.resolve([]); }
       var boards = this.get('current_sidebar_boards') || [];
       if(!boards.find(function(b) { return b.places; })) { return RSVP.reject(); }
@@ -2512,7 +2772,7 @@ var app_state = EmberObject.extend({
     'currentUser',
     'referenced_speak_mode_user',
     function() {
-      var user = app_state.get('currentUser');
+      var user = this.get('currentUser');
       if(this.get('modeling_for_user') && this.get('referenced_speak_mode_user')) {
         user = this.get('referenced_speak_mode_user');
       }
@@ -2533,8 +2793,13 @@ var app_state = EmberObject.extend({
     }
   }),
   load_user_badge: observer('speak_mode', 'referenced_user', 'persistence.online', function() {
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
     // TODO: option to disable badges
-    if(this.get('speak_mode') && this.get('persistence.online')) {
+    // Fixed: 'this.persistence.online' is invalid observer path, changed to 'persistence.online'
+    if(this.get('speak_mode') && this.persistence && this.persistence.get('online')) {
       var badge_hash = (this.get('referenced_user.id') || 'nobody') + "::" + ((new Date()).getTime() / 1000 / 3600)
       // don't check more than once an hour
       if(this.get('user_badge_hash') == badge_hash) { return; }
@@ -2576,23 +2841,26 @@ var app_state = EmberObject.extend({
     return Ember.testing;
   }),
   logging_paused: computed('stashes.logging_paused_at', function() {
-    return !!stashes.get('logging_paused_at');
+    return !!this.stashes.get('logging_paused_at');
   }),
   current_time: computed('short_refresh_stamp', function() {
     return (this.get('short_refresh_stamp') || new Date());
   }),
   check_for_user_updated: observer('short_refresh_stamp', 'sessionUser', function(obj, changes) {
-    if(window.persistence) {
-      app_state.set('persistence', window.persistence);
-      if(changes == 'sessionUser' || !window.persistence.get('last_sync_stamp')) {
-        window.persistence.set('last_sync_stamp', this.get('sessionUser.sync_stamp'));
+    // Guard: check this before accessing properties
+    if(!this || typeof this !== 'object') {
+      return;
+    }
+    if(this.persistence) {
+      if(changes == 'sessionUser' || !this.persistence.get('last_sync_stamp')) {
+        this.persistence.set('last_sync_stamp', this.get('sessionUser.sync_stamp'));
       }
     }
     if(this.get('sessionUser')) {
       var interval = (this.get('sessionUser.preferences.sync_refresh_interval') || (5 * 60)) * 1000;
-      if(window.persistence) {
-        if(window.persistence.get('last_sync_stamp_interval') != interval) {
-          window.persistence.set('last_sync_stamp_interval', interval);
+      if(this.persistence) {
+        if(this.persistence.get('last_sync_stamp_interval') != interval) {
+          this.persistence.set('last_sync_stamp_interval', interval);
         }
       } else {
         console.error('persistence needed for checking user status');
@@ -2606,17 +2874,17 @@ var app_state = EmberObject.extend({
     }
     // skip hidden buttons
     if((button.hidden || button.empty) && !this.get('edit_mode') && this.get('currentUser.preferences.hidden_buttons') == 'grid') {
-      if(!stashes.get('all_buttons_enabled')) {
+      if(!this.stashes.get('all_buttons_enabled')) {
         return false;
       }
     }
 
-    if(app_state.get('speak_mode') && !modal.is_open()) {
+    if(this.get('speak_mode') && !modal.is_open()) {
       if(!buttonTracker.check('native_keyboard') && !buttonTracker.check('scanning_enabled')) {
         $(":focus").blur();
       }
     }
-    if(app_state.get('pairing.partner') && app_state.get('pairing.model')) {
+    if(this.get('pairing.partner') && this.get('pairing.model')) {
       sync.model_button(button, obj);
       return;
     }
@@ -2624,9 +2892,9 @@ var app_state = EmberObject.extend({
     // track modeling events correctly
     var now = (new Date()).getTime();
     var skip_navigation = false;
-    if(app_state.get('modeling')) {
+    if(this.get('modeling')) {
       obj.modeling = true;
-    } else if(stashes.last_selection && stashes.last_selection.modeling && stashes.last_selection.ts > (now - 500)) {
+    } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
       obj.modeling = true;
     }
 
@@ -2648,7 +2916,7 @@ var app_state = EmberObject.extend({
     if(obj.vocalization == ':predict' || obj.vocalization == ':complete') {
     }
 
-    app_state.set('last_activation', now);
+    this.set('last_activation', now);
     // update button attributes preemptively
     if(button.link_disabled) {
       button = $.extend({}, button);
@@ -2722,7 +2990,7 @@ var app_state = EmberObject.extend({
     var skip_auto_return = false;
     // check if the button is part of a board that has a custom handler,
     // and skip the other actions if handled
-    if(button.board == app_state.controller.get('board.model') && button.board.get('button_handler')) {
+    if(button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
       var button_handled = button.board.get('button_handler')(button, obj);
       if(button_handled) { 
         if(button_handled.highlight === false) { skip_highlight = true; }
@@ -2737,7 +3005,7 @@ var app_state = EmberObject.extend({
     // speak or make a sound to show the button was selected
     if(obj.label && !skip_sound) {
       var click_sound = function() {
-        if(app_state.get('currentUser.preferences.click_buttons')) {
+        if(this.get('currentUser.preferences.click_buttons')) {
           if(specialty_button && specialty_button.has_sound) {
           } else {
             speecher.click();
@@ -2745,21 +3013,21 @@ var app_state = EmberObject.extend({
         }
       };
       var vibrate = function() {
-        if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+        if(this.get('currentUser.preferences.vibrate_buttons') && this.get('speak_mode')) {
           capabilities.vibrate();
         }
       };
-      if(app_state.get('speak_mode')) {
+      if(this.get('speak_mode')) {
         if(!skip_speaking_by_default) {
           obj.for_speaking = true;
         }
 
-        if(app_state.get('currentUser.preferences.vocalize_buttons') || (!app_state.get('currentUser') && window.user_preferences.any_user.vocalize_buttons)) {
-          if(skip_speaking_by_default && !app_state.get('currentUser.preferences.vocalize_linked_buttons') && !add_to_voc) {
+        if(this.get('currentUser.preferences.vocalize_buttons') || (!this.get('currentUser') && window.user_preferences.any_user.vocalize_buttons)) {
+          if(skip_speaking_by_default && !this.get('currentUser.preferences.vocalize_linked_buttons') && !add_to_voc) {
             // don't say it...
             click_sound();
             vibrate();
-          } else if(button_to_speak.in_progress && app_state.get('currentUser.preferences.silence_spelling_buttons')) {
+          } else if(button_to_speak.in_progress && this.get('currentUser.preferences.silence_spelling_buttons')) {
             // don't say it...
             click_sound();
             vibrate();
@@ -2791,17 +3059,17 @@ var app_state = EmberObject.extend({
     // took them any number of steps to get there. On average
     // it will probably be fine, but some buttons won't get 
     // enough weight.
-    obj.depth = app_state.get('depth_actions.depth') || 0; // || (stashes.get('boardHistory') || []).length;
-    obj.access = app_state.get('currentUser.access_method');
+    obj.depth = this.get('depth_actions.depth') || 0; // || (this.stashes.get('boardHistory') || []).length;
+    obj.access = this.get('currentUser.access_method');
     obj.overlay = !!overlay;
-    stashes.log(obj);
-    sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {button: obj});
+    this.stashes.log(obj);
+    sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {button: obj});
     var _this = this;
 
     // highlight the button that if highlights are enabled
-    if((app_state.get('referenced_user.preferences.highlighted_buttons') || 'none') != 'none' && app_state.get('speak_mode') && !skip_highlight) {
-      if(button_added_or_spoken || app_state.get('referenced_user.preferences.highlighted_buttons') == 'all') {
-        app_state.highlight_selected_button(button, overlay, obj.label, $button_clone);
+    if((this.get('referenced_user.preferences.highlighted_buttons') || 'none') != 'none' && this.get('speak_mode') && !skip_highlight) {
+      if(button_added_or_spoken || this.get('referenced_user.preferences.highlighted_buttons') == 'all') {
+        this.highlight_selected_button(button, overlay, obj.label, $button_clone);
       }
     }
     if(button.board && button.board.prompt) {
@@ -2810,7 +3078,7 @@ var app_state = EmberObject.extend({
 
     // additional actions (besides just speaking) will be necessary for some buttons
     if((button.load_board && button.load_board.key) || (button.vocalization || '').match(/:native-keyboard/)) {
-      var user_prefers_native_keyboard = app_state.get('referenced_user.preferences.device.prefer_native_keyboard');
+      var user_prefers_native_keyboard = this.get('referenced_user.preferences.device.prefer_native_keyboard');
       if(user_prefers_native_keyboard == undefined) {
         user_prefers_native_keyboard = window.user_preferences.any_user.prefer_native_keyboard;
       }
@@ -2818,11 +3086,11 @@ var app_state = EmberObject.extend({
       var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (button.load_board && button.load_board.key == 'example/keyboard');
       if(expecting_key && native_keyboard_available && user_prefers_native_keyboard && window.Keyboard && window.Keyboard.hide) {
         scanner.native_keyboard();
-      } else if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+      } else if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         runLater(function() {
-          app_state.track_depth('link');
+          this.track_depth('link');
           _this.jump_to_board({
             id: button.load_board.id,
             key: button.load_board.key,
@@ -2833,24 +3101,24 @@ var app_state = EmberObject.extend({
         }, 50);
       }
     } else if(button.url) {
-      app_state.track_depth('clear');
-      if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+      this.track_depth('clear');
+      if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-      } else if(app_state.get('currentUser.preferences.external_links') == 'prevent') {
+      } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
         modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
       } else {
-        app_state.launch_url(button, null, obj.board);
+        this.launch_url(button, null, obj.board);
       }
     } else if(button.apps) {
-      app_state.track_depth('clear');
-      if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+      this.track_depth('clear');
+      if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-      } else if(app_state.get('currentUser.preferences.external_links') == 'prevent') {
+      } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
         modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
       } else {
-        if((!app_state.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (app_state.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
+        if((!this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
           modal.open('confirm-external-app', {apps: button.apps});
-        } else if((!app_state.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || app_state.get('currentUser.preferences.confirm_external_links')) {
+        } else if((!this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || this.get('currentUser.preferences.confirm_external_links')) {
           modal.open('confirm-external-app', {apps: button.apps});
         } else {
           if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
@@ -2865,18 +3133,18 @@ var app_state = EmberObject.extend({
         }
       }
     } else if(specialty_button) {
-      app_state.track_depth('clear');
-      var res = app_state.specialty_actions(button.vocalization);
+      this.track_depth('clear');
+      var res = this.specialty_actions(button.vocalization);
       var auto_return_possible = !!specialty_button.default_speak || res.auto_return_possible;
       if(auto_return_possible && !res.already_navigating && !skip_auto_return) {
-        app_state.possible_auto_home(obj);
+        this.possible_auto_home(obj);
       }
     } else if(button.integration && button.integration.action_type == 'webhook') {
-      app_state.track_depth('clear');
+      this.track_depth('clear');
       Button.extra_actions(button);
-      runLater(function() { app_state.check_scanning(); }, 200);
+      runLater(function() { this.check_scanning(); }, 200);
     } else if(button.integration && button.integration.action_type == 'render') {
-      app_state.track_depth('clear');
+      this.track_depth('clear');
       runLater(function() {
       _this.jump_to_board({
         id: "i" + button.integration.user_integration_id,
@@ -2886,7 +3154,7 @@ var app_state = EmberObject.extend({
       }, obj.board);
       }, 100);
     } else if(!skip_auto_return) {
-      app_state.possible_auto_home(obj);
+      this.possible_auto_home(obj);
     }
     frame_listener.notify_of_button(button, obj);
     return true;
@@ -2949,7 +3217,7 @@ var app_state = EmberObject.extend({
       }
       var wait_to_fade = 1500;
       // TODO: wait_to_fade should be configurable maybe
-      if(app_state.get('referenced_user.preferences.highlight_popup_text')) {
+      if(this.get('referenced_user.preferences.highlight_popup_text')) {
         // https://rerc-aac.psu.edu/1819-2/
         var popup_width = Math.min(400, window.innerWidth);
         var popup_height = Math.min(200, window.innerHeight - board_offset.top);
@@ -2999,7 +3267,7 @@ var app_state = EmberObject.extend({
         var text = button.vocalization || button.label;
         var max_font_size = 120;
         var text_height = max_font_size;
-        var style = Button.style(app_state.controller.get('board.button_style')) || {};
+        var style = Button.style(this.controller.get('board.button_style')) || {};
         var font_family = style.font_family || 'Arial';
   
         context.font = text_height + "px " + font_family;
@@ -3128,26 +3396,26 @@ var app_state = EmberObject.extend({
     }
   },
   possible_auto_home: function(obj) {
-    app_state.track_depth('clear');
+    this.track_depth('clear');
     if(obj.prevent_return) {
       // integrations and configured buttons can explicitly prevent navigating away when activated
-      runLater(function() { app_state.check_scanning(); }, 200);
-    } else if(app_state.get('speak_mode') && ((!app_state.get('currentUser') && window.user_preferences.any_user.auto_home_return) || app_state.get('currentUser.preferences.auto_home_return'))) {
-      if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
-        var state = stashes.get('temporary_root_board_state') || stashes.get('root_board_state');
-        var current = app_state.get('currentBoardState');
+      runLater(function() { this.check_scanning(); }, 200);
+    } else if(this.get('speak_mode') && ((!this.get('currentUser') && window.user_preferences.any_user.auto_home_return) || this.get('currentUser.preferences.auto_home_return'))) {
+      if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
+        var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
+        var current = this.get('currentBoardState');
         if(state && current && state.key == current.key) {
         } else {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
         }
-        runLater(function() { app_state.check_scanning(); }, 200);
+        runLater(function() { this.check_scanning(); }, 200);
       } else if(obj && obj.vocalization && obj.vocalization.match(/^\+/)) {
         // don't home-return when spelling out words
-        runLater(function() { app_state.check_scanning(); }, 200);
+        runLater(function() { this.check_scanning(); }, 200);
       } else {
-        app_state.jump_to_root_board({auto_home: true});
+        this.jump_to_root_board({auto_home: true});
         // check for scanning because if already on home, nothing will change
-        runLater(function() { app_state.check_scanning(); }, 200);
+        runLater(function() { this.check_scanning(); }, 200);
       }
     }
   },
@@ -3202,7 +3470,7 @@ var app_state = EmberObject.extend({
   },
   remember_global_integrations: observer('sessionUser.global_integrations', function() {
     if(this.get('sessionUser.global_integrations')) {
-      stashes.persist('global_integrations', this.get('sessionUser.global_integrations'));
+      this.stashes.persist('global_integrations', this.get('sessionUser.global_integrations'));
     }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
@@ -3236,7 +3504,7 @@ var app_state = EmberObject.extend({
       sendAction: function() {
       },
       trigger: function(event, id, args) {
-        if(app_state.get('currentUser.preferences.device.canvas_render')) {
+        if(this.get('currentUser.preferences.device.canvas_render')) {
           if(LingoLinq.customEvents[event]) {
             dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
           }
@@ -3296,7 +3564,7 @@ var app_state = EmberObject.extend({
       },
       button_from_point: function(x, y) {
         var res = null;
-        if(app_state.get('currentUser.preferences.device.canvas_render')) {
+        if(this.get('currentUser.preferences.device.canvas_render')) {
           dom.each_button(function(b) {
             var pos = b.positioning;
             if(!b.hidden) {
@@ -3331,31 +3599,74 @@ var app_state = EmberObject.extend({
       }
     };
     return dom;
-  })
-}).create({
+  }),
+
+  _setupRefreshTimers: function() {
+    var _this = this;
+    if(!this.get('testing')) {
+      this.set('refresh_stamp', (new Date()).getTime());
+      this.set('medium_refresh_stamp', (new Date()).getTime());
+      this.set('short_refresh_stamp', (new Date()).getTime());
+      setInterval(function() {
+        try {
+          // Guard: ensure service is still valid before setting properties
+          if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+            // Defer property update to avoid render errors
+            runLater(function() {
+              if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+                _this.set('refresh_stamp', (new Date()).getTime());
+              }
+            }, 0);
+          }
+        } catch(e) {
+          console.warn('[app-state] Error setting refresh_stamp:', e);
+        }
+      }, 5*60*1000);
+      setInterval(function() {
+        try {
+          // Guard: ensure service is still valid before setting properties
+          if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+            // Defer property update to avoid render errors
+            runLater(function() {
+              if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+                _this.set('medium_refresh_stamp', (new Date()).getTime());
+              }
+            }, 0);
+          }
+        } catch(e) {
+          console.warn('[app-state] Error setting medium_refresh_stamp:', e);
+        }
+      }, 60*1000);
+      setInterval(function() {
+        try {
+          // Guard: ensure service is still valid before setting properties
+          if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+            // Defer property update to avoid render errors
+            runLater(function() {
+              if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+                _this.set('short_refresh_stamp', (new Date()).getTime());
+                // Guard: ensure window.persistence exists and has set method before using it
+                if(window.persistence && typeof window.persistence.set === 'function') {
+                  try {
+                    window.persistence.set('refresh_stamp', (new Date()).getTime());
+                  } catch(e) {
+                    // Silently fail if persistence service isn't ready yet
+                    // This can happen during initialization
+                  }
+                }
+              }
+            }, 0);
+          }
+        } catch(e) {
+          console.warn('[app-state] Error setting short_refresh_stamp:', e);
+        }
+      }, 500);
+    }
+  }
 });
 
-if(!app_state.get('testing')) {
-  app_state.set('refresh_stamp', (new Date()).getTime());
-  app_state.set('medium_refresh_stamp', (new Date()).getTime());
-  app_state.set('short_refresh_stamp', (new Date()).getTime());
-  setInterval(function() {
-    app_state.set('refresh_stamp', (new Date()).getTime());
-  }, 5*60*1000);
-  setInterval(function() {
-    app_state.set('medium_refresh_stamp', (new Date()).getTime());
-  }, 60*1000);
-  setInterval(function() {
-    app_state.set('short_refresh_stamp', (new Date()).getTime());
-    if(window.persistence) {
-      window.persistence.set('refresh_stamp', (new Date()).getTime());
-    } else {
-      console.error('persistence needed for setting refresh stamp');
-    }
-  }, 500);
-}
-
-app_state.ScrollTopRoute = Route.extend({
+// ScrollTopRoute exported separately for backward compatibility
+export const ScrollTopRoute = Route.extend({
   activate: function() {
     this._super();
     if(!this.get('already_scrolled')) {
@@ -3364,5 +3675,4 @@ app_state.ScrollTopRoute = Route.extend({
     }
   }
 });
-window.app_state = app_state;
-export default app_state;
+// window.app_state will be set in initializer after service is created

@@ -1109,8 +1109,29 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     if(err.error && err.error.error) {
       err = err.error;
     }
-    if(err.error == 'Record not found' && err.id && err.id.match(/^\d/)) {
-      return generate(id);
+    // Check for 404/Record not found errors in various formats
+    var isNotFound = false;
+    var errorId = id; // Use the requested id as fallback
+    
+    // Check different error formats
+    if(err.error == 'Record not found' || err.result == 'Record not found') {
+      isNotFound = true;
+      errorId = err.id || id;
+    } else if(err.fakeXHR && err.fakeXHR.status === 404) {
+      isNotFound = true;
+      if(err.fakeXHR.responseJSON && err.fakeXHR.responseJSON.id) {
+        errorId = err.fakeXHR.responseJSON.id;
+      }
+    } else if(err.errors && err.errors[0] && err.errors[0].status === 404) {
+      isNotFound = true;
+      if(err.errors[0].id) {
+        errorId = err.errors[0].id;
+      }
+    }
+    
+    // If it's a 404 and the id is a global_id (starts with digits), try to generate
+    if(isNotFound && errorId && errorId.match(/^\d/)) {
+      return generate(errorId);
     } else if(found) {
       found.load_buttons(force); 
       return RSVP.resolve(found); 

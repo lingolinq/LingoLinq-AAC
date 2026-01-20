@@ -15,9 +15,14 @@ import modal from './modal';
 var session = EmberObject.extend({
   setup: function(application) {
     application.register('lingolinq:session', session, { instantiate: false, singleton: true });
+    // TEMPORARILY DISABLED: Implicit injection is deprecated
+    // TODO: Convert session to a modern service and use @service injection
+    // For now, components can look up session via: getOwner(this).lookup('lingolinq:session')
+    /*
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'session', 'lingolinq:session');
     });
+    */
     LingoLinq.session = session;
   },
   persist: function(data) {

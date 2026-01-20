@@ -3,8 +3,6 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import modalUtil from '../utils/modal';
-import app_state from '../utils/app_state';
-import persistence from '../utils/persistence';
 import capabilities from '../utils/capabilities';
 
 /**
@@ -15,6 +13,8 @@ import capabilities from '../utils/capabilities';
  */
 export default Component.extend({
   modal: service('modal'),
+  appState: service('app-state'),
+  persistence: service('persistence'),
   tagName: '',
   
   init() {
@@ -41,11 +41,11 @@ export default Component.extend({
   
   aliasable_orgs: computed(
     'model.organizations',
-    'app_state.currentUser.organizations',
+    'appState.currentUser.organizations',
     function() {
       var my_orgs = {};
       var admin = false;
-      (app_state.get('currentUser.organizations') || []).forEach(function(org) {
+      (this.appState.get('currentUser.organizations') || []).forEach(function(org) {
         if(org.type == 'manager') {
           my_orgs[org.id] = org;
           if(org.admin) {
@@ -126,7 +126,7 @@ export default Component.extend({
     },
     add_supervisor: function() {
       var _this = this;
-      app_state.check_for_currently_premium(_this.get('model'), 'add_supervisor', true).then(function() {
+      _this.appState.check_for_currently_premium(_this.get('model'), 'add_supervisor', true).then(function() {
         modalUtil.open('add-supervisor', {user: _this.get('model')});
       }, function() { });
     },
@@ -139,7 +139,7 @@ export default Component.extend({
       var org_id = org.id;
       var alias = emberGet(org, 'external_auth_alias');
       emberSet(org, 'alias_state', {updating: true});
-      persistence.ajax("/api/v1/organizations/" + org_id + "/alias", {
+      _this.persistence.ajax("/api/v1/organizations/" + org_id + "/alias", {
         type: 'POST', data: {
           user_id: user_id,
           alias: alias
@@ -160,7 +160,7 @@ export default Component.extend({
       var _this = this;
       emberSet(org, 'alias_state', {temping: true});
       // first generate temp token
-      persistence.ajax('/saml/tmp_token', {type: 'POST'}).then(function(res) {
+      _this.persistence.ajax('/saml/tmp_token', {type: 'POST'}).then(function(res) {
         var token = res.tmp_token;
         emberSet(org, 'alias_state', {temp_go: true});
         setTimeout(function() {

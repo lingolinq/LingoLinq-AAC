@@ -10,9 +10,15 @@ export default {
   initialize: function(app) {
     window.LingoLinq.app = app;
     session.setup(app);
-    persistence.setup(app);
-    stashes.connect(app);
+    // Legacy setup - COMMENTED OUT: Services are now auto-registered by Ember as modern services
+    // Modern services: app/services/persistence.js, app/services/stashes.js, app/services/app-state.js
+    // Window references are set in app/instance-initializers/window-services.js for backward compatibility
+    // High-priority files have been migrated to use @service injection
+    // TODO: Remove these once all files are migrated
+    // persistence.setup(app);
+    // stashes.connect(app);
+    // lingoLinqExtras.setup(app);
+    // app_state.setup(app);
     lingoLinqExtras.setup(app);
-    app_state.setup(app);
   }
 };

@@ -4,8 +4,6 @@ import DS from 'ember-data';
 import Ember from 'ember';
 import LingoLinq from '../app';
 import speecher from '../utils/speecher';
-import persistence from '../utils/persistence';
-import app_state from '../utils/app_state';
 import lingoLinqExtras from '../utils/extras';
 import editManager from '../utils/edit_manager';
 import progress_tracker from '../utils/progress_tracker';
@@ -13,25 +11,21 @@ import capabilities from '../utils/capabilities';
 import Utils from '../utils/misc';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
-import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
 import ButtonSet from '../models/buttonset';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { getOwner } from '@ember/application';
+import { inject as service } from '@ember/service';
 
 LingoLinq.User = DS.Model.extend({
+  persistence: service('persistence'),
+  appState: service('app-state'),
+  stashes: service('stashes'),
+  
   init() {
     this._super(...arguments);
-    // Explicit injection for app_state to fix implicit injection deprecation
-    // If implicit injection already set it, use that; otherwise look it up
-    // This prevents the computed property override deprecation while still allowing
-    // implicit injection to work (which will be removed in a future Ember version)
-    if (!this.app_state) {
-      this.app_state = getOwner(this).lookup('lingolinq:app_state');
-    }
     // Set default preference if not set
     if(this.get('preferences') && !this.get('preferences.stretch_buttons')) {
       this.set('preferences.stretch_buttons', 'none');
@@ -162,7 +156,7 @@ LingoLinq.User = DS.Model.extend({
     })
     var res = Object.keys(org_ids).length == 1 ? org_ids[Object.keys(org_ids)[0]] : null;
     if(res && res.image_url) {
-      persistence.find_url(res.image_url, 'image').then(function(data_uri) {
+      this.persistence.find_url(res.image_url, 'image').then(function(data_uri) {
         emberSet(res, 'image_url', data_uri);
       }, function() { });
     }
@@ -563,7 +557,7 @@ LingoLinq.User = DS.Model.extend({
   remove_device: function(id) {
     var url = '/api/v1/users/' + this.get('user_name') + '/devices/' + id;
     var _this = this;
-    return persistence.ajax(url, {type: 'POST', data: {'_method': 'DELETE'}}).then(function(res) {
+    return this.persistence.ajax(url, {type: 'POST', data: {'_method': 'DELETE'}}).then(function(res) {
       var devices = _this.get('devices') || [];
       var new_devices = [];
       for(var idx = 0; idx < devices.length; idx++) {
@@ -577,7 +571,7 @@ LingoLinq.User = DS.Model.extend({
   rename_device: function(id, name) {
     var url = '/api/v1/users/' + this.get('user_name') + '/devices/' + id;
     var _this = this;
-    return persistence.ajax(url, {type: 'POST', data: {'_method': 'PUT', device: {name: name}}}).then(function(res) {
+    return this.persistence.ajax(url, {type: 'POST', data: {'_method': 'PUT', device: {name: name}}}).then(function(res) {
       var devices = _this.get('devices') || [];
       var new_devices = [];
       for(var idx = 0; idx < devices.length; idx++) {
@@ -595,7 +589,7 @@ LingoLinq.User = DS.Model.extend({
     var res = [];
     boards.forEach(function(board) {
       var board_object = EmberObject.create(board);
-      persistence.find_url(board.image, 'image').then(function(data_uri) {
+      this.persistence.find_url(board.image, 'image').then(function(data_uri) {
         board_object.set('image', data_uri);
       }, function() { });
       res.push(board_object);
@@ -607,7 +601,7 @@ LingoLinq.User = DS.Model.extend({
     var url = this.get('avatar_url_with_fallback');
     var _this = this;
     if(!this.get('avatar_data_uri') && LingoLinq.remote_url(url)) {
-      return persistence.find_url(url, 'image').then(function(data_uri) {
+      return this.persistence.find_url(url, 'image').then(function(data_uri) {
         _this.set('avatar_data_uri', data_uri);
         return _this;
       });
@@ -710,7 +704,7 @@ LingoLinq.User = DS.Model.extend({
     var localize_connections = function(sups) {
       (sups || []).forEach(function(sup) {
         if(LingoLinq.remote_url(sup.avatar_url)) {
-          persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
+          this.persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
             emberSet(sup, 'original_avatar_url', sup.avatar_url);
             emberSet(sup, 'avatar_url', uri);
           }, function() { });
@@ -898,7 +892,7 @@ LingoLinq.User = DS.Model.extend({
   },
   tag_board: function(board, tag, remove, downstream) {
     var _this = this;
-    return persistence.ajax('/api/v1/boards/' + board.get('id') + '/tag', {
+    return this.persistence.ajax('/api/v1/boards/' + board.get('id') + '/tag', {
       type: 'POST',
       data: {
         tag: tag,
@@ -932,11 +926,11 @@ LingoLinq.User = DS.Model.extend({
         user.set('copy_level', home_level);
         editManager.copy_board(board, 'links_copy_as_home', user, false, swap_library).then(function(new_board) {
           user.set('home_board_pending', false);
-          if(persistence.get('online') && persistence.get('auto_sync')) {
+          if(this.persistence.get('online') && this.persistence.get('auto_sync')) {
             runLater(function() {
-              if(persistence.get('auto_sync')) {
+              if(this.persistence.get('auto_sync')) {
                 console.debug('syncing because home board changes');
-                persistence.sync('self', null, null, 'home_board_copied').then(null, function() { });
+                this.persistence.sync('self', null, null, 'home_board_copied').then(null, function() { });
               }
             }, 1000);
           }
@@ -964,7 +958,7 @@ LingoLinq.User = DS.Model.extend({
     var user_name = _this.get('user_name');
     return new RSVP.Promise(function(resolve, reject) {
       // ensure you're online
-      if(persistence.get('online')) {
+      if(this.persistence.get('online')) {
         // retrieve all locally-saved boards
         return lingoLinqExtras.storage.find_all('board').then(function(list) {
           var promises = [];
@@ -1018,7 +1012,7 @@ LingoLinq.User = DS.Model.extend({
         // retrieve board
         BoardHierarchy.load_with_button_set(board, {prevent_keyboard: true, prevent_different: true}).then(function(hierarchy) {
           var board_ids_to_include = hierarchy.selected_board_ids();
-          persistence.ajax('/api/v1/boards/' + board_id + '/swap_images', {
+          this.persistence.ajax('/api/v1/boards/' + board_id + '/swap_images', {
             type: 'POST',
             data: {
               library: swap_library,
@@ -1033,9 +1027,9 @@ LingoLinq.User = DS.Model.extend({
                 // reload board and re-sync
                 runLater(function() {
                   board.reload(true).then(function() {
-                    if(persistence.get('auto_sync')) {
+                    if(this.persistence.get('auto_sync')) {
                       console.debug('syncing because home board symbol changes');
-                      persistence.sync('self', null, null, 'home_board_symbols_changed').then(null, function() { });
+                      this.persistence.sync('self', null, null, 'home_board_symbols_changed').then(null, function() { });
                     }
                   }, function() { });
                   defer.resolve();
@@ -1097,7 +1091,7 @@ LingoLinq.User = DS.Model.extend({
   }),
   toggle_cookies: observer('watch_user_name_and_cookies', 'preferences.cookies', function() {
     if(this.get('watch_user_name_and_cookies') && this.get('preferences.cookies') != undefined) {
-      app_state.toggle_cookies(!!this.get('preferences.cookies'));
+      this.appState.toggle_cookies(!!this.get('preferences.cookies'));
     }
   }),
   load_word_activities: function() {
@@ -1114,8 +1108,8 @@ LingoLinq.User = DS.Model.extend({
     }
     var try_online = RSVP.reject();
     // try a remote lookup, which will possibly return a progress object
-    if(persistence.get('online')) {
-      try_online = persistence.ajax('/api/v1/users/' + _this.get('id') + '/word_activities', {type: 'GET'}).then(function(res) {
+    if(this.persistence.get('online')) {
+      try_online = this.persistence.ajax('/api/v1/users/' + _this.get('id') + '/word_activities', {type: 'GET'}).then(function(res) {
         if(res.progress) {
           return new RSVP.Promise(function(resolve, reject) {
             progress_tracker.track(res.progress, function(event) {
@@ -1134,16 +1128,16 @@ LingoLinq.User = DS.Model.extend({
     // if not possible or errored, check for a local copy in the dataCache
     var try_local = try_online.then(function(res) {
       // persist to dataCache
-      persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
+      this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
       _this.set('word_activities', res);
       return RSVP.resolve(res);
     }, function() {
-      return persistence.find('dataCache', 'word_activities/' + _this.get('id'));
+      return this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
       // look up a local copy
     });
     var promise_result = try_local.then(function(res) {
       res.local_log = [];
-      return persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
+      return this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
         res.local_log = list;
         return res;
       }, function() { return RSVP.resolve(res); });
@@ -1153,15 +1147,15 @@ LingoLinq.User = DS.Model.extend({
     return promise_result;
   },
   log_word_activity: function(opts) {
-    opts.timestamp = stashes.current_timestamp();
+    opts.timestamp = this.stashes.current_timestamp();
     var user_id = this.get('id');
-    stashes.log_event(opts, user_id);
-    stashes.push_log(true);
-    persistence.find('dataCache', 'word_log/' + user_id).then(null, function() { return RSVP.resolve([]); }).then(function(list) {
+    this.stashes.log_event(opts, user_id);
+    this.stashes.push_log(true);
+    this.persistence.find('dataCache', 'word_log/' + user_id).then(null, function() { return RSVP.resolve([]); }).then(function(list) {
       var cutoff = parseInt(window.moment().add(-2, 'week').format('X'), 10);
       list = (list || []).filter(function(e) { return e.timestamp > cutoff; });
       list.push(opts);
-      persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
+      this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
     });
   }
 });

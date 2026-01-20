@@ -6,8 +6,6 @@ import { observer } from '@ember/object';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
-import stashes from '../utils/_stashes';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 
@@ -20,6 +18,8 @@ import editManager from '../utils/edit_manager';
 export default Component.extend({
   modal: service('modal'),
   router: service('router'),
+  stashes: service('stashes'),
+  appState: service('app-state'),
   tagName: '',
 
   init() {
@@ -43,8 +43,8 @@ export default Component.extend({
     }
     
     // Restore labels order from stash
-    if(stashes.get('new_board_labels_order')) {
-      this.set('model.grid.labels_order', stashes.get('new_board_labels_order'));
+    if(this.stashes.get('new_board_labels_order')) {
+      this.set('model.grid.labels_order', this.stashes.get('new_board_labels_order'));
     }
 
     // Set locale
@@ -74,7 +74,7 @@ export default Component.extend({
     });
     this.set('board_categories', res);
 
-    this.set('has_supervisees', app_state.get('sessionUser.supervisees.length') > 0 || app_state.get('sessionUser.managed_orgs.length') > 0);
+    this.set('has_supervisees', this.appState.get('sessionUser.supervisees.length') > 0 || this.appState.get('sessionUser.managed_orgs.length') > 0);
     
     // Initialize preview grid
     this.set('previewRows', this.get('model.grid.rows'));
@@ -115,8 +115,8 @@ export default Component.extend({
   }),
 
   update_license() {
-    this.set('model.license.author_name', app_state.get('currentUser.name'));
-    this.set('model.license.author_url', app_state.get('currentUser.profile_url'));
+    this.set('model.license.author_name', this.appState.get('currentUser.name'));
+    this.set('model.license.author_url', this.appState.get('currentUser.profile_url'));
   },
 
   label_count: computed('model.grid', 'model.grid.labels', function() {
@@ -144,7 +144,7 @@ export default Component.extend({
 
   remember_labels_order: observer('model.grid.labels_order', function() {
     if(this.get('model.grid.labels_order')) {
-      stashes.persist('new_board_labels_order', this.get('model.grid.labels_order'));
+      this.stashes.persist('new_board_labels_order', this.get('model.grid.labels_order'));
     }
   }),
 
@@ -348,12 +348,12 @@ export default Component.extend({
       }
       this.get('model').save().then(function(board) {
         board.set('button_locale', board.get('locale'));
-        app_state.set('label_locale', board.get('locale'));
-        app_state.set('vocalization_locale', board.get('locale'));
+        _this.appState.set('label_locale', board.get('locale'));
+        _this.appState.set('vocalization_locale', board.get('locale'));
         _this.set('status', null);
         modalUtil.close(true);
         editManager.auto_edit(board.get('id'));
-        app_state.set('referenced_board', {id: board.get('id'), key: board.get('key')});
+        _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
         _this.get('router').transitionTo('board', board.get('key'));
       }, function() {
         _this.set('status', {error: true});
