@@ -24,7 +24,9 @@ var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 
 var loaded = (new Date()).getTime() / 1000;
 var persistence = EmberObject.extend({
   setup: function(application) {
-    application.register('lingolinq:persistence', persistence, { instantiate: false, singleton: true });
+    // CRITICAL FIX: Register 'this' (the instance) not 'persistence' variable
+    // persistence is created with .create() on line 3177, so it's already an instance
+    application.register('lingolinq:persistence', this, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'lingolinq:persistence');
     });
