@@ -46,13 +46,38 @@ import persistence from './persistence';
 var app_state = EmberObject.extend({
   setup: function(application) {
     // Register as singleton for injection
-    application.register('lingolinq:app_state', app_state, { instantiate: false, singleton: true });
+    // FIXED: Register 'this' (the instance) instead of 'app_state' variable
+    // since app_state is already an instance created with .create()
+    application.register('lingolinq:app_state', this, { instantiate: false, singleton: true });
     // CRITICAL FIX: Do NOT inject into 'model' - models are immutable in Ember 3.28+
     // Models that need app_state must use explicit injection: inject('lingolinq:app_state')
     // Keep implicit injection for controllers/routes/views temporarily during migration
     $.each(['controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'app_state', 'lingolinq:app_state');
     });
+    
+    // CRITICAL FIX: Wire up the modal service to app_state
+    // The legacy app_state util calls this.modal.close() in several places
+    // We need to lookup the modal service and attach it
+    try {
+      var modalService = application.lookup('service:modal');
+      if (modalService) {
+        this.set('modal', modalService);
+      } else {
+        console.warn('app_state.setup: modal service not found, modal operations will fail');
+        // Provide a stub to prevent crashes
+        this.set('modal', {
+          close: function() { console.warn('modal.close() called but modal service not available'); }
+        });
+      }
+    } catch(e) {
+      console.error('app_state.setup: error looking up modal service:', e);
+      // Provide a stub to prevent crashes
+      this.set('modal', {
+        close: function() { console.warn('modal.close() called but modal service not available'); }
+      });
+    }
+    
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
     this.set('button_list', []);
