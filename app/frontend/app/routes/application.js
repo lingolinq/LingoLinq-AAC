@@ -25,10 +25,17 @@ import { inject as service } from '@ember/service';
 //   }
 // });
 export default Route.extend({
-  appState: service('app-state'),
+  // CRITICAL FIX: Don't explicitly inject app_state - it's already implicitly injected
+  // The session initializer calls app_state.setup() which does:
+  //   application.inject('route', 'app_state', 'lingolinq:app_state')
+  // So this route automatically has this.app_state available (underscore, not camelCase)
+  // 
+  // The incomplete service at app/services/app-state.js should NOT be used yet
+  // 
+  // Remove the line: appState: service('app-state') or service('lingolinq:app_state')
   modal: service(),
   setupController: function (controller) {
-    this.appState.setup_controller(this, controller);
+    this.app_state.setup_controller(this, controller);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },
@@ -49,7 +56,7 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
-      this.appState.global_transition({
+      this.app_state.global_transition({
         aborted: transition.isAborted,
         source: transition,
         from_route: (transition.from || {}).name,
@@ -85,7 +92,7 @@ export default Route.extend({
       //      this.appState.global_transition(transition);
     },
     didTransition: function () {
-      this.appState.finish_global_transition();
+      this.app_state.finish_global_transition();
       runLater(function () {
         speecher.load_beep().then(null, function () { });
       }, 100);
