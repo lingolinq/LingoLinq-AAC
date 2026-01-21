@@ -8,7 +8,6 @@ echo ""
 # Kill any existing processes
 echo "1. Stopping any existing processes..."
 "$(dirname "$0")/kill_all"
-#/workspaces/LingoLinq-AAC/bin/kill_all
 sleep 2
 
 echo ""
@@ -37,14 +36,55 @@ if [ ! -f .env ]; then
 fi
 echo "✓ .env file exists"
 
+# Load .env file
+set -a
+source .env
+set +a
+
 echo ""
-echo "5. Starting all services with foreman..."
+echo "5. Starting all services..."
 echo ""
 echo "=========================================="
 echo "LingoLinq is starting on:"
-echo "  Backend:  http://localhost:5000"
+echo "  Backend:  http://localhost:3000"
 echo "  Frontend: http://localhost:8184"
 echo "=========================================="
 echo ""
 
-foreman start
+# Create a log directory
+mkdir -p tmp/logs
+
+# Start Puma (Rails backend)
+echo "Starting Puma..."
+bundle exec puma -C config/puma.rb > tmp/logs/puma.log 2>&1 &
+PUMA_PID=$!
+echo "  Puma started (PID: $PUMA_PID)"
+
+# Start Resque workers
+echo "Starting Resque workers..."
+env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work > tmp/logs/resque.log 2>&1 &
+RESQUE_PID=$!
+echo "  Resque started (PID: $RESQUE_PID)"
+
+# Start Ember frontend
+echo "Starting Ember..."
+cd ./app/frontend/
+npx ember server --port 8184 > ../../tmp/logs/ember.log 2>&1 &
+EMBER_PID=$!
+cd ../..
+echo "  Ember started (PID: $EMBER_PID)"
+
+echo ""
+echo "All services started!"
+echo ""
+echo "Logs are in tmp/logs/"
+echo "  - tmp/logs/puma.log"
+echo "  - tmp/logs/resque.log"
+echo "  - tmp/logs/ember.log"
+echo ""
+echo "To view logs: tail -f tmp/logs/*.log"
+echo "To stop all: bin/kill_all"
+echo ""
+
+# Wait for any process to exit (keeps script running)
+wait
