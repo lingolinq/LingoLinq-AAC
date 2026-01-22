@@ -57,26 +57,43 @@ var app_state = EmberObject.extend({
     });
     
     // CRITICAL FIX: Wire up the modal service to app_state
-    // The legacy app_state util calls this.modal.close() in several places
-    // We need to lookup the modal service and attach it
-    try {
-      var modalService = application.lookup('service:modal');
-      if (modalService) {
-        this.set('modal', modalService);
-      } else {
-        console.warn('app_state.setup: modal service not found, modal operations will fail');
-        // Provide a stub to prevent crashes
-        this.set('modal', {
-          close: function() { console.warn('modal.close() called but modal service not available'); }
-        });
+    // We can't use application.lookup() here because initializers receive Application not ApplicationInstance
+    // Instead, we'll provide a stub that lazy-loads the modal service on first use
+    var _this = this;
+    this.set('modal', {
+      _service: null,
+      _getService: function() {
+        if (!this._service && window.LingoLinq && window.LingoLinq.app) {
+          try {
+            // Try to get the modal service from the container
+            // This will work once the application has booted
+            var container = window.LingoLinq.app.__container__;
+            if (container && container.lookup) {
+              this._service = container.lookup('service:modal');
+            }
+          } catch(e) {
+            console.warn('Could not lookup modal service:', e);
+          }
+        }
+        return this._service;
+      },
+      close: function() {
+        var svc = this._getService();
+        if (svc && typeof svc.close === 'function') {
+          return svc.close.apply(svc, arguments);
+        } else {
+          console.warn('modal.close() called but modal service not yet available');
+        }
+      },
+      open: function() {
+        var svc = this._getService();
+        if (svc && typeof svc.open === 'function') {
+          return svc.open.apply(svc, arguments);
+        } else {
+          console.warn('modal.open() called but modal service not yet available');
+        }
       }
-    } catch(e) {
-      console.error('app_state.setup: error looking up modal service:', e);
-      // Provide a stub to prevent crashes
-      this.set('modal', {
-        close: function() { console.warn('modal.close() called but modal service not available'); }
-      });
-    }
+    });
     
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);

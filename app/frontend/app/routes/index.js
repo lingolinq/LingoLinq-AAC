@@ -34,8 +34,9 @@ export default Route.extend({
     CoughDrop.sale = CoughDrop.sale || parseInt(window.sale, 10) || null;
     controller.set('subscription', Subscription.create());
     controller.set('model', model);
-    // TODO: this seems messy. got to be a cleaner way...
-    controller.set('extras', coughDropExtras);
+    // CRITICAL FIX: Renamed from 'extras' to 'pageExtras' to avoid conflict with implicit injection
+    // Ember implicitly injects 'extras' as read-only, causing "Cannot assign to read only property" error
+    controller.set('pageExtras', coughDropExtras);
     var jump_to_speak = !!((stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
     if(model && model.get('eval_ended')) { jump_to_speak = false; }
     if(model && model.get('id') && !model.get('terms_agree')) {
