@@ -1,146 +1,98 @@
 import Service from '@ember/service';
-import EmberObject from '@ember/object';
-import { set as emberSet, get as emberGet } from '@ember/object';
-import {
-  later as runLater,
-  cancel as runCancel,
-  run
-} from '@ember/runloop';
-import RSVP from 'rsvp';
-import $ from 'jquery';
-import { inject as service } from '@ember/service';
-import LingoLinq from '../app';
-import lingoLinqExtras from '../utils/extras';
-import speecher from '../utils/speecher';
-import i18n from '../utils/i18n';
-import contentGrabbers from '../utils/content_grabbers';
-import Utils from '../utils/misc';
-import capabilities from '../utils/capabilities';
-import { observer } from '@ember/object';
-import { computed } from '@ember/object';
+import { getOwner } from '@ember/application';
 
 /**
- * Modern Ember Service for Persistence & Offline Sync
+ * CRITICAL FIX: Proxy Service for Legacy persistence
  *
- * Replaces app/utils/persistence.js with proper service pattern.
- * Handles:
- * - Local database abstraction (IndexedDB/SQLite)
- * - Online/offline sync logic
- * - Ember Data caching
- * - Data store management
+ * This service acts as a proxy/adapter to the legacy persistence util.
+ * Similar to app-state service, persistence was partially migrated but never completed.
+ * The complete implementation with all methods lives in utils/persistence.js.
+ *
+ * The legacy util is registered as 'lingolinq:persistence' by the session initializer.
  */
 export default Service.extend({
-  // Explicit service dependencies
-  stashes: service(),
-  modal: service(),
-
-  // Valid store types
-  _validStores: ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 'buttonset'],
-
-  // Initialize method replaces setup() from old util
+  _legacyPersistence: null,
+  
   init() {
     this._super(...arguments);
-
-    var loaded = (new Date()).getTime() / 1000;
-    this.set('loaded_at', loaded);
-
-    // Load last sync state from settings
-    this._loadSyncState();
-
-    // Set up big logs observer
-    this._setupBigLogsObserver();
-
-    // Set up storage system
-    this._setupStorage();
-
-    // Set up device change watcher
-    this._setupDeviceWatcher();
-  },
-
-  _loadSyncState() {
-    var _this = this;
-    this.find('settings', 'lastSync').then(function(res) {
-      _this.set('last_sync_at', res.last_sync);
-      _this.set('sync_stamps', res.stamps);
-    }, function() {});
-  },
-
-  _setupBigLogsObserver() {
-    var _this = this;
-    var stashes = this.stashes;
-    var ignore_big_log_change = false;
-
-    stashes.addObserver('big_logs', function() {
-      if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
-        // Big logs logic migrated from utils/persistence.js
-        // ... (will be fully implemented in Phase 2)
-      }
-    });
-  },
-
-  _setupStorage() {
-    if(this.stashes.get('allow_local_filesystem_request') == false) {
-      capabilities.storage.already_limited_size = true;
+    
+    // Lookup the legacy persistence util that has all the methods
+    var owner = getOwner(this);
+    var legacyPersistence = owner.lookup('lingolinq:persistence');
+    
+    if (!legacyPersistence) {
+      console.error('persistence service: Could not find legacy persistence (lingolinq:persistence)');
+      console.error('Make sure the session initializer has run and registered it');
+      return;
     }
+    
+    // Store reference to legacy implementation
+    this.set('_legacyPersistence', legacyPersistence);
+    
+    console.log('persistence service: Successfully proxying to legacy persistence');
   },
-
-  _setupDeviceWatcher() {
-    var _this = this;
-    lingoLinqExtras.advance.watch('device', function() {
-      if(!LingoLinq.ignore_filesystem) {
-        capabilities.storage.status().then(function(res) {
-          if(res.available && !res.requires_confirmation) {
-            res.allowed = true;
-          }
-          _this.set('local_system', res);
-        });
-        runLater(function() {
-          _this.prime_caches().then(null, function() { });
-        }, 100);
-        runLater(function() {
-          if(_this.get('local_system.allowed')) {
-            _this.prime_caches(true).then(null, function() { });
-          }
-        }, 2000);
-      }
-    });
+  
+  // Proxy commonly used methods to legacy persistence
+  prime_caches() {
+    if (!this._legacyPersistence) {
+      console.error('persistence service: legacy persistence not available');
+      return Promise.resolve();
+    }
+    return this._legacyPersistence.prime_caches.apply(this._legacyPersistence, arguments);
   },
-
-  /**
-   * Find record in local storage
-   * TODO: Migrate full implementation from utils/persistence.js in Phase 2
-   */
-  find(store, key) {
-    console.warn('persistence service: find() not yet fully migrated');
-    return RSVP.reject('Not implemented');
+  
+  find() {
+    return this._legacyPersistence.find.apply(this._legacyPersistence, arguments);
   },
-
-  /**
-   * Store record in local storage
-   * TODO: Migrate full implementation from utils/persistence.js in Phase 2
-   */
-  store(store, obj, key) {
-    console.warn('persistence service: store() not yet fully migrated');
-    return RSVP.reject('Not implemented');
+  
+  store() {
+    return this._legacyPersistence.store.apply(this._legacyPersistence, arguments);
   },
-
-  /**
-   * Sync local and remote data
-   * TODO: Migrate full implementation from utils/persistence.js in Phase 2
-   */
+  
+  remove() {
+    return this._legacyPersistence.remove.apply(this._legacyPersistence, arguments);
+  },
+  
   sync() {
-    console.warn('persistence service: sync() not yet fully migrated');
-    return RSVP.reject('Not implemented');
+    return this._legacyPersistence.sync.apply(this._legacyPersistence, arguments);
   },
-
-  /**
-   * Prime caches
-   * TODO: Migrate full implementation from utils/persistence.js in Phase 2
-   */
-  prime_caches(force) {
-    console.warn('persistence service: prime_caches() not yet fully migrated');
-    return RSVP.resolve();
+  
+  store_json() {
+    return this._legacyPersistence.store_json.apply(this._legacyPersistence, arguments);
+  },
+  
+  ajax() {
+    return this._legacyPersistence.ajax.apply(this._legacyPersistence, arguments);
+  },
+  
+  store_url() {
+    return this._legacyPersistence.store_url.apply(this._legacyPersistence, arguments);
+  },
+  
+  find_url() {
+    return this._legacyPersistence.find_url.apply(this._legacyPersistence, arguments);
+  },
+  
+  // Proxy all property access to legacy persistence
+  unknownProperty(key) {
+    if (this._legacyPersistence) {
+      var value = this._legacyPersistence.get(key);
+      // If it's a function, bind it to the legacy instance
+      if (typeof value === 'function') {
+        var legacyInstance = this._legacyPersistence;
+        return function() {
+          return value.apply(legacyInstance, arguments);
+        };
+      }
+      return value;
+    }
+    return undefined;
+  },
+  
+  setUnknownProperty(key, value) {
+    if (this._legacyPersistence) {
+      return this._legacyPersistence.set(key, value);
+    }
+    return value;
   }
-
-  // Additional methods will be added during full migration in Phase 2
 });

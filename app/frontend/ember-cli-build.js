@@ -3,24 +3,33 @@ var EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
 module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
+    // PERFORMANCE: Disable sourcemaps for faster builds
     sourcemaps: {
       enabled: false
     },
     storeConfigInMeta: false,
-//    vendorFiles: {
-//      'handlebars.js': null,
-//      'ember.js': 'bower_components/ember/ember.prod.js',
-//      'ember-data.js': 'bower_components/ember-data/ember-data.prod.js'
-//    },
+    
+    // PERFORMANCE: Disable fingerprinting for dev builds
     fingerprint: {
       enabled: false
     },
+    
+    // PERFORMANCE: Disable minification for dev builds (huge time saver)
     minifyJS: {
       enabled: false
     },
+    minifyCSS: {
+      enabled: false
+    },
+    
+    // PERFORMANCE: Disable tests from build
+    tests: false,
+    hinting: false,
+    
     'ember-cli-babel': {
       includePolyfill: true
     },
+    
     sassOptions: {
       implementation: require('sass')
     }
