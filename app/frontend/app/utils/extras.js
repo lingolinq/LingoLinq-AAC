@@ -55,7 +55,10 @@ import app_state from './app_state';
   var extras = EmberObject.extend({
     setup: function(application) {
       application.register('lingolinq:extras', extras, { instantiate: false, singleton: true });
-      $.each(['model', 'controller', 'view', 'route'], function(i, component) {
+      // CRITICAL FIX: Removed implicit injection into 'controller' to prevent read-only property errors
+      // Routes now explicitly set 'pageExtras' instead of 'extras' to avoid collision
+      // Keep injection for model, view, route for now during migration
+      $.each(['model', 'view', 'route'], function(i, component) {
         application.inject(component, 'extras', 'lingolinq:extras');
       });
     },
