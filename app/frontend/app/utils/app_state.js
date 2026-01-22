@@ -60,15 +60,31 @@ var app_state = EmberObject.extend({
     // We can't use application.lookup() here because initializers receive Application not ApplicationInstance
     // Instead, we'll provide a stub that lazy-loads the modal service on first use
     var _this = this;
+    
+    // SAFER APPROACH: Try multiple ways to get container
+    var getContainer = function() {
+      // Try application.__container__ first
+      if (application && application.__container__) {
+        return application.__container__;
+      }
+      // Try application.lookup (newer Ember)
+      if (application && typeof application.lookup === 'function') {
+        return application;
+      }
+      // Try window.LingoLinq.app.__container__ as fallback
+      if (window.LingoLinq && window.LingoLinq.app && window.LingoLinq.app.__container__) {
+        return window.LingoLinq.app.__container__;
+      }
+      return null;
+    };
+    
     this.set('modal', {
       _service: null,
       _getService: function() {
-        if (!this._service && window.LingoLinq && window.LingoLinq.app) {
+        if (!this._service) {
           try {
-            // Try to get the modal service from the container
-            // This will work once the application has booted
-            var container = window.LingoLinq.app.__container__;
-            if (container && container.lookup) {
+            var container = getContainer();
+            if (container && typeof container.lookup === 'function') {
               this._service = container.lookup('service:modal');
             }
           } catch(e) {
