@@ -68,10 +68,17 @@ echo "  Resque started (PID: $RESQUE_PID)"
 
 # Start Ember frontend
 echo "Starting Ember..."
-cd ./app/frontend/
-npx ember server --port 8184 > ../../tmp/logs/ember.log 2>&1 &
-EMBER_PID=$!
-cd ../..
+(
+  export NVM_DIR="/usr/local/share/nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  cd ./app/frontend/
+  nvm use 18
+  export NODE_OPTIONS=--openssl-legacy-provider
+  npx ember server --port 8184 > ../../tmp/logs/ember.log 2>&1 &
+  echo $! > ../../tmp/ember.pid
+)
+EMBER_PID=$(cat tmp/ember.pid)
+rm tmp/ember.pid
 echo "  Ember started (PID: $EMBER_PID)"
 
 echo ""
