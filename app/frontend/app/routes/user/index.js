@@ -12,7 +12,8 @@ export default Route.extend({
   },
   setupController: function(controller, model) {
     controller.set('model', model);
-    controller.set('extras', coughDropExtras);
+    // CRITICAL FIX: Renamed from 'extras' to 'pageExtras' to avoid conflict with implicit injection
+    controller.set('pageExtras', coughDropExtras);
     controller.set('parent_object', null);
     controller.set('password', null);
     controller.set('new_user_name', null);
