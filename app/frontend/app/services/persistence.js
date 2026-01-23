@@ -57,6 +57,7 @@ var persistence = Service.extend({
   },
 
   init() {
+    this._super(...arguments);
     try {
       var initStack = new Error().stack;
       console.log('[PERSISTENCE INIT] ========== init() START ==========');
@@ -4147,8 +4148,35 @@ persistence.DSExtend = {
   findRecord: function(store, type, id) {
     var _this = this;
     var _super = this._super;
+    // Capture window.persistence as fallback in case _this becomes null
+    // Use a function to get the current persistence instance (with fallback)
+    var getPersistence = function() {
+      try {
+        // First try _this
+        if(_this && typeof _this === 'object' && typeof _this.get === 'function' && !_this.isDestroyed && !_this.isDestroying) {
+          return _this;
+        }
+        // Fallback to window.persistence
+        if(window.persistence && typeof window.persistence === 'object' && typeof window.persistence.get === 'function') {
+          return window.persistence;
+        }
+        // Last resort: return a safe stub object that won't crash
+        console.warn('[PERSISTENCE] getPersistence: Both _this and window.persistence are null/invalid');
+        return null;
+      } catch(e) {
+        console.error('[PERSISTENCE] getPersistence error:', e);
+        return null;
+      }
+    };
     return new RSVP.Promise(function(find_resolve, find_reject) {
       var after_data = function(local_data) {
+        // Wrap in try-catch to catch any null access errors
+        try {
+          // Guard: ensure persistence is valid before any operations, use fallback if needed
+          var persistence = getPersistence();
+          if(!persistence || typeof persistence.get !== 'function') {
+            return find_reject({error: 'persistence service not available'});
+          }
         // first, try looking up the record locally
         var start_with_local = true; 
         var skip_db = false;
@@ -4158,9 +4186,44 @@ persistence.DSExtend = {
 
         var full_id = type.modelName + "_" + id;
         // force_reload should always hit the server, though it can return local data if there's a token error (i.e. session expired)
-        if((window.persistence && window.persistence.force_reload == full_id) && this.get('online')) { start_with_local = false; } //find.then(null, function() { }); find = RSVP.reject(); }
-        // private browsing mode gets really messed up when you try to query local db, so just don't.
-        else if(!this.stashes || !this.stashes.get || !this.stashes.get('enabled')) { skip_db = true; } //find.then(null, function() { }); find = RSVP.reject(); original_find = RSVP.reject(); }
+        try {
+          // Re-check persistence is still valid before accessing it
+          var persistenceForCheck = persistence;
+          if(!persistenceForCheck || typeof persistenceForCheck.get !== 'function') {
+            persistenceForCheck = getPersistence();
+          }
+          if(persistenceForCheck && typeof persistenceForCheck.get === 'function') {
+            try {
+              // Double-check right before calling .get() to handle race conditions
+              var persistenceForOnlineCheck = getPersistence();
+              if(persistenceForOnlineCheck && typeof persistenceForOnlineCheck.get === 'function' && !persistenceForOnlineCheck.isDestroyed && !persistenceForOnlineCheck.isDestroying) {
+                if((window.persistence && window.persistence.force_reload == full_id) && persistenceForOnlineCheck.get('online')) { 
+                  start_with_local = false; 
+                }
+              }
+            } catch(e) {
+              console.warn('[PERSISTENCE] Error checking online status in after_data:', e);
+            }
+            // private browsing mode gets really messed up when you try to query local db, so just don't.
+            try {
+              if(!persistenceForCheck.stashes || !persistenceForCheck.stashes.get || !persistenceForCheck.stashes.get('enabled')) { 
+                skip_db = true; 
+              }
+            } catch(e) {
+              console.warn('[PERSISTENCE] Error checking stashes in after_data:', e);
+              skip_db = false;
+            }
+          } else {
+            // If persistence is not available, default to safe behavior
+            start_with_local = true;
+            skip_db = false;
+          }
+        } catch(e) {
+          console.warn('[PERSISTENCE] Error in after_data checks:', e);
+          // Default to safe behavior: try local first, allow DB
+          start_with_local = true;
+          skip_db = false;
+        }
 
         // this method will be called if a local result is found, or a force reload
         // is called but there wasn't a result available from the remote system
@@ -4181,8 +4244,37 @@ persistence.DSExtend = {
         };
 
         var check_remote = function() {
-          // if nothing found locally and system is online (and it's not a local-only id), make a remote request
-          if(this.get('online') && !id.match(/^tmp[_\/]/) && !id.match(/^tmpimg_/)) {
+          // Wrap entire function in try-catch to catch any null access errors
+          try {
+            // if nothing found locally and system is online (and it's not a local-only id), make a remote request
+            // Guard: ensure persistence is valid before any operations, use fallback if needed
+            var persistence = getPersistence();
+            if(!persistence || typeof persistence.get !== 'function') {
+              return find_reject({error: 'persistence service not available'});
+            }
+            var isOnline = false;
+            try {
+              // Re-check persistence is still valid right before calling .get()
+              var persistenceForOnline = getPersistence();
+              if(!persistenceForOnline || typeof persistenceForOnline.get !== 'function' || persistenceForOnline.isDestroyed || persistenceForOnline.isDestroying) {
+                console.warn('[PERSISTENCE] persistence service became invalid before checking online status');
+                return find_reject({error: 'persistence service not available'});
+              }
+              // Double-check right before the actual .get() call
+              if(!persistenceForOnline || typeof persistenceForOnline.get !== 'function') {
+                console.warn('[PERSISTENCE] persistence service became invalid between check and .get() call');
+                return find_reject({error: 'persistence service not available'});
+              }
+              isOnline = persistenceForOnline.get('online');
+            } catch(e) {
+              console.warn('[PERSISTENCE] Error checking online status:', e);
+              // If it's a null reference error, return a specific error
+              if(e && (e.message && e.message.indexOf('null') !== -1 || e.message && e.message.indexOf('Cannot read') !== -1)) {
+                return find_reject({error: 'persistence service became null during operation'});
+              }
+              return find_reject({error: 'persistence service error'});
+            }
+          if(isOnline && !id.match(/^tmp[_\/]/) && !id.match(/^tmpimg_/)) {
             // For 'self' user requests, check if we have a token before making the request
             // This prevents 401 errors during app initialization when token isn't loaded yet
             if(type.modelName === 'user' && id === 'self') {
@@ -4201,8 +4293,22 @@ persistence.DSExtend = {
                 }
               }
             }
-            if(!this.get('syncing')) {
-              this.remember_access('find', type.modelName, id);
+            // Re-fetch persistence to ensure it's still valid before accessing it
+            var persistenceForRemember = getPersistence();
+            if(persistenceForRemember && typeof persistenceForRemember.get === 'function' && !persistenceForRemember.isDestroyed && !persistenceForRemember.isDestroying) {
+              try {
+                // Double-check persistence is still valid right before calling .get()
+                var persistenceForSyncing = getPersistence();
+                if(persistenceForSyncing && typeof persistenceForSyncing.get === 'function' && !persistenceForSyncing.isDestroyed && !persistenceForSyncing.isDestroying) {
+                  if(!persistenceForSyncing.get('syncing')) {
+                    if(typeof persistenceForSyncing.remember_access === 'function') {
+                      persistenceForSyncing.remember_access('find', type.modelName, id);
+                    }
+                  }
+                }
+              } catch(e) {
+                console.warn('[PERSISTENCE] Error checking syncing status:', e);
+              }
             }
             var error = function(err) {
               var local_fallback = false;
@@ -4251,58 +4357,114 @@ persistence.DSExtend = {
             runLater(function() {
               // TODO: maybe just shorter timeout, check if persistence.offline and error then
               // it looks like these super calls is where it's getting eaten...
-              if(error.skip) { return; }
-              error.skip = true;
-              error({error: 'timeout'});
+              // Guard: ensure error function is still valid before calling it
+              try {
+                if(error && error.skip) { return; }
+                if(error && typeof error === 'function') {
+                  error.skip = true;
+                  error({error: 'timeout'});
+                }
+              } catch(e) {
+                console.warn('[PERSISTENCE] Error in timeout callback:', e);
+              }
             }, 15000);
             var id_or_key = id;
-            if((window.persistence && window.persistence.force_reload == full_id) && type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
-              id_or_key = local_data.board.key;
+            // Re-fetch persistence to ensure it's still valid
+            var persistenceForCheck = getPersistence();
+            if((persistenceForCheck && persistenceForCheck.force_reload == full_id) || (window.persistence && window.persistence.force_reload == full_id)) {
+              if(type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
+                id_or_key = local_data.board.key;
+              }
             }
-            return _super.call(_this, store, type, id_or_key).then(function(record) {
-              // DEBUGGER HERE, when wifi is off this still gets
-              // called a couple times, but eats the promise for some reason
-              // TODO: maybe check if it's a problem in persistence.ajax
-              if(error.skip) { return; }
-              error.skip = true;
-              // mark the retrieved timestamp for freshness checks
-              if(record[type.modelName]) {
-                delete record[type.modelName].local_result;
-                var now = (new Date()).getTime();
-                record[type.modelName].retrieved = now;
-                if(record.images) {
-                  record.images.forEach(function(i) { i.retrieved = now; });
-                }
-                if(record.sounds) {
-                  record.sounds.forEach(function(i) { i.retrieved = now; });
-                }
+            // Guard: ensure persistence is still valid before calling super, use fallback if needed
+            var persistenceForSuper = getPersistence();
+            if(!persistenceForSuper || typeof persistenceForSuper !== 'object' || typeof persistenceForSuper.get !== 'function' || persistenceForSuper.isDestroyed || persistenceForSuper.isDestroying) {
+              console.warn('[PERSISTENCE] persistence service not available for _super.call()');
+              return find_reject({error: 'persistence service not available'});
+            }
+            // Wrap the entire promise chain in a try-catch to catch any errors
+            // Double-check persistence is still valid right before calling _super (race condition protection)
+            try {
+              var finalPersistenceCheck = getPersistence();
+              if(!finalPersistenceCheck || typeof finalPersistenceCheck !== 'object' || typeof finalPersistenceCheck.get !== 'function' || finalPersistenceCheck.isDestroyed || finalPersistenceCheck.isDestroying) {
+                console.warn('[PERSISTENCE] persistence service became invalid right before _super.call()');
+                return find_reject({error: 'persistence service not available'});
               }
-              var ref_id = null;
-              if(type.modelName == 'user' && id == 'self') {
-                ref_id = 'self';
-              }
-              // store the result locally for future offline access
-              return this.store_eventually(type.modelName, record, ref_id).then(function() {
-                find_resolve(record);
-                // return RSVP.resolve(record);
-              }, function() {
-                find_reject({error: "failed to delayed-persist to local db"});
+              // Use the freshly checked persistence instance
+              persistenceForSuper = finalPersistenceCheck;
+              return _super.call(persistenceForSuper, store, type, id_or_key).then(function(record) {
+                // Wrap in try-catch to handle any errors in the promise callback
+                try {
+                  // DEBUGGER HERE, when wifi is off this still gets
+                  // called a couple times, but eats the promise for some reason
+                  // TODO: maybe check if it's a problem in persistence.ajax
+                  if(error.skip) { return; }
+                  error.skip = true;
+                  // mark the retrieved timestamp for freshness checks
+                  if(record && record[type.modelName]) {
+                    delete record[type.modelName].local_result;
+                    var now = (new Date()).getTime();
+                    record[type.modelName].retrieved = now;
+                    if(record.images) {
+                      record.images.forEach(function(i) { i.retrieved = now; });
+                    }
+                    if(record.sounds) {
+                      record.sounds.forEach(function(i) { i.retrieved = now; });
+                    }
+                  }
+                  var ref_id = null;
+                  if(type.modelName == 'user' && id == 'self') {
+                    ref_id = 'self';
+                  }
+                  // store the result locally for future offline access
+                  // Guard: ensure persistence is still valid before calling store_eventually, use fallback if needed
+                  var persistenceForStore = getPersistence();
+                  if(!persistenceForStore || typeof persistenceForStore.store_eventually !== 'function') {
+                    find_resolve(record);
+                    return RSVP.resolve(record);
+                  }
+                  return persistenceForStore.store_eventually(type.modelName, record, ref_id).then(function() {
+                    find_resolve(record);
+                    // return RSVP.resolve(record);
+                  }, function() {
+                    find_reject({error: "failed to delayed-persist to local db"});
+                  });
+                } catch(e) {
+                  console.error('[PERSISTENCE] Error in _super.then callback:', e);
+                  find_resolve(record); // Resolve anyway to prevent hanging
+                  return RSVP.resolve(record);
+                }
+              }, function(err) {
+                // Wrap error handler in try-catch
+                try {
+                  if(error.skip) { return; }
+                  error.skip = true;
+                  error(err);
+                } catch(e) {
+                  console.error('[PERSISTENCE] Error in error handler:', e);
+                  find_reject({error: 'error handler failed'});
+                }
               });
-            }, function(err) {
-              if(error.skip) { return; }
-              error.skip = true;
-              error(err);
-            });
+            } catch(e) {
+              console.error('[PERSISTENCE] Error calling _super:', e);
+              return find_reject({error: 'failed to call super: ' + (e.message || 'unknown')});
+            }
           } else {
+            // Use fallback if _this is not available
+            var persistenceForOffline = getPersistence();
             if(skip_db) {
-              return find_reject(this.offline_reject());
+              return find_reject(persistenceForOffline && persistenceForOffline.offline_reject ? persistenceForOffline.offline_reject() : {error: 'offline'});
             } else {
               if(local_data) {
                 return local_processed(local_data)
               } else {
-                return find_reject(this.offline_reject());
+                return find_reject(persistenceForOffline && persistenceForOffline.offline_reject ? persistenceForOffline.offline_reject() : {error: 'offline'});
               }
             }
+          }
+          } catch(e) {
+            console.error('[PERSISTENCE] Error in check_remote:', e);
+            return find_reject({error: 'persistence service error: ' + (e.message || 'unknown')});
           }
         };
 
@@ -4316,9 +4478,18 @@ persistence.DSExtend = {
         } else {
           return check_remote();
         }
+        } catch(e) {
+          console.error('[PERSISTENCE] Error in after_data:', e);
+          return find_reject({error: 'persistence service error: ' + (e.message || 'unknown')});
+        }
       };
 
-      this.find(type.modelName, id, true).then(function(data) {
+      // Guard: ensure persistence is valid before calling find, use fallback if needed
+      var persistenceForFind = getPersistence();
+      if(!persistenceForFind || typeof persistenceForFind.find !== 'function') {
+        return find_reject({error: 'persistence service not available'});
+      }
+      persistenceForFind.find(type.modelName, id, true).then(function(data) {
         after_data(data);
       }, function(err) {
         after_data(null);

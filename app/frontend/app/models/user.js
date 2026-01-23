@@ -182,7 +182,7 @@ LingoLinq.User = DS.Model.extend({
   supervisee_names: computed('supervisees', function() {
     return (this.get('supervisees') || []).map(function(u) { return u.name; }).join(", ");
   }),
-  profile_class: computed('last_profile', 'profile_due', 'app_state.refresh_stamp', function() {
+  profile_class: computed('last_profile', 'profile_due', 'appState.refresh_stamp', function() {
     var res = 'profile_circle';
     if(this.get('profile_due.overdue') || !this.get('last_profile_date')) {
       res = res + ' overdue';
@@ -196,7 +196,7 @@ LingoLinq.User = DS.Model.extend({
     var date = window.moment(this.get('last_profile.added') * 1000);
     return date;
   }),
-  profile_due: computed('last_profile_date', 'app_state.refresh_stamp', function() {
+  profile_due: computed('last_profile_date', 'appState.refresh_stamp', function() {
     var res = {};
     var date = this.get('last_profile_date');
     var now = window.moment();
@@ -300,7 +300,7 @@ LingoLinq.User = DS.Model.extend({
     }
     return url;
   }),
-  using_for_a_while: computed('joined', 'app_state.refresh_stamp', function() {
+  using_for_a_while: computed('joined', 'appState.refresh_stamp', function() {
     var a_while_ago = window.moment().add(-2, 'weeks');
     var joined = window.moment(this.get('joined'));
     return (joined < a_while_ago);
@@ -362,7 +362,7 @@ LingoLinq.User = DS.Model.extend({
       return false;
     }
   ),
-  expiration_passed: computed('subscription.expires', 'app_state.refresh_stamp', function() {
+  expiration_passed: computed('subscription.expires', 'appState.refresh_stamp', function() {
     if(!this.get('subscription.expires')) { return false; }
     var now = window.moment();
     var expires = window.moment(this.get('subscription.expires'));
@@ -399,16 +399,16 @@ LingoLinq.User = DS.Model.extend({
     }
     return false;
   },
-  eval_ended: computed('subscription.eval_account', 'subscription.eval_expires', 'app_state.refresh_stamp', function() {
+  eval_ended: computed('subscription.eval_account', 'subscription.eval_expires', 'appState.refresh_stamp', function() {
     return this.eval_ending(0);
   }),
-  eval_ending_soon: computed('subscription.eval_account', 'subscription.eval_expires', 'app_state.refresh_stamp', function() {
+  eval_ending_soon: computed('subscription.eval_account', 'subscription.eval_expires', 'appState.refresh_stamp', function() {
     return this.eval_ending(14) && !this.eval_ending(0);
   }),
   can_reset_eval: computed('subscription.eval_account', 'is_managed', 'supervisors', 'supervisors.length', 'permissions.supervise', 'permissions.user_id', function() {
     return !!(this.get('subscription.eval_account') && (((this.get('supervisors') || []).length == 0) && !this.get('is_managed')) || (this.get('permissions.supervise') && this.get('permissions.user_id') != this.get('id')));
   }),
-  joined_within_24_hours: computed('app_state.refresh_stamp', 'joined', function() {
+  joined_within_24_hours: computed('appState.refresh_stamp', 'joined', function() {
     var one_day_ago = window.moment().add(-1, 'day');
     if(this.get('joined') && this.get('joined') > one_day_ago) {
       return true;

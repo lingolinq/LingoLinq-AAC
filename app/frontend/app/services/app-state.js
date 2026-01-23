@@ -2,6 +2,7 @@ import Ember from 'ember';
 import Route from '@ember/routing/route';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import EmberObject from '@ember/object';
 import {
   set as emberSet,
@@ -48,6 +49,7 @@ import sync from '../utils/sync';
 export default Service.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
+  router: service('router'),
   init() {
     // CRITICAL: Fix stashes injection BEFORE calling _super() to prevent errors
     // If this.stashes is a class (not an instance), use window.stashes or lookup the service
@@ -556,7 +558,17 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
-    this.set('from_url', this.get('route._router.url') || this.get('route.router.url'));
+    var route = this.get('route');
+    var from_url = null;
+    if(route && typeof route.get === 'function') {
+      try {
+        from_url = route.get('_router.url') || route.get('router.url');
+      } catch(e) {
+        // Silently handle errors accessing route properties
+        console.warn('[app-state] Error getting route URL:', e);
+      }
+    }
+    this.set('from_url', from_url);
     var from = [transition.from_route].concat(transition.from_params);
     if(from[0] && from[0] != 'board.index') {
       this.set('from_route', from);
@@ -716,7 +728,14 @@ export default Service.extend({
     this.set('depth_actions', actions);
   },
   return_to_index: function() {
-    this.controller.transitionToRoute('index');
+    var router = this.router || (this.controller && this.controller.target) || (window.router);
+    if(router && typeof router.transitionTo === 'function') {
+      router.transitionTo('index');
+    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('index');
+    } else {
+      console.warn('[APP-STATE] Cannot transition to index route: router and controller not available');
+    }
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -768,7 +787,14 @@ export default Service.extend({
     this.set('referenced_board', new_state);
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
-      _this.controller.transitionToRoute('board', new_state.key);
+      var router = _this.router || (_this.controller && _this.controller.target) || (window.router);
+      if(router && typeof router.transitionTo === 'function') {
+        router.transitionTo('board', new_state.key);
+      } else if(_this.controller && typeof _this.controller.transitionToRoute === 'function') {
+        _this.controller.transitionToRoute('board', new_state.key);
+      } else {
+        console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+      }
       if(old_state.key == new_state.key) {
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
@@ -902,7 +928,14 @@ export default Service.extend({
     var state = history.pop();
     if(!state) { 
       if(this.get('currentBoardState.extra_back') == 'emergency') {
-        this.controller.transitionToRoute('offline_boards');
+        var router = this.router || (this.controller && this.controller.target) || (window.router);
+        if(router && typeof router.transitionTo === 'function') {
+          router.transitionTo('offline_boards');
+        } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+          this.controller.transitionToRoute('offline_boards');
+        } else {
+          console.warn('[APP-STATE] Cannot transition to offline_boards route: router and controller not available');
+        }
       }
       return; 
     }
@@ -919,7 +952,14 @@ export default Service.extend({
       this.stashes.persist('board_level', state.level);
     }
     this.set('referenced_board', state);
-    this.controller.transitionToRoute('board', state.key);
+    var router = this.router || (this.controller && this.controller.target) || (window.router);
+    if(router && typeof router.transitionTo === 'function') {
+      router.transitionTo('board', state.key);
+    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('board', state.key);
+    } else {
+      console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+    }
   },
   jump_to_root_board: function(options) {
     options = options || {};
@@ -951,7 +991,14 @@ export default Service.extend({
           this.stashes.persist('vocalization_locale', state.locale);
         }
         this.set('referenced_board', state);
-        this.controller.transitionToRoute('board', state.key);
+        var router = this.router || (this.controller && this.controller.target) || (window.router);
+        if(router && typeof router.transitionTo === 'function') {
+          router.transitionTo('board', state.key);
+        } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+          this.controller.transitionToRoute('board', state.key);
+        } else {
+          console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+        }
         do_log = current && current.key && state.key != current.key;
       }
     } else if(index_as_fallback) {
@@ -1431,7 +1478,58 @@ export default Service.extend({
     // preferred should include the user's home board setting
     this.toggle_mode('speak', {force: true, override_state: preferred});
     this.set('referenced_board', preferred);
-    this.controller.transitionToRoute('board', preferred.key);
+    // Use router service instead of controller for transition
+    var router = null;
+    try {
+      // Try to get router service via injection first
+      router = this.router;
+      // If not available, try to look it up via getOwner
+      if(!router || typeof router.transitionTo !== 'function') {
+        try {
+          var owner = getOwner(this);
+          if(owner && typeof owner.lookup === 'function') {
+            router = owner.lookup('service:router');
+          }
+        } catch(e) {
+          // getOwner might fail in some contexts, try alternative methods
+          var owner = (this.constructor && this.constructor.owner) || (this.owner) || (this._owner);
+          if(owner && typeof owner.lookup === 'function') {
+            router = owner.lookup('service:router');
+          }
+        }
+      }
+      // Fallback to controller's target (router)
+      if((!router || typeof router.transitionTo !== 'function') && this.controller && this.controller.target) {
+        router = this.controller.target;
+      }
+      // Last resort: try window.router
+      if(!router || typeof router.transitionTo !== 'function') {
+        router = window.router;
+      }
+    } catch(e) {
+      console.warn('[APP-STATE] Error getting router service:', e);
+    }
+    
+    if(router && typeof router.transitionTo === 'function') {
+      try {
+        router.transitionTo('board', preferred.key);
+      } catch(e) {
+        console.error('[APP-STATE] Error transitioning to board route:', e);
+        // Fallback to controller if router transition fails
+        if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+          this.controller.transitionToRoute('board', preferred.key);
+        }
+      }
+    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('board', preferred.key);
+    } else {
+      console.warn('[APP-STATE] Cannot transition to board route: router and controller not available', {
+        hasRouter: !!this.router,
+        routerType: typeof this.router,
+        hasController: !!this.controller,
+        controllerType: typeof this.controller
+      });
+    }
     if(speak_mode_user && speak_mode_user == this.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
       // Supporter devices for communicators should start in modeling mode
       this.set('modeling_for_self', true);
@@ -2165,7 +2263,8 @@ export default Service.extend({
             var _this = this;
             var get_local_revisions = this.persistence.find('settings', 'synced_full_set_revisions').then(function(res) {
               if(_this.get('currentBoardState.id') && !res[_this.get('currentBoardState.id')]) {
-                if(!_this.persistence.get('last_sync_at')) {
+                var persistenceService = _this.persistence || window.persistence;
+                if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('last_sync_at')) {
                   // if not ever synced, remind them to sync before trying to use Speak Mode
                   modal.warning(i18n.t('remember_to_sync', "Remember to sync before trying to use boards somewhere without a strong Internet connection!"), true);
                 } else if(this.get('current_board_in_extended_board_set')) {
@@ -2466,7 +2565,8 @@ export default Service.extend({
       return;
     }
     var ref_user = this.get('referenced_user');
-    if(this.persistence && this.persistence.get('online') && this.get('speak_mode') && ref_user) {
+    var persistenceService = this.persistence || window.persistence;
+    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && this.get('speak_mode') && ref_user) {
       var last_share = ref_user.get('last_share') || 0;
       var last_check = ref_user.get('retrieved') || ref_user.get('last_sync_stamp.checked') || 1;
       var now = (new Date()).getTime();
@@ -2799,7 +2899,8 @@ export default Service.extend({
     }
     // TODO: option to disable badges
     // Fixed: 'this.persistence.online' is invalid observer path, changed to 'persistence.online'
-    if(this.get('speak_mode') && this.persistence && this.persistence.get('online')) {
+    var persistenceService = this.persistence || window.persistence;
+    if(this.get('speak_mode') && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
       var badge_hash = (this.get('referenced_user.id') || 'nobody') + "::" + ((new Date()).getTime() / 1000 / 3600)
       // don't check more than once an hour
       if(this.get('user_badge_hash') == badge_hash) { return; }

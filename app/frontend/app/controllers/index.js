@@ -2,7 +2,6 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
-import app_state from '../utils/app_state';
 
 export default Controller.extend({
   appState: service('app-state'),
@@ -65,8 +64,8 @@ export default Controller.extend({
   
   update_selected: function() {
     var user = this.get('model');
-    if(user && user.get('id') && app_state.controller) {
-      app_state.controller.updateTitle();
+    if(user && user.get('id') && this.appState.controller) {
+      this.appState.controller.updateTitle();
     }
   },
   checkForBlankSlate: function() {
@@ -91,7 +90,7 @@ export default Controller.extend({
   },
   actions: {
     hide_login: function() {
-      app_state.set('login_modal', false);
+      this.appState.set('login_modal', false);
       var html = document.querySelector('html');
       var body = document.querySelector('body');
       if(html) { html.style.overflow = ''; }
@@ -100,10 +99,10 @@ export default Controller.extend({
       if(overlay) { overlay.remove(); }
     },
     opening_index: function() {
-      app_state.set('index_view', true);
+      this.appState.set('index_view', true);
     },
     closing_index: function() {
-      app_state.set('index_view', false);
+      this.appState.set('index_view', false);
     }
 
   }

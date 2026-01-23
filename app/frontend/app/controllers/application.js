@@ -314,7 +314,7 @@ export default Controller.extend({
       }
     },
     cancel_sync: function() {
-      persistence.cancel_sync();
+      this.persistence.cancel_sync();
     },
     index: function() {
       this.appState.return_to_index();
@@ -490,12 +490,12 @@ export default Controller.extend({
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
-            if(sync && persistence.get('online') && persistence.get('auto_sync')) {
+            if(sync && _this.persistence.get('online') && _this.persistence.get('auto_sync')) {
               _this.set('simple_board_header', false);
               runLater(function() {
-                if(persistence.get('auto_sync')) {
+                if(_this.persistence.get('auto_sync')) {
                   console.debug('syncing because home board changes');
-                  persistence.sync('self', null, null, 'home_board_changed').then(null, function() { });
+                  _this.persistence.sync('self', null, null, 'home_board_changed').then(null, function() { });
                 }
               }, 1000);
               if(_this.get('setup_footer')) {

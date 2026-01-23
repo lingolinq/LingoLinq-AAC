@@ -20,6 +20,7 @@ export default Component.extend({
   
   router: service(),
   store: service(),
+  persistence: service('persistence'),
 
   init() {
     this._super(...arguments);
@@ -39,7 +40,12 @@ export default Component.extend({
   ),
   needs_sync: computed('persistence.last_sync_at', function() {
     var now = (new Date()).getTime() / 1000;
-    return (now - persistence.get('last_sync_at')) > (7 * 24 * 60 * 60);
+    var persistenceService = this.persistence || window.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function') {
+      return false;
+    }
+    var lastSync = persistenceService.get('last_sync_at') || 0;
+    return (now - lastSync) > (7 * 24 * 60 * 60);
   }),
   blank_slate: computed(
     'app_state.currentUser.preferences.progress',
@@ -84,17 +90,24 @@ export default Component.extend({
   checkForBlankSlate: observer('persistence.online', function() {
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
-    persistence.find_recent('board').then(function(boards) {
+    var persistenceService = this.persistence || window.persistence;
+    if(!persistenceService || typeof persistenceService.find_recent !== 'function') {
+      return;
+    }
+    persistenceService.find_recent('board').then(function(boards) {
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
       _this.set('recentOfflineBoards', boards);
       if(_this.get('homeBoards') == [] && _this.get('popularBoards') == []) {
         _this.set('showOffline', true);
-      } else if(!_this.get('persistence.online')) {
-        _this.set('showOffline', true);
       } else {
-        _this.set('showOffline', false);
+        var persistenceForCheck = _this.persistence || window.persistence;
+        if(!persistenceForCheck || typeof persistenceForCheck.get !== 'function' || !persistenceForCheck.get('online')) {
+          _this.set('showOffline', true);
+        } else {
+          _this.set('showOffline', false);
+        }
       }
     }, function() {
       _this.set('showOffline', false);
@@ -125,7 +138,8 @@ export default Component.extend({
   }),
   refreshing_class: computed('persistence.syncing', function() {
     var res = "glyphicon glyphicon-refresh ";
-    if(this.get('persistence.syncing')) {
+    var persistenceService = this.persistence || window.persistence;
+    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('syncing')) {
       res = res + "spinning ";
     }
     return res;
@@ -196,7 +210,8 @@ export default Component.extend({
   ),
   update_selected: observer('selected', 'persistence.online', function() {
     var _this = this;
-    if(!persistence.get('online')) { return; }
+    var persistenceService = this.persistence || window.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var last_browse = stashes.get('last_index_browse');
     var default_index = 2;
     // If a user already has a home board they're not going to care about popular boards,
@@ -260,7 +275,8 @@ export default Component.extend({
     var _this = this;
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     var model_id = model && model.get('id');
-    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && persistence.get('online')) {
+    var persistenceService = this.persistence || window.persistence;
+    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
       var controller = this;
       var find_args = {user_id: model.get('id'), type: 'session'};
       if(model.get('supporter_role')) {
@@ -533,7 +549,11 @@ export default Component.extend({
       });
     },
     sync: function() {
-      if(!persistence.get('syncing')) {
+      var persistenceService = this.persistence || window.persistence;
+      if(!persistenceService || typeof persistenceService.get !== 'function' || persistenceService.get('syncing')) {
+        return;
+      }
+      if(!persistenceService.get('syncing')) {
         console.debug('syncing because manually triggered');
         persistence.sync('self', true).then(null, function() { });
       } else {
@@ -617,7 +637,12 @@ export default Component.extend({
       }
     },
     sync_details: function() {
-      var list = ([].concat(persistence.get('sync_log') || [])).reverse();
+      var persistenceService = this.persistence || window.persistence;
+      if(!persistenceService || typeof persistenceService.get !== 'function') {
+        modal.open('sync-details', {details: []});
+        return;
+      }
+      var list = ([].concat(persistenceService.get('sync_log') || [])).reverse();
       modal.open('sync-details', {details: list});
     },
     stats: function(user_name) {

@@ -36,8 +36,12 @@ export default Controller.extend({
   }),
   needs_sync: computed('persistence.last_sync_at', function() {
     var now = (new Date()).getTime();
-    var persistenceService = this.get('persistence');
-    return (now - persistenceService.get('last_sync_at')) > (7 * 24 * 60 * 60 * 1000);
+    var persistenceService = this.get('persistence') || window.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function') {
+      return false;
+    }
+    var lastSync = persistenceService.get('last_sync_at') || 0;
+    return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.permissions.admin_support_actions', function() {
     var current_user_name = this.get('daily_use.user_name');
@@ -289,7 +293,8 @@ export default Controller.extend({
   },
   reload_logs: observer('persistence.online', function() {
     var _this = this;
-    if(!persistence.get('online')) { return; }
+    var persistenceService = this.get('persistence') || window.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var model_id = this.get('model.id');
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     if(model_id && (model_id == 'cache' || model_id.toString().match(/^cache:/))) {
@@ -442,7 +447,8 @@ export default Controller.extend({
     var list_id = Math.random().toString();
     this.set('list_id', list_id);
     var model = this.get('model');
-    if(!persistence.get('online')) { return; }
+    var persistenceService = this.get('persistence') || window.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var default_key = null;
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';

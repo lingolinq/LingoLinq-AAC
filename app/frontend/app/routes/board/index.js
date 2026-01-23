@@ -127,7 +127,7 @@ export default Route.extend({
 
     controller.get('valid_fast_html');
     var insufficient_data = model.get('id') && (!controller.get('has_rendered_material') || (!model.get('pseudo_board') && model.get('permissions') === undefined));
-    if(model.get('background.prompt') && app_state.get('speak_mode')) {
+    if(model.get('background.prompt') && this.appState.get('speak_mode')) {
       // TODO: is there a way to wait until current speaking has
       // finished to activate the prompt?
       runLater(function() {

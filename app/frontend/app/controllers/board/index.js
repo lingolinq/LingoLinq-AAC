@@ -7,7 +7,7 @@ import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
-import persistence from '../../utils/persistence';
+import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
@@ -22,6 +22,7 @@ var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
 export default Controller.extend({
+  persistence: service('persistence'),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -273,7 +274,8 @@ export default Controller.extend({
       // When you exit out of speak mode, go ahead and try to reload the board, that
       // will give people a consistent, reliable way to check for updates in case
       // their board got out of sync.
-      if(persistence.get('online') && this.get('has_rendered_material') && this.get('app_state.currentBoardState.reload_token') && !this.get('app_state.speak_mode')) {
+      var persistenceService = this.persistence || window.persistence;
+      if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && this.get('has_rendered_material') && this.get('app_state.currentBoardState.reload_token') && !this.get('app_state.speak_mode')) {
         var _this = this;
         _this.set('app_state.currentBoardState.reload_token', null);
         _this.get('model').reload().then(function(brd) {
@@ -1097,7 +1099,8 @@ export default Controller.extend({
     }
   ),
   reload_on_connect: observer('persistence.online', function() {
-    if(persistence.get('online') && !this.get('model.id')) {
+    var persistenceService = this.persistence || window.persistence;
+    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && !this.get('model.id')) {
       try {
         this.send('refreshData');
       } catch(e) { }

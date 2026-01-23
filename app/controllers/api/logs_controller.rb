@@ -1,5 +1,6 @@
 class Api::LogsController < ApplicationController
   before_action :require_api_token, :except => [:lam, :trends, :trends_slice, :anonymous_logs]
+  before_action :require_api_token_for_cache_user, :only => [:index]
   
   def logging_code_for(user)
     request.headers["HTTP_X_LOGGING_CODE_FOR_#{user.global_id}"] || request.headers["X-Logging-Code-For-#{user.global_id}"]
@@ -8,8 +9,14 @@ class Api::LogsController < ApplicationController
   def index
     # Handle special case where user_id is 'cache' (from boards cache endpoint)
     # Return empty result set since there are no logs for a cache user
+    # Security: require_api_token_for_cache_user already ensures authentication
     user_id_param = params['user_id'] || params[:user_id]
     if user_id_param.to_s == 'cache'
+      # Security: Ensure the authenticated user exists and has valid API access
+      # The require_api_token_for_cache_user filter ensures authentication, but we
+      # need to verify the user has permission to access logs (even empty results)
+      return unless @api_user
+      return unless @api_device_id
       logs = LogSession.where(:id => 0)
       json = JsonApi::Log.paginate(params, logs)
       return render json: json
@@ -344,6 +351,17 @@ class Api::LogsController < ApplicationController
     end
     
     render json: res
+  end
+  
+  protected
+  
+  def require_api_token_for_cache_user
+    # Security: Require authentication when user_id='cache' is used to prevent
+    # unauthorized access to log listings via the cache endpoint bypass
+    user_id_param = params['user_id'] || params[:user_id]
+    if user_id_param.to_s == 'cache'
+      require_api_token
+    end
   end
   
 end

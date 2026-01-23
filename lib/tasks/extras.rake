@@ -14,6 +14,17 @@ task "extras:assert_js" do
   `touch ./app/frontend/dist/assets/vendor.js`
   `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/frontend.js frontend.js`
   `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/vendor.js vendor.js`
+  # Also symlink CSS files for Ember frontend
+  # Create placeholder CSS files if they don't exist (they'll be replaced when Ember builds)
+  `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
+  `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
+  # Create symlinks for CSS files (remove existing first to avoid errors)
+  Dir.chdir('app/assets/stylesheets') do
+    File.delete('vendor.css') if File.exist?('vendor.css') || File.symlink?('vendor.css')
+    File.delete('frontend.css') if File.exist?('frontend.css') || File.symlink?('frontend.css')
+    `ln -s ../../frontend/dist/assets/vendor.css vendor.css`
+    `ln -s ../../frontend/dist/assets/frontend.css frontend.css`
+  end
 end
 
 task "extras:jobs_list" do
