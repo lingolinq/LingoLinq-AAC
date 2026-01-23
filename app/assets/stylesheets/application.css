@@ -11,5 +11,7 @@
  *= require_self
  *= require jquery.minicolors.css
  *= require bootstrap.min.css
+ *= require vendor.css
+ *= require frontend.css
  *= require_tree .
  */
