@@ -1,10 +1,10 @@
 /* jshint node: true */
 
-module.exports = function(environment) {
+module.exports = function (environment) {
   var ENV = {
     modulePrefix: 'frontend',
     environment: environment,
-//    baseURL: '/', // deprecated?
+    //    baseURL: '/', // deprecated?
     rootURL: '/',
     locationType: 'auto',
     EmberENV: {
@@ -24,11 +24,11 @@ module.exports = function(environment) {
     }
   };
 
-//   ENV['simple-auth'] = {
-//     store: 'simple-auth-session-store:lingolinq-local-storage',
-//     session: 'simple-auth-session:lingolinq',
-//     authenticator: 'authenticator:lingolinq'
-//   }
+  //   ENV['simple-auth'] = {
+  //     store: 'simple-auth-session-store:lingolinq-local-storage',
+  //     session: 'simple-auth-session:lingolinq',
+  //     authenticator: 'authenticator:lingolinq'
+  //   }
 
   if (environment === 'development') {
     // ENV.APP.LOG_RESOLVER = true;
@@ -36,16 +36,16 @@ module.exports = function(environment) {
     // ENV.APP.LOG_TRANSITIONS = true;
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
-    
+
     // Use direct HTTPS API URL in sandbox environment to avoid mixed content errors
     // Set via environment variable or use default sandbox URL
-    ENV.API_HOST = process.env.API_HOST || 'https://5000-if22s76ljt6fceg4fip6r-2b54fc91.sandbox.novita.ai';
-    
+    ENV.API_HOST = process.env.API_HOST || 'http://localhost:3000';
+
     ENV.contentSecurityPolicy = {
       'default-src': "'none'",
       'script-src': "'self'",
       'font-src': "'self'",
-      'connect-src': "'self' https://5000-if22s76ljt6fceg4fip6r-2b54fc91.sandbox.novita.ai https://opensymbols.s3.amazonaws.com",
+      'connect-src': "'self' http://localhost:3000 https://opensymbols.s3.amazonaws.com",
       'img-src': "'self' data: https: http:",
       'style-src': "'self' 'unsafe-inline' data:",
       'media-src': "'self' data: https: http:",

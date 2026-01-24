@@ -9,6 +9,7 @@ import session from './session';
 import i18n from './i18n';
 import capabilities from './capabilities';
 import app_state from './app_state';
+import ENV from '../config/environment';
 
 (function() {
   var console_debug = function(str) {
@@ -199,7 +200,7 @@ import app_state from './app_state';
     // Had to change this to a single promise because iOS 
     // seems to fail silently on chained promises sometimes
     return new RSVP.Promise(function(ajax_resolve, ajax_reject) {
-      var prefix = location.protocol + "//" + location.host;
+      var prefix = ENV.API_HOST || (location.protocol + "//" + location.host);
       if(capabilities.installed_app && capabilities.api_host) {
         prefix = capabilities.api_host;
       }
@@ -207,8 +208,13 @@ import app_state from './app_state';
         options.url = options.url.substring(prefix.length);
       }
       if(options.url && options.url.match(/^\//)) {
-        if(options.url && options.url.match(/^\/(api\/v\d+\/|token)/) && capabilities.installed_app && capabilities.api_host) {
-          options.url = capabilities.api_host + options.url;
+        if(options.url && options.url.match(/^\/(api\/v\d+\/|token)/)) {
+          // Use capabilities.api_host for installed apps, ENV.API_HOST for development, or leave as relative
+          if(capabilities.installed_app && capabilities.api_host) {
+            options.url = capabilities.api_host + options.url;
+          } else if(ENV.API_HOST) {
+            options.url = ENV.API_HOST + options.url;
+          }
         }
         options.headers = options.headers || {};
         options.headers['X-INSTALLED-COUGHDROP'] = (!!capabilities.installed_app).toString();
