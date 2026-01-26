@@ -615,10 +615,11 @@ export default Service.extend({
     this.set('current_route', transition.to_route);
   },
   finish_global_transition: function() {
+    var _this = this;
     this.set('already_homed', true);
     runNext(function() {
-      var target = this.get('current_route');
-//       this.set('index_view', target == 'index');
+      var target = _this.get('current_route');
+//       _this.set('index_view', target == 'index');
     });
     // footer was showing up too quickly and looking weird when the rest of the page hadn't
     // re-rendered yet.
@@ -3191,7 +3192,7 @@ export default Service.extend({
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         runLater(function() {
-          this.track_depth('link');
+          _this.track_depth('link');
           _this.jump_to_board({
             id: button.load_board.id,
             key: button.load_board.key,
@@ -3243,7 +3244,7 @@ export default Service.extend({
     } else if(button.integration && button.integration.action_type == 'webhook') {
       this.track_depth('clear');
       Button.extra_actions(button);
-      runLater(function() { this.check_scanning(); }, 200);
+      runLater(function() { _this.check_scanning(); }, 200);
     } else if(button.integration && button.integration.action_type == 'render') {
       this.track_depth('clear');
       runLater(function() {
@@ -3497,10 +3498,11 @@ export default Service.extend({
     }
   },
   possible_auto_home: function(obj) {
+    var _this = this;
     this.track_depth('clear');
     if(obj.prevent_return) {
       // integrations and configured buttons can explicitly prevent navigating away when activated
-      runLater(function() { this.check_scanning(); }, 200);
+      runLater(function() { _this.check_scanning(); }, 200);
     } else if(this.get('speak_mode') && ((!this.get('currentUser') && window.user_preferences.any_user.auto_home_return) || this.get('currentUser.preferences.auto_home_return'))) {
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
@@ -3509,14 +3511,14 @@ export default Service.extend({
         } else {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
         }
-        runLater(function() { this.check_scanning(); }, 200);
+        runLater(function() { _this.check_scanning(); }, 200);
       } else if(obj && obj.vocalization && obj.vocalization.match(/^\+/)) {
         // don't home-return when spelling out words
-        runLater(function() { this.check_scanning(); }, 200);
+        runLater(function() { _this.check_scanning(); }, 200);
       } else {
         this.jump_to_root_board({auto_home: true});
         // check for scanning because if already on home, nothing will change
-        runLater(function() { this.check_scanning(); }, 200);
+        runLater(function() { _this.check_scanning(); }, 200);
       }
     }
   },

@@ -1,3 +1,13 @@
+---
+description: 
+alwaysApply: true
+---
+
+---
+description: 
+alwaysApply: true
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -13,7 +23,15 @@ Key characteristics:
 - Uses Open Board Format (OBF) for board import/export
 - Deployed on Heroku with background job processing via Resque
 
-## Development Commands
+## Development considerations
+LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
+in templates or modals and alerts, you will need to use the internationalization libraries
+in order to support locales. Do net ever add raw text strings to any user-facing 
+resources, always use the i18n helpers. You can find examples of the helpers 
+throughout the code, using
+commands such as `i18n.t('key', "string")` or `{{t "this is some test" key='key'}}`. Instructions for generating and processing string files is located in `/i18n_generator.rb`.
+NOTE: as a standardized convention for the codebase, all user-facing strings should use
+double-quotes and all other strings should use single quotes.
 
 ### Backend (Rails)
 

@@ -170,20 +170,35 @@ var session = EmberObject.extend({
   check_token: function(allow_invalidate) {
     var store_data = stashes.get_object('auth_settings', true) || session.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
-    persistence.tokens = persistence.tokens || {};
-    persistence.tokens[key] = true;
+    // Get persistence instance safely (use window.persistence service instance if available)
+    var persistenceInstance = window.persistence || persistence;
+    if(persistenceInstance && typeof persistenceInstance === 'object') {
+      persistenceInstance.tokens = persistenceInstance.tokens || {};
+      persistenceInstance.tokens[key] = true;
+    }
     var access_token = store_data.access_token || "none";
     var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
     if(store_data.as_user_id) {
       url = url + "&as_user_id=" + store_data.as_user_id;
     }
+    // Safely get online status
+    var onlineStatus = false;
+    if(persistenceInstance && typeof persistenceInstance.get === 'function') {
+      try {
+        onlineStatus = persistenceInstance.get('online');
+      } catch(e) {
+        console.warn('[check_token] Error getting online status:', e);
+      }
+    }
     console.log('[check_token] Starting token check', {
       url: url,
-      online: persistence.get('online'),
+      online: onlineStatus,
       has_token: !!store_data.access_token,
       token_preview: store_data.access_token ? store_data.access_token.substring(0, 10) + '...' : 'none'
     });
-    return persistence.ajax(url, {
+    // Use persistenceInstance for ajax call
+    var persistenceForAjax = persistenceInstance && typeof persistenceInstance.ajax === 'function' ? persistenceInstance : persistence;
+    return persistenceForAjax.ajax(url, {
       type: 'GET'
     }).then(function(data) {
       console.log('[check_token] Token check succeeded', {
@@ -232,11 +247,32 @@ var session = EmberObject.extend({
           window.user_preferences.global_integrations = data.global_integrations;
         }
       }
+      // Use persistenceInstance for setBrowserToken/getBrowserToken
+      var persistenceForBrowserToken = persistenceInstance || persistence;
       if(data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken) {
-        persistence.setBrowserToken(data.meta.fakeXHR.browserToken);
+        if(persistenceForBrowserToken && typeof persistenceForBrowserToken.setBrowserToken === 'function') {
+          persistenceForBrowserToken.setBrowserToken(data.meta.fakeXHR.browserToken);
+        }
       }
-      return RSVP.resolve({success: true, browserToken: persistence.getBrowserToken()});
+      var browserToken = null;
+      if(persistenceForBrowserToken && typeof persistenceForBrowserToken.getBrowserToken === 'function') {
+        try {
+          browserToken = persistenceForBrowserToken.getBrowserToken();
+        } catch(e) {
+          console.warn('[check_token] Error getting browserToken:', e);
+        }
+      }
+      return RSVP.resolve({success: true, browserToken: browserToken});
     }, function(data) {
+      // Safely get online status
+      var onlineStatus = false;
+      if(persistenceInstance && typeof persistenceInstance.get === 'function') {
+        try {
+          onlineStatus = persistenceInstance.get('online');
+        } catch(e) {
+          console.warn('[check_token] Error getting online status in error handler:', e);
+        }
+      }
       console.log('[check_token] Token check failed', {
         error_data: data,
         fakeXHR: data && data.fakeXHR ? {
@@ -244,15 +280,19 @@ var session = EmberObject.extend({
           statusText: data.fakeXHR.statusText
         } : null,
         result: data && data.result,
-        online: persistence.get('online')
+        online: onlineStatus
       });
       
-      if(!persistence.get('online')) {
+      if(!onlineStatus) {
         console.log('[check_token] Already marked as offline, returning success: false');
         return {success: false};
       }
+      // Use persistenceInstance for setBrowserToken
+      var persistenceForBrowserToken = persistenceInstance || persistence;
       if(data && data.fakeXHR && data.fakeXHR.browserToken) {
-        persistence.setBrowserToken(data.fakeXHR.browserToken);
+        if(persistenceForBrowserToken && typeof persistenceForBrowserToken.setBrowserToken === 'function') {
+          persistenceForBrowserToken.setBrowserToken(data.fakeXHR.browserToken);
+        }
       }
       
       // Check for token-related errors and handle appropriately
@@ -278,7 +318,9 @@ var session = EmberObject.extend({
         console.log('[check_token] Error indicates not online');
         return {success: false};
       }
-      if(!data && !persistence.get('online')) {
+      // Get persistence instance for remaining operations
+      var persistenceForTokens = window.persistence || persistence;
+      if(!data && !onlineStatus) {
         console.log('[check_token] No data and not online');
         return {success: false};
       }
@@ -299,13 +341,32 @@ var session = EmberObject.extend({
       }
       
       // If it's a network error and we thought we were online, mark as offline
-      if(isNetworkError && persistence.get('online')) {
+      if(isNetworkError && onlineStatus) {
         console.log('[check_token] Network error detected, marking as offline');
-        persistence.set('online', false);
+        if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+          try {
+            persistenceInstance.set('online', false);
+          } catch(e) {
+            console.warn('[check_token] Error setting online to false:', e);
+          }
+        }
       }
       
-      persistence.tokens[key] = false;
-      var result = {success: false, browserToken: persistence.getBrowserToken(), networkError: isNetworkError};
+      // Update tokens safely
+      if(persistenceForTokens && typeof persistenceForTokens === 'object') {
+        persistenceForTokens.tokens = persistenceForTokens.tokens || {};
+        persistenceForTokens.tokens[key] = false;
+      }
+      // Get browserToken safely
+      var browserTokenForResult = null;
+      if(persistenceForTokens && typeof persistenceForTokens.getBrowserToken === 'function') {
+        try {
+          browserTokenForResult = persistenceForTokens.getBrowserToken();
+        } catch(e) {
+          console.warn('[check_token] Error getting browserToken for result:', e);
+        }
+      }
+      var result = {success: false, browserToken: browserTokenForResult, networkError: isNetworkError};
       console.log('[check_token] Returning result:', result);
       return RSVP.resolve(result);
     });
@@ -396,7 +457,18 @@ var session = EmberObject.extend({
         });
       }
     }
-    if(force_check_for_token || (persistence.tokens[key] == null && !Ember.testing && persistence.get('online'))) {
+    // Get persistence instance safely
+    var persistenceForCheck = window.persistence || persistence;
+    var onlineForCheck = false;
+    if(persistenceForCheck && typeof persistenceForCheck.get === 'function') {
+      try {
+        onlineForCheck = persistenceForCheck.get('online');
+      } catch(e) {
+        console.warn('[session] Error getting online status:', e);
+      }
+    }
+    var tokens = (persistenceForCheck && typeof persistenceForCheck === 'object') ? (persistenceForCheck.tokens || {}) : {};
+    if(force_check_for_token || (tokens[key] == null && !Ember.testing && onlineForCheck)) {
       if(store_data.access_token || force_check_for_token) { // || !persistence.get('browserToken')) {
         session.check_token(true);
       } else {

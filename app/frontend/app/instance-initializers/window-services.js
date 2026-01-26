@@ -6,6 +6,8 @@ import { getOwner } from '@ember/application';
  */
 export default {
   name: 'window-services',
+  // Run early to set window references before other code uses them
+  before: 'store-setter',
   initialize: function(applicationInstance) {
     // Set window.persistence from service
     var persistenceService = applicationInstance.lookup('service:persistence');

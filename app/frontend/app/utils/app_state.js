@@ -515,7 +515,11 @@ var app_state = EmberObject.extend({
     this.set('depth_actions', actions);
   },
   return_to_index: function() {
-    this.controller.transitionToRoute('index');
+    if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('index');
+    } else if(this.route && this.route.router && typeof this.route.router.transitionTo === 'function') {
+      this.route.router.transitionTo('index');
+    }
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -567,7 +571,11 @@ var app_state = EmberObject.extend({
     this.set('referenced_board', new_state);
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
-      _this.controller.transitionToRoute('board', new_state.key);
+      if(_this.controller && typeof _this.controller.transitionToRoute === 'function') {
+        _this.controller.transitionToRoute('board', new_state.key);
+      } else if(_this.route && _this.route.router && typeof _this.route.router.transitionTo === 'function') {
+        _this.route.router.transitionTo('board', new_state.key);
+      }
       if(old_state.key == new_state.key) {
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
@@ -701,7 +709,11 @@ var app_state = EmberObject.extend({
     var state = history.pop();
     if(!state) { 
       if(app_state.get('currentBoardState.extra_back') == 'emergency') {
-        this.controller.transitionToRoute('offline_boards');
+        if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+          this.controller.transitionToRoute('offline_boards');
+        } else if(this.route && this.route.router && typeof this.route.router.transitionTo === 'function') {
+          this.route.router.transitionTo('offline_boards');
+        }
       }
       return; 
     }
@@ -718,7 +730,11 @@ var app_state = EmberObject.extend({
       stashes.persist('board_level', state.level);
     }
     this.set('referenced_board', state);
-    this.controller.transitionToRoute('board', state.key);
+    if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('board', state.key);
+    } else if(this.route && this.route.router && typeof this.route.router.transitionTo === 'function') {
+      this.route.router.transitionTo('board', state.key);
+    }
   },
   jump_to_root_board: function(options) {
     options = options || {};
@@ -750,7 +766,11 @@ var app_state = EmberObject.extend({
           stashes.persist('vocalization_locale', state.locale);
         }
         this.set('referenced_board', state);
-        this.controller.transitionToRoute('board', state.key);
+        if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+          this.controller.transitionToRoute('board', state.key);
+        } else if(this.route && this.route.router && typeof this.route.router.transitionTo === 'function') {
+          this.route.router.transitionTo('board', state.key);
+        }
         do_log = current && current.key && state.key != current.key;
       }
     } else if(index_as_fallback) {
@@ -1230,7 +1250,18 @@ var app_state = EmberObject.extend({
     // preferred should include the user's home board setting
     this.toggle_mode('speak', {force: true, override_state: preferred});
     this.set('referenced_board', preferred);
-    this.controller.transitionToRoute('board', preferred.key);
+    // Safely transition to board route with null checks
+    if(this.controller && typeof this.controller.transitionToRoute === 'function') {
+      this.controller.transitionToRoute('board', preferred.key);
+    } else if(this.route && this.route.router && typeof this.route.router.transitionTo === 'function') {
+      this.route.router.transitionTo('board', preferred.key);
+    } else {
+      console.warn('[APP_STATE] Cannot transition to board route: controller and route not available', {
+        hasController: !!this.controller,
+        hasRoute: !!this.route,
+        preferredKey: preferred.key
+      });
+    }
     if(speak_mode_user && speak_mode_user == app_state.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
       // Supporter devices for communicators should start in modeling mode
       app_state.set('modeling_for_self', true);
@@ -3364,5 +3395,51 @@ app_state.ScrollTopRoute = Route.extend({
     }
   }
 });
-window.app_state = app_state;
-export default app_state;
+// Only set window.app_state if it's not already set to a service instance
+// The instance initializer sets window.app_state to the service instance
+// We don't want to overwrite that with the class
+if(!window.app_state || typeof window.app_state.get !== 'function' || typeof window.app_state.set !== 'function') {
+  window.app_state = app_state;
+}
+// During migration: Create a proxy that forwards to the service instance when available
+// This allows old imports to work with the new service-based architecture
+// The instance initializer sets window.app_state to the service instance
+// We create a proxy that forwards to the instance if available, otherwise to the class
+var app_state_export = new Proxy(app_state, {
+  get: function(target, prop) {
+    // Always check window.app_state first (set by instance initializer)
+    var instance = window.app_state;
+    // Check if it's a service instance (has get/set methods) and is not the class itself
+    if(instance && typeof instance.get === 'function' && typeof instance.set === 'function' && instance !== app_state) {
+      // It's the service instance, return the property
+      if(typeof instance[prop] !== 'undefined') {
+        var value = instance[prop];
+        // If it's a function, bind it to the instance
+        if(typeof value === 'function') {
+          return value.bind(instance);
+        }
+        return value;
+      }
+    }
+    // Fallback to class methods/properties
+    if(typeof target[prop] !== 'undefined') {
+      var value = target[prop];
+      // If it's a function, bind it to the class (or return as-is if it's a static method)
+      if(typeof value === 'function') {
+        return value;
+      }
+      return value;
+    }
+    return undefined;
+  },
+  has: function(target, prop) {
+    var instance = window.app_state;
+    if(instance && typeof instance.get === 'function' && typeof instance.set === 'function' && instance !== app_state) {
+      if(prop in instance) {
+        return true;
+      }
+    }
+    return prop in target;
+  }
+});
+export default app_state_export;

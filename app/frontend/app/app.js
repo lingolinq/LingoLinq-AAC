@@ -15,33 +15,13 @@ import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
-  // Enhanced debugging for persistence service errors
-  if(msg && msg.indexOf('Cannot read properties of undefined') !== -1 && msg.indexOf('get') !== -1) {
-    console.error('[PERSISTENCE ERROR DEBUG] ========== ERROR CAUGHT ==========');
-    console.error('[PERSISTENCE ERROR DEBUG] Message:', msg);
-    console.error('[PERSISTENCE ERROR DEBUG] URL:', url);
-    console.error('[PERSISTENCE ERROR DEBUG] Line:', line, 'Col:', col);
-    console.error('[PERSISTENCE ERROR DEBUG] window.persistence:', window.persistence);
-    console.error('[PERSISTENCE ERROR DEBUG] window.persistence type:', typeof window.persistence);
-    console.error('[PERSISTENCE ERROR DEBUG] Stack:', new Error().stack);
-    console.error('[PERSISTENCE ERROR DEBUG] ===================================');
+  // Enhanced debugging for persistence service errors (both null and undefined)
+  if(msg && msg.indexOf('Cannot read properties of') !== -1 && (msg.indexOf('null') !== -1 || msg.indexOf('undefined') !== -1) && msg.indexOf('get') !== -1) {
+    // console.error('[PERSISTENCE ERROR DEBUG] ... removed ...'); 
   }
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
 Ember.onerror = function(err) {
-  // Enhanced debugging for persistence service errors
-  if(err && err.message && err.message.indexOf('Cannot read properties of undefined') !== -1 && err.message.indexOf('get') !== -1) {
-    console.error('[PERSISTENCE ERROR DEBUG] ========== EMBER.ONERROR CAUGHT ==========');
-    console.error('[PERSISTENCE ERROR DEBUG] Error:', err);
-    console.error('[PERSISTENCE ERROR DEBUG] Message:', err.message);
-    console.error('[PERSISTENCE ERROR DEBUG] Stack:', err.stack);
-    console.error('[PERSISTENCE ERROR DEBUG] window.persistence:', window.persistence);
-    console.error('[PERSISTENCE ERROR DEBUG] window.persistence type:', typeof window.persistence);
-    if(window.persistence) {
-      console.error('[PERSISTENCE ERROR DEBUG] window.persistence.get:', typeof window.persistence.get);
-    }
-    console.error('[PERSISTENCE ERROR DEBUG] ===========================================');
-  }
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');

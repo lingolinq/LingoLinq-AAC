@@ -139,6 +139,16 @@ var persistence = Service.extend({
       // This ensures observers can use window.persistence as fallback
       window.persistence = this;
       console.log('[PERSISTENCE INIT] window.persistence set:', window.persistence);
+      
+      // Initialize online property immediately - this is critical for early requests
+      // Using a direct property assignment to avoid triggering observers
+      try {
+        this.online = navigator.onLine !== false;
+        console.log('[PERSISTENCE INIT] online set to:', this.online);
+      } catch(e) {
+        console.warn('[PERSISTENCE INIT] Could not set online:', e);
+      }
+      
       // TEMPORARILY DISABLED: Don't set properties in init to avoid triggering computed properties
       // Defer setup to ensure service is fully initialized before any observers fire
       /*
