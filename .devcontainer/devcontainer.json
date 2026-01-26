@@ -1,7 +1,12 @@
 {
   "name": "LingoLinq Ruby + Node Codespace",
   "image": "mcr.microsoft.com/devcontainers/ruby:1-3.4-bookworm",
-  
+
+  // Use Docker volume for Linux filesystem performance (critical for Ember)
+  // To use: VS Code > Command Palette > "Dev Containers: Clone Repository in Container Volume"
+  "workspaceMount": "source=lingolinq-workspace,target=/home/vscode/LingoLinq-AAC,type=volume",
+  "workspaceFolder": "/home/vscode/LingoLinq-AAC",
+
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20",
@@ -19,7 +24,7 @@
       ]
     }
   },
-  
+
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "vscode"
 }

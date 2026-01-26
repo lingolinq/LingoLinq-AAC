@@ -74,7 +74,7 @@ echo "Starting Ember..."
   cd ./app/frontend/
   nvm use 18
   export NODE_OPTIONS=--openssl-legacy-provider
-  npx ember server --port 8184 > ../../tmp/logs/ember.log 2>&1 &
+  npx ember server --port 8184 --proxy http://localhost:3000 > ../../tmp/logs/ember.log 2>&1 &
   echo $! > ../../tmp/ember.pid
 )
 EMBER_PID=$(cat tmp/ember.pid)

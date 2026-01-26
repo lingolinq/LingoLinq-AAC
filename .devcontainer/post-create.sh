@@ -88,8 +88,22 @@ cd() {
 autoload_nvmrc
 NVMEOF
 
-echo "=== Post-Create Script Complete ==="
+echo "=== Setting up Ember frontend ==="
 
-# Use Node 20 by default
+# Install frontend dependencies with Node 18
+cd app/frontend
+nvm use 18
+export NODE_OPTIONS=--openssl-legacy-provider
+npm install
+npx bower install --allow-root
+cd ../..
+
+# Switch back to Node 20 for general use
 nvm use 20
+
+echo "=== Post-Create Script Complete ==="
+echo ""
+echo "To start the app: bin/fresh_start"
+echo "Backend: http://localhost:3000"
+echo "Frontend: http://localhost:8184"
 

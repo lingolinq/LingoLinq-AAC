@@ -4,10 +4,15 @@ LingoLinq::Application.configure do
   # In the development environment your application's code is reloaded on
   # every request. This slows down response time but is perfect for development
   # since you don't have to restart the web server when you make code changes.
-  config.cache_classes = false
+  # config.cache_classes = false
+
+  # FIX: Prevent FileUpdateChecker crash in WSL/Docker
+  config.file_watcher = ActiveSupport::FileUpdateChecker
+  config.cache_classes = true
+  config.reload_classes_only_on_change = false
 
   # Do not eager load code on boot.
-  config.eager_load = true
+  config.eager_load = false
 
   # Show full error reports and disable caching.
   config.consider_all_requests_local       = true
@@ -21,6 +26,13 @@ LingoLinq::Application.configure do
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 
+  # PERFORMANCE: Prevent Rails from scanning the massive node_modules/bower_components 
+  # in the frontend directory, which causes RequestTimeoutException (500 errors).
+  config.watchable_dirs.clear # Start fresh to be safe
+  config.watchable_dirs["#{Rails.root}/app"] = [:rb, :erb, :yml]
+  config.watchable_dirs["#{Rails.root}/lib"] = [:rb]
+  config.watchable_dirs["#{Rails.root}/config"] = [:rb, :yml, :yaml]
+  
   config.log_tags = [ :request_id ]
 
   # Raise an error on page load if there are pending migrations
