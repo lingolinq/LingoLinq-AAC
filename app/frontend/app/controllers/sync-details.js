@@ -6,6 +6,7 @@ import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
   persistence: service('persistence'),
+  stashes: service('stashes'),
   opening: function() {
     // Service is injected, no need to set it manually
   },
@@ -14,7 +15,7 @@ export default modal.ModalController.extend({
     'persistence.sync_log.length',
     'persistence.sync_log.@each.status',
     function() {
-      var persistenceService = this.persistence || window.persistence;
+      var persistenceService = this.persistence;
       if(!persistenceService || typeof persistenceService.get !== 'function') {
         return [];
       }
@@ -43,14 +44,14 @@ export default modal.ModalController.extend({
   ),
   refreshing_class: computed('persistence.syncing', function() {
     var res = "glyphicon glyphicon-refresh ";
-    var persistenceService = this.persistence || window.persistence;
+    var persistenceService = this.persistence;
     if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('syncing')) {
       res = res + "spinning ";
     }
     return res;
   }),
   first_log_date: computed('stashes.usage_log.length', function() {
-    var log = this.get('stashes.usage_log')[0];
+    var log = this.stashes.get('usage_log')[0];
     if(log) {
       return new Date(log.timestamp * 1000);
     }
@@ -61,7 +62,7 @@ export default modal.ModalController.extend({
       emberSet(sync, 'toggled', !emberGet(sync, 'toggled'));
     },
     cancel_sync: function() {
-      var persistenceService = this.persistence || window.persistence;
+      var persistenceService = this.persistence;
       if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('syncing')) {
         if(typeof persistenceService.cancel_sync === 'function') {
           persistenceService.cancel_sync();
@@ -69,7 +70,7 @@ export default modal.ModalController.extend({
       }
     },
     sync: function() {
-      var persistenceService = this.persistence || window.persistence;
+      var persistenceService = this.persistence;
       if(!persistenceService || typeof persistenceService.get !== 'function' || persistenceService.get('syncing')) {
         return;
       }
