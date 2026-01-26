@@ -34,6 +34,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from './sync';
 import persistence from './persistence';
+import ENV from '../config/environment';
 
 // tracks:
 // current mode (edit mode, speak mode, default)
@@ -487,7 +488,7 @@ var app_state = EmberObject.extend({
   }),
   board_url: computed('currentBoardState.key', function() {
     if(this.get('currentBoardState.key')) {
-      return htmlSafe((capabilities.api_host || (location.protocol + "//" + location.host)) + "/" + this.get('currentBoardState.key'));
+      return htmlSafe((capabilities.api_host || ENV.API_HOST || (location.protocol + "//" + location.host)) + "/" + this.get('currentBoardState.key'));
     } else {
       return null;
     }

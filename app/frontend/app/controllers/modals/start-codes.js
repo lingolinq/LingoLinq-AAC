@@ -9,6 +9,7 @@ import progress_tracker from '../../utils/progress_tracker';
 import { computed, set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import capabilities from '../../utils/capabilities';
+import ENV from '../../config/environment';
 
 export default modal.ModalController.extend({
   persistence: service(),
@@ -122,7 +123,7 @@ export default modal.ModalController.extend({
       }
     },
     code_link: function (code) {
-      var prefix = location.protocol + "//" + location.host;
+      var prefix = ENV.API_HOST || (location.protocol + "//" + location.host);
       if (capabilities.installed_app && capabilities.api_host) {
         prefix = capabilities.api_host;
       }

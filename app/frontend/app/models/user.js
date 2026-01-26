@@ -21,6 +21,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
+import ENV from '../config/environment';
 
 LingoLinq.User = DS.Model.extend({
   // Explicit service injections (Ember 3.28 migration)
@@ -460,7 +461,7 @@ LingoLinq.User = DS.Model.extend({
     return this.get('preferences.role') == 'supporter' || this.get('preferences.device.role') == 'supporter';
   }),
   profile_url: computed('user_name', function() {
-    var prefix = location.protocol + '//' + location.host;
+    var prefix = ENV.API_HOST || (location.protocol + '//' + location.host);
     if(capabilities.installed_app && capabilities.api_host) {
       prefix = capabilities.api_host;
     }

@@ -14,6 +14,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import stashes from '../../utils/_stashes';
 import i18n from '../../utils/i18n';
+import ENV from '../../config/environment';
 
 export default Component.extend({
   tagName: '',
@@ -670,7 +671,7 @@ export default Component.extend({
     next_lesson: function() {
       var lesson = app_state.get('sessionUser.first_incomplete_lesson');
       if(lesson) {
-        var prefix = location.protocol + "//" + location.host;
+        var prefix = ENV.API_HOST || (location.protocol + "//" + location.host);
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }

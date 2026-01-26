@@ -9,6 +9,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import capabilities from '../../utils/capabilities';
 import { htmlSafe } from '@ember/string';
+import ENV from '../../config/environment';
 
 export default Controller.extend({
   load_lessons: function() {
@@ -26,7 +27,7 @@ export default Controller.extend({
   actions: {
     launch: function(lesson) {
       if(lesson && this.get('model.user_token')) {
-        var prefix = location.protocol + "//" + location.host;
+        var prefix = ENV.API_HOST || (location.protocol + "//" + location.host);
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
