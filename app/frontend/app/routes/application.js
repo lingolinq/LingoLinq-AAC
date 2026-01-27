@@ -3,6 +3,9 @@ import { later as runLater } from '@ember/runloop';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
+import geo from '../utils/geo';
+import progress_tracker from '../utils/progress_tracker';
+import ttsVoices from '../utils/tts_voices';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 
@@ -29,7 +32,15 @@ import { getOwner } from '@ember/application';
 export default Route.extend({
   router: service(),
   appState: service('app-state'),
+  stashes: service('stashes'),
+  persistence: service('persistence'),
   setupController: function(controller) {
+    // Setup utilities with injected services
+    speecher.setup(this.appState, this.persistence, this.stashes, ttsVoices);
+    geo.setup(this.appState, this.persistence, this.stashes);
+    progress_tracker.setup(this.persistence);
+    capabilities.setup(this.stashes, ttsVoices);
+
     this.appState.setup_controller(this, controller);
     speecher.refresh_voices();
     controller.set('speecher', speecher);

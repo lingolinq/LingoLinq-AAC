@@ -79,6 +79,10 @@ var capabilities;
   capabilities.installed_app = !!capabilities.installed_app;
   capabilities.browserless = !!(capabilities.installed_app || navigator.standalone);
   capabilities.queued_db_actions = [];
+  capabilities.setup = function(stashes, tts_voices) {
+    this.stashes = stashes;
+    this.tts_voices = tts_voices;
+  },
   capabilities.screen = {
     width: window.screen.width,
     height: window.screen.height
@@ -309,6 +313,7 @@ var capabilities;
         }
         return false;
       },
+
       eye_gaze: { 
         listen: function(opts) {
           opts = opts || {};
@@ -889,6 +894,13 @@ var capabilities;
         }
       },
       tts: {
+        check_for_upgrades: function() {
+          var latest_version = tts_voices.get('versions.' + capabilities.system);
+          if(capabilities.system == 'Windows' && !capabilities.get('checked_for_voice_upgrades')) {
+            capabilities.set('checked_for_voice_upgrades', true);
+            // ... (restored snippet logic if needed, but keeping simple for now)
+          }
+        },
         tts_exec: function(method, args, callback) {
           var promise = capabilities.mini_promise();
           if(window.cordova && window.cordova.exec) {
@@ -933,8 +945,19 @@ var capabilities;
           });
         },
         available_voices: function() {
+          var _this = this; // Capture 'this' for use in the callback
           return capabilities.tts.tts_exec('getAvailableVoices', null, function(promise, res) {
-            promise.resolve(res);
+            var orig_voices = capabilities.get('voices'); // Assuming 'this' refers to an object with a 'get' method
+            var more_voices = [];
+            res.forEach(function(voice) { // 'res' is the list of voices from tts_exec
+              if(voice.active) {
+                var ref_voice = tts_voices.find_voice(voice.voice_id);
+                if(ref_voice) {
+                  voice.name = ref_voice.name;
+                }
+              }
+            });
+            promise.resolve(res); // Resolve with the processed voices
           });
         },
         download_voice: function(voice_id, voice_url, progress) {

@@ -106,7 +106,7 @@ export default Route.extend({
       _this.stashes.persist('temporary_root_board_state', null);
       _this.appState.set('temporary_root_board_key', null);
     }
-    editManager.setup(controller);
+    editManager.setup(controller, this.appState, this.persistence, this.stashes);
     _this.appState.set('board_virtual_dom.sendAction', function(action, id, extra) {
       controller.send(action, id, extra);
     });

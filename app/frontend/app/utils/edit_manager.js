@@ -5,11 +5,12 @@ import $ from 'jquery';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import Button from './button';
-import stashes from './_stashes';
-import app_state from './app_state';
+
+// import stashes from './_stashes';
+// import app_state from './app_state';
 import contentGrabbers from './content_grabbers';
 import modal from './modal';
-import persistence from './persistence';
+// import persistence from './persistence';
 import progress_tracker from './progress_tracker';
 import word_suggestions from './word_suggestions';
 import i18n from './i18n';
@@ -17,14 +18,18 @@ import { observer } from '@ember/object';
 import utterance from './utterance';
 
 var editManager = EmberObject.extend({
-  setup: function(board) {
+  setup: function(board, appState, persistence, stashes) {
     editManager.Button = Button;
     this.controller = board;
-    this.set('app_state', app_state);
-    if(app_state.controller) {
-      app_state.controller.addObserver('dragMode', function() {
+    this.appState = appState;
+    this.persistence = persistence;
+    this.stashes = stashes;
+    this.set('app_state', appState); // Keeping this for now if referenced by property
+    
+    if(appState.controller) {
+      appState.controller.addObserver('dragMode', function() {
         if(editManager.controller == board) {
-          var newMode = app_state.controller.get('dragMode');
+          var newMode = appState.controller.get('dragMode');
           if(newMode != editManager.dragMode) {
             editManager.set('dragMode', newMode);
           }
@@ -43,28 +48,28 @@ var editManager = EmberObject.extend({
     this.clear_history();
   },
   set_drag_mode: function(enable) {
-    if(app_state.controller) {
-      app_state.controller.set('dragMode', enable);
+    if(this.appState.controller) {
+      this.appState.controller.set('dragMode', enable);
     }
   },
   edit_mode_triggers: observer('app_state.edit_mode', function() {
-    if(this.controller && this.lucky_symbol.pendingSymbols && app_state.get('edit_mode')) {
+    if(this.controller && this.lucky_symbol.pendingSymbols && this.appState.get('edit_mode')) {
       this.lucky_symbols(this.lucky_symbol.pendingSymbols);
       this.lucky_symbol.pendingSymbols = [];
     }
 
   }),
   long_press_mode: function(opts) {
-    var app = app_state.controller;
-    if(!app_state.get('edit_mode')) {
-      if(opts.button_id && app_state.get('speak_mode') && app_state.get('currentUser.preferences.long_press_edit_disabled')) {
-        if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-          modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
-        } else if(app_state.get('currentUser.preferences.long_press_edit')) {
+    var app = this.appState.controller;
+    if(!this.appState.get('edit_mode')) {
+      if(opts.button_id && this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.long_press_edit_disabled')) {
+        if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
+          modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+        } else if(this.appState.get('currentUser.preferences.long_press_edit')) {
           app.toggleMode('edit');
         }
         return true;
-      } else if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.inflections_overlay')) {
+      } else if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.inflections_overlay')) {
         if(opts.button_id) {
           // TODO: scanning will require a reset, and looking for this
           // new mini-grid, but scanning can wait because how do you
@@ -84,10 +89,10 @@ var editManager = EmberObject.extend({
           //   {...} location 's', 'c', 'e', 'nw', etc.
           // ]
         }
-      } else if(app_state.get('default_mode') && opts.button_id) {
+      } else if(this.appState.get('default_mode') && opts.button_id) {
         var button = editManager.find_button(opts.button_id);
         if(button && (button.label || button.vocalization)) {
-          modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: app_state.get('currentUser')});
+          modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: this.appState.get('currentUser')});
         }
         return true;
       }
@@ -168,7 +173,7 @@ var editManager = EmberObject.extend({
     var inflections = {};
 
     // Greedy algorithm stops at the first match
-    var lang = (app_state.get('speak_mode') && app_state.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
+    var lang = (this.appState.get('speak_mode') && this.appState.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
     var lang_fallback = lang.split(/-|_/)[0];
     var rules = (i18n.lang_overrides[lang] || i18n.lang_overrides[lang_fallback] || {}).rules;
     if(!rules && lang.match(/^en/)) {
@@ -545,7 +550,7 @@ var editManager = EmberObject.extend({
     if(!button || !button.id) {
       button = editManager.find_button(button_id);
     }
-    if(!this.controller || !app_state.controller) { return; }
+    if(!this.controller || !this.appState.controller) { return; }
     var expected_inflections_version = 2;
     var board = this.controller.get('model');
     var res = [];
@@ -553,7 +558,7 @@ var editManager = EmberObject.extend({
     var select_button = function(label, vocalization, event) {
       var overlay_button = editManager.overlay_button_from(button, board);
   
-      app_state.controller.activateButton(overlay_button, {
+      editManager.appState.controller.activateButton(overlay_button, {
         board: editManager.controller.get('model'),
         overlay_label: label,
         overlay_vocalization: vocalization,
@@ -562,10 +567,10 @@ var editManager = EmberObject.extend({
         overlay_location: event.overlay_location
       });
     };
-    var voc_locale = app_state.get('vocalization_locale') || navigator.language;
-    var lab_locale = app_state.get('label_locale') || navigator.language;
+    var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
+    var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (app_state.controller.get('board.model.translations') || {})[button_id];
+    var trans = (this.appState.controller.get('board.model.translations') || {})[button_id];
     var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
     var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
@@ -581,7 +586,7 @@ var editManager = EmberObject.extend({
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
-      var for_current_locale = !voc_locale || !app_state.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == app_state.controller.get('model.board.locale'));
+      var for_current_locale = !voc_locale || !this.appState.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == this.appState.controller.get('model.board.locale'));
       for(var idx = 0; idx < 8; idx++) {
         var trans_voc = voc && (voc.inflections || [])[idx];
         if(!ignore_defaults && !trans_voc && voc) {

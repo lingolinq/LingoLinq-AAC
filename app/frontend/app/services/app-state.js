@@ -1967,13 +1967,14 @@ export default Service.extend({
     'insertion.index',
     function() {
       if(this.get('speak_mode')) {
+        var _this = this;
         runLater(function() {
           var $button_list = $("#button_list");
           var $item = null;
-          if(this.get('insertion.index')) {
+          if(_this.get('insertion.index')) {
             $item = $button_list.find(".utterance_cursor");
             if($item.length == 0) {
-              $item = $button_list.find(".history_button:not(.utterance_cursor)").eq(this.get('insertion.index'));
+              $item = $button_list.find(".history_button:not(.utterance_cursor)").eq(_this.get('insertion.index'));
             }
           }
           if(!$item || $item.length == 0) { $item = $button_list.find(".history_button").last(); }

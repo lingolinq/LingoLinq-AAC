@@ -587,9 +587,10 @@ LingoLinq.User = DS.Model.extend({
   sidebar_boards_with_fallbacks: computed('preferences.sidebar_boards', function() {
     var boards = this.get('preferences.sidebar_boards') || [];
     var res = [];
+    var _this = this;
     boards.forEach(function(board) {
       var board_object = EmberObject.create(board);
-      this.persistence.find_url(board.image, 'image').then(function(data_uri) {
+      _this.persistence.find_url(board.image, 'image').then(function(data_uri) {
         board_object.set('image', data_uri);
       }, function() { });
       res.push(board_object);
@@ -926,11 +927,11 @@ LingoLinq.User = DS.Model.extend({
         user.set('copy_level', home_level);
         editManager.copy_board(board, 'links_copy_as_home', user, false, swap_library).then(function(new_board) {
           user.set('home_board_pending', false);
-          if(this.persistence.get('online') && this.persistence.get('auto_sync')) {
+          if(user.persistence.get('online') && user.persistence.get('auto_sync')) {
             runLater(function() {
-              if(this.persistence.get('auto_sync')) {
+              if(user.persistence.get('auto_sync')) {
                 console.debug('syncing because home board changes');
-                this.persistence.sync('self', null, null, 'home_board_copied').then(null, function() { });
+                user.persistence.sync('self', null, null, 'home_board_copied').then(null, function() { });
               }
             }, 1000);
           }
@@ -958,7 +959,7 @@ LingoLinq.User = DS.Model.extend({
     var user_name = _this.get('user_name');
     return new RSVP.Promise(function(resolve, reject) {
       // ensure you're online
-      if(this.persistence.get('online')) {
+      if(_this.persistence.get('online')) {
         // retrieve all locally-saved boards
         return lingoLinqExtras.storage.find_all('board').then(function(list) {
           var promises = [];

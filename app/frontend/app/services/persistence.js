@@ -25,6 +25,8 @@ var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 
 var loaded = (new Date()).getTime() / 1000;
 var persistence = Service.extend({
   stashes: service('stashes'),
+  
+
 
   // Helper method to safely get stashes instance (handles case where injection returns class)
   _getStashesInstance: function() {
@@ -864,21 +866,29 @@ var persistence = Service.extend({
     }
   },
   next_eventual_store: function() {
-    if(persistence.eventual_store_timer) {
-      runCancel(persistence.eventual_store_timer);
+    if(this.eventual_store_timer) {
+      runCancel(this.eventual_store_timer);
     }
+    // persistence variable refers to the Class, not the instance
+    // We should use 'this' (the instance) for state
+    var instance = this;
+    
     try {
+      // Access static storage on class if needed, or better, move to instance
+      // For now, respect existing pattern of using 'persistence' variable for storage arrays
       var args = (persistence.eventual_store || []).shift();
       if(args) {
-        this.store.apply(persistence, args);
-      } else if(this.refresh_after_eventual_stores.waiting) {
-        this.refresh_after_eventual_stores.waiting = false;
+        // Correctly apply to instance
+        instance.store.apply(instance, args);
+      } else if(instance.refresh_after_eventual_stores && instance.refresh_after_eventual_stores.waiting) {
+        instance.refresh_after_eventual_stores.waiting = false;
         if(LingoLinq.Board) {
           LingoLinq.Board.refresh_data_urls();
         }
       }
     } catch(e) { }
-    persistence.eventual_store_timer = runLater(persistence, this.next_eventual_store, 200);
+    // properly bind runLater to instance
+    instance.eventual_store_timer = runLater(instance, instance.next_eventual_store, 200);
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient

@@ -5,7 +5,7 @@ import {
   cancel as runCancel
 } from '@ember/runloop';
 import $ from 'jquery';
-// import editManager from './edit_manager';
+import editManager from './edit_manager';
 import modal from './modal';
 import capabilities from './capabilities';
 // import app_state from './app_state';
@@ -386,13 +386,14 @@ var buttonTracker = EmberObject.extend({
     });
   },
   check: function(attr) {
-    if(buttonTracker.appState.get('speak_mode')) {
+    if(buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
       return buttonTracker[attr];
     } else {
       return null;
     }
   },
   touch_start: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TSTART", event); }
     if(event.target && event.target.closest('#sidebar')) {
       buttonTracker.sidebarScrollStart = (document.getElementById('sidebar') || {}).scrollTop || 0;
@@ -461,6 +462,7 @@ var buttonTracker = EmberObject.extend({
   },
   // used for handling dragging, scanning selection
   touch_continue: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TCONT", event); }
     var $hover_button = $(event.target).closest('.hover_button');
     if((event.type == 'touchstart' || event.type == 'mousedown') && $hover_button.length) {
@@ -796,6 +798,7 @@ var buttonTracker = EmberObject.extend({
     }
   },
   touch_release: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TREL", event); }
     $(event.target).closest('.hover_button').remove();
     $("#identity_button:focus").blur();

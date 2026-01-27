@@ -48,6 +48,15 @@ export default Controller.extend({
         configurable: true
       });
     }
+    // Explicit lookup of extras (fixing implicit injection deprecation)
+    var extras = owner.lookup('lingolinq:extras');
+    if(extras) {
+      Object.defineProperty(this, 'extras', {
+        value: extras,
+        writable: false,
+        configurable: true
+      });
+    }
   },
   updateTitle: function(str) {
     if(!Ember.testing) {

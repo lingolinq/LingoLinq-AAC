@@ -10,11 +10,11 @@ import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import capabilities from './capabilities';
-import persistence from './persistence';
-import tts_voices from './tts_voices';
-import app_state from './app_state';
+// import persistence from './persistence';
+// import tts_voices from './tts_voices';
+// import app_state from './app_state';
 import i18n from './i18n';
-import stashes from './_stashes';
+// import stashes from './_stashes';
 import Utils from './misc';
 import LingoLinq from '../app';
 import { computed } from '@ember/object';
@@ -48,6 +48,12 @@ var speecher = EmberObject.extend({
   partner_end_url: "https://d18vdu4p71yql0.cloudfront.net/partner-end.mp3",
   follower_url: "https://d18vdu4p71yql0.cloudfront.net/follower.mp3",
   voices: [],
+  setup: function(appState, persistence, stashes, tts_voices) {
+    this.appState = appState;
+    this.persistence = persistence;
+    this.stashes = stashes;
+    this.tts_voices = tts_voices;
+  },
   text_direction: function() {
     var voice = speecher.get('voices').find(function(v) { return v.voiceURI == speecher.voiceURI; });
     var locale = (voice && voice.lang) || navigator.language || 'en-US';
@@ -120,7 +126,7 @@ var speecher = EmberObject.extend({
       var more_voices = [];
       voices.forEach(function(voice) {
         if(voice.active) {
-          var ref_voice = tts_voices.find_voice(voice.voice_id);
+          var ref_voice = speecher.tts_voices.find_voice(voice.voice_id);
           if(ref_voice) {
             voice.name = ref_voice.name;
             voice.locale = ref_voice.locale;
@@ -222,14 +228,14 @@ var speecher = EmberObject.extend({
     return list;
   },
   check_for_upgrades: function() {
-    var latest_version = tts_voices.get('versions.' + capabilities.system);
+    var latest_version = this.tts_voices.get('versions.' + capabilities.system);
     if(capabilities.system == 'Windows' && !this.get('checked_for_voice_upgrades')) {
       this.set('checked_for_voice_upgrades', true);
       if(window.file_storage) {
         window.file_storage.voice_content(function(data) {
           var version = parseFloat(data.version.replace(/_/, '.'));
           if(version < latest_version) {
-            window.file_storage.upgrade_voices(latest_version, tts_voices.find_voice);
+            window.file_storage.upgrade_voices(latest_version, speecher.tts_voices.find_voice);
           }
         })
       }
@@ -536,13 +542,13 @@ var speecher = EmberObject.extend({
       // Then look for the first default voice
       voice = voice || local_voices.find(function(v) { return v['default']; });
       // Finally use a remote voice if it's all there is
-      if(persistence.get('online')) {
+      if(this.persistence.get('online')) {
         voice = voice || voices.find(function(v) { return locale && locale.match(/-|_/) && v.lang && (v.lang.toLowerCase().replace(/_/, '-') == locale || v.lang.toLowerCase().replace(/-/, '_') == locale); });
         voice = voice || voices.find(function(v) { return language && v.lang && [language, mapped_lang].indexOf(v.lang.toLowerCase().split(/[-_]/)[0]) != -1; });
         voice = voice || voices.find(function(v) { return v['default']; });
       }
       // If none found, return a temporary voice from the cloud_locales list
-      if(!voice && persistence.get('online')) {
+      if(!voice && this.persistence.get('online')) {
         var remote = cloud_locales.find(function(loc) { return loc.toLowerCase().replace(/-/, '_') == locale; });
         remote = remote || cloud_locales.find(function(loc) { return loc.split(/-|_/)[0] == mapped_lang; });
         if(remote) {
@@ -571,16 +577,16 @@ var speecher = EmberObject.extend({
     }
     // Replace fancy quote marks with normal ones, or some TTS engines get confused
     text = text.replace(/‘|’/g, "'").replace(/“|”/g, '"');
-    var current_locale = app_state.get('vocalization_locale');
+    var current_locale = this.appState.get('vocalization_locale');
     if(opts.default_prompt && opts.voiceURI) { current_locale = 'any'; }
     if(opts.alternate_voice) {
       opts.volume = this.alternate_volume || ((opts.volume || 1.0) * 0.75);
       opts.pitch = this.alternate_pitch;
       opts.rate = this.alternate_rate;
       opts.voiceURI = this.alternate_voiceURI;
-      if(app_state.get('vocalization_locale')) {
+      if(speecher.appState.get('vocalization_locale')) {
         // If the alternate voice doesn't match the expected locale, use a different voice
-        var set_locale = app_state.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
         var voice_locale = (_this.alternate_voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.alternate_voiceURI, current_locale, true) || {}).voiceURI || _this.alternate_voiceURI;
@@ -591,9 +597,9 @@ var speecher = EmberObject.extend({
     opts.pitch = opts.pitch || this.pitch || 1.0;
     if(!opts.voiceURI) {
       opts.voiceURI = this.voiceURI;
-      if(app_state.get('vocalization_locale')) {
+      if(speecher.appState.get('vocalization_locale')) {
         // If the voice doesn't match the expected locale, use a different voice
-        var set_locale = app_state.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
         var voice_locale = (this.voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.voiceURI, current_locale, true) || {}).voiceURI || _this.voiceURI;
@@ -620,7 +626,7 @@ var speecher = EmberObject.extend({
       }
       // Try to render default prompts in the locale's language
       if(opts.default_prompt) {
-        var prompts = tts_voices.get('prompts') || {};
+        var prompts = speecher.tts_voices.get('prompts') || {};
         var lang = ((voice && voice.lang) || navigator.language).toLowerCase().split(/-|_/)[0];
         var prompt = prompts[lang] || prompts[i18n.lang_map[lang]];
         if(prompt) {
