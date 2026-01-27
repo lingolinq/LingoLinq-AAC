@@ -15,7 +15,6 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import editManager from './edit_manager';
 import modal from './modal';
 import capabilities from './capabilities';
-import app_state from './app_state';
 import i18n from './i18n';
 import speecher from './speecher';
 import buttonTracker from './raw_events';
@@ -137,6 +136,8 @@ class JShim {
 var scanner = EmberObject.extend({
   setup: function(controller) {
     this.controller = controller;
+    this.appState = controller.get('appState');
+    frame_listener.setup(controller);
   },
   find_elem: function(search) {
     return new JShim(search);
@@ -162,7 +163,7 @@ var scanner = EmberObject.extend({
       console.debug("scanning currently only works in speak mode...");
       scanner.stop();
       return;
-    } else if(!app_state.get('currentUser.preferences.device.scanning')) {
+    } else if(!this.get('appState.currentUser.preferences.device.scanning')) {
       console.debug("scanning not enabled for the current user");
       scanner.stop();
       return;
@@ -636,7 +637,7 @@ var scanner = EmberObject.extend({
     } else if(dom.hasClass('button') && dom.attr('data-id')) {
       var id = dom.attr('data-id');
       var button = editManager.find_button(id);
-      var app = app_state.controller;
+      var app = this.controller;
       var board = app.get('board.model');
       // if button links to something else, don't resume scanning 
       // until board jumping has completed
@@ -663,7 +664,7 @@ var scanner = EmberObject.extend({
     }, cutoff);
   },
   hide_input: function(force) {
-    if(window.Keyboard && window.Keyboard.hide && app_state.get('speak_mode') && scanner.scanning) {
+    if(window.Keyboard && window.Keyboard.hide && this.get('appState.speak_mode') && scanner.scanning) {
       if(this.find_elem("#hidden_input:focus").length > 0 || (window.Keyboard && window.Keyboard.isVisible) || force) {
         // window.Keyboard.hide();
         window.Keyboard.hideFormAccessoryBar(true, function() { });
@@ -748,7 +749,7 @@ var scanner = EmberObject.extend({
         if(buttonTracker.check('keyboard_listen') && action) {
           console.log("autocomplete", event.inputType, event.data);
           // add autocomplete to the sentence box
-          app_state.activate_button({}, {
+          scanner.get('appState').activate_button({}, {
             label: event.data,
             vocalization: action,
             completion: (action == ':complete' || action == ':predict') ? event.data : null,
@@ -765,7 +766,7 @@ var scanner = EmberObject.extend({
         if(buttonTracker.check('keyboard_listen')) {
           console.log("autocomplete", event.data);
           // add autocomplete to the sentence box
-          app_state.activate_button({}, {
+          scanner.get('appState').activate_button({}, {
             label: event.data,
             vocalization: action,
             completion: event.data,
@@ -1126,8 +1127,8 @@ var scanner = EmberObject.extend({
       }
     }
     scanner.listen_for_input();
-    if(capabilities.mobile && capabilities.installed_app && app_state.get('speak_mode') && scanner.find_elem("#hidden_input:focus").length === 0 && !scanner.keyboard_tried_to_show && !app_state.get('warned_about_switch')) {
-      app_state.set('warned_about_switch', true);
+    if(capabilities.mobile && capabilities.installed_app && scanner.get('appState.speak_mode') && scanner.find_elem("#hidden_input:focus").length === 0 && !scanner.keyboard_tried_to_show && !scanner.get('appState.warned_about_switch')) {
+      scanner.get('appState').set('warned_about_switch', true);
       modal.warning(i18n.t('tap_first', "Your switch may not be completely enabled. Tap somewhere on the screen to finish enabling it."), true);
     }
     if(elem.dom.hasClass('integration_target')) {
