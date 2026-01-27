@@ -411,9 +411,9 @@
       {{#if this.app_state.domain_settings.full_domain}}
         <div class="form-group">
           <div class="col-sm-12">
-            {{#link-to "register" class="btn btn-lg btn-primary"}}{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}{{/link-to}}
+            <LinkTo @route="register" class="btn btn-lg btn-primary">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
             {{#unless this.subscription.app_pricing_override}}
-              {{#link-to "gift_purchase" class="btn btn-lg btn-default"}}{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}{{/link-to}}
+              <LinkTo @route="gift_purchase" class="btn btn-lg btn-default">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
             {{/unless}}
           </div>
         </div>

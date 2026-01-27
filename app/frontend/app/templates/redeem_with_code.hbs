@@ -18,9 +18,9 @@
         {{/if}}
       </p>
       {{#if this.app_state.currentUser}}
-        {{#link-to "user.subscription" this.app_state.currentUser.user_name (query-params code=this.code) class="btn btn-primary btn-lg"}}
+        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} @query={{hash code=this.code}} class="btn btn-primary btn-lg">
           {{t "Redeem This Gift" key="redeem_gift"}}
-        {{/link-to}}
+        </LinkTo>
       {{else}}
         <p>
           {{t "Before you can redeem this code you'll need to " key="before_redeem"}}

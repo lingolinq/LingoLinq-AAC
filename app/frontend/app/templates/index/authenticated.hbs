@@ -1,10 +1,10 @@
   <div class="col col-sm-6 col-md-4">
     <div class="wrapper" style="background: #fff;">
     <h2>
-      {{#link-to "user" this.app_state.currentUser.user_name class="hidden_link"}}
+      <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="hidden_link">
         <img src={{this.app_state.currentUser.avatar_url_with_fallback}} style="height: 40px;">
         {{this.app_state.currentUser.user_name}}
-      {{/link-to}}
+      </LinkTo>
     </h2>
     <div class="left_links list-group">
       {{#if this.blank_slate}}
@@ -20,7 +20,7 @@
         </a>
       {{else if this.app_state.feature_flags.subscriptions}}
         {{#if this.app_state.currentUser.expired_or_grace_period}}
-          {{#link-to "user.subscription" this.app_state.currentUser.user_name class="list-group-item"}}
+          <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="list-group-item">
             <span class={{if this.app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
             {{#if this.app_state.currentUser.expired}}
               <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br>
@@ -29,7 +29,7 @@
               <strong>{{t "Please update your license" key="update_license"}}</strong><br>
               {{t "your free preview ends" key="preview_expires"}} {{date this.app_state.currentUser.subscription.expires "day"}}
             {{/if}}
-          {{/link-to}}
+          </LinkTo>
         {{/if}}
       {{/if}}
       {{#if this.app_state.currentUser.supporter_role}}
@@ -42,7 +42,7 @@
               {{#each this.app_state.currentUser.known_supervisees as |supervisee|}}
                 <li style="margin: 5px 0; font-size: 20px;">
                   <div class="btn-group btn-group-lg supervisee_nav">
-                    {{#link-to "user" supervisee.user_name class="btn btn-default"}}
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="btn btn-default">
                       <img src={{supervisee.avatar_url}} style="position: absolute; top: 10px; left: 10px; height: 40px; width: 40px; margin: -5px 5px -5px -5px;">
                       {{#if supervisee.goal}}
                         <div style='padding-left: 33px; margin-top: -5px;'>
@@ -59,19 +59,19 @@
                           <span class="label label-danger" title="unread messages">{{supervisee.unread_messages}}</span>
                         </span>
                       {{/if}}
-                    {{/link-to}}
+                    </LinkTo>
                     <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
                       <span class="caret"></span>
                       <span class="sr-only">{{t "Toggle Dropdown" key="toggle_dropdown"}}</span>
                     </button>
                     <ul class="dropdown-menu" role="menu">
-                      <li>{{#link-to "user" supervisee.user_name}}{{t "Account" key="account"}}{{/link-to}}</li>
+                      <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
                       {{#if supervisee.home_board_key}}
-                        <li>{{#link-to "board" supervisee.home_board_key}}{{t "Home Board" key="home_board"}}{{/link-to}}</li>
+                        <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
                       {{/if}}
                       <li><a href="#" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</a></li>
                       <li><a href="#" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</a></li>
-                      <li>{{#link-to "user.stats" supervisee.user_name (query-params highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null)}}{{t "Reports" key="reports"}}{{/link-to}}</li>
+                      <li><LinkTo @route="user.stats" @model={{supervisee.user_name}} @query={{hash highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "Reports" key="reports"}}</LinkTo></li>
                       <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
                       <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
                     </ul>
@@ -94,11 +94,11 @@
       {{/if}}
       {{#if this.app_state.currentUser.preferences.home_board.key}}
         {{#if this.app_state.currentUser.supporter_role}}
-          {{#link-to "board" this.app_state.currentUser.preferences.home_board.key class="list-group-item half_size"}}
+          <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item half_size">
             <span class="glyphicon glyphicon-home"></span>
             {{t "home board:" key="home_board_colon_lower"}}
             <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-          {{/link-to}}
+          </LinkTo>
           {{#if this.sync_able}}
             <a href="#" class={{this.small_needs_sync_class}} {{action "sync"}}>
               <span>
@@ -147,11 +147,11 @@
             </a>
           {{/if}}
         {{else}}
-          {{#link-to "board" this.app_state.currentUser.preferences.home_board.key class="list-group-item"}}
+          <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item">
             <span class="glyphicon glyphicon-home"></span>
             {{t "current home board:" key="current_home_board"}}<br>
             <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-          {{/link-to}}
+          </LinkTo>
           {{#unless this.app_state.currentUser.subscription.any_limited_supervisor}}
             <div class="list-group-item" style={{if this.app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
               <span class="glyphicon glyphicon-volume-up"></span>
@@ -215,11 +215,11 @@
           <strong>{{t "copying %{brd}..." key="copying_board" brd=this.app_state.currentUser.home_board_pending}}</strong>
         </div>
       {{else}}
-        {{#link-to "home-boards" class="list-group-item"}}
+        <LinkTo @route="home-boards" class="list-group-item">
           <span class="glyphicon glyphicon-home"></span>
           <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br>
           {{t "Let us help you choose one." key="let_us_help_choose_home"}}
-        {{/link-to}}
+        </LinkTo>
       {{/if}}
       {{#unless this.app_state.currentUser.supporter_role}}
         <a href="#" class="list-group-item half_size subtle" {{action "manage_supervisors"}}>
@@ -242,9 +242,9 @@
             {{t "rooms:" key="rooms_colon"}}
             {{#each this.app_state.currentUser.supervised_units as |unit|}}
               <span style='margin-right: 10px;'>
-                {{#link-to "organization.room" unit.organization_id unit.id}}
+                <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>
                   {{unit.name}}
-                {{/link-to}}
+                </LinkTo>
               </span>
             {{/each}}
           </span>
@@ -256,20 +256,20 @@
             <span class="glyphicon glyphicon-paperclip"></span>
             {{#each this.app_state.currentUser.managed_orgs as |org|}}
               <span style="margin-right: 10px;">
-                {{#link-to "organization" org.id}}
+                <LinkTo @route="organization" @model={{org.id}}>
                   {{org.name}}
-                {{/link-to}}
+                </LinkTo>
               </span>
             {{/each}}
           </div>
         {{else}}
           {{#each this.app_state.currentUser.managed_orgs as |org|}}
-            {{#link-to "organization" org.id class="list-group-item half_size"}}
+            <LinkTo @route="organization" @model={{org.id}} class="list-group-item half_size">
               <span class="glyphicon glyphicon-paperclip"></span>
               <span style="margin-right: 10px;">
                 {{t "Organization Management" key="org_management"}}
               </span>
-            {{/link-to}}
+            </LinkTo>
           {{/each}}
         {{/if}}
       {{/if}}
@@ -351,9 +351,9 @@
                 <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
               </a>
             {{/if}}
-            {{#link-to "download"}}
+            <LinkTo @route="download">
               <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
-            {{/link-to}}
+            </LinkTo>
           </div>
         </div>
       {{else if this.needs_sync}}
@@ -393,30 +393,30 @@
       <div style="margin-left: 20px;">
         {{#if this.app_state.currentUser.pending_org}}
           <p>
-            {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}</LinkTo>
           </p>
         {{/if}}
         {{#if this.app_state.currentUser.pending_supervision_org}}
           <p>
-            {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}</LinkTo>
           </p>
         {{/if}}
         {{#if this.app_state.currentUser.pending_board_shares}}
           {{#each this.app_state.currentUser.pending_board_shares as |share|}}
             <p>
               <span class="glyphicon glyphicon-share"></span>
-              {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
+              <LinkTo @route="board" @model={{share.board_key}}>{{share.board_key}}</LinkTo>
               {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
             </p>
           {{/each}}
         {{/if}}
         {{#if this.app_state.currentUser.unread_messages}}
           <p>
-          {{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
+          <LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
             <span class="glyphicon glyphicon-envelope"></span>
             {{t "You have " key="you_have"}}
             {{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}
-          {{/link-to}}
+          </LinkTo>
           </p>
         {{/if}}
         {{#if this.app_state.currentUser.parsed_notifications}}
@@ -456,18 +456,18 @@
               <span title={{date log.started_at}}>
                 {{date_ago log.started_at}}
               </span>
-              {{#link-to "user.log" log.user.user_name log.id}}
+              <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
                 {{#if log.assessment}}
                   {{t "assessment" key="assessment"}}
                 {{else}}
                   {{t "button" count=log.button_count key="button_count"}}
                 {{/if}}
-              {{/link-to}}
+              </LinkTo>
               {{#if this.app_state.currentUser.supporter_role}}
                 <span> -
-                  {{#link-to "user" log.user.user_name}}
+                  <LinkTo @route="user" @model={{log.user.user_name}}>
                     {{log.user.user_name}}
-                  {{/link-to}}
+                  </LinkTo>
                 </span>
               {{/if}}
               <br>
@@ -561,9 +561,9 @@
               {{/if}}
             {{/each}}
             <div class='col-xs-12'>
-              {{#link-to "user" this.app_state.currentUser.user_name}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>
                 {{t "see all my boards" key="see_all_my_boards_lower"}}
-              {{/link-to}} |
+              </LinkTo> |
               <a href="#" {{action "newBoard"}}>{{t "create a new board" key="create_new_board"}}</a>
             </div>
           {{else}}
@@ -577,12 +577,12 @@
         <div class="row">
           {{#unless this.app_state.currentUser.supporter_role}}
             <div class="col-xs-12" style="margin-bottom: 10px;">
-              {{#link-to "home-boards"}}
+              <LinkTo @route="home-boards">
                 <span>
                 <span class="glyphicon glyphicon-search"></span>
                 {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
                 </span>
-              {{/link-to}}
+              </LinkTo>
             </div>
           {{/unless}}
           {{#if this.homeBoards.loading}}

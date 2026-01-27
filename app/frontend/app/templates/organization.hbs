@@ -26,20 +26,20 @@
     </div>
     {{#if this.model.permissions.edit}}
       <div class="btn-group-vertical" style="width: 100%;">
-        {{#link-to "organization.index" this.model.id class="btn btn-default"}}{{t "Admin" key="admin"}}{{/link-to}}
-        {{#link-to "organization.reports" this.model.id class="btn btn-default"}}{{t "Reports" key="reports"}}{{/link-to}}
-        {{#link-to "organization.rooms" this.model.id class="btn btn-default"}}{{t "Rooms" key="rooms"}}{{/link-to}}
+        <LinkTo @route="organization.index" @model={{this.model.id}} class="btn btn-default">{{t "Admin" key="admin"}}</LinkTo>
+        <LinkTo @route="organization.reports" @model={{this.model.id}} class="btn btn-default">{{t "Reports" key="reports"}}</LinkTo>
+        <LinkTo @route="organization.rooms" @model={{this.model.id}} class="btn btn-default">{{t "Rooms" key="rooms"}}</LinkTo>
         {{#if this.model.premium}}
           {{#if this.app_state.feature_flags.lessons}}
-            {{#link-to "organization.lessons" this.model.id class="btn btn-default"}}{{t "Trainings" key="trainings"}}{{/link-to}}
+            <LinkTo @route="organization.lessons" @model={{this.model.id}} class="btn btn-default">{{t "Trainings" key="trainings"}}</LinkTo>
           {{/if}}
         {{/if}}
 
         {{#if this.model.admin}}
-          {{#link-to "organization.extras" this.model.id class="btn btn-default"}}{{t "Extras" key="extras"}}{{/link-to}}
+          <LinkTo @route="organization.extras" @model={{this.model.id}} class="btn btn-default">{{t "Extras" key="extras"}}</LinkTo>
         {{/if}}
         {{#if this.model.permissions.manage_subscription}}
-          {{#link-to "organization.subscription" this.model.id class="btn btn-default"}}{{t "Billing" key="billing"}}{{/link-to}}
+          <LinkTo @route="organization.subscription" @model={{this.model.id}} class="btn btn-default">{{t "Billing" key="billing"}}</LinkTo>
         {{/if}}
         {{#if this.model.permissions.update_licenses}}
             <span class="btn btn-default" style='text-align: left; display: none;'>
@@ -59,7 +59,7 @@
               <span style='display: none;'>{{t "jobs" key="jobs"}}</span>
             </a>
             {{#if this.model.permissions.edit}}
-              {{#link-to "organization.settings" this.model.id class="btn btn-default"}}{{t "Settings" key="settings"}}{{/link-to}}
+              <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
             {{/if}}
             <span class="btn btn-default">
               {{input value=this.masquerade_user_name enter=(action "masquerade") placeholder="user name" class="form-control inline inline-masquerade"}}
@@ -76,7 +76,7 @@
           {{/if}}
         {{else}}
           {{#if this.model.permissions.edit}}
-            {{#link-to "organization.settings" this.model.id class="btn btn-default"}}{{t "Settings" key="settings"}}{{/link-to}}
+            <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
             <span class="btn btn-default">
               {{input value=this.search_user enter=(action "find_user") placeholder="user name/email" class="form-control inline inline-masquerade"}}
               <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>

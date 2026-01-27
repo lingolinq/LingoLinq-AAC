@@ -13,9 +13,9 @@
       <div class="form-group" style="padding-left: 20px;">
         {{#if this.app_state.currentUser}}
           <button class="btn btn-default" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
-          {{#link-to "home-boards" class="btn btn-default"}}
+          <LinkTo @route="home-boards" class="btn btn-default">
               {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-          {{/link-to}}
+          </LinkTo>
         {{/if}}
       </div>
     </form>

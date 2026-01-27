@@ -114,9 +114,9 @@
       {{#unless this.usage_stats2}}
         <div class="row hide_print" style="margin-top: 10px;">
           <div class="col-sm-12">
-            {{#link-to "user.logs" this.model.user_name (query-params start=this.usage_stats.start_date_field end=this.usage_stats.end_date_field location_id=this.controller.location_id device_id=this.controller.device_id highlighted=null type="session") class="btn btn-default"}}
+            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash start=this.usage_stats.start_date_field end=this.usage_stats.end_date_field location_id=this.controller.location_id device_id=this.controller.device_id highlighted=null type="session"}} class="btn btn-default">
               {{t "Log Entries for this Report" key="log_entries_for_report"}}
-            {{/link-to}}
+            </LinkTo>
             {{#if this.model.permissions.edit}}
               {{#unless this.snapshot_id}}
                 <a href="#" {{action "save_snapshot"}} class='btn btn-default'>{{t "Create Snapshot" key="create_snapshot"}}</a>

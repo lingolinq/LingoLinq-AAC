@@ -82,9 +82,9 @@
     {{else if current_activity.no_home_board}}
       <span class='glyphicon glyphicon-home' style='font-size: 140px; float: left; margin-right: 10px;'></span>
       <p>{{t "You don't have a home board set! Modeling Ideas draws suggestions from buttons in your home board set, so it won't do a lot of good until you choose a home board." key="home_board_required"}}</p>
-      {{#link-to "home-boards" class="btn btn-default btn-lg"}}
+      <LinkTo @route="home-boards" class="btn btn-default btn-lg">
         {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-      {{/link-to}}
+      </LinkTo>
     {{else if current_activity.empty}}
       <span class='glyphicon glyphicon-hourglass' style='font-size: 140px; float: left; margin-right: 10px;'></span>
       <p>{{t "Sorry! We don't have any suggestions for you right now! We're continually adding more core words and suggestions, so please check back soon for more ideas!" key="no_data_yet"}}</p>

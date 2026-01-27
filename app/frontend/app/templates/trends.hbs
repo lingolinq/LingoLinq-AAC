@@ -449,7 +449,7 @@
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each this.goals as |goal|}}
-                {{#link-to "goals.goal" goal.id class="list-group-item"}}
+                <LinkTo @route="goals.goal" @model={{goal.id}} class="list-group-item">
                   {{#if goal.image_url}}
                     <img src={{goal.image_url}} class='fit_image' style='float: left; width: 40px; height: 40px; margin: -10px 10px -5px -10px;' >
                   {{else}}
@@ -459,7 +459,7 @@
                   {{#if this.showing_private_info}}
                     <span class='text-muted'>({{goal.num}}, {{goal.pct}}%)</span>
                   {{/if}}
-                {{/link-to}}
+                </LinkTo>
               {{/each}}
             </div>
           </div>

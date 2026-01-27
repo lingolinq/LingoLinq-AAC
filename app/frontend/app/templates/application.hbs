@@ -528,16 +528,16 @@
                   {{else if this.board.model.copy.key}}
                     <!-- TODO: no idea why this is necessary -->
                     <span style="margin-right: -1px;">
-                    {{#link-to "board" this.board.model.copy.key class="btn btn-info"}}
+                    <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn btn-info">
                       <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
-                    {{/link-to}}
+                    </LinkTo>
                     </span>
                   {{else if this.board.model.original.key}}
                     <!-- TODO: no idea why this is necessary -->
                     <span style="margin-right: -1px;">
-                    {{#link-to "board" this.board.model.original.key class="btn btn-info"}}
+                    <LinkTo @route="board" @model={{this.board.model.original.key}} class="btn btn-info">
                       <span class="wide">{{t "Original" key="original"}}</span><span class="skinny real_skinny glyphicon glyphicon-certificate"></span>
-                    {{/link-to}}
+                    </LinkTo>
                     </span>
                   {{/if}}
                 {{/if}}
@@ -677,7 +677,7 @@
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
         <a class={{if this.persistence.online "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
-            {{#if stashes.logging_enabled}}
+            {{#if this.stashes.logging_enabled}}
               {{#unless this.stashes.logging_paused_at}}
                 <span class='logging_enabled glyphicon glyphicon-briefcase'></span>
               {{/unless}}
@@ -983,7 +983,7 @@
               {{/unless}}
               {{#if this.app_state.feature_flags.emergency_boards}}              
                 <li role="presentation">
-                  {{#link-to "offline_boards" class="critical_access"}}{{t "Basic Access" key="critical_access"}}{{/link-to}}
+                  <LinkTo @route="offline_boards" class="critical_access">{{t "Basic Access" key="critical_access"}}</LinkTo>
                 </li>
               {{/if}}
             {{/if}}

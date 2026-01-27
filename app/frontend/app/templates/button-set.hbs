@@ -73,7 +73,7 @@
             {{/if}}
           {{/if}}
           <div class="text-muted" style="font-size: 10px;">
-            {{#link-to "board" button.board_key class="text-muted"}}{{button.board_key}}{{/link-to}}
+            <LinkTo @route="board" @model={{button.board_key}} class="text-muted">{{button.board_key}}</LinkTo>
           </div>
         </div>
       {{/each}}

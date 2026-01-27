@@ -182,9 +182,9 @@
               {{#if this.board.model.copy.key}}
                 <!-- TODO: no idea why this is necessary -->
                 <span style="margin-right: -1px;">
-                {{#link-to "board" this.board.model.copy.key class="btn btn-info"}}
+                <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn btn-info">
                   <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
-                {{/link-to}}
+                </LinkTo>
                 </span>
               {{/if}}
 

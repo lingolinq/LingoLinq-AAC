@@ -6,10 +6,10 @@
   <div class="modal-body">
     <div class='list-group'>
       {{#each this.model.list as |user|}}
-        {{#link-to "user" user.user_name class="list-group-item"}}
+        <LinkTo @route="user" @model={{user.user_name}} class="list-group-item">
           <img src={{user.avatar_url}} style='height: 30px;'>
           {{user.user_name}}
-        {{/link-to}}
+        </LinkTo>
       {{/each}}
     </div>
   </div>

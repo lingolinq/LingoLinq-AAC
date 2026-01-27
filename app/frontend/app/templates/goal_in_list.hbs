@@ -24,9 +24,9 @@
       {{/if}}
     </div>
   {{/if}}
-  {{#link-to "user.goal" this.model.user_name goal.id class="summary"}}
+  <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
     {{goal.summary}}
-  {{/link-to}}
+  </LinkTo>
   {{#if goal.template}}
     {{t "(template)" key="template_paren"}}
   {{/if}}

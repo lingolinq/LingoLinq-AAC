@@ -61,7 +61,7 @@
                     </button>
                   {{/if}}
                 {{/if}}
-                {{#link-to "user" item.user_name class="list-group-item"}}
+                <LinkTo @route="user" @model={{item.user_name}} class="list-group-item">
                   <img src={{item.avatar_url}} style='height: 40px; width: 40px; object-fit: contain; margin-right: 5px; margin-top: -5px; float: left;'>
                   <span style="font-size: 16px;">
                     {{item.user_name}}
@@ -93,7 +93,7 @@
                     &nbsp;
                   </span>
                   <span style='clear: both;'></span>
-                {{/link-to}}
+                </LinkTo>
               {{/if}}
             {{/each}}
             {{#each this.results.stats as |stat|}}

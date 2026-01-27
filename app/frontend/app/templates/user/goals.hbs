@@ -36,9 +36,9 @@
               {{/if}}
             </div>
           {{/if}}
-          {{#link-to "user.goal" this.model.user_name goal.id class="summary"}}
+          <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
             {{goal.summary}}
-          {{/link-to}}
+          </LinkTo>
           {{#if goal.template}}
             {{t "(template)" key="template_paren"}}
           {{/if}}
@@ -112,7 +112,7 @@
       <button {{action "add_goal"}} class='btn btn-default'>{{t "Set a New Goal" key="set_a_new_goal"}}</button>
       <button {{action "find_goal"}} class='btn btn-default'>{{t "Browse Community Goals" key="browse_community_goals"}}</button>
     {{/if}}
-    {{#link-to "user.badges" this.model.user_name class="btn btn-default"}}{{t "See User Badges" key="see_user_badges"}}{{/link-to}}
+    <LinkTo @route="user.badges" @model={{this.model.user_name}} class="btn btn-default">{{t "See User Badges" key="see_user_badges"}}</LinkTo>
 
     {{#if this.any_goal}}
       <h3>{{t "Secondary Goals" key="secondary_goals"}}</h3>
@@ -144,9 +144,9 @@
                 {{/if}}
               </div>
             {{/if}}
-            {{#link-to "user.goal" this.model.user_name goal.id class="summary"}}
+            <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
               {{goal.summary}}
-            {{/link-to}}
+            </LinkTo>
             {{#if goal.template}}
               {{t "(template)" key="template_paren"}}
             {{/if}}
@@ -222,9 +222,9 @@
                 {{/if}}
               </div>
             {{/if}}
-            {{#link-to "user.goal" this.model.user_name goal.id class="summary"}}
+            <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
               {{goal.summary}}
-            {{/link-to}}
+            </LinkTo>
             {{#if goal.template}}
               {{t "(template)" key="template_paren"}}
             {{/if}}

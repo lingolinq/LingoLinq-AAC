@@ -181,7 +181,7 @@
               {{#if this.app_state.domain_settings.full_domain}}
                 {{#unless this.confirmation}}
                   {{#unless this.subscription.app_pricing_override}}
-                    {{#link-to "gift_purchase" class="btn btn-default"}}{{t "Purchase as a Gift" key="purchase_as_a_gift"}}{{/link-to}}
+                    <LinkTo @route="gift_purchase" class="btn btn-default">{{t "Purchase as a Gift" key="purchase_as_a_gift"}}</LinkTo>
                   {{/unless}}
                 {{/unless}}
               {{/if}}
