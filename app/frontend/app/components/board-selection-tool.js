@@ -1,17 +1,16 @@
 import Component from '@ember/component';
 import $ from 'jquery';
 import contentGrabbers from '../utils/content_grabbers';
-import app_state from '../utils/app_state';
 import word_suggestions from '../utils/word_suggestions';
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
-import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import { later as runLater } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 var shuffle = function(array) {
   var array = [].concat(array);
@@ -23,6 +22,7 @@ var shuffle = function(array) {
 }
 
 export default Component.extend({
+  appState: service('app-state'),
   willInsertElement: function() {
     this.load_boards();
     this.set('current_index', null);
@@ -35,7 +35,7 @@ export default Component.extend({
     this.set('org_board', null);
     this.set('base_level', null);
     this.set('board_style', null);
-    this.set('app_state', app_state);
+    this.set('app_state', this.appState);
     this.set('skip_note', false);
   },
   didInsertElement: function() {
@@ -119,7 +119,7 @@ export default Component.extend({
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
-    LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', per_page: 20, category: 'layouts'}).then(function(data) {
+    LingoLinq.store.query('board', {public: true, starred: true, user_id: this.appState.get('currentUser.id') || 'self', per_page: 20, category: 'layouts'}).then(function(data) {
       var res = data.map(function(b) { return b; });
       if(res && res.length > 0) {
         _this.set('boards', res);
@@ -263,7 +263,7 @@ export default Component.extend({
       }
     },
     skip_with_note: function() {
-      var user = app_state.get('setup_user') || app_state.get('currentUser');
+      var user = this.appState.get('setup_user') || this.appState.get('currentUser');
       if(user) {
         user.set('preferences.home_board', {id: 'none'});
         user.set('preferences.sync_starred_boards', true);
@@ -282,7 +282,7 @@ export default Component.extend({
     },
     select: function() {
       var _this = this;
-      var user = app_state.get('setup_user') || app_state.get('currentUser');
+      var user = this.appState.get('setup_user') || this.appState.get('currentUser');
       var board = _this.get('current_board');
       var max = null;
       var min = null;

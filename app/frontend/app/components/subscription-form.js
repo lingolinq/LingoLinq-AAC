@@ -1,20 +1,21 @@
 import Component from '@ember/component';
 import Subscription from '../utils/subscription';
 import modal from '../utils/modal';
-import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
-import app_state from '../utils/app_state';
 import session from '../utils/session';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
 import $ from 'jquery';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
+  persistence: service('persistence'),
   update_classes: Subscription.obs_func.observes.apply(Subscription.obs_func, Subscription.obs_properties),
   app_state: computed(function() {
-    return app_state;
+    return this.appState;
   }),
   didInsertElement: function() {
     if($(this.element).width() < 850) {
@@ -157,7 +158,7 @@ export default Component.extend({
         if(subscription.get('communicator_type') && subscription.get('included_supporters') > 0 && type != 'gift_code') {
           type = type + "_plus_" + subscription.get('included_supporters') + "_supporters";
         }
-        persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
+        _this.persistence.ajax('/api/v1/users/' + user.get('user_name') + '/subscription', {
           type: 'POST',
           data: {
             token: token,

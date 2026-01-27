@@ -1,16 +1,19 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import LingoLinq from '../../app';
 import progress_tracker from '../../utils/progress_tracker';
-import app_state from '../../utils/app_state';
 import session from '../../utils/session';
-import persistence from '../../utils/persistence';
-import stashes from '../../utils/_stashes';
 import $ from 'jquery';
 
 export default Component.extend({
   tagName: '',
+  
+  appState: service('app-state'),
+  persistence: service('persistence'),
+  stashes: service('stashes'),
+  app_state: alias('appState'),
   
   registration_types: LingoLinq.registrationTypes,
   
@@ -66,7 +69,7 @@ export default Component.extend({
       var user = this.get('user');
       this.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
-      if(!this.get('persistence.online')) { return; }
+      if(!this.persistence.get('online')) { return; }
       
       if(this.get('badEmail') || this.get('shortPassword') || this.get('noName') || this.get('noSpacesName')) {
         return;
@@ -81,15 +84,15 @@ export default Component.extend({
       
       user.save().then(function(user) {
         _this.set('start_code', null);
-        var meta = _this.get('persistence').meta('user', null);
+        var meta = _this.persistence.meta('user', null);
         _this.set('triedToSave', false);
         user.set('password', null);
         
         var save_done = function() {
           _this.set('registering', null);
-          _this.get('app_state').return_to_index();
+          _this.appState.return_to_index();
           if(meta && meta.access_token) {
-            _this.get('session').override(meta);
+            session.override(meta);
           }
         };
 

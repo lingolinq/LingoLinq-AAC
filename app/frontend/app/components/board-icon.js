@@ -1,12 +1,13 @@
 import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   willInsertElement: function() {
     this.set_board_record();
   },
@@ -170,7 +171,7 @@ export default Component.extend({
         if(_this.get('localized')) {
           opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
-        app_state.home_in_speak_mode(opts);
+        this.appState.home_in_speak_mode(opts);
       }
     }
   }

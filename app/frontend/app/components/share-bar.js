@@ -1,13 +1,14 @@
 import Component from '@ember/component';
 import $ from 'jquery';
 import lingoLinqExtras from '../utils/extras';
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   tagName: 'span',
   didInsertElement: function() {
     if(this.get('utterance') && this.get('utterance').check_for_large_image_url) {
@@ -54,8 +55,8 @@ export default Component.extend({
   }),
   twitter_url: computed('url', 'text', function() {
     var res = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(this.get('url')) + '&text=' + encodeURIComponent(this.get('text'));
-    if(app_state.get('domain_settings.twitter_handle')) {
-      res = res + '&related=' + encodeURIComponent(app_state.get('domain_settings.twitter_handle'));
+    if(this.appState.get('domain_settings.twitter_handle')) {
+      res = res + '&related=' + encodeURIComponent(this.appState.get('domain_settings.twitter_handle'));
     }
     return res;
   }),

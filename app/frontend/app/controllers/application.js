@@ -24,13 +24,16 @@ import { computed } from '@ember/object';
 import sync from '../utils/sync';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
   modalService: service('modal'),
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  app_state: alias('appState'),
   board: inject('board.index'),
+  session: session,
   
   init() {
     this._super(...arguments);

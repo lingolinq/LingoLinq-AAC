@@ -1,18 +1,16 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
-import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';
-import app_state from '../../utils/app_state';
 import Badge from '../../models/badge';
 import session from '../../utils/session';
 import modal from '../../utils/modal';
 import sync from '../../utils/sync';
-import stashes from '../../utils/_stashes';
 import i18n from '../../utils/i18n';
 
 export default Component.extend({
@@ -21,6 +19,9 @@ export default Component.extend({
   router: service(),
   store: service(),
   persistence: service('persistence'),
+  appState: service('app-state'),
+  stashes: service('stashes'),
+  app_state: alias('appState'),
 
   init() {
     this._super(...arguments);
@@ -28,34 +29,30 @@ export default Component.extend({
     this.set('supervisees_with_badges', []);
   },
 
-  sync_able: computed('extras.ready', 'app_state.currentUser.external_device', function() {
-    return this.get('extras.ready') && !app_state.get('currentUser.external_device');
+  sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
+    return this.get('extras.ready') && !this.appState.get('currentUser.external_device');
   }),
   home_board_or_supporter: computed(
-    'app_state.currentUser.preferences.home_board.key',
-    'app_state.currentUser.supporter_view',
+    'appState.currentUser.preferences.home_board.key',
+    'appState.currentUser.supporter_view',
     function() {
-        return this.get('app_state.currentUser.preferences.home_board.key') || this.get('app_state.currentUser.supporter_view');
+        return this.appState.get('currentUser.preferences.home_board.key') || this.appState.get('currentUser.supporter_view');
     }
   ),
   needs_sync: computed('persistence.last_sync_at', function() {
     var now = (new Date()).getTime() / 1000;
-    var persistenceService = this.persistence || window.persistence;
-    if(!persistenceService || typeof persistenceService.get !== 'function') {
-      return false;
-    }
-    var lastSync = persistenceService.get('last_sync_at') || 0;
+    var lastSync = this.persistence.get('last_sync_at') || 0;
     return (now - lastSync) > (7 * 24 * 60 * 60);
   }),
   blank_slate: computed(
-    'app_state.currentUser.preferences.progress',
-    'app_state.currentUser.using_for_a_while',
+    'appState.currentUser.preferences.progress',
+    'appState.currentUser.using_for_a_while',
     function() {
-      var progress = this.get('app_state.currentUser.preferences.progress');
+      var progress = this.appState.get('currentUser.preferences.progress');
       // TODO: eventually this should go away, maybe after a few weeks of active use or something
       if(progress && progress.setup_done) {
         return null;
-      } else if(this.get('app_state.currentUser.using_for_a_while')) {
+      } else if(this.appState.get('currentUser.using_for_a_while')) {
         return null;
       } else {
         return progress;
@@ -64,18 +61,18 @@ export default Component.extend({
   ),
   no_intro: computed(
     'blank_slate',
-    'app_state.currentUser.preferences.progress.intro_watched',
+    'appState.currentUser.preferences.progress.intro_watched',
     function() {
-      return this.get('blank_slate') && !this.get('app_state.currentUser.preferences.progress.intro_watched');
+      return this.get('blank_slate') && !this.appState.get('currentUser.preferences.progress.intro_watched');
     }
   ),
-  blank_slate_percent: computed('app_state.currentUser.preferences.progress', function() {
+  blank_slate_percent: computed('appState.currentUser.preferences.progress', function() {
     var options = ['intro_watched', 'profile_edited', 'preferences_edited', 'home_board_set', 'app_added'];
 
     var total = options.length;
     if(total === 0) { return 0; }
     var done = 0;
-    var progress = this.get('app_state.currentUser.preferences.progress') || {};
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
     if(progress.setup_done) { return 100; }
     options.forEach(function(opt) {
       if(progress[opt]) {
@@ -90,11 +87,7 @@ export default Component.extend({
   checkForBlankSlate: observer('persistence.online', function() {
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
-    var persistenceService = this.persistence || window.persistence;
-    if(!persistenceService || typeof persistenceService.find_recent !== 'function') {
-      return;
-    }
-    persistenceService.find_recent('board').then(function(boards) {
+    this.persistence.find_recent('board').then(function(boards) {
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
@@ -102,8 +95,7 @@ export default Component.extend({
       if(_this.get('homeBoards') == [] && _this.get('popularBoards') == []) {
         _this.set('showOffline', true);
       } else {
-        var persistenceForCheck = _this.persistence || window.persistence;
-        if(!persistenceForCheck || typeof persistenceForCheck.get !== 'function' || !persistenceForCheck.get('online')) {
+        if(!_this.persistence.get('online')) {
           _this.set('showOffline', true);
         } else {
           _this.set('showOffline', false);
@@ -115,7 +107,7 @@ export default Component.extend({
   }),
   device: computed(function() {
     var res = {
-      added_somewhere: !!this.get('app_state.currentUser.preferences.progress.app_added'),
+      added_somewhere: !!this.appState.get('currentUser.preferences.progress.app_added'),
       standalone: capabilities.browserless,
       android: capabilities.system == "Android",
       ios: capabilities.system == "iOS"
@@ -124,7 +116,7 @@ export default Component.extend({
     res.needs_install_reminder = !res.added_somewhere || ((res.android || res.ios) && !res.standalone);
     if(res.standalone && (res.android || res.ios)) {
       res.needs_install_reminder = false;
-    } else if(this.get('app_state.currentUser.using_for_a_while')) {
+    } else if(this.appState.get('currentUser.using_for_a_while')) {
       res.needs_install_reminder = false;
     }
     return res;
@@ -138,8 +130,7 @@ export default Component.extend({
   }),
   refreshing_class: computed('persistence.syncing', function() {
     var res = "glyphicon glyphicon-refresh ";
-    var persistenceService = this.persistence || window.persistence;
-    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('syncing')) {
+    if(this.persistence.get('syncing')) {
       res = res + "spinning ";
     }
     return res;
@@ -186,20 +177,20 @@ export default Component.extend({
     }
   ),
   pending_updates: computed(
-    'app_state.currentUser.pending_org',
-    'app_state.currentUser.pending_supervision_org',
-    'app_state.currentUser.pending_board_shares',
-    'app_state.currentUser.unread_messages',
+    'appState.currentUser.pending_org',
+    'appState.currentUser.pending_supervision_org',
+    'appState.currentUser.pending_board_shares',
+    'appState.currentUser.unread_messages',
     function() {
-      var important = this.get('app_state.currentUser.pending_org') ||
-                  this.get('app_state.currentUser.pending_supervision_org') ||
-                  (this.get('app_state.currentUser.pending_board_shares') || []).length > 0 ||
-                  this.get('app_state.currentUser.unread_messages');
-      var normal_new = app_state.get('currentUser.unread_messages.length') || 0;
-      var unread_notifications = (app_state.get('currentUser.parsed_notifications') || []).filter(function(n) { return n.unread; }).length;
+      var important = this.appState.get('currentUser.pending_org') ||
+                  this.appState.get('currentUser.pending_supervision_org') ||
+                  (this.appState.get('currentUser.pending_board_shares') || []).length > 0 ||
+                  this.appState.get('currentUser.unread_messages');
+      var normal_new = this.appState.get('currentUser.unread_messages.length') || 0;
+      var unread_notifications = (this.appState.get('currentUser.parsed_notifications') || []).filter(function(n) { return n.unread; }).length;
       normal_new = normal_new + (unread_notifications || 0);
 
-      if(normal_new && !app_state.get('currentUser.read_notifications')) {
+      if(normal_new && !this.appState.get('currentUser.read_notifications')) {
         return {count: normal_new};
       } else if(important) {
         return true;
@@ -210,15 +201,14 @@ export default Component.extend({
   ),
   update_selected: observer('selected', 'persistence.online', function() {
     var _this = this;
-    var persistenceService = this.persistence || window.persistence;
-    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
-    var last_browse = stashes.get('last_index_browse');
+    if(!this.persistence.get('online')) { return; }
+    var last_browse = this.stashes.get('last_index_browse');
     var default_index = 2;
     // If a user already has a home board they're not going to care about popular boards,
     // they want to see something more useful like all the boards they own, or maybe
     // the home boards of all their supervisees, or maybe all their starred boards
-    if(app_state.get('currentUser.preferences.home_board.key')) {
-      if(app_state.get('currentUser.stats.user_boards') > 0) {
+    if(this.appState.get('currentUser.preferences.home_board.key')) {
+      if(this.appState.get('currentUser.stats.user_boards') > 0) {
         default_index = 1;
       } else {
         default_index = 3;
@@ -228,10 +218,10 @@ export default Component.extend({
       if(_this.get('selected') == key || (!_this.get('selected') && idx === default_index && !last_browse) || (!_this.get('selected') && last_browse == key)) {
         _this.set(key + '_selected', true);
         if(_this.get('selected')) {
-          stashes.persist('last_index_browse', key);
+          _this.stashes.persist('last_index_browse', key);
         }
         if(key == 'recent') {
-          persistence.find_recent('board').then(function(boards) {
+          _this.persistence.find_recent('board').then(function(boards) {
             if(boards && boards.slice) {
               boards = boards.slice(0, 12);
             }
@@ -240,16 +230,16 @@ export default Component.extend({
         } else {
           var list = 'homeBoards';
           var locale = ((i18n.langs || {}).preferred || window.navigator.language || 'en').split(/-/)[0];
-          if(app_state.get('currentUser.preferences.locale')) {
-            locale = app_state.get('currentUser.preferences.locale').split(/-/)[0];
+          if(_this.appState.get('currentUser.preferences.locale')) {
+            locale = _this.appState.get('currentUser.preferences.locale').split(/-/)[0];
           }
-          var opts = {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 20, preferred_locale: locale};
+          var opts = {public: true, starred: true, user_id: _this.appState.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 20, preferred_locale: locale};
           if(key == 'personal') {
             list = 'personalBoards';
             opts = {user_id: 'self', root: true, per_page: 12};
           } else if(key == 'popular') {
             list = 'popularBoards';
-            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: app_state.get('currentUser.id') || 'self', locale: locale};
+            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: _this.appState.get('currentUser.id') || 'self', locale: locale};
           }
           if(!(_this.get(list) || {}).length) {
             _this.set(list, {loading: true});
@@ -267,16 +257,15 @@ export default Component.extend({
       }
     });
   }),
-  allow_logs: computed('app_state.currentUser.preferences.logging', 'app_state.currentUser.modeling_only', 'app_state.currentUser.supporter_role', 'session.modeling_session', function() {
-    return app_state.get('currentUser.preferences.logging') && !app_state.get('currentUser.supporter_role') && !app_state.get('currentUser.modeling_only') && !session.get('modeling_session');
+  allow_logs: computed('appState.currentUser.preferences.logging', 'appState.currentUser.modeling_only', 'appState.currentUser.supporter_role', 'session.modeling_session', function() {
+    return this.appState.get('currentUser.preferences.logging') && !this.appState.get('currentUser.supporter_role') && !this.appState.get('currentUser.modeling_only') && !session.get('modeling_session');
   }),
   reload_logs: observer('model.id', 'persistence.online', function() {
     var model = this.get('model');
     var _this = this;
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     var model_id = model && model.get('id');
-    var persistenceService = this.persistence || window.persistence;
-    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
+    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && this.persistence.get('online')) {
       var controller = this;
       var find_args = {user_id: model.get('id'), type: 'session'};
       if(model.get('supporter_role')) {
@@ -310,11 +299,11 @@ export default Component.extend({
     return Badge.best_earned_badge(badges);
   },
   update_current_badges: observer(
-    'app_state.sessionUser',
-    'app_state.sessionUser.known_supervisees',
-    'app_state.currentUser',
-    'app_state.currentUser.known_supervisees',
-    'app_state.currentUser.supervisees',
+    'appState.sessionUser',
+    'appState.sessionUser.known_supervisees',
+    'appState.currentUser',
+    'appState.currentUser.known_supervisees',
+    'appState.currentUser.supervisees',
     'session.modeling_session',
     'current_user_badges',
     function() {
@@ -324,11 +313,11 @@ export default Component.extend({
       if(model && for_users[model.get('id')]) {
         var b = _this.best_badge(for_users[model.get('id')], model.get('goal.id'));
         var eb = _this.earned_badge(for_users[model.get('id')]);
-        if(!app_state.get('sessionUser.currently_premium') || app_state.get('sessionUser.supporter_role') || session.get('modeling_session')) {
+        if(!this.appState.get('sessionUser.currently_premium') || this.appState.get('sessionUser.supporter_role') || session.get('modeling_session')) {
           b = null;
         }
         // If no badge for the current user use the supervisee if there's only one
-        var known_sups = app_state.get('currentUser.known_supervisees') || app_state.get('sessionUser.known_supervisees') || [];
+        var known_sups = this.appState.get('currentUser.known_supervisees') || this.appState.get('sessionUser.known_supervisees') || [];
         if(!b && known_sups.length == 1) {
           var sup = known_sups[0];
           if(sup.premium) {
@@ -340,10 +329,10 @@ export default Component.extend({
       }
       var sups = [];
       // Use known_supervisees from currentUser first (since that's what we check for tab visibility), then sessionUser
-      var supervisees_list = app_state.get('currentUser.known_supervisees') || app_state.get('sessionUser.known_supervisees') || [];
+      var supervisees_list = this.appState.get('currentUser.known_supervisees') || this.appState.get('sessionUser.known_supervisees') || [];
       // If known_supervisees is empty, try to get from supervisees array
       if(supervisees_list.length === 0) {
-        var raw_supervisees = app_state.get('currentUser.supervisees') || app_state.get('sessionUser.supervisees') || [];
+        var raw_supervisees = this.appState.get('currentUser.supervisees') || this.appState.get('sessionUser.supervisees') || [];
         // known_supervisees is computed from supervisees, so if supervisees exists, known_supervisees should too
         // But if it's not computed yet, we can use supervisees directly
         supervisees_list = raw_supervisees;
@@ -356,7 +345,7 @@ export default Component.extend({
           emberSet(sup, 'earned_badge', eb);
         }
         if(LingoLinq.remote_url(sup.avatar_url) && !sup.local_avatar_url) {
-          persistence.find_url(sup.avatar_url, 'image').then(function(url) {
+          _this.persistence.find_url(sup.avatar_url, 'image').then(function(url) {
             emberSet(sup, 'local_avatar_url', url);
           }, function(err) { });
         } else if(sup.local_avatar_url && sup.local_avatar_url.match(/localhost/)) {
@@ -369,14 +358,14 @@ export default Component.extend({
     }
   ),
   modeling_ideas_available: computed(
-    'app_state.sessionUser.supporter_role',
-    'app_state.sessionUser.currently_premium',
+    'appState.sessionUser.supporter_role',
+    'appState.sessionUser.currently_premium',
     function() {
-      if(app_state.get('sessionUser.currently_premium')) {
+      if(this.appState.get('sessionUser.currently_premium')) {
         return true;
-      } else if(app_state.get('sessionUser.supporter_role')) {
+      } else if(this.appState.get('sessionUser.supporter_role')) {
         var any_premium_supervisees = false;
-        (app_state.get('sessionUser.known_supervisees') || []).forEach(function(sup) {
+        (this.appState.get('sessionUser.known_supervisees') || []).forEach(function(sup) {
           if(emberGet(sup, 'premium') || emberGet(sup, 'currently_premium')) {
             any_premium_supervisees = true;
           }
@@ -388,23 +377,23 @@ export default Component.extend({
       return false;
     }
   ),
-  many_supervisees: computed('app_state.currentUser.supervisees', function() {
-    return (app_state.get('currentUser.supervisees') || []).length > 5;
+  many_supervisees: computed('appState.currentUser.supervisees', function() {
+    return (this.appState.get('currentUser.supervisees') || []).length > 5;
   }),
-  some_supervisees: computed('app_state.currentUser.supervisees', function() {
-    return (app_state.get('currentUser.supervisees') || []).length > 3;
+  some_supervisees: computed('appState.currentUser.supervisees', function() {
+    return (this.appState.get('currentUser.supervisees') || []).length > 3;
   }),
-  has_supervisees: computed('app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
-    return (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
+  has_supervisees: computed('appState.currentUser.supervisees', 'appState.currentUser.known_supervisees', function() {
+    return (this.appState.get('currentUser.supervisees') || []).length > 0 || (this.appState.get('currentUser.known_supervisees') || []).length > 0;
   }),
-  show_communicators_tab: computed('app_state.currentUser.supporter_role', 'app_state.currentUser.supervisees', 'app_state.currentUser.known_supervisees', function() {
-    return app_state.get('currentUser.supporter_role') || (app_state.get('currentUser.supervisees') || []).length > 0 || (app_state.get('currentUser.known_supervisees') || []).length > 0;
+  show_communicators_tab: computed('appState.currentUser.supporter_role', 'appState.currentUser.supervisees', 'appState.currentUser.known_supervisees', function() {
+    return this.appState.get('currentUser.supporter_role') || (this.appState.get('currentUser.supervisees') || []).length > 0 || (this.appState.get('currentUser.known_supervisees') || []).length > 0;
   }),
-  supervisors_count: computed('app_state.currentUser.supervisors', function() {
-    return (app_state.get('currentUser.supervisors') || []).length;
+  supervisors_count: computed('appState.currentUser.supervisors', function() {
+    return (this.appState.get('currentUser.supervisors') || []).length;
   }),
-  managed_orgs: computed('app_state.currentUser.organizations', function() {
-    return (app_state.get('currentUser.organizations') || []).filter(function(o) { 
+  managed_orgs: computed('appState.currentUser.organizations', function() {
+    return (this.appState.get('currentUser.organizations') || []).filter(function(o) { 
       return o.type == 'manager' && o.restricted != true; 
     });
   }),
@@ -414,26 +403,28 @@ export default Component.extend({
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
   }),
-  save_user_pref_change: observer('app_state.currentUser.preferences.auto_open_speak_mode', function() {
-    var mode = app_state.get('currentUser.preferences.auto_open_speak_mode');
-    if(mode !== undefined) {
-      var last_mode = this.get('last_auto_open_speak_mode');
-      if(last_mode !== undefined && mode !== null && last_mode != mode) {
-        app_state.get('currentUser').save().then(null, function() { });
-      }
-      this.set('last_auto_open_speak_mode', mode);
+  autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
+    get() {
+      return this.appState.get('currentUser.preferences.auto_open_speak_mode');
+    },
+    set(key, value) {
+      // Set the value on the model
+      this.appState.set('currentUser.preferences.auto_open_speak_mode', value);
+      // Trigger a save
+      this.appState.get('currentUser').save().then(null, function() { });
+      return value;
     }
   }),
   index_nav: computed(
     'index_nav_state',
     'model.supporter_role',
-    'app_state.currentUser.preference.device.last_index_nav',
+    'appState.currentUser.preference.device.last_index_nav',
     function() {
       var res = {};
       if(this.get('index_nav_state')) {
         res[this.get('index_nav_state')] = true;
-      } else if(app_state.get('currentUser.preferences.device.last_index_nav')) {
-        res[app_state.get('currentUser.preferences.device.last_index_nav')] = true;
+      } else if(this.appState.get('currentUser.preferences.device.last_index_nav')) {
+        res[this.appState.get('currentUser.preferences.device.last_index_nav')] = true;
       } else {
         if(this.get('model.supporter_role')) {
           res.main = true;
@@ -444,10 +435,10 @@ export default Component.extend({
       return res;
     }
   ),
-  subscription_check: observer('app_state.sessionUser', 'app_state.logging_in', function() {
-    if(this.get('app_state.sessionUser') && !this.get('app_state.installed_app')) {
-      var progress = this.get('app_state.sessionUser.preferences.progress');
-      var user = this.get('app_state.sessionUser');
+  subscription_check: observer('appState.sessionUser', 'appState.logging_in', function() {
+    if(this.get('appState.sessionUser') && !this.get('appState.installed_app')) {
+      var progress = this.get('appState.sessionUser.preferences.progress');
+      var user = this.get('appState.sessionUser');
       var needs_subscribe_modal = false;
       if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {
         if(user.get('grace_period')) {
@@ -455,24 +446,24 @@ export default Component.extend({
             needs_subscribe_modal = true;
           }
         }
-      } else if(this.get('app_state.sessionUser.really_expired')) {
+      } else if(this.get('appState.sessionUser.really_expired')) {
         needs_subscribe_modal = true;
       }
-      if(needs_subscribe_modal && !app_state.get('logging_in')) {
-        if(!this.get('app_state.installed_app')) {
+      if(needs_subscribe_modal && !this.appState.get('logging_in')) {
+        if(!this.get('appState.installed_app')) {
           modal.open('subscribe');
         }
       }
     }
   }),
-  rating_allowed: computed('app_state.sessionUser', function() {
+  rating_allowed: computed('appState.sessionUser', function() {
     if(capabilities.installed_app && capabilities.mobile && capabilities.subsystem != 'Kindle') {
-      var progress = app_state.get('sessionUser.preferences.progress') || {};
+      var progress = this.appState.get('sessionUser.preferences.progress') || {};
       if(progress.rated) {
         return false;
       }
-      if(app_state.get('sessionUser.joined') && app_state.get('sessionUser.joined') < window.moment().add(-28, 'day')) {
-        return (Math.round(app_state.get('sessionUser.joined').getTime() / 1000 / 60 / 60 / 24 / 7) % 4) == 0;
+      if(this.appState.get('sessionUser.joined') && this.appState.get('sessionUser.joined') < window.moment().add(-28, 'day')) {
+        return (Math.round(this.appState.get('sessionUser.joined').getTime() / 1000 / 60 / 60 / 24 / 7) % 4) == 0;
       }
     }
     return false;
@@ -488,7 +479,7 @@ export default Component.extend({
       this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
     },
     newBoard: function() {
-      app_state.check_for_needing_purchase().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
         modal.open('new-board');
       });
     },
@@ -501,29 +492,29 @@ export default Component.extend({
     },
     lessons: function(user) {
       if(user == 'pick') {
-        if(app_state.get('sessionUser.supporter_role') && (app_state.get('sessionUser.known_supervisees.length') > 0 || app_state.get('currentUser.managed_orgs.length') > 0)) {
-          app_state.controller.send('switch_communicators', {header: i18n.t('select_user_to_review_lessons', "Select User to Review Trainings"), stay: true, route: 'user.lessons'})
+        if(this.appState.get('sessionUser.supporter_role') && (this.appState.get('sessionUser.known_supervisees.length') > 0 || this.appState.get('currentUser.managed_orgs.length') > 0)) {
+          this.appState.get('controller').send('switch_communicators', {header: i18n.t('select_user_to_review_lessons', "Select User to Review Trainings"), stay: true, route: 'user.lessons'})
           return;
         } else {
-          user = app_state.get('currentUser');
+          user = this.appState.get('currentUser');
         }
       }
-      user = user || app_state.get('currentUser');
+      user = user || this.appState.get('currentUser');
       this.get('router').transitionTo('user.lessons', emberGet(user, 'id'));
     },
     run_eval: function(user) {
       if(user == 'pick') {
-        if(app_state.get('sessionUser.supporter_role') && (app_state.get('sessionUser.known_supervisees.length') > 0 || app_state.get('currentUser.managed_orgs.length') > 0)) {
+        if(this.appState.get('sessionUser.supporter_role') && (this.appState.get('sessionUser.known_supervisees.length') > 0 || this.appState.get('currentUser.managed_orgs.length') > 0)) {
           var prompt = i18n.t('select_user_for_eval', "Select User for Evaluation");
-          app_state.controller.send('switch_communicators', {stay: true, modeling: false, skip_me: !app_state.get('currentUser.subscription.premium_supporter_plus_communicator'), header: prompt, eval: true});
+          this.appState.get('controller').send('switch_communicators', {stay: true, modeling: false, skip_me: !this.appState.get('currentUser.subscription.premium_supporter_plus_communicator'), header: prompt, eval: true});
           return;
         } else {
-          user = app_state.get('currentUser');
+          user = this.appState.get('currentUser');
         }
       }
-      app_state.check_for_currently_premium(user, 'eval', false, true).then(function() {
-        app_state.set_speak_mode_user(emberGet(user, 'id'), false, false, 'obf/eval');
-      });
+      this.appState.check_for_currently_premium(user, 'eval', false, true).then(function() {
+        this.appState.set_speak_mode_user(emberGet(user, 'id'), false, false, 'obf/eval');
+      }.bind(this));
     },
     remote_model: function(user) {
       if(user.premium || emberGet(user, 'currently_premium')) {
@@ -533,39 +524,38 @@ export default Component.extend({
       }
     },
     getting_started: function() {
-       modal.open('getting-started', {progress: app_state.get('currentUser.preferences.progress')});
+       modal.open('getting-started', {progress: this.appState.get('currentUser.preferences.progress')});
     },
     record_note: function(user) {
-      user = user || app_state.get('currentUser');
+      user = user || this.appState.get('currentUser');
       if(!emberGet(user, 'avatar_url_with_fallback')) {
         emberSet(user, 'avatar_url_with_fallback', emberGet(user, 'avatar_url'));
       }
-      app_state.check_for_needing_purchase().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
         modal.open('record-note', {note_type: 'text', user: user}).then(function() {
           runLater(function() {
-            app_state.get('currentUser').reload().then(null, function() { });
-          }, 5000);
-        });  
-      });
+            this.appState.get('currentUser').reload().then(null, function() { });
+          }.bind(this), 5000);
+        }.bind(this));  
+      }.bind(this));
     },
     sync: function() {
-      var persistenceService = this.persistence || window.persistence;
-      if(!persistenceService || typeof persistenceService.get !== 'function' || persistenceService.get('syncing')) {
+      if(!this.persistence.get('online') || this.persistence.get('syncing')) {
         return;
       }
-      if(!persistenceService.get('syncing')) {
+      if(!this.persistence.get('syncing')) {
         console.debug('syncing because manually triggered');
-        persistence.sync('self', true).then(null, function() { });
+        this.persistence.sync('self', true).then(null, function() { });
       } else {
         this.send('sync_details');
       }
     },
     load_reports: function() {
-      var user = app_state.get('currentUser');
+      var user = this.appState.get('currentUser');
       this.get('router').transitionTo('user.stats', user.get('user_name'));
     },
     hide_login: function() {
-      app_state.set('login_modal', false);
+      this.appState.set('login_modal', false);
       $("html,body").css('overflow', '');
       $("#login_overlay").remove();
     },
@@ -577,7 +567,7 @@ export default Component.extend({
     },
     set_index_nav: function(nav) {
       if(nav == 'main' || nav == 'supervisees') {
-        var u = app_state.get('currentUser');
+        var u = this.appState.get('currentUser');
         // Ensure preferences and preferences.device exist before setting nested value
         var preferences = u.get('preferences') || {};
         var device = preferences.device || {};
@@ -586,9 +576,9 @@ export default Component.extend({
         u.set('preferences.device.last_index_nav', nav);
         u.save().then(null, function() { });
       } else if(nav == 'updates') {
-        if(app_state.get('currentUser')) {
-          app_state.set('currentUser.read_notifications', true);
-          app_state.get('currentUser').save().then(null, function() { });
+        if(this.appState.get('currentUser')) {
+          this.appState.set('currentUser.read_notifications', true);
+          this.appState.get('currentUser').save().then(null, function() { });
         }
       }
       this.set('index_nav_state', nav);
@@ -609,66 +599,65 @@ export default Component.extend({
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'start', 'Setup started');
       }
-      app_state.set('auto_setup', false);
+      this.appState.set('auto_setup', false);
 
       if(user_id) {
         this.get('router').transitionTo('setup', {queryParams: {user_id: user_id, page: null}});
-      } else if(app_state.get('currentUser.permissions.delete') && (app_state.get('currentUser.supervisees') || []).length > 0) {
+      } else if(this.appState.get('currentUser.permissions.delete') && (this.appState.get('currentUser.supervisees') || []).length > 0) {
         var prompt = i18n.t('setup_which_user', "Select User to Run Setup");
-        app_state.controller.send('switch_communicators', {stay: true, modeling: false, setup: true, skip_me: false, header: prompt});
+        this.appState.get('controller').send('switch_communicators', {stay: true, modeling: false, setup: true, skip_me: false, header: prompt});
       } else {
         this.get('router').transitionTo('setup', {queryParams: {user_id: null, page: null}});
       }
     },
     opening_index: function() {
-      app_state.set('index_view', true);
+      this.appState.set('index_view', true);
     },
     closing_index: function() {
-      app_state.set('index_view', false);
+      this.appState.set('index_view', false);
     },
     manage_supervisors: function() {
-      modal.open('supervision-settings', {user: app_state.get('currentUser')});
+      modal.open('supervision-settings', {user: this.appState.get('currentUser')});
     },
     session_select: function() {
-      if(!app_state.get('currentUser.preferences.logging')) {
+      if(!this.appState.get('currentUser.preferences.logging')) {
         this.send('load_reports');
       } else {
         this.send('set_index_nav', 'updates');
       }
     },
     sync_details: function() {
-      var persistenceService = this.persistence || window.persistence;
-      if(!persistenceService || typeof persistenceService.get !== 'function') {
+      if(!this.persistence.get('online')) {
         modal.open('sync-details', {details: []});
         return;
       }
-      var list = ([].concat(persistenceService.get('sync_log') || [])).reverse();
+      var list = ([].concat(this.persistence.get('sync_log') || [])).reverse();
       modal.open('sync-details', {details: list});
     },
     stats: function(user_name) {
       if(!user_name) {
-        if((app_state.get('currentUser.supervisees') || []).length > 0) {
+        if((this.appState.get('currentUser.supervisees') || []).length > 0) {
           var prompt = i18n.t('select_user_for_reports', "Select User for Reports");
-          app_state.controller.send('switch_communicators', {stay: true, modeling: true, skip_me: !app_state.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.stats', header: prompt});
+          this.appState.get('controller').send('switch_communicators', {stay: true, modeling: true, skip_me: !this.appState.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.stats', header: prompt});
           return;
         } else {
-          user_name = app_state.get('currentUser.user_name');
+          user_name = this.appState.get('currentUser.user_name');
         }
       }
       this.get('router').transitionTo('user.stats', user_name, {queryParams: {start: null, end: null, device_id: null, location_id: null, split: null, start2: null, end2: null, devicde_id2: null, location_id2: null}});
     },
     goals: function() {
-      if(app_state.get('sessionUser.supporter_role') && (app_state.get('sessionUser.known_supervisees.length') > 0 || app_state.get('currentUser.managed_orgs.length') > 0)) {
+      if(this.appState.get('sessionUser.supporter_role') && (this.appState.get('sessionUser.known_supervisees.length') > 0 || this.appState.get('currentUser.managed_orgs.length') > 0)) {
         var prompt = i18n.t('select_user_for_goals', "Select User for Goals");
-        app_state.controller.send('switch_communicators', {stay: true, modeling: true, skip_me: !app_state.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.goals', header: prompt});
+        this.appState.get('controller').send('switch_communicators', {stay: true, modeling: true, skip_me: !this.appState.get('currentUser.subscription.premium_supporter_plus_communicator'), route: 'user.goals', header: prompt});
         return;
       } else {
-        var user_name = app_state.get('currentUser.user_name');
+        var user_name = this.appState.get('currentUser.user_name');
         this.get('router').transitionTo('user.stats', user_name, {queryParams: {start: null, end: null, device_id: null, location_id: null, split: null, start2: null, end2: null, devicde_id2: null, location_id2: null}});
       }
     },
     new_dashboard: function() {
-      var user = app_state.get('currentUser');
+      var user = this.appState.get('currentUser');
       user.set('preferences.new_index', true);
       user.save().then(null, function() { });
       modal.success(i18n.t('revert_new_dashboard', "Welcome to the new, cleaner dashboard! If you're not a fan you can switch back on your Preferences page."));
@@ -680,7 +669,7 @@ export default Component.extend({
           if(res && res.get('id') && res.get('set_badges')) {
             _this.get('router').transitionTo('user.goal', user_model.get('user_name'), res.get('id'));
           } else if(res) {
-            (app_state.get('currentUser.known_supervisees') || []).forEach(function(sup) {
+            (_this.appState.get('currentUser.known_supervisees') || []).forEach(function(sup) {
               if(emberGet(sup, 'id') == user_model.get('id')) {
                 emberSet(sup, 'goal', {
                   id: res.get('id'),
@@ -695,20 +684,20 @@ export default Component.extend({
       });
     },
     update_evaluation: function(action) {
-      modal.open('modals/eval-status', {action: action, user: app_state.get('sessionUser')});
+      modal.open('modals/eval-status', {action: action, user: this.appState.get('sessionUser')});
     },
     next_lesson: function() {
-      var lesson = app_state.get('sessionUser.first_incomplete_lesson');
+      var lesson = this.appState.get('sessionUser.first_incomplete_lesson');
       if(lesson) {
         var prefix = location.protocol + "//" + location.host;
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + app_state.get('sessionUser.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + this.appState.get('sessionUser.user_token'), '_blank');
       }
     },
     launch_rating: function() {
-      var user = app_state.get('sessionUser');
+      var user = this.appState.get('sessionUser');
       if(user) {
         var progress = user.get('preferences.progress') || {};
 
@@ -721,17 +710,17 @@ export default Component.extend({
     modeling_ideas: function(user_name) {
       var users = [];
       if(!user_name) {
-        if((app_state.get('currentUser.supervisees') || []).length > 0) {
-          (app_state.get('currentUser.known_supervisees') || []).forEach(function(u) {
+        if((this.appState.get('currentUser.supervisees') || []).length > 0) {
+          (this.appState.get('currentUser.known_supervisees') || []).forEach(function(u) {
             if(emberGet(u, 'premium')) {
               users.push(u);
             }
           });
         } else {
-          users.push(app_state.get('currentUser'));
+          users.push(this.appState.get('currentUser'));
         }
       } else {
-        (app_state.get('currentUser.known_supervisees') || []).forEach(function(u) {
+        (this.appState.get('currentUser.known_supervisees') || []).forEach(function(u) {
           if(u.user_name == user_name) {
             users.push(u);
           }
@@ -743,20 +732,20 @@ export default Component.extend({
     },
     homeInSpeakMode: function(board_for_user_id, keep_as_self) {
       if(board_for_user_id) {
-        app_state.set_speak_mode_user(board_for_user_id, true, keep_as_self);
-      } else if((app_state.get('currentUser.permissions.delete') && (app_state.get('currentUser.supervisees') || []).length > 0) || app_state.get('currentUser.communicator_in_supporter_view')) {
+        this.appState.set_speak_mode_user(board_for_user_id, true, keep_as_self);
+      } else if((this.appState.get('currentUser.permissions.delete') && (this.appState.get('currentUser.supervisees') || []).length > 0) || this.appState.get('currentUser.communicator_in_supporter_view')) {
         var prompt = i18n.t('speak_as_which_user', "Select User to Speak As");
-        if(app_state.get('currentUser.communicator_in_supporter_view')) {
+        if(this.appState.get('currentUser.communicator_in_supporter_view')) {
           prompt = i18n.t('speak_as_which_mode', "Select Mode and User for Session");
         }
-        app_state.set('referenced_speak_mode_user', null);
-        app_state.controller.send('switch_communicators', {stay: true, modeling: 'ask', skip_me: false, header: prompt});
+        this.appState.set('referenced_speak_mode_user', null);
+        this.appState.get('controller').send('switch_communicators', {stay: true, modeling: 'ask', skip_me: false, header: prompt});
       } else {
-        app_state.home_in_speak_mode();
+        this.appState.home_in_speak_mode();
       }
     },
     manual_session: function() {
-      LingoLinq.Log.manual_log(app_state.get('currentUser.id'), !!app_state.get('currentUser.external_device'))
+      LingoLinq.Log.manual_log(this.appState.get('currentUser.id'), !!this.appState.get('currentUser.external_device'))
     },
     home_board: function(key) {
       this.get('router').transitionTo('board', key);

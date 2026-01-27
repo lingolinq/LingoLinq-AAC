@@ -2,19 +2,20 @@ import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import buttonTracker from '../utils/raw_events';
-import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import capabilities from '../utils/capabilities';
+import { inject as service } from '@ember/service';
 
 var board_ids = {};
 export default Component.extend({
+  appState: service('app-state'),
   didInsertElement: function() {
     var _this = this;
     _this.set('active_tracking', true);
     var resizeHandler = function() {
       runLater(function() {
         // on mobile devices, keyboard popup shouldn't trigger a redraw
-        if(app_state.get('window_inner_width') && capabilities.mobile && window.innerWidth == app_state.get('window_inner_width')) {
+        if(_this.appState.get('window_inner_width') && capabilities.mobile && window.innerWidth == _this.appState.get('window_inner_width')) {
           // TODO: do we need to force scrolltop to 0?
           return;
         }
@@ -75,7 +76,7 @@ export default Component.extend({
     //   }
     // }
     var button_id = this.buttonId(event);
-    if(app_state.get('edit_mode') && editManager.paint_mode) {
+    if(this.appState.get('edit_mode') && editManager.paint_mode) {
       this.buttonPaint(event);
     } else {
       var buttonEvent = this.get('buttonEvent');
@@ -94,7 +95,7 @@ export default Component.extend({
     }
   },
   symbolSelect: function(event) {
-    if(app_state.get('edit_mode')) {
+    if(this.appState.get('edit_mode')) {
       if(editManager.finding_target()) {
         return this.buttonSelect(event);
       }
@@ -106,7 +107,7 @@ export default Component.extend({
     }
   },
   actionSelect: function(event) {
-    if(app_state.get('edit_mode')) {
+    if(this.appState.get('edit_mode')) {
       if(editManager.finding_target()) {
         return this.buttonSelect(event);
       }
@@ -118,7 +119,7 @@ export default Component.extend({
     }
   },
   rearrange: function(event) {
-    if(app_state.get('edit_mode')) {
+    if(this.appState.get('edit_mode')) {
       var dragId = $(event.target).data('drag_id');
       var dropId = $(event.target).data('drop_id');
       var buttonEvent = this.get('buttonEvent');
@@ -128,7 +129,7 @@ export default Component.extend({
     }
   },
   clear: function(event) {
-    if(app_state.get('edit_mode')) {
+    if(this.appState.get('edit_mode')) {
       var button_id = this.buttonId(event);
       var buttonEvent = this.get('buttonEvent');
       if (buttonEvent && typeof buttonEvent === 'function') {
@@ -137,7 +138,7 @@ export default Component.extend({
     }
   },
   stash: function(event) {
-    if(app_state.get('edit_mode')) {
+    if(this.appState.get('edit_mode')) {
       var button_id = this.buttonId(event);
       var buttonEvent = this.get('buttonEvent');
       if (buttonEvent && typeof buttonEvent === 'function') {

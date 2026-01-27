@@ -1,28 +1,29 @@
 import Component from '@ember/component';
 import EmberObject from '@ember/object';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import persistence from '../utils/persistence';
 import LingoLinq from '../app';
 import RSVP from 'rsvp';
 import Utils from '../utils/misc';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
+  persistence: service('persistence'),
   tagName: 'span',
   action: function() { return this; },
   didInsertElement: function() {
     var supervisees = [];
     var _this = this;
-    var has_supervisees = app_state.get('sessionUser.known_supervisees') || app_state.get('sessionUser.managed_orgs.length') > 0;
-    var show_options = has_supervisees || app_state.get('sessionUser.communicator_in_supporter_view');
-    _this.set('has_extra_users', app_state.get('sessionUser.managed_orgs.length') > 0);
+    var has_supervisees = this.appState.get('sessionUser.known_supervisees') || this.appState.get('sessionUser.managed_orgs.length') > 0;
+    var show_options = has_supervisees || this.appState.get('sessionUser.communicator_in_supporter_view');
+    _this.set('has_extra_users', this.appState.get('sessionUser.managed_orgs.length') > 0);
     _this.set('extra_users', null);
     _this.set('extra_user', null);
     if(!this.get('users') && show_options) {
-      (app_state.get('sessionUser.known_supervisees') || []).forEach(function(supervisee) {
+      (this.appState.get('sessionUser.known_supervisees') || []).forEach(function(supervisee) {
         var sup = {
           name: supervisee.user_name,
           image: supervisee.local_avatar_url || supervisee.avatar_url,
@@ -31,19 +32,19 @@ export default Component.extend({
         };
         supervisees.push(sup);
         if(LingoLinq.remote_url(supervisee.avatar_url) && !supervisee.local_avatar_url) {
-          persistence.find_url(supervisee.avatar_url, 'image').then(function(url) {
+          _this.persistence.find_url(supervisee.avatar_url, 'image').then(function(url) {
             emberSet(supervisee, 'local_avatar_url', url);
             emberSet(sup, 'image', url);
           }, function(err) { });
         }
       });
-      if(supervisees.length > 0 || _this.get('has_extra_users') || app_state.get('sessionUser.communicator_in_supporter_view')) {
+      if(supervisees.length > 0 || _this.get('has_extra_users') || this.appState.get('sessionUser.communicator_in_supporter_view')) {
         supervisees.unshift({
           name: i18n.t('me', "me"),
           id: 'self',
           disabled: this.get('skip_me'),
           self: true,
-          image: app_state.get('sessionUser.avatar_url_with_fallback')
+          image: this.appState.get('sessionUser.avatar_url_with_fallback')
         });
       }
       if(!this.get('buttons') && !this.get('selection')) {
@@ -59,8 +60,8 @@ export default Component.extend({
     if(this.get('has_extra_users')) {
       this.load_extra_users();
     }
-    if(!app_state.get('sessionUser.supervisees') || supervisees.length === 0) {
-      if(!app_state.get('sessionUser.communicator_in_supporter_view')) {
+    if(!this.appState.get('sessionUser.supervisees') || supervisees.length === 0) {
+      if(!this.appState.get('sessionUser.communicator_in_supporter_view')) {
         var action = this.get('action');
         if (action && typeof action === 'function') {
           action('self');
@@ -109,7 +110,7 @@ export default Component.extend({
     _this.set('extra_users', {loading: true});
     var list = [];
     var promises = [];
-    (app_state.get('sessionUser.managed_orgs') || []).forEach(function(org) {
+    (this.appState.get('sessionUser.managed_orgs') || []).forEach(function(org) {
       promises.push(Utils.all_pages('/api/v1/organizations/' + org.id + '/users', {result_type: 'user', type: 'GET', data: {}}).then(function(data) {
         list = list.concat(data.filter(function(u) { return !u.org_pending; }));
       }));
@@ -159,9 +160,9 @@ export default Component.extend({
       (this.get('users') || []).forEach(function(sup) {
         emberSet(sup, 'currently_selected', false);
       });
-      var us = app_state.get('quick_users') || {};
+      var us = this.appState.get('quick_users') || {};
       us[user.id] = user;
-      app_state.set('quick_users', us);
+      this.appState.set('quick_users', us);
       this.set('extra_user', user);
       var action = this.get('action');
       if (action && typeof action === 'function') {

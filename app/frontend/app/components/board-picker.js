@@ -1,14 +1,15 @@
 import Component from '@ember/component';
 import $ from 'jquery';
 import contentGrabbers from '../utils/content_grabbers';
-import app_state from '../utils/app_state';
 import word_suggestions from '../utils/word_suggestions';
 import Utils from '../utils/misc';
 import LingoLinq from '../app';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
@@ -46,13 +47,13 @@ export default Component.extend({
       this.set('category_boards', {loading: true});
       var _this = this;
       if(str == 'mine') {
-        LingoLinq.store.query('board', {user_id: app_state.get('currentUser.id') || 'self', include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
+        LingoLinq.store.query('board', {user_id: this.appState.get('currentUser.id') || 'self', include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});
         });  
       } else {
-        LingoLinq.store.query('board', {public: true, starred: true, user_id: app_state.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
+        LingoLinq.store.query('board', {public: true, starred: true, user_id: this.appState.get('currentUser.id') || 'self', sort: 'custom_order', per_page: 6, category: str}).then(function(data) {
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});
