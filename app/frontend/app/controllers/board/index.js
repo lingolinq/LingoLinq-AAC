@@ -95,7 +95,7 @@ export default Controller.extend({
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
-          board_ids: [this.appState.get('currentUser.preferences.home_board.id'), this.stashesService.get('temporary_root_board_state.id')]
+          board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashesService.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
           // where it hits the next button before listeners are
@@ -195,14 +195,14 @@ export default Controller.extend({
     var needs_refresh = board.get('update_visibility_downstream');
     board.save().then(function(brd) {
       if(update_locale) {
-        this.stashesService.persist('label_locale', update_locale);
-        this.appState.set('label_locale', update_locale);
-        this.stashesService.persist('vocalization_locale', update_locale);
-        this.appState.set('vocalization_locale', update_locale);
+        _this.stashesService.persist('label_locale', update_locale);
+        _this.appState.set('label_locale', update_locale);
+        _this.stashesService.persist('vocalization_locale', update_locale);
+        _this.appState.set('vocalization_locale', update_locale);
       }
       board.set('update_visibility_downstream', false);
       if(needs_refresh) {
-        this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+        _this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
       }
       editManager.process_for_displaying();
       if(brd.get('protected_material') && brd.get('visibility') != 'private') {
@@ -400,7 +400,7 @@ export default Controller.extend({
         this.appState.set('suggestion_id', null);
         this.set('model.fast_html', null);
         editManager.process_for_displaying();
-        runLater(function() {
+        runLater(() => {
           this.appState.refresh_suggestions();
         });
       }
@@ -1199,8 +1199,9 @@ export default Controller.extend({
       $stash_hover.removeClass('on_button').data('button_id', null);
     },
     toggleEditMode: function(decision) {
+      var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        this.appState.toggle_edit_mode(decision);
+        _this.appState.toggle_edit_mode(decision);
       }, function() { });
     },
     compute_height: function(force) {
