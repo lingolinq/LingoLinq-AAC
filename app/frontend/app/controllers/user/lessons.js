@@ -7,7 +7,7 @@ import Utils from '../../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import capabilities from '../../utils/capabilities';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default Controller.extend({
   load_lessons: function() {

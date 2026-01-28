@@ -1,16 +1,21 @@
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   willInsertElement: function() {
     this.set_board_record();
   },
-  set_board_record: observer('board', 'board.key', 'board.id', 'board.children', 'board.children.length', function() {
+  // Note: 'board.id' dependency only works for Ember Data models, not plain objects.
+  // Plain objects don't support computed property observation, so changes to board.id
+  // won't trigger this observer for plain objects. The 'board' dependency will catch
+  // board replacements, which is sufficient for most cases.
+  set_board_record: observer('board', 'board.key', 'board.children', 'board.children.length', function() {
     var board = this.get('board');
     if(!board) { return; }
     if(board.children) {
@@ -99,9 +104,17 @@ export default Component.extend({
     var board_record = this.get('board_record');
     if(!board_record) { return false; }
     // Check if board_record has a key or id (indicating it's a valid board)
-    var hasKey = board_record.get && board_record.get('key') || board_record.key;
-    var hasId = board_record.get && board_record.get('id') || board_record.id;
+    // Explicitly check if get is a function before calling it to avoid operator precedence issues
+    var hasKey = (typeof board_record.get === 'function' && board_record.get('key')) || board_record.key;
+    var hasId = (typeof board_record.get === 'function' && board_record.get('id')) || board_record.id;
     return !!(hasKey || hasId);
+  }),
+  cursor_style: computed('isReady', function() {
+    if(this.get('isReady')) {
+      return htmlSafe('cursor: pointer;');
+    } else {
+      return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
+    }
   }),
   actions: {
     board_preview: function(board) {
@@ -158,7 +171,7 @@ export default Component.extend({
         if(_this.get('localized')) {
           opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
-        app_state.home_in_speak_mode(opts);
+        this.appState.home_in_speak_mode(opts);
       }
     }
   }

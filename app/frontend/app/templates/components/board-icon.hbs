@@ -1,36 +1,36 @@
-<div tabindex="0" {{action "pick_board" board_record}} class={{display_class}} style={{if isReady "cursor: pointer;" "cursor: default; opacity: 0.6; pointer-events: none;"}}>
-  {{#unless noinfo}}
-    <button type="button" {{action "board_preview" board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;">
-      {{#if override_count}}
+<div tabindex="0" {{action "pick_board" this.board_record}} class={{this.display_class}} style={{this.cursor_style}}>
+  {{#unless this.noinfo}}
+    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;">
+      {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
-          {{override_count}}
+          {{this.override_count}}
         </span>
       {{else}}
         <span class='glyphicon glyphicon-info-sign'></span>
-        {{#if board_record.grid.rows}}
-          <span class='size'>{{board_record.grid.rows}} x {{board_record.grid.columns}}</span>
+        {{#if this.board_record.grid.rows}}
+          <span class='size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
         {{/if}}
       {{/if}}
     </button>
   {{/unless}}
-  {{#if flag_home }}
-    {{#if board_record.home_board}}
+  {{#if this.flag_home }}
+    {{#if this.board_record.home_board}}
       <div style='position: absolute; top: 0; left: 5px; color: #888;'><span class='glyphicon glyphicon-home'></span></div>
     {{/if}}
   {{/if}}
-  {{#if override_count}}
-    <img src={{board_record.style.image_url}} onerror="button_broken_image(this);">
+  {{#if this.override_count}}
+    <img src={{this.board_record.style.image_url}} onerror="button_broken_image(this);">
   {{else}}
-    <img src={{board_record.icon_url_with_fallback}} onerror="button_broken_image(this);">
+    <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);">
   {{/if}}
-  <div class={{if noinfo "name compact" "name"}}>
-  {{best_name}}
+  <div class={{if this.noinfo "name compact" "name"}}>
+  {{this.best_name}}
   </div>
   <div class='author'>
-    {{#if children}}
-      {{t "board" key="n_boards" count=children.length}}
+    {{#if this.children}}
+      {{t "board" key="n_boards" count=this.children.length}}
     {{else}}
-      {{t "by" key="by"}} {{board_record.user_name}}
+      {{t "by" key="by"}} {{this.board_record.user_name}}
     {{/if}}
   </div>
 </div>

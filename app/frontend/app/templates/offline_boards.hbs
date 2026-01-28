@@ -3,7 +3,7 @@
     <h2>{{t "Always-Available Boards" key="always_available_boards"}}</h2>
     <p>{{t "Below is a collection of free and always-available emergency and critical-use boards that we provide along with our partners. Anyone who downloads the %app_name% app will have access to these boards, with or without an Internet connection." key="offline_boards_explainer"}}</p>
     <form class="form-horizontal">
-      {{#each locales as |loc|}}
+      {{#each this.locales as |loc|}}
         <div style='margin-bottom: 20px;'>
           {{#preference-box title=loc.locale_text glyph=loc.icon_class title_key=loc.locale closed_text=loc.tally open=loc.open}}
             {{#if loc.credit}}

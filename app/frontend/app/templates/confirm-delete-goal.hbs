@@ -4,7 +4,7 @@
     <h3>{{t "Remove this Goal" key="remove_this_goal"}}</h3>
   </div>
   <div class="modal-body">
-    {{#if retirable}}
+    {{#if this.retirable}}
       <p>
         {{t "Would you like to delete this goal completely, or just retire it and keep it as a past goal? Deleted goals are gone forever, but past goals are still available to review progress and reports." key="delete_or_retire"}}
       </p>
@@ -14,14 +14,14 @@
       </p>
     {{/if}}
     <strong>{{this.model.goal.summary}}</strong><br>
-    {{#if model.error}}
+    {{#if this.model.error}}
       <p class='text-danger'>{{t "There was an error trying to update the goal" key="error_deleting_goal"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    {{#if retirable}}
+    {{#if this.retirable}}
       <button class='btn btn-primary' {{action "retire_goal"}} disabled={{this.model.updating}}>
-        {{#if model.retiring}}
+        {{#if this.model.retiring}}
           {{t "Retiring Goal" key="retiring_goal"}}
         {{else}}
           {{t "Retire Goal" key="retire_goal"}}
@@ -29,7 +29,7 @@
       </button>
     {{/if}}
     <button class='btn btn-default' {{action "delete_goal"}} disabled={{this.model.updating}}>
-      {{#if model.deleting}}
+      {{#if this.model.deleting}}
         {{t "Deleting Goal" key="deleting_goal"}}
       {{else}}
         {{t "Delete Goal" key="delete_goal"}}

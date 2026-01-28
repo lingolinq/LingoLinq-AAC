@@ -4,11 +4,11 @@
     <h3>{{t "My Devices" key="my_devices"}}</h3>
   </div>
   <div class="modal-body">
-    {{#if model.devices}}
+    {{#if this.model.devices}}
       <table class="table table-hover">
         <tbody>
         {{#with this as |contr|}}
-        {{#each model.devices as |device|}}
+        {{#each this.model.devices as |device|}}
           <tr>
             <td style="width: 60px; font-size: 25px; vertical-align: top;" class={{if device.current_device "text-info"}}>
               {{#if device.mobile}}
@@ -38,7 +38,7 @@
               </div>
             </td>
             <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-              {{#if model.permissions.edit}}
+              {{#if this.model.permissions.edit}}
                 {{#unless device.current_device}}
                   {{#if contr.persistence.online}}
                     <a href='#' {{action "remove_device" device.id}} class="glyphicon glyphicon-remove"><span class='text-hide'>hide</span></a>

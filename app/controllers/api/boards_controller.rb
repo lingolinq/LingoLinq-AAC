@@ -1,8 +1,15 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
   before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
+  before_action :require_api_token_for_cache_user, :only => [:index]
+  before_action :require_api_token_for_cache_endpoint, :only => [:cache]
 
   def cache
+    # Security: require_api_token_for_cache_endpoint already ensures authentication
+    # This endpoint provides minimal cache user info and should require authentication
+    # to prevent unauthenticated access to cache-related functionality
+    return unless @api_user
+    return unless @api_device_id
     render json: { user: { id: 'cache' } }
   end
 
@@ -51,8 +58,15 @@ class Api::BoardsController < ApplicationController
       if params['user_id'] || params[:user_id]
         # Handle special case where user_id is 'cache' (from boards cache endpoint)
         # Return public boards only since there are no user-specific boards for cache
+        # Security: require_api_token_for_cache_user already ensures authentication
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
+          # Security: Ensure the authenticated user exists and has valid API access
+          # The require_api_token_for_cache_user filter ensures authentication, but we
+          # need to verify the user has permission to view boards (even public ones)
+          return unless @api_user
+          return unless @api_device_id
+          # Only return public boards for cache user - no user-specific data
           params['public'] = true
         else
           user = User.find_by_path(user_id_param)
@@ -303,7 +317,9 @@ class Api::BoardsController < ApplicationController
     end
     if cache_key
       RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
-      json['uncached'] = true
+      # Put uncached flag in meta to avoid Ember Data trying to parse it as a model
+      json[:meta] ||= {}
+      json[:meta]['uncached'] = true
     end
 
     if (Time.now.to_i - start) > 5
@@ -368,8 +384,16 @@ class Api::BoardsController < ApplicationController
     end
     if processed_params['board'] && processed_params['board']['for_user_id'] && processed_params['board']['for_user_id'] != 'self'
       user = User.find_by_path(processed_params['board']['for_user_id'])
-      return unless allowed?(user, 'edit')
-      @board_user = user
+      if !user
+        # User doesn't exist (might be deleted) - return error instead of silently defaulting
+        # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
+        return api_error(400, {error: "User not found", for_user_id: processed_params['board']['for_user_id']})
+      elsif !allowed?(user, 'edit')
+        # User exists but no permission
+        return
+      else
+        @board_user = user
+      end
     end
     opts = {:user => @board_user, :author => @api_user, :key => params['board']['key']}
     if processed_params['board'] && processed_params['board']['parent_board_id']
@@ -683,6 +707,22 @@ class Api::BoardsController < ApplicationController
   end
 
   protected
+  
+  def require_api_token_for_cache_user
+    # Security: Require authentication when user_id='cache' is used to prevent
+    # unauthorized access to board listings via the cache endpoint bypass
+    user_id_param = params['user_id'] || params[:user_id]
+    if user_id_param.to_s == 'cache'
+      require_api_token
+    end
+  end
+  
+  def require_api_token_for_cache_endpoint
+    # Security: Require authentication for the cache endpoint to prevent
+    # unauthenticated access to cache-related functionality
+    require_api_token
+  end
+
   def star_or_unstar(star)
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])

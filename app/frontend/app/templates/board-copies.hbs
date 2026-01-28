@@ -4,14 +4,14 @@
     <h3>{{t "Board Copies" key="board_copies"}}</h3>
   </div>
   <div class="modal-body">
-    <p>{{t "This board, %{board_key}, has been copied one or more times by either you or someone you supervise. To access one of those copies, find it below." key="copies_explanation" board_key=model.board.key}}</p>
-    {{#if loading}}
+    <p>{{t "This board, %{board_key}, has been copied one or more times by either you or someone you supervise. To access one of those copies, find it below." key="copies_explanation" board_key=this.model.board.key}}</p>
+    {{#if this.loading}}
       <p>{{t "Loading copies..." key="loading_copies"}}</p>
-    {{else if error}}
-      <p class='text-danger'>{{error}}</p>
+    {{else if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
     {{else}}
       <div class='list-group'>
-        {{#each copies as |copy|}}
+        {{#each this.copies as |copy|}}
           <span class='list-group-item'>
             <span style="font-size: 16px; font-weight: bold;">
               {{#link-to "board" copy.key}}{{copy.key}}{{/link-to}}

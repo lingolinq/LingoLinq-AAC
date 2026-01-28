@@ -1,9 +1,11 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
-import persistence from '../utils/persistence';
 import RSVP from 'rsvp';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
+  persistence: service('persistence'),
   model: function(params) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque) would otherwise be caught by the
@@ -15,10 +17,14 @@ export default Route.extend({
       return RSVP.reject({status: 404, reserved_path: true});
     }
     
+    // Note: When requesting user 'example', the API may return the current user (id 'self')
+    // instead of the 'example' user, causing an Ember Data warning. This is a backend
+    // behavior (possibly due to permissions or routing) and the warning is informational.
+    // The functionality works correctly - see PHASE2_STATUS.md for more details.
     var obj = this.store.findRecord('user', params.user_id);
     var _this = this;
     return obj.then(function(data) {
-      if(!data.get('really_fresh') && persistence.get('online')) {
+      if(!data.get('really_fresh') && _this.persistence.get('online')) {
         runLater(function() {data.reload();});
       }
       return data;

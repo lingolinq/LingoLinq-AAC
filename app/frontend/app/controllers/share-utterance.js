@@ -5,7 +5,7 @@ import $ from 'jquery';
 import utterance from '../utils/utterance';
 import LingoLinq from '../app';
 import { later as runLater } from '@ember/runloop';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import persistence from '../utils/persistence';
 import { computed, observer } from '@ember/object';

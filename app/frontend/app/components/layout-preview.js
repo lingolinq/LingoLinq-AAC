@@ -1,16 +1,16 @@
 import Component from '@ember/component';
 import $ from 'jquery';
-import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   didInsertElement: function() {
     this.draw();
-    this.set('app_state', app_state);
   },
   toggle_flipping: observer(
     'preferences.device.flipped_override',
-    'app_state.short_refresh_stamp',
+    'appState.short_refresh_stamp',
     function() {
       var now = (new Date()).getTime();
       var last_flipped = this.get('last_flipped') || now;

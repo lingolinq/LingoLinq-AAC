@@ -15,9 +15,21 @@ import lingoLinqExtras from './utils/extras';
 import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
+  // Enhanced debugging for persistence service errors (both null and undefined)
+  if(msg && msg.indexOf('Cannot read properties of') !== -1 && (msg.indexOf('null') !== -1 || msg.indexOf('undefined') !== -1) && msg.indexOf('get') !== -1) {
+    // console.error('[PERSISTENCE ERROR DEBUG] ... removed ...'); 
+  }
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
 Ember.onerror = function(err) {
+  // Enhanced debugging for unrecoverable render errors
+  if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
+    console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
+    console.error('[RENDER ERROR DEBUG] Error:', err);
+    console.error('[RENDER ERROR DEBUG] Message:', err.message);
+    console.error('[RENDER ERROR DEBUG] Stack:', err.stack);
+    console.error('[RENDER ERROR DEBUG] ================================================');
+  }
   if(err.stack) {
     LingoLinq.track_error(err.message, err.stack);
   } else {

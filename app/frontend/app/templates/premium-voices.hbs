@@ -7,19 +7,19 @@
     <div class="row">
       <div class="col-sm-12">
         <p>{{t "%app_name% offers a set of additional voices for paid users on Android and iOS. Listen to the voice samples to find the voice that will work best for you." key="premium_voices_select"}}
-          {{#if premium_available}}
-            {{t "You can activate up to %{available} premium voices for use on your devices." available=model.user.premium_voices.allowed key="premium_voices_select_2"}}
+          {{#if this.premium_available}}
+            {{t "You can activate up to %{available} premium voices for use on your devices." available=this.model.user.premium_voices.allowed key="premium_voices_select_2"}}
           {{/if}}
         </p>
 
-        {{#unless premium_available}}
-          {{#if app_state.currentUser.currently_premium}}
+        {{#unless this.premium_available}}
+          {{#if this.app_state.currentUser.currently_premium}}
             <p class="text-info">{{t "Premium voices are only available on the iOS, Android and Amazon apps. Please install from the app store and try again." key="premium_only_available_mobile"}}</p>
           {{else}}
             <p class="text-info">{{t "Premium voices are available to paid users. If you would like to install a premium voice during your free trial, please reach out to us and let us know." key="premium_only_available_paid"}}</p>
           {{/if}}
-        {{else if voice_error}}
-          <p class='text-danger'>{{voice_error}}</p>
+        {{else if this.voice_error}}
+          <p class='text-danger'>{{this.voice_error}}</p>
         {{/unless}}
         <table class="table table-hover">
           <thead>
@@ -30,7 +30,7 @@
             </tr>
           </thead>
           <tbody>
-            {{#each voices as |voice|}}
+            {{#each this.voices as |voice|}}
               <tr class={{if voice.active "voice_pad" "voice_pad text-muted"}}>
                 <td>
                   {{#if voice.claimed}}
@@ -67,7 +67,7 @@
                     {{t "%{percent}%" percent=voice.download_progress}}
                     <span class="glyphicon glyphicon-refresh spinning"></span>
                   {{else}}
-                    {{#if premium_available}}
+                    {{#if this.premium_available}}
                       <a href="#" {{action "download_voice" voice}}>{{#if voice.size}}{{t "%{size}Mb" size=voice.size key="megabytes"}} {{/if}}<span class="glyphicon glyphicon-save"></span></a>
                     {{else}}
                       {{#if voice.size}}

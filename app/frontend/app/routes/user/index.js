@@ -1,9 +1,10 @@
 import Route from '@ember/routing/route';
 import modal from '../../utils/modal';
-import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  appState: service('app-state'),
   model: function() {
     var model = this.modelFor('user');
     model.set('subroute_name', i18n.t('summary', 'summary'));
@@ -25,7 +26,7 @@ export default Route.extend({
     recordNote: function(type) {
       var _this = this;
       var user = this.modelFor('user');
-      app_state.check_for_needing_purchase().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
         modal.open('record-note', {note_type: type, user: user}).then(function() {
           _this.get('controller').reload_logs();
         });

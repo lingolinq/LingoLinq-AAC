@@ -9,9 +9,9 @@
       {{t "New Badge Image" key="new_badge_image"}}
     </h3>
     <div style='clear: right;'></div>
-    {{#if custom_badge_status.loading}}
+    {{#if this.custom_badge_status.loading}}
       <div>{{t "Saving image..." key="saving_image"}}</div>
-    {{else if custom_badge_status.error}}
+    {{else if this.custom_badge_status.error}}
       <div class='text-danger'>{{t "Error saving image" key="error_saving_image"}}</div>
     {{/if}}
   </div>
@@ -19,8 +19,8 @@
     <iframe style='width: 490px; height: 280px;' frameborder='0' src='https://www.opensymbols.org/badge_maker' title="Badge maker"></iframe>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "update_badge_image"}} disabled={{loading}}>
-      {{#if loading}}
+    <button class='btn btn-primary' {{action "update_badge_image"}} disabled={{this.loading}}>
+      {{#if this.loading}}
         {{t "Saving image..." key="saving_image"}}
       {{else}}
         {{t "Use This Image" key="use_this_image"}}

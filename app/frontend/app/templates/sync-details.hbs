@@ -5,12 +5,12 @@
   </div>
   <div class="modal-body">
     <div style='float: right;'>
-      {{#if persistence.syncing}}
+      {{#if this.persistence.syncing}}
         <button class='btn btn-lg btn-default' {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
       {{/if}}
       <button class='btn btn-lg btn-default' {{action "sync"}}>
-        <span class={{refreshing_class}}></span>
-        {{#if persistence.syncing}}
+        <span class={{this.refreshing_class}}></span>
+        {{#if this.persistence.syncing}}
           {{t "Syncing..." key="syncing_ellipsis"}}
         {{else}}
           {{t "Sync Now" key="sync_now"}}
@@ -19,36 +19,36 @@
     </div>
     <h3>
       <span>
-      {{#if persistence.sync_succeeded}}
-        {{#if session.invalid_token}}
+      {{#if this.persistence.sync_succeeded}}
+        {{#if this.session.invalid_token}}
           {{t "Please re-login and sync again" key="please_resync"}}
         {{else}}
           {{t "Sync Done!" key="sync_done"}}
         {{/if}}
-      {{else if persistence.sync_finished}}
+      {{else if this.persistence.sync_finished}}
         {{t "Done with " key="done_with"}}
-        {{t "error" key="n_errors_lower" count=persistence.sync_errors}}
+        {{t "error" key="n_errors_lower" count=this.persistence.sync_errors}}
         {{t "(see log)" key="see_log"}}
       {{else}}
-        {{#if persistence.sync_failed}}
+        {{#if this.persistence.sync_failed}}
           {{t "Sync Failed, see details below" key="sync_failed"}}
-          {{#if persistence.sync_status_error}}
+          {{#if this.persistence.sync_status_error}}
             <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
           {{/if}}
         {{else}}
-          {{#if persistence.syncing}}
+          {{#if this.persistence.syncing}}
             {{t "Syncing..." key="syncing_ellipsis"}}
-            {{#if persistence.sync_progress}}
-              {{#if persistence.sync_progress.total}}
+            {{#if this.persistence.sync_progress}}
+              {{#if this.persistence.sync_progress.total}}
                 {{this.persistence.sync_progress.visited}} /
-                {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
+                {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
               {{else}}
                 {{t "initializing..." key="initializing_lower"}}
               {{/if}}
             {{/if}}
           {{else}}
-            {{#if needs_sync}}
-              {{#if app_state.installed_app}}
+            {{#if this.needs_sync}}
+              {{#if this.app_state.installed_app}}
                 {{t "Sync before going offline!" key="needs_update"}}
               {{else}}
                 {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
@@ -62,8 +62,8 @@
       </span>
     </h3>
 
-    {{#if details}}
-      {{#each details as |sync|}}
+    {{#if this.details}}
+      {{#each this.details as |sync|}}
         <h3>
           {{#if sync.errored}}
             <span class='text-danger'>{{date_ago sync.finished}}</span>
@@ -116,10 +116,10 @@
     {{else}}
       <p style='margin-top: 20px;'>{{t "No sync details to show" key="no_sync_details"}}</p>
     {{/if}}
-    {{#if stashes.usage_log.length}}
+    {{#if this.stashes.usage_log.length}}
       <p style='margin-top: 20px;'>
-        {{stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
-        {{date first_log_date}}
+        {{this.stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
+        {{date this.first_log_date}}
       </p>
     {{/if}}
   </div>

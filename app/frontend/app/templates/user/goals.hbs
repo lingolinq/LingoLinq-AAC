@@ -1,17 +1,17 @@
-{{#if app_state.currentUser.modeling_only}}
+{{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
-{{else if model.currently_premium}}
+{{else if this.model.currently_premium}}
   <h2>{{t "Communication Goals" key="communication_goals"}}</h2>
 
-  {{#if goals.loading}}
+  {{#if this.goals.loading}}
     {{t "Loading goals..." key="loading_goals"}}
-  {{else if goals.error}}
+  {{else if this.goals.error}}
     {{t "Goals failed to load" key="goals_failed_to_load"}}
   {{else}}
-    {{#if primary_goal}}
-      {{#with primary_goal as |goal|}}
+    {{#if this.primary_goal}}
+      {{#with this.primary_goal as |goal|}}
         <div class='well goal sparkle_list_item'>
-          {{#if badges_loaded}}
+          {{#if this.badges_loaded}}
             <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
               {{#if goal.current_badge}}
                 {{# if goal.current_badge.earned}}
@@ -36,13 +36,13 @@
               {{/if}}
             </div>
           {{/if}}
-          {{#link-to "user.goal" model.user_name goal.id class="summary"}}
+          <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
             {{goal.summary}}
-          {{/link-to}}
+          </LinkTo>
           {{#if goal.template}}
             {{t "(template)" key="template_paren"}}
           {{/if}}
-          {{#if model.permissions.edit}}
+          {{#if this.model.permissions.edit}}
             <div style='float: right;'>
               {{#if goal.active}}
                 <span style='margin-right: 15px;'>
@@ -82,7 +82,7 @@
           </div>
         </div>
       {{/with}}
-    {{else if any_goal}}
+    {{else if this.any_goal}}
       <p>{{t "No primary goal set" key="no_primary_goal_set"}}</p>
     {{else}}
       <div style='max-width: 600px;'>
@@ -108,18 +108,18 @@
       - link to report on goals within reports summary email
       -->
     {{/if}}
-    {{#if model.permissions.edit}}
+    {{#if this.model.permissions.edit}}
       <button {{action "add_goal"}} class='btn btn-default'>{{t "Set a New Goal" key="set_a_new_goal"}}</button>
       <button {{action "find_goal"}} class='btn btn-default'>{{t "Browse Community Goals" key="browse_community_goals"}}</button>
     {{/if}}
-    {{#link-to "user.badges" model.user_name class="btn btn-default"}}{{t "See User Badges" key="see_user_badges"}}{{/link-to}}
+    <LinkTo @route="user.badges" @model={{this.model.user_name}} class="btn btn-default">{{t "See User Badges" key="see_user_badges"}}</LinkTo>
 
-    {{#if any_goal}}
+    {{#if this.any_goal}}
       <h3>{{t "Secondary Goals" key="secondary_goals"}}</h3>
-      {{#if secondary_goals}}
-        {{#each secondary_goals as |goal|}}
+      {{#if this.secondary_goals}}
+        {{#each this.secondary_goals as |goal|}}
           <div class='well goal sparkle_list_item'>
-            {{#if badges_loaded}}
+            {{#if this.badges_loaded}}
               <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
                 {{#if goal.current_badge}}
                   {{# if goal.current_badge.earned}}
@@ -144,13 +144,13 @@
                 {{/if}}
               </div>
             {{/if}}
-            {{#link-to "user.goal" model.user_name goal.id class="summary"}}
+            <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
               {{goal.summary}}
-            {{/link-to}}
+            </LinkTo>
             {{#if goal.template}}
               {{t "(template)" key="template_paren"}}
             {{/if}}
-            {{#if model.permissions.edit}}
+            {{#if this.model.permissions.edit}}
               <div style='float: right;'>
                 {{#if goal.active}}
                   <span style='margin-right: 15px;'>
@@ -194,10 +194,10 @@
         {{t "None Set" key="none_set"}}
       {{/if}}
       <h3>{{t "Past Goals" key="past_goals"}}</h3>
-      {{#if past_goals}}
-        {{#each past_goals as |goal|}}
+      {{#if this.past_goals}}
+        {{#each this.past_goals as |goal|}}
           <div class='well goal sparkle_list_item'>
-            {{#if badges_loaded}}
+            {{#if this.badges_loaded}}
               <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
                 {{#if goal.current_badge}}
                   {{# if goal.current_badge.earned}}
@@ -222,13 +222,13 @@
                 {{/if}}
               </div>
             {{/if}}
-            {{#link-to "user.goal" model.user_name goal.id class="summary"}}
+            <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
               {{goal.summary}}
-            {{/link-to}}
+            </LinkTo>
             {{#if goal.template}}
               {{t "(template)" key="template_paren"}}
             {{/if}}
-            {{#if model.permissions.edit}}
+            {{#if this.model.permissions.edit}}
               <div style='float: right;'>
                 {{#if goal.active}}
                   <span style='margin-right: 15px;'>
@@ -273,12 +273,12 @@
       {{/if}}
     {{/if}}
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1f"}}
-    {{#if app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+    {{#if this.app_state.feature_flags.subscriptions}}
+      {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

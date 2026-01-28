@@ -1,8 +1,9 @@
 import EmberObject from '@ember/object';
+import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import DS from 'ember-data';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed, observer } from '@ember/object';
 import contentGrabbers from '../utils/content_grabbers';
 import modal from '../utils/modal';
@@ -11,6 +12,7 @@ import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
 LingoLinq.Log = DS.Model.extend({
+  persistence: service('persistence'),
   type: DS.attr('string'),
   message_type: DS.attr('boolean'),
   events: DS.attr('raw'),
@@ -97,7 +99,7 @@ LingoLinq.Log = DS.Model.extend({
     _this.set('events_state', {checking: true});
     if(!_this.get('events')) {
       if(_this.get('data_url') && _this.get('encryption_settings')) {
-        persistence.remote_json(_this.get('data_url'), _this.get('encryption_settings')).then(function(data) {
+        _this.persistence.remote_json(_this.get('data_url'), _this.get('encryption_settings')).then(function(data) {
           _this.set('events', data);
           _this.set('events_state', {ready: true});
         }, function() {

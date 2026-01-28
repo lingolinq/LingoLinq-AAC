@@ -4,7 +4,7 @@ import session from '../utils/session';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 

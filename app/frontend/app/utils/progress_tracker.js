@@ -1,11 +1,14 @@
 import EmberObject from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import i18n from './i18n';
-import persistence from './persistence';
+// import persistence from './persistence';
 
 var progress_tracker = EmberObject.extend({
   success_wait: 2500,
   error_wait: 1500,
+  setup: function(persistence) {
+    this.persistence = persistence;
+  },
   track: function(progress, status_callback, opts) {
     this.track_ids = this.track_ids || {};
     var id = null;
@@ -36,7 +39,7 @@ var progress_tracker = EmberObject.extend({
     opts.error_wait = opts.error_wait || progress_tracker.error_wait;
     error_count = error_count || 0;
     var _this = this;
-    persistence.ajax(url, {type: 'GET'}).then(function(data) {
+    this.persistence.ajax(url, {type: 'GET'}).then(function(data) {
       data.progress.still_working = false;
       if(!data.progress.finished_at) {
         data.progress.still_working = true;

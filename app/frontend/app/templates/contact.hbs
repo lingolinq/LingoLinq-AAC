@@ -13,24 +13,24 @@
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-5">
-          {{input value=name class="form-control" id="name" placeholder="Your Name"}}
+          {{input value=this.name class="form-control" id="name" placeholder="Your Name"}}
         </div>
       </div>
       <div class="form-group">
         <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-5">
-          {{input value=email class="form-control" id="email" placeholder="you@example.com"}}
+          {{input value=this.email class="form-control" id="email" placeholder="you@example.com"}}
         </div>
       </div>
       <div class="form-group">
         <label for="recipient" class="col-sm-3 control-label">{{t "Recipient" key="recipient"}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="recipient" content=recipient_list selection=recipient action=(action (mut recipient)) }}
+          {{bound-select select_class="form-control" select_id="recipient" content=this.recipient_list selection=this.recipient action=(action (mut this.recipient)) }}
         </div>
       </div>
-      {{#if support_recipient}}
-        {{#unless app_state.no_linky}}
-          {{#if app_state.domain_settings.support_url}}
+      {{#if this.support_recipient}}
+        {{#unless this.app_state.no_linky}}
+          {{#if this.app_state.domain_settings.support_url}}
             <div class="form-group">
               <div class="col-sm-5 col-sm-offset-3">
                 <p>
@@ -45,19 +45,19 @@
       <div class="form-group">
         <label for="subject" class="col-sm-3 control-label">{{t "Subject" key="subject"}}</label>
         <div class="col-sm-5">
-          {{input value=subject class="form-control" id="subject" placeholder=""}}
+          {{input value=this.subject class="form-control" id="subject" placeholder=""}}
         </div>
       </div>
       <div class="form-group">
         <label for="message" class="col-sm-3 control-label">{{t "Message" key="message"}}</label>
         <div class="col-sm-5">
-          {{textarea value=message class="form-control" id="message" placeholder="" rows=4}}
+          {{textarea value=this.message class="form-control" id="message" placeholder="" rows=4}}
         </div>
       </div>
       <div class="form-group">
         <div class="col-sm-offset-3 col-sm-5">
-          <button disabled={{disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
-          <button disabled={{disabled}} type="button" class="btn btn-default" {{action "reset"}}>{{t "Clear" key="clear"}}</button>
+          <button disabled={{this.disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
+          <button disabled={{this.disabled}} type="button" class="btn btn-default" {{action "reset"}}>{{t "Clear" key="clear"}}</button>
         </div>
       </div>    
     </form>

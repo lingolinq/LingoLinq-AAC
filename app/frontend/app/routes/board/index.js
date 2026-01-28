@@ -1,32 +1,33 @@
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import editManager from '../../utils/edit_manager';
-import stashes from '../../utils/_stashes';
 import modal from '../../utils/modal';
-import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
 import LingoLinq from '../../app';
 import contentGrabbers from '../../utils/content_grabbers';
-import persistence from '../../utils/persistence';
 import speecher from '../../utils/speecher';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  stashes: service('stashes'),
+  appState: service('app-state'),
+  persistence: service('persistence'),
   model: function(params) {
     LingoLinq.log.track('getting model');
     var res = this.modelFor('board');
-    if((app_state.get('board_reloads') || {})[res.get('id')]) {
+    if((this.appState.get('board_reloads') || {})[res.get('id')]) {
       res.set('should_reload', true);
     }
     if(res.get('should_reload')) {
-      var do_reloads = app_state.get('board_reloads') || {};
+      var do_reloads = this.appState.get('board_reloads') || {};
       delete do_reloads[res.get('id')];
-      app_state.set('board_reloads', do_reloads);
+      this.appState.set('board_reloads', do_reloads);
       res.set('should_reload', false);
       LingoLinq.log.track('reloading');
-      res.reload(!app_state.get('speak_mode'));
+      res.reload(!this.appState.get('speak_mode'));
     }
     return res;
   },
@@ -38,10 +39,10 @@ export default Route.extend({
     controller.set('ordered_buttons', null);
     controller.set('preview_level', null);
     model.set('show_history', false);
-    model.set('focus_id', app_state.get('focus_words.focus_id'));
+    model.set('focus_id', _this.appState.get('focus_words.focus_id'));
     // do we need to preload the buttonset here?
     // model.load_button_set();
-    app_state.set('currentBoardState', {
+    _this.appState.set('currentBoardState', {
       id: model.get('id'),
       key: model.get('key'),
       parent_id: model.get('parent_board_id'),
@@ -55,20 +56,20 @@ export default Route.extend({
       text_direction: i18n.text_direction(model.get('locale')),
       translatable: (model.get('locales') || []).length > 1
     });
-    if(app_state.get('meta_home.unassigned') && app_state.get('meta_home.new_key') == model.get('key')) {
-      var state = Object.assign({}, app_state.get('currentBoardState'));
-      state.meta_home = app_state.get('meta_home.state');
-      stashes.persist('root_board_state', state);
-      app_state.set('meta_home.unassigned', false);
+    if(_this.appState.get('meta_home.unassigned') && _this.appState.get('meta_home.new_key') == model.get('key')) {
+      var state = Object.assign({}, _this.appState.get('currentBoardState'));
+      state.meta_home = _this.appState.get('meta_home.state');
+      _this.stashes.persist('root_board_state', state);
+      _this.appState.set('meta_home.unassigned', false);
     }
 
-    if(stashes.get('root_board_state.id') == app_state.get('currentBoardState.id')) {
-      if(!stashes.get('root_board_state.text_direction')) {
-        stashes.set('root_board_state.text_direction', app_state.get('currentBoardState.text_direction'));
+    if(_this.stashes.get('root_board_state.id') == _this.appState.get('currentBoardState.id')) {
+      if(!_this.stashes.get('root_board_state.text_direction')) {
+        _this.stashes.set('root_board_state.text_direction', _this.appState.get('currentBoardState.text_direction'));
       }
     }
-    if(app_state.get('speak_mode') && stashes.get('board_level')) {
-      app_state.set('currentBoardState.level', stashes.get('board_level'));
+    if(_this.appState.get('speak_mode') && _this.stashes.get('board_level')) {
+      _this.appState.set('currentBoardState.level', _this.stashes.get('board_level'));
     }
     // By default use whatever locale is set for the board, but
     // if the user has explicitly set a preferred locale then try
@@ -77,36 +78,36 @@ export default Route.extend({
     var stripped_langs = board_langs.map(function(l) { return l.split(/-|_/)[0]; });
     var loc_types = ['label_locale', 'vocalization_locale'];
     loc_types.forEach(function(loc_type) {
-      if(stashes.get(loc_type)) {
-        var preferred_lang = stashes.get(loc_type)
+      if(_this.stashes.get(loc_type)) {
+        var preferred_lang = _this.stashes.get(loc_type)
         var preferred_stripped_lang = preferred_lang.split(/-|_/)[0];
         if(stripped_langs.indexOf(preferred_stripped_lang) == -1) {
-          app_state.set(loc_type, model.get('locale'));
+          _this.appState.set(loc_type, model.get('locale'));
         } else if(board_langs.indexOf(preferred_lang) == -1) {
-          app_state.set(loc_type, preferred_stripped_lang);
+          _this.appState.set(loc_type, preferred_stripped_lang);
         } else {
-          app_state.set(loc_type, stashes.get(loc_type));
+          _this.appState.set(loc_type, _this.stashes.get(loc_type));
         }
       } else {
-        app_state.set(loc_type, model.get('locale'));
+        _this.appState.set(loc_type, model.get('locale'));
       }  
     });
-    if(LingoLinq.embedded && !app_state.get('speak_mode')) {
+    if(LingoLinq.embedded && !_this.appState.get('speak_mode')) {
       // Embedded mode should only operate in Speak Mode, so force it
-      var state = app_state.get('currentBoardState');
-      app_state.toggle_mode('speak', {override_state: state});
-      if(app_state.get('currentUser.preferences.home_board')) {
-        app_state.toggle_home_lock(true);
+      var state = _this.appState.get('currentBoardState');
+      _this.appState.toggle_mode('speak', {override_state: state});
+      if(_this.appState.get('currentUser.preferences.home_board')) {
+        _this.appState.toggle_home_lock(true);
       }
       emberSet(state, 'level', emberGet(state, 'default_level'));
-      emberSet(state, 'locale', app_state.get('label_locale'));
-      stashes.persist('root_board_state', state);
-      stashes.persist('board_level', state.level);
-      stashes.persist('temporary_root_board_state', null);
-      app_state.set('temporary_root_board_key', null);
+      emberSet(state, 'locale', _this.appState.get('label_locale'));
+      _this.stashes.persist('root_board_state', state);
+      _this.stashes.persist('board_level', state.level);
+      _this.stashes.persist('temporary_root_board_state', null);
+      _this.appState.set('temporary_root_board_key', null);
     }
-    editManager.setup(controller);
-    app_state.set('board_virtual_dom.sendAction', function(action, id, extra) {
+    editManager.setup(controller, this.appState, this.persistence, this.stashes);
+    _this.appState.set('board_virtual_dom.sendAction', function(action, id, extra) {
       controller.send(action, id, extra);
     });
     contentGrabbers.board_controller = controller;
@@ -126,7 +127,7 @@ export default Route.extend({
 
     controller.get('valid_fast_html');
     var insufficient_data = model.get('id') && (!controller.get('has_rendered_material') || (!model.get('pseudo_board') && model.get('permissions') === undefined));
-    if(model.get('background.prompt') && app_state.get('speak_mode')) {
+    if(model.get('background.prompt') && this.appState.get('speak_mode')) {
       // TODO: is there a way to wait until current speaking has
       // finished to activate the prompt?
       runLater(function() {
@@ -134,19 +135,19 @@ export default Route.extend({
       }, 100);
     }
     if(!model.get('valid_id')) {
-    } else if(persistence.get('online') || insufficient_data) {
+    } else if(_this.persistence.get('online') || insufficient_data) {
       LingoLinq.log.track('considering reload');
       _this.set('load_state', {not_local: true});
       var reload = RSVP.resolve(model);
       // if we're online then we should reload, but do it softly if we're in speak mode
-      if(persistence.get('online') && !model.get('local_only')) {
+      if(_this.persistence.get('online') && !model.get('local_only')) {
         // reload(false) says "hey, reload but you can use the local copy if you need to"
         // reload(true) says "definitely ping the server" (same as reload() )
         // TODO: this is failing when the board is available locally but the image isn't available locally
         // looks like this (usually, handle both cases) happens if it's stored in the local db but not
         // yet loaded into ember-data
-        var force_fetch = !app_state.get('speak_mode');
-        if(persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
+        var force_fetch = !_this.appState.get('speak_mode');
+        if(_this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', {remote_reload: true});
         reload = model.reload(force_fetch).then(null, function(err) {
           _this.set('load_state', {remote_reload_local_reload: true});
@@ -173,7 +174,7 @@ export default Route.extend({
           controller.processButtons(true);
         }
       }, function(error) {
-        if(!controller.get('has_rendered_material') || !app_state.get('speak_mode')) {
+        if(!controller.get('has_rendered_material') || !_this.appState.get('speak_mode')) {
           _this.send('error', error);
         }
       });
@@ -187,7 +188,7 @@ export default Route.extend({
       if(error && error.errors) {
         error = error.errors[0];
       }
-      if(persistence.get('online')) {
+      if(this.persistence.get('online')) {
         // retrieved, not_local, remote_reload, remote_reload_local_reload, local_reload, local_reload_remote_reload
         if(error && error.unauthorized) {
           return i18n.t('error_unauthorized', "You don't have permission to access this board.");
@@ -235,7 +236,7 @@ export default Route.extend({
       if(this.get('board')) {
         this.get('board').prompt('clear');
       }
-      if(app_state.get('edit_mode')) {
+      if(this.appState.get('edit_mode')) {
         modal.warning(i18n.t('save_or_cancel_changes_first', "Save or cancel your changes before leaving this board!"));
         transition.abort();
       }

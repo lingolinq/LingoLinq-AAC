@@ -15,7 +15,7 @@ import obf from './obf';
 import modal from './modal';
 import i18n from './i18n';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import stashes from './_stashes';
 import capabilities from './capabilities';
 import { set as emberSet, observer } from '@ember/object';

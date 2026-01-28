@@ -3,7 +3,7 @@ import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import progress_tracker from '../utils/progress_tracker';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({

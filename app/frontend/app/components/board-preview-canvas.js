@@ -1,15 +1,16 @@
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
-import persistence from '../utils/persistence';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
+  persistence: service('persistence'),
   didInsertElement: function() {
     this.render_canvas();
   },
@@ -30,10 +31,11 @@ export default Component.extend({
     } else {
       this.element.style.height = 'calc(100% - 55px)';
     }
+    var _this = this; // Capture _this for closure access
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
     var show_links = this.get('show_links');
-    var preferred_symbols = this.get('preferred_symbols') || app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+    var preferred_symbols = this.get('preferred_symbols') || this.appState.get('referenced_user.preferences.preferred_symbols') || 'original';
 
     if(board && this.get('board.id')) {
       var canvas = this.element.getElementsByTagName('canvas')[0];
@@ -74,7 +76,7 @@ export default Component.extend({
         var image_width = button_width - pad - pad - border_size - border_size;
         context.font = text_height + "px Arial";
         context.textAlign = 'center';
-        var variant_urls = board.variant_image_urls(app_state.get('currentUser.preferences.skin'));
+        var variant_urls = board.variant_image_urls(this.appState.get('currentUser.preferences.skin'));
         var handle_button = function(button_id) {
             var button = $.extend({}, buttons[button_id] || {});
             if(!button_id || !buttons[button_id]) {
@@ -184,6 +186,8 @@ export default Component.extend({
                       };
                       img.src = url;
                     };
+                    // Capture outer scope's persistence service
+                    var persistence = _this.persistence;
                     persistence.find_url(url).then(function(uri) {
                       draw(uri);
                     }, function() {

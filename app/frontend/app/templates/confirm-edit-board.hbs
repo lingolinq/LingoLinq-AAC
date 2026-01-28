@@ -5,7 +5,7 @@
   </div>
   <div class="modal-body">
     <p>
-      {{#if model.definitely_in_use}}
+      {{#if this.model.definitely_in_use}}
         {{t "Other people are currently using this board, and making changes directly to the board will affect their communication sets. Do you want to make a copy of this board instead?" key="in_use_make_copy_instead"}}
       {{else}}
         {{t "Other people may be using this board, and making changes could affect their communication sets. Do you want to make a copy of this board instead?" key="maybe_in_use_make_copy_instead"}}

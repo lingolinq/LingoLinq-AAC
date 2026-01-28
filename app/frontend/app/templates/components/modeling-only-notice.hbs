@@ -1,8 +1,8 @@
 <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
 <p>
   {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are not available for modeling-only accounts. Please " key="purchase_subscription_1b"}}
-  {{#if app_state.feature_flags.subscriptions}}
-    {{#link-to "user.subscription" app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+  {{#if this.app_state.feature_flags.subscriptions}}
+    {{#link-to "user.subscription" this.app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
   {{else}}
     {{t "purchase a premium account" key="purchase_subscription_2"}}
   {{/if}}

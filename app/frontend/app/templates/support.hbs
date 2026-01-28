@@ -9,28 +9,28 @@
   <div class="modal-body">
     <p>
       {{t "Stumped? Something not working like you think it should? We're always on the lookout for ways to make %app_name% better! Please tell us what you think, what's broken, or what you'd like to see made easier." key="support_intro"}}
-      {{#unless app_state.no_linky}}
+      {{#unless this.app_state.no_linky}}
         {{t "Here's some resources that might help:" key="support_resources"}}
       {{/unless}}
     </p>
-    {{#if app_state.no_linky}}
-      {{#if ios}}
+    {{#if this.app_state.no_linky}}
+      {{#if this.ios}}
         <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-          {{#if app_state.domain_settings.support_url}}
+          {{#if this.app_state.domain_settings.support_url}}
             <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
           {{/if}}
         </ul>
       {{/if}}
     {{else}}
       <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
-        {{#if ios}}
+        {{#if this.ios}}
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
         {{/if}}
-        {{#if app_state.domain_settings.support_url}}
+        {{#if this.app_state.domain_settings.support_url}}
           <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
         {{/if}}
-        {{#if app_state.domain_settings.youtube_url}}
+        {{#if this.app_state.domain_settings.youtube_url}}
           <li><a href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
         {{/if}}
       </ul>
@@ -42,50 +42,50 @@
           <h3 style="margin-bottom: -5px; font-size: 18px;">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</h3>
         </div>
       </div>
-      {{#if app_state.sessionUser}}
-        {{#if app_state.sessionUser.supervisors}}
+      {{#if this.app_state.sessionUser}}
+        {{#if this.app_state.sessionUser.supervisors}}
           <div class="form-group">
             <label for="author_id" class="col-sm-3 control-label">{{t "Send Reply To" key="send_reply_to"}}</label>
             <div class="col-sm-7">
-              {{bound-select select_class="form-control" select_id="supervisor_type" content=author_ids selection=author_id action=(action (mut author_id)) }}
+              {{bound-select select_class="form-control" select_id="supervisor_type" content=this.author_ids selection=this.author_id action=(action (mut this.author_id)) }}
             </div>
           </div>
         {{/if}}
       {{/if}}
-      {{#if prompt_user}}
+      {{#if this.prompt_user}}
         <div class="form-group">
           <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
           <div class="col-sm-7">
-            {{input value=name class="form-control" id="name" placeholder="Your Name"}}
+            {{input value=this.name class="form-control" id="name" placeholder="Your Name"}}
           </div>
         </div>
         <div class="form-group">
           <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
           <div class="col-sm-7">
-            {{input value=email class="form-control" id="email" placeholder="you@example.com"}}
+            {{input value=this.email class="form-control" id="email" placeholder="you@example.com"}}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="subject" class="col-sm-3 control-label">{{t "Subject" key="subject"}}</label>
         <div class="col-sm-7">
-          {{input value=subject class="form-control" id="subject" placeholder=""}}
+          {{input value=this.subject class="form-control" id="subject" placeholder=""}}
         </div>
       </div>
       <div class="form-group">
         <label for="message" class="col-sm-3 control-label">{{t "Message" key="message"}}</label>
         <div class="col-sm-7">
-          {{textarea value=message class="form-control" id="message" placeholder="" rows=3}}
+          {{textarea value=this.message class="form-control" id="message" placeholder="" rows=3}}
         </div>
       </div>
       <div class="form-group">
         <div class="col-sm-offset-3 col-sm-7">
-          <button disabled={{disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
+          <button disabled={{this.disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
           <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
           <span style="padding-left: 5px;">{{#link-to "troubleshooting"}}{{t "troubleshooting" key="troubleshooting"}}{{/link-to}}</span>
         </div>
       </div>
-      {{#if error}}
+      {{#if this.error}}
         <div class="form-group">
           <div class="col-sm-offset-3 col-sm-7">
             <p class="text-danger">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
@@ -95,7 +95,7 @@
     </form>
     <div style='margin-top: 20px'>
       <a href="#" {{action "toggle_cookies"}}>
-        {{#if cookies}}
+        {{#if this.cookies}}
           {{t "disable cookies" key="disable_cookies"}}
         {{else}}
           {{t "enable cookies" key="enable_cookies"}}

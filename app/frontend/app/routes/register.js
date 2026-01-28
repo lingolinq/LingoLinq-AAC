@@ -1,10 +1,12 @@
 import Route from '@ember/routing/route';
-import persistence from '../utils/persistence';
-import app_state from '../utils/app_state';
 import LingoLinq from '../app';
 import progress_tracker from '../utils/progress_tracker';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
+  persistence: service('persistence'),
+  appState: service('app-state'),
   model: function(params) {
     var res = this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer});
     res.set('watch_user_name_and_cookies', true);
@@ -17,8 +19,8 @@ export default Route.extend({
     if(model.get('reg_params.code') && model.get('reg_params.v')) {
       controller.start_code_lookup();
     }
-    if(!app_state.get('domain_settings.full_domain')) {
-      app_state.return_to_index();
+    if(!this.appState.get('domain_settings.full_domain')) {
+      this.appState.return_to_index();
       return;
     }
   },
@@ -27,22 +29,22 @@ export default Route.extend({
       // TODO: add a "save pending..." status somewhere
       var controller = this.get('controller');
       var user = controller.get('model');
+      var _this = this;
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
-      if(!persistence.get('online')) { return; }
+      if(!_this.persistence.get('online')) { return; }
       if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName')) {
         return;
       }
       controller.set('registering', {saving: true});
-      var _this = this;
       user.save().then(function(user) {
         controller.set('start_code', null);
         user.set('password', null);
         controller.set('triedToSave', false);
-        var meta = persistence.meta('user', null);
+        var meta = _this.persistence.meta('user', null);
         var save_done = function() {
           controller.set('registering', null);
-          app_state.return_to_index();
+          _this.appState.return_to_index();
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
           }

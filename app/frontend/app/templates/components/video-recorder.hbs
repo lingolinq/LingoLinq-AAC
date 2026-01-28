@@ -1,32 +1,32 @@
-{{#if video_allowed}}
+{{#if this.video_allowed}}
   <div class="row">
-    {{#if video}}
+    {{#if this.video}}
       <div class="col-sm-10">
-        <video id='video_elem' controls preload='metadata' src={{video.url}} style="width: 100%; max-height: 300px; border: 1px solid #ccc;"></video>
+        <video id='video_elem' controls preload='metadata' src={{this.video.url}} style="width: 100%; max-height: 300px; border: 1px solid #ccc;"></video>
       </div>
     {{else}}
       <div class="col-sm-2 video_buttons">
-        {{#if video_preview}}
-          {{#if video_preview.saving}}
+        {{#if this.video_preview}}
+          {{#if this.video_preview.saving}}
             <div style="padding: 10px 15px; font-size: 35px;">
               <span class="glyphicon glyphicon-refresh spinning"></span>
             </div>
           {{else}}
             <button class='btn btn-primary' {{action "keep"}} title={{t "Use This" key="use_this"}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "Use This" key="use_this"}}</span></button>
-            {{#if video_recording}}
+            {{#if this.video_recording}}
               <button class='btn btn-default' {{action "setup_recording"}} title={{t "Try Again" key="try_again"}}><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Try Again" key="try_again"}}</span></button>
             {{/if}}
             <button class='btn btn-default' {{action "clear"}} title={{t "Start Over" key="start_over"}}><span class='glyphicon glyphicon-remove'></span><span class='sr-only'>{{t "Start Over" key="start_over"}}</span></button>
           {{/if}}
-        {{else if video_recording}}
-          {{#if video_recording.started}}
+        {{else if this.video_recording}}
+          {{#if this.video_recording.started}}
             <button class='btn btn-primary' {{action "stop"}} title={{t "Stop Recording" key="stop_recording"}}><span class='glyphicon glyphicon-stop'></span><span class='sr-only'>{{t "Stop Recording" key="stop_recording"}}</span></button>
             <div style="text-align: center; font-size: 20px;">
-              <span class='text-muted'>{{duration time_recording}}</span>
+              <span class='text-muted'>{{duration this.time_recording}}</span>
             </div>
           {{else}}
             <button class='btn btn-primary' {{action "record"}} title={{t "Start Recording" key="start_recording"}}><span class='glyphicon glyphicon-record'></span><span class='sr-only'>{{t "Start Recording" key="start_recording"}}</span></button>
-            {{#if webcam.video_streams}}
+            {{#if this.webcam.video_streams}}
               <button class='btn btn-default' {{action "swap"}} title={{t "Switch Views" key="switch_views"}}><span class='glyphicon glyphicon-repeat'></span><span class='sr-only'>{{t "Switch Views" key="switch_views"}}</span></button>
             {{/if}}
             <button class='btn btn-default' {{action "clear"}} title={{t "Start Over" key="start_over"}}><span class='glyphicon glyphicon-remove'></span><span class='sr-only'>{{t "Start Over" key="start_over"}}</span></button>
@@ -39,22 +39,22 @@
             </button>
             <input type="file" name="video_upload" id="video_upload" accept="video/*">
           </span>
-          {{#if video_error}}
+          {{#if this.video_error}}
             <p>{{t "There was an error while trying to record video" key="error_recording_video"}}</p>
           {{/if}}
         {{/if}}
       </div>
       <div class="col-sm-10">
-        {{#if video_recording.error}}
+        {{#if this.video_recording.error}}
           <span class='text-danger'>
             {{t "Video recording is supported by this browser" key="video_recording_not_supported"}}
           </span>
-        {{else if video_preview.local_url}}
-          <video id='video_elem' controls preload='metadata' src={{video_preview.local_url}} style="width: 100%; border: 1px solid #ccc;"></video>
-        {{else if video_preview.url}}
-          <video id='video_elem' controls preload='metadata' src={{video_preview.url}} style="width: 100%; border: 1px solid #ccc;"></video>
-        {{else if video_recording.video_url}}
-          <video id='video_elem' muted preload='metadata' src={{video_recording.video_url}} style="width: 100%; border: 1px solid #ccc;"></video>
+        {{else if this.video_preview.local_url}}
+          <video id='video_elem' controls preload='metadata' src={{this.video_preview.local_url}} style="width: 100%; border: 1px solid #ccc;"></video>
+        {{else if this.video_preview.url}}
+          <video id='video_elem' controls preload='metadata' src={{this.video_preview.url}} style="width: 100%; border: 1px solid #ccc;"></video>
+        {{else if this.video_recording.video_url}}
+          <video id='video_elem' muted preload='metadata' src={{this.video_recording.video_url}} style="width: 100%; border: 1px solid #ccc;"></video>
         {{else}}
           <span class='text-muted'>
             {{t "You can record a video using your device's camera, or upload a pre-recorded video to share. Just hit one of the buttons to record or upload a video." key="video_prompt"}}
@@ -66,10 +66,10 @@
 {{else}}
   <p>
     {{t "Video recording is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1c"}}
-    {{#if user}}
-      {{#link-to "user.subscription" user.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
-    {{else if app_state.currentUser}}
-      {{#link-to "user.subscription" app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+    {{#if this.user}}
+      {{#link-to "user.subscription" this.user.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+    {{else if this.app_state.currentUser}}
+      {{#link-to "user.subscription" this.app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

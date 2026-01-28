@@ -15,7 +15,7 @@ import capabilities from './capabilities';
 import i18n from './i18n';
 import stashes from './_stashes';
 import progress_tracker from './progress_tracker';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 

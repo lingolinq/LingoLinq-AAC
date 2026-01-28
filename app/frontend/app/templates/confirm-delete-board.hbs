@@ -7,51 +7,51 @@
     <p>
       {{t "Are you sure you want to delete this board?" key="confirm_delete_board"}}
     </p>
-    {{#unless model.orphans}}
-      <img src={{ model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
+    {{#unless this.model.orphans}}
+      <img src={{ this.model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
     {{/unless}}
     <strong>{{this.model.board.name}}</strong><br>
-    {{#unless model.orphans}}
+    {{#unless this.model.orphans}}
       {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
-      {{#if model.board.non_author_uses}}
+      {{#if this.model.board.non_author_uses}}
         <div style='margin: 20px 0;'>
           {{t "Keep in mind that this board is currently being used by" key="board_used_by_1"}}
-          {{t "user" count=model.board.non_author_uses key="n_users"}}{{#if model.board.using_user_names}}{{t ", including:" key="comma_including"}}{{else}}{{t "." key="period"}}{{/if}}
-          {{#if model.board.using_user_names}}
+          {{t "user" count=this.model.board.non_author_uses key="n_users"}}{{#if this.model.board.using_user_names}}{{t ", including:" key="comma_including"}}{{else}}{{t "." key="period"}}{{/if}}
+          {{#if this.model.board.using_user_names}}
             <div style='margin: 10px 20px; max-height: 50px; overflow: auto;'>
-              {{using_user_names}}
+              {{this.using_user_names}}
             </div>
           {{/if}}
         </div>
       {{/if}}
     {{/unless}}
-    {{#if model.orphans}}
+    {{#if this.model.orphans}}
       <div style='margin: 30px 0 10px;'>
         <p class='text-danger'>
-          {{t "Please double-check that you want to delete the following %{n} boards" n=deleting_boards_count key="confirm_deleting_orphan_boards"}}
+          {{t "Please double-check that you want to delete the following %{n} boards" n=this.deleting_boards_count key="confirm_deleting_orphan_boards"}}
         </p>
       </div>
-    {{else if model.board.downstream_boards}}
+    {{else if this.model.board.downstream_boards}}
       <div style='margin: 30px 0 10px;'>
         <label>
-          {{input type="checkbox" checked=delete_downstream}}
+          {{input type="checkbox" checked=this.delete_downstream}}
           {{t "Also delete any of my boards that are linked from this board" key="delete_downstream_boards"}}
         </label>
-        {{#if delete_downstream}}
+        {{#if this.delete_downstream}}
           <p class='text-danger'>
-            {{#if deleting_boards_count}}
-              {{t "Please double-check that you want to delete the following %{n} boards" n=deleting_boards_count key="confirm_downstream_delete_n"}}
+            {{#if this.deleting_boards_count}}
+              {{t "Please double-check that you want to delete the following %{n} boards" n=this.deleting_boards_count key="confirm_downstream_delete_n"}}
             {{else}}
               {{t "Please double-check that you want to delete the following boards" key="confirm_downstream_delete"}}
             {{/if}}
           </p>
-          {{#if hierarchy.loading}}
+          {{#if this.hierarchy.loading}}
             {{t "Loading linked boards..." key="loading_linked_boards"}}
-          {{else if hierarchy.error}}
+          {{else if this.hierarchy.error}}
             {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
-          {{else if hierarchy}}
+          {{else if this.hierarchy}}
             <div style='margin-top: 5px;'>
-              {{board-hierarchy hierarchy=hierarchy selectable=true}}
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
             </div>
           {{else}}
             {{t "Could not load linked boards" key="error_loading_linked_boards"}}
@@ -59,19 +59,19 @@
         {{/if}}
       </div>
     {{/if}}
-    {{#if model.deleting}}
+    {{#if this.deleting}}
       <p style='margin: 20px;'>{{t "Deleting Board..." key="deleting_board"}}
-        {{#if model.deleting.board_key}}
-          <span class='text-muted'>{{this.model.deleting.board_key}}</span>
+        {{#if this.deleting.board_key}}
+          <span class='text-muted'>{{this.deleting.board_key}}</span>
         {{/if}}
       </p>
-    {{else if model.error}}
+    {{else if this.error}}
       <p style='margin: 20px;' class='text-danger'>{{t "There was an error trying to delete the board" key="error_deleting_board"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{this.model.deleting}}>
-      {{#if delete_downstream}}
+    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{this.deleting}}>
+      {{#if this.delete_downstream}}
         {{t "Delete Board Set" key="delete_boards"}}
       {{else}}
         {{t "Delete Board" key="delete_board"}}

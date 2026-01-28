@@ -6,7 +6,7 @@ import persistence from '../utils/persistence';
 import modal from '../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default Controller.extend({
   title: computed('model.sentence', 'model.show_user', 'model.user', function() {

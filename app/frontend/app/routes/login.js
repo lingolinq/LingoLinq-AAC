@@ -3,6 +3,17 @@ import session from '../utils/session';
 
 export default Route.extend({
   title: "Login",
+  beforeModel: function(transition) {
+    // If user is authenticated and has a valid token, redirect away from login
+    // If token is invalid, allow them to stay on login to re-authenticate
+    if(session.get('isAuthenticated') && session.get('access_token')) {
+      // Don't redirect if token is known to be invalid
+      // This allows users with expired/invalid tokens to re-authenticate
+      if(!session.get('invalid_token')) {
+        this.transitionTo('index');
+      }
+    }
+  },
   setupController: function(controller) {
     controller.set('login_id', "");
     controller.set('login_password', "");
@@ -20,9 +31,6 @@ export default Route.extend({
       controller.set('login_id', un);
       controller.set('tmp_token', tmp_token);
       history.replaceState({}, null, "/login");
-    }
-    if(session.get('isAuthenticated')) {
-      debugger
     }
   }
 });

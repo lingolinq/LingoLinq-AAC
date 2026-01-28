@@ -1,6 +1,6 @@
 <div class="row">
   <div class="col-sm-6 col-sm-offset-3">
-    {{#if stashes.enabled}}
+    {{#if this.stashes.enabled}}
       <div class='col-sm-8 col-sm-offset-4'>
         <h2>{{t "Join %app_name%" key="join_app"}}</h2>
       </div>
@@ -8,11 +8,11 @@
         {{t "Ready to try %app_name% out for yourself? Every signup gets 2 months free to kick the tires and see if the app is going to work for them, no credit card required!" key="ready_to_try_app"}}
       </div>
       <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
-      {{#if start_code_ref}}
+      {{#if this.start_code_ref}}
         <div class="form-group">
           <label for="sponsor" class="col-sm-4 control-label">
-            {{#if start_code_ref.image_url}}
-              <img src={{start_code_ref.image_url}} style='width: 75px; height: 75px; object-fit: contain; object-position: center;'>
+            {{#if this.start_code_ref.image_url}}
+              <img src={{this.start_code_ref.image_url}} style='width: 75px; height: 75px; object-fit: contain; object-position: center;'>
             {{else}}
               <span class="glyphicon glyphicon-paperclip" style="font-size: 75px;"></span>
             {{/if}}
@@ -20,12 +20,12 @@
           <div class="col-sm-8">
             <h4>
               {{t "Invited By" key="invited_by"}} 
-              {{#if start_code_ref.organization}}
+              {{#if this.start_code_ref.organization}}
                 {{t "Organization - " key="organization_dash"}}
               {{else}}
                 {{t "Supervisor - " key="supervisor_dash"}}
               {{/if}}
-              <em>{{start_code_ref.name}}</em>
+              <em>{{this.start_code_ref.name}}</em>
             </h4>
             <em>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</em>
           </div>
@@ -34,19 +34,19 @@
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-8">
-          {{input value=model.name class="form-control" id="name" placeholder="Full Name"}}
+          {{input value=this.model.name class="form-control" id="name" placeholder="Full Name"}}
         </div>
       </div>
       <div class="form-group">
         <label for="user_name" class="col-sm-4 control-label">{{t "Username" key="username"}}</label>
         <div class="col-sm-8">
-          {{input value=model.user_name class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)"}}
-          {{#if noSpacesName}}
+          {{input value=this.model.user_name class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)"}}
+          {{#if this.noSpacesName}}
             <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
-          {{else if user.user_name_check.checking}}
-          {{else if user.user_name_check.exists}}
-            <span class='text-danger'>{{t "%{user_name} already exists" user_name=user.user_name}}</span>
-          {{else if noName}}
+          {{else if this.user.user_name_check.checking}}
+          {{else if this.user.user_name_check.exists}}
+            <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+          {{else if this.noName}}
             <span class='text-danger'>{{t "name or username is required" key="name_or_username_required"}}</span>
           {{/if}}
         </div>
@@ -54,8 +54,8 @@
       <div class="form-group">
         <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-8">
-          {{input value=model.email class="form-control" id="email" placeholder=""}}
-          {{#if badEmail}}
+          {{input value=this.model.email class="form-control" id="email" placeholder=""}}
+          {{#if this.badEmail}}
             <span class='text-danger'>{{t "email required" key="email_required"}}</span>
           {{/if}}
         </div>
@@ -63,8 +63,8 @@
       <div class="form-group">
         <label class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-8">
-            {{input type="password" value=model.password class="form-control" id="password" placeholder="at least 6 characters"}}
-            {{#if shortPassword}}
+            {{input type="password" value=this.model.password class="form-control" id="password" placeholder="at least 6 characters"}}
+            {{#if this.shortPassword}}
               <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br>
             {{/if}}
         </div>
@@ -72,14 +72,14 @@
       <div class="form-group">
         <label for="registration_type" class="col-sm-4 control-label">{{t "Type" key="type"}}</label>
         <div class="col-sm-8">
-          {{bound-select select_class="form-control" select_id="registration_type" content=registration_types selection=model.preferences.registration_type action=(action (mut model.preferences.registration_type)) }}
+          {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
         </div>
       </div>
       <div class="form-group">
-        {{#if start_code}}
+        {{#if this.start_code}}
           <label for="start_code" class="col-sm-4 control-label">{{t "Start Code" key="start_code"}}</label>
           <div class="col-sm-8">
-            {{input value=model.start_code class="form-control" placeholder="optional, if provided"}}
+            {{input value=this.model.start_code class="form-control" placeholder="optional, if provided"}}
           </div>
         {{else}}
           <div class='col-sm-8 col-sm-offset-4'>
@@ -91,21 +91,21 @@
         <div class="col-sm-offset-4 col-sm-8">
           <div class="checkbox big_checkbox">
             <label style="font-weight: normal;">
-              {{input type="checkbox" checked=user.preferences.cookies}}
+              {{input type="checkbox" checked=this.user.preferences.cookies}}
               {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
             </label>
           </div>
           <div class="checkbox big_checkbox" style='margin-bottom: 10px;'>
             <label style="font-weight: normal;">
-              {{input type="checkbox" checked=model.terms_agree}}
+              {{input type="checkbox" checked=this.model.terms_agree}}
               By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
             </label>
           </div>
-          {{#if persistence.online}}
-            <button type="submit" disabled={{registering.saving}} class="btn btn-primary">
-              {{#if registering.initializing}}
+          {{#if this.persistence.online}}
+            <button type="submit" disabled={{this.registering.saving}} class="btn btn-primary">
+              {{#if this.registering.initializing}}
                 {{t "Handling Start Code..." key="processing_start_code"}}
-              {{else if registering.saving}}
+              {{else if this.registering.saving}}
                 {{t "Signing Up..." key="signing_up"}}
               {{else}}
                 {{t "Sign Up" key="sign_up"}}
@@ -116,13 +116,13 @@
               {{t "Not Online" key="not_online"}}
             </button>
           {{/if}}
-          {{#if registering.error}}
+          {{#if this.registering.error}}
             <p class='text-danger'>
-              {{#if registering.error.email_blocked}}
+              {{#if this.registering.error.email_blocked}}
                 {{t "The email address provided has been blocked, please try a different address" key="email_blocked"}}
-              {{else if registering.error.progress}}
+              {{else if this.registering.error.progress}}
                 {{t "User initialization failed. Please contact support." key="user_init_failed"}}
-              {{else if registering.error.start_code}}
+              {{else if this.registering.error.start_code}}
                 {{t "Please re-check the start code" key="check_start_code"}}
               {{else}}
                 {{t "There was an unexpected error while registering" key="error_registering"}}

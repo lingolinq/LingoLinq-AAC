@@ -1,10 +1,11 @@
 import Route from '@ember/routing/route';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  appState: service('app-state'),
   setupController: function(controller, model) {
-    app_state.set('super_no_linky', true);
-    app_state.set('no_linky', true);
+    this.appState.set('super_no_linky', true);
+    this.appState.set('no_linky', true);
     if(location.href.match(/support/)) {
       controller.transitionToRoute('contact');
     } else if(location.href.match(/privacy/)) {
@@ -12,7 +13,7 @@ export default Route.extend({
     } else if(location.href.match(/terms/)) {
       controller.transitionToRoute('terms');
     } else {
-      app_state.return_to_index();
+      this.appState.return_to_index();
     }
   }
 });

@@ -1,15 +1,15 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <h3>
-    {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
+    {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
     {{t "Core/Parts of Speech" key="core_parts_of_speech"}}
   </h3>
-  {{#if edit_permission}}
+  {{#if this.edit_permission}}
     <a href="#" style='float: right;' {{action "modify_core"}}>{{t "modify list" key="modify_list"}}</a>
   {{/if}}
   <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
   <div style="clear: both;"></div>
   <div style='height: 250px; overflow: auto;'>
-    {{#each core_words as |word|}}
+    {{#each this.core_words as |word|}}
       <a href='#' {{action "word_data" word.text}} class={{word.weight_class}}>{{word.text}}</a>
     {{/each}}
   </div>

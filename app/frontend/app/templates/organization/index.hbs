@@ -1,5 +1,5 @@
-{{#if model.permissions.edit}}
-  {{#if model.permissions.manage}}
+{{#if this.model.permissions.edit}}
+  {{#if this.model.permissions.manage}}
     <div class="row">
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
@@ -7,8 +7,8 @@
             {{t "Last logged session" key="last_logged_session"}}
           </div>
           <div class="panel-body">
-            {{#if first_log}}
-              {{date_ago first_log.started_at}}
+            {{#if this.first_log}}
+              {{date_ago this.first_log.started_at}}
             {{else}}
               {{t "..." key="ellipsis"}}
             {{/if}}
@@ -21,7 +21,7 @@
             {{t "Recent Sessions" key="recent_sessions"}}
           </div>
           <div class="panel-body">
-            {{t "session" key="n_sessions" count=user_counts.recent_session_count}}
+            {{t "session" key="n_sessions" count=this.user_counts.recent_session_count}}
           </div>
         </div>
       </div>
@@ -31,7 +31,7 @@
             {{t "Recently-logged users" key="recently_logged_users"}}
           </div>
           <div class="panel-body">
-            {{user_counts.recent_session_user_count}}{{#if model.total_users}} / {{this.model.total_users}}{{/if}}
+            {{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}}
             {{t "users" key="users_lower"}}
           </div>
         </div>
@@ -42,22 +42,22 @@
             {{t "Recently-logged hours" key="recently_logged_hours"}}
           </div>
           <div class="panel-body">
-            {{#if user_counts}}
-              {{t "hour" key="n_hours" count=user_counts.recent_session_hours}}
+            {{#if this.user_counts}}
+              {{t "hour" key="n_hours" count=this.user_counts.recent_session_hours}}
             {{else}}
               {{t "..." key="ellipsis"}}
             {{/if}}
           </div>
         </div>
       </div>
-      {{#if model.site}}
+      {{#if this.model.site}}
         <div class="col-sm-3 col-xs-6">
           <div class="panel panel-default summary smaller">
             <div class="panel-heading">
               {{t "Cache Memory" key="cache_memory"}}
             </div>
             <div class="panel-body">
-              <span class={{redis_state}}>
+              <span class={{this.redis_state}}>
                 {{this.model.site.mem_redis}} / {{this.model.site.max_redis}}
               </span>
             </div>
@@ -69,83 +69,83 @@
               {{t "Background Queues" key="background_queues"}}
             </div>
             <div class="panel-body">
-              <span class={{queue_state.default}}>
-                {{delimit model.site.default_queue}} {{t "Default" key="default"}},
+              <span class={{this.queue_state.default}}>
+                {{delimit this.model.site.default_queue}} {{t "Default" key="default"}},
               </span>
-              <span class={{queue_state.priority}}>
-                {{delimit model.site.priority_queue}} {{t "Priority" key="priority"}},
+              <span class={{this.queue_state.priority}}>
+                {{delimit this.model.site.priority_queue}} {{t "Priority" key="priority"}},
               </span>
-              <span class={{queue_state.slow}}>
-                {{delimit model.site.slow_queue}} {{t "Slow" key="slow"}}
+              <span class={{this.queue_state.slow}}>
+                {{delimit this.model.site.slow_queue}} {{t "Slow" key="slow"}}
               </span>
             </div>
           </div>
         </div>
       {{/if}}
       <div class='col-sm-12' style='margin-top: -10px; margin-bottom: 10px;'>
-        {{#if model.permissions.edit}}
+        {{#if this.model.permissions.edit}}
           <div style='float: right;'>
             <button class='btn btn-default' {{action "edit_org"}}>{{t "Settings" key="settings"}}</button>
           </div>
         {{/if}}
-        {{#if multi_home_boards}}
+        {{#if this.multi_home_boards}}
           <div class="btn-group">
             <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               {{t "Default Home Boards" key="default_home_boards"}} ({{this.model.home_board_keys.length}}) <span class="caret"></span>
             </button>
             <ul class="dropdown-menu">
-              {{#each model.home_board_keys as |key|}}
+              {{#each this.model.home_board_keys as |key|}}
                 <li>{{#link-to "board" key}}{{key}}{{/link-to}}</li>
               {{/each}}
             </ul>
           </div>
-        {{else if model.default_home_board}}
+        {{else if this.model.default_home_board}}
           <div class='text-muted'>
             {{t "default home board:" key="default_home_board"}}
-            {{#link-to "board" model.default_home_board.key}}{{this.model.default_home_board.key}}{{/link-to}}
+            {{#link-to "board" this.model.default_home_board.key}}{{this.model.default_home_board.key}}{{/link-to}}
           </div>
         {{/if}}
         <div style='clear: right;'></div>
       </div>
       <div class="col-sm-6" style="padding: 0;">
-        {{#if weekly_stats.error}}
+        {{#if this.weekly_stats.error}}
           {{t "There was a problem loading this report" key="problem_loading_report"}}
         {{else}}
-          {{stats/sessions-per-week weekly_stats=weekly_stats}}
+          {{stats/sessions-per-week weekly_stats=this.weekly_stats}}
         {{/if}}
       </div>
       <div class="col-sm-3" style="padding: 0;">
-        {{stats/recent-sessions total=model.total_users recent=user_counts.recent_session_user_count}}
+        {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
       </div>
-      {{#if user_counts}}
+      {{#if this.user_counts}}
         <div class="col-sm-3" style="padding: 0;">
-          {{stats/recent-goals total=model.total_users goal_set=user_counts.goal_set tracked=user_counts.goal_recently_logged}}
+          {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
         </div>
       {{/if}}
       <div style='clear: both;'>
       <div class='col-sm-6'>
         <strong>{{t "Recently-Modeled Words" key="recently_modeled_words"}}</strong>
-        {{#if combined_models.words_by_frequency.length}}
-          {{stats/word-cloud stats=combined_models tiny=true zoom=1}}
+        {{#if this.combined_models.words_by_frequency.length}}
+          {{stats/word-cloud stats=this.combined_models tiny=true zoom=1}}
         {{else}}
           <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
         {{/if}}
       </div>
-      {{#if app_state.feature_flags.profiles}}
+      {{#if this.app_state.feature_flags.profiles}}
         <div class="col-sm-3" style="padding: 0;">
-          {{stats/recent-profiles type="communicator" total=user_counts.communicators recent=user_counts.communicator_recent_profiles}}
+          {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
         </div>
         <div class="col-sm-3" style="padding: 0;">
-          {{stats/recent-profiles type="supervisor" total=user_counts.supervisors recent=user_counts.supervisor_recent_profiles}}
+          {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
         </div>
       {{/if}}
       </div>
     </div>
   {{/if}}
-  {{#if model.parent_org}}
-    {{#if model.parent_org.permissions.view}}
+  {{#if this.model.parent_org}}
+    {{#if this.model.parent_org.permissions.view}}
       {{t "Parent Organization: " key="parent_org_colon"}}
-      {{#link-to "organization" model.parent_org.id}}
+      {{#link-to "organization" this.model.parent_org.id}}
         {{this.model.parent_org.name}}
       {{/link-to}}
     {{else}}
@@ -154,25 +154,25 @@
     {{/if}}
   {{/if}}
   <ul class='nav nav-pills' style="margin-bottom: 15px; margin-top: 20px;">
-    {{#if model.admin}}
-      <li class={{if show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
-    {{else if model.children_orgs}}
-      <li class={{if show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
+    {{#if this.model.admin}}
+      <li class={{if this.show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
+    {{else if this.model.children_orgs}}
+      <li class={{if this.show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
     {{/if}}
-    <li class={{if show_managers "active"}}><a href="#" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</a></li>
-    <li class={{if show_supervisors "active"}}><a href="#" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</a></li>
-    <li class={{if show_communicators "active"}}><a href="#" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</a></li>
-    <li class={{if show_evals "active"}}><a href="#" {{action "pick" "evals"}}>{{t "Evals" key="evals"}}</a></li>
-    <li class={{if show_extras "active"}}><a href="#" {{action "pick" "extras"}}>{{t "Symbols" key="symbols"}}</a></li>
+    <li class={{if this.show_managers "active"}}><a href="#" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</a></li>
+    <li class={{if this.show_supervisors "active"}}><a href="#" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</a></li>
+    <li class={{if this.show_communicators "active"}}><a href="#" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</a></li>
+    <li class={{if this.show_evals "active"}}><a href="#" {{action "pick" "evals"}}>{{t "Evals" key="evals"}}</a></li>
+    <li class={{if this.show_extras "active"}}><a href="#" {{action "pick" "extras"}}>{{t "Symbols" key="symbols"}}</a></li>
   </ul>
-  {{#if show_managers}}
-    {{#if managers.data}}
+  {{#if this.show_managers}}
+    {{#if this.managers.data}}
       <p>
-        {{t "manager" key="n_managers" count=model.total_managers}}
+        {{t "manager" key="n_managers" count=this.model.total_managers}}
       </p>
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each managers.data as |manager|}}
+          {{#each this.managers.data as |manager|}}
             <tr>
               <td style='font-size: 20px;'>
                 {{#link-to "user" manager.user_name}}
@@ -194,35 +194,35 @@
           {{/each}}
         </tbody>
       </table>
-    {{else if managers.loading}}
+    {{else if this.managers.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading managers..." key="loading_managers"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=manager_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      {{input value=this.manager_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
       <button class="btn btn-default btn-sm" {{action "management_action" "add_manager"}}>{{t "Add Manager" key="add_manager"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_assistant"}}>{{t "Add Assistant" key="add_assistant"}}</button>
       <a href="#" {{action "new_user" "add_manager"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
-      {{#if suggest_creating_manager}}
+      {{#if this.suggest_creating_manager}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=manager_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.manager_user_name}}
         </p>
       {{/if}}
     </div>
   {{/if}}
 
-  {{#if show_supervisors}}
-    {{#if supervisors.data}}
+  {{#if this.show_supervisors}}
+    {{#if this.supervisors.data}}
       <p>
-        {{t "supervisor" key="n_supervisors_lower" count=model.total_supervisors}}
-        {{#if model.allotted_supervisor_licenses}}
+        {{t "supervisor" key="n_supervisors_lower" count=this.model.total_supervisors}}
+        {{#if this.model.allotted_supervisor_licenses}}
           ({{this.model.used_supervisors}} / {{this.model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key="premium_sponsorships_used"}})
         {{/if}}
       </p>
       <table class="table table-hover" style="width: 600px;">
         <tbody>
-          {{#each supervisors.data as |user|}}
+          {{#each this.supervisors.data as |user|}}
             <tr>
               <td style='font-size: 20px;'>
                 {{#link-to "user" user.user_name}}
@@ -252,50 +252,50 @@
           {{/each}}
         </tbody>
       </table>
-      {{#if more_supervisors}}
+      {{#if this.more_supervisors}}
         <p style="margin-bottom: 30px;">
           {{#link-to "organization.reports" (query-params current_report="all_supervisors")}}
             {{t "See all supervisors" key="see_all_supervisors"}}
           {{/link-to}}
         </p>
       {{/if}}
-    {{else if supervisors.loading}}
+    {{else if this.supervisors.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading supervisors..." key="loading_supervisors"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=supervisor_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
+      {{input value=this.supervisor_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <button disabled={{this.no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
       <a href="#" {{action "new_user" "add_supervisor"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
-      {{#if suggest_creating_supervisor}}
+      {{#if this.suggest_creating_supervisor}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=supervisor_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.supervisor_user_name}}
         </p>
       {{/if}}
     </div>
   {{/if}}
 
-  {{#if show_communicators}}
-    {{#if model.permissions}}
+  {{#if this.show_communicators}}
+    {{#if this.model.permissions}}
       <p>
         {{this.model.used_licenses}} {{t "out of" key="out_of" }}
         {{this.model.allotted_licenses}} {{t "sponsorships used, " key="sponsored_comma" }}
-        {{t "user" key="n_users" count=model.total_users}} {{t "total" key="total"}}
+        {{t "user" key="n_users" count=this.model.total_users}} {{t "total" key="total"}}
       </p>
     {{/if}}
-    {{#if users.data}}
+    {{#if this.users.data}}
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each users.data as |user|}}
+          {{#each this.users.data as |user|}}
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
                 {{/link-to}}
-                {{#if model.permissions.manage}}
+                {{#if this.model.permissions.manage}}
                   <em>{{user.name}}</em>
                 {{/if}}
                 {{#if user.org_pending}}
@@ -317,42 +317,42 @@
           {{/each}}
         </tbody>
       </table>
-      {{#if more_users}}
+      {{#if this.more_users}}
         <p style="margin-bottom: 30px;">
           {{#link-to "organization.reports" (query-params current_report="all_users")}}
             {{t "See all users" key="see_all_users"}}
           {{/link-to}}
         </p>
       {{/if}}
-    {{else if users.loading}}
+    {{else if this.users.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=user_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
+      {{input value=this.user_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <button disabled={{this.no_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_unsponsored_user"}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
       <a href="#" {{action "new_user" "add_user"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
-      {{#if suggest_creating_communicator}}
+      {{#if this.suggest_creating_communicator}}
         <p class='text-danger'>
-          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=user_user_name}}
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.user_user_name}}
         </p>
       {{/if}}
     </div>
   {{/if}}
 
-  {{#if show_evals}}
-    {{#if model.permissions}}
+  {{#if this.show_evals}}
+    {{#if this.model.permissions}}
       <p>
         {{this.model.used_evals}} {{t "out of" key="out_of" }}
         {{this.model.allotted_eval_licenses}} {{t "eval accounts used" key="evals_used" }}
       </p>
     {{/if}}
-    {{#if evals.data}}
+    {{#if this.evals.data}}
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each evals.data as |user|}}
+          {{#each this.evals.data as |user|}}
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
@@ -370,43 +370,43 @@
           {{/each}}
         </tbody>
       </table>
-      {{#if more_evals}}
+      {{#if this.more_evals}}
         <p style="margin-bottom: 30px;">
           {{#link-to "organization.reports" (query-params current_report="all_evals")}}
             {{t "See all eval accounts" key="see_all_evals"}}
           {{/link-to}}
         </p>
       {{/if}}
-    {{else if evals.loading}}
+    {{else if this.evals.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=eval_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
-      {{#unless no_eval_licenses}}
+      {{input value=this.eval_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <button disabled={{this.no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
+      {{#unless this.no_eval_licenses}}
         <a href="#" {{action "new_user" "add_eval"}} style='padding-left: 10px;'>{{t "New Eval Account" key="new_eval"}}</a>
-        {{#if suggest_creating_eval}}
+        {{#if this.suggest_creating_eval}}
           <p class='text-danger'>
-            {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=eval_user_name}}
+            {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.eval_user_name}}
           </p>
         {{/if}}
       {{/unless}}
     </div>
   {{/if}}
 
-  {{#if show_extras}}
-    {{#if model.permissions}}
+  {{#if this.show_extras}}
+    {{#if this.model.permissions}}
       <p>
         {{this.model.used_extras}} {{t "out of" key="out_of" }}
         {{this.model.allotted_extras}} {{t "premium symbol accounts used" key="extras_used" }}
       </p>
     {{/if}}
-    {{#if org_extras.data}}
+    {{#if this.org_extras.data}}
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each org_extras.data as |user|}}
+          {{#each this.org_extras.data as |user|}}
             <tr>
               <td>
                 {{#link-to "user" user.user_name}}
@@ -421,25 +421,25 @@
           {{/each}}
         </tbody>
       </table>
-    {{else if org_extras.loading}}
+    {{else if this.org_extras.loading}}
       <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
     {{else}}
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=extras_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
-      <button disabled={{no_extras}} class="btn btn-default btn-sm" {{action "management_action" "add_extras" extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
+      {{input value=this.extras_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <button disabled={{this.no_extras}} class="btn btn-default btn-sm" {{action "management_action" "add_extras" this.extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
     </div>
   {{/if}}
 
-  {{#if show_organizations}}
-    {{#if model.children_orgs}}
+  {{#if this.show_organizations}}
+    {{#if this.model.children_orgs}}
       <p>
-        {{t "sub-organization" key="n_sub_organizations" count=model.children_orgs.length}}
+        {{t "sub-organization" key="n_sub_organizations" count=this.model.children_orgs.length}}
       </p>
       <table class="table table-hover" style="width: 400px;">
         <tbody>
-          {{#each model.children_orgs as |org|}}
+          {{#each this.model.children_orgs as |org|}}
             <tr>
               <td style='font-size: 20px;'>
                 {{#link-to "organization" org.id}}
@@ -451,19 +451,19 @@
           {{/each}}
         </tbody>
       </table>
-    {{else if model.admin}}
-      {{#if model.permissions.manage}}
-        {{#if orgs.data}}
+    {{else if this.model.admin}}
+      {{#if this.model.permissions.manage}}
+        {{#if this.orgs.data}}
           <p>
-            {{t "organization" key="n_organizations" count=orgs.data.length}}
+            {{t "organization" key="n_organizations" count=this.orgs.data.length}}
           </p>
           <span style='display: block; width: 200px;'>
-            {{input type="text" value=org_filter class="form-control" placeholder="search orgs"}}
+            {{input type="text" value=this.org_filter class="form-control" placeholder="search orgs"}}
           </span>
           <table class="table table-hover" style="width: 400px;">
             <tbody>
-              {{#if filtered_orgs}}
-                {{#each filtered_orgs as |org|}}
+              {{#if this.filtered_orgs}}
+                {{#each this.filtered_orgs as |org|}}
                     <tr>
                       <td style='font-size: 20px;'>
                         {{#link-to "organization" org.id}}
@@ -483,7 +483,7 @@
                     </tr>
                 {{/each}}
               {{else}}
-                {{#each alphabetized_orgs as |letter|}}
+                {{#each this.alphabetized_orgs as |letter|}}
                   <tr>
                     <td colspan="2">
                       <a href="#" {{action "toggle_letter" letter}}>
@@ -524,66 +524,66 @@
               {{/if}}
             </tbody>
           </table>
-        {{else if orgs.loading}}
+        {{else if this.orgs.loading}}
           <p style="margin-bottom: 30px;">{{t "Loading organizations..." key="loading_orgs"}}</p>
         {{else}}
           <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
         {{/if}}
         <div style='margin-top: -15px;'>
-          {{input value=org_org_name placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
-          {{input value=org_user_name placeholder="admin user name" class="form-control inline inline-masquerade input-sm"}}
+          {{input value=this.org_org_name placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
+          {{input value=this.org_user_name placeholder="admin user name" class="form-control inline inline-masquerade input-sm"}}
           <button class="btn btn-default btn-sm" {{action "add_org"}}>{{t "Add Organization" key="add_org"}}</button>
         </div>
       {{/if}}
     {{/if}}
   {{/if}}
-  {{#if model.permissions.manage}}
+  {{#if this.model.permissions.manage}}
     <div style='margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;'></div>
-    {{#if model.premium}}
+    {{#if this.model.premium}}
       <h3>{{t "Communicator & Eval Statistics" key="general_stats"}}</h3>
-      {{#if report.loading}}
+      {{#if this.report.loading}}
         {{t "Loading..." key="loading"}}
-      {{else if report.error}}
+      {{else if this.report.error}}
         {{t "Error Loading Statistics" key="error_loading_statistic"}}
       {{else}}
         <div class='row'>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Access Methods" key="access_methods"}}</strong>
-            {{stats/bar-breakdown hash=report.stats.access_methods org_id=model.id order="access"}}
+            {{stats/bar-breakdown hash=this.report.stats.access_methods org_id=this.model.id order="access"}}
           </div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Communicator Status" key="communicator_status"}}</strong>
-            {{stats/bar-breakdown hash=report.stats.statuses org_id=model.id order="status"}}
+            {{stats/bar-breakdown hash=this.report.stats.statuses org_id=this.model.id order="status"}}
           </div>
           <div style='clear: both;'></div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Devices" key="devices"}}</strong>
-            {{stats/bar-breakdown hash=report.stats.devices org_id=model.id order="device"}}
+            {{stats/bar-breakdown hash=this.report.stats.devices org_id=this.model.id order="device"}}
           </div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Vocabularies" key="vocabularies"}}</strong>
-            {{stats/bar-breakdown hash=report.stats.vocabs org_id=model.id order="vocab"}}
+            {{stats/bar-breakdown hash=this.report.stats.vocabs org_id=this.model.id order="vocab"}}
           </div>
           <div style='clear: both;'></div>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Grid Sizes" key="grid_sizes"}}</strong>
-            {{stats/bar-breakdown hash=report.stats.sizes org_id=model.id order="size"}}
+            {{stats/bar-breakdown hash=this.report.stats.sizes org_id=this.model.id order="size"}}
           </div>
         </div>
       {{/if}}
     {{/if}}
     <div>
       <h3>{{t "Recent Words" key="recent_words"}}</h3>
-      {{#if user_counts.word_counts.length}}
-        {{stats/word-cloud stats=words short=true zoom=1}}
+      {{#if this.user_counts.word_counts.length}}
+        {{stats/word-cloud stats=this.words short=true zoom=1}}
       {{else}}
         <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
       {{/if}}
     </div>
     <h3>{{t "Recent Sessions" key="recent_sessions"}}</h3>
-    {{#if logs.data}}
+    {{#if this.logs.data}}
       <ul class="list-unstyled">
-      {{#each logs.data as |log|}}
+      {{#each this.logs.data as |log|}}
         <li>
           <p>
             {{#link-to "user" log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
@@ -599,13 +599,13 @@
         </li>
       {{/each}}
       </ul>
-    {{else if logs.loading}}
+    {{else if this.logs.loading}}
       <p>{{t "Loading sessions..." key="loading_sessions"}}</p>
     {{else}}
       <p>{{t "None found" key="none_found"}}</p>
     {{/if}}
   {{/if}}
-{{else if loading_org}}
+{{else if this.loading_org}}
   {{t "Loading..." key="loading"}}
 {{else}}
   {{t "No information available" key="no_information_available"}}

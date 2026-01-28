@@ -136,14 +136,59 @@ class Api::SearchController < ApplicationController
     # "https://opensymbols.s3.amazonaws.com/libraries/arasaac/to be reflected.png"
     # but it must also work for already-escaped URLs like
     # "http://www.stephaniequinn.com/Music/Commercial%2520DEMO%2520-%252013.mp3"
-    a, b = (params['url'] || '').split(/\/\//, 2)
-    b = (b || '').sub(/\/\//, '/').to_s if b.match(/^opensymbols/)
+    url_param = params['url'] || ''
+    
+    # Handle S3 paths - convert relative S3 paths to full S3 URLs
+    # Paths like /extras.../BoardDownstreamButtonSet/... are S3 paths, not server paths
+    if url_param.start_with?('/extras') || url_param.start_with?('/extras-')
+      # This is an S3 path - convert to full S3 URL
+      bucket = ENV['UPLOADS_S3_BUCKET']
+      if bucket
+        url_param = "https://#{bucket}.s3.amazonaws.com#{url_param}"
+      else
+        Rails.logger.error("S3 bucket not configured, cannot proxy S3 path: #{url_param}")
+        return api_error 400, {error: "S3 bucket not configured", original_url: params['url']}
+      end
+    # Handle other relative URLs - convert to absolute if they start with /
+    elsif url_param.start_with?('/')
+      # Relative URL - construct absolute URL from request
+      url_param = "#{request.protocol}#{request.host_with_port}#{url_param}"
+    end
+    
+    a, b = url_param.split(/\/\//, 2)
+    # Check if b exists and matches pattern before calling .match() to avoid NoMethodError on nil
+    b = (b || '').sub(/\/\//, '/').to_s if b && b.match(/^opensymbols/)
     url = [a, b].join("//")
+    
+    # Validate that we have a proper absolute URL
+    unless url.match(/^https?:\/\//)
+      # Distinguish between S3 configuration issues and general URL format issues
+      original_url = params['url'] || url_param
+      if original_url.start_with?('/extras') || original_url.start_with?('/extras-')
+        Rails.logger.error("Invalid proxy URL - S3 path could not be converted to absolute URL: #{original_url}")
+        return api_error 400, {error: "S3 path could not be converted to absolute URL. Check S3 bucket configuration.", original_url: original_url}
+      else
+        Rails.logger.error("Invalid proxy URL (not absolute): #{original_url}")
+        return api_error 400, {error: "Invalid URL: must be an absolute URL (starting with http:// or https://)", original_url: original_url}
+      end
+    end
+    
     uri = URI.parse(url) rescue nil
     Rails.logger.warn("proxying #{url}")
-    uri ||= URI.parse(URI.escape(url))
+    
+    unless uri
+      # Try escaping the URL
+      begin
+        uri = URI.parse(URI.escape(url))
+      rescue => e
+        Rails.logger.error("Failed to parse proxy URL: #{url} - #{e.message}")
+        return api_error 400, {error: "Invalid URL format: #{e.message}"}
+      end
+    end
+    
     # TODO: add timeout for slow requests
     request = Typhoeus::Request.new(uri.to_s, followlocation: true)
+    error = nil
     begin
       content_type, body = get_url_in_chunks(request)
       if content_type == 'redirect'
@@ -153,6 +198,11 @@ class Api::SearchController < ApplicationController
       end
     rescue BadFileError => e
       error = e.message
+      Rails.logger.error("Proxy error for #{url}: #{error}")
+    rescue => e
+      error = "Failed to fetch URL: #{e.message}"
+      Rails.logger.error("Proxy exception for #{url}: #{e.class.name} - #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
     end
     
     if !error

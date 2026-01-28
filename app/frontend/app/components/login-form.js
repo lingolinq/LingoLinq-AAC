@@ -3,22 +3,25 @@ import Component from '@ember/component';
 import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
-import stashes from '../utils/_stashes';
-import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
-import app_state from '../utils/app_state';
 import session from '../utils/session';
 import { isEmpty } from '@ember/utils';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Component.extend({
+  appState: service('app-state'),
+  persistence: service('persistence'),
+  stashes: service('stashes'),
+  app_state: alias('appState'),
   willInsertElement: function() {
     var _this = this;
-    this.set('stashes', stashes);
+    this.set('stashes', this.stashes);
     this.set('checking_for_secret', false);
     this.set('login_followup', null);
     this.set('login_single_assertion', null);
@@ -28,13 +31,13 @@ export default Component.extend({
     this.browserTokenChange = function() {
       if (!_this.isDestroyed && !_this.isDestroying) {
         _this.set('client_id', 'browser');
-        _this.set('client_secret', persistence.get('browserToken'));
+        _this.set('client_secret', _this.persistence.getBrowserToken());
         _this.set('checking_for_secret', false);
       }
     };
-    persistence.addObserver('browserToken', this.browserTokenChange);
+    this.persistence.addObserver('browserToken', this.browserTokenChange);
     this.set('long_token', false);
-    var token = persistence.get('browserToken');
+    var token = this.persistence.getBrowserToken();
     if(this.get('tmp_token')) {
       this.check_tmp_token(this.get('tmp_token'));
     }
@@ -66,7 +69,7 @@ export default Component.extend({
     }
     console.log('[login-form] check_for_missing_token called', {
       has_client_secret: !!_this.get('client_secret'),
-      online: persistence.get('online')
+      online: _this.persistence.get('online')
     });
     _this.set('checking_for_secret', false);
     if(!_this.get('client_secret')) {
@@ -82,11 +85,11 @@ export default Component.extend({
           networkError: result && result.networkError,
           has_browserToken: !!result && !!result.browserToken,
           browserToken_preview: result && result.browserToken ? result.browserToken.substring(0, 20) + '...' : null,
-          persistence_browserToken: persistence.get('browserToken') ? persistence.get('browserToken').substring(0, 20) + '...' : null
+          persistence_browserToken: _this.persistence.getBrowserToken() ? _this.persistence.getBrowserToken().substring(0, 20) + '...' : null
         });
         // If we got a browserToken, it should already be set in persistence via the observer
         // But let's make sure client_secret is set
-        var browserToken = result && result.browserToken || persistence.get('browserToken');
+        var browserToken = result && result.browserToken || _this.persistence.getBrowserToken();
         if (browserToken && !_this.get('client_secret')) {
           console.log('[login-form] Setting client_secret from browserToken');
           _this.set('client_secret', browserToken);
@@ -128,7 +131,7 @@ export default Component.extend({
     if(code_2fa) {
       url = url + "&2fa_code=" + encodeURIComponent(code_2fa);
     }
-    return persistence.ajax(url, {
+    return this.persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
       if(data.authenticated && data.token) {
@@ -156,7 +159,7 @@ export default Component.extend({
       }, function(err) {
         _this.set('login_followup', false);
         _this.set('login_single_assertion', false);
-        app_state.set('logging_in', false);
+        _this.appState.set('logging_in', false);
         _this.set('logging_in', false);
         _this.set('logged_in', false);
         _this.set('login_error', i18n.t('token_not_retrieved', "Authorization never completed, please try again"));
@@ -171,6 +174,19 @@ export default Component.extend({
   },
   handle_auth: function(data) {
     var _this = this;
+    // Ensure access_token is immediately available in capabilities for subsequent API requests
+    if(data && data.access_token && capabilities) {
+      if(capabilities.access_token !== data.access_token) {
+        console.log('[login-form.handle_auth] Setting capabilities.access_token from auth data', {
+          token_preview: data.access_token.substring(0, 10) + '...'
+        });
+        capabilities.access_token = data.access_token;
+        if(capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+      }
+    }
+    
     if(data.missing_2fa) {
       _this.set('prompt_2fa', {needed: true, token: data.access_token});
       if(data.set_2fa) {
@@ -197,7 +213,7 @@ export default Component.extend({
     }
   },
   first_login: computed(function() {
-    return !stashes.get('prior_login');
+    return !this.stashes.get('prior_login');
   }),
   box_class: computed('left', 'wide', function() {
     if(this.get('wide')) {
@@ -208,14 +224,8 @@ export default Component.extend({
       return htmlSafe('col-md-offset-4 col-md-4 col-sm-offset-3 col-sm-6');
     }
   }),
-  app_state: computed(function() {
-    return app_state;
-  }),
-  persistence: computed(function() {
-    return persistence;
-  }),
   willDestroyElement: function() {
-    persistence.removeObserver('browserToken', this.browserTokenChange);
+    this.persistence.removeObserver('browserToken', this.browserTokenChange);
     // Cancel all pending timeouts to prevent setting properties on destroyed component
     var timeouts = this.get('pendingTimeouts') || [];
     timeouts.forEach(function(timeoutHandle) {
@@ -242,10 +252,10 @@ export default Component.extend({
           window.navigator.splashscreen.show();
         }
       }
-      var wait = stashes.flush(null, 'auth_').then(function() {
-        stashes.setup();
+      var wait = this.stashes.flush(null, 'auth_').then(function() {
+        _this.stashes.setup();
       });
-      var auth_settings = stashes.get_object('auth_settings', true) || {};
+      var auth_settings = this.stashes.get_object('auth_settings', true) || {};
       capabilities.access_token = auth_settings.access_token;
       _this.set('logging_in', false);
       _this.set('login_followup', false);
@@ -253,7 +263,7 @@ export default Component.extend({
       _this.set('logged_in', true);
       if(reload) {
         runLater(function() {
-          app_state.set('logging_in', true);
+          _this.appState.set('logging_in', true);
         }, 1000);
         if(Ember.testing) {
           console.error("would have redirected to home");
@@ -281,26 +291,162 @@ export default Component.extend({
     },
     login_followup: function(choice) {
       var _this = this;
-      LingoLinq.store.findRecord('user', 'self').then(function(u) {
-        u.set('preferences.device.long_token', !!choice);
-        u.set('preferences.device.asserted', true);
-        u.save().then(function() {
-          _this.send('login_success', true);
-        }, function(err) {
-          _this.set('login_followup', false);
-          _this.set('login_single_assertion', false);
-          app_state.set('logging_in', false);
-          _this.set('logging_in', false);
-          _this.set('logged_in', false);
-          _this.set('login_error', i18n.t('user_update_failed', "Updating login preferences failed"));
-        });
-      }, function(err) {
+      // Check if component is already destroyed
+      if (_this.isDestroyed || _this.isDestroying) {
+        return;
+      }
+      
+      // Helper function to set error state consistently
+      var setErrorState = function(errorMessage) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         _this.set('login_followup', false);
         _this.set('login_single_assertion', false);
-        app_state.set('logging_in', false);
+        _this.appState.set('logging_in', false);
         _this.set('logging_in', false);
         _this.set('logged_in', false);
-        _this.set('login_error', i18n.t('user_retrieve_failed', "Retrieving login preferences failed"));
+        if (errorMessage) {
+          _this.set('login_error', errorMessage);
+        }
+      };
+      
+      // Ensure capabilities.access_token is set before making the user request
+      // This prevents 401 errors when fetching user preferences
+      var ensureToken = function() {
+        // Check if component is destroyed
+        if (_this.isDestroyed || _this.isDestroying) {
+          return RSVP.reject(new Error('Component destroyed'));
+        }
+        
+        // Check if token is already available
+        var hasToken = capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '';
+        if(!hasToken) {
+          // Check auth_settings as fallback
+          var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+          if(auth_settings.access_token && auth_settings.access_token !== 'none' && auth_settings.access_token !== '') {
+            // Token exists in auth_settings, sync it to capabilities
+            if(capabilities) {
+              capabilities.access_token = auth_settings.access_token;
+              if(capabilities.sync_access_token) {
+                capabilities.sync_access_token();
+              }
+            }
+            hasToken = true;
+          }
+        }
+        if(hasToken) {
+          return RSVP.resolve();
+        }
+        // Wait a bit for token to sync, then check again
+        var timeoutHandle = null;
+        return new RSVP.Promise(function(resolve, reject) {
+          var attempts = 0;
+          var maxAttempts = 10;
+          var checkToken = function() {
+            // Check if component is destroyed
+            if (_this.isDestroyed || _this.isDestroying) {
+              reject(new Error('Component destroyed'));
+              return;
+            }
+            
+            attempts++;
+            var tokenAvailable = capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '';
+            if(!tokenAvailable) {
+              // Check auth_settings again
+              var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+              if(auth_settings.access_token && auth_settings.access_token !== 'none' && auth_settings.access_token !== '') {
+                if(capabilities) {
+                  capabilities.access_token = auth_settings.access_token;
+                  if(capabilities.sync_access_token) {
+                    capabilities.sync_access_token();
+                  }
+                }
+                tokenAvailable = true;
+              }
+            }
+            if(tokenAvailable) {
+              resolve();
+            } else if(attempts < maxAttempts) {
+              timeoutHandle = runLater(checkToken, 100);
+              _this.get('pendingTimeouts').push(timeoutHandle);
+            } else {
+              // Token not available after max attempts - reject instead of proceeding
+              reject(new Error('Token not available after maximum attempts'));
+            }
+          };
+          timeoutHandle = runLater(checkToken, 50);
+          _this.get('pendingTimeouts').push(timeoutHandle);
+        });
+      };
+      
+      ensureToken().then(function() {
+        // Check if component is destroyed
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        
+        // Sync token once - no need for multiple delayed calls
+        if(capabilities && capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+        
+        // Double-check token is available before making request
+        var token = capabilities && capabilities.access_token;
+        if(!token || token === 'none' || token === '') {
+          var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+          token = auth_settings.access_token;
+          if(token && token !== 'none' && token !== '') {
+            if(capabilities) {
+              capabilities.access_token = token;
+              if(capabilities.sync_access_token) {
+                capabilities.sync_access_token();
+              }
+            }
+          }
+        }
+        
+        if(!token || token === 'none' || token === '') {
+          console.warn('[login-form.login_followup] No access token available, cannot fetch user preferences', {
+            has_capabilities: !!capabilities,
+            capabilities_token: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
+            auth_settings: _this.stashes.get_object('auth_settings', true) ? 'exists' : 'missing'
+          });
+          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+          return;
+        }
+        
+        console.log('[login-form.login_followup] Token available, fetching user preferences', {
+          token_preview: token.substring(0, 10) + '...',
+          has_capabilities: !!capabilities,
+          capabilities_token_set: !!(capabilities && capabilities.access_token)
+        });
+        
+        LingoLinq.store.findRecord('user', 'self').then(function(u) {
+          // Check if component is destroyed
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
+          u.set('preferences.device.long_token', !!choice);
+          u.set('preferences.device.asserted', true);
+          u.save().then(function() {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
+            _this.send('login_success', true);
+          }, function(err) {
+            setErrorState(i18n.t('user_update_failed', "Updating login preferences failed"));
+          });
+        }, function(err) {
+          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed"));
+        });
+      }, function(error) {
+        // Handle token fetch failure
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        console.warn('[login-form.login_followup] Token ensure failed', error);
+        setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
       });
     },
     logout: function() {
@@ -312,7 +458,7 @@ export default Component.extend({
       var url = '/api/v1/token_check?access_token=' + token + "&include_token=1&rnd=" + Math.round(Math.random() * 999999);
       url = url + "&2fa_code=" + encodeURIComponent(_this.get('code_2fa') || '');
       _this.set('status_2fa', {loading: true});
-      persistence.ajax(url, {
+      _this.persistence.ajax(url, {
         type: 'GET'
       }).then(function(data) {
         if(data.authenticated && data.token && data.valid_2fa) {
@@ -331,7 +477,7 @@ export default Component.extend({
     },
     authenticate: function() {
       this.set('logging_in', true);
-      app_state.set('logging_in', true);
+      this.appState.set('logging_in', true);
       this.set('login_error', null);
       var _this = this;
       var data = this.getProperties('identification', 'password', 'client_secret', 'long_token', 'browserless');
@@ -370,7 +516,7 @@ export default Component.extend({
           });
           err = err || {};
           _this.set('logging_in', false);
-          app_state.set('logging_in', false);
+          _this.appState.set('logging_in', false);
           if(err.error == "Invalid authentication attempt") {
             _this.set('login_error', i18n.t('invalid_login', "Invalid user name or password"));
           } else if(err.error == "Invalid client secret") {
@@ -388,7 +534,7 @@ export default Component.extend({
           _this.set('logging_in', false);  
         };
         if(!isEmpty(data.identification)) {
-          persistence.ajax('/auth/lookup', {type: 'POST', data: {ref: data.identification}}).then(function(res) {
+          _this.persistence.ajax('/auth/lookup', {type: 'POST', data: {ref: data.identification}}).then(function(res) {
             if(res && res.url) {
               _this.redirect_login(res.url);
             } else {

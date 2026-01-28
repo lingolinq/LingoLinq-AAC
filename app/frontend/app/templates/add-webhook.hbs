@@ -10,13 +10,13 @@
       <div class="form-group">
         <label for="webhook_name" class="col-sm-3 control-label">{{t "Handler Name" key="handler_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
-          {{input value=webhook.name class="form-control" id="webhook_name" placeholder="Name"}}
+          {{input value=this.webhook.name class="form-control" id="webhook_name" placeholder="Name"}}
         </div>
       </div>
       <div class="form-group">
         <label for="webhook_url" class="col-sm-3 control-label">{{t "Update URL" key="update_url"}}</label>
         <div class="col-sm-9">
-          {{input value=webhook.url class="form-control" id="webhook_url" placeholder="URL to update"}}
+          {{input value=this.webhook.url class="form-control" id="webhook_url" placeholder="URL to update"}}
         </div>
       </div>
       <div class="form-group">
@@ -24,13 +24,13 @@
         <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=webhook.new_session_event}}
+                {{input type="checkbox" checked=this.webhook.new_session_event}}
                 {{t "New Log Session (up to 3 hour delay)" key="new_log_session"}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=webhook.new_utterance_event}}
+                {{input type="checkbox" checked=this.webhook.new_utterance_event}}
                 {{t "New Shared Utterance (short delay)" key="new_utterance"}}
               </label>
             </div>
@@ -43,7 +43,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=webhook.include_content}}
+                {{input type="checkbox" checked=this.webhook.include_content}}
                 {{t "Send content with update if available" key="send_content_with_update"}}
               </label>
             </div>
@@ -51,13 +51,13 @@
         </fieldset>
       </div>
     </form>
-    {{#if status.error}}
+    {{#if this.status.error}}
       <p class='text-danger'>{{t "There was an unexpected problem creating the event handler." key="error_creating_webhook"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button {{action "save"}} class='btn btn-primary' disabled={{status.saving}}>
-      {{#if status.saving}}
+    <button {{action "save"}} class='btn btn-primary' disabled={{this.status.saving}}>
+      {{#if this.status.saving}}
         {{t "Creating Event Handler..." key="creating_webhook"}}
       {{else}}
         {{t "Create Event Handler" key="create_webhook"}}

@@ -2,8 +2,8 @@
   <div class="modal-header">
       <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{#if model.integration.name}}
-        {{t "%{tool} Details" tool=model.integration.name key="tool_details"}}
+      {{#if this.model.integration.name}}
+        {{t "%{tool} Details" tool=this.model.integration.name key="tool_details"}}
       {{else}}
         {{t "Connected Tool Details" key="integration_details"}}
       {{/if}}
@@ -11,14 +11,14 @@
   </div>
   <div class="modal-body">
     <h4>
-      {{#if model.integration.icon_url}}
+      {{#if this.model.integration.icon_url}}
         <img src={{this.model.integration.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
       {{/if}}
       {{this.model.integration.name}}
     </h4>
-    {{#if model.integration.user_settings}}
+    {{#if this.model.integration.user_settings}}
       <dl class='dl-horizontal'>
-        {{#each model.integration.user_settings as |param|}}
+        {{#each this.model.integration.user_settings as |param|}}
           <dt>{{param.label}}</dt>
           <dd>
             {{#if param.protected}}
@@ -30,19 +30,19 @@
         {{/each}}
       </dl>
     {{/if}}
-    {{#if model.integration.custom_integration}}
-      {{#if model.integration.access_token}}
+    {{#if this.model.integration.custom_integration}}
+      {{#if this.model.integration.access_token}}
         <p>{{t "The following tokens are necessary for this connected tool to access and receive information from LingoLinq. You should copy these tokens down, as they will not be visible again in the future." key="connected_tool_details"}}</p>
         <div style='width: 90%; overflow :auto;'>
-          {{t "API Access Token: %{token}" token=model.integration.access_token}} <br><br>
-          {{t "Webhook Token: %{token}" token=model.integration.token}}
+          {{t "API Access Token: %{token}" token=this.model.integration.access_token}} <br><br>
+          {{t "Webhook Token: %{token}" token=this.model.integration.token}}
         </div>
       {{/if}}
     {{/if}}
   </div>
   <div class="modal-footer">
     <button {{action "close"}} class="btn btn-default">{{t "Close" key="close"}}</button>
-    {{#if model.user.permissions.edit}}
+    {{#if this.model.user.permissions.edit}}
       <button {{action "delete_integration"}} class='btn btn-default'>{{t "Remove Integration" key="remove_integration"}}</button>
     {{/if}}
   </div>

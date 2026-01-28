@@ -5,7 +5,7 @@ import i18n from '../utils/i18n';
 import modal from '../utils/modal';
 import { set as emberSet } from '@ember/object';
 import { computed, observer } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
   opening: function() {

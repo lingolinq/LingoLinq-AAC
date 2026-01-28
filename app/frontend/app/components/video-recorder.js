@@ -1,23 +1,24 @@
 import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import contentGrabbers from '../utils/content_grabbers';
-import app_state from '../utils/app_state';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   tagName: 'div',
   willInsertElement: function() {
     var _this = this;
     runLater(function() {
       _this.sendAction('video_not_ready');
       contentGrabbers.videoGrabber.setup(_this);
-      _this.set('app_state', app_state);
+      _this.set('app_state', _this.appState);
     });
   },
   willDestroyElement: function() {
     contentGrabbers.videoGrabber.clear_video_work();
   },
-  time_recording: computed('video_recording.started', 'app_state.short_refresh_stamp', function() {
+  time_recording: computed('video_recording.started', 'appState.short_refresh_stamp', function() {
     if(this.get('video_recording.started')) {
       var now = (new Date()).getTime();
       return Math.round((now - this.get('video_recording.started')) / 1000);

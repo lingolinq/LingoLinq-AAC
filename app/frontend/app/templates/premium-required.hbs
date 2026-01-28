@@ -6,32 +6,32 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if show_reason}}
+    {{#if this.show_reason}}
       {{this.model.reason}} -- {{this.model.action}} -- {{this.model.user_name}}
     {{/if}}
     <span class="glyphicon glyphicon-info-sign" style="float: left; margin-right: 10px; font-size: 30px;"></span>
-    {{#if model.remind_to_upgrade}}
+    {{#if this.model.remind_to_upgrade}}
       <p>
-        {{#if model.limited_supervisor}}
-          {{#if app_state.sessionUser.modeling_only}}
+        {{#if this.model.limited_supervisor}}
+          {{#if this.app_state.sessionUser.modeling_only}}
             {{t "This account is limited to modeling-only, and so will not have full access to this feature except when working with premium communicators." key="limited_modeling_only"}}
           {{else}}
             {{t "This account is not currently tied to any premium communicator accounts, and as a result will currently have limited access to this feature." key="limited_supervisor_limited_accesss"}}
           {{/if}}
           {{t "If you need personal access to this feature, please" key="please_subscribe_a1"}}
-          {{#if app_state.sessionUser.modeling_only}}
-            {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium supporter account" key="please_subscribe_a2"}}{{/link-to}}
+          {{#if this.app_state.sessionUser.modeling_only}}
+            {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium supporter account" key="please_subscribe_a2"}}{{/link-to}}
           {{else}}
-            {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
+            {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
           {{/if}}
           {{t "to support this good cause." key="please_subscribe_3"}}
         {{else}}
           {{t "This user's premium access has ended. %app_name% is a powerful service that helps many users communicate. Please " key="please_subscribe_1"}}
-          {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
+          {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
           {{t "to support this good cause." key="please_subscribe_3"}}
         {{/if}}
       </p>
-      {{#if model.user.limited_paid_supervisor}}
+      {{#if this.model.user.limited_paid_supervisor}}
         <p>
           {{t "Are you a professional using %app_name% to do evals for your clients? We want you to be able to show your clients everything %app_name% can do! Please consider purchasing a discounted eval account to show off all of LingoLinq's features." key="update_to_eval_if_needed"}}
         </p>
@@ -43,8 +43,8 @@
     {{else}}
       <p>
         {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have a paid communicator account. Please " key="purchase_subscription_1a"}}
-        {{#if model.user_name}}
-          {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+        {{#if this.model.user_name}}
+          {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
         {{else}}
           {{t "purchase a premium account" key="purchase_subscription_2"}}
         {{/if}}
@@ -57,11 +57,11 @@
     <div style="clear: left;"></div>
   </div>
   <div class="modal-footer">
-    {{#if model.remind_to_upgrade}}
+    {{#if this.model.remind_to_upgrade}}
       <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Okay" key="okay"}}</a>
     {{else}}
       <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
     {{/if}}
-    {{#link-to "user.subscription" model.user_name class="btn btn-lg btn-primary"}}{{t "Update Account Settings" key="update_my_subscription"}}{{/link-to}}
+    <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="btn btn-lg btn-primary">{{t "Update Account Settings" key="update_my_subscription"}}</LinkTo>
   </div>
 {{/modal-dialog}}

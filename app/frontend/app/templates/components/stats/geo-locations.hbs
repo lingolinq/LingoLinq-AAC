@@ -1,6 +1,6 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <h3>{{t "Locations" key="maps"}}</h3>
-  {{#if usage_stats.geo_locations}}
+  {{#if this.usage_stats.geo_locations}}
     {{map-with-markers action="marker_link_select"}}
   {{else}}
     <p>{{t "There is not enough data to show geographic locations. Please check back after using %app_name% a few more times." key="need_more_geo_data"}}</p>

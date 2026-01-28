@@ -1,6 +1,6 @@
-<h4 style='margin-top: 0; margin-bottom :10px;'>{{t "Statistics By " key="stats_by"}} {{goal.unit_description}}</h4>
+<h4 style='margin-top: 0; margin-bottom :10px;'>{{t "Statistics By " key="stats_by"}} {{this.goal.unit_description}}</h4>
 <div class="time_block_rows wider">
-  {{#each goal.time_unit_status_rows as |row|}}
+  {{#each this.goal.time_unit_status_rows as |row|}}
     <div class="time_block_row" style='clear: left;'>
       <div class="time_block_left" data-toggle="tooltip" data-placement="top" title={{row.tooltip}}>
         <span class={{row.status_class}}></span>
@@ -12,7 +12,7 @@
   {{/each}}
   <div class="time_block_row dates" style='clear: left;'>
     <div class="time_block_left">&nbsp;</div>
-    {{#each goal.time_units as |unit|}}
+    {{#each this.goal.time_units as |unit|}}
       <div class="time_block rotate" style='height: 100px; white-space: nowrap;'>
         <div style="transform: translate(0, 55px) rotate(-90deg);">{{unit.label}}</div>
       </div>

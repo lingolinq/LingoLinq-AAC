@@ -2,7 +2,7 @@
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "Quick Assessment for %{user_name}" key="quick_assessment_for" user_name=model.user.user_name}}
+      {{t "Quick Assessment for %{user_name}" key="quick_assessment_for" user_name=this.model.user.user_name}}
     </h3>
   </div>
   <div class="modal-body">
@@ -10,16 +10,16 @@
       <div class="form-group">
         <label for="description" class="col-sm-4 control-label">{{t "Assessment Type" key="assessment_type"}}</label>
         <div class="col-sm-5">
-          {{input value=description disabled=goal_id class="form-control" id="description" placeholder="brief description"}}
+          {{input value=this.description disabled=this.goal_id class="form-control" id="description" placeholder="brief description"}}
         </div>
-        {{#if goal_options}}
+        {{#if this.goal_options}}
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group'>
               <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 {{t "Goal" key="goal"}} <span class="caret"></span>
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left;">
-                {{#each goal_options as |option|}}
+                {{#each this.goal_options as |option|}}
                   <li><a href='#' {{action "goal_action" option.id}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
@@ -30,7 +30,7 @@
       <div class="form-group">
         <label for="correct_tally" class="col-sm-4 control-label">{{t "Correct" key="correct"}}</label>
         <div class="col-sm-2">
-          {{input value=totals.correct class="form-control input-lg" id="correct_tally" placeholder="0"}}
+          {{input value=this.totals.correct class="form-control input-lg" id="correct_tally" placeholder="0"}}
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
           <span class="text-muted">{{t "oops?" key="oops_q"}}</span>
@@ -41,7 +41,7 @@
       <div class="form-group">
         <label for="incorrect_tally" class="col-sm-4 control-label">{{t "Incorrect" key="incorrect"}}</label>
         <div class="col-sm-2">
-          {{input value=totals.incorrect class="form-control input-lg" id="incorrect_tally" placeholder="0"}}
+          {{input value=this.totals.incorrect class="form-control input-lg" id="incorrect_tally" placeholder="0"}}
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
           <span class="text-muted">{{t "oops?" key="oops_q"}}</span>

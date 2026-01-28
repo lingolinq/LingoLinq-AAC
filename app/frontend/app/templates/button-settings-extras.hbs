@@ -1,19 +1,19 @@
 <form class="form-horizontal">
-<div class={{if extrasState "active" "hidden"}}>
+<div class={{if this.extrasState "active" "hidden"}}>
     <div class="form-group">
       <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="levels" content=levelTypes selection=model.level_style action=(action (mut model.level_style)) }}
+        {{bound-select select_class="form-control" select_id="levels" content=this.levelTypes selection=this.model.level_style action=(action (mut this.model.level_style)) }}
       </div>
     </div>
-    {{#if basic_level_style}}
-      {{#if level_overrides.hidden}}
+    {{#if this.basic_level_style}}
+      {{#if this.level_overrides.hidden}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
             {{t "Visibility" key="visibility"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Show Button" key="never_show_button"}}
             {{else}}
               {{t "Always Show Button" key="always_show_button"}}
@@ -22,13 +22,13 @@
           </div>
         </div>
       {{/if}}
-      {{#if level_overrides.link_disabled}}
+      {{#if this.level_overrides.link_disabled}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
             {{t "Links" key="links"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Disable Link" key="never_disable_link"}}
             {{else}}
               {{t "Always Disable Link" key="always_disable_link"}}
@@ -39,78 +39,78 @@
       {{/if}}
       <div class='form-group'>
         <label for='hidden_level' class='col-sm-offset-2 col-sm-4'>
-          {{#if level_overrides.hidden}}
+          {{#if this.level_overrides.hidden}}
             <s>{{t "Hide Until Level" key="hide_until_level"}}</s>
           {{else}}
             {{t "Hide Until Level" key="hide_until_level"}}
           {{/if}}
         </label>
         <div class='col-sm-6'>
-          {{bound-select select_class="form-control" select_id="hidden_level" content=board_levels selection=model.hidden_level action=(action (mut model.hidden_level)) }}
+          {{bound-select select_class="form-control" select_id="hidden_level" content=this.board_levels selection=this.model.hidden_level action=(action (mut this.model.hidden_level)) }}
         </div>
       </div>
-      {{#unless model.talkAction}}
+      {{#unless this.model.talkAction}}
         <div class='form-group'>
           <label for='link_disabled_level' class='col-sm-offset-2 col-sm-4'>
-            {{#if level_overrides.link_disabled}}
+            {{#if this.level_overrides.link_disabled}}
               <s>{{t "Disable Link Until Level" key="disable_link_until_level"}}</s>
             {{else}}
               {{t "Disable Link Until Level" key="disable_link_until_level"}}
             {{/if}}
           </label>
           <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="link_disabled_level" content=board_levels selection=model.link_disabled_level action=(action (mut model.link_disabled_level)) }}
+            {{bound-select select_class="form-control" select_id="link_disabled_level" content=this.board_levels selection=this.model.link_disabled_level action=(action (mut this.model.link_disabled_level)) }}
           </div>
         </div>
       {{/unless}}
-    {{else if advanced_level_style}}
+    {{else if this.advanced_level_style}}
       <div class='form-group'>
         <div class='col-sm-2'>
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          {{textarea class="form-control" value=model.level_json placeholder="level override configuration"}}
+          {{textarea class="form-control" value=this.model.level_json placeholder="level override configuration"}}
         </div>
       </div>
     {{/if}}
-    {{#if app_state.feature_flags.inflections_overlay}}
+    {{#if this.app_state.feature_flags.inflections_overlay}}
       <div class='form-group'>
         <label for="inflections" class="col-sm-2 control-label">{{t "Inflections" key="inflections"}}</label>
         <div class='col-sm-10'>
           <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key="inflections_overlay_description"}}</p>
           <div>
-            {{#if board.translations}}
+            {{#if this.board.translations}}
               <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.nw placeholder=inflections_suggestions.nw}}
+                {{input class="form-control" value=this.inflections_hash.nw placeholder=this.inflections_suggestions.nw}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.n placeholder=inflections_suggestions.n}}
+                {{input class="form-control" value=this.inflections_hash.n placeholder=this.inflections_suggestions.n}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.ne placeholder=inflections_suggestions.ne}}
+                {{input class="form-control" value=this.inflections_hash.ne placeholder=this.inflections_suggestions.ne}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.w placeholder=inflections_suggestions.w}}
+                {{input class="form-control" value=this.inflections_hash.w placeholder=this.inflections_suggestions.w}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
                 {{this.model.label}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.e placeholder=inflections_suggestions.e}}
+                {{input class="form-control" value=this.inflections_hash.e placeholder=this.inflections_suggestions.e}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.sw placeholder=inflections_suggestions.sw}}
+                {{input class="form-control" value=this.inflections_hash.sw placeholder=this.inflections_suggestions.sw}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.s placeholder=inflections_suggestions.s}}
+                {{input class="form-control" value=this.inflections_hash.s placeholder=this.inflections_suggestions.s}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                {{input class="form-control" value=inflections_hash.se placeholder=inflections_suggestions.se}}
+                {{input class="form-control" value=this.inflections_hash.se placeholder=this.inflections_suggestions.se}}
               </div>
               <div>
-                {{textarea class="form-control" value=rules_string placeholder=inflection_overrides_placeholder}}
+                {{textarea class="form-control" value=this.rules_string placeholder=this.inflection_overrides_placeholder}}
               </div>
             {{/if}}
           </div>
@@ -120,7 +120,7 @@
   <div class="form-group">
     <label for="ref_id" class="col-sm-2 control-label" style='padding-left: 0; padding-right: 0;'>{{t "Pointer ID" key="pointer_id"}}</label>
     <div class="col-sm-10">
-      {{input value=model.ref_id class="form-control" id="ref_id" placeholder="ID for custom referencing"}}
+      {{input value=this.model.ref_id class="form-control" id="ref_id" placeholder="ID for custom referencing"}}
     </div>
   </div>
 

@@ -1,12 +1,12 @@
-<div class={{if left_nav_expanded "col col-sm-4 col-md-3 expanded" "col col-sm-4 col-md-3"}} id='new_left' >
+<div class={{if this.left_nav_expanded "col col-sm-4 col-md-3 expanded" "col col-sm-4 col-md-3"}} id='new_left' >
   <div class="">
-    <button class='expand btn btn-default' style='float: right; margin-right: 5px;' {{action "expand_left_nav"}}><span class={{if left_nav_expanded "caret" "caret-right"}}></span></button>
+    <button class='expand btn btn-default' style='float: right; margin-right: 5px;' {{action "expand_left_nav"}}><span class={{if this.left_nav_expanded "caret" "caret-right"}}></span></button>
   <h2 style='padding-left: 5px;'>
-    {{#if app_state.currentUser.permissions.delete}}
-      {{#link-to "user" app_state.currentUser.user_name class="hidden_link"}}
+    {{#if this.app_state.currentUser.permissions.delete}}
+      <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="hidden_link">
         <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
         <span style='vertical-align: middle'>{{this.app_state.currentUser.user_name}}</span>
-      {{/link-to}}
+      </LinkTo>
     {{else}}
       <span>
         <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
@@ -15,94 +15,95 @@
     {{/if}}
   </h2>
   <div class="left_links list-group no_curve">
-    {{#if blank_slate}}
+    {{#if this.blank_slate}}
       <a class="list-group-item" href="#" style="height: 80px;" {{action "getting_started"}}>
         <span class="glyphicon glyphicon-user"></span>
         <strong>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</strong>
         <div class="progress" style="margin-bottom: 0;">
-          <div class="progress-bar" role="progressbar" aria-valuenow={{blank_slate_percent}} aria-valuemin="0" aria-valuemax="100" style={{blank_slate_percent_style}}>
-            <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=blank_slate_percent}}</span>
+          <div class="progress-bar" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.blank_slate_percent_style}}>
+            <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
           </div>
         </div>
         {{t "Finish setting up your account" key="on_your_way"}}
       </a>
-    {{else if app_state.feature_flags.subscriptions}}
-      {{#if app_state.currentUser.modeling_only}}
-        {{#link-to "user.subscription" app_state.currentUser.user_name class="list-group-item half_size"}}
+    {{else if this.app_state.feature_flags.subscriptions}}
+      {{#if this.app_state.currentUser.modeling_only}}
+        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="list-group-item half_size">
           <span class="glyphicon glyphicon-info-sign"></span>
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <strong>{{t "This is a modeling-only account" key="modeling_only_account"}}</strong>
           {{else}}
             <strong>{{t "This is a modeling-only session" key="modeling_only_session"}}</strong>
           {{/if}}
-        {{/link-to}}
-      {{else if app_state.currentUser.expired_or_grace_period}}
-        {{#link-to "user.subscription" app_state.currentUser.user_name class="list-group-item"}}
-          <span class={{if app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
-          {{#if app_state.currentUser.expired}}
+        </LinkTo>
+      {{else if this.app_state.currentUser.expired_or_grace_period}}
+        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="list-group-item">
+          <span class={{if this.app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
+          {{#if this.app_state.currentUser.expired}}
             <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br>
             {{t "your free preview has ended" key="preview_expired"}}
           {{else}}
             <strong>{{t "Please update your license" key="update_license"}}</strong>
-            <div style='font-size: 12px; line-height: 13px;'>{{t "your free preview ends" key="preview_expires"}}<br>{{date app_state.currentUser.subscription.expires "day"}}</div>
+            <div style='font-size: 12px; line-height: 13px;'>{{t "your free preview ends" key="preview_expires"}}<br>{{date this.app_state.currentUser.subscription.expires "day"}}</div>
           {{/if}}
-        {{/link-to}}
+        </LinkTo>
       {{/if}}
     {{/if}}
-    {{#if app_state.currentUser.home_board_pending}}
+    {{#if this.app_state.currentUser.home_board_pending}}
       <div class="list-group-item collapsible">
         <span class="glyphicon glyphicon-home"></span>
         {{t "current home board:" key="current_home_board"}}<br>
-        <strong>{{t "copying %{brd}..." key="copying_board" brd=app_state.currentUser.home_board_pending}}</strong>
+        <strong>{{t "copying %{brd}..." key="copying_board" brd=this.app_state.currentUser.home_board_pending}}</strong>
       </div>
-    {{else if home_board_or_supporter}}
-      {{#if app_state.currentUser.supporter_view}}
-        {{#if app_state.currentUser.modeling_only}}
-        {{else if app_state.currentUser.preferences.home_board.key}}
-          {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item half_size collapsible"}}
-            <span class="glyphicon glyphicon-home"></span>
-            {{t "home:" key="home_colon"}}
-            <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-          {{/link-to}}
-        {{/if}}
-        {{#if sync_able}}
-          <a href="#" class={{small_needs_sync_class}} {{action "sync"}}>
+    {{else if this.home_board_or_supporter}}
+      {{#if this.app_state.currentUser.supporter_view}}
+        {{#unless this.app_state.currentUser.modeling_only}}
+          {{#if this.app_state.currentUser.preferences.home_board.key}}
+            <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item half_size collapsible">
+              <span class="glyphicon glyphicon-home"></span>
+              {{t "home:" key="home_colon"}}
+              <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
+            </LinkTo>
+          {{/if}}
+        {{/unless}}
+        {{#if this.sync_able}}
+          <a href="#" class={{this.small_needs_sync_class}} {{action "sync"}}>
             <span>
-            <span class={{refreshing_class}}></span>
-            {{#if persistence.sync_succeeded}}
-              {{#if session.invalid_token}}
+            <span class={{this.refreshing_class}}></span>
+            {{#if this.persistence.sync_succeeded}}
+              {{#if this.session.invalid_token}}
                 {{t "Please re-login and sync again" key="please_resync"}}
               {{else}}
                 {{t "Sync Done!" key="sync_done"}}
               {{/if}}
-            {{else if persistence.sync_finished}}
+            {{else if this.persistence.sync_finished}}
               {{t "Done with " key="done_with"}}
-              {{t "error" key="n_errors_lower" count=persistence.sync_errors}}
+              {{t "error" key="n_errors_lower" count=this.persistence.sync_errors}}
               {{t "(see log)" key="see_log"}}
             {{else}}
-              {{#if persistence.sync_failed}}
+              {{#if this.persistence.sync_failed}}
                 {{t "Sync Failed, see details below" key="sync_failed"}}
-                {{#if persistence.sync_status_error}}
+                {{#if this.persistence.sync_status_error}}
                   <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
                 {{/if}}
               {{else}}
-                {{#if persistence.syncing}}
+                {{#if this.persistence.syncing}}
                   {{t "Syncing..." key="syncing_ellipsis"}}
-                  {{#if persistence.sync_progress}}
-                    {{#if persistence.sync_progress.total}}
+                  {{#if this.persistence.sync_progress}}
+                    {{#if this.persistence.sync_progress.total}}
                       {{this.persistence.sync_progress.visited}} /
-                      {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
-                    {{else if persistence.sync_progress.pre_total}}
+                      {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
+                    {{else if this.persistence.sync_progress.pre_total}}
                       {{t "checking" key="checking_lower"}}
                       {{this.persistence.sync_progress.pre_visited}} /
-                      {{t "board" key="communication_set_board" count=persistence.sync_progress.pre_total}}
+                      {{t "board" key="communication_set_board" count=this.persistence.sync_progress.pre_total}}
                     {{else}}
                       {{t "initializing..." key="initializing_lower"}}
                     {{/if}}
                   {{/if}}
                 {{else}}
-                  {{#if needs_sync}}
-                    {{#if app_state.installed_app}}
+                  {{#if this.needs_sync}}
+                    {{#if this.app_state.installed_app}}
                       {{t "Sync before going offline!" key="needs_update"}}
                     {{else}}
                       {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
@@ -117,22 +118,22 @@
           </a>
         {{/if}}
       {{else}}
-        {{#link-to "board" app_state.currentUser.preferences.home_board.key class="list-group-item collapsible"}}
+        <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item collapsible">
           <span class="glyphicon glyphicon-home"></span>
           {{t "current home board:" key="current_home_board"}}<br>
           <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-        {{/link-to}}
-        {{#unless app_state.currentUser.any_limited_supervisor}}
-          {{#if app_state.currentUser.currently_premium}}
-            <div class="list-group-item" style={{if app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
+        </LinkTo>
+        {{#unless this.app_state.currentUser.any_limited_supervisor}}
+          {{#if this.app_state.currentUser.currently_premium}}
+            <div class="list-group-item" style={{if this.app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
               <span class="glyphicon glyphicon-volume-up"></span>
               <span class="btn btn-primary" {{action "homeInSpeakMode"}} style="padding-top: 13px; padding-bottom: 13px; margin-top: -5px;">
               {{t "Open In Speak Mode" key="open_in_speak_mode"}}
               </span>
-              {{#if app_state.currentUser.currently_premium_or_fully_purchased}}
+              {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
                 <div style="margin: 5px 0 5px 60px;">
                   <label style="font-weight: normal;">
-                    {{input type="checkbox" checked=app_state.currentUser.preferences.auto_open_speak_mode}}
+                    {{input type="checkbox" checked=this.autoOpenSpeakMode}}
                     {{t "always start in Speak Mode" key="auto_open_speak_mode"}}
                   </label>
                 </div>
@@ -140,21 +141,21 @@
             </div>
           {{/if}}
         {{/unless}}
-        {{#if sync_able}}
-          <a href="#" class={{needs_sync_class}} {{action "sync"}}>
+        {{#if this.sync_able}}
+          <a href="#" class={{this.needs_sync_class}} {{action "sync"}}>
             <span>
-            <span class={{refreshing_class}}></span>
-            {{#if persistence.sync_succeeded}}
+            <span class={{this.refreshing_class}}></span>
+            {{#if this.persistence.sync_succeeded}}
               {{t "Sync Done!" key="sync_done"}}
             {{else}}
-              {{#if persistence.sync_failed}}
+              {{#if this.persistence.sync_failed}}
                 {{t "Sync Failed, see details below" key="sync_failed"}}
               {{else}}
-                {{#if persistence.syncing}}
+                {{#if this.persistence.syncing}}
                   {{t "Syncing..." key="syncing_ellipsis"}}
                 {{else}}
-                  {{#if needs_sync}}
-                    {{#if app_state.installed_app}}
+                  {{#if this.needs_sync}}
+                    {{#if this.app_state.installed_app}}
                       {{t "Sync before going offline!" key="needs_update"}}
                     {{else}}
                       {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
@@ -165,15 +166,15 @@
                 {{/if}}
               {{/if}}
             {{/if}}
-            {{#if app_state.currentUser.stats.board_set_ids}}
+            {{#if this.app_state.currentUser.stats.board_set_ids}}
               <br>
-              {{#if persistence.sync_progress}}
+              {{#if this.persistence.sync_progress}}
                 {{this.persistence.sync_progress.visited}} /
-                {{t "board" key="communication_set_board" count=persistence.sync_progress.total}}
-              {{else if persistence.sync_status_error}}
+                {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
+              {{else if this.persistence.sync_status_error}}
                 {{this.persistence.sync_status_error}}
               {{else}}
-                {{t "board" key="communication_set_board" count=app_state.currentUser.stats.board_set_ids}}
+                {{t "board" key="communication_set_board" count=this.app_state.currentUser.stats.board_set_ids}}
               {{/if}}
             {{/if}}
             </span>
@@ -181,22 +182,22 @@
         {{/if}}
       {{/if}}
     {{else}}
-      {{#unless app_state.currentUser.modeling_only}}
-        {{#link-to "home-boards" class="list-group-item collapsible"}}
+      {{#unless this.app_state.currentUser.modeling_only}}
+        <LinkTo @route="home-boards" class="list-group-item collapsible">
           <span class="glyphicon glyphicon-home"></span>
           <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br>
           {{t "Let us help you choose one." key="let_us_help_choose_home"}}
-        {{/link-to}}
+        </LinkTo>
       {{/unless}}
     {{/if}}
 
-    {{#unless app_state.currentUser.supporter_role}}
-      {{#unless app_state.currentUser.modeling_only}}
+    {{#unless this.app_state.currentUser.supporter_role}}
+      {{#unless this.app_state.currentUser.modeling_only}}
         <a href="#" class="list-group-item collapsible" {{action "manage_supervisors"}}>
           <span>
           <span class="glyphicon glyphicon-user"></span>
-          {{#if supervisors_count}}
-            {{t "Supervisor" key="n_supervisors" count=supervisors_count}}
+          {{#if this.supervisors_count}}
+            {{t "Supervisor" key="n_supervisors" count=this.supervisors_count}}
           {{else}}
             {{t "No Supervisors" key="no_supervisors"}}
           {{/if}}
@@ -204,13 +205,13 @@
         </a>
       {{/unless}}
     {{/unless}}
-    {{#unless app_state.currentUser.modeling_only}}
-      {{#if app_state.currentUser.supervised_units}}
+    {{#unless this.app_state.currentUser.modeling_only}}
+      {{#if this.app_state.currentUser.supervised_units}}
         <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
           <span style='white-space: normal;'>
             <span class='glyphicon glyphicon-tower'></span>
             {{t "rooms:" key="rooms_colon"}}
-            {{#each app_state.currentUser.supervised_units as |unit|}}
+            {{#each this.app_state.currentUser.supervised_units as |unit|}}
               <span style='margin-right: 10px; white-space: nowrap;'>
                 {{#link-to "organization.room" unit.organization_id unit.id}}
                   {{unit.name}}
@@ -220,12 +221,12 @@
           </span>
         </div>
       {{/if}}
-      {{#if has_management_responsibility}}
-        {{#if manages_multiple_orgs}}
+      {{#if this.has_management_responsibility}}
+        {{#if this.manages_multiple_orgs}}
           <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
             <span class="glyphicon glyphicon-paperclip"></span>
             <span style='white-space: normal;'>
-              {{#each managed_orgs as |org|}}
+              {{#each this.managed_orgs as |org|}}
                 <span style="margin-right: 10px; white-space: nowrap;">
                   {{#link-to "organization" org.id}}
                     {{org.name}}
@@ -235,27 +236,27 @@
             </span>
           </div>
         {{else}}
-          {{#each managed_orgs as |org|}}
-            {{#link-to "organization" org.id class="list-group-item half_size"}}
+          {{#each this.managed_orgs as |org|}}
+            <LinkTo @route="organization" @model={{org.id}} class="list-group-item half_size">
               <span class="glyphicon glyphicon-paperclip"></span>
               <span style="margin-right: 10px;">
                 {{t "Organization Management" key="org_management"}}
               </span>
-            {{/link-to}}
+            </LinkTo>
           {{/each}}
         {{/if}}
       {{/if}}
     {{/unless}}
 
-    {{#if app_state.currentUser.modeling_only}}
-    {{else if app_state.currentUser}}
-      <a href="#" class={{if app_state.currentUser.supporter_role "list-group-item collapsible half_size" "list-group-item collapsible"}} {{action "session_select"}} style='height: auto;'>
+    {{#if this.app_state.currentUser.modeling_only}}
+    {{else if this.app_state.currentUser}}
+      <a href="#" class={{if this.app_state.currentUser.supporter_role "list-group-item collapsible half_size" "list-group-item collapsible"}} {{action "session_select"}} style='height: auto;'>
         <span>
         <span class="glyphicon glyphicon-list-alt"></span>
-        {{#unless app_state.currentUser.supporter_role}}
+        {{#unless this.app_state.currentUser.supporter_role}}
           {{t "Logging is " key="logging_is"}}
-          {{#if app_state.currentUser.preferences.logging}}
-            {{#if app_state.currentUser.preferences.geo_logging}}
+          {{#if this.app_state.currentUser.preferences.logging}}
+            {{#if this.app_state.currentUser.preferences.geo_logging}}
               {{t "fully enabled" key="fully_enabled"}}
             {{else}}
               {{t "enabled (no geo)" key="logging_no_geo_is_enabled"}}
@@ -265,7 +266,7 @@
           {{/if}}<br>
         {{/unless}}
 
-        {{#if allow_logs}}
+        {{#if this.allow_logs}}
           <span class='text-muted' style='font-size: 12px; margin-top: 10px;'>
             {{t "Last Log" key="latest_session"}}
             {{#if this.logs.[0]}}
@@ -281,7 +282,7 @@
             {{t "Failed to load" key="failed_to_load"}}
           {{else if this.logs.[0]}}
             <div style='padding-right: 10px; white-space: normal; max-height: 40px; overflow: hidden;'>
-            {{#if app_state.currentUser.supporter_role}}
+            {{#if this.app_state.currentUser.supporter_role}}
               {{this.logs.[0].user.user_name}}:
             {{/if}}
             {{this.logs.[0].summary}}
@@ -289,7 +290,7 @@
           {{else}}
             {{t "No recent sessions" key="no_recent_sessions"}}
           {{/if}}
-        {{else if app_state.currentUser.supporter_role}}
+        {{else if this.app_state.currentUser.supporter_role}}
             {{t "No session data" key="no_session_data"}}
         {{/if}}
         </span>
@@ -301,7 +302,7 @@
     <div style="float: right;">
       <a href="#" {{action "reload"}}>{{t "reload" key="reload"}}</a>
     </div>
-    {{#if persistence.sync_log}}
+    {{#if this.persistence.sync_log}}
       <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
     {{/if}}
   </div>
@@ -312,20 +313,20 @@
   <div class='row big_buttons' style='padding-right: 10px;'>
     <div class='col-xs-12' style='position: absolute; top: -40px;'>
       <ul class="nav nav-pills new_pills">
-        <li role="presentation" class={{if index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
-        {{#unless app_state.currentUser.modeling_only}}
-          {{#if show_communicators_tab}}
-            <li role="presentation" class={{if index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
+        <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
+        {{#unless this.app_state.currentUser.modeling_only}}
+          {{#if this.show_communicators_tab}}
+            <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
           {{/if}}
         {{/unless}}
-        <li role="presentation" class={{if index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
-        {{#unless app_state.currentUser.modeling_only}}
-          <li role="presentation" id='nav_updates' class={{if index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
+        <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
+        {{#unless this.app_state.currentUser.modeling_only}}
+          <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
             {{t "Updates" key="updates"}}
-            {{#if pending_updates}}
+            {{#if this.pending_updates}}
               <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
-                {{#if pending_updates.count}}
-                  {{pending_updates.count}}
+                {{#if this.pending_updates.count}}
+                  {{this.pending_updates.count}}
                 {{else}}
                   {{t "!" key="exclaim"}}
                 {{/if}}
@@ -335,15 +336,15 @@
         {{/unless}}
       </ul>
     </div>
-    {{#if index_nav.supervisees}}
-      {{#unless app_state.currentUser.modeling_only}}
+    {{#if this.index_nav.supervisees}}
+      {{#unless this.app_state.currentUser.modeling_only}}
       <div class='col-xs-12'>
         <h4>{{t "People I Supervise" key="people_i_supervise"}}</h4>
       </div><div style='clear: left;'></div>
-      {{#unless supervisees_with_badges}}
+      {{#unless this.supervisees_with_badges}}
         <div style='margin: 0 20px; max-width: 600px;'>{{t "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicators account. Once you have helped your communicators add you to their account as a supervisor, you will see them appear here." key="no_supervisors_explainer"}}</div>
       {{/unless}}
-      {{#each supervisees_with_badges as |supervisee|}}
+      {{#each this.supervisees_with_badges as |supervisee|}}
         <div class='col-lg-6 col-md-12' style='padding: 0 5px;'>
           <div style='border: 5px solid #ccc; border-radius: 10px; margin-bottom: 10px; padding: 10px 15px;'>
             <div style='float: left; position: relative;'>
@@ -369,7 +370,7 @@
                 {{else}}
                   <span style='color: #ccc;'>{{t "no goal set" key="no_goal_set"}}</span>
                   {{#if this.persistence.online}}
-                    {{#unless app_state.currentUser.modeling_only}}
+                    {{#unless this.app_state.currentUser.modeling_only}}
                       - <a {{action "set_goal" supervisee}} href="#">{{t "set a goal" key="set_a_goal"}}</a>
                     {{/unless}}
                   {{/if}}
@@ -404,7 +405,7 @@
                 </div>
               </button>
             {{/if}}
-            {{#if app_state.currentUser.modeling_only}}
+            {{#if this.app_state.currentUser.modeling_only}}
               <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "home_board" supervisee.home_board_key}}>
                 <span class='glyphicon glyphicon-th' style='font-size: 30px;'></span><br>
                 <div style='line-height: 14px;'>
@@ -452,12 +453,12 @@
         </div>
       {{/each}}
       {{/unless}}
-    {{else if index_nav.main}}
-      <div class={{if show_main_extras "main" "main short_list"}}>
-        {{#if app_state.currentUser.eval_ended}}
+    {{else if this.index_nav.main}}
+      <div class={{if this.show_main_extras "main" "main short_list"}}>
+        {{#if this.app_state.currentUser.eval_ended}}
           <div class='alert alert-danger'>
             {{t "Your evaluation has ended" key="eval_ended"}}
-            {{#if app_state.currentUser.can_reset_eval}}
+            {{#if this.app_state.currentUser.can_reset_eval}}
               <br>
               <button {{action "update_evaluation" "reset"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
@@ -465,7 +466,7 @@
                   {{t "Reset Evaluation" key="reset_evaluation"}}
                 </span>
               </button>
-            {{else if app_state.currentUser.subscription.eval_extendable}}
+            {{else if this.app_state.currentUser.subscription.eval_extendable}}
               <br>
               <button {{action "update_evaluation" "extend"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
@@ -475,11 +476,11 @@
               </button>
             {{/if}}
           </div>
-        {{else if app_state.currentUser.eval_ending_soon}}
+        {{else if this.app_state.currentUser.eval_ending_soon}}
           <div class='alert alert-danger'>
             {{t "Your evaluation is set to finish soon. This evaluation period will end" key="eval_ending_soon"}}
-            {{date app_state.currentUser.subscription.eval_expires "day"}}.
-            {{#if app_state.currentUser.can_reset_eval}}
+            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
+            {{#if this.app_state.currentUser.can_reset_eval}}
               <br>
               <button {{action "update_evaluation"}} class='purchase_link' style='font-size: 20px;'>
                 <span style='color: #fff;'>
@@ -489,38 +490,38 @@
               </button>
             {{/if}}
           </div>
-        {{else if session.modeling_session}}
-        {{else if app_state.currentUser.expired_or_grace_period}}
+        {{else if this.session.modeling_session}}
+        {{else if this.app_state.currentUser.expired_or_grace_period}}
           <div>
-            {{#link-to "user.subscription" app_state.currentUser.user_name class="purchase_link"}}
+            <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="purchase_link">
               <span style='color: #fff;'>
-                <span class={{if app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
+                <span class={{if this.app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
                 {{t "Purchase %app_name%" key="purchase_app"}}
               </span>
-            {{/link-to}}
+            </LinkTo>
           </div>
-        {{else if app_state.limited_free_space}}
+        {{else if this.app_state.limited_free_space}}
           <div class='alert alert-danger'>
-            {{t "Your device is almost out of free space! You only have %{mb}Mb of storage available. You may need to delete some data from other apps for %app_name% to work properly offline." mb=app_state.limited_free_space.mb key="need_memory_for_offline"}}
+            {{t "Your device is almost out of free space! You only have %{mb}Mb of storage available. You may need to delete some data from other apps for %app_name% to work properly offline." mb=this.app_state.limited_free_space.mb key="need_memory_for_offline"}}
           </div>
-        {{else if model.earned_badge}}
+        {{else if this.model.earned_badge}}
           <div>
-            {{badge-earned badge=model.earned_badge big=true}}
+            {{badge-earned badge=this.model.earned_badge big=true}}
           </div>
-        {{else if model.first_incomplete_lesson}}
-          {{#if app_state.feature_flags.lessons}}
+        {{else if this.model.first_incomplete_lesson}}
+          {{#if this.app_state.feature_flags.lessons}}
           <div style='margin-left: 10px; margin-bottom: 10px;'>
             <button class='btn btn-lg btn-default' {{action "next_lesson"}}>
             <span class='glyphicon glyphicon-education'></span>
             {{t "Next Lesson: " key="next_lesson"}}
             {{this.model.first_incomplete_lesson.title}}
-            {{#if model.first_incomplete_lesson.due_at}}
-              <div style='font-size: 14px;'>due {{date model.first_incomplete_lesson.due_at}}</div>
+            {{#if this.model.first_incomplete_lesson.due_at}}
+              <div style='font-size: 14px;'>due {{date this.model.first_incomplete_lesson.due_at}}</div>
             {{/if}}
             </button>
           </div>
           {{/if}}
-        {{else if rating_allowed}}
+        {{else if this.rating_allowed}}
           <div>
             <button {{action "launch_rating"}} class='purchase_link' style='font-size: 20px;'>
               <span style='color: #fff;'>
@@ -529,13 +530,13 @@
               </span>
             </button>
           </div>
-        {{else if app_state.currentUser.subscription.eval_expires}}
+        {{else if this.app_state.currentUser.subscription.eval_expires}}
           <div class='alert alert-info'>
             {{t "This is an evaluation account, and will run through " key="eval_ending_date"}}
-            {{date app_state.currentUser.subscription.eval_expires "day"}}.
+            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
           </div>
         {{/if}}
-        {{#if app_state.currentUser.external_device}}
+        {{#if this.app_state.currentUser.external_device}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_primary' class='btn big_button btn-default middle_row' {{action "manual_session"}}>
               <span class='glyphicon glyphicon-pencil'></span>
@@ -550,13 +551,13 @@
             </button>
           </div>
         {{/if}}
-        {{#if app_state.currentUser.modeling_only}}
-          {{#if app_state.currentUser.permissions.delete}}
+        {{#if this.app_state.currentUser.modeling_only}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
-              {{#link-to "user" app_state.currentUser.user_name id="nav_secondary" class="btn big_button btn-default"}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} id="nav_secondary" class="btn big_button btn-default">
                 <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
-              {{/link-to}}
+              </LinkTo>
             </div>
           {{/if}}
         {{else}}
@@ -567,8 +568,8 @@
             </button>
           </div>
         {{/if}}
-        {{#if app_state.currentUser.preferences.progress.intro_watched}}
-          {{#if modeling_ideas_available}}
+        {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
+          {{#if this.modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
                 <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
@@ -576,7 +577,7 @@
               </button>
             </div>
           {{else}}
-            {{#unless app_state.currentUser.modeling_only}}
+            {{#unless this.app_state.currentUser.modeling_only}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button id='nav_tertiary' class='btn big_button btn-default' {{action "newBoard"}}>
                   <img src={{path "images/new.svg"}} >
@@ -586,7 +587,7 @@
             {{/unless}}
           {{/if}}
         {{else}}
-          {{#unless app_state.currentUser.modeling_only}}
+          {{#unless this.app_state.currentUser.modeling_only}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default middle_row' {{action "intro"}}>
                 <img src={{path "images/learn.png"}} >
@@ -598,12 +599,12 @@
         <div class='col-md-3 col-xs-4 big_button_holder'>
           <button id='nav_extras' class='btn big_button btn-default' {{action "toggle_extras"}} style='touch-action: manipulation;'>
             <img src={{path "images/extras.svg"}}>
-            {{t "Extras" key="extras"}} <span class={{if show_main_extras "caret" "caret-right"}}></span>
+            {{t "Extras" key="extras"}} <span class={{if this.show_main_extras "caret" "caret-right"}}></span>
           </button>
         </div>
-        {{#if show_main_extras}}
-          {{#unless app_state.currentUser.modeling_only}}
-            {{#if app_state.currentUser.preferences.progress.intro_watched}}
+        {{#if this.show_main_extras}}
+          {{#unless this.app_state.currentUser.modeling_only}}
+            {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default middle_row' {{action "intro"}}>
                   <img src={{path "images/learn.png"}} >
@@ -631,7 +632,7 @@
               </div>
             {{/if}}
           {{/unless}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default middle_row' {{action "manage_supervisors"}}>
                 <span class='glyphicon glyphicon-user'></span>
@@ -639,7 +640,7 @@
               </button>
             </div>
           {{/if}}
-          {{#if sync_able}}
+          {{#if this.sync_able}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default middle_row' {{action "sync_details"}}>
                 <span class='glyphicon glyphicon-refresh'></span>
@@ -647,7 +648,7 @@
               </button>
             </div>
           {{/if}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default bottom_row' {{action "goals"}}>
                 <span class='glyphicon glyphicon-flag'></span>
@@ -655,7 +656,7 @@
               </button>
             </div>
           {{/if}}
-          {{#unless app_state.currentUser.modeling_only}}
+          {{#unless this.app_state.currentUser.modeling_only}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button class='btn big_button btn-default bottom_row' {{action "record_note"}}>
                 <span class='glyphicon glyphicon-file'></span>
@@ -669,24 +670,24 @@
               </button>
             </div>
           {{/unless}}
-          {{#if app_state.currentUser.permissions.delete}}
+          {{#if this.app_state.currentUser.permissions.delete}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
-              {{#link-to "user" app_state.currentUser.user_name class="btn big_button btn-default bottom_row"}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn big_button btn-default bottom_row">
                 <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
                 {{t "My Account" key="my_account"}}
-              {{/link-to}}
+              </LinkTo>
             </div>
           {{/if}}
-          {{#if app_state.feature_flags.emergency_boards}}
+          {{#if this.app_state.feature_flags.emergency_boards}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
-              {{#link-to "offline_boards" class="btn big_button btn-default emergency_button"}}
+              <LinkTo @route="offline_boards" class="btn big_button btn-default emergency_button">
                 <span class='glyphicon glyphicon-exclamation-sign'></span>
                 {{t "Basic Access" key="critical_access"}}
-              {{/link-to}}
+              </LinkTo>
             </div>
           {{/if}}
-          {{#if app_state.feature_flags.lessons}}
-            {{#if app_state.currentUser.currently_premium_or_fully_purchased}}
+          {{#if this.app_state.feature_flags.lessons}}
+            {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
                 <button class='btn big_button btn-default bottom_row' {{action "lessons"  "pick"}}>
                   <span class='glyphicon glyphicon-education'></span>
@@ -696,16 +697,16 @@
             {{/if}}
           {{/if}}
         {{else if this.persistence.online}}
-          {{#if app_state.currentUser.current_badge}}
-            {{badge-progress badge=app_state.currentUser.current_badge big=true}}
+          {{#if this.app_state.currentUser.current_badge}}
+            {{badge-progress badge=this.app_state.currentUser.current_badge big=true}}
           {{/if}}
         {{/if}}
       </div>
-    {{else if index_nav.boards}}
-      {{#if showOffline}}
+    {{else if this.index_nav.boards}}
+      {{#if this.showOffline}}
         <h4>{{t "Recent boards" key="available_boards"}}</h4>
-        {{#if recentOfflineBoards}}
-          {{#each recentOfflineBoards as |board|}}
+        {{#if this.recentOfflineBoards}}
+          {{#each this.recentOfflineBoards as |board|}}
             {{#if board.key}}
               <div class="col-md-2 col-xs-4 big_button_holder">
                 <button class='btn big_button btn-default'>
@@ -724,18 +725,18 @@
         <div class='col-xs-8 col-sm-6'>
           <h4>{{t "Browse Boards" key="browse_boards"}}</h4>
           <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
-            <li role="presentation" class={{if suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
-            <li role="presentation" class={{if personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
-            <li role="presentation" class={{if popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
-            <li role="presentation" class={{if recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
+            <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
+            <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
+            <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
+            <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
           </ul>
         </div>
         <div class='col-xs-4 col-sm-6'>
           <div style='margin: 10px 0 20px -10px;'>
             <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
             {{t "current home board:" key="current_home_board"}}<br>
-            {{#if app_state.currentUser.preferences.home_board}}
-              {{#link-to "board" app_state.currentUser.preferences.home_board.key}}
+            {{#if this.app_state.currentUser.preferences.home_board}}
+              {{#link-to "board" this.app_state.currentUser.preferences.home_board.key}}
                 <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
               {{/link-to}}
             {{else}}
@@ -749,8 +750,8 @@
           </div>
         </div>
         <div style='clear: left;'></div>
-        {{#if suggested_selected}}
-          {{#unless app_state.currentUser.supporter_role}}
+        {{#if this.suggested_selected}}
+          {{#unless this.app_state.currentUser.supporter_role}}
             <div class="col-xs-12" style="margin-bottom: 10px;">
               {{#link-to "home-boards"}}
                 <span>
@@ -761,22 +762,22 @@
             </div>
           {{/unless}}
         {{/if}}
-        {{#if current_boards}}
-          {{#if current_boards.loading}}
+        {{#if this.current_boards}}
+          {{#if this.current_boards.loading}}
             <div class='col-sm-4'>{{t "Loading..." key="loading"}}</div>
-          {{else if current_boards.error}}
+          {{else if this.current_boards.error}}
             <div class='col-sm-4'>{{t "Failed to load" key="failed_to_load"}}</div>
           {{else}}
-            {{#each current_boards as |board|}}
+            {{#each this.current_boards as |board|}}
               <div class='col-md-3 col-xs-4 big_button_holder'>
-                {{board-icon board=board localized=true allow_style=suggested_selected}}
+                {{board-icon board=board localized=true allow_style=this.suggested_selected}}
               </div>
             {{/each}}
-            {{#if personal_selected}}
+            {{#if this.personal_selected}}
               <div class='col-xs-12'>
-                {{#link-to "user" app_state.currentUser.user_name class="btn btn-default btn-lg thick_border"}}
+                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn btn-default btn-lg thick_border">
                   {{t "See All My Boards" key="see_all_my_boards"}}
-                {{/link-to}}
+                </LinkTo>
               </div>
             {{/if}}
           {{/if}}
@@ -786,9 +787,9 @@
           </div>
         {{/if}}
       {{/if}}
-    {{else if index_nav.updates}}
+    {{else if this.index_nav.updates}}
       <div class='col-md-8 col-md-offset-2 col-xs-12'>
-        {{#if device.needs_install_reminder}}
+        {{#if this.device.needs_install_reminder}}
           <div style="margin-bottom: 20px; text-align: center;">
             <h2>
               <span class="glyphicon glyphicon-phone"></span>
@@ -798,17 +799,17 @@
               {{t "%app_name% works in any web browser, but you can also install the free app in the following stores:" key="app_stores"}}
             </div>
             <div>
-              {{#if app_state.domain_settings.ios_store_url}}
+              {{#if this.app_state.domain_settings.ios_store_url}}
                 <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
-              {{#if app_state.domain_settings.play_store_url}}
+              {{#if this.app_state.domain_settings.play_store_url}}
                 <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
                 </a><br>
               {{/if}}
-              {{#if app_state.domain_settings.kindle_store_url}}
+              {{#if this.app_state.domain_settings.kindle_store_url}}
                 <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
                   <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
                 </a>
@@ -821,18 +822,18 @@
         {{/if}}
         <h4>{{t "Notifications" key="notifications"}}</h4>
         <div style="margin-left: 20px;">
-          {{#if app_state.currentUser.pending_org}}
+          {{#if this.app_state.currentUser.pending_org}}
             <p>
-              {{#link-to "user" app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=app_state.currentUser.pending_org.name}}{{/link-to}}
+              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}{{/link-to}}
             </p>
           {{/if}}
-          {{#if app_state.currentUser.pending_supervision_org}}
+          {{#if this.app_state.currentUser.pending_supervision_org}}
             <p>
-              {{#link-to "user" app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
+              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
             </p>
           {{/if}}
-          {{#if app_state.currentUser.pending_board_shares}}
-            {{#each app_state.currentUser.pending_board_shares as |share|}}
+          {{#if this.app_state.currentUser.pending_board_shares}}
+            {{#each this.app_state.currentUser.pending_board_shares as |share|}}
               <p>
                 <span class="glyphicon glyphicon-share"></span>
                 {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
@@ -840,24 +841,24 @@
               </p>
             {{/each}}
           {{/if}}
-          {{#if app_state.currentUser.unread_messages}}
+          {{#if this.app_state.currentUser.unread_messages}}
             <p>
-            {{#link-to "user.logs" app_state.currentUser.user_name (query-params type="note")}}
+            {{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
               <span class="glyphicon glyphicon-envelope"></span>
               {{t "You have " key="you_have"}}
-              {{t "unread message" count=app_state.currentUser.unread_messages key="unread_message_count"}}
+              {{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}
             {{/link-to}}
             </p>
           {{/if}}
-          {{#if app_state.currentUser.parsed_notifications}}
-            {{#each app_state.currentUser.parsed_notifications as |notif|}}
+          {{#if this.app_state.currentUser.parsed_notifications}}
+            {{#each this.app_state.currentUser.parsed_notifications as |notif|}}
               <UserNotification @notification={{notif}} />
             {{/each}}
           {{/if}}
-          {{#unless app_state.currentUser.unread_messages}}
-            {{#unless app_state.currentUser.parsed_notifications}}
-              {{#unless app_state.currentUser.pending_board_shares}}
-                {{#if show_notifications_explanation}}
+          {{#unless this.app_state.currentUser.unread_messages}}
+            {{#unless this.app_state.currentUser.parsed_notifications}}
+              {{#unless this.app_state.currentUser.pending_board_shares}}
+                {{#if this.show_notifications_explanation}}
                   <em style="font-size: 11px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
                 {{else}}
                   {{t "You have no new messages" key="no_new_messages"}}
@@ -870,7 +871,7 @@
           {{/unless}}
         </div>
 
-        {{#if app_state.currentUser.supporter_role}}
+        {{#if this.app_state.currentUser.supporter_role}}
           <h4>{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h4>
         {{else}}
           <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
@@ -893,7 +894,7 @@
                     {{t "button" count=log.button_count key="button_count"}}
                   {{/if}}
                 {{/link-to}}
-                {{#if app_state.currentUser.supporter_role}}
+                {{#if this.app_state.currentUser.supporter_role}}
                   <span> -
                     {{#link-to "user" log.user.user_name}}
                       {{log.user.user_name}}

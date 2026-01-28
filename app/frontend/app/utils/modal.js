@@ -5,20 +5,58 @@ import {
   later as runLater,
   cancel as runCancel
 } from '@ember/runloop';
+import { getOwner } from '@ember/application';
 // import $ from 'jquery';
 import scanner from './scanner';
 
 var modal = EmberObject.extend({
+  /**
+   * Get the modal service instance
+   * Uses Ember's getOwner to lookup the service
+   */
+  _getService: function() {
+    // Try to get service from Ember application
+    try {
+      // First try using the route's owner (most reliable)
+      if (this.route) {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var service = owner.lookup('service:modal');
+          if (service) {
+            return service;
+          }
+        }
+      }
+      // Fallback to window.LingoLinq
+      if (typeof window !== 'undefined' && window.LingoLinq) {
+        var owner = getOwner(window.LingoLinq);
+        if (owner) {
+          return owner.lookup('service:modal');
+        }
+      }
+    } catch(e) {
+      // Service not available yet or not initialized
+    }
+    return null;
+  },
+  
   setup: function(route) {
     if(this.last_promise) { this.last_promise.reject('closing due to setup'); }
     this.route = route;
     this.settings_for = {};
     this.controller_for = {};
+    
+    // Initialize service if available
+    var service = this._getService();
+    if (service) {
+      // Service is ready - we can use it for new modals
+    }
   },
   reset: function() {
     this.route = null;
   },
   open: function(template, options) {
+    var service = this._getService();
     var outlet = template;
     var render_template = template;
     if(template != 'highlight' && template != 'highlight-secondary') {
@@ -30,6 +68,126 @@ var modal = EmberObject.extend({
       options.secondary_highlight = true;
       options.clear_overlay = true;
     }
+    
+    // List of modals that have been converted to components
+    // These will use component-based rendering instead of route.render()
+    var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+    var useComponentRendering = service && outlet == 'modal' && convertedModals.indexOf(template) >= 0;
+    
+    // If this modal uses component-based rendering, handle it completely via service
+    // and skip all outlet-based rendering logic
+    if (useComponentRendering) {
+      // Update service state
+      service.set('settingsFor', service.get('settingsFor') || {});
+      service.settingsFor[render_template] = options;
+      service.set('currentTemplate', template);
+      service.set('currentOptions', options);
+      
+      // Handle scanner integration
+      if(template != 'highlight' && template != 'highlight-secondary') {
+        this.resume_scanning = true;
+        scanner.stop();  
+        runLater(function() {
+          var targets = modal.scannable_targets();
+          if(targets.length > 0 && options && options.scannable) {
+            scanner.start(scanner.options);
+          }
+        });
+      }
+      
+      // Close existing modal if any (check both outlet-based and component-based)
+      if ((this.last_template || this._component_based_template) && outlet == 'modal') {
+        if(this.last_promise) {
+          if (this.last_promise.resolve) {
+            this.last_promise.resolve({replaced: true});
+          }
+          this.last_promise = null;
+        }
+        if (service) {
+          service._resolveCurrentPromise({replaced: true});
+        }
+        // Clear outlet BEFORE clearing templates to prevent outlet system from trying to render
+        // This is critical to prevent Ember from trying to use DOM elements as outlet keys
+        var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                           document.querySelector('[id="modal"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                           document.querySelector('[data-outlet-name="modal"]');
+        if(outletElement) {
+          outletElement.innerHTML = '';
+        }
+        // Also clear any modal elements that might be in the DOM
+        var modalElements = document.querySelectorAll('.modal.fade.in, .modal');
+        for(var i = 0; i < modalElements.length; i++) {
+          var modalElement = modalElements[i];
+          if(modalElement && modalElement.parentNode) {
+            modalElement.parentNode.removeChild(modalElement);
+          }
+        }
+        // Clear all outlet-related state
+        this.last_template = null;
+        this._component_based_template = null;
+        this.component = null;
+        
+        // Force clear any Ember outlet state by waiting a tick
+        runLater(function() {
+          // Double-check outlet is clear
+          var outletCheck = document.querySelector('[data-ember-outlet="modal"]') ||
+                           document.querySelector('[id="modal"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                           document.querySelector('[data-outlet-name="modal"]');
+          if(outletCheck && outletCheck.innerHTML.trim()) {
+            outletCheck.innerHTML = '';
+          }
+        }, 0);
+      }
+      
+      // Update state for tracking (but don't trigger outlet rendering)
+      // IMPORTANT: Don't set last_template for component-based modals to prevent outlet conflicts
+      // Use a separate flag to track component-based modals
+      this.settings_for[render_template] = options;
+      this.last_any_template = template;
+      // DO NOT set this.last_template for component-based modals - it triggers outlet rendering
+      // Instead, we'll track it separately
+      this._component_based_template = template;
+      
+      // Get promise from service and return it
+      var servicePromise = service.open(template, options);
+      
+      // Create promise wrapper for old system compatibility
+      // The service returns a Promise, but we need to track it for the old system
+      var promiseResolve, promiseReject;
+      var wrappedPromise = new RSVP.Promise(function(resolve, reject) {
+        promiseResolve = resolve;
+        promiseReject = reject;
+      });
+      
+      // When service promise resolves/rejects, update our wrapper
+      servicePromise.then(function(result) {
+        promiseResolve(result);
+      }, function(err) {
+        promiseReject(err);
+      });
+      
+      // Store promise wrapper for old system
+      this.last_promise = {
+        resolve: promiseResolve,
+        reject: promiseReject,
+        promise: wrappedPromise
+      };
+      
+      return wrappedPromise;
+    }
+    
+    // For non-converted modals, continue with outlet-based rendering
+    // Try to use service if available (for state tracking)
+    if (service && outlet == 'modal') {
+      // Update service state for tracking
+      service.set('settingsFor', service.get('settingsFor') || {});
+      service.settingsFor[render_template] = options;
+      service.set('currentTemplate', template);
+      service.set('currentOptions', options);
+    }
+    
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.resume_scanning = true;
       scanner.stop();  
@@ -40,8 +198,63 @@ var modal = EmberObject.extend({
         }
       });
     }
-    if((this.last_promise || this.last_template)) {
-      this.close(null, outlet);
+    var _this = this;
+    // Check if there's an existing modal before cleanup (check both outlet-based and component-based)
+    var had_existing_modal = ((this.last_template || this._component_based_template) && outlet == 'modal');
+    // If there's an existing modal, close it first
+    if((this.last_promise || this.last_template || this._component_based_template)) {
+      if(outlet == 'modal') {
+        // For modal outlet, resolve the old promise and do immediate cleanup
+        if(this.last_promise) {
+          if (this.last_promise.resolve) {
+            this.last_promise.resolve({replaced: true});
+          }
+          this.last_promise = null;
+        }
+        // Also resolve service promise if it exists
+        if (service) {
+          service._resolveCurrentPromise({replaced: true});
+        }
+        // Clear both outlet-based and component-based template tracking
+        this.last_template = null;
+        this._component_based_template = null;
+        this.component = null;
+        // Do synchronous DOM cleanup for modal outlet
+        var modalElement = document.querySelector('.modal.fade.in') || document.querySelector('.modal');
+        if(modalElement && modalElement.parentNode) {
+          modalElement.parentNode.removeChild(modalElement);
+        }
+        // Clear outlet wrappers
+        var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
+        for(var i = 0; i < outletWrappers.length; i++) {
+          var wrapper = outletWrappers[i];
+          if(wrapper.querySelector && wrapper.querySelector('.modal')) {
+            wrapper.innerHTML = '';
+            break;
+          }
+        }
+        // Clear the outlet element directly - this is critical for reopening modals
+        var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                           document.querySelector('[id="modal"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                           document.querySelector('[data-outlet-name="modal"]');
+        if(outletElement) {
+          outletElement.innerHTML = '';
+        }
+        // Also clear any Ember outlet containers that might be holding onto the old modal
+        var emberOutlets = document.querySelectorAll('[data-ember-outlet], [id^="ember"]');
+        for(var j = 0; j < emberOutlets.length; j++) {
+          var outlet = emberOutlets[j];
+          if(outlet.querySelector && outlet.querySelector('.modal')) {
+            outlet.innerHTML = '';
+          }
+        }
+        // Note: disconnectOutlet is deprecated and not needed - Ember manages outlets automatically
+        // Removing it prevents deprecation warnings and doesn't affect functionality
+      } else {
+        // For non-modal outlets, use the existing close logic
+        this.close(null, outlet);
+      }
     }
     if(!this.route) { throw "must call setup before trying to open a modal"; }
 
@@ -50,16 +263,96 @@ var modal = EmberObject.extend({
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.last_template = template;
     }
-    this.route.render(render_template, { into: 'application', outlet: outlet});
-    var _this = this;
-    return new RSVP.Promise(function(resolve, reject) {
-      if(template != 'highlight' && template != 'highlight-secondary') {
-        _this.last_promise = {
-          resolve: resolve,
-          reject: reject
-        };
-      }
-    });
+    // Small delay to ensure DOM is fully cleaned up before rendering new modal
+    // Only needed if we just cleaned up an existing modal
+    // Increased delay to ensure Ember has time to process the cleanup
+    if(had_existing_modal) {
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          try {
+            // Double-check that outlet is clear before rendering
+            // CRITICAL: Ensure no component-based modal DOM is present that could confuse outlet system
+            var outletCheck = document.querySelector('[data-ember-outlet="modal"]') ||
+                             document.querySelector('[id="modal"]') ||
+                             document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                             document.querySelector('[data-outlet-name="modal"]');
+            if(outletCheck && outletCheck.innerHTML.trim()) {
+              outletCheck.innerHTML = '';
+            }
+            // Also ensure service doesn't have a component-based modal open
+            // This prevents Ember from trying to use component DOM as outlet keys
+            if (service && service.get('currentTemplate')) {
+              var serviceTemplate = service.get('currentTemplate');
+              var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+              if (convertedModals.indexOf(serviceTemplate) >= 0) {
+                // Component-based modal is still open in service, clear it first
+                service.set('currentTemplate', null);
+                service.set('currentComponent', null);
+                // Wait a bit more for DOM to clear
+                runLater(function() {
+                  if(outletCheck && outletCheck.innerHTML.trim()) {
+                    outletCheck.innerHTML = '';
+                  }
+                  try {
+                    _this.route.render(render_template, { into: 'application', outlet: outlet});
+                    if(template != 'highlight' && template != 'highlight-secondary') {
+                      _this.last_promise = {
+                        resolve: resolve,
+                        reject: reject
+                      };
+                      if (service) {
+                        service.set('currentPromise', { resolve, reject });
+                      }
+                    } else {
+                      resolve();
+                    }
+                  } catch(e) {
+                    reject(e);
+                  }
+                }, 100);
+                return;
+              }
+            }
+            // NOTE: route.render() is deprecated in Ember 3.x+ but still functional
+            // During incremental migration, we still use route.render() but coordinate with service
+            // Eventually all rendering will go through the service
+            _this.route.render(render_template, { into: 'application', outlet: outlet});
+            if(template != 'highlight' && template != 'highlight-secondary') {
+              _this.last_promise = {
+                resolve: resolve,
+                reject: reject
+              };
+              // Also set promise in service for coordination
+              if (service) {
+                service.set('currentPromise', { resolve, reject });
+              }
+            } else {
+              resolve();
+            }
+          } catch(e) {
+            reject(e);
+          }
+        }, 50); // Increased from 10ms to 50ms to ensure cleanup completes
+      });
+    } else {
+      // NOTE: route.render() is deprecated in Ember 3.x+ but still functional
+      // During incremental migration, we still use route.render() but coordinate with service
+      this.route.render(render_template, { into: 'application', outlet: outlet});
+      return new RSVP.Promise(function(resolve, reject) {
+        if(template != 'highlight' && template != 'highlight-secondary') {
+          _this.last_promise = {
+            resolve: resolve,
+            reject: reject
+          };
+          // Also set promise in service for coordination
+          if (service) {
+            service.set('currentPromise', { resolve, reject });
+          }
+        } else {
+          resolve();
+        }
+      });
+    }
   },
   is_open: function(template) {
     if(template == 'highlight') {
@@ -67,9 +360,10 @@ var modal = EmberObject.extend({
     } else if(template == 'highlight-secondary') {
       return !!this.highlight2_controller;
     } else if(template) {
-      return this.last_template == template;
+      // Check both outlet-based and component-based modals
+      return this.last_template == template || this._component_based_template == template;
     } else {
-      return !!this.last_template;
+      return !!this.last_template || !!this._component_based_template;
     }
   },
   is_closeable: function() {
@@ -164,13 +458,32 @@ var modal = EmberObject.extend({
   close: function(success, outlet) {
     outlet = outlet || 'modal';
     if(!this.route) { return; }
+    
+    var service = this._getService();
+    
     if(this.last_promise && outlet != 'highlight' && outlet != 'highlight-secondary') {
-      if(success || success === undefined) {
-        this.last_promise.resolve(success);
+      // Treat null, undefined, or any truthy value as success
+      // Only reject if explicitly passed false
+      if(success === false) {
+        if (this.last_promise.reject) {
+          this.last_promise.reject({reason: 'force close'});
+        }
       } else {
-        this.last_promise.reject({reason: 'force close'});
+        if (this.last_promise.resolve) {
+          this.last_promise.resolve(success);
+        }
       }
       this.last_promise = null;
+      
+      // Also resolve service promise if it exists
+      if (service) {
+        service._resolveCurrentPromise(success);
+        service.set('currentTemplate', null);
+        service.set('currentOptions', null);
+        service.set('currentComponent', null);
+        service.set('currentController', null);
+        service.set('currentPromise', null);
+      }
     }
     if(this.highlight_promise && outlet == 'highlight') {
       this.highlight_promise.reject({reason: 'force close'});
@@ -190,14 +503,86 @@ var modal = EmberObject.extend({
       });
     }
     if(outlet != 'highlight' && outlet != 'highlight-secondary') {
+      // Clear outlet-based template
       this.last_template = null;
       this.component = null; // Clear component reference when closing
+      
+      // Clear component-based template flag (prevents outlet system from trying to render)
+      this._component_based_template = null;
+      
+      // Also clear in service
+      if (service) {
+        service.set('currentTemplate', null);
+        service.set('currentComponent', null);
+      }
+      
+      // Clear outlet DOM to prevent conflicts
+      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                         document.querySelector('[id="modal"]') ||
+                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                         document.querySelector('[data-outlet-name="modal"]');
+      if(outletElement) {
+        outletElement.innerHTML = '';
+      }
+      
       runLater(function() {
         modal.close(null, 'highlight');
         modal.close(null, 'highlight-secondary');
       });
     }
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
+    // Actually remove the rendered template from the outlet
+    // Even though route.render() is deprecated, we still need to explicitly remove what was rendered
+    // disconnectOutlet is deprecated and not needed - Ember manages outlets automatically
+    // We manually clear the DOM to ensure proper cleanup
+    // For modal outlet, clear DOM synchronously to prevent race conditions
+    // when opening a new modal immediately after closing
+    if(outlet === 'modal') {
+      // Clear DOM immediately for modal outlet to ensure it's ready for next render
+      var modalElement = document.querySelector('.modal.fade.in') || document.querySelector('.modal');
+      if(modalElement && modalElement.parentNode) {
+        modalElement.parentNode.removeChild(modalElement);
+      }
+      // Clear the outlet element to ensure it's ready for the next modal
+      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                         document.querySelector('[id="modal"]') ||
+                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                         document.querySelector('[data-outlet-name="modal"]');
+      if(outletElement) {
+        outletElement.innerHTML = '';
+      }
+      // Also clear outlet wrappers synchronously
+      var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
+      for(var i = 0; i < outletWrappers.length; i++) {
+        var wrapper = outletWrappers[i];
+        // Check if this wrapper contains a modal
+        if(wrapper.querySelector && wrapper.querySelector('.modal')) {
+          wrapper.innerHTML = '';
+          break;
+        }
+      }
+      // Also try to find and clear the outlet element directly
+      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
+                         document.querySelector('[id="modal"]') ||
+                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
+                         document.querySelector('[data-outlet-name="modal"]');
+      if(outletElement) {
+        outletElement.innerHTML = '';
+      }
+    } else {
+      // For other outlets, do async cleanup
+      var _this = this;
+      runLater(function() {
+        // For other outlets, try multiple selectors to find the outlet element
+        var outletElement = document.querySelector('[data-ember-outlet="' + outlet + '"]') ||
+                           document.querySelector('[id="' + outlet + '"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="' + outlet + '"]') ||
+                           document.querySelector('[data-outlet-name="' + outlet + '"]');
+        if(outletElement) {
+          // Clear the content
+          outletElement.innerHTML = '';
+        }
+      }, 0);
+    }
     // Call closing callbacks if needed
     if(outlet == 'highlight') {
       if(this.highlight_controller && this.highlight_controller.closing) {
@@ -273,6 +658,11 @@ var modal = EmberObject.extend({
     if(modal.component) {
       modal.component.set('auto_close', false);      
     }
+    // Also cancel in service if available
+    var service = this._getService();
+    if (service) {
+      service.cancelAutoClose();
+    }
   },
   close_board_preview: function() {
     // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
@@ -288,7 +678,12 @@ modal.ModalController = Controller.extend({
       var settings = modal.settings_for[template] || {};
       var controller = this;
       if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
-        modal.last_controller = controller;        
+        modal.last_controller = controller;
+        // Set controller in service if available
+        var service = modal._getService();
+        if (service) {
+          service.setController(controller);
+        }
       }
       var tooltip = document.querySelector('body > .tooltip');
       if(tooltip) {
@@ -301,6 +696,13 @@ modal.ModalController = Controller.extend({
       }
       modal.auto_close_callback = null;
       modal.auto_close_timer = null;
+      
+      // Also cancel service auto-close if available
+      var service = modal._getService();
+      if (service) {
+        service.cancelAutoClose();
+      }
+      
       if(settings && settings.inactivity_timeout) {
         modal.auto_close_callback = function() {
           if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
@@ -318,10 +720,22 @@ modal.ModalController = Controller.extend({
             duration = Math.max(duration, scanner.options.interval * targets * 2);
             if(modal.auto_close) {
               modal.auto_close_timer = runLater(modal.auto_close_callback, duration);
+              // Also set in service
+              if (service) {
+                service.set('autoClose', true);
+                service.set('autoCloseTimer', modal.auto_close_timer);
+                service.set('autoCloseCallback', modal.auto_close_callback);
+              }
             }
           }, 500);
         } else {
           modal.auto_close_timer = runLater(modal.auto_close_callback, duration);
+          // Also set in service
+          if (service) {
+            service.set('autoClose', true);
+            service.set('autoCloseTimer', modal.auto_close_timer);
+            service.set('autoCloseCallback', modal.auto_close_callback);
+          }
         }
       }
       if(controller.opening) {

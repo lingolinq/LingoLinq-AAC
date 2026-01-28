@@ -7,13 +7,13 @@
   <div class="modal-body">
     <span class="glyphicon glyphicon-info-sign" style="font-size: 40px; float: left; margin-top: 5px; margin-right: 10px; margin-bottom: 5px;"></span>
     By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use & License Agreement</a>, and are capable of binding to a legal contract.
-    {{#if agree_error}}
+    {{#if this.agree_error}}
       <p class="text-danger">{{t "There was a problem updating your account, please try again." key="agree_error"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
     <button {{action "confirm"}} class="btn btn-primary">{{t "Agree and Continue" key="accept_and_continue"}}</button>
-    {{#if session.as_user_id}}
+    {{#if this.session.as_user_id}}
       <button {{action "close"}} class="btn btn-default">{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
     {{/if}}
   </div>

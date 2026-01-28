@@ -8,7 +8,7 @@ import Ember from 'ember';
 import EmberObject from '@ember/object';
 import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { assign as emberAssign } from '@ember/polyfills';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
@@ -675,6 +675,10 @@ var i18n = EmberObject.extend({
     if(window.persistence) {
       var path = "/api/v1/lang/" + encodeURIComponent(lang);
       var handle_result = function(res) {
+        if(!res) {
+          i18n.lang_overrides[lang] = false;
+          return;
+        }
         var loc = res._locale || lang;
         i18n.lang_overrides[loc] = {
           rules: res.rules,

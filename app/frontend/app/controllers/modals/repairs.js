@@ -4,7 +4,7 @@ import $ from 'jquery';
 import utterance from '../../utils/utterance';
 import i18n from '../../utils/i18n';
 import { set as emberSet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import app_state from '../../utils/app_state';
 import capabilities from '../../utils/capabilities';

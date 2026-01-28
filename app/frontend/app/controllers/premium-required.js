@@ -1,9 +1,11 @@
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   opening: function() {
-    if(app_state.get('currentUser.user_name') == 'edi') {
+    if(this.appState.get('currentUser.user_name') == 'edi') {
       this.set('show_reason');
     }
   },

@@ -4,24 +4,27 @@ import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
 import editManager from '../../utils/edit_manager';
 import LingoLinq from '../../app';
-import app_state from '../../utils/app_state';
-import stashes from '../../utils/_stashes';
 import capabilities from '../../utils/capabilities';
-import persistence from '../../utils/persistence';
+import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 
 var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
 export default Controller.extend({
+  appState: service('app-state'),
+  app_state: alias('appState'),
+  stashes: service('stashes'),
+  persistence: service('persistence'),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -31,7 +34,7 @@ export default Controller.extend({
     return title;
   }),
   ordered_buttons: null,
-  processButtons: observer('app_state.board_reload_key', function(ignore_fast_html) {
+  processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
@@ -39,20 +42,20 @@ export default Controller.extend({
   }),
   check_for_share_approval: observer(
     'model.id',
-    'app_state.currentUser.pending_board_shares',
-    'app_state.default_mode',
-    'app_state.speak_mode',
+    'appState.currentUser.pending_board_shares',
+    'appState.default_mode',
+    'appState.speak_mode',
     function() {
       var board_id = this.get('model.id');
       var _this = this;
-      if(board_id && app_state.get('currentBoardState')) {
-        var shares = app_state.get('currentUser.pending_board_shares') || [];
+      if(board_id && _this.appState.get('currentBoardState')) {
+        var shares = _this.appState.get('currentUser.pending_board_shares') || [];
         var matching_shares = shares.filter(function(s) { return s.board_id && s.board_id == board_id; });
         if(matching_shares.length > 0) {
           // If not in Speak Mode, or just barely launched into Speak Mode
-          if(app_state.get('default_mode') || (app_state.get('speak_mode') && stashes.get('boardHistory.length') > 0)) {
+          if(_this.appState.get('default_mode') || (_this.appState.get('speak_mode') && _this.stashes.get('boardHistory.length') > 0)) {
             // Only prompt once if in Speak Mode
-            var already = (app_state.get('speak_mode') && this.get('already_checked_boards')) || {};
+            var already = (_this.appState.get('speak_mode') && this.get('already_checked_boards')) || {};
             if(!already[board_id]) {
               already[board_id] = true;
               this.set('already_checked_boards', already);
@@ -64,15 +67,15 @@ export default Controller.extend({
     }
   ),
   updateSuggestions: observer(
-    'app_state.button_list',
-    'app_state.button_list.[]',
-    'app_state.currentUser',
-    'app_state.shift',
-    'app_state.inflection_shift',
+    'appState.button_list',
+    'this.appState.button_list.[]',
+    'appState.currentUser',
+    'appState.shift',
+    'appState.inflection_shift',
     function() {
       if(!this.get('model.word_suggestions')) { return; }
       var _this = this;
-      var button_list = this.get('app_state.button_list');
+      var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
@@ -88,7 +91,7 @@ export default Controller.extend({
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
-          board_ids: [app_state.get('currentUser.preferences.home_board.id'), stashes.get('temporary_root_board_state.id')]
+          board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
           // where it hits the next button before listeners are
@@ -113,7 +116,7 @@ export default Controller.extend({
     }
     var _this = this;
 
-    var button_locale = this.get('model.button_locale') || app_state.get('label_locale');
+    var button_locale = this.get('model.button_locale') || this.appState.get('label_locale');
     var update_locale = false;
     var needs_redraw = false;
     // If editing for a non-default locale, we
@@ -178,24 +181,24 @@ export default Controller.extend({
     boundClasses.setup(true);
     this.processButtons();
 
-    if(app_state.get('currentBoardState.id') && stashes.get('copy_on_save') == app_state.get('currentBoardState.id')) {
-      app_state.controller.send('tweakBoard', {update_locale: update_locale});
+    if(this.appState.get('currentBoardState.id') && this.stashes.get('copy_on_save') == this.appState.get('currentBoardState.id')) {
+      this.appState.controller.send('tweakBoard', {update_locale: update_locale});
       return;
     }
-    app_state.toggle_mode('edit');
+    this.appState.toggle_mode('edit');
 
     var board = this.get('model');
     var needs_refresh = board.get('update_visibility_downstream');
     board.save().then(function(brd) {
       if(update_locale) {
-        stashes.persist('label_locale', update_locale);
-        app_state.set('label_locale', update_locale);
-        stashes.persist('vocalization_locale', update_locale);
-        app_state.set('vocalization_locale', update_locale);
+        this.stashes.persist('label_locale', update_locale);
+        this.appState.set('label_locale', update_locale);
+        this.stashes.persist('vocalization_locale', update_locale);
+        this.appState.set('vocalization_locale', update_locale);
       }
       board.set('update_visibility_downstream', false);
       if(needs_refresh) {
-        app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+        this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
       }
       editManager.process_for_displaying();
       if(brd.get('protected_material') && brd.get('visibility') != 'private') {
@@ -208,7 +211,7 @@ export default Controller.extend({
   },
   valid_fast_html: computed(
     'model.fast_html',
-    'app_state.currentBoardState.level',
+    'appState.currentBoardState.level',
     'model.fast_html.width',
     'width',
     'model.fast_html.height',
@@ -218,23 +221,23 @@ export default Controller.extend({
     'model.fast_html.revision',
     'model.current_revision',
     'model.fast_html.inflection_prefix',
-    'app_state.inflection_prefix',
+    'appState.inflection_prefix',
     'model.fast_html.inflection_shift',
-    'app_state.inflection_shift',
+    'appState.inflection_shift',
     'model.fast_html.label_locale',
-    'app_state.label_locale',
-    'app_state.referenced_user.preferences.skin',
-    'app_state.referenced_user.preferences.preferred_symbols',
+    'appState.label_locale',
+    'appState.referenced_user.preferences.skin',
+    'appState.referenced_user.preferences.preferred_symbols',
     function() {
       var res = !!(this.get('model.fast_html') && this.get('model.fast_html.width') == this.get('width') 
             && this.get('model.fast_html.height') == this.get('height') 
             && this.get('model.current_revision') == this.get('model.fast_html.revision') 
-            && this.get('model.fast_html.label_locale') == app_state.get('label_locale') 
+            && this.get('model.fast_html.label_locale') == this.appState.get('label_locale') 
             && this.get('model.fast_html.display_level') == this.get('model.display_level') 
-            && app_state.get('inflection_prefix') == this.get('model.fast_html.inflection_prefix') 
-            && app_state.get('inflection_shift') == this.get('model.fast_html.inflection_shift') 
-            && app_state.get('referenced_user.preferences.skin') == this.get('model.fast_html.skin') 
-            && app_state.get('referenced_user.preferences.preferred_symbols') == this.get('model.fast_html.symbols') 
+            && this.appState.get('inflection_prefix') == this.get('model.fast_html.inflection_prefix') 
+            && this.appState.get('inflection_shift') == this.get('model.fast_html.inflection_shift') 
+            && this.appState.get('referenced_user.preferences.skin') == this.get('model.fast_html.skin') 
+            && this.appState.get('referenced_user.preferences.preferred_symbols') == this.get('model.fast_html.symbols') 
             && this.get('model.focus_id') == this.get('model.fast_html.focus_id'));
       return res;
     }
@@ -243,7 +246,7 @@ export default Controller.extend({
     'ordered_buttons',
     'valid_fast_html',
     'model.fast_html',
-    'app_state.currentBoardState.level',
+    'appState.currentBoardState.level',
     'model.fast_html.width',
     'width',
     'model.fast_html.height',
@@ -253,29 +256,30 @@ export default Controller.extend({
     'model.fast_html.revision',
     'model.current_revision',
     'model.fast_html.inflection_prefix',
-    'app_state.inflection_prefix',
+    'appState.inflection_prefix',
     'model.fast_html.inflection_shift',
-    'app_state.inflection_shift',
+    'appState.inflection_shift',
     'model.fast_html.label_locale',
-    'app_state.label_locale',
-    'app_state.referenced_user.preferences.skin',
-    'app_state.referenced_user.preferences.preferred_symbols',
+    'appState.label_locale',
+    'appState.referenced_user.preferences.skin',
+    'appState.referenced_user.preferences.preferred_symbols',
     function() {
       var res = !!(this.get('ordered_buttons') || this.get('valid_fast_html'));
       return res;
     }
   ),
   check_for_updated_board: observer(
-    'app_state.currentBoardState.reload_token',
+    'appState.currentBoardState.reload_token',
     'has_rendered_material',
-    'app_state.speak_mode',
+    'appState.speak_mode',
     function() {
       // When you exit out of speak mode, go ahead and try to reload the board, that
       // will give people a consistent, reliable way to check for updates in case
       // their board got out of sync.
-      if(persistence.get('online') && this.get('has_rendered_material') && this.get('app_state.currentBoardState.reload_token') && !this.get('app_state.speak_mode')) {
+    var persistenceService = this.persistence;
+      if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && this.get('has_rendered_material') && this.get('appState.currentBoardState.reload_token') && !this.get('appState.speak_mode')) {
         var _this = this;
-        _this.set('app_state.currentBoardState.reload_token', null);
+        _this.set('appState.currentBoardState.reload_token', null);
         _this.get('model').reload().then(function(brd) {
           if(brd && brd.get('permissions.view')) {
             _this.set('model.fast_html', null);
@@ -292,8 +296,8 @@ export default Controller.extend({
     'model.locale',
     'model.locales',
     function() {
-      if(this.get('model.id') && app_state.get('currentBoardState.id') == this.get('model.id')) {
-        app_state.setProperties({
+      if(this.get('model.id') && this.appState.get('currentBoardState.id') == this.get('model.id')) {
+        this.appState.setProperties({
           'currentBoardState.integration_name': this.get('model.integration') && this.get('model.integration_name'),
           'currentBoardState.text_direction': i18n.text_direction(this.get('model.locale')),
           'currentBoardState.translatable': (this.get('model.locales') || []).length > 1
@@ -303,22 +307,22 @@ export default Controller.extend({
   ),
   height: 400,
   computeHeight: observer(
-    'app_state.speak_mode',
-    'app_state.edit_mode',
-    'app_state.revision_id',
-    'app_state.focus_words.list',
+    'appState.speak_mode',
+    'appState.edit_mode',
+    'appState.revision_id',
+    'appState.focus_words.list',
     'model.word_suggestions',
     'model.description',
     'model.focus_id',
-    'app_state.sidebar_pinned',
-    'app_state.sidebar_visible',
+    'appState.sidebar_pinned',
+    'appState.sidebar_visible',
     'long_description',
-    'app_state.currentUser.preferences.word_suggestion_images',
+    'appState.currentUser.preferences.word_suggestion_images',
     'text_position',
-    'stashes.board_level',
-    'app_state.inflection_prefix',
-    'app_state.inflection_shift',
-    'app_state.flipped',
+    'this.stashes.board_level',
+    'appState.inflection_prefix',
+    'appState.inflection_shift',
+    'appState.flipped',
     function() {
       var inner_width = window.innerWidth;    
       var height = window.innerHeight;
@@ -327,16 +331,16 @@ export default Controller.extend({
       }
       var width = inner_width;
       var sidebar_width = window.innerWidth <= 767 ? 75 : 100;
-      if(app_state.get('sidebar_pinned') && app_state.get('sidebar_visible')) {
+      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width; // TODO: make sidebar size configurable, or have it match top bar
       }
       this.set('window_inner_width', inner_width);
-      app_state.set('window_inner_width', inner_width);
-      app_state.set('window_inner_height', height);
-      var show_description = !app_state.get('edit_mode') && !app_state.get('speak_mode') && this.get('long_description');
-      var topHeight = app_state.get('header_height') + 5;
+      this.appState.set('window_inner_width', inner_width);
+      this.appState.set('window_inner_height', height);
+      var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
+      var topHeight = this.appState.get('header_height') + 5;
       var sidebarTopHeight = topHeight;
-      this.set('show_word_suggestions', this.get('model.word_suggestions') && app_state.get('speak_mode'));
+      this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
         topHeight = topHeight + 55;
         var style = this.get('get_style');
@@ -344,21 +348,21 @@ export default Controller.extend({
         if(style == 'text_small') { topHeight = topHeight - 4; }
         else if(style == 'text_large') { topHeight = topHeight + 4; }
         else if(style == 'text_huge') { topHeight = topHeight + 17; }
-        if(this.get('app_state.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
+        if(this.get('appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
           topHeight = topHeight + 50;
           this.set('show_word_suggestion_images', true);
         } else {
           this.set('show_word_suggestion_images', false);
         }
       }
-      if(app_state.controller && app_state.controller.get('setup_footer')) {
+      if(this.appState.controller && this.appState.controller.get('setup_footer')) {
         height = height - 56;
       }
       var columns = this.get('current_grid.columns') || this.get('model.grid.columns') || 1;
       var column_width = inner_width / columns;
-      app_state.set('skinny_sidebar', column_width < 160);
+      this.appState.set('skinny_sidebar', column_width < 160);
 
-      if((!this.get('model.public') || this.get('model.license.type') != 'private') && !app_state.get('edit_mode') && stashes.get('current_mode') != 'speak') {
+      if((!this.get('model.public') || this.get('model.license.type') != 'private') && !this.appState.get('edit_mode') && this.stashes.get('current_mode') != 'speak') {
         show_description = show_description || this.get('model.name');
         if(!this.get('model.public')) {
           if(this.get('model.protected_material')) {
@@ -367,14 +371,14 @@ export default Controller.extend({
             show_description = show_description + " - private";
           }
         }
-      } else if(this.get('model.has_fallbacks') && !app_state.get('speak_mode')) {
+      } else if(this.get('model.has_fallbacks') && !this.appState.get('speak_mode')) {
         show_description = (show_description || "") + " - fallback resources used";
       }
       if(show_description) {
         topHeight = topHeight + 30;
       }
-      if(app_state.controller) {
-        app_state.controller.set('sidebar_style', htmlSafe("height: " + (height - sidebarTopHeight + 20) + "px;"));
+      if(this.appState.controller) {
+        this.appState.controller.set('sidebar_style', htmlSafe("height: " + (height - sidebarTopHeight + 20) + "px;"));
       }
       this.setProperties({
         'height': height - topHeight,
@@ -385,16 +389,16 @@ export default Controller.extend({
             this.get('model.fast_html.width') != this.get('width') 
             || this.get('model.fast_html.height') != this.get('height') 
             || this.get('model.fast_html.revision') != this.get('model.current_revision') 
-            || this.get('model.fast_html.inflection_prefix') != app_state.get('inflection_prefix') 
-            || this.get('model.fast_html.inflection_shift') != app_state.get('inflection_shift') 
-            || this.get('model.fast_html.skin') != app_state.get('referenced_user.preferences.skin') 
-            || this.get('model.fast_html.symbols') != app_state.get('referenced_user.preferences.preferred_symbols') 
+            || this.get('model.fast_html.inflection_prefix') != this.appState.get('inflection_prefix') 
+            || this.get('model.fast_html.inflection_shift') != this.appState.get('inflection_shift') 
+            || this.get('model.fast_html.skin') != this.appState.get('referenced_user.preferences.skin') 
+            || this.get('model.fast_html.symbols') != this.appState.get('referenced_user.preferences.preferred_symbols') 
             || this.get('model.focus_id') != this.get('model.fast_html.focus_id'))) {
-        app_state.set('suggestion_id', null);
+        this.appState.set('suggestion_id', null);
         this.set('model.fast_html', null);
         editManager.process_for_displaying();
         runLater(function() {
-          app_state.refresh_suggestions();
+          this.appState.refresh_suggestions();
         });
       }
     }
@@ -480,9 +484,9 @@ export default Controller.extend({
     'height',
     'width',
     'button_style',
-    'app_state.edit_mode',
+    'appState.edit_mode',
     'nothing_visible',
-    'app_state.currentUser.preferences.stretch_buttons',
+    'appState.currentUser.preferences.stretch_buttons',
     function(klass, change, redraw_button_id) {
       LingoLinq.log.track('redrawing');
       var foundy = Math.round(10 * Math.random());
@@ -533,7 +537,7 @@ export default Controller.extend({
 
 
       var _this = this;
-      var stretchable = !app_state.get('edit_mode') && app_state.get('currentUser.preferences.stretch_buttons') && app_state.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
+      var stretchable = !_this.appState.get('edit_mode') && _this.appState.get('currentUser.preferences.stretch_buttons') && _this.appState.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
       var buttons = this.get('ordered_buttons');
       var ob = this.get('ordered_buttons');
 
@@ -763,8 +767,8 @@ export default Controller.extend({
           }
         });
       });
-      app_state.set('board_virtual_dom.ordered_buttons', ob);
-      app_state.align_button_list();
+      this.appState.set('board_virtual_dom.ordered_buttons', ob);
+      this.appState.align_button_list();
       LingoLinq.log.track('done computing dimensions');
     }
   ),
@@ -799,10 +803,10 @@ export default Controller.extend({
   }),
   current_level: computed(
     'model.default_level',
-    'stashes.board_level',
+    'this.stashes.board_level',
     'preview_level',
     function() {
-      return this.get('preview_level') || stashes.get('board_level') || this.get('model.default_level') || 10;
+      return this.get('preview_level') || this.stashes.get('board_level') || this.get('model.default_level') || 10;
     }
   ),
   button_levels: computed('ordered_buttons.@each.level_modifications', 'levels_change', function() {
@@ -824,8 +828,8 @@ export default Controller.extend({
   clear_levels_change() {
     this.set('levels_change', false);
   },
-  preview_levels: computed('app_state.edit_mode', 'preview_levels_mode', function() {
-    return this.get('app_state.edit_mode') && this.get('preview_levels_mode');
+  preview_levels: computed('appState.edit_mode', 'preview_levels_mode', function() {
+    return this.get('appState.edit_mode') && this.get('preview_levels_mode');
   }),
   noUndo: true,
   noRedo: true,
@@ -859,15 +863,15 @@ export default Controller.extend({
     };
   }),
   extra_pad: computed(
-    'app_state.currentUser.preferences.device.button_spacing',
-    'app_state.window_inner_width',
+    'appState.currentUser.preferences.device.button_spacing',
+    'appState.window_inner_width',
     function() {
-      var spacing = app_state.get('currentUser.preferences.device.button_spacing') || window.user_preferences.device.button_spacing;
+      var spacing = this.appState.get('currentUser.preferences.device.button_spacing') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_spacing);
       if(spacing == 'none') {
         return 0;
-      } else if(spacing == 'minimal' || app_state.get('window_inner_width') < 600) {
+      } else if(spacing == 'minimal' || this.appState.get('window_inner_width') < 600) {
         return 1;
-      } else if(spacing == "extra-small" || app_state.get('window_inner_width') < 750) {
+      } else if(spacing == "extra-small" || this.appState.get('window_inner_width') < 750) {
         return 2;
       } else if(spacing == "medium") {
         return 10;
@@ -881,15 +885,15 @@ export default Controller.extend({
     }
   ),
   inner_pad: computed(
-    'app_state.currentUser.preferences.device.button_border',
+    'appState.currentUser.preferences.device.button_border',
     'window_inner_width',
     function() {
-      var spacing = app_state.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
+      var spacing = this.appState.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
       if(spacing == "none") {
         return 0;
-      } else if(app_state.get('window_inner_width') < 600) {
+      } else if(this.appState.get('window_inner_width') < 600) {
         return 1;
-      } else if(spacing == "medium" || app_state.get('window_inner_width') < 750) {
+      } else if(spacing == "medium" || this.appState.get('window_inner_width') < 750) {
         return 2;
       } else if(spacing == "large") {
         return 5;
@@ -901,10 +905,10 @@ export default Controller.extend({
     }
   ),
   base_text_height: computed(
-    'app_state.currentUser.preferences.device.button_text',
+    'appState.currentUser.preferences.device.button_text',
     function() {
-      var text = app_state.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
-      var position = app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
+      var text = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(text == "small") {
         return 14;
       } else if(text == "none" || position == "none") {
@@ -919,17 +923,17 @@ export default Controller.extend({
     }
   ),
   text_style: computed(
-    'app_state.currentUser.preferences.device.button_text',
-    'app_state.currentUser.preferences.device.button_text_position',
+    'appState.currentUser.preferences.device.button_text',
+    'appState.currentUser.preferences.device.button_text_position',
     function() {
-      var size = app_state.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
-      if(app_state.get('currentUser.preferences.device.button_text_position') == 'none') {
+      var size = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      if(this.appState.get('currentUser.preferences.device.button_text_position') == 'none') {
         size = 'none';
       }
       if(size != 'none') {
-        if(app_state.get('window_inner_width') < 600) {
+        if(this.appState.get('window_inner_width') < 600) {
           size = 'small';
-        } else if(app_state.get('window_inner_width') < 750 && size != 'small') {
+        } else if(this.appState.get('window_inner_width') < 750 && size != 'small') {
           size = 'medium';
         }
       }
@@ -938,18 +942,18 @@ export default Controller.extend({
   ),
   text_position: computed(
     'model.text_only',
-    'app_state.currentUser.preferences.device.button_text_position',
+    'appState.currentUser.preferences.device.button_text_position',
     function() {
       if(this.get('model.text_only')) {
         return 'text_position_text_only';
       }
-      return "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
+      return "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position));
     }
   ),
-  symbol_background: computed('app_state.currentUser.preferences.symbol_background', function() {
-    var bg = app_state.get('currentUser.preferences.symbol_background');
+  symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
+    var bg = this.appState.get('currentUser.preferences.symbol_background');
     if(!bg) {
-      if(app_state.get('currentUser')) {
+      if(this.appState.get('currentUser')) {
         bg = 'white';
       } else {
         bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
@@ -957,58 +961,58 @@ export default Controller.extend({
     }
     return "symbol_background_" + bg;
   }),
-  border_style: computed('app_state.currentUser.preferences.device.button_border', function() {
-    var spacing = app_state.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
+  border_style: computed('appState.currentUser.preferences.device.button_border', function() {
+    var spacing = this.appState.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
     return "border_" + spacing;
   }),
-  button_style: computed('app_state.currentUser.preferences.device.button_style', function() {
-    return app_state.get('currentUser.preferences.device.button_style');
+  button_style: computed('appState.currentUser.preferences.device.button_style', function() {
+    return this.appState.get('currentUser.preferences.device.button_style');
   }),
-  editModeNormalText: computed('app_state.edit_mode', 'model.text_size', function() {
-    return app_state.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
+  editModeNormalText: computed('appState.edit_mode', 'model.text_size', function() {
+    return this.appState.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
   }),
-  nothing_visible_not_edit: computed('nothing_visible', 'app_state.edit_mode', function() {
-    return this.get('nothing_visible') && !app_state.get('edit_mode');
+  nothing_visible_not_edit: computed('nothing_visible', 'appState.edit_mode', function() {
+    return this.get('nothing_visible') && !this.appState.get('edit_mode');
   }),
   display_class: computed(
-    'stashes.all_buttons_enabled',
-    'stashes.current_mode',
+    'this.stashes.all_buttons_enabled',
+    'this.stashes.current_mode',
     'paint_mode',
     'border_style',
     'text_style',
     'model.finding_target',
     'model.hide_empty',
-    'app_state.currentUser.preferences.hidden_buttons',
-    'app_state.currentUser.hide_symbols',
-    'app_state.currentUser.preferences.folder_icons',
-    'app_state.currentUser.preferences.stretch_buttons',
-    'app_state.eval_mode',
-    'app_state.currentUser.preferences.high_contrast',
+    'appState.currentUser.preferences.hidden_buttons',
+    'appState.currentUser.hide_symbols',
+    'appState.currentUser.preferences.folder_icons',
+    'appState.currentUser.preferences.stretch_buttons',
+    'appState.eval_mode',
+    'appState.currentUser.preferences.high_contrast',
     function() {
       var res = "board advanced_selection ";
-      if(!app_state.get('currentUser.preferences.folder_icons')) {
+      if(!this.appState.get('currentUser.preferences.folder_icons')) {
         res = res + "colored_icons ";
       }
-      if(app_state.get('currentUser.preferences.high_contrast')) {
+      if(this.appState.get('currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
       }
-      if(this.get('stashes.current_mode')) {
-        res = res + this.get('stashes.current_mode')  + " ";
+      if(this.get('this.stashes.current_mode')) {
+        res = res + this.get('this.stashes.current_mode')  + " ";
       }
-      var stretchable = !app_state.get('edit_mode') && app_state.get('currentUser.preferences.stretch_buttons') && app_state.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
-      if(!app_state.get('eval_mode')) {
-        if(this.get('stashes.all_buttons_enabled')) {
+      var stretchable = !this.appState.get('edit_mode') && this.appState.get('currentUser.preferences.stretch_buttons') && this.appState.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
+      if(!this.appState.get('eval_mode')) {
+        if(this.get('this.stashes.all_buttons_enabled')) {
           res = res + 'show_all_buttons ';
-        } else if(!stretchable && app_state.get('currentUser.preferences.hidden_buttons') == 'hint' && !this.get('model.hide_empty')) {
+        } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'hint' && !this.get('model.hide_empty')) {
           res = res + 'hint_hidden_buttons ';
-        } else if(!stretchable && app_state.get('currentUser.preferences.hidden_buttons') == 'grid' && !this.get('model.hide_empty')) {
+        } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'grid' && !this.get('model.hide_empty')) {
           res = res + 'grid_hidden_buttons ';
         }
       }
-      if(app_state.get('currentUser.hide_symbols')) {
+      if(this.appState.get('currentUser.hide_symbols')) {
         res = res + 'show_labels ';
       }
       if(this.get('paint_mode')) {
@@ -1043,8 +1047,8 @@ export default Controller.extend({
   suggestion_class: computed(
     'button_style',
     'text_style',
-    'app_state.currentUser.preferences.word_suggestion_images',
-    'app_state.currentUser.preference.high_contrast',
+    'appState.currentUser.preferences.word_suggestion_images',
+    'appState.currentUser.preference.high_contrast',
     function() {
       var res = "advanced_selection ";
       if(this.get('text_style')) {
@@ -1064,11 +1068,11 @@ export default Controller.extend({
           res = res + style.font_class + " ";
         }
       }
-      if(this.get('app_state.currentUser.preferences.high_contrast')) {
+      if(this.get('appState.currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
 
-      if(this.get('app_state.currentUser.preferences.word_suggestion_images')) {
+      if(this.get('appState.currentUser.preferences.word_suggestion_images')) {
         res = res + "with_images ";
       }
       return res;
@@ -1076,28 +1080,29 @@ export default Controller.extend({
   ),
   update_button_symbol_class: observer(
     'model.text_only',
-    'app_state.currentUser.hide_symbols',
-    'app_state.currentUser.preferences.device.button_text_position',
+    'appState.currentUser.hide_symbols',
+    'appState.currentUser.preferences.device.button_text_position',
     function() {
       var res = "button-label-holder ";
-      if(this.get('app_state.currentUser.hide_symbols') || this.get('model.text_only')) {
+      if(this.get('appState.currentUser.hide_symbols') || this.get('model.text_only')) {
         res = res + "no_image ";
       }
-      var currentUser = app_state.get('currentUser');
+      var currentUser = this.appState.get('currentUser');
       var devicePrefs = currentUser && currentUser.get && currentUser.get('preferences.device');
       var position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";
       }
-      app_state.set('button_symbol_class', res);
+      this.appState.set('button_symbol_class', res);
       this.set('button_symbol_class', res);
       this.set('text_only_button_symbol_class', (res + " no_image").replace(/top/, ''));
-      app_state.set('text_only_button_symbol_class', this.get('text_only_button_symbol_class'));
+      this.appState.set('text_only_button_symbol_class', this.get('text_only_button_symbol_class'));
       return res;
     }
   ),
   reload_on_connect: observer('persistence.online', function() {
-    if(persistence.get('online') && !this.get('model.id')) {
+    var persistenceService = this.persistence || this.persistence;
+    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && !this.get('model.id')) {
       try {
         this.send('refreshData');
       } catch(e) { }
@@ -1113,9 +1118,10 @@ export default Controller.extend({
       modal.open('board-details', {board: this.get('model')});
     },
     buttonSelect: function(id, event) {
+      var _this = this;
       var controller = this;
       var board = this.get('model');
-      if(app_state.get('edit_mode')) {
+      if(_this.appState.get('edit_mode')) {
         if(editManager.finding_target()) {
           editManager.apply_to_target(id);
         } else {
@@ -1129,7 +1135,7 @@ export default Controller.extend({
       } else {
         var button = editManager.find_button(id); //(board.get('buttons') || []).find(function(b) { return b.id == id; });
         if(!button) { return; }
-        var app = app_state.controller;
+        var app = _this.appState.controller;
         app.activateButton(button, {board: board, event: event});
       }
     },
@@ -1138,11 +1144,12 @@ export default Controller.extend({
     },
     complete_word: function(word) {
       try {
+        var _this = this;
         var text = word.word;
         var button = editManager.fake_button();
         button.set('label', text);
         button.set('vocalization', ":complete");
-        var list = app_state.get('button_list') || [];
+        var list = _this.appState.get('button_list') || [];
         if(!emberGet(list[0] || {}, 'in_progress')) {
           button.set('vocalization', ":predict");
         }
@@ -1155,20 +1162,22 @@ export default Controller.extend({
 
         var controller = this;
         var board = this.get('model');
-        var app = app_state.controller;
+        var app = _this.appState.controller;
         app.activateButton(button, {board: board, trigger_source: 'completion'});
       } catch(e) { debugger }
     },
     symbolSelect: function(id) {
+      var _this = this;
       var board = this;
-      if(!app_state.get('edit_mode')) { return; }
+      if(!_this.appState.get('edit_mode')) { return; }
       var button = editManager.find_button(id);
       button.state = 'picture';
       modal.open('button-settings', {button: button, board: this.get('model')});
     },
     actionSelect: function(id) {
+      var _this = this;
       var board = this;
-      if(!app_state.get('edit_mode')) { return; }
+      if(!_this.appState.get('edit_mode')) { return; }
       var button = editManager.find_button(id);
       button.state = 'action';
       modal.open('button-settings', {button: button, board: this.get('model')});
@@ -1186,16 +1195,18 @@ export default Controller.extend({
       $stash_hover.removeClass('on_button').data('button_id', null);
     },
     word_data: function(id) {
+      var _this = this;
       var button = editManager.find_button(id || editManager.stashed_button_id);
       if(button && (button.label || button.vocalization)) {
-        modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: app_state.get('currentUser')});
+        modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: _this.appState.get('currentUser')});
       }
       var $stash_hover = $("#stash_hover");
       $stash_hover.removeClass('on_button').data('button_id', null);
     },
     toggleEditMode: function(decision) {
-      app_state.check_for_needing_purchase().then(function() {
-        app_state.toggle_edit_mode(decision);
+      var _this = this;
+      _this.appState.check_for_needing_purchase().then(function() {
+        _this.appState.toggle_edit_mode(decision);
       }, function() { });
     },
     compute_height: function(force) {

@@ -1,13 +1,15 @@
 import modal from '../utils/modal';
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   opening: function() {
     this.load_badge();
     if(this.get('model.user_id') && !this.get('model.badge')) {
@@ -19,7 +21,7 @@ export default modal.ModalController.extend({
     this.set('has_modeling_activities', false);
     if(this.get('model.speak_mode')) {
       var _this = this;
-      app_state.get('referenced_user').load_word_activities().then(function(activities) {
+      this.appState.get('referenced_user').load_word_activities().then(function(activities) {
         if(activities && activities.list && activities.list.length > 0) {
           _this.set('has_modeling_activities', true);
         }
@@ -107,7 +109,7 @@ export default modal.ModalController.extend({
       });
     },
     modeling_ideas: function() {
-      modal.open('modals/modeling-ideas', {speak_mode: true, users: [app_state.get('referenced_user')]});
+      modal.open('modals/modeling-ideas', {speak_mode: true, users: [this.appState.get('referenced_user')]});
     }
   }
 });

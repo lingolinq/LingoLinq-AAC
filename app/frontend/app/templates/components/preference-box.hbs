@@ -1,24 +1,24 @@
 <fieldset style='border: 1px solid #ddd; padding: 0 10px 5px; border-radius: 10px; margin-bottom: 5px; overflow: hidden;'>
     <div class='form-group' style='background: #fafafa; border-bottom: 1px solid #ddd; cursor: pointer;' {{action "toggle" on="click"}}>
       <div class='col-sm-3' style='text-align: right;'>
-        {{#if open}}
+        {{#if this.open}}
           <span class='glyphicon glyphicon-chevron-down' style='font-size: 25px; margin-top: 8px;'></span>
         {{else}}
           <span class='glyphicon glyphicon-chevron-right text-muted' style='font-size: 25px; margin-top: 5px;'></span>
         {{/if}}
       </div>
       <div class='col-sm-5'>
-        <h4>{{#if glyph}}<span class={{glyph}}></span> {{/if}}{{t title key=title_key}}</h4>
+        <h4>{{#if this.glyph}}<span class={{this.glyph}}></span> {{/if}}{{t this.title key=this.title_key}}</h4>
       </div>
     </div>
-    {{#if open}}
+    {{#if this.open}}
       {{yield}}
     {{else}}
       <div style='height: 15px; opacity: 0.5; overflow: hidden;' {{action "toggle" on="click"}}>
         <div class='form-group'>
           <div class='col-sm-5 col-sm-offset-3'>
-            {{#if closed_text}}
-              {{closed_text}}
+            {{#if this.closed_text}}
+              {{this.closed_text}}
             {{else}}
               ...
             {{/if}}

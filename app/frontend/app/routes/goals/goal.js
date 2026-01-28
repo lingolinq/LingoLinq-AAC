@@ -1,12 +1,15 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
-import persistence from '../../utils/persistence';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  store: service('store'),
+  persistence: service('persistence'),
   model: function(params) {
+    var _this = this;
     var obj = this.store.findRecord('goal', params.goal_id);
     return obj.then(function(data) {
-      if(!data.get('permissions') && persistence.get('online')) {
+      if(!data.get('permissions') && _this.persistence.get('online')) {
         runLater(function() {
           data.rollbackAttributes();
           data.reload();

@@ -1,8 +1,10 @@
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   pin: "",
   compare_pin: observer('pin', function() {
     var pin = this.get('pin');
@@ -11,9 +13,9 @@ export default modal.ModalController.extend({
       modal.close({correct_pin: true});
       if(this.get('model.action') == 'none') { return; }
       if(this.get('model.action') == 'edit') {
-        app_state.toggle_edit_mode();
+        this.appState.toggle_edit_mode();
       } else {
-        app_state.toggle_speak_mode('off');
+        this.appState.toggle_speak_mode('off');
       }
     } else if(pin && pin.length >= 4) {
       // error message

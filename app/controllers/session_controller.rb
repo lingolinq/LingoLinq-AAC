@@ -544,42 +544,125 @@ class SessionController < ApplicationController
   
   def token_check
     set_browser_token_header
-    if @api_user
-      params['access_token'] = @token if @token && @tmp_token
-      device = Device.find_by_global_id(@api_device_id)
-      valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
-      expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
-      needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[params['access_token']]
+    json = nil
+    begin
+      if @api_user
+        params['access_token'] = @token if @token && @tmp_token
+        device = Device.find_by_global_id(@api_device_id) if @api_device_id
+        valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
+        expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
+        needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[params['access_token']]
+        
+        # Safely get global integrations
+        global_integrations = []
+        begin
+          if UserIntegration.respond_to?(:global_integrations)
+            integrations = UserIntegration.global_integrations
+            # Ensure integrations is a Hash before calling .keys to prevent NoMethodError
+            if integrations && integrations.is_a?(Hash)
+              global_integrations = integrations.keys
+            else
+              global_integrations = []
+            end
+          end
+        rescue => e
+          Rails.logger.warn("Error getting global_integrations: #{e.message}")
+          global_integrations = []
+        end
+        
+        # Safely get current sale
+        sale = nil
+        begin
+          sale = Purchasing.current_sale if Purchasing.respond_to?(:current_sale)
+        rescue => e
+          Rails.logger.warn("Error getting current_sale: #{e.message}")
+        end
+        
+        json = {
+          authenticated: valid, 
+          expired: !!(expired || needs_refresh),
+          user_name: @api_user.user_name, 
+          user_id: @api_user.global_id,
+          device_id: @api_device_id,
+          modeling_session: @api_user.valet_mode?,
+          avatar_image_url: (valid ? @api_user.generated_avatar_url : nil),
+          scopes: device && device.permission_scopes,
+          sale: sale,
+          ws_url: ENV['CDWEBSOCKET_URL'],
+          global_integrations: global_integrations,
+        }
+        if params['2fa_code']
+          if device
+            begin
+              json['valid_2fa'] = !!device.confirm_2fa!(params['2fa_code'])
+              json[:scopes] = device.permission_scopes
+              json['cooldown_2fa'] = device.settings['2fa']['cooldown'] if device.settings && device.settings['2fa'] && device.settings['2fa']['cooldown']
+            rescue => e
+              Rails.logger.warn("Error processing 2FA: #{e.message}")
+              json['valid_2fa'] = false
+            end
+          else
+            # Security: If 2FA code is provided but device is missing, this is an error condition
+            # Previously this would silently ignore the 2FA code, potentially bypassing security
+            Rails.logger.error("2FA code provided but device not found for user #{@api_user.global_id}")
+            json['valid_2fa'] = false
+            json['2fa_error'] = 'Device not found for 2FA validation'
+          end
+        end
+        if params['include_token']
+          json[:token] = JsonApi::Token.as_json(@api_user, device)
+        end
+        json[:can_refresh] = true if needs_refresh && !expired
+      else
+        # Safely get global integrations and sale for unauthenticated response
+        global_integrations = []
+        begin
+          if UserIntegration.respond_to?(:global_integrations)
+            integrations = UserIntegration.global_integrations
+            # Ensure integrations is a Hash before calling .keys to prevent NoMethodError
+            if integrations && integrations.is_a?(Hash)
+              global_integrations = integrations.keys
+            else
+              global_integrations = []
+            end
+          end
+        rescue => e
+          Rails.logger.warn("Error getting global_integrations: #{e.message}")
+          global_integrations = []
+        end
+        
+        sale = nil
+        begin
+          sale = Purchasing.current_sale if Purchasing.respond_to?(:current_sale)
+        rescue => e
+          Rails.logger.warn("Error getting current_sale: #{e.message}")
+        end
+        
+        json = {
+          authenticated: false, 
+          sale: sale,
+          ws_url: ENV['CDWEBSOCKET_URL'],
+          global_integrations: global_integrations
+        }
+      end
+    rescue => e
+      Rails.logger.error("Error in token_check: #{e.class.name}: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
       json = {
-        authenticated: valid, 
-        expired: !!(expired || needs_refresh),
-        user_name: @api_user.user_name, 
-        user_id: @api_user.global_id,
-        device_id: @api_device_id,
-        modeling_session: @api_user.valet_mode?,
-        avatar_image_url: (valid ? @api_user.generated_avatar_url : nil),
-        scopes: device && device.permission_scopes,
-        sale: Purchasing.current_sale,
+        authenticated: false,
+        error: "Internal server error",
+        sale: nil,
         ws_url: ENV['CDWEBSOCKET_URL'],
-        global_integrations: UserIntegration.global_integrations.keys,
+        global_integrations: []
       }
-      if params['2fa_code']
-        json['valid_2fa'] = !!device.confirm_2fa!(params['2fa_code'])
-        json[:scopes] = device.permission_scopes
-        json['cooldown_2fa'] = device.settings['2fa']['cooldown'] if (device.settings['2fa'] || {})['cooldown']
-      end
-      if params['include_token']
-        json[:token] = JsonApi::Token.as_json(@api_user, device)
-      end
-      json[:can_refresh] = true if needs_refresh && !expired
-      render json: json.to_json
+    end
+    
+    # Single render point to avoid double render errors
+    # Note: render json: automatically calls .to_json, so don't call it explicitly
+    if json
+      render json: json, status: (json[:error] ? 500 : 200)
     else
-      render json: {
-        authenticated: false, 
-        sale: Purchasing.current_sale,
-        ws_url: ENV['CDWEBSOCKET_URL'],
-        global_integrations: UserIntegration.global_integrations.keys
-      }.to_json
+      render json: {authenticated: false, error: "Unknown error"}, status: 500
     end
   end
 

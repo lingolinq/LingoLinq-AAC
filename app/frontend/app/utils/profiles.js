@@ -10,7 +10,7 @@ import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import i18n from './i18n';
 import LingoLinq from '../app';
 

@@ -1,6 +1,6 @@
 import DS from 'ember-data';
 import LingoLinq from '../app';
-import persistence from '../utils/persistence';
+
 import { computed } from '@ember/object';
 
 LingoLinq.Webhook = DS.Model.extend({

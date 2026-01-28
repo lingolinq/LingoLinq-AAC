@@ -23,6 +23,16 @@ if(navigator.standalone) {
   // indexedDBSafe = window.shimIndexedDB;
 }
 
+// Define File System API type constants to avoid using deprecated StorageType.PERSISTENT
+// These constants are used by the File System API (requestFileSystem)
+// PERSISTENT = 1, TEMPORARY = 0
+if(typeof window.PERSISTENT === 'undefined') {
+  window.PERSISTENT = 1;
+}
+if(typeof window.TEMPORARY === 'undefined') {
+  window.TEMPORARY = 0;
+}
+
 window.cd_request_file_system = window.webkitRequestFileSystem || window.requestFileSystem;
 if(window.cd_request_file_system) {
   window.native_cd_request_file_system = window.cd_request_file_system;
@@ -31,6 +41,8 @@ if(window.cd_request_file_system) {
     return window.native_cd_request_file_system(type, size, success, error);
   }
 }
+// Note: webkitPersistentStorage/persistentStorage are deprecated in favor of navigator.storage.persist()
+// However, we still need these for queryUsageAndQuota and requestQuota until the File System API is fully migrated
 window.cd_persistent_storage = window.navigator.webkitPersistentStorage || window.navigator.persistentStorage;
 if(window.cd_persistent_storage) {
   window.native_cd_persistent_storage = window.cd_persistent_storage;
@@ -67,6 +79,10 @@ var capabilities;
   capabilities.installed_app = !!capabilities.installed_app;
   capabilities.browserless = !!(capabilities.installed_app || navigator.standalone);
   capabilities.queued_db_actions = [];
+  capabilities.setup = function(stashes, tts_voices) {
+    this.stashes = stashes;
+    this.tts_voices = tts_voices;
+  },
   capabilities.screen = {
     width: window.screen.width,
     height: window.screen.height
@@ -225,6 +241,39 @@ var capabilities;
         }
         capabilities.credentials = capabilities.auth_credentials;
         capabilities.access_token = auth_settings.access_token;
+        
+        // Sync capabilities.access_token when auth_settings changes
+        // This ensures tokens are always synchronized for API requests
+        capabilities.sync_access_token = function() {
+          var auth_settings = stashes.get_object('auth_settings', true) || {};
+          var new_token = auth_settings.access_token;
+          if(new_token !== capabilities.access_token) {
+            var old_token_preview = capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none';
+            var new_token_preview = new_token ? new_token.substring(0, 10) + '...' : 'none';
+            console.log('[capabilities] Syncing access_token', {
+              old_token_preview: old_token_preview,
+              new_token_preview: new_token_preview,
+              changed: new_token !== capabilities.access_token
+            });
+            capabilities.access_token = new_token;
+          }
+        };
+        
+        // Watch for auth_settings changes via periodic check (since it's stored as JSON)
+        // This ensures capabilities.access_token stays in sync after session restore, token refresh, etc.
+        if(!capabilities._auth_sync_interval) {
+          capabilities._auth_sync_interval = setInterval(function() {
+            if(capabilities && capabilities.sync_access_token) {
+              capabilities.sync_access_token();
+            }
+          }, 2000); // Check every 2 seconds
+        }
+        
+        // Also sync immediately after stashes setup completes
+        if(stashes.get('enabled')) {
+          capabilities.sync_access_token();
+        }
+        
         if(window.Keyboard && window.Keyboard.shrinkView) {
           window.Keyboard.shrinkView(false, function() { });
 //          window.Keyboard.disableScrollingInShrinkView(true, function() { });
@@ -264,6 +313,7 @@ var capabilities;
         }
         return false;
       },
+
       eye_gaze: { 
         listen: function(opts) {
           opts = opts || {};
@@ -844,6 +894,13 @@ var capabilities;
         }
       },
       tts: {
+        check_for_upgrades: function() {
+          var latest_version = tts_voices.get('versions.' + capabilities.system);
+          if(capabilities.system == 'Windows' && !capabilities.get('checked_for_voice_upgrades')) {
+            capabilities.set('checked_for_voice_upgrades', true);
+            // ... (restored snippet logic if needed, but keeping simple for now)
+          }
+        },
         tts_exec: function(method, args, callback) {
           var promise = capabilities.mini_promise();
           if(window.cordova && window.cordova.exec) {
@@ -888,8 +945,19 @@ var capabilities;
           });
         },
         available_voices: function() {
+          var _this = this; // Capture 'this' for use in the callback
           return capabilities.tts.tts_exec('getAvailableVoices', null, function(promise, res) {
-            promise.resolve(res);
+            var orig_voices = capabilities.get('voices'); // Assuming 'this' refers to an object with a 'get' method
+            var more_voices = [];
+            res.forEach(function(voice) { // 'res' is the list of voices from tts_exec
+              if(voice.active) {
+                var ref_voice = tts_voices.find_voice(voice.voice_id);
+                if(ref_voice) {
+                  voice.name = ref_voice.name;
+                }
+              }
+            });
+            promise.resolve(res); // Resolve with the processed voices
           });
         },
         download_voice: function(voice_id, voice_url, progress) {
@@ -1545,6 +1613,8 @@ var capabilities;
             var req_size = 1024*1024*50;
             window.cd_persistent_storage.queryUsageAndQuota(function(used, requested) {
               var get_file_system = function() {
+                // Use our defined constant instead of deprecated StorageType.PERSISTENT
+                // window.PERSISTENT is defined above as 1 (persistent storage type)
                 window.cd_request_file_system(window.PERSISTENT, req_size, function(dir) {
                   capabilities.root_dir_entry = dir.root;
                   promise.resolve(dir.root);

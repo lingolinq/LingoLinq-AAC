@@ -22,78 +22,336 @@ import { computed } from '@ember/object';
 
 var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 'buttonset'];
 var loaded = (new Date()).getTime() / 1000;
+
+// CRITICAL: Set window.persistence EARLY at module load time
+// This ensures any code that runs before the service initializes has a safe placeholder
+// The placeholder will be replaced by the real service instance when it initializes
+if(!window.persistence || typeof window.persistence.get !== 'function') {
+  console.log('[PERSISTENCE MODULE] Setting early window.persistence placeholder');
+  window.persistence = {
+    // Safe placeholder properties
+    online: navigator.onLine !== false,
+    syncing: false,
+    last_sync_at: null,
+    last_sync_stamp: null,
+    sync_progress: null,
+    sync_stamps: {},
+    auto_sync: false,
+    local_system: {},
+    // Safe get method - returns null for any property access
+    get: function(key) {
+      // Check if we have a real service now (the placeholder may have been replaced)
+      if(window._realPersistence && typeof window._realPersistence.get === 'function') {
+        return window._realPersistence.get(key);
+      }
+      // Return safe defaults for common properties
+      if(key === 'online') return this.online;
+      if(key === 'syncing') return this.syncing;
+      if(key === 'auto_sync') return this.auto_sync;
+      if(key === 'last_sync_at') return this.last_sync_at;
+      if(key === 'last_sync_stamp') return this.last_sync_stamp;
+      if(key === 'sync_progress') return this.sync_progress;
+      if(key === 'sync_stamps') return this.sync_stamps;
+      if(key && key.indexOf('local_system') === 0) return null;
+      if(key && key.indexOf('sync_progress') === 0) return null;
+      return null;
+    },
+    // Safe set method - stores property on placeholder
+    set: function(key, value) {
+      // Check if we have a real service now
+      if(window._realPersistence && typeof window._realPersistence.set === 'function') {
+        return window._realPersistence.set(key, value);
+      }
+      this[key] = value;
+      return value;
+    },
+    // Placeholder for addObserver (used by some code)
+    addObserver: function() {},
+    removeObserver: function() {},
+    // Placeholder for common methods - return promises that reject gracefully
+    find: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    find_json: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    find_url: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    find_urls: function() { return RSVP.resolve([]); },
+    store: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    store_json: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    store_url: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    remove: function() { return RSVP.resolve(); },
+    remember_access: function() {},
+    offline_reject: function() { return RSVP.reject({offline: true, error: 'not online'}); },
+    ajax: function() {
+      // Perform actual jQuery ajax call - this is critical for early requests like login
+      var ajax_args = arguments;
+      return new RSVP.Promise(function(resolve, reject) {
+        $.ajax.apply(null, ajax_args).then(function(data) {
+          resolve(data);
+        }, function(xhr) {
+          reject(xhr);
+        });
+      });
+    },
+    sync: function() { return RSVP.reject({error: 'persistence not ready'}); },
+    check_for_updates: function() { return RSVP.resolve(); },
+    get_important_ids: function() { return RSVP.resolve([]); },
+    url_cache: {},
+    known_missing: {},
+    log: []
+  };
+}
+
+// Safe getter helpers - use these instead of direct safeGet(getPersistence(), ) or safeGet(getStashes(), )
+// These handle the case where the service isn't initialized yet
+var getPersistence = function() {
+  // Prefer window.persistence (service instance) over module-level persistence (class)
+  if(window.persistence && typeof window.persistence.get === 'function') {
+    return window.persistence;
+  }
+  return null;
+};
+
+var getStashes = function() {
+  // Prefer window.stashes (service instance) over module-level stashes
+  if(window.stashes && typeof window.stashes.get === 'function') {
+    return window.stashes;
+  }
+  if(stashes && typeof stashes.get === 'function') {
+    return stashes;
+  }
+  return null;
+};
+
+// Safe property access - returns default value if persistence/stashes not available
+var safeGet = function(instance, key, defaultValue) {
+  if(instance && typeof instance.get === 'function') {
+    try {
+      return instance.get(key);
+    } catch(e) {
+      return defaultValue !== undefined ? defaultValue : null;
+    }
+  }
+  return defaultValue !== undefined ? defaultValue : null;
+};
+
+// Safe property setter - does nothing if instance not available
+var safeSet = function(instance, key, value) {
+  if(instance && typeof instance.set === 'function') {
+    try {
+      return instance.set(key, value);
+    } catch(e) {
+      console.warn('[PERSISTENCE] safeSet failed for', key, e);
+    }
+  }
+};
+
 var persistence = EmberObject.extend({
   setup: function(application) {
+    // TEMPORARILY DISABLED: Old persistence setup should not be called during migration
+    // The new persistence service handles initialization via init()
+    // This setup method is kept for backward compatibility but should not execute
+    console.log('[OLD PERSISTENCE SETUP] ========== OLD setup() CALLED (DISABLED) ==========');
+    console.log('[OLD PERSISTENCE SETUP] application:', application);
+    console.log('[OLD PERSISTENCE SETUP] persistence:', persistence);
+    console.log('[OLD PERSISTENCE SETUP] Call stack:', new Error().stack.split('\n').slice(0, 15).join('\n'));
+    console.warn('[OLD PERSISTENCE SETUP] WARNING: Old persistence setup is disabled! The new service handles everything.');
+    
+    // Early return to prevent execution - the new service handles everything
+    // This prevents the error "Cannot read properties of undefined (reading 'get')"
+    return;
+    
+    // Code below is disabled - new service handles initialization
+    /*
     application.register('lingolinq:persistence', persistence, { instantiate: false, singleton: true });
     $.each(['model', 'controller', 'view', 'route'], function(i, component) {
       application.inject(component, 'persistence', 'lingolinq:persistence');
     });
-    persistence.find('settings', 'lastSync').then(function(res) {
-      persistence.set('last_sync_at', res.last_sync);
-      persistence.set('sync_stamps', res.stamps);
-    }, function() { });
-    lingoLinqExtras.addObserver('ready', function() {
-      persistence.find('settings', 'lastSync').then(function(res) {
-        persistence.set('last_sync_at', res.last_sync);
-        persistence.set('sync_stamps', res.stamps);
-      }, function() {
-        persistence.set('last_sync_at', 1);
-      });
-    });
+    // Use window.persistence (new service) if available, otherwise use old persistence class
+    // Note: The old persistence is a class, not an instance, so we need to use window.persistence
+    var persistenceInstance = window.persistence || persistence;
+    if(persistenceInstance && typeof persistenceInstance.find === 'function') {
+      persistenceInstance.find('settings', 'lastSync').then(function(res) {
+        if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+          persistenceInstance.set('last_sync_at', res.last_sync);
+          persistenceInstance.set('sync_stamps', res.stamps);
+        }
+      }, function() { });
+    }
+    // Guard: ensure persistence instance is available before registering observers
+    // Note: persistence is a class, not an instance, so we check window.persistence (new service)
+    var persistenceInstance = window.persistence || persistence;
+    if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.set !== 'function') {
+      console.warn('Persistence instance not ready, skipping observer registration');
+      // Don't return - continue with observer registration using window.persistence when available
+    }
+    try {
+      if(lingoLinqExtras && typeof lingoLinqExtras.addObserver === 'function') {
+        lingoLinqExtras.addObserver('ready', function() {
+          console.log('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready observer fired', {
+            persistence: persistence,
+            persistenceType: typeof persistence,
+            hasFind: typeof (persistence && persistence.find),
+            hasSet: typeof (persistence && persistence.set),
+            stack: new Error().stack.split('\n').slice(0, 10).join('\n')
+          });
+          // Guard: ensure persistence is still valid in callback
+          if(!persistence || typeof persistence.find !== 'function' || typeof persistence.set !== 'function') {
+            console.warn('[OLD PERSISTENCE OBSERVER] lingoLinqExtras ready: persistence invalid');
+            return;
+          }
+          try {
+            // Use window.persistence (new service) if available, otherwise use old persistence class
+            var persistenceInstance = window.persistence || persistence;
+            if(persistenceInstance && typeof persistenceInstance.find === 'function') {
+              persistenceInstance.find('settings', 'lastSync').then(function(res) {
+                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+                  persistenceInstance.set('last_sync_at', res.last_sync);
+                  persistenceInstance.set('sync_stamps', res.stamps);
+                }
+              }, function() {
+                if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+                  persistenceInstance.set('last_sync_at', 1);
+                }
+              });
+            }
+          } catch(e) {
+            console.warn('Error in lingoLinqExtras ready observer:', e);
+          }
+        });
+      }
+    } catch(e) {
+      console.warn('Error registering lingoLinqExtras observer:', e);
+    }
     var ignore_big_log_change = false;
-    stashes.addObserver('big_logs', function() {
-      if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
-        var rnd_key = (new Date()).getTime() + "_" + Math.random();
-        persistence.find('settings', 'bigLogs').then(null, function(err) {
-          return RSVP.resvole({});
-        }).then(function(res) {
-          res = res || {};
-          res.logs = res.logs || [];
-          var big_logs = (stashes.get('big_logs') || []);
-          big_logs.forEach(function(log) {
-            res.logs.push(log);
-          });
-          ignore_big_log_change = rnd_key;
-          stashes.set('big_logs', []);
-          runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-          persistence.store('settings', res, 'bigLogs').then(function(res) {
-          }, function() {
-            rnd_key = rnd_key + "2";
-            var logs = (stashes.get('big_logs') || []).concat(big_logs);
-            ignore_big_log_change = rnd_key;
-            stashes.set('big_logs', logs);
-            runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
-          });
-        });
+    try {
+      // Use window.stashes (new service instance) if available, otherwise use old stashes class
+      // Note: stashes is a class, not an instance, so we need to use window.stashes
+      var stashesInstance = window.stashes || stashes;
+      if(!stashesInstance || typeof stashesInstance.addObserver !== 'function') {
+        console.warn('Stashes instance not ready, skipping big_logs observer registration');
+        return;
       }
-    });
-    if(stashes.get('allow_local_filesystem_request') == false) {
-      capabilities.storage.already_limited_size = true;      
-    }
-    if(stashes.get_object('just_logged_in', false) && stashes.get('auth_settings') && !Ember.testing) {
-      stashes.persist_object('just_logged_in', null, false);
-      runLater(function() {
-        persistence.check_for_needs_sync(true);
-      }, 10 * 1000);
-    }
-    lingoLinqExtras.advance.watch('device', function() {
-      if(!LingoLinq.ignore_filesystem) {
-        capabilities.storage.status().then(function(res) {
-          if(res.available && !res.requires_confirmation) {
-            res.allowed = true;
-          }
-          persistence.set('local_system', res);
+      stashesInstance.addObserver('big_logs', function() {
+        // Use window.stashes (new service instance) if available, otherwise use old stashes class
+        var stashesInstance = window.stashes || stashes;
+        console.log('[OLD PERSISTENCE OBSERVER] big_logs observer fired', {
+          this: this,
+          persistence: persistence,
+          stashes: stashesInstance,
+          stack: new Error().stack.split('\n').slice(0, 10).join('\n')
         });
-        runLater(function() {
-          persistence.prime_caches().then(null, function() { });
-        }, 100);
-        runLater(function() {
-          if(persistence.get('local_system.allowed')) {
-            persistence.prime_caches(true).then(null, function() { });
+        // Guard: ensure all dependencies are valid
+        var persistenceInstance = window.persistence || persistence;
+        if(!persistenceInstance || typeof persistenceInstance.find !== 'function' || typeof persistenceInstance.store !== 'function') {
+          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence invalid');
+          return;
+        }
+        if(!stashesInstance || typeof stashesInstance.get !== 'function' || typeof stashesInstance.set !== 'function') {
+          console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes invalid');
+          return;
+        }
+        try {
+          if(lingoLinqExtras && lingoLinqExtras.ready && !ignore_big_log_change) {
+            // Use window.persistence (new service) if available, otherwise use old persistence class
+            var persistenceInstance = window.persistence || persistence;
+            if(!persistenceInstance || typeof persistenceInstance.find !== 'function') {
+              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: persistence instance not available');
+              return;
+            }
+            // Use window.stashes (new service instance) if available
+            var stashesInstance = window.stashes || stashes;
+            if(!stashesInstance || typeof stashesInstance.get !== 'function') {
+              console.warn('[OLD PERSISTENCE OBSERVER] big_logs: stashes instance not available');
+              return;
+            }
+            var rnd_key = (new Date()).getTime() + "_" + Math.random();
+            persistenceInstance.find('settings', 'bigLogs').then(null, function(err) {
+              return RSVP.resvole({});
+            }).then(function(res) {
+              if(!persistenceInstance || !stashesInstance) return;
+              res = res || {};
+              res.logs = res.logs || [];
+              var big_logs = (stashesInstance.get('big_logs') || []);
+              big_logs.forEach(function(log) {
+                res.logs.push(log);
+              });
+              ignore_big_log_change = rnd_key;
+              stashesInstance.set('big_logs', []);
+              runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
+              if(typeof persistenceInstance.store === 'function') {
+                persistenceInstance.store('settings', res, 'bigLogs').then(function(res) {
+                }, function() {
+                  if(!persistenceInstance || !stashesInstance) return;
+                  rnd_key = rnd_key + "2";
+                  var logs = (stashesInstance.get('big_logs') || []).concat(big_logs);
+                  ignore_big_log_change = rnd_key;
+                  stashesInstance.set('big_logs', logs);
+                  runLater(function() { if(ignore_big_log_change == rnd_key) { ignore_big_log_change = null; } }, 100);
+                });
+              }
+            });
           }
-        }, 2000);
+        } catch(e) {
+          console.warn('Error in stashes big_logs observer:', e);
+        }
+      });
+    } catch(e) {
+      console.warn('Error registering stashes big_logs observer:', e);
+    }
+    // Guard: ensure stashes instance is available and has get method before accessing properties
+    // Use window.stashes (new service instance) if available, otherwise use old stashes class
+    var stashesInstance = window.stashes || stashes;
+    if(stashesInstance && typeof stashesInstance.get === 'function') {
+      if(stashesInstance.get('allow_local_filesystem_request') == false) {
+        capabilities.storage.already_limited_size = true;      
       }
-    });
+      if(stashesInstance.get_object && typeof stashesInstance.get_object === 'function' && stashesInstance.get('auth_settings') && !Ember.testing) {
+        if(stashesInstance.get_object('just_logged_in', false)) {
+          stashesInstance.persist_object('just_logged_in', null, false);
+          runLater(function() {
+            // Use window.persistence (new service) if available, otherwise use old persistence class
+            var persistenceInstance = window.persistence || persistence;
+            if(persistenceInstance && typeof persistenceInstance.check_for_needs_sync === 'function') {
+              persistenceInstance.check_for_needs_sync(true);
+            }
+          }, 10 * 1000);
+        }
+      }
+    }
+    // Guard: ensure lingoLinqExtras and advance exist before calling watch
+    if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
+      lingoLinqExtras.advance.watch('device', function() {
+        // Use window.persistence (new service) if available, otherwise use old persistence class
+        var persistenceInstance = window.persistence || persistence;
+        if(!persistenceInstance || typeof persistenceInstance.set !== 'function') {
+          console.warn('[OLD PERSISTENCE] advance.watch callback: persistence instance not available');
+          return;
+        }
+        if(!LingoLinq.ignore_filesystem) {
+          capabilities.storage.status().then(function(res) {
+            if(res.available && !res.requires_confirmation) {
+              res.allowed = true;
+            }
+            if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+              persistenceInstance.set('local_system', res);
+            }
+          });
+          runLater(function() {
+            if(persistenceInstance && typeof persistenceInstance.prime_caches === 'function') {
+              persistenceInstance.prime_caches().then(null, function() { });
+            }
+          }, 100);
+          runLater(function() {
+            if(persistenceInstance && typeof persistenceInstance.get === 'function') {
+              if(persistenceInstance.get('local_system.allowed')) {
+                if(typeof persistenceInstance.prime_caches === 'function') {
+                  persistenceInstance.prime_caches(true).then(null, function() { });
+                }
+              }
+            }
+          }, 2000);
+        }
+      });
+    }
+    */
   },
   test: function(method, args) {
     method.apply(this, args).then(function(res) {
@@ -181,9 +439,19 @@ var persistence = EmberObject.extend({
         return RSVP.reject({error: "extras not ready"});
       } else {
         return new RSVP.Promise(function(resolve, reject) {
-          lingoLinqExtras.advance.watch('all', function() {
-            resolve(persistence.find(store, key, wrapped, true));
-          });
+          if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
+            lingoLinqExtras.advance.watch('all', function() {
+              // Use window.persistence (new service) if available, otherwise use old persistence class
+              var persistenceInstance = window.persistence || persistence;
+              if(persistenceInstance && typeof persistenceInstance.find === 'function') {
+                resolve(persistenceInstance.find(store, key, wrapped, true));
+              } else {
+                reject({error: 'persistence instance not available'});
+              }
+            });
+          } else {
+            reject({error: 'lingoLinqExtras.advance.watch not available'});
+          }
         });
       }
     }
@@ -271,7 +539,7 @@ var persistence = EmberObject.extend({
   remember_access: function(lookup, store, id) {
     try {
       if(lookup == 'find' && store == 'board') {
-        var recent_boards = stashes.get('recent_boards') || [];
+        var recent_boards = safeGet(getStashes(), 'recent_boards') || [];
         recent_boards.unshift({id: id});
         var old_list = Utils.uniq(recent_boards.slice(0, 100), function(b) { return !b.id.toString().match(/^tmp_/) ? b.id : null; });
         var key = {};
@@ -290,7 +558,7 @@ var persistence = EmberObject.extend({
       if(store == 'board') {
         var promises = [];
         var board_ids = [];
-        stashes.get('recent_boards').forEach(function(board) {
+        safeGet(getStashes(), 'recent_boards').forEach(function(board) {
           board_ids.push(board.id);
         });
 
@@ -569,6 +837,187 @@ var persistence = EmberObject.extend({
       return url;
     }
   },
+  
+  // ============================================================================
+  // TOKEN MANAGEMENT SECTION
+  // ============================================================================
+  // This section handles all token-related functionality including:
+  // - browserToken storage and retrieval
+  // - Token format validation and migration
+  // - Token error handling with retry logic
+  //
+  // Token Flow:
+  // 1. User logs in -> session.confirm_authentication() -> sets access_token in auth_settings
+  // 2. capabilities.access_token is synced from auth_settings (via observer/sync function)
+  // 3. extras.js adds Authorization: Bearer header using capabilities.access_token
+  // 4. browserToken is used for initial authentication (client_secret in login)
+  // 5. access_token is used for all subsequent API requests
+  //
+  // Token Storage:
+  // - access_token: stored in stashes.get_object('auth_settings', true).access_token
+  // - capabilities.access_token: synced from auth_settings (used in request headers)
+  // - browserToken: stored in safeGet(getPersistence(), 'browserToken') and stashes
+  // ============================================================================
+  
+  /**
+   * Get browserToken with fallback chain for backwards compatibility
+   * Checks multiple sources in order:
+   * 1. safeGet(getPersistence(), 'browserToken') - primary storage
+   * 2. safeGet(getStashes(), 'browserToken') - fallback storage
+   * 3. null if not found
+   * 
+   * @returns {string|null} The browserToken or null if not found
+   */
+  getBrowserToken: function() {
+    var token = null;
+    
+    // Guard: Check if persistence is an instance (has get method) or use window.persistence (new service)
+    var persistenceInstance = null;
+    if(persistence && typeof persistence.get === 'function') {
+      // persistence is an instance
+      persistenceInstance = persistence;
+    } else if(window.persistence && typeof window.persistence.get === 'function') {
+      // Use new service instance from window
+      persistenceInstance = window.persistence;
+    } else if(persistence && typeof persistence.create === 'function') {
+      // persistence is a class, try to get instance from application
+      // This is a fallback - ideally we should use window.persistence
+      console.warn('[OLD PERSISTENCE] getBrowserToken: persistence is a class, not an instance. Using window.persistence fallback.');
+      persistenceInstance = window.persistence;
+    }
+    
+    // Primary source: persistence property
+    if(persistenceInstance && typeof persistenceInstance.get === 'function') {
+      token = persistenceInstance.get('browserToken');
+      if(token && token !== 'none' && token !== '') {
+        return token;
+      }
+    }
+    
+    // Fallback: stashes
+    if(stashes && stashes.get) {
+      token = safeGet(getStashes(), 'browserToken');
+      if(token && token !== 'none' && token !== '') {
+        // Sync back to persistence for consistency (if we have an instance)
+        if(persistenceInstance && typeof persistenceInstance.set === 'function') {
+          persistenceInstance.set('browserToken', token);
+        }
+        return token;
+      }
+    }
+    
+    return null;
+  },
+  /**
+   * Set browserToken and persist to multiple storage locations
+   * Ensures browserToken is available across app restarts and session changes
+   * 
+   * @param {string} token - The browserToken to store
+   */
+  setBrowserToken: function(token) {
+    if(!token || token === 'none' || token === '') {
+      console.warn('[persistence.setBrowserToken] Attempted to set invalid browserToken', token);
+      return;
+    }
+    
+    // Guard: Check if persistence is an instance (has get method) or use window.persistence (new service)
+    var persistenceInstance = null;
+    if(persistence && typeof persistence.get === 'function') {
+      // persistence is an instance
+      persistenceInstance = persistence;
+    } else if(window.persistence && typeof window.persistence.get === 'function') {
+      // Use new service instance from window
+      persistenceInstance = window.persistence;
+    } else if(persistence && typeof persistence.create === 'function') {
+      // persistence is a class, try to get instance from application
+      console.warn('[OLD PERSISTENCE] setBrowserToken: persistence is a class, not an instance. Using window.persistence fallback.');
+      persistenceInstance = window.persistence;
+    }
+    
+    if(!persistenceInstance || typeof persistenceInstance.get !== 'function') {
+      console.warn('[OLD PERSISTENCE] setBrowserToken: No valid persistence instance available');
+      // Still try to store in stashes as fallback
+      if(stashes && stashes.persist) {
+        stashes.persist('browserToken', token);
+      }
+      return;
+    }
+    
+    var old_token = persistenceInstance.get('browserToken');
+    if(old_token !== token) {
+      console.log('[persistence.setBrowserToken] Updating browserToken', {
+        old_token_preview: old_token ? old_token.substring(0, 20) + '...' : 'none',
+        new_token_preview: token.substring(0, 20) + '...'
+      });
+      
+      // Store in persistence (primary)
+      if(typeof persistenceInstance.set === 'function') {
+        persistenceInstance.set('browserToken', token);
+      }
+      
+      // Also store in stashes for persistence across sessions
+      if(stashes && stashes.persist) {
+        stashes.persist('browserToken', token);
+      }
+    }
+  },
+  /**
+   * Validate token format for backwards/forwards compatibility
+   * Supports both old and new token formats
+   * 
+   * @param {string} token - The token to validate
+   * @returns {object} Validation result with {valid: boolean, format: string, needsMigration: boolean}
+   */
+  validateTokenFormat: function(token) {
+    if(!token || typeof token !== 'string' || token === 'none' || token === '') {
+      return {valid: false, format: 'invalid', needsMigration: false, error: 'Token is empty or invalid'};
+    }
+    
+    // New format: device_id~hash (e.g., "abc123~def456...")
+    // Pattern: alphanumeric device ID, followed by ~, followed by hash
+    var newFormatPattern = /^[a-zA-Z0-9_-]+~[a-zA-Z0-9_\-~]+$/;
+    
+    // Old format: might be just a hash or different structure
+    // Check if it contains ~ separator (new format indicator)
+    var hasSeparator = token.indexOf('~') !== -1;
+    
+    if(hasSeparator && newFormatPattern.test(token)) {
+      return {valid: true, format: 'new', needsMigration: false};
+    } else if(!hasSeparator) {
+      // Old format - might need migration, but could still be valid
+      // Allow it for backwards compatibility
+      return {valid: true, format: 'old', needsMigration: true, warning: 'Token appears to be in old format'};
+    } else {
+      // Invalid format
+      return {valid: false, format: 'invalid', needsMigration: false, error: 'Token format is invalid'};
+    }
+  },
+  /**
+   * Migrate token to new format if needed
+   * This is a placeholder for future migration logic if token format changes
+   * 
+   * @param {string} token - The token to potentially migrate
+   * @returns {string} The token (possibly migrated) or original if no migration needed
+   */
+  migrateTokenIfNeeded: function(token) {
+    var validation = persistence.validateTokenFormat(token);
+    
+    if(!validation.valid) {
+      console.warn('[persistence.migrateTokenIfNeeded] Cannot migrate invalid token', validation);
+      return token;
+    }
+    
+    if(validation.needsMigration && validation.format === 'old') {
+      // For now, old format tokens are still accepted by the backend
+      // This function can be extended in the future if migration is needed
+      console.log('[persistence.migrateTokenIfNeeded] Token in old format, but still valid - no migration needed', {
+        token_preview: token.substring(0, 20) + '...'
+      });
+      return token;
+    }
+    
+    return token;
+  },
   decrypt_json: function(str, encryption_settings) {
     if(str.match(/^aes256-/)) {
       var te = new TextEncoder();
@@ -717,7 +1166,13 @@ var persistence = EmberObject.extend({
           resolve(uri);
         }
       }, function(err) {
-        LingoLinq.track_error("JSON DATA find_url error", (err || {}).error || err);
+        var errorMsg = "JSON DATA find_url error";
+        if (err && err.error == 'url not in storage') {
+          // This is expected when URL isn't cached locally - log as warning instead of error
+          console.warn(errorMsg + ": url not in storage", url);
+        } else {
+          LingoLinq.track_error(errorMsg, (err || {}).error || err);
+        }
         reject(err);
       });
     });
@@ -872,7 +1327,7 @@ var persistence = EmberObject.extend({
     var fn_cache = {};
     window.fn_cache = fn_cache;
     var prime_promises = [];
-    if(_this.get('local_system.available') && _this.get('local_system.allowed') && stashes.get('auth_settings')) {
+    if(_this.get('local_system.available') && _this.get('local_system.allowed') && safeGet(getStashes(), 'auth_settings')) {
     } else {
       _this.primed = true;
       console.log("LINGOLINQ: done priming caches", check_file_system, (new Date()).getTime() - now);
@@ -1052,7 +1507,7 @@ var persistence = EmberObject.extend({
       persistence.storing_urls = function() {
         if(persistence.urls_to_store && persistence.urls_to_store.length > 0) {
           var opts = persistence.urls_to_store.shift();
-          var part_of_canceled = opts.sync_id && (!persistence.get('sync_progress') || persistence.get('sync_progress.canceled'));
+          var part_of_canceled = opts.sync_id && (!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled'));
           if(!part_of_canceled) {
             persistence.store_url_now(opts.url, opts.type, opts.keep_big, opts.force_reload).then(function(res) {
               opts.defer.resolve(res);
@@ -1249,7 +1704,7 @@ var persistence = EmberObject.extend({
 
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
-        if(persistence.get('local_system.available') && persistence.get('local_system.allowed') && stashes.get('auth_settings')) {
+        if(safeGet(getPersistence(), 'local_system.available') && safeGet(getPersistence(), 'local_system.allowed') && safeGet(getStashes(), 'auth_settings')) {
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {
@@ -1268,6 +1723,11 @@ var persistence = EmberObject.extend({
               }
               // Strip escape characters before saving
               var url_piece = decodeURIComponent(pieces.pop());
+              // Sanitize to avoid illegal filesystem path characters (for native/cordova storage)
+              // Replace path separators and other invalid characters with underscores
+              url_piece = url_piece.replace(/[\/\\:*?"<>|]/g, '_');
+              // Collapse whitespace into underscores
+              url_piece = url_piece.replace(/\s+/g, '_');
               if(url_piece.length > 20) {
                 url_piece = url_piece.substring(0, 20);
               }
@@ -1334,40 +1794,90 @@ var persistence = EmberObject.extend({
           persistence.url_cache = persistence.url_cache || {};
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
-          persistence.set('local_system.allowed', false);
+          safeSet(getPersistence(), 'local_system.allowed', false);
         } else if(err.error == 'rejected' || err.error == 'already_rejected') {
           capabilities.storage.already_limited_size = true;
           stashes.persist('allow_local_filesystem_request', false);
           persistence.url_cache = persistence.url_cache || {};
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
-          persistence.set('local_system.allowed', false);
+          safeSet(getPersistence(), 'local_system.allowed', false);
         }
         reject(error);
       });
     });
   },
+  // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
+  /*
   enable_wakelock: observer('syncing', function() {
-    if(this.get('syncing')) {
-      capabilities.wakelock('sync', true);
-    } else {
-      capabilities.wakelock('sync', false);
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
+    try {
+      if(this.get('syncing')) {
+        capabilities.wakelock('sync', true);
+      } else {
+        capabilities.wakelock('sync', false);
+      }
+    } catch(e) {
+      console.warn('Error in enable_wakelock observer:', e);
     }
   }),
+  */
   syncing: computed('sync_status', function() {
-    return this.get('sync_status') == 'syncing';
+    console.log('[OLD PERSISTENCE COMPUTED] syncing() called', {
+      this: this,
+      thisType: typeof this,
+      hasGet: typeof (this && this.get),
+      stack: new Error().stack.split('\n').slice(0, 10).join('\n')
+    });
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      console.warn('[OLD PERSISTENCE COMPUTED] syncing: this is invalid', this);
+      return false;
+    }
+    try {
+      return this.get('sync_status') == 'syncing';
+    } catch(e) {
+      return false;
+    }
   }),
   sync_failed: computed('sync_status', function() {
-    return this.get('sync_status') == 'failed';
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return false;
+    }
+    try {
+      return this.get('sync_status') == 'failed';
+    } catch(e) {
+      return false;
+    }
   }),
   sync_succeeded: computed('sync_status', function() {
-    return this.get('sync_status') == 'succeeded';
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return false;
+    }
+    try {
+      return this.get('sync_status') == 'succeeded';
+    } catch(e) {
+      return false;
+    }
   }),
   sync_finished: computed('sync_status', function() {
-    return this.get('sync_status') == 'finished';
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return false;
+    }
+    try {
+      return this.get('sync_status') == 'finished';
+    } catch(e) {
+      return false;
+    }
   }),
   update_sync_progress: function() {
-    var progresses = (persistence.get('sync_progress') || {}).progress_for || {};
+    var progresses = (safeGet(getPersistence(), 'sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
     var errors = [];
@@ -1376,17 +1886,17 @@ var persistence = EmberObject.extend({
       to_visit = to_visit + progresses[idx].to_visit;
       errors = errors.concat(progresses[idx].board_errors || []);
     }
-    if(persistence.get('sync_progress')) {
-      persistence.set('sync_progress.visited', visited);
-      persistence.set('sync_progress.to_visit', to_visit);
-      persistence.set('sync_progress.total', to_visit + visited);
-      persistence.set('sync_progress.errored', errors.length);
-      persistence.set('sync_progress.errors', errors);
+    if(safeGet(getPersistence(), 'sync_progress')) {
+      safeSet(getPersistence(), 'sync_progress.visited', visited);
+      safeSet(getPersistence(), 'sync_progress.to_visit', to_visit);
+      safeSet(getPersistence(), 'sync_progress.total', to_visit + visited);
+      safeSet(getPersistence(), 'sync_progress.errored', errors.length);
+      safeSet(getPersistence(), 'sync_progress.errors', errors);
     }
   },
   cancel_sync: function() {
-    if(persistence.get('sync_progress')) {
-      persistence.set('sync_progress.canceled', true);
+    if(safeGet(getPersistence(), 'sync_progress')) {
+      safeSet(getPersistence(), 'sync_progress.canceled', true);
     }
   },
   time_promise: function(promise, msg, ms) {
@@ -1413,9 +1923,19 @@ var persistence = EmberObject.extend({
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(!window.lingoLinqExtras || !window.lingoLinqExtras.ready) {
       return new RSVP.Promise(function(wait_resolve, wait_reject) {
-        lingoLinqExtras.advance.watch('all', function() {
-          wait_resolve(persistence.sync(user_id, force, ignore_supervisees, sync_reason));
-        });
+        if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
+          lingoLinqExtras.advance.watch('all', function() {
+            // Use window.persistence (new service) if available, otherwise use old persistence class
+            var persistenceInstance = window.persistence || persistence;
+            if(persistenceInstance && typeof persistenceInstance.sync === 'function') {
+              wait_resolve(persistenceInstance.sync(user_id, force, ignore_supervisees, sync_reason));
+            } else {
+              wait_reject({error: 'persistence instance not available'});
+            }
+          });
+        } else {
+          wait_reject({error: 'lingoLinqExtras.advance.watch not available'});
+        }
       });
     }
 
@@ -1438,11 +1958,11 @@ var persistence = EmberObject.extend({
         stashes.track_daily_use();
       });
     }
-    var sync_id = persistence.get('sync_progress.sync_id');
-    if(!ignore_supervisees || !sync_id || persistence.get('sync_status.canceled')) {
+    var sync_id = safeGet(getPersistence(), 'sync_progress.sync_id');
+    if(!ignore_supervisees || !sync_id || safeGet(getPersistence(), 'sync_status.canceled')) {
       sync_id = "sync_for::" + user_name + "::" + (new Date()).getTime() + "::" + Math.random();
     }
-    persistence.set('last_sync_event_at', (new Date()).getTime());
+    safeSet(getPersistence(), 'last_sync_event_at', (new Date()).getTime());
 
     this.set('sync_status', 'syncing');
     var synced_boards = [];
@@ -1450,8 +1970,8 @@ var persistence = EmberObject.extend({
     // even if the app itself isn't running. whaaaat?! yeah.
 
     var sync_promise = new RSVP.Promise(function(sync_resolve, sync_reject) {
-      if(!persistence.get('sync_progress.root_user')) {
-        persistence.set('sync_progress', {
+      if(!safeGet(getPersistence(), 'sync_progress.root_user')) {
+        safeSet(getPersistence(), 'sync_progress', {
           root_user: user_id,
           sync_id: sync_id,
           progress_for: {
@@ -1465,7 +1985,7 @@ var persistence = EmberObject.extend({
 
 
       var check_first = function(callback) {
-        if(!persistence.get('sync_progress') || persistence.get('sync_progress.canceled') || persistence.get('sync_progress.sync_id') != sync_id) {
+        if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || safeGet(getPersistence(), 'sync_progress.sync_id') != sync_id) {
           return function() {
             return RSVP.reject({error: 'canceled'});
           };
@@ -1556,21 +2076,21 @@ var persistence = EmberObject.extend({
 
       var confirm_quota_for_user = persistence.time_promise(find_user.then(check_first(function(user) {
         if(user && !ignore_supervisees) {
-          persistence.set('online', true);
+          safeSet(getPersistence(), 'online', true);
           if(user.get('preferences.skip_supervisee_sync')) {
             ignore_supervisees = true;
           }
           user_name = user.get('user_name') || user_id;
-          if(persistence.get('local_system.available') && user.get('preferences.home_board') &&
-                    !persistence.get('local_system.allowed') && persistence.get('local_system.requires_confirmation') &&
-                    stashes.get('allow_local_filesystem_request')) {
+          if(safeGet(getPersistence(), 'local_system.available') && user.get('preferences.home_board') &&
+                    !safeGet(getPersistence(), 'local_system.allowed') && safeGet(getPersistence(), 'local_system.requires_confirmation') &&
+                    safeGet(getStashes(), 'allow_local_filesystem_request')) {
             return new RSVP.Promise(function(check_resolve, check_reject) {
               capabilities.storage.root_entry().then(function() {
-                persistence.set('local_system.allowed', true);
+                safeSet(getPersistence(), 'local_system.allowed', true);
                 check_resolve(user);
               }, function() {
-                persistence.set('local_system.available', false);
-                persistence.set('local_system.allowed', false);
+                safeSet(getPersistence(), 'local_system.available', false);
+                safeSet(getPersistence(), 'local_system.allowed', false);
                 check_resolve(user);
               });
             });
@@ -1598,10 +2118,10 @@ var persistence = EmberObject.extend({
         if(user) {
           var old_user_id = user_id;
           user_id = user.get('id');
-          if(!persistence.get('sync_progress.root_user') || persistence.get('sync_progress.root_user') == old_user_id) {
-            persistence.set('sync_progress', {
+          if(!safeGet(getPersistence(), 'sync_progress.root_user') || safeGet(getPersistence(), 'sync_progress.root_user') == old_user_id) {
+            safeSet(getPersistence(), 'sync_progress', {
               root_user: user.get('id'),
-              sync_id: persistence.get('sync_progress.sync_id'),
+              sync_id: safeGet(getPersistence(), 'sync_progress.sync_id'),
               progress_for: {
               }
             });
@@ -1623,7 +2143,7 @@ var persistence = EmberObject.extend({
 
         // Step 0.5: Check for an invalidated token
         if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
-          if(persistence.get('sync_progress.root_user') == user_id) {
+          if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
             LingoLinq.session.check_token(false);
             if(user.get('single_org.image_url')) {
               // Store org image url for header rendering
@@ -1657,7 +2177,7 @@ var persistence = EmberObject.extend({
         // (needs to also support s3 uploading for locally-saved images/sounds)
         // (needs to be smart about handling conflicts)
         // http://www.cs.tufts.edu/~nr/pubs/sync.pdf
-        if(persistence.get('sync_progress.root_user') == user_id) {
+        if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
           spread_out(function() {
             return persistence.time_promise(persistence.sync_changed(), "syncing changed");
           }, "syncing changed");
@@ -1680,8 +2200,8 @@ var persistence = EmberObject.extend({
         // (also download through proxy any image data URIs needed for board set)
         // (this takes the longest, so start it right away - no spread_out)
         var get_local_revisions = persistence.find('settings', 'synced_full_set_revisions').then(function(res) {
-          if(persistence.get('sync_progress') && !persistence.get('sync_progress.full_set_revisions')) {
-            persistence.set('sync_progress.full_set_revisions', res);
+          if(safeGet(getPersistence(), 'sync_progress') && !safeGet(getPersistence(), 'sync_progress.full_set_revisions')) {
+            safeSet(getPersistence(), 'sync_progress.full_set_revisions', res);
           }
           return persistence.sync_boards(user, importantIds, synced_boards, force);
         }, function() {
@@ -1771,13 +2291,13 @@ var persistence = EmberObject.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(persistence.get('sync_progress.root_user') == user_id) {
-          var sync_stamps = persistence.get('sync_progress.sync_stamps');
-          var statuses = persistence.get('sync_progress.board_statuses') || [];
-          if(persistence.get('sync_progress.last_sync_stamp')) {
-            persistence.set('last_sync_stamp', persistence.get('sync_progress.last_sync_stamp'));
+        if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
+          var sync_stamps = safeGet(getPersistence(), 'sync_progress.sync_stamps');
+          var statuses = safeGet(getPersistence(), 'sync_progress.board_statuses') || [];
+          if(safeGet(getPersistence(), 'sync_progress.last_sync_stamp')) {
+            safeSet(getPersistence(), 'last_sync_stamp', safeGet(getPersistence(), 'sync_progress.last_sync_stamp'));
           }
-          var errors = persistence.get('sync_progress.errors') || [];
+          var errors = safeGet(getPersistence(), 'sync_progress.errors') || [];
           errors.forEach(function(error) {
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
@@ -1792,27 +2312,27 @@ var persistence = EmberObject.extend({
               }
             }
           });
-          persistence.set('sync_progress', null);
+          safeSet(getPersistence(), 'sync_progress', null);
           var sync_message = null;
           if(errors.length > 0) {
-            persistence.set('sync_status', 'finished');
+            safeSet(getPersistence(), 'sync_status', 'finished');
             stashes.persist('last_sync_status', 'finished');
-            persistence.set('sync_errors', errors.length);
+            safeSet(getPersistence(), 'sync_errors', errors.length);
             sync_message = i18n.t('finished_with_errors', "Finished syncing %{user_id} with %{n} error(s)", {user_id: user_name, n: errors.length});
           } else {
-            persistence.set('sync_status', 'succeeded');
+            safeSet(getPersistence(), 'sync_status', 'succeeded');
             stashes.persist('last_sync_status', 'succeeded');
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
           }
           console.log('synced!');
           persistence.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
-            persistence.set('last_sync_at', res.last_sync);
-            persistence.set('sync_stamps', res.stamps);
-            persistence.set('last_sync_event_at', (new Date()).getTime());
+            safeSet(getPersistence(), 'last_sync_at', res.last_sync);
+            safeSet(getPersistence(), 'sync_stamps', res.stamps);
+            safeSet(getPersistence(), 'last_sync_event_at', (new Date()).getTime());
           }, function() {
             debugger;
           });
-          var log = [].concat(persistence.get('sync_log') || []);
+          var log = [].concat(safeGet(getPersistence(), 'sync_log') || []);
           log.push({
             user_id: user_name,
             reason: sync_reason,
@@ -1822,37 +2342,37 @@ var persistence = EmberObject.extend({
             statuses: statuses,
             summary: sync_message
           });
-          persistence.set('sync_log', log);
-          persistence.set('sync_log_rand', Math.random());
+          safeSet(getPersistence(), 'sync_log', log);
+          safeSet(getPersistence(), 'sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
       });
       return complete_sync;
     }, function(err) {
-      if(persistence.get('sync_progress.root_user') == user_id) {
-        var statuses = persistence.get('sync_progress.board_statuses') || [];
-        var stamps = persistence.get('sync_progress.sync_stamps');
-        persistence.set('sync_progress', null);
-        persistence.set('sync_status', 'failed');
+      if(safeGet(getPersistence(), 'sync_progress.root_user') == user_id) {
+        var statuses = safeGet(getPersistence(), 'sync_progress.board_statuses') || [];
+        var stamps = safeGet(getPersistence(), 'sync_progress.sync_stamps');
+        safeSet(getPersistence(), 'sync_progress', null);
+        safeSet(getPersistence(), 'sync_status', 'failed');
         // if last sync attempt ended in failure and this attempt also 
         // failed, then set last_sync_at to prevent repeated attempts to sync
-        if(stashes.get('last_sync_status') == 'failed') {
+        if(safeGet(getStashes(), 'last_sync_status') == 'failed') {
           var last_sync = (new Date()).getTime() / 1000;
           persistence.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
-            persistence.set('last_sync_at', res.last_sync);
-            persistence.set('sync_stamps', stamps);
+            safeSet(getPersistence(), 'last_sync_at', res.last_sync);
+            safeSet(getPersistence(), 'sync_stamps', stamps);
           }, function() { });
         }
         stashes.persist('last_sync_status', 'failed');
-        persistence.set('sync_status_error', null);
+        safeSet(getPersistence(), 'sync_status_error', null);
         if(err.board_unauthorized) {
-          persistence.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
-        } else if(!persistence.get('online')) {
-          persistence.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+        } else if(!safeGet(getPersistence(), 'online')) {
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
         }
         var message = (err && err.error) || "unspecified sync error";
         var statuses = statuses.uniq(function(s) { return s.id; });
-        var log = [].concat(persistence.get('sync_log') || []);
+        var log = [].concat(safeGet(getPersistence(), 'sync_log') || []);
         log.push({
           user_id: user_name,
           manual: force,
@@ -1861,8 +2381,8 @@ var persistence = EmberObject.extend({
           statuses: statuses,
           summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
-        persistence.set('last_sync_event_at', (new Date()).getTime());
-        persistence.set('sync_log', log);
+        safeSet(getPersistence(), 'last_sync_event_at', (new Date()).getTime());
+        safeSet(getPersistence(), 'sync_log', log);
         if(err && err.error) {
           modal.error(err.error);
         }
@@ -1979,7 +2499,7 @@ var persistence = EmberObject.extend({
 //     });
   },
   sync_supervisees: function(user, force) {
-    var sync_id = persistence.get('sync_progress.sync_id');
+    var sync_id = safeGet(getPersistence(), 'sync_progress.sync_id');
     return new RSVP.Promise(function(resolve, reject) {
       var supervisee_promises = [];
       user.get('supervisees').forEach(function(supervisee) {
@@ -1997,11 +2517,11 @@ var persistence = EmberObject.extend({
         var sync_supervisee = reload_supervisee.then(function(supervisee_user) {
           var permissions = supervisee_user.get('permissions');
           if(permissions && permissions.supervise) {
-            var stamp = (persistence.get('sync_stamps') || {})[supervisee_user.get('id')];
-            if(persistence.get('sync_progress')) {
-              var stamps = persistence.get('sync_progress.sync_stamps') || {};
+            var stamp = (safeGet(getPersistence(), 'sync_stamps') || {})[supervisee_user.get('id')];
+            if(safeGet(getPersistence(), 'sync_progress')) {
+              var stamps = safeGet(getPersistence(), 'sync_progress.sync_stamps') || {};
               stamps[supervisee_user.get('id')] = supervisee_user.get('sync_stamp');
-              persistence.set('sync_progress.sync_stamps', stamps);
+              safeSet(getPersistence(), 'sync_progress.sync_stamps', stamps);
             }
 
             if(stamp >= supervisee_user.get('sync_stamp')) {
@@ -2073,7 +2593,7 @@ var persistence = EmberObject.extend({
         });
         return;
       }
-      if(persistence.get('online') || force) {
+      if(safeGet(getPersistence(), 'online') || force) {
         persistence.ajax(url, {type: 'GET'}).then(function(res) {
           var object = {
             url: url,
@@ -2105,21 +2625,21 @@ var persistence = EmberObject.extend({
     });
   },
   board_lookup: function(id, safely_cached_boards, fresh_board_revisions, sync_id, allow_any_cached) {
-    if(!persistence.get('sync_progress') || persistence.get('sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != persistence.get('sync_progress.sync_id'))) {
+    if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(getPersistence(), 'sync_progress.sync_id'))) {
       return RSVP.reject({error: 'canceled'});
     }
-    var lookups = persistence.get('sync_progress.key_lookups');
-    var board_statuses = persistence.get('sync_progress.board_statuses');
+    var lookups = safeGet(getPersistence(), 'sync_progress.key_lookups');
+    var board_statuses = safeGet(getPersistence(), 'sync_progress.board_statuses');
     if(!lookups) {
       lookups = {};
-      if(persistence.get('sync_progress')) {
-        persistence.set('sync_progress.key_lookups', lookups);
+      if(safeGet(getPersistence(), 'sync_progress')) {
+        safeSet(getPersistence(), 'sync_progress.key_lookups', lookups);
       }
     }
     if(!board_statuses) {
       board_statuses = [];
-      if(persistence.get('sync_progress')) {
-        persistence.set('sync_progress.board_statuses', board_statuses);
+      if(safeGet(getPersistence(), 'sync_progress')) {
+        safeSet(getPersistence(), 'sync_progress.board_statuses', board_statuses);
       }
     }
     var lookup_id = id;
@@ -2176,7 +2696,7 @@ var persistence = EmberObject.extend({
     });
   },
   queue_sync_action: function(action, sync_id, method) {
-    if(!persistence.get('sync_progress') || persistence.get('sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != persistence.get('sync_progress.sync_id'))) {
+    if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled') || (sync_id && sync_id !== true && sync_id != safeGet(getPersistence(), 'sync_progress.sync_id'))) {
       return RSVP.reject({error: 'canceled'});
     }
     var defer = RSVP.defer();
@@ -2231,33 +2751,33 @@ var persistence = EmberObject.extend({
     }
   },
   sync_boards: function(user, importantIds, synced_boards, force) {
-    var sync_id = persistence.get('sync_progress.sync_id') || true;
+    var sync_id = safeGet(getPersistence(), 'sync_progress.sync_id') || true;
     var full_set_revisions = {};
     var fresh_revisions = {};
     var board_errors = [];
-    if(persistence.get('sync_progress.full_set_revisions')) {
-      full_set_revisions = persistence.get('sync_progress.full_set_revisions');
+    if(safeGet(getPersistence(), 'sync_progress.full_set_revisions')) {
+      full_set_revisions = safeGet(getPersistence(), 'sync_progress.full_set_revisions');
     }
-    var all_image_urls = persistence.get('sync_progress.all_image_urls') || {};
-    if(persistence.get('sync_progress')) {
-      persistence.set('sync_progress.all_image_urls', all_image_urls);
+    var all_image_urls = safeGet(getPersistence(), 'sync_progress.all_image_urls') || {};
+    if(safeGet(getPersistence(), 'sync_progress')) {
+      safeSet(getPersistence(), 'sync_progress.all_image_urls', all_image_urls);
     }
-    var all_sound_urls = persistence.get('sync_progress.all_sound_urls') || {};
-    if(persistence.get('sync_progress')) {
-      persistence.set('sync_progress.all_sound_urls', all_sound_urls);
+    var all_sound_urls = safeGet(getPersistence(), 'sync_progress.all_sound_urls') || {};
+    if(safeGet(getPersistence(), 'sync_progress')) {
+      safeSet(getPersistence(), 'sync_progress.all_sound_urls', all_sound_urls);
     }
-    var lookups = persistence.get('sync_progress.key_lookups');
+    var lookups = safeGet(getPersistence(), 'sync_progress.key_lookups');
     if(!lookups) {
       lookups = {};
-      if(persistence.get('sync_progress')) {
-        persistence.set('sync_progress.key_lookups', lookups);
+      if(safeGet(getPersistence(), 'sync_progress')) {
+        safeSet(getPersistence(), 'sync_progress.key_lookups', lookups);
       }
     }
-    var board_statuses = persistence.get('sync_progress.board_statuses');
+    var board_statuses = safeGet(getPersistence(), 'sync_progress.board_statuses');
     if(!board_statuses) {
       board_statuses = [];
-      if(persistence.get('sync_progress')) {
-        persistence.set('sync_progress.board_statuses', board_statuses);
+      if(safeGet(getPersistence(), 'sync_progress')) {
+        safeSet(getPersistence(), 'sync_progress.board_statuses', board_statuses);
       }
     }
 
@@ -2312,9 +2832,9 @@ var persistence = EmberObject.extend({
           });
           // Try to download in chunks instead of as individual records, if possible
           if(need_fresh_ids.length > 0 && need_fresh_ids.length < 100) {
-            if(persistence.get('sync_progress')) {
-              persistence.set('sync_progress.pre_total', need_fresh_ids.length);
-              persistence.set('sync_progress.pre_visited', 0);
+            if(safeGet(getPersistence(), 'sync_progress')) {
+              safeSet(getPersistence(), 'sync_progress.pre_total', need_fresh_ids.length);
+              safeSet(getPersistence(), 'sync_progress.pre_visited', 0);
             }
             var ids_left = [].concat(need_fresh_ids);
             return new RSVP.Promise(function(batch_resolve, batch_reject) {
@@ -2323,8 +2843,8 @@ var persistence = EmberObject.extend({
                   var ids = ids_left.slice(0, 25);
                   ids_left = ids_left.slice(25);
                   persistence.ajax("/api/v1/users/" + user.get('id') + "/boards?ids=" + ids.join(','), {type: 'GET'}).then(function(list) {
-                    if(persistence.get('sync_progress')) {
-                      persistence.set('sync_progress.pre_visited', need_fresh_ids.length - ids_left.length);
+                    if(safeGet(getPersistence(), 'sync_progress')) {
+                      safeSet(getPersistence(), 'sync_progress.pre_visited', need_fresh_ids.length - ids_left.length);
                     }
                     list.forEach(function(board_json) {
                       var json_api = { data: {
@@ -2358,11 +2878,11 @@ var persistence = EmberObject.extend({
           }
         });
       }, function() {
-        if(!persistence.get('online')) {
+        if(!safeGet(getPersistence(), 'online')) {
           return RSVP.reject({error: 'could not retrieve board revisions'})
         }
-        if(persistence.get('sync_progress.root_user') != user.get('id')) {
-          var stamps = persistence.get('sync_stamps') || {};
+        if(safeGet(getPersistence(), 'sync_progress.root_user') != user.get('id')) {
+          var stamps = safeGet(getPersistence(), 'sync_stamps') || {};
           if(stamps[user.get('id')] && stamps[user.get('id')] >= user.get('sync_stamp')) {
             // If the req errors for a supervisee, and the sync_stamp
             // is up-to-date from the last sync, don't try to reload boards
@@ -2442,9 +2962,9 @@ var persistence = EmberObject.extend({
         var checked_linked_boards = {};
 
         var visited_boards = [];
-        if(!persistence.get('sync_progress.progress_for')) {
-          persistence.set('sync_progress.progress_for', {});
-          persistence.get('sync_progress.progress_for')[user.get('id')] = {
+        if(!safeGet(getPersistence(), 'sync_progress.progress_for')) {
+          safeSet(getPersistence(), 'sync_progress.progress_for', {});
+          safeGet(getPersistence(), 'sync_progress.progress_for')[user.get('id')] = {
             visited: visited_boards.length,
             to_visit: to_visit_boards.length,
             board_errors: board_errors
@@ -2455,11 +2975,11 @@ var persistence = EmberObject.extend({
         var dead_thread = false;
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
-          if(!persistence.get('sync_progress') || persistence.get('sync_progress.canceled')) {
+          if(!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled')) {
             defer.reject({error: 'canceled'});
             return;
           }
-          var p_for = persistence.get('sync_progress.progress_for');
+          var p_for = safeGet(getPersistence(), 'sync_progress.progress_for');
           if(p_for) {
             p_for[user.get('id')] = {
               visited: visited_boards.length,
@@ -2822,13 +3342,13 @@ var persistence = EmberObject.extend({
       importantIds.push('user_' + user.get('id'));
       var lookup = persistence.time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
       var find_user = lookup.then(function(u) {
-        if(persistence.get('sync_progress.root_user') == u.get('id')) {
-          persistence.set('sync_progress.last_sync_stamp', u.get('sync_stamp'));
+        if(safeGet(getPersistence(), 'sync_progress.root_user') == u.get('id')) {
+          safeSet(getPersistence(), 'sync_progress.last_sync_stamp', u.get('sync_stamp'));
         }
-        if(persistence.get('sync_progress')) {
-          var stamps = persistence.get('sync_progress.sync_stamps') || {};
+        if(safeGet(getPersistence(), 'sync_progress')) {
+          var stamps = safeGet(getPersistence(), 'sync_progress.sync_stamps') || {};
           stamps[u.get('id')] = u.get('sync_stamp');
-          persistence.set('sync_progress.sync_stamps', stamps);             
+          safeSet(getPersistence(), 'sync_progress.sync_stamps', stamps);             
         }
 
         return RSVP.resolve(u);
@@ -2839,7 +3359,7 @@ var persistence = EmberObject.extend({
       // also download the latest avatar as a data uri
       var save_avatar = find_user.then(function(user) {
         // is this also a user object? does user = u work??
-        if(persistence.get('sync_progress.root_user') == user.get('id')) {
+        if(safeGet(getPersistence(), 'sync_progress.root_user') == user.get('id')) {
           if(user.get('preferences.device') && !user.get('preferences.device.ever_synced') && user.save) {
             user.set('preferences.device.ever_synced', true);
             user.save();
@@ -2868,7 +3388,7 @@ var persistence = EmberObject.extend({
     });
   },
   sync_changed: function() {
-    var sync_id = persistence.get('sync_progress.sync_id');
+    var sync_id = safeGet(getPersistence(), 'sync_progress.sync_id');
     return new RSVP.Promise(function(resolve, reject) {
       var changed = persistence.find_changed().then(null, function() {
         reject({error: "failed to retrieve list of changed records"});
@@ -3023,6 +3543,169 @@ var persistence = EmberObject.extend({
     }
     return null;
   },
+  /**
+   * Debug utility to log current token state for troubleshooting
+   * Call this method to see the state of all tokens in the system
+   * 
+   * Usage: persistence.debug_tokens()
+   * 
+   * @returns {object} Object containing all token state information
+   */
+  debug_tokens: function() {
+    var auth_settings = stashes.get_object('auth_settings', true) || {};
+    var access_token = auth_settings.access_token;
+    var capabilities_token = capabilities ? capabilities.access_token : 'capabilities not available';
+    var browser_token = persistence.getBrowserToken();
+    var session_token = LingoLinq.session ? LingoLinq.session.get('access_token') : 'session not available';
+    
+    var token_state = {
+      auth_settings: {
+        access_token: access_token ? access_token.substring(0, 20) + '...' : 'none',
+        user_name: auth_settings.user_name || 'none',
+        user_id: auth_settings.user_id || 'none',
+        has_token: !!access_token
+      },
+      capabilities: {
+        access_token: capabilities_token && capabilities_token !== 'capabilities not available' ? 
+          capabilities_token.substring(0, 20) + '...' : capabilities_token,
+        has_token: !!(capabilities_token && capabilities_token !== 'capabilities not available' && capabilities_token !== 'none'),
+        in_sync: access_token === capabilities_token
+      },
+      browserToken: {
+        token: browser_token ? browser_token.substring(0, 20) + '...' : 'none',
+        has_token: !!browser_token,
+        source: browser_token ? 'found' : 'not found'
+      },
+      session: {
+        access_token: session_token && session_token !== 'session not available' ? 
+          session_token.substring(0, 20) + '...' : session_token,
+        isAuthenticated: LingoLinq.session ? LingoLinq.session.get('isAuthenticated') : false,
+        invalid_token: LingoLinq.session ? LingoLinq.session.get('invalid_token') : false,
+        has_token: !!(session_token && session_token !== 'session not available' && session_token !== 'none')
+      },
+      sync_status: {
+        tokens_synced: access_token === capabilities_token && access_token === session_token,
+        warnings: []
+      }
+    };
+    
+    // Add warnings for sync issues
+    if(access_token && capabilities_token && access_token !== capabilities_token) {
+      token_state.sync_status.warnings.push('access_token and capabilities.access_token are out of sync');
+    }
+    if(access_token && session_token && access_token !== session_token && session_token !== 'session not available') {
+      token_state.sync_status.warnings.push('access_token and session.access_token are out of sync');
+    }
+    if(!access_token && (capabilities_token && capabilities_token !== 'capabilities not available' && capabilities_token !== 'none')) {
+      token_state.sync_status.warnings.push('capabilities.access_token exists but auth_settings.access_token is missing');
+    }
+    if(!browser_token && access_token) {
+      token_state.sync_status.warnings.push('browserToken is missing (may be needed for login)');
+    }
+    
+    // Log to console
+    console.group('[persistence.debug_tokens] Token State');
+    console.log('Auth Settings:', token_state.auth_settings);
+    console.log('Capabilities:', token_state.capabilities);
+    console.log('Browser Token:', token_state.browserToken);
+    console.log('Session:', token_state.session);
+    console.log('Sync Status:', token_state.sync_status);
+    if(token_state.sync_status.warnings.length > 0) {
+      console.warn('Warnings:', token_state.sync_status.warnings);
+    }
+    console.groupEnd();
+    
+    return token_state;
+  },
+  /**
+   * Handle token-related errors with retry logic and proper error classification
+   * 
+   * @param {object} error - The error object from an AJAX request
+   * @param {function} retryFn - Function to retry the request (optional)
+   * @param {number} attempt - Current attempt number (for exponential backoff)
+   * @returns {object} Error classification and handling result
+   */
+  handleTokenError: function(error, retryFn, attempt) {
+    attempt = attempt || 1;
+    var maxRetries = 3;
+    var baseDelay = 1000; // 1 second base delay
+    
+    // Classify the error type
+    var errorType = 'unknown';
+    var shouldRetry = false;
+    var needsReauth = false;
+    
+    if(error && error.result) {
+      var result = error.result;
+      
+      // Check for token-related errors
+      if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token') {
+        errorType = 'invalid_token';
+        needsReauth = true;
+        shouldRetry = false; // Don't retry invalid tokens
+        console.warn('[persistence.handleTokenError] Invalid or expired token detected', {
+          error: result.error,
+          invalid_token: result.invalid_token
+        });
+      } else if(result.error === 'Token needs refresh') {
+        errorType = 'token_refresh_needed';
+        needsReauth = true;
+        shouldRetry = false; // Token refresh should be handled separately
+        console.warn('[persistence.handleTokenError] Token needs refresh');
+      } else if(result.error === 'not online' || error.offline) {
+        errorType = 'offline';
+        shouldRetry = attempt < maxRetries && safeGet(getPersistence(), 'online');
+        console.log('[persistence.handleTokenError] Offline error detected', {attempt: attempt});
+      } else if(error.fakeXHR && (error.fakeXHR.status === 0 || error.fakeXHR.status === undefined)) {
+        errorType = 'network_error';
+        shouldRetry = attempt < maxRetries && safeGet(getPersistence(), 'online');
+        console.log('[persistence.handleTokenError] Network error detected', {
+          status: error.fakeXHR.status,
+          attempt: attempt
+        });
+      } else if(error.fakeXHR && error.fakeXHR.status >= 500) {
+        errorType = 'server_error';
+        shouldRetry = attempt < maxRetries;
+        console.log('[persistence.handleTokenError] Server error detected', {
+          status: error.fakeXHR.status,
+          attempt: attempt
+        });
+      }
+    }
+    
+    // Handle retry with exponential backoff
+    if(shouldRetry && retryFn && typeof retryFn === 'function') {
+      var delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
+      console.log('[persistence.handleTokenError] Retrying request after delay', {
+        attempt: attempt + 1,
+        maxRetries: maxRetries,
+        delay: delay,
+        errorType: errorType
+      });
+      
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          retryFn(attempt + 1).then(resolve, function(retryError) {
+            // If retry also fails, handle it recursively
+            if(attempt + 1 < maxRetries) {
+              persistence.handleTokenError(retryError, retryFn, attempt + 1).then(resolve, reject);
+            } else {
+              reject(retryError);
+            }
+          });
+        }, delay);
+      });
+    }
+    
+    // Return error classification
+    return RSVP.reject({
+      error: error,
+      errorType: errorType,
+      needsReauth: needsReauth,
+      shouldRetry: shouldRetry,
+      attempt: attempt
+    });
+  },
   ajax: function() {
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
@@ -3057,32 +3740,63 @@ var persistence = EmberObject.extend({
       return RSVP.reject({offline: true, error: "not online", short_circuit: true});
     }
   },
+  // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
+  /*
   on_connect: observer('online', function() {
-    stashes.set('online', this.get('online'));
-    if(this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
-      var _this = this;
-      runLater(function() {
-        // TODO: maybe do a quick xhr to a static asset to make sure we're for reals online?
-        if(stashes.get('auth_settings')) {
-          _this.check_for_needs_sync(true);
-        }
-        _this.tokens = {};
-        if(LingoLinq.session) {
-          LingoLinq.session.restore(!persistence.get('browserToken'));
-        }
-      }, 500);
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
+    try {
+      if(stashes && typeof stashes.set === 'function') {
+        stashes.set('online', this.get('online'));
+      }
+      if(this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
+        var _this = this;
+        runLater(function() {
+          // TODO: maybe do a quick xhr to a static asset to make sure we're for reals online?
+          if(stashes && typeof stashes.get === 'function' && safeGet(getStashes(), 'auth_settings')) {
+            if(_this && typeof _this.check_for_needs_sync === 'function') {
+              _this.check_for_needs_sync(true);
+            }
+          }
+          if(_this) {
+            _this.tokens = {};
+          }
+          if(LingoLinq.session && persistence && typeof persistence.getBrowserToken === 'function') {
+            LingoLinq.session.restore(!persistence.getBrowserToken());
+          }
+        }, 500);
+      }
+    } catch(e) {
+      console.warn('Error in on_connect observer:', e);
     }
   }),
+  */
+  // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
+  /*
   check_for_needs_sync: observer('refresh_stamp', 'last_sync_at', function(ref) {
-    var force = (ref === true);
-    var _this = this;
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
+    try {
+      var force = (ref === true);
+      var _this = this;
 
-    if(stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
+      if(!stashes || typeof stashes.get !== 'function') {
+        return;
+      }
+      if(!persistence || typeof persistence.get !== 'function') {
+        return;
+      }
+
+      if(safeGet(getStashes(), 'auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
       // if last 2 sync attempts failed, last_sync_at should be set to prevent repeated attempts
       var synced = _this.get('last_sync_at') || 0;
-      var syncable = persistence.get('online') && !Ember.testing && !persistence.get('syncing');
+      var syncable = safeGet(getPersistence(), 'online') && !Ember.testing && !safeGet(getPersistence(), 'syncing');
       // default to checking every 5 minutes
-      var interval = persistence.get('last_sync_stamp_interval') || (5 * 60 * 1000);
+      var interval = safeGet(getPersistence(), 'last_sync_stamp_interval') || (5 * 60 * 1000);
       interval = interval + (0.2 * interval * Math.random()); // jitter
       if(_this.get('last_sync_event_at')) {
         // don't background sync too often
@@ -3093,7 +3807,7 @@ var persistence = EmberObject.extend({
         // on mobile, don't auto-sync until 30 seconds after bootup, unless it's never been synced
         // NOTE: the db is keyed to the user, so you'll always have a user-specific last_sync_at
         return false;
-      } else if(persistence.get('auto_sync') === false || persistence.get('auto_sync') == null) {
+      } else if(safeGet(getPersistence(), 'auto_sync') === false || safeGet(getPersistence(), 'auto_sync') == null) {
         // on browsers, don't auto-sync until the user has manually synced at least once
         return false;
       } else if(synced > 0 && (now - synced) > (48 * 60 * 60) && syncable) {
@@ -3103,12 +3817,12 @@ var persistence = EmberObject.extend({
         return true;
       } else if(force || (syncable && _this.get('last_sync_stamp'))) {
         // don't check sync_stamp more than once every interval
-        var last_check = persistence.get('last_sync_stamp_check');
+        var last_check = safeGet(getPersistence(), 'last_sync_stamp_check');
         if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
-          persistence.set('last_sync_stamp_check', (new Date()).getTime());
+          safeSet(getPersistence(), 'last_sync_stamp_check', (new Date()).getTime());
           persistence.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
-            persistence.set('last_sync_stamp_check', (new Date()).getTime());
-            if(!persistence.get('last_sync_stamp') || res.sync_stamp != persistence.get('last_sync_stamp')) {
+            safeSet(getPersistence(), 'last_sync_stamp_check', (new Date()).getTime());
+            if(!safeGet(getPersistence(), 'last_sync_stamp') || res.sync_stamp != safeGet(getPersistence(), 'last_sync_stamp')) {
               var not_still_changing = false;
               var cutoff = window.moment && window.moment(res.sync_stamp).add(5, 'minutes');
               var now = window.moment && window.moment();
@@ -3138,10 +3852,10 @@ var persistence = EmberObject.extend({
               }
             }
           }, function(err) {
-            persistence.set('last_sync_stamp_check', (new Date()).getTime());
+            safeSet(getPersistence(), 'last_sync_stamp_check', (new Date()).getTime());
             // TODO: if error implies no connection, consider marking as offline and checking for stamp more frequently
             if(err && err.result && err.result.invalid_token) {
-              if(stashes.get('auth_settings') && !Ember.testing) {
+              if(safeGet(getStashes(), 'auth_settings') && !Ember.testing) {
                 if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
                   LingoLinq.session.check_token(false);
                 }
@@ -3153,55 +3867,91 @@ var persistence = EmberObject.extend({
       }
     }
     return false;
+    } catch(e) {
+      console.warn('Error in check_for_needs_sync observer:', e);
+      return false;
+    }
   }),
+  */
+  // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
+  /*
   check_for_sync_reminder: observer('refresh_stamp', 'last_sync_at', function() {
-    var _this = this;
-    if(stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
+    // Guard: ensure this is valid before accessing it
+    if(!this || typeof this.get !== 'function') {
+      return;
+    }
+    try {
+      var _this = this;
+      if(!stashes || typeof stashes.get !== 'function') {
+        return;
+      }
+      if(safeGet(getStashes(), 'auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
       var synced = _this.get('last_sync_at') || 0;
       var now = (new Date()).getTime() / 1000;
       // if we haven't synced in 14 days, remind to sync
       if(synced > 0 && (now - synced) > (14 * 24 * 60 * 60) && !Ember.testing) {
-        persistence.set('sync_reminder', true);
+        if(persistence && typeof persistence.set === 'function') {
+          safeSet(getPersistence(), 'sync_reminder', true);
+        }
       } else {
-        persistence.set('sync_reminder', false);
+        if(persistence && typeof persistence.set === 'function') {
+          safeSet(getPersistence(), 'sync_reminder', false);
+        }
       }
     } else {
-      persistence.set('sync_reminder', false);
+      if(persistence && typeof persistence.set === 'function') {
+        safeSet(getPersistence(), 'sync_reminder', false);
+      }
+    }
+    } catch(e) {
+      console.warn('Error in check_for_sync_reminder observer:', e);
     }
   }),
+  */
+  // TEMPORARILY DISABLED: Old persistence observers disabled during migration to new service
+  /*
   check_for_new_version: observer('refresh_stamp', function() {
-    if(window.LingoLinq.update_version) {
-      persistence.set('app_needs_update', true);
+    // Guard: ensure persistence is valid before accessing it
+    if(!persistence || typeof persistence.set !== 'function') {
+      return;
+    }
+    try {
+      if(window.LingoLinq.update_version) {
+        safeSet(getPersistence(), 'app_needs_update', true);
+      }
+    } catch(e) {
+      console.warn('Error in check_for_new_version observer:', e);
     }
   })
+  */
 }).create({online: (navigator.onLine)});
 stashes.set('online', navigator.onLine);
 
 window.addEventListener('online', function() {
-  persistence.set('online', true);
+  safeSet(getPersistence(), 'online', true);
 });
 window.addEventListener('offline', function() {
-  persistence.set('online', false);
+  safeSet(getPersistence(), 'online', false);
 });
 // Cordova notifies on the document object
 document.addEventListener('online', function() {
-  persistence.set('online', true);
+  safeSet(getPersistence(), 'online', true);
 });
 document.addEventListener('offline', function() {
-  persistence.set('online', false);
+  safeSet(getPersistence(), 'online', false);
 });
 setInterval(function() {
   var online = navigator.online_override || navigator.onLine;
-  if(online === true && persistence.get('online') === false) {
-    persistence.set('online', true);
-  } else if(online === false && persistence.get('online') === true) {
-    persistence.set('online', false);
-  } else if(persistence.get('online') === false) {
+  if(online === true && safeGet(getPersistence(), 'online') === false) {
+    safeSet(getPersistence(), 'online', true);
+  } else if(online === false && safeGet(getPersistence(), 'online') === true) {
+    safeSet(getPersistence(), 'online', false);
+  } else if(safeGet(getPersistence(), 'online') === false) {
     // making an AJAX call when offline should have very little overhead
     LingoLinq.session.check_token(false).then(function(res) {
       if(res && res.success === false) {
       } else {
-        persistence.set('online', true);
+        safeSet(getPersistence(), 'online', true);
       }
     }, function() { });
   }
@@ -3233,10 +3983,15 @@ persistence.DSExtend = {
         // var find = original_find;
 
         var full_id = type.modelName + "_" + id;
+        // Get the persistence instance safely - prefer window.persistence (service) over module-level
+        var p = window.persistence || persistence;
+        var isOnline = p && typeof p.get === 'function' ? p.get('online') : false;
         // force_reload should always hit the server, though it can return local data if there's a token error (i.e. session expired)
-        if(persistence.force_reload == full_id && persistence.get('online')) { start_with_local = false; } //find.then(null, function() { }); find = RSVP.reject(); }
+        if(persistence.force_reload == full_id && isOnline) { start_with_local = false; } //find.then(null, function() { }); find = RSVP.reject(); }
         // private browsing mode gets really messed up when you try to query local db, so just don't.
-        else if(!stashes.get('enabled')) { skip_db = true; } //find.then(null, function() { }); find = RSVP.reject(); original_find = RSVP.reject(); }
+        var st = window.stashes || stashes;
+        var stashesEnabled = st && typeof st.get === 'function' ? st.get('enabled') : true;
+        if(!stashesEnabled) { skip_db = true; } //find.then(null, function() { }); find = RSVP.reject(); original_find = RSVP.reject(); }
 
         // this method will be called if a local result is found, or a force reload
         // is called but there wasn't a result available from the remote system
@@ -3258,9 +4013,30 @@ persistence.DSExtend = {
 
         var check_remote = function() {
           // if nothing found locally and system is online (and it's not a local-only id), make a remote request
-          if(persistence.get('online') && !id.match(/^tmp[_\/]/) && !id.match(/^tmpimg_/)) {
-            if(!persistence.get('syncing')) {
-              persistence.remember_access('find', type.modelName, id);
+          var p = window.persistence || persistence;
+          var isOnline = p && typeof p.get === 'function' ? p.get('online') : false;
+          if(isOnline && !id.match(/^tmp[_\/]/) && !id.match(/^tmpimg_/)) {
+            // For 'self' user requests, check if we have a token before making the request
+            // This prevents 401 errors during app initialization when token isn't loaded yet
+            if(type.modelName === 'user' && id === 'self') {
+              var has_token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ||
+                              (LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token'));
+              if(!has_token) {
+                // No token available, skip remote request and use local data or reject
+                if(skip_db) {
+                  return find_reject({error: 'authentication required', unauthorized: true});
+                } else {
+                  if(local_data) {
+                    return local_processed(local_data);
+                  } else {
+                    return find_reject({error: 'authentication required', unauthorized: true});
+                  }
+                }
+              }
+            }
+            var isSyncing = p && typeof p.get === 'function' ? p.get('syncing') : false;
+            if(!isSyncing && p && typeof p.remember_access === 'function') {
+              p.remember_access('find', type.modelName, id);
             }
             var error = function(err) {
               var local_fallback = false;
@@ -3275,6 +4051,16 @@ persistence.DSExtend = {
                 local_fallback = true;
               } else if(err && err.fakeXHR && err.fakeXHR.status && err.fakeXHR.status.toString().substring(0, 1) == '5') {
                 // for other 500 errors, allow local results as a fallback
+                local_fallback = true;
+              } else if(err && err.fakeXHR && err.fakeXHR.status === 401) {
+                // for 401 Unauthorized errors, allow local results as a fallback
+                // This handles cases where the request is made before authentication is complete
+                local_fallback = true;
+              } else if(err && err.errors && err.errors[0] && err.errors[0].status === 401) {
+                // for 401 errors in Ember Data format, allow local results as a fallback
+                local_fallback = true;
+              } else if(err && err.errors && err.errors[0] && err.errors[0].unauthorized) {
+                // for unauthorized errors, allow local results as a fallback
                 local_fallback = true;
               } else {
                 // any other exceptions?
@@ -3375,7 +4161,7 @@ persistence.DSExtend = {
   },
   createRecord: function(store, type, obj) {
     var _this = this;
-    if(persistence.get('online')) {
+    if(safeGet(getPersistence(), 'online')) {
       return new RSVP.Promise(function(create_resolve, create_reject) {
         var tmp_id = null, tmp_key = null;
   //       if(obj.id && obj.id.match(/^tmp[_\/]/)) {
@@ -3400,7 +4186,7 @@ persistence.DSExtend = {
               create_resolve(record);
             }
           }, function() {
-            if(capabilities.installed_app || persistence.get('auto_sync')) {
+            if(capabilities.installed_app || safeGet(getPersistence(), 'auto_sync')) {
               create_reject({error: "failed to create in local db"});
             } else {
               create_resolve(record);
@@ -3430,7 +4216,7 @@ persistence.DSExtend = {
   updateRecord: function(store, type, obj) {
     var _this = this;
     return new RSVP.Promise(function(update_resolve, update_reject) {
-      if(persistence.get('online')) {      
+      if(safeGet(getPersistence(), 'online')) {      
         if(obj.id.match(/^tmp[_\/]/)) {
           _this.createRecord(store, type, obj).then(function(res) {
             update_resolve(res);
@@ -3463,7 +4249,9 @@ persistence.DSExtend = {
     // need raw object
     var _this = this;
     return new RSVP.Promise(function(delete_resolve, delete_reject) {
-      if(persistence.get('online')) {
+      var p = window.persistence || persistence;
+      var isOnline = p && typeof p.get === 'function' ? p.get('online') : false;
+      if(isOnline) {
         _this._super(store, type, obj).then(function(record) {
           persistence.remove(type.modelName, record).then(function() {
             delete_resolve(record);
@@ -3487,7 +4275,9 @@ persistence.DSExtend = {
     debugger;
   },
   query: function(store, type, query) {
-    if(persistence.get('online')) {
+    var p = window.persistence || persistence;
+    var isOnline = p && typeof p.get === 'function' ? p.get('online') : false;
+    if(isOnline) {
       var res = this._super(store, type, query);
       return res;
     } else {
@@ -3495,6 +4285,48 @@ persistence.DSExtend = {
     }
   }
 };
-window.persistence = persistence;
+// Note: window.persistence is set by the Ember service (app/services/persistence.js)
+// Do NOT set window.persistence here - the service instance is the correct one to use
 
-export default persistence;
+// Create a Proxy wrapper that safely handles .get() and .set() calls
+// This ensures that files importing persistence from this module get safe access
+// to the persistence service even before it's fully initialized
+var persistenceProxy = new Proxy(persistence, {
+  get: function(target, prop) {
+    // For 'get' method, return a safe wrapper function
+    if(prop === 'get') {
+      return function(key) {
+        // Try window.persistence first (the service instance)
+        if(window.persistence && typeof window.persistence.get === 'function') {
+          return window.persistence.get(key);
+        }
+        // Return null if persistence service not ready
+        return null;
+      };
+    }
+    // For 'set' method, return a safe wrapper function  
+    if(prop === 'set') {
+      return function(key, value) {
+        // Try window.persistence first (the service instance)
+        if(window.persistence && typeof window.persistence.set === 'function') {
+          return window.persistence.set(key, value);
+        }
+        // Do nothing if persistence service not ready
+        return undefined;
+      };
+    }
+    // For all other properties, check window.persistence first, then fall back to target
+    if(window.persistence && prop in window.persistence) {
+      var val = window.persistence[prop];
+      // If it's a function, bind it to window.persistence
+      if(typeof val === 'function') {
+        return val.bind(window.persistence);
+      }
+      return val;
+    }
+    // Fall back to the class/target for static properties and methods
+    return target[prop];
+  }
+});
+
+export default persistenceProxy;

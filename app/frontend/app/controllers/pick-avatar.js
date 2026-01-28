@@ -1,17 +1,19 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import contentGrabbers from '../utils/content_grabbers';
 import Utils from '../utils/misc';
 import LingoLinq from '../app';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import editManager from '../utils/edit_manager';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   opening: function() {
     var _this = this;
     _this.set('editable', false);

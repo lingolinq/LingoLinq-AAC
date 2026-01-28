@@ -14,7 +14,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import $ from 'jquery';
 import persistence from '../../utils/persistence';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
   opening: function() {

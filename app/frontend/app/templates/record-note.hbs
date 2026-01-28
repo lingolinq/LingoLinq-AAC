@@ -2,23 +2,23 @@
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>
-      {{t "New Note for %{user_name}" key="new_note_for" user_name=model.user_name}}
+      {{t "New Note for %{user_name}" key="new_note_for" user_name=this.model.user_name}}
     </h3>
   </div>
   <div class="modal-body">
     <form class="form-horizontal">
-      {{#if goal_options}}
+      {{#if this.goal_options}}
         <div class="form-group">
           <label for="goal_options" class="col-sm-2 control-label">{{t "Topic" key="topic"}}</label>
           <div class="col-sm-10">
-            {{bound-select select_class="form-control" select_id="goal_options" content=goal_options selection=goal_id action=(action (mut goal_id)) }}
+            {{bound-select select_class="form-control" select_id="goal_options" content=this.goal_options selection=this.goal_id action=(action (mut this.goal_id)) }}
           </div>
         </div>
-        {{#if goal_id}}
+        {{#if this.goal_id}}
           <div class="form-group">
             <label for="goal_options" class="col-sm-2 control-label">&nbsp;</label>
             <div class="col-sm-10">
-              {{#each goal_statuses as |status|}}
+              {{#each this.goal_statuses as |status|}}
               <div style='width: 25%; float: left; padding: 5px;'>
                 <button class={{status.button_display_class}} {{action "set_status" status.id}}>
                   <span class={{status.display_class}}></span>
@@ -35,19 +35,19 @@
         <label id="note_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
         <div class="col-sm-6">
           <div class="btn-group" role="group" aria-labelledby="note_type">
-            <button type="button" class={{text_class}} {{action "set_type" "text"}}>{{t "Text" key="text"}}</button>
-            <button type="button" class={{video_class}} {{action "set_type" "video"}}>{{t "Video" key="video"}}</button>
+            <button type="button" class={{this.text_class}} {{action "set_type" "text"}}>{{t "Text" key="text"}}</button>
+            <button type="button" class={{this.video_class}} {{action "set_type" "video"}}>{{t "Video" key="video"}}</button>
           </div>
         </div>
-        {{#if text_note}}
-          {{#if all_note_templates}}
+        {{#if this.text_note}}
+          {{#if this.all_note_templates}}
           <div class='col-sm-4' style='text-align: right;'>
             <div class="btn-group dropdown">
               <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
                 {{t "From Template" key="from_template"}} <span class="caret"></span>
               </button>
               <ul class="dropdown-menu pull_right" role="menu">
-                {{#each all_note_templates as |template|}}
+                {{#each this.all_note_templates as |template|}}
                   <li><a href="#" {{action "pick_template" template}}>{{ template.title }} </a></li>
                 {{/each}}
               </ul>
@@ -56,28 +56,28 @@
           {{/if}}
         {{/if}}
       </div>
-      {{#if text_note}}
+      {{#if this.text_note}}
         <div class="form-group">
           <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
-            {{textarea value=note class="form-control" id="note" rows=note_rows}}
+            {{textarea value=this.note class="form-control" id="note" rows=this.note_rows}}
           </div>
         </div>
-        {{#if prior.note.text}}
+        {{#if this.prior.note.text}}
           <div class="form-group">
             <label for="prior_note" class="col-sm-2 control-label">{{t "Previous" key="previous"}}</label>
             <div class="col-sm-10">
               <div style='border-left: 2px solid #ddd; font-style: italic; padding: 5px 0 5px 10px;'>
-                {{prior.note.text}}
+                {{this.prior.note.text}}
               </div>
             </div>
           </div>
         {{/if}}
-        {{#if model.external_device}}
+        {{#if this.model.external_device}}
           <div class="form-group">
             <label for="log" class="col-sm-2 control-label">{{t "Log Events" key="log_events"}}</label>
             <div class="col-sm-10">
-              {{textarea value=log class="form-control" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective"}}
+              {{textarea value=this.log class="form-control" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective"}}
             </div>
           </div>
         {{/if}}
@@ -85,7 +85,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify type="checkbox"}}
+                {{input checked=this.notify type="checkbox"}}
                 {{t "Notify others of this message" key="notify_others"}}
               </label>
             </div>
@@ -95,7 +95,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify_user type="checkbox"}}
+                {{input checked=this.notify_user type="checkbox"}}
                 {{t "Send an alert to the communicator about this message" key="alert_user"}}
               </label>
             </div>
@@ -111,21 +111,21 @@
         <div class="form-group">
           <label for="video" class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
           <div class="col-sm-10">
-            {{video-recorder user=model video_ready="video_ready" video_pending="video_pending" video_not_ready="video_not_ready"}}
+            {{video-recorder user=this.model video_ready="video_ready" video_pending="video_pending" video_not_ready="video_not_ready"}}
           </div>
         </div>
         <div class="form-group">
           <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
-            {{textarea value=note class="form-control" id="note" rows="1"}}
+            {{textarea value=this.note class="form-control" id="note" rows="1"}}
           </div>
         </div>
-        {{#if prior.note.text}}
+        {{#if this.prior.note.text}}
           <div class="form-group">
             <label for="prior_note" class="col-sm-2 control-label">{{t "Previous" key="previous"}}</label>
             <div class="col-sm-10">
               <div style='border-left: 2px solid #ddd; font-style: italic; padding: 5px 0 5px 10px;'>
-                {{prior.note.text}}
+                {{this.prior.note.text}}
               </div>
             </div>
           </div>
@@ -134,7 +134,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify type="checkbox"}}
+                {{input checked=this.notify type="checkbox"}}
                 {{t "Notify others of this message" key="notify_others"}}
               </label>
             </div>
@@ -144,7 +144,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify_user type="checkbox"}}
+                {{input checked=this.notify_user type="checkbox"}}
                 {{t "Send an alert to the communicator about this message" key="alert_user"}}
               </label>
             </div>
@@ -152,7 +152,7 @@
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <button class="btn btn-primary" disabled={{no_video_ready}} {{action "saveNote" "video"}}>{{t "Save Note" key="save_note"}}</button>
+            <button class="btn btn-primary" disabled={{this.no_video_ready}} {{action "saveNote" "video"}}>{{t "Save Note" key="save_note"}}</button>
             <button class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         </div>

@@ -11,44 +11,44 @@
       <dt>{{t "Description" key="description"}}</dt>
         <dd style="white-space: pre-line;">{{this.model.description}}</dd>
       <dt>{{t "Created" key="created"}}</dt>
-        <dd>{{date model.created "day"}}</dd>
+        <dd>{{date this.model.created "day"}}</dd>
       <dt>{{t "Last Updated" key="updated"}}</dt>
-        <dd>{{date model.updated "day"}}</dd>
-      {{#if model.locale}}
+        <dd>{{date this.model.updated "day"}}</dd>
+      {{#if this.model.locale}}
         <dt>{{t "Default Language" key="default_language"}}</dt>
-          <dd>{{language}}</dd>
+          <dd>{{this.language}}</dd>
       {{/if}}
-      {{#if multiple_locales}}
+      {{#if this.multiple_locales}}
         <dt>{{t "Translations" key="translations"}}</dt>
-          <dd>{{languages}}</dd>
+          <dd>{{this.languages}}</dd>
       {{/if}}
-      {{#if model.parent_board_key}}
+      {{#if this.model.parent_board_key}}
         <dt>{{t "Copied From" key="copied_from"}}</dt>
         <dd>
-          {{#link-to "board" model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
+          {{#link-to "board" this.model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
         </dd>
       {{/if}}
       <dt>{{t "Public" key="public"}}</dt>
         <dd>
-        {{#if model.public}}
+        {{#if this.model.public}}
           {{t "Anyone can see this board" key="anyone_can_see"}}
         {{else}}
           {{t "This board is private" key="this_board_is_private"}}
         {{/if}}
         </dd>
-      {{#if model.word_suggestions}}
+      {{#if this.model.word_suggestions}}
         <dt>{{t "Suggestions" key="suggestions"}}</dt>
         <dd>{{t "Shows word completion suggestions" key="shows_word_completion_suggestions"}}</dd>
       {{/if}}
 
       <dt>{{t "License" key="license"}}</dt>
         <dd>
-          {{license-attribution license=model.license}}
-          {{#if model.protected_material}}
+          {{license-attribution license=this.model.license}}
+          {{#if this.model.protected_material}}
             <div style='margin-bottom: 10px; margin-top: 5px;'>
-              {{#if model.has_fallbacks}}
+              {{#if this.model.has_fallbacks}}
                 <em>{{t "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent" key="protected_fallback_material"}}</em>
-              {{else if model.copying_state}}
+              {{else if this.model.copying_state}}
                 <em>{{t "This board contains protected material, and cannot be made public" key="board_contains_protected_material"}}</em>
               {{else}}
                 <em>{{t "This board contains protected material which cannot be made public. If this board is shared or made public, users without proper access will see free images and sounds instead which may not perfectly match the author's intent." key="board_contains_protected_material_will_use_fallbacks"}}</em>
@@ -56,16 +56,16 @@
             </div>
           {{/if}}
         </dd>
-      {{#unless model.local_only}}
+      {{#unless this.model.local_only}}
         <dt>{{t "People Using" key="people_using"}}</dt>
           <dd>
             {{this.model.non_author_uses}}
             <a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a>
           </dd>
       {{/unless}}
-      {{#unless model.fresh}}
+      {{#unless this.model.fresh}}
         <dt>{{t "Local Result" key="local_result"}}</dt>
-          {{#if model.local_only}}
+          {{#if this.model.local_only}}
             <dd>{{t "generated locally" key="generated_locally"}}</dd>
           {{else}}
             <dd>{{t "retrieved from local storage" key="retrieved_from_local"}}</dd>
@@ -73,7 +73,7 @@
       {{/unless}}
       <dt>{{t "Dimensions" key="dimensions"}}</dt>
         <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
-      {{#unless model.local_only}}
+      {{#unless this.model.local_only}}
         <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
           <dd>
             {{this.model.downstream_boards}}
@@ -81,19 +81,19 @@
         <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
           <dd>
             {{this.model.unlinked_buttons}}
-            {{#if model.button_set}}
+            {{#if this.model.button_set}}
               <a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a>
             {{/if}}
           </dd>
         <dt>{{t "Revisions" key="revisions"}}</dt>
           <dd>
-            {{#link-to "board.history" model.key}}{{t "see board edit history" key="see_history"}}{{/link-to}}
+            {{#link-to "board.history" this.model.key}}{{t "see board edit history" key="see_history"}}{{/link-to}}
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>
             {{this.model.stars}}
           </dd>
-        {{#if model.permissions.edit}}
+        {{#if this.model.permissions.edit}}
           <dt>{{t "Rename" key="rename"}}</dt>
           <dd>
             <a href="#" {{action "renameBoard"}}>{{t "change board key" key="change_board_key_lower"}}</a>
@@ -101,18 +101,18 @@
         {{/if}}
       {{/unless}}
       </dl>
-      {{#unless model.local_only}}
-        {{#if hierarchy}}
+      {{#unless this.model.local_only}}
+        {{#if this.hierarchy}}
           <dl class="dl-horizontal" style="margin-top: 20px;">
             <dt>{{t "Linked Boards" key="linked_boards"}}</dt>
             <dd>
-              {{#if hierarchy.loading}}
+              {{#if this.hierarchy.loading}}
                 {{t "Loading linked boards..." key="loading_linked_boards"}}
-              {{else if hierarchy.error}}
+              {{else if this.hierarchy.error}}
                 {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
               {{else}}
                 <div style='margin-top: -15px;'>
-                  {{board-hierarchy hierarchy=hierarchy}}
+                  {{board-hierarchy hierarchy=this.hierarchy}}
                 </div>
               {{/if}}
             </dd>
@@ -122,16 +122,16 @@
     <dl class="dl-horizontal" style="margin-top: 50px;">
       <dt>{{t "Additional Licenses" key="additional_license"}}</dt>
         <dd>
-          {{#unless showing_licenses}}
+          {{#unless this.showing_licenses}}
             <a href="#" {{action "show_licenses"}}>{{t "show additional licenses" class="show_additiona"}}</a>
           {{else}}
             <ul class="list-unstyled">
-            {{#each images_with_license as |image|}}
+            {{#each this.images_with_license as |image|}}
               <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;">
               {{license-attribution license=image.license}}
               </li>
             {{/each}}
-            {{#each sounds_with_license as |sound|}}
+            {{#each this.sounds_with_license as |sound|}}
               <li>
                 <strong>{{sound.filename}}</strong><br>
                 <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
@@ -145,14 +145,14 @@
         </dd>
     </dl>
     <div style='margin-bottom: 5px;'>
-      {{#if model.permissions.edit}}
+      {{#if this.model.permissions.edit}}
         <button class='btn btn-default' {{action "privacy"}}>{{t "Change Privacy" key="change_privacy"}}</button>
       {{/if}}
-      {{#if app_state.currentUser}}
+      {{#if this.app_state.currentUser}}
         <button class='btn btn-default' {{action "categorize"}}>{{t "Categorize Board" key="categorize_board"}}</button>
       {{/if}}
     </div>
-    {{#if model.permissions.edit}}
+    {{#if this.model.permissions.edit}}
       <button class='btn btn-default' {{action "translate"}}>{{t "Translate Board" key="translate_this_board"}}</button>
       <button class='btn btn-default' {{action "swap_images"}}>{{t "Swap Images" key="swap_images_for_this_board"}}</button>
       <button class='btn btn-default' {{action "batch_recording"}}>{{t "Record Messages" key="record_messages"}}</button>

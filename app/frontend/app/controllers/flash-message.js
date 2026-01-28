@@ -1,11 +1,13 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  
   display_class: computed('alert_type', function() {
     var res = "alert alert-dismissable ";
     if(this.get('alert_type')) {
@@ -27,7 +29,7 @@ export default Controller.extend({
       if(settings.type == 'error') { class_name = 'alert-danger'; }
       if(settings.type == 'success') { class_name = 'alert-success'; }
       if(settings.below_header) { class_name = class_name + ' below_header'; }
-      var top = app_state.get('header_height');
+      var top = this.appState.get('header_height');
       this.set('extra_styles', htmlSafe(settings.below_header ? 'top: ' + top + 'px;' : ''));
       this.set('alert_type', class_name);
     },
@@ -36,7 +38,7 @@ export default Controller.extend({
     confirm: function(temp_action) {
       if(this.get('redirect')) {
         if(this.get('redirect.subscribe') && !capabilities.installed_app) {
-          this.transitionToRoute('user.subscription', app_state.get('currentUser.user_name'));
+          this.transitionToRoute('user.subscription', this.appState.get('currentUser.user_name'));
         }
       } else if(this.get('action.callback')) {
         this.get('action').callback();

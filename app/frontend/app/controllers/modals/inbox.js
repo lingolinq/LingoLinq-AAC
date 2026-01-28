@@ -5,7 +5,7 @@ import app_state from '../../utils/app_state';
 import speecher from '../../utils/speecher';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';

@@ -1,11 +1,11 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <table class="table table-hover table-condensed" style="margin-bottom: 0;">
     <thead>
       <tr>
         <th colspan="2">
-          {{#if lost_words.some}}
+          {{#if this.lost_words.some}}
             {{t "Lost words (compared)" key="lost_words"}}
-          {{else if gained_words.some}}
+          {{else if this.gained_words.some}}
             {{t "Gained words (compared)" key="gained_words"}}
           {{else}}
             {{t "Words (compared)" key="words_compared"}}
@@ -15,8 +15,8 @@
       </tr>
     </thead>
     <tbody>
-      {{#if lost_words}}
-        {{#each lost_words as |word|}}
+      {{#if this.lost_words}}
+        {{#each this.lost_words as |word|}}
           <tr>
             <td>{{word.text}}</td>
             {{#if word.gone}}
@@ -26,8 +26,8 @@
             {{/if}}
           </tr>
         {{/each}}
-      {{else if gained_words}}
-        {{#each gained_words as |word|}}
+      {{else if this.gained_words}}
+        {{#each this.gained_words as |word|}}
           <tr>
             <td>{{word.text}}</td>
             {{#if word.new}}
