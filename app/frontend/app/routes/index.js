@@ -1,4 +1,5 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import Subscription from '../utils/subscription';
@@ -13,15 +14,20 @@ import session from '../utils/session';
 import i18n from '../utils/i18n';
 
 export default Route.extend({
+  appState: service('app-state'),
+  persistenceService: service('persistence'),
+  stashesService: service('stashes'),
+  sessionService: service('session'),
+  modal: service(),
   model: function() {
-    if(session.get('access_token')) {
+    if(this.sessionService.get('access_token')) {
       return CoughDrop.store.findRecord('user', 'self').then(function(user) {
         // notifications and logs should show up when you re-visit the dashboard
-        if(!user.get('really_fresh') && persistence.get('online')) {
+        if(!user.get('really_fresh') && this.persistenceService.get('online')) {
           user.reload();
         }
         return RSVP.resolve(user);
-      }, function() {
+      }.bind(this), function() {
         return RSVP.resolve(null);
       });
     } else {
@@ -37,18 +43,18 @@ export default Route.extend({
     // CRITICAL FIX: Renamed from 'extras' to 'pageExtras' to avoid conflict with implicit injection
     // Ember implicitly injects 'extras' as read-only, causing "Cannot assign to read only property" error
     controller.set('pageExtras', coughDropExtras);
-    var jump_to_speak = !!((stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
+    var jump_to_speak = !!((this.stashesService.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode')));
     if(model && model.get('eval_ended')) { jump_to_speak = false; }
     if(model && model.get('id') && !model.get('terms_agree')) {
-      modal.open('terms-agree');
+      this.modal.open('terms-agree');
     } else {
-      if(stashes.get('current_mode') == 'edit') {
-        stashes.persist('current_mode', 'default');
-      } else if(jump_to_speak && model && model.get('id') && !model.get('supporter_role') && !app_state.get('already_homed') && model.get('preferences.home_board.key')) {
+      if(this.stashesService.get('current_mode') == 'edit') {
+        this.stashesService.persist('current_mode', 'default');
+      } else if(jump_to_speak && model && model.get('id') && !model.get('supporter_role') && !this.appState.get('already_homed') && model.get('preferences.home_board.key')) {
         var homey = function() {
-          app_state.home_in_speak_mode({user: model});
-          app_state.set('already_homed', true);
-        };
+          this.appState.home_in_speak_mode({user: model});
+          this.appState.set('already_homed', true);
+        }.bind(this);
         // for some reason, iOS doesn't like being auto-launched into speak mode too quickly..
         // android installed app is taking like 5 times as long to load with auto-speak, maybe this will help there too?
         var always_wait = true;
@@ -62,13 +68,13 @@ export default Route.extend({
     }
     var _this = this;
 
-    app_state.clear_mode();
-    if(!app_state.get('currentUser.preferences.home_board.id')) {
-      this.store.query('board', {user_id: app_state.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
+    this.appState.clear_mode();
+    if(!this.appState.get('currentUser.preferences.home_board.id')) {
+      this.store.query('board', {user_id: this.appState.get('domain_board_user_name'), starred: true, public: true}).then(function(boards) {
         controller.set('starting_boards', boards);
       }, function() { });
     }
-    if(!session.get('isAuthenticated')) {
+    if(!this.sessionService.get('isAuthenticated')) {
       controller.set('homeBoards', {loading: true});
       controller.store.query('board', {sort: 'home_popularity', per_page: 9}).then(function(data) {
         controller.set('homeBoards', data);
@@ -91,20 +97,20 @@ export default Route.extend({
     controller.checkForBlankSlate();
     controller.subscription_check();
     controller.update_current_badges();
-    if(app_state.get('show_intro')) {
-      modal.open('intro');
+    if(this.appState.get('show_intro')) {
+      this.modal.open('intro');
     }
   },
   actions: {
     homeInSpeakMode: function(board_for_user_id, keep_as_self) {
       if(board_for_user_id) {
-        app_state.set_speak_mode_user(board_for_user_id, true, keep_as_self);
-      } else if((app_state.get('currentUser.supervisees') || []).length > 0) {
+        this.appState.set_speak_mode_user(board_for_user_id, true, keep_as_self);
+      } else if((this.appState.get('currentUser.supervisees') || []).length > 0) {
         var prompt = i18n.t('speak_as_which_user', "Select User to Speak As");
-        app_state.set('referenced_speak_mode_user', null);
-        app_state.controller.send('switch_communicators', {stay: true, modeling: 'ask', skip_me: false, header: prompt});
+        this.appState.set('referenced_speak_mode_user', null);
+        this.appState.controller.send('switch_communicators', {stay: true, modeling: 'ask', skip_me: false, header: prompt});
       } else {
-        app_state.home_in_speak_mode();
+        this.appState.home_in_speak_mode();
       }
     },
     home_board: function(key) {
@@ -115,7 +121,7 @@ export default Route.extend({
       var user = controller.get('user');
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
-      if(!persistence.get('online')) { return; }
+      if(!this.persistenceService.get('online')) { return; }
       if(controller.get('badEmail') || controller.get('shortPassword') || controller.get('noName') || controller.get('noSpacesName')) {
         return;
       }
@@ -123,12 +129,12 @@ export default Route.extend({
       var _this = this;
       user.save().then(function(user) {
         controller.set('registering', null);
-        var meta = persistence.meta('user', null);
+        var meta = _this.persistenceService.meta('user', null);
         controller.set('triedToSave', false);
         user.set('password', null);
         _this.transitionTo('index');
         if(meta && meta.access_token) {
-          session.override(meta);
+          _this.sessionService.override(meta);
         }
       }, function(err) {
         controller.set('registering', {error: true});
