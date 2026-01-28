@@ -369,13 +369,15 @@ export default Service.extend({
           try {
             if (user && typeof user.get === 'function') {
               try {
-                user.set('modeling_session', LingoLinq.session.get('modeling_session'));
-                LingoLinq.appState.set('sessionUser', user);
-                if (!LingoLinq.appState.get('speak_mode') || !LingoLinq.appState.get('speakModeUser')) {
-                  LingoLinq.appState.set('currentUser', user);
+                if(_this.session) {
+                  user.set('modeling_session', _this.session.get('modeling_session'));
+                }
+                _this.set('sessionUser', user);
+                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+                  _this.set('currentUser', user);
                 }
                 // Notify property change to ensure observers fire
-                LingoLinq.appState.notifyPropertyChange('currentUser');
+                _this.notifyPropertyChange('currentUser');
               } catch(e) {
                 console.error('[APP-STATE] find_user: ERROR setting sessionUser/currentUser', e, e.stack);
               }
@@ -391,14 +393,14 @@ export default Service.extend({
           }
           
           var valid_user = RSVP.resolve(user);
-          if(!LingoLinq.session.get('as_user_id') && LingoLinq.session.get('user_id') && LingoLinq.session.get('user_id') != user.get('id')) {
+          if(!_this.session.get('as_user_id') && _this.session.get('user_id') && _this.session.get('user_id') != user.get('id')) {
             // mismatch due to a user being renamed
             // console.log('[APP-STATE] find_user: user ID mismatch, fetching by session user_id');
-            valid_user = LingoLinq.store.findRecord('user', LingoLinq.session.get('user_id'));
-          } else if(LingoLinq.session.get('as_user_id') && user.get('user_name') && LingoLinq.session.get('as_user_id') != user.get('user_name')) {
+            valid_user = LingoLinq.store.findRecord('user', _this.session.get('user_id'));
+          } else if(_this.session.get('as_user_id') && user.get('user_name') && _this.session.get('as_user_id') != user.get('user_name')) {
             // mismatch due to a user being renamed
             // console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
-            valid_user = LingoLinq.store.findRecord('user', LingoLinq.session.get('as_user_id'));
+            valid_user = LingoLinq.store.findRecord('user', _this.session.get('as_user_id'));
           }
           console.log('[APP-STATE] find_user: about to call valid_user.then()', {
             valid_user_type: typeof valid_user,
@@ -412,18 +414,22 @@ export default Service.extend({
               user_id: user && user.get ? user.get('id') : 'no get method'
             });
             try {
-              if(!user.get('fresh') && LingoLinq.appState.stashes.get('online')) {
+              if(!user.get('fresh') && _this.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
               user.reload().then(function(user) {
-                user.set('modeling_session', LingoLinq.session.get('modeling_session'));
-                LingoLinq.appState.set('sessionUser', user);
+                if(_this.session) {
+                  user.set('modeling_session', _this.session.get('modeling_session'));
+                }
+                _this.set('sessionUser', user);
                 // Manually set currentUser after reload
-                if (!LingoLinq.appState.get('speak_mode') || !LingoLinq.appState.get('speakModeUser')) {
-                  LingoLinq.appState.set('currentUser', user);
+                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+                  _this.set('currentUser', user);
                 }
               }, function() { });
             }
-            user.set('modeling_session', LingoLinq.session.get('modeling_session'));
+            if(_this.session) {
+              user.set('modeling_session', _this.session.get('modeling_session'));
+            }
             console.log('[APP-STATE] find_user: setting sessionUser', {
               has_user: !!user,
               user_id: user ? user.get('id') : null
@@ -484,7 +490,9 @@ export default Service.extend({
             } else {
               error = i18n.t('session_expired', "This session has expired, please log back in");
             }
-            LingoLinq.session.force_logout(error);
+            if(_this.session && typeof _this.session.force_logout === 'function') {
+              _this.session.force_logout(error);
+            }
           } else if(is_timeout && !last_try) {
             // For timeouts, retry (but only once to avoid infinite loops)
             console.log("Retrying user initialization after timeout...");
@@ -497,14 +505,14 @@ export default Service.extend({
           }
         });
       };
-      if(LingoLinq.session.get('access_token')) {
+      if(_this.session && _this.session.get('access_token')) {
         find_user();
       }
     }
     this.session.addObserver('access_token', function() {
       var _this_service = _this;
       runLater(function() {
-        if(this.session.get('access_token')) {
+        if(_this_service.session && _this_service.session.get('access_token')) {
           _this_service.refresh_session_user();
         }
       }, 10);
@@ -3738,6 +3746,7 @@ export default Service.extend({
                   } catch(e) {
                     // Silently fail if persistence service isn't ready yet
                     // This can happen during initialization
+
                   }
                 }
               }

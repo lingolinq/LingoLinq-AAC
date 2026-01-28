@@ -4304,7 +4304,7 @@ persistence.DSExtend = {
             // This prevents 401 errors during app initialization when token isn't loaded yet
             if(type.modelName === 'user' && id === 'self') {
               var has_token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ||
-                              (LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token'));
+                              (LingoLinq && LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token'));
               if(!has_token) {
                 // No token available, skip remote request and use local data or reject
                 if(skip_db) {
