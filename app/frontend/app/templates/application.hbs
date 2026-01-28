@@ -910,12 +910,12 @@
                     {{#if this.app_state.currentBoardState.translatable}}
                       <li><a href="#" {{action "switch_languages"}}>{{t "Switch Languages" key="switch_languages"}}</a></li>
                     {{/if}}
-                    {{#if stashes.sticky_board}}
+                    {{#if this.stashes.sticky_board}}
                       <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
                     {{else}}
                       <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
                     {{/if}}
-                    {{#if stashes.temporary_root_board_state}}
+                    {{#if this.stashes.temporary_root_board_state}}
                       <li><a href="#" {{action "toggle_home_lock"}}>{{t "Release Home Lock" key="release_home_lock"}}</a></li>
                     {{else}}
                       {{#unless this.app_state.current_board_is_speak_mode_home}}

@@ -9,8 +9,10 @@ import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../../app';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  store: service(),
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
   reset_params: function() {
     var _this = this;

@@ -15,7 +15,7 @@
       <div class="form-group">
         <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
         <div class="col-sm-5">
-          {{input value=user_name class="form-control" id="user_name" placeholder="user_name"}}
+          {{input value=this.user_name class="form-control" id="user_name" placeholder="user_name"}}
         </div>
       </div>
     </div>
@@ -23,8 +23,8 @@
   <div class="modal-header">
     <button class='btn btn-default btn-lg' {{action "delete_user"}}>{{t "Delete User Account" key="delete_user_account"}}</button>
     <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-    {{#if error}}
-      <p class='text-danger'>{{error}}</p>
+    {{#if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
     {{/if}}
   </div>
 {{/modal-dialog}}

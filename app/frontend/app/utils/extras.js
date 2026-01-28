@@ -31,9 +31,8 @@ import app_state from './app_state';
     if(ready.types.init && ready.types.extras && ready.types.device && ready.types.lang && !ready.done) {
       ready.done = true;
       ready('all');
-      session.restore();
+      // session.restore() is now handled in instance-initializers/session.js to ensure service is ready
       runLater(function() {
-        session.get('isAuthenticated'); // this prevents a flash of unauthenticated content on ios
         $('html,body').scrollTop(0);
         console.log("LINGOLINQ: ready to start");
         LingoLinq.app.advanceReadiness();

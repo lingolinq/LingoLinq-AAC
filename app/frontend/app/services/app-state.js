@@ -22,12 +22,12 @@ import boundClasses from '../utils/bound_classes';
 import utterance from '../utils/utterance';
 import modal from '../utils/modal';
 import LingoLinq from '../app';
-import contentGrabbers from '../utils/content_grabbers';
+
 import editManager from '../utils/edit_manager';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
-import session from '../utils/session';
+
 import speecher from '../utils/speecher';
 import geolocation from '../utils/geo';
 import i18n from '../utils/i18n';
@@ -50,7 +50,18 @@ export default Service.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
   router: service('router'),
+  session: service('session'),
+  contentGrabbers: service('content-grabbers'),
   init() {
+    LingoLinq.appState = this;
+    if (typeof window !== 'undefined') {
+      window.LingoLinq = window.LingoLinq || {};
+      window.LingoLinq.appState = this;
+    }
+    // Also assign to buttonTracker as it's used in raw_events
+    if(buttonTracker) {
+      buttonTracker.appState = this;
+    }
     // CRITICAL: Fix stashes injection BEFORE calling _super() to prevent errors
     // If this.stashes is a class (not an instance), use window.stashes or lookup the service
     if(this.stashes && typeof this.stashes.create === 'function') {
@@ -327,25 +338,26 @@ export default Service.extend({
     var _this = this;
     this.route = route;
     this.controller = controller;
-    if(!session.get('isAuthenticated') && capabilities.mobile && capabilities.browserless) {
+    if(!this.session.get('isAuthenticated') && capabilities.mobile && capabilities.browserless) {
       this.set('login_modal', true);
-    } else if(!session.get('isAuthenticated') && !this.get('domain_settings.full_domain')) {
+    } else if(!this.session.get('isAuthenticated') && !this.get('domain_settings.full_domain')) {
       this.set('login_index', true);
     }
     modal.setup(route);
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
-    contentGrabbers.boardGrabber.transitioner = route;
+    this.contentGrabbers.boardGrabber.transitioner = route;
     LingoLinq.controller = controller;
     this.stashes.controller = controller;
+    editManager.setup(controller, this, this.persistence, this.stashes);
     boundClasses.setup();
 //    controller.set('model', EmberObject.create());
     utterance.setup(controller);
     this.speak_mode_handlers();
     this.dom_changes_on_board_state_change();
-    LingoLinq.session = route.get('session');
+    LingoLinq.session = this.session;
     modal.close();
-    if(session.get('access_token')) {
+    if(this.session.get('access_token')) {
       // this shouldn't run until the db is initialized, otherwise if the user is offline
       // or has a spotty connection, then looking up the user will not succeed, and
       // the app will force a logout unexpectedly.
@@ -354,42 +366,16 @@ export default Service.extend({
 
         find.then(function(user) {
           console.log("user initialization working..");
-          console.log('[APP-STATE] find_user: IMMEDIATELY after user initialization log');
           try {
-            console.log('[APP-STATE] find_user: user found', {
-              has_user: !!user,
-              user_type: typeof user,
-              user_constructor: user ? user.constructor.name : 'no user',
-              has_get: user && typeof user.get === 'function',
-              user_id: user && user.get ? user.get('id') : 'no get method',
-              session_user_id: session.get('user_id'),
-              session_as_user_id: session.get('as_user_id')
-            });
-            
-            // CRITICAL FIX: Set sessionUser and currentUser immediately to ensure they're available
-            // This bypasses the promise chain that might be failing
             if (user && typeof user.get === 'function') {
               try {
-                user.set('modeling_session', session.get('modeling_session'));
-                console.log('[APP-STATE] find_user: DIRECTLY setting sessionUser (bypassing promise chain)', {
-                  has_user: !!user,
-                  user_id: user.get('id')
-                });
-                _this.set('sessionUser', user);
-                console.log('[APP-STATE] find_user: sessionUser set, checking current value', {
-                  sessionUser: !!_this.get('sessionUser'),
-                  sessionUser_id: _this.get('sessionUser') ? _this.get('sessionUser.id') : null
-                });
-                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
-                  _this.set('currentUser', user);
-                  console.log('[APP-STATE] find_user: DIRECTLY set currentUser', {
-                    has_currentUser: !!_this.get('currentUser'),
-                    currentUser_id: _this.get('currentUser') ? _this.get('currentUser.id') : null
-                  });
-                  // Force notify property change to ensure reactivity
-                  _this.notifyPropertyChange('currentUser');
-                  console.log('[APP-STATE] find_user: notified property change for currentUser');
+                user.set('modeling_session', LingoLinq.session.get('modeling_session'));
+                LingoLinq.appState.set('sessionUser', user);
+                if (!LingoLinq.appState.get('speak_mode') || !LingoLinq.appState.get('speakModeUser')) {
+                  LingoLinq.appState.set('currentUser', user);
                 }
+                // Notify property change to ensure observers fire
+                LingoLinq.appState.notifyPropertyChange('currentUser');
               } catch(e) {
                 console.error('[APP-STATE] find_user: ERROR setting sessionUser/currentUser', e, e.stack);
               }
@@ -405,14 +391,14 @@ export default Service.extend({
           }
           
           var valid_user = RSVP.resolve(user);
-          if(!session.get('as_user_id') && session.get('user_id') && session.get('user_id') != user.get('id')) {
+          if(!LingoLinq.session.get('as_user_id') && LingoLinq.session.get('user_id') && LingoLinq.session.get('user_id') != user.get('id')) {
             // mismatch due to a user being renamed
-            console.log('[APP-STATE] find_user: user ID mismatch, fetching by session user_id');
-            valid_user = LingoLinq.store.findRecord('user', session.get('user_id'));
-          } else if(session.get('as_user_id') && user.get('user_name') && session.get('as_user_id') != user.get('user_name')) {
+            // console.log('[APP-STATE] find_user: user ID mismatch, fetching by session user_id');
+            valid_user = LingoLinq.store.findRecord('user', LingoLinq.session.get('user_id'));
+          } else if(LingoLinq.session.get('as_user_id') && user.get('user_name') && LingoLinq.session.get('as_user_id') != user.get('user_name')) {
             // mismatch due to a user being renamed
-            console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
-            valid_user = LingoLinq.store.findRecord('user', session.get('as_user_id'));
+            // console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
+            valid_user = LingoLinq.store.findRecord('user', LingoLinq.session.get('as_user_id'));
           }
           console.log('[APP-STATE] find_user: about to call valid_user.then()', {
             valid_user_type: typeof valid_user,
@@ -426,53 +412,49 @@ export default Service.extend({
               user_id: user && user.get ? user.get('id') : 'no get method'
             });
             try {
-              if(!user.get('fresh') && _this.stashes.get('online')) {
+              if(!user.get('fresh') && LingoLinq.appState.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
               user.reload().then(function(user) {
-                user.set('modeling_session', session.get('modeling_session'));
-                _this.set('sessionUser', user);
+                user.set('modeling_session', LingoLinq.session.get('modeling_session'));
+                LingoLinq.appState.set('sessionUser', user);
                 // Manually set currentUser after reload
-                if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
-                  _this.set('currentUser', user);
-                  console.log('[APP-STATE] find_user: reload - manually set currentUser');
+                if (!LingoLinq.appState.get('speak_mode') || !LingoLinq.appState.get('speakModeUser')) {
+                  LingoLinq.appState.set('currentUser', user);
                 }
               }, function() { });
             }
-            user.set('modeling_session', session.get('modeling_session'));
+            user.set('modeling_session', LingoLinq.session.get('modeling_session'));
             console.log('[APP-STATE] find_user: setting sessionUser', {
               has_user: !!user,
               user_id: user ? user.get('id') : null
             });
-            _this.set('sessionUser', user);
-            console.log('[APP-STATE] find_user: sessionUser set', {
-              has_sessionUser: !!_this.get('sessionUser'),
-              sessionUser_id: _this.get('sessionUser') ? _this.get('sessionUser.id') : null
-            });
+            LingoLinq.appState.set('sessionUser', user);
+            
             // Manually trigger the observer to ensure currentUser is set
             // The observer should fire automatically, but we'll also manually set currentUser
             // to ensure it happens immediately
-            if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
+            if (!LingoLinq.appState.get('speak_mode') || !LingoLinq.appState.get('speakModeUser')) {
               if(user && user.get && !user.get('preferences.progress.app_added') && (navigator.standalone || (capabilities.installed_app && capabilities.mobile))) {
                 user.set('preferences.progress.app_added', true);
                 user.save().then(null, function() { });
               }
-              _this.set('currentUser', user);
+              LingoLinq.appState.set('currentUser', user);
               console.log('[APP-STATE] find_user: manually set currentUser', {
-                has_currentUser: !!_this.get('currentUser'),
-                currentUser_id: _this.get('currentUser') ? _this.get('currentUser.id') : null
+                has_currentUser: !!LingoLinq.appState.get('currentUser'),
+                currentUser_id: LingoLinq.appState.get('currentUser') ? LingoLinq.appState.get('currentUser.id') : null
               });
             }
             } catch(e) {
               console.error('[APP-STATE] find_user: error in valid_user.then() callback', e, e.stack);
             }
 
-            if(_this.stashes.get('speak_mode_user_id') || _this.stashes.get('referenced_speak_mode_user_id')) {
-              var ref_id = _this.stashes.get('speak_mode_user_id') || _this.stashes.get('referenced_speak_mode_user_id');
+            if(LingoLinq.appState.stashes.get('speak_mode_user_id') || LingoLinq.appState.stashes.get('referenced_speak_mode_user_id')) {
+              var ref_id = LingoLinq.appState.stashes.get('speak_mode_user_id') || LingoLinq.appState.stashes.get('referenced_speak_mode_user_id');
               LingoLinq.store.findRecord('user', ref_id).then(function(user) {
-                if(_this.stashes.get('speak_mode_user_id')) {
-                  _this.set('speakModeUser', user);
+                if(LingoLinq.appState.stashes.get('speak_mode_user_id')) {
+                  LingoLinq.appState.set('speakModeUser', user);
                 }
-                _this.set('referenced_speak_mode_user', user);
+                LingoLinq.appState.set('referenced_speak_mode_user', user);
               }, function() {
                 console.error('failed trying to speak as ' + ref_id);
               });
@@ -481,7 +463,7 @@ export default Service.extend({
             console.error('[APP-STATE] find_user: valid_user promise rejected', err);
           });
         }, function(err) {
-          if(_this.stashes.get('current_mode') == 'edit') {
+          if(LingoLinq.appState.stashes.get('current_mode') == 'edit') {
             controller.toggleMode('edit');
           }
           console.log(err);
@@ -502,7 +484,7 @@ export default Service.extend({
             } else {
               error = i18n.t('session_expired', "This session has expired, please log back in");
             }
-            session.force_logout(error);
+            LingoLinq.session.force_logout(error);
           } else if(is_timeout && !last_try) {
             // For timeouts, retry (but only once to avoid infinite loops)
             console.log("Retrying user initialization after timeout...");
@@ -515,14 +497,14 @@ export default Service.extend({
           }
         });
       };
-      if(session.get('access_token')) {
+      if(LingoLinq.session.get('access_token')) {
         find_user();
       }
     }
-    session.addObserver('access_token', function() {
+    this.session.addObserver('access_token', function() {
       var _this_service = _this;
       runLater(function() {
-        if(session.get('access_token')) {
+        if(this.session.get('access_token')) {
           _this_service.refresh_session_user();
         }
       }, 10);
@@ -609,7 +591,7 @@ export default Service.extend({
     if(transition.to_route != 'board.index') {
       this.set('currentBoardState', null);
     }
-    if(!this.get('sessionUser') && session.get('isAuthenticated')) {
+    if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
       this.refresh_session_user();
     }
     this.set('current_route', transition.to_route);
@@ -1327,7 +1309,7 @@ export default Service.extend({
         // w/o supervisees, so we'll just tell them when it times out instead
         var speaking_user = (this.get('speakModeUser') || this.get('currentUser'))
         var communicator_limited = speaking_user && speaking_user.get('expired');
-        var supervisor_limited = this.get('currentUser.supporter_role') && this.get('currentUser.modeling_only') && !this.get('speakModeUser') && !session.get('modeling_session');
+        var supervisor_limited = this.get('currentUser.supporter_role') && this.get('currentUser.modeling_only') && !this.get('speakModeUser') && !this.session.get('modeling_session');
         if(this.get('currentUser') && !opts.reminded && (communicator_limited || supervisor_limited) && !already_speaking_as_someone_else) {
           return modal.open('premium-required', {user_name: this.get('currentUser.user_name'), user: this.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
             opts.reminded = true;
@@ -1465,7 +1447,7 @@ export default Service.extend({
       this.stashes.persist('vocalization_locale', preferred.locale);
     }
     var communicator_limited = speak_mode_user && speak_mode_user.get('expired');
-    var supervisor_limited = speak_mode_user && speak_mode_user.get('supporter_role') && speak_mode_user.get('modeling_only') && !session.get('modeling_session');
+    var supervisor_limited = speak_mode_user && speak_mode_user.get('supporter_role') && speak_mode_user.get('modeling_only') && !this.session.get('modeling_session');
     if(speak_mode_user && !opts.reminded && (communicator_limited || supervisor_limited)) {
       return modal.open('premium-required', {user_name: speak_mode_user.get('user_name'), user: speak_mode_user, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), remind_to_upgrade: true, limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode'}).then(function() {
         opts.reminded = true;
@@ -1630,11 +1612,11 @@ export default Service.extend({
     LingoLinq.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
         user.reload().then(function(user) {
-          user.set('modeling_session', session.get('modeling_session'));
+          user.set('modeling_session', _this.session.get('modeling_session'));
           _this.set('sessionUser', user);
         }, function() { });
       }
-      user.set('modeling_session', session.get('modeling_session'));
+      user.set('modeling_session', _this.session.get('modeling_session'));
       _this.set('sessionUser', user);
     }, function() { });
   },
@@ -2166,7 +2148,7 @@ export default Service.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
-      if(session.get('isAuthenticated') && !this.get('currentUser.id')) {
+      if(this.session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
       }
@@ -2331,7 +2313,7 @@ export default Service.extend({
       }
       this.refresh_suggestions();
       
-      if(!session.get('isAuthenticated') || this.get('currentUser')) {
+      if(!this.session.get('isAuthenticated') || this.get('currentUser')) {
         this.set('last_speak_mode', !!this.get('speak_mode'));
       }
     }

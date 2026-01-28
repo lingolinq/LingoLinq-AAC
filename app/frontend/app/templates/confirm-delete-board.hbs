@@ -59,18 +59,18 @@
         {{/if}}
       </div>
     {{/if}}
-    {{#if this.model.deleting}}
+    {{#if this.deleting}}
       <p style='margin: 20px;'>{{t "Deleting Board..." key="deleting_board"}}
-        {{#if this.model.deleting.board_key}}
-          <span class='text-muted'>{{this.model.deleting.board_key}}</span>
+        {{#if this.deleting.board_key}}
+          <span class='text-muted'>{{this.deleting.board_key}}</span>
         {{/if}}
       </p>
-    {{else if this.model.error}}
+    {{else if this.error}}
       <p style='margin: 20px;' class='text-danger'>{{t "There was an error trying to delete the board" key="error_deleting_board"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{this.model.deleting}}>
+    <button class='btn btn-primary' {{action "deleteBoard" "delete"}} disabled={{this.deleting}}>
       {{#if this.delete_downstream}}
         {{t "Delete Board Set" key="delete_boards"}}
       {{else}}

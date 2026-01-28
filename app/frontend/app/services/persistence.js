@@ -11,10 +11,11 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import LingoLinq from '../app';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import lingoLinqExtras from '../utils/extras';
 import speecher from '../utils/speecher';
 import i18n from '../utils/i18n';
-import contentGrabbers from '../utils/content_grabbers';
+
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
@@ -25,6 +26,10 @@ var valid_stores = ['user', 'board', 'image', 'sound', 'settings', 'dataCache', 
 var loaded = (new Date()).getTime() / 1000;
 var persistence = Service.extend({
   stashes: service('stashes'),
+  
+  contentGrabbers: computed(function() {
+    return getOwner(this).lookup('service:content-grabbers');
+  }),
   
 
 
@@ -1695,7 +1700,7 @@ var persistence = Service.extend({
             var xhr = new XMLHttpRequest();
             xhr.addEventListener('load', function(r) {
               if(xhr.status == 200) {
-                contentGrabbers.read_file(xhr.response).then(function(s) {
+                this.get('contentGrabbers').read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
                     type: type,
@@ -1782,7 +1787,7 @@ var persistence = Service.extend({
         if(object.persisted || type != 'image' || capabilities.system != "Android" || keep_big) {
           return object;
         } else {
-          return contentGrabbers.pictureGrabber.size_image(object.url, 50).then(function(res) {
+          return this.get('contentGrabbers').pictureGrabber.size_image(object.url, 50).then(function(res) {
             if(res.url && res.url.match(/^data/)) {
               object.data_uri = res.url;
               object.content_type = (res.url.split(/:/)[1] || "").split(/;/)[0] || "image/png";
@@ -1803,7 +1808,7 @@ var persistence = Service.extend({
               var file_code = 0;
               for(var idx = 0; idx < url.length; idx++) { file_code = file_code + url.charCodeAt(idx); }
               var pieces = url.split(/\?/)[0].split(/\//);
-              var extension = contentGrabbers.file_type_extensions[object.content_type];
+              var extension = this.get('contentGrabbers').file_type_extensions[object.content_type];
               if(!extension) {
                 if(object.content_type.match(/^image\//) || object.content_type.match(/^audio\//)) {
                   extension = "." + object.content_type.split(/\//)[1].split(/\+/)[0];
@@ -1834,7 +1839,7 @@ var persistence = Service.extend({
               } catch(e) { }
             }
             return new RSVP.Promise(function(write_resolve, write_reject) {
-              var blob = contentGrabbers.data_uri_to_blob(object.data_uri);
+              var blob = this.get('contentGrabbers').data_uri_to_blob(object.data_uri);
               if(svg && blob.size > svg.length) { console.error('blob generation caused double-content'); }
               // For some reason, writing to an existing file that is larger than what
               // is to be written doesn't properly end the file at the shorter point. Maybe I'm doing something wrong?
@@ -3603,7 +3608,7 @@ var persistence = Service.extend({
               record.setProperties(object);
               if(!record.get('id') && (item.store == 'image' || item.store == 'sound')) {
                 record.set('data_url', object.data_url);
-                return contentGrabbers.save_record(record).then(function() {
+                return this.get('contentGrabbers').save_record(record).then(function() {
                   return this.time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {

@@ -2509,7 +2509,7 @@ if (!('ongamepadconnected' in window)) {
 
 document.addEventListener('selectionchange', function(event) {
   // clear errant selections when they happen while in speak mode
-  if(buttonTracker.appState.get('speak_mode')) {
+  if(buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
     var sel = window.getSelection();
     if(sel && sel.type == 'Range' && sel.empty) {
       if(sel.anchorNode && sel.anchorNode.tagName == 'INPUT') {

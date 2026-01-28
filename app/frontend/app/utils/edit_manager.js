@@ -1512,15 +1512,18 @@ var editManager = EmberObject.extend({
     LingoLinq.log.track('processing for displaying');
     var controller = this.controller;
     if(!controller) { return; }
-    if(app_state.get('edit_mode') && controller.get('ordered_buttons')) {
+    var appState = this.appState;
+    var stashes = this.stashes;
+    if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
       // return;
     }
     var board = controller.get('model');
+    if(!board) { return; }
     var board_level = controller.get('current_level') || stashes.get('board_level') || 10;
     board.set('display_level', board_level);
-    var buttons = board.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
-    var preferred_symbols = app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+    var buttons = board.contextualized_buttons(appState.get('label_locale'), appState.get('vocalization_locale'), stashes.get('working_vocalization'), false, appState.get('inflection_shift'));
+    var preferred_symbols = appState.get('referenced_user.preferences.preferred_symbols') || 'original';
     var grid = board.get('grid');
     if(!grid) { return; }
     var allButtonsReady = true;
@@ -1554,15 +1557,15 @@ var editManager = EmberObject.extend({
       resume_scanning.attempts = (resume_scanning.attempts || 0) + 1;
       if($(".board[data-id='" + board.get('id') + "']").length > 0) {
         runLater(function() {
-          if(app_state.controller) {
-            app_state.controller.highlight_button('resume');
+          if(appState.controller) {
+            appState.controller.highlight_button('resume');
           }
         });
-        if(app_state.controller) {
-          app_state.controller.send('check_scanning');
+        if(appState.controller) {
+          appState.controller.send('check_scanning');
         }
         // also check for word suggestions
-        app_state.refresh_suggestions();
+        appState.refresh_suggestions();
       } else if(resume_scanning.attempts < 10) {
         runLater(resume_scanning, resume_scanning.attempts * 100);
       } else {
@@ -1570,19 +1573,19 @@ var editManager = EmberObject.extend({
       }
     };
 
-    var need_everything_local = app_state.get('speak_mode') || !persistence.get('online');
-    if(app_state.get('speak_mode')) {
+    var need_everything_local = appState.get('speak_mode') || !this.persistence.get('online');
+    if(appState.get('speak_mode')) {
       controller.update_button_symbol_class();
       if(!ignore_fast_html && board.get('fast_html') 
             && board.get('fast_html.width') == controller.get('width') 
             && board.get('fast_html.height') == controller.get('height') 
             && board.get('current_revision') == board.get('fast_html.revision') 
-            && board.get('fast_html.label_locale') == app_state.get('label_locale') 
+            && board.get('fast_html.label_locale') == appState.get('label_locale') 
             && board.get('fast_html.display_level') == board_level 
-            && board.get('fast_html.inflection_prefix') == app_state.get('inflection_prefix') 
-            && board.get('fast_html.inflection_shift') == app_state.get('inflection_shift') 
-            && board.get('fast_html.skin') == app_state.get('referenced_user.preferences.skin') 
-            && board.get('fast_html.symbols') == app_state.get('referenced_user.preferences.preferred_symbols') 
+            && board.get('fast_html.inflection_prefix') == appState.get('inflection_prefix') 
+            && board.get('fast_html.inflection_shift') == appState.get('inflection_shift') 
+            && board.get('fast_html.skin') == appState.get('referenced_user.preferences.skin') 
+            && board.get('fast_html.symbols') == appState.get('referenced_user.preferences.preferred_symbols') 
             && board.get('focus_id') == board.get('fast_html.focus_id')) {
         LingoLinq.log.track('already have fast render');
         resume_scanning();
@@ -1592,11 +1595,11 @@ var editManager = EmberObject.extend({
         board.add_classes();
         LingoLinq.log.track('trying fast render');
         var fast = board.render_fast_html({
-          label_locale: app_state.get('label_locale'),
+          label_locale: appState.get('label_locale'),
           height: controller.get('height'),
           width: controller.get('width'),
-          skin: app_state.get('referenced_user.preferences.skin'),
-          symbols: app_state.get('referenced_user.preferences.preferred_symbols'),
+          skin: appState.get('referenced_user.preferences.skin'),
+          symbols: appState.get('referenced_user.preferences.preferred_symbols'),
           extra_pad: controller.get('extra_pad'),
           inner_pad: controller.get('inner_pad'),
           display_level: board_level,
