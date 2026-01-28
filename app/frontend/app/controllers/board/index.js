@@ -38,7 +38,7 @@ export default Controller.extend({
     return title;
   }),
   ordered_buttons: null,
-  processButtons: observer('this.appState.board_reload_key', function(ignore_fast_html) {
+  processButtons: observer('app_state.board_reload_key', function(ignore_fast_html) {
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
@@ -46,9 +46,9 @@ export default Controller.extend({
   }),
   check_for_share_approval: observer(
     'model.id',
-    'this.appState.currentUser.pending_board_shares',
-    'this.appState.default_mode',
-    'this.appState.speak_mode',
+    'app_state.currentUser.pending_board_shares',
+    'app_state.default_mode',
+    'app_state.speak_mode',
     function() {
       var board_id = this.get('model.id');
       var _this = this;
@@ -71,15 +71,15 @@ export default Controller.extend({
     }
   ),
   updateSuggestions: observer(
-    'this.appState.button_list',
-    'this.appState.button_list.[]',
-    'this.appState.currentUser',
-    'this.appState.shift',
-    'this.appState.inflection_shift',
+    'app_state.button_list',
+    'app_state.button_list.[]',
+    'app_state.currentUser',
+    'app_state.shift',
+    'app_state.inflection_shift',
     function() {
       if(!this.get('model.word_suggestions')) { return; }
       var _this = this;
-      var button_list = this.get('this.appState.button_list');
+      var button_list = this.get('app_state.button_list');
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
@@ -215,7 +215,7 @@ export default Controller.extend({
   },
   valid_fast_html: computed(
     'model.fast_html',
-    'this.appState.currentBoardState.level',
+    'app_state.currentBoardState.level',
     'model.fast_html.width',
     'width',
     'model.fast_html.height',
@@ -225,13 +225,13 @@ export default Controller.extend({
     'model.fast_html.revision',
     'model.current_revision',
     'model.fast_html.inflection_prefix',
-    'this.appState.inflection_prefix',
+    'app_state.inflection_prefix',
     'model.fast_html.inflection_shift',
-    'this.appState.inflection_shift',
+    'app_state.inflection_shift',
     'model.fast_html.label_locale',
-    'this.appState.label_locale',
-    'this.appState.referenced_user.preferences.skin',
-    'this.appState.referenced_user.preferences.preferred_symbols',
+    'app_state.label_locale',
+    'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.preferred_symbols',
     function() {
       var res = !!(this.get('model.fast_html') && this.get('model.fast_html.width') == this.get('width') 
             && this.get('model.fast_html.height') == this.get('height') 
@@ -250,7 +250,7 @@ export default Controller.extend({
     'ordered_buttons',
     'valid_fast_html',
     'model.fast_html',
-    'this.appState.currentBoardState.level',
+    'app_state.currentBoardState.level',
     'model.fast_html.width',
     'width',
     'model.fast_html.height',
@@ -260,29 +260,29 @@ export default Controller.extend({
     'model.fast_html.revision',
     'model.current_revision',
     'model.fast_html.inflection_prefix',
-    'this.appState.inflection_prefix',
+    'app_state.inflection_prefix',
     'model.fast_html.inflection_shift',
-    'this.appState.inflection_shift',
+    'app_state.inflection_shift',
     'model.fast_html.label_locale',
-    'this.appState.label_locale',
-    'this.appState.referenced_user.preferences.skin',
-    'this.appState.referenced_user.preferences.preferred_symbols',
+    'app_state.label_locale',
+    'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.preferred_symbols',
     function() {
       var res = !!(this.get('ordered_buttons') || this.get('valid_fast_html'));
       return res;
     }
   ),
   check_for_updated_board: observer(
-    'this.appState.currentBoardState.reload_token',
+    'app_state.currentBoardState.reload_token',
     'has_rendered_material',
-    'this.appState.speak_mode',
+    'app_state.speak_mode',
     function() {
       // When you exit out of speak mode, go ahead and try to reload the board, that
       // will give people a consistent, reliable way to check for updates in case
       // their board got out of sync.
-      if(this.persistenceService.get('online') && this.get('has_rendered_material') && this.get('this.appState.currentBoardState.reload_token') && !this.get('this.appState.speak_mode')) {
+      if(this.persistenceService.get('online') && this.get('has_rendered_material') && this.get('app_state.currentBoardState.reload_token') && !this.get('app_state.speak_mode')) {
         var _this = this;
-        _this.set('this.appState.currentBoardState.reload_token', null);
+        _this.set('app_state.currentBoardState.reload_token', null);
         _this.get('model').reload().then(function(brd) {
           if(brd && brd.get('permissions.view')) {
             _this.set('model.fast_html', null);
@@ -310,22 +310,22 @@ export default Controller.extend({
   ),
   height: 400,
   computeHeight: observer(
-    'this.appState.speak_mode',
-    'this.appState.edit_mode',
-    'this.appState.revision_id',
-    'this.appState.focus_words.list',
+    'app_state.speak_mode',
+    'app_state.edit_mode',
+    'app_state.revision_id',
+    'app_state.focus_words.list',
     'model.word_suggestions',
     'model.description',
     'model.focus_id',
-    'this.appState.sidebar_pinned',
-    'this.appState.sidebar_visible',
+    'app_state.sidebar_pinned',
+    'app_state.sidebar_visible',
     'long_description',
-    'this.appState.currentUser.preferences.word_suggestion_images',
+    'app_state.currentUser.preferences.word_suggestion_images',
     'text_position',
-    'this.stashesService.board_level',
-    'this.appState.inflection_prefix',
-    'this.appState.inflection_shift',
-    'this.appState.flipped',
+    'stashes.board_level',
+    'app_state.inflection_prefix',
+    'app_state.inflection_shift',
+    'app_state.flipped',
     function() {
       var inner_width = window.innerWidth;    
       var height = window.innerHeight;
@@ -351,7 +351,7 @@ export default Controller.extend({
         if(style == 'text_small') { topHeight = topHeight - 4; }
         else if(style == 'text_large') { topHeight = topHeight + 4; }
         else if(style == 'text_huge') { topHeight = topHeight + 17; }
-        if(this.get('this.appState.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
+        if(this.get('app_state.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
           topHeight = topHeight + 50;
           this.set('show_word_suggestion_images', true);
         } else {
@@ -487,9 +487,9 @@ export default Controller.extend({
     'height',
     'width',
     'button_style',
-    'this.appState.edit_mode',
+    'app_state.edit_mode',
     'nothing_visible',
-    'this.appState.currentUser.preferences.stretch_buttons',
+    'app_state.currentUser.preferences.stretch_buttons',
     function(klass, change, redraw_button_id) {
       LingoLinq.log.track('redrawing');
       var foundy = Math.round(10 * Math.random());
@@ -806,7 +806,7 @@ export default Controller.extend({
   }),
   current_level: computed(
     'model.default_level',
-    'this.stashesService.board_level',
+    'stashes.board_level',
     'preview_level',
     function() {
       return this.get('preview_level') || this.stashesService.get('board_level') || this.get('model.default_level') || 10;
@@ -831,8 +831,8 @@ export default Controller.extend({
   clear_levels_change() {
     this.set('levels_change', false);
   },
-  preview_levels: computed('this.appState.edit_mode', 'preview_levels_mode', function() {
-    return this.get('this.appState.edit_mode') && this.get('preview_levels_mode');
+  preview_levels: computed('app_state.edit_mode', 'preview_levels_mode', function() {
+    return this.get('app_state.edit_mode') && this.get('preview_levels_mode');
   }),
   noUndo: true,
   noRedo: true,
@@ -866,8 +866,8 @@ export default Controller.extend({
     };
   }),
   extra_pad: computed(
-    'this.appState.currentUser.preferences.device.button_spacing',
-    'this.appState.window_inner_width',
+    'app_state.currentUser.preferences.device.button_spacing',
+    'app_state.window_inner_width',
     function() {
       var spacing = this.appState.get('currentUser.preferences.device.button_spacing') || window.user_preferences.device.button_spacing;
       if(spacing == 'none') {
@@ -888,7 +888,7 @@ export default Controller.extend({
     }
   ),
   inner_pad: computed(
-    'this.appState.currentUser.preferences.device.button_border',
+    'app_state.currentUser.preferences.device.button_border',
     'window_inner_width',
     function() {
       var spacing = this.appState.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
@@ -908,7 +908,7 @@ export default Controller.extend({
     }
   ),
   base_text_height: computed(
-    'this.appState.currentUser.preferences.device.button_text',
+    'app_state.currentUser.preferences.device.button_text',
     function() {
       var text = this.appState.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
       var position = this.appState.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
@@ -926,8 +926,8 @@ export default Controller.extend({
     }
   ),
   text_style: computed(
-    'this.appState.currentUser.preferences.device.button_text',
-    'this.appState.currentUser.preferences.device.button_text_position',
+    'app_state.currentUser.preferences.device.button_text',
+    'app_state.currentUser.preferences.device.button_text_position',
     function() {
       var size = this.appState.get('currentUser.preferences.device.button_text') || window.user_preferences.device.button_text;
       if(this.appState.get('currentUser.preferences.device.button_text_position') == 'none') {
@@ -945,7 +945,7 @@ export default Controller.extend({
   ),
   text_position: computed(
     'model.text_only',
-    'this.appState.currentUser.preferences.device.button_text_position',
+    'app_state.currentUser.preferences.device.button_text_position',
     function() {
       if(this.get('model.text_only')) {
         return 'text_position_text_only';
@@ -953,7 +953,7 @@ export default Controller.extend({
       return "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
     }
   ),
-  symbol_background: computed('this.appState.currentUser.preferences.symbol_background', function() {
+  symbol_background: computed('app_state.currentUser.preferences.symbol_background', function() {
     var bg = this.appState.get('currentUser.preferences.symbol_background');
     if(!bg) {
       if(this.appState.get('currentUser')) {
@@ -964,33 +964,33 @@ export default Controller.extend({
     }
     return "symbol_background_" + bg;
   }),
-  border_style: computed('this.appState.currentUser.preferences.device.button_border', function() {
+  border_style: computed('app_state.currentUser.preferences.device.button_border', function() {
     var spacing = this.appState.get('currentUser.preferences.device.button_border') || window.user_preferences.device.button_border;
     return "border_" + spacing;
   }),
-  button_style: computed('this.appState.currentUser.preferences.device.button_style', function() {
+  button_style: computed('app_state.currentUser.preferences.device.button_style', function() {
     return this.appState.get('currentUser.preferences.device.button_style');
   }),
-  editModeNormalText: computed('this.appState.edit_mode', 'model.text_size', function() {
+  editModeNormalText: computed('app_state.edit_mode', 'model.text_size', function() {
     return this.appState.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
   }),
-  nothing_visible_not_edit: computed('nothing_visible', 'this.appState.edit_mode', function() {
+  nothing_visible_not_edit: computed('nothing_visible', 'app_state.edit_mode', function() {
     return this.get('nothing_visible') && !this.appState.get('edit_mode');
   }),
   display_class: computed(
-    'this.stashesService.all_buttons_enabled',
-    'this.stashesService.current_mode',
+    'stashes.all_buttons_enabled',
+    'stashes.current_mode',
     'paint_mode',
     'border_style',
     'text_style',
     'model.finding_target',
     'model.hide_empty',
-    'this.appState.currentUser.preferences.hidden_buttons',
-    'this.appState.currentUser.hide_symbols',
-    'this.appState.currentUser.preferences.folder_icons',
-    'this.appState.currentUser.preferences.stretch_buttons',
-    'this.appState.eval_mode',
-    'this.appState.currentUser.preferences.high_contrast',
+    'app_state.currentUser.preferences.hidden_buttons',
+    'app_state.currentUser.hide_symbols',
+    'app_state.currentUser.preferences.folder_icons',
+    'app_state.currentUser.preferences.stretch_buttons',
+    'app_state.eval_mode',
+    'app_state.currentUser.preferences.high_contrast',
     function() {
       var res = "board advanced_selection ";
       if(!this.appState.get('currentUser.preferences.folder_icons')) {
@@ -1002,12 +1002,12 @@ export default Controller.extend({
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
       }
-      if(this.get('this.stashesService.current_mode')) {
-        res = res + this.get('this.stashesService.current_mode')  + " ";
+      if(this.get('stashes.current_mode')) {
+        res = res + this.get('stashes.current_mode')  + " ";
       }
       var stretchable = !this.appState.get('edit_mode') && this.appState.get('currentUser.preferences.stretch_buttons') && this.appState.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
       if(!this.appState.get('eval_mode')) {
-        if(this.get('this.stashesService.all_buttons_enabled')) {
+        if(this.get('stashes.all_buttons_enabled')) {
           res = res + 'show_all_buttons ';
         } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'hint' && !this.get('model.hide_empty')) {
           res = res + 'hint_hidden_buttons ';
@@ -1050,8 +1050,8 @@ export default Controller.extend({
   suggestion_class: computed(
     'button_style',
     'text_style',
-    'this.appState.currentUser.preferences.word_suggestion_images',
-    'this.appState.currentUser.preference.high_contrast',
+    'app_state.currentUser.preferences.word_suggestion_images',
+    'app_state.currentUser.preference.high_contrast',
     function() {
       var res = "advanced_selection ";
       if(this.get('text_style')) {
@@ -1071,11 +1071,11 @@ export default Controller.extend({
           res = res + style.font_class + " ";
         }
       }
-      if(this.get('this.appState.currentUser.preferences.high_contrast')) {
+      if(this.get('app_state.currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
 
-      if(this.get('this.appState.currentUser.preferences.word_suggestion_images')) {
+      if(this.get('app_state.currentUser.preferences.word_suggestion_images')) {
         res = res + "with_images ";
       }
       return res;
@@ -1083,14 +1083,14 @@ export default Controller.extend({
   ),
   update_button_symbol_class: observer(
     'model.text_only',
-    'this.appState.currentUser.hide_symbols',
-    'this.appState.currentUser.preferences.device.button_text_position',
+    'app_state.currentUser.hide_symbols',
+    'app_state.currentUser.preferences.device.button_text_position',
     function() {
       var res = "button-label-holder ";
-      if(this.get('this.appState.currentUser.hide_symbols') || this.get('model.text_only')) {
+      if(this.get('app_state.currentUser.hide_symbols') || this.get('model.text_only')) {
         res = res + "no_image ";
       }
-      var position = this.get('this.appState.currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
+      var position = this.get('app_state.currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
       if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";
       }
@@ -1101,7 +1101,7 @@ export default Controller.extend({
       return res;
     }
   ),
-  reload_on_connect: observer('this.persistenceService.online', function() {
+  reload_on_connect: observer('persistence.online', function() {
     if(this.persistenceService.get('online') && !this.get('model.id')) {
       try {
         this.send('refreshData');
