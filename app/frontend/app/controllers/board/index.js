@@ -80,7 +80,7 @@ export default Controller.extend({
     function() {
       if(!this.get('model.word_suggestions')) { return; }
       var _this = this;
-      var button_list = this.get('app_state.button_list');
+      var button_list = this.appState.get('button_list');
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
@@ -281,9 +281,9 @@ export default Controller.extend({
       // When you exit out of speak mode, go ahead and try to reload the board, that
       // will give people a consistent, reliable way to check for updates in case
       // their board got out of sync.
-      if(this.persistenceService.get('online') && this.get('has_rendered_material') && this.get('app_state.currentBoardState.reload_token') && !this.get('app_state.speak_mode')) {
+      if(this.persistenceService.get('online') && this.get('has_rendered_material') && this.appState.get('currentBoardState.reload_token') && !this.appState.get('speak_mode')) {
         var _this = this;
-        _this.set('app_state.currentBoardState.reload_token', null);
+        _this.appState.set('currentBoardState.reload_token', null);
         _this.get('model').reload().then(function(brd) {
           if(brd && brd.get('permissions.view')) {
             _this.set('model.fast_html', null);
@@ -352,7 +352,7 @@ export default Controller.extend({
         if(style == 'text_small') { topHeight = topHeight - 4; }
         else if(style == 'text_large') { topHeight = topHeight + 4; }
         else if(style == 'text_huge') { topHeight = topHeight + 17; }
-        if(this.get('app_state.currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
+        if(this.appState.get('currentUser.preferences.word_suggestion_images') !== false && position != 'text_only') {
           topHeight = topHeight + 50;
           this.set('show_word_suggestion_images', true);
         } else {
@@ -833,7 +833,7 @@ export default Controller.extend({
     this.set('levels_change', false);
   },
   preview_levels: computed('app_state.edit_mode', 'preview_levels_mode', function() {
-    return this.get('app_state.edit_mode') && this.get('preview_levels_mode');
+    return this.appState.get('edit_mode') && this.get('preview_levels_mode');
   }),
   noUndo: true,
   noRedo: true,
@@ -1072,11 +1072,11 @@ export default Controller.extend({
           res = res + style.font_class + " ";
         }
       }
-      if(this.get('app_state.currentUser.preferences.high_contrast')) {
+      if(this.appState.get('currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
 
-      if(this.get('app_state.currentUser.preferences.word_suggestion_images')) {
+      if(this.appState.get('currentUser.preferences.word_suggestion_images')) {
         res = res + "with_images ";
       }
       return res;
@@ -1087,12 +1087,11 @@ export default Controller.extend({
     'app_state.currentUser.hide_symbols',
     'app_state.currentUser.preferences.device.button_text_position',
     function() {
-      var res = "button-label-holder ";
-      if(this.get('app_state.currentUser.hide_symbols') || this.get('model.text_only')) {
-        res = res + "no_image ";
-      }
-      var position = this.get('app_state.currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;
-      if(position == 'top' && !this.get('model.text_only')) {
+          var res = "button-label-holder ";
+          if(this.appState.get('currentUser.hide_symbols') || this.get('model.text_only')) {
+            res = res + "no_image ";
+          }
+          var position = this.appState.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position;      if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";
       }
       this.appState.set('button_symbol_class', res);
