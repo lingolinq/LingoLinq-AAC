@@ -393,11 +393,11 @@ export default Service.extend({
           }
           
           var valid_user = RSVP.resolve(user);
-          if(!_this.session.get('as_user_id') && _this.session.get('user_id') && _this.session.get('user_id') != user.get('id')) {
+          if(_this.session && !_this.session.get('as_user_id') && _this.session.get('user_id') && _this.session.get('user_id') != user.get('id')) {
             // mismatch due to a user being renamed
             // console.log('[APP-STATE] find_user: user ID mismatch, fetching by session user_id');
             valid_user = LingoLinq.store.findRecord('user', _this.session.get('user_id'));
-          } else if(_this.session.get('as_user_id') && user.get('user_name') && _this.session.get('as_user_id') != user.get('user_name')) {
+          } else if(_this.session && _this.session.get('as_user_id') && user.get('user_name') && _this.session.get('as_user_id') != user.get('user_name')) {
             // mismatch due to a user being renamed
             // console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
             valid_user = LingoLinq.store.findRecord('user', _this.session.get('as_user_id'));
@@ -417,9 +417,6 @@ export default Service.extend({
               if(!user.get('fresh') && _this.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
               user.reload().then(function(user) {
-                if(_this.session) {
-                  user.set('modeling_session', _this.session.get('modeling_session'));
-                }
                 _this.set('sessionUser', user);
                 // Manually set currentUser after reload
                 if (!_this.get('speak_mode') || !_this.get('speakModeUser')) {
