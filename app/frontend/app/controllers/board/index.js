@@ -24,6 +24,7 @@ var last_redraw = (new Date()).getTime();
 
 export default Controller.extend({
   // Verified service injections (Ember 3.28 migration)
+  // Dependent keys reverted to implicit injection names
   appState: service('app-state'),
   persistenceService: service('persistence'),
   stashesService: service('stashes'),
