@@ -60,8 +60,8 @@ This document summarizes all the bug fixes and improvements made in this commit.
 
 ### 8. String-Based Action Fallback
 **File:** `app/frontend/app/components/grid-listener.js`
-**Issue:** When `gridEvent` was a string, the code used the variable value as the action name instead of the property name, breaking Ember's action routing.
-**Fix:** Changed to use hardcoded property name `'gridEvent'` in `sendAction()` calls, allowing Ember to route to the handler named by the string value.
+**Issue:** When `gridEvent` was a string, the code incorrectly hardcoded the action name to `'grid_event'`, breaking Ember's action routing.
+**Fix:** Changed to use `this.sendAction(this.get('gridEvent'), ...)` which correctly uses the value of the `gridEvent` property as the action name, allowing Ember to route to the handler specified by the string value.
 
 ## Backend API Fixes
 

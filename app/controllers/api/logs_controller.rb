@@ -12,11 +12,8 @@ class Api::LogsController < ApplicationController
     # Security: require_api_token_for_cache_user already ensures authentication
     user_id_param = params['user_id'] || params[:user_id]
     if user_id_param.to_s == 'cache'
-      # Security: Ensure the authenticated user exists and has valid API access
-      # The require_api_token_for_cache_user filter ensures authentication, but we
-      # need to verify the user has permission to access logs (even empty results)
-      return unless @api_user
-      return unless @api_device_id
+      # Security: require_api_token_for_cache_user already ensures authentication
+      # Return empty result set since there are no logs for a cache user
       logs = LogSession.where(:id => 0)
       json = JsonApi::Log.paginate(params, logs)
       return render json: json

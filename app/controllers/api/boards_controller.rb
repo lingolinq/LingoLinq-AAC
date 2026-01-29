@@ -8,8 +8,6 @@ class Api::BoardsController < ApplicationController
     # Security: require_api_token_for_cache_endpoint already ensures authentication
     # This endpoint provides minimal cache user info and should require authentication
     # to prevent unauthenticated access to cache-related functionality
-    return unless @api_user
-    return unless @api_device_id
     render json: { user: { id: 'cache' } }
   end
 
@@ -61,11 +59,7 @@ class Api::BoardsController < ApplicationController
         # Security: require_api_token_for_cache_user already ensures authentication
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
-          # Security: Ensure the authenticated user exists and has valid API access
-          # The require_api_token_for_cache_user filter ensures authentication, but we
-          # need to verify the user has permission to view boards (even public ones)
-          return unless @api_user
-          return unless @api_device_id
+          # Security: require_api_token_for_cache_user already ensures authentication
           # Only return public boards for cache user - no user-specific data
           params['public'] = true
         else
