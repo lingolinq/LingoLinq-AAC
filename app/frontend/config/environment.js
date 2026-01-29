@@ -39,13 +39,13 @@ module.exports = function (environment) {
 
     // Use direct HTTPS API URL in sandbox environment to avoid mixed content errors
     // Set via environment variable or use default sandbox URL
-    ENV.API_HOST = process.env.API_HOST || 'http://localhost:3000';
+    ENV.API_HOST = process.env.API_HOST || '';
 
     ENV.contentSecurityPolicy = {
       'default-src': "'none'",
       'script-src': "'self'",
       'font-src': "'self'",
-      'connect-src': "'self' http://localhost:3000 https://opensymbols.s3.amazonaws.com",
+      'connect-src': "'self' http://localhost:8184 http://localhost:3000 https://opensymbols.s3.amazonaws.com",
       'img-src': "'self' data: https: http:",
       'style-src': "'self' 'unsafe-inline' data:",
       'media-src': "'self' data: https: http:",

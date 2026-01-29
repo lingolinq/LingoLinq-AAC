@@ -293,7 +293,7 @@ GEM
       date
       stringio
     public_suffix (6.0.2)
-    puma (7.1.0)
+    puma (6.6.1)
       nio4r (~> 2.0)
     racc (1.8.1)
     rack (2.2.21)
@@ -505,7 +505,7 @@ DEPENDENCIES
   permissable-coughdrop
   pg
   pg_search
-  puma
+  puma (~> 6.0)
   rack-attack
   rack-cors
   rack-offline

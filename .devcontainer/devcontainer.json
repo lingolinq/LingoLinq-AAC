@@ -25,6 +25,12 @@
     }
   },
 
+  "forwardPorts": [3000, 8184],
+  "portsAttributes": {
+    "3000": { "label": "Rails API", "onAutoForward": "notify" },
+    "8184": { "label": "Ember Frontend", "onAutoForward": "notify" }
+  },
+
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "vscode"
 }
