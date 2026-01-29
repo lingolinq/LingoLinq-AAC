@@ -17,7 +17,8 @@ export default DS.RESTSerializer.extend({
    */
   normalizeResponse(store, primaryModelClass, payload, id, requestType) {
     // Handle the case where we request 'user' with id 'self' but get back a different ID
-    if (primaryModelClass.modelName === 'user' && id === 'self' && payload) {
+    // ONLY normalize when we specifically requested 'self' via findRecord, not for other user lookups
+    if (primaryModelClass.modelName === 'user' && id === 'self' && requestType === 'findRecord' && payload) {
       // The payload structure might be {user: {...}} or just the user object
       var userData = payload.user || payload;
       if (userData && userData.id && userData.id !== 'self') {
