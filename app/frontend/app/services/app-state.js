@@ -1,77 +1,73 @@
 import Service from '@ember/service';
 import { getOwner } from '@ember/application';
-import { computed } from '@ember/object';
 
 /**
- * CRITICAL FIX: Proxy Service for Legacy app_state
+ * Proxy Service for Legacy app_state
  *
- * This service acts as a proxy/adapter to the legacy app_state util.
- * 60+ files were migrated to use service('app-state') but the migration was never completed.
- * Instead of rewriting all those files or completing the full migration, we proxy all
- * method calls and property accesses to the legacy util which has the complete implementation.
+ * This service proxies all method calls and property accesses to the legacy
+ * app_state utility (registered as 'lingolinq:app_state' by the session initializer).
  *
- * The legacy util is registered as 'lingolinq:app_state' by the session initializer.
+ * All methods are dynamically copied from the legacy object so that direct
+ * calls like this.appState.clear_mode() work (unknownProperty only handles .get()).
  */
 export default Service.extend({
   _legacyAppState: null,
-  
+
   init() {
     this._super(...arguments);
-    
-    // Lookup the legacy app_state util that has all the methods
+
     var owner = getOwner(this);
     var legacyAppState = owner.lookup('lingolinq:app_state');
-    
+
     if (!legacyAppState) {
       console.error('app-state service: Could not find legacy app_state (lingolinq:app_state)');
-      console.error('Make sure the session initializer has run and registered it');
       return;
     }
-    
-    // Store reference to legacy implementation
+
     this.set('_legacyAppState', legacyAppState);
-    
+
+    // Ensure this service has the real modal service
+    this.set('modal', owner.lookup('service:modal'));
+
+    // Dynamically copy ALL methods from the legacy object so that direct
+    // method calls work (e.g., this.appState.clear_mode()).
+    // unknownProperty only handles .get() access, not direct property access.
+    this._copyLegacyMethods(legacyAppState);
+
     console.log('app-state service: Successfully proxying to legacy app_state');
   },
-  
-  // Proxy commonly used methods to legacy app_state
-  global_transition() {
-    return this._legacyAppState.global_transition.apply(this._legacyAppState, arguments);
+
+  _copyLegacyMethods: function(legacy) {
+    var self = this;
+    var skipKeys = {
+      'constructor': true, 'init': true, '_super': true,
+      'isDestroyed': true, 'isDestroying': true,
+      'destroy': true, 'willDestroy': true,
+      'concatenatedProperties': true, 'mergedProperties': true,
+      'unknownProperty': true, 'setUnknownProperty': true,
+      '_copyLegacyMethods': true
+    };
+    for (var key in legacy) {
+      if (skipKeys[key]) continue;
+      if (key.charAt(0) === '_' || key.indexOf('__') === 0) continue;
+      try {
+        if (self[key] !== undefined) continue;
+        if (typeof legacy[key] === 'function') {
+          (function(k) {
+            self[k] = function() { return legacy[k].apply(legacy, arguments); };
+          })(key);
+        } else if (legacy[key] !== null && typeof legacy[key] === 'object') {
+          // Copy object references (e.g., url_cache) so direct access works
+          self[key] = legacy[key];
+        }
+      } catch(e) { /* skip inaccessible properties */ }
+    }
   },
-  
-  finish_global_transition() {
-    return this._legacyAppState.finish_global_transition.apply(this._legacyAppState, arguments);
-  },
-  
-  setup_controller() {
-    return this._legacyAppState.setup_controller.apply(this._legacyAppState, arguments);
-  },
-  
-  toggle_mode() {
-    return this._legacyAppState.toggle_mode.apply(this._legacyAppState, arguments);
-  },
-  
-  toggle_edit_mode() {
-    return this._legacyAppState.toggle_edit_mode.apply(this._legacyAppState, arguments);
-  },
-  
-  activate_button() {
-    return this._legacyAppState.activate_button.apply(this._legacyAppState, arguments);
-  },
-  
-  set_speak_mode_user() {
-    return this._legacyAppState.set_speak_mode_user.apply(this._legacyAppState, arguments);
-  },
-  
-  check_scanning() {
-    return this._legacyAppState.check_scanning.apply(this._legacyAppState, arguments);
-  },
-  
-  // Proxy all property access to legacy app_state
+
+  // Proxy property access via .get() to legacy app_state
   unknownProperty(key) {
     if (this._legacyAppState) {
       var value = this._legacyAppState.get(key);
-      // If it's a function, bind it to the legacy instance
       if (typeof value === 'function') {
         var legacyInstance = this._legacyAppState;
         return function() {
@@ -82,7 +78,7 @@ export default Service.extend({
     }
     return undefined;
   },
-  
+
   setUnknownProperty(key, value) {
     if (this._legacyAppState) {
       return this._legacyAppState.set(key, value);

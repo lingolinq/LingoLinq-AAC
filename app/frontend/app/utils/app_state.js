@@ -261,14 +261,46 @@ var app_state = EmberObject.extend({
     stashes.set('root_board_state', null);
     stashes.set('boardHistory', []);
     stashes.set('browse_history', []);
-    this.controller = null;
-    this.route = null;
+    // Clear callbacks (not controller/route references - forbidden in Ember 3.x services)
+    this._controllerCallbacks = null;
     modal.reset();
     boundClasses.clear();
   },
   setup_controller: function(route, controller) {
-    this.route = route;
-    this.controller = controller;
+    // Store router service for transitions (not controller reference - forbidden in Ember 3.x)
+    var owner = Ember.getOwner ? Ember.getOwner(route) : (route.container || route._container);
+    if (owner && owner.lookup) {
+      this._router = owner.lookup('service:router');
+    } else if (route.router) {
+      this._router = route.router;
+    }
+
+    // Store callbacks for controller-specific functionality
+    this._controllerCallbacks = {
+      setFooter: function(val) { try { controller.set('footer', val); } catch(e) {} },
+      setSetupFooter: function(val) { try { controller.set('setup_footer', val); } catch(e) {} },
+      setSimpleBoardHeader: function(val) { try { controller.set('simple_board_header', val); } catch(e) {} },
+      setSetupUserId: function(val) { try { controller.set('setup_user_id', val); } catch(e) {} },
+      updateTitle: function() { if (controller && controller.updateTitle) { controller.updateTitle(); } },
+      hideTemporarySidebar: function() { try { controller.send('hide_temporary_sidebar'); } catch(e) {} },
+      pickWhichHome: function() { try { controller.send('pickWhichHome'); } catch(e) {} },
+      tweakBoard: function() { try { controller.send('tweakBoard'); } catch(e) {} },
+      sayLouder: function(pct) { if (controller && controller.sayLouder) { controller.sayLouder(pct); } },
+      setAndSayButtons: function(vocs) { if (controller && controller.set_and_say_buttons) { controller.set_and_say_buttons(vocs); } },
+      getBoardModel: function() { try { return controller.get('board.model'); } catch(e) { return null; } },
+      getBoardModelProperty: function(prop) { try { return controller.get('board.model.' + prop); } catch(e) { return null; } }
+    };
+
+    // Store current URL accessor
+    this._getCurrentURL = function() {
+      if (this._router && this._router.currentURL) {
+        return this._router.currentURL;
+      }
+      try { return route._router && route._router.url; } catch(e) {}
+      try { return route.router && route.router.url; } catch(e) {}
+      return null;
+    }.bind(this);
+
     if(!session.get('isAuthenticated') && capabilities.mobile && capabilities.browserless) {
       this.set('login_modal', true);
     } else if(!session.get('isAuthenticated') && !this.get('domain_settings.full_domain')) {
@@ -394,7 +426,7 @@ var app_state = EmberObject.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
-    app_state.set('from_url', app_state.get('route._router.url') || app_state.get('route.router.url'));
+    app_state.set('from_url', app_state._getCurrentURL ? app_state._getCurrentURL() : null);
     var from = [transition.from_route].concat(transition.from_params);
     if(from[0] && from[0] != 'board.index') {
       app_state.set('from_route', from);
@@ -418,12 +450,12 @@ var app_state = EmberObject.extend({
       LingoLinq.log.track('global transition handled');
       runLater(this, this.check_for_board_readiness, delay, 50);
     }
-    var controller = this.controller;
+    var callbacks = this._controllerCallbacks;
     runLater(function() {
-      if(controller && controller.updateTitle) {
-        controller.updateTitle();
+      if(callbacks && callbacks.updateTitle) {
+        callbacks.updateTitle();
       }
-    }, controller && controller.updateTitle ? 0 : 500);
+    }, callbacks ? 0 : 500);
     
     this.modal.close();
     modal.close_board_preview();
@@ -449,15 +481,16 @@ var app_state = EmberObject.extend({
     // footer was showing up too quickly and looking weird when the rest of the page hadn't
     // re-rendered yet.
     if(!this.get('currentBoardState')) {
-      try {
-        this.controller.set('footer', true);
+      var cb = this._controllerCallbacks;
+      if(cb) {
+        cb.setFooter(true);
         if(this.get('to_target') && this.get('to_target') != 'setup' && this.get('to_target') != 'home-boards') {
-          this.controller.set('setup_footer', false);
-          this.controller.set('simple_board_header', false);
+          cb.setSetupFooter(false);
+          cb.setSimpleBoardHeader(false);
           this.set('setup_user', null);
-          this.controller.set('setup_user_id', null);
+          cb.setSetupUserId(null);
         }
-      } catch(e) { }
+      }
     }
     if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
@@ -554,7 +587,9 @@ var app_state = EmberObject.extend({
     this.set('depth_actions', actions);
   },
   return_to_index: function() {
-    this.controller.transitionToRoute('index');
+    if(this._router && this._router.transitionTo) {
+      this._router.transitionTo('index');
+    }
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -592,7 +627,7 @@ var app_state = EmberObject.extend({
         this.set('temporary_root_board_key', new_state.key);
       }
     }
-    this.controller.send('hide_temporary_sidebar');
+    if(this._controllerCallbacks) { this._controllerCallbacks.hideTemporarySidebar(); }
     this.set_history([].concat(history));
     if(new_state.level) {
       stashes.persist('board_level', new_state.level);
@@ -606,7 +641,7 @@ var app_state = EmberObject.extend({
     this.set('referenced_board', new_state);
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
-      _this.controller.transitionToRoute('board', new_state.key);
+      if(_this._router && _this._router.transitionTo) { _this._router.transitionTo('board', new_state.key); }
       if(old_state.key == new_state.key) {
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
@@ -738,11 +773,11 @@ var app_state = EmberObject.extend({
     opts = opts || {};
     var history = this.get_history();
     var state = history.pop();
-    if(!state) { 
+    if(!state) {
       if(app_state.get('currentBoardState.extra_back') == 'emergency') {
-        this.controller.transitionToRoute('offline_boards');
+        if(this._router && this._router.transitionTo) { this._router.transitionTo('offline_boards'); }
       }
-      return; 
+      return;
     }
     buttonTracker.transitioning = true;
     if(state && state.id && state.id == this.get('currentBoardState.id')) {
@@ -757,7 +792,7 @@ var app_state = EmberObject.extend({
       stashes.persist('board_level', state.level);
     }
     this.set('referenced_board', state);
-    this.controller.transitionToRoute('board', state.key);
+    if(this._router && this._router.transitionTo) { this._router.transitionTo('board', state.key); }
   },
   jump_to_root_board: function(options) {
     options = options || {};
@@ -789,7 +824,7 @@ var app_state = EmberObject.extend({
           stashes.persist('vocalization_locale', state.locale);
         }
         this.set('referenced_board', state);
-        this.controller.transitionToRoute('board', state.key);
+        if(this._router && this._router.transitionTo) { this._router.transitionTo('board', state.key); }
         do_log = current && current.key && state.key != current.key;
       }
     } else if(index_as_fallback) {
@@ -876,12 +911,12 @@ var app_state = EmberObject.extend({
     } else if(decision == 'rememberRealHome') {
       this.toggle_mode('speak', {override_state: preferred});
     } else {
-      this.controller.send('pickWhichHome');
+      if(this._controllerCallbacks) { this._controllerCallbacks.pickWhichHome(); }
     }
   },
   assert_source: function() {
     var _this = this;
-    var board = _this.controller.get('board.model');
+    var board = _this._controllerCallbacks ? _this._controllerCallbacks.getBoardModel() : null;
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
       if(board.get('locale') && !app_state.get('speak_mode')) {
@@ -918,22 +953,25 @@ var app_state = EmberObject.extend({
     editManager.clear_history();
     var _this = this;
     this.assert_source().then(function() {
-      if(!_this.get('controller.board.model.permissions.edit')) {
-        this.modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
+      var cb = _this._controllerCallbacks;
+      var boardModel = cb ? cb.getBoardModel() : null;
+      var canEdit = boardModel ? boardModel.get('permissions.edit') : false;
+      if(!canEdit) {
+        _this.modal.open('confirm-needs-copying', {board: boardModel}).then(function(res) {
           if(res == 'confirm') {
             _this.toggle_mode('edit', {copy_on_save: true});
           }
         });
         return;
-      } else if(decision == null && !app_state.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
-        this.modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
+      } else if(decision == null && !app_state.get('edit_mode') && boardModel && boardModel.get('could_be_in_use')) {
+        _this.modal.open('confirm-edit-board', {board: boardModel}).then(function(res) {
           if(res == 'tweak') {
-            _this.controller.send('tweakBoard');
+            if(cb) { cb.tweakBoard(); }
           }
         });
         return;
       }
-      _this.toggle_mode('edit');  
+      _this.toggle_mode('edit');
     }, function() { });
   },
   clear_mode: function() {
@@ -1269,7 +1307,7 @@ var app_state = EmberObject.extend({
     // preferred should include the user's home board setting
     this.toggle_mode('speak', {force: true, override_state: preferred});
     this.set('referenced_board', preferred);
-    this.controller.transitionToRoute('board', preferred.key);
+    if(this._router && this._router.transitionTo) { this._router.transitionTo('board', preferred.key); }
     if(speak_mode_user && speak_mode_user == app_state.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
       // Supporter devices for communicators should start in modeling mode
       app_state.set('modeling_for_self', true);
@@ -1485,7 +1523,7 @@ var app_state = EmberObject.extend({
     }
   },
   say_louder: function(pct) {
-    this.controller.sayLouder(pct);
+    if(this._controllerCallbacks) { this._controllerCallbacks.sayLouder(pct); }
   },
   flip_text: function() {
     this.set('flipped', !this.get('flipped'));
@@ -1575,7 +1613,7 @@ var app_state = EmberObject.extend({
     }
   },
   set_and_say_buttons(vocalizations) {
-    this.controller.set_and_say_buttons(vocalizations);
+    if(this._controllerCallbacks) { this._controllerCallbacks.setAndSayButtons(vocalizations); }
   },
   set_current_user: observer('sessionUser', 'speak_mode', 'speakModeUser', function() {
     this.did_set_current_user = true;
@@ -1640,9 +1678,7 @@ var app_state = EmberObject.extend({
       $('html,body').css('overflow', '');
     } else if(!app_state.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
-      try {
-        this.controller.set('footer', false);
-      } catch(e) { }
+      if(this._controllerCallbacks) { this._controllerCallbacks.setFooter(false); }
     }
   }),
   update_button_tracker: observer(
@@ -1772,7 +1808,7 @@ var app_state = EmberObject.extend({
   }),
   header_size: computed(
     'currentUser.preferences.device.vocalization_height',
-    'controller.board.model.small_header',
+    'currentBoardState.small_header',
     'window_inner_width',
     'window_inner_height',
     'flipped',
@@ -1782,7 +1818,8 @@ var app_state = EmberObject.extend({
       if(this.get('currentUser.preferences.device.flipped_override') && this.get('flipped') && this.get('currentUser.preferences.device.flipped_height')) {
         size = this.get('currentUser.preferences.device.flipped_height');
       }
-      if(this.controller.get('board.model.small_header')) {
+      var smallHeader = this._controllerCallbacks ? this._controllerCallbacks.getBoardModelProperty('small_header') : null;
+      if(smallHeader) {
         if(size != 'tiny' && size != 'small') {
           size = 'small';
         }

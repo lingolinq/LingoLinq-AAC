@@ -30,8 +30,8 @@ import { inject as service } from '@ember/service';
 LingoLinq.Board = DS.Model.extend({
   // Explicit service injections (Ember 3.28 migration)
   appState: service('app-state'),
-  persistence: service(),
-  stashes: service(),
+  persistenceService: service('persistence'),
+  stashesService: service('stashes'),
   modal: service(),
   init() {
     this._super(...arguments);
@@ -103,7 +103,7 @@ LingoLinq.Board = DS.Model.extend({
   }),
   icon_url_with_fallback: computed('image_url', function () {
     // TODO: way to fall back to something other than a broken image when disconnected
-    if (this.persistence.get('online')) {
+    if (this.persistenceService.get('online')) {
       return this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url;
     } else {
       return this.get('image_data_uri') || this.fallback_image_url;
@@ -175,13 +175,13 @@ LingoLinq.Board = DS.Model.extend({
       if (key && local_map[key]) {
         var url = LingoLinq.Board.skinned_url(local_map[key], which_skin);
         // Use the un-skinned address if it's all that's in the cache
-        if (!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
+        if (!this.persistenceService.url_cache[url] && this.persistenceService.url_cache[local_map[key]] && (!this.persistenceService.url_uncache || !this.persistenceService.url_uncache[local_map[key]])) {
           url = local_map[key];
         }
         res[key] = url;
         if (unskins[key]) {
           url = LingoLinq.Board.skinned_url(local_map[key], which_skin, true);
-          if (!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
+          if (!this.persistenceService.url_cache[url] && this.persistenceService.url_cache[local_map[key]] && (!this.persistenceService.url_uncache || !this.persistenceService.url_uncache[local_map[key]])) {
             url = local_map[key];
           }
           res['ns_' + key] = url;
@@ -497,12 +497,12 @@ LingoLinq.Board = DS.Model.extend({
             if (!this.appState.get('focus_words.pending')) {
               this.appState.set('focus_words.pending', true);
               _this.load_button_set().then(function (set) {
-                set.find_routes(this.appState.get('focus_words.list'), label_locale, _this.get('id'), this.appState.get('sessionUser')).then(function (hash) {
-                  var board_ids = this.appState.get('focus_words.board_ids');
-                  if (this.appState.get('focus_words.user_id') != this.appState.get('sessionUser.id')) {
+                set.find_routes(_this.appState.get('focus_words.list'), label_locale, _this.get('id'), _this.appState.get('sessionUser')).then(function (hash) {
+                  var board_ids = _this.appState.get('focus_words.board_ids');
+                  if (_this.appState.get('focus_words.user_id') != _this.appState.get('sessionUser.id')) {
                     board_ids = {};
-                    if (this.appState.get('focus_words')) {
-                      this.appState.set('focus_words.user_id', this.appState.get('sessionUser.id'));
+                    if (_this.appState.get('focus_words')) {
+                      _this.appState.set('focus_words.user_id', _this.appState.get('sessionUser.id'));
                     }
                   }
                   for (var id in hash) {
@@ -510,9 +510,9 @@ LingoLinq.Board = DS.Model.extend({
                       board_ids[id] = hash[id];
                     }
                   }
-                  if (this.appState.get('focus_words')) {
-                    this.appState.set('focus_words.pending', false);
-                    this.appState.set('focus_words.board_ids', board_ids);
+                  if (_this.appState.get('focus_words')) {
+                    _this.appState.set('focus_words.pending', false);
+                    _this.appState.set('focus_words.board_ids', board_ids);
                     // force re-render
                     if (board_ids[_this.get('id')]) {
                       runLater(function () {
@@ -521,13 +521,13 @@ LingoLinq.Board = DS.Model.extend({
                     }
                   }
                 }, function () {
-                  if (this.appState.get('focus_words')) {
-                    this.appState.set('focus_words.pending', false);
+                  if (_this.appState.get('focus_words')) {
+                    _this.appState.set('focus_words.pending', false);
                   }
                 });
               }, function () {
-                if (this.appState.get('focus_words')) {
-                  this.appState.set('focus_words.pending', false);
+                if (_this.appState.get('focus_words')) {
+                  _this.appState.set('focus_words.pending', false);
                 }
               });
             }
@@ -551,11 +551,11 @@ LingoLinq.Board = DS.Model.extend({
                     var buttons = _this.get('button_set').redepth(_this.get('id'));
                     var match = buttons.find(function (b) { return b.ref_id == ref_id; });
                     if (match) {
-                      var urls = _this.variant_image_urls(this.appState.get('referenced_user.preferences.skin')) || {};
+                      var urls = _this.variant_image_urls(_this.appState.get('referenced_user.preferences.skin')) || {};
                       // try to find cache of image
                       if (!urls[match.image_id]) {
                         // urls[match.image_id] = match.image;
-                        this.persistence.find_url(match.image, 'image').then(function (data_uri) {
+                        _this.persistenceService.find_url(match.image, 'image').then(function (data_uri) {
                           emberSet(match, 'image', data_uri);
                           // urls[match.image_id] = data_uri;
                         });
@@ -633,8 +633,8 @@ LingoLinq.Board = DS.Model.extend({
         sound_ids.push(btn.sound_id);
       }
     });
-    promises.push(this.persistence.push_records('image', image_ids));
-    promises.push(this.persistence.push_records('sound', sound_ids));
+    promises.push(this.persistenceService.push_records('image', image_ids));
+    promises.push(this.persistenceService.push_records('sound', sound_ids));
 
     fetch_promise = RSVP.all_wait(promises).then(function () {
       _this.set('fetched', true);
@@ -662,11 +662,12 @@ LingoLinq.Board = DS.Model.extend({
     }
   ),
   prefetch_linked_boards: function () {
+    var _this = this;
     var boards = this.get('linked_boards');
     runLater(function () {
       var board_ids = [];
       boards.forEach(function (b) { if (b.id) { board_ids.push(b.id); } });
-      this.persistence.push_records('board', board_ids).then(function (boards_hash) {
+      _this.persistenceService.push_records('board', board_ids).then(function (boards_hash) {
         for (var idx in boards_hash) {
           if (idx && boards_hash[idx]) {
             //            boards_hash[idx].find_content_locally();
@@ -780,7 +781,7 @@ LingoLinq.Board = DS.Model.extend({
   non_author_starred: DS.attr('boolean'),
   star_or_unstar: function (star) {
     var _this = this;
-    this.persistence.ajax('/api/v1/boards/' + this.get('id') + '/stars', {
+    this.persistenceService.ajax('/api/v1/boards/' + this.get('id') + '/stars', {
       type: 'POST',
       data: {
         '_method': (star ? 'POST' : 'DELETE')
@@ -950,15 +951,16 @@ LingoLinq.Board = DS.Model.extend({
         found_board_ids.push(brd.get('id'));
       }
     });
+    var _this = this;
     affected_board_ids.forEach(function (id) {
       if (found_board_ids.indexOf(id) == -1) {
-        this.persistence.find('board', id).then(function () {
+        _this.persistenceService.find('board', id).then(function () {
           // Mark as needing to be reloaded if ever retrieved
           do_reloads[id] = true;
         }, function () { });
       }
     });
-    this.appState.set('board_reloads', do_reloads);
+    _this.appState.set('board_reloads', do_reloads);
   },
   button_visible: function (button_id) {
     var grid = this.get('grid');
@@ -979,7 +981,7 @@ LingoLinq.Board = DS.Model.extend({
     var url = this.get('icon_url_with_fallback');
     var _this = this;
     if (!this.get('image_data_uri') && LingoLinq.remote_url(url)) {
-      return this.persistence.find_url(url, 'image').then(function (data_uri) {
+      return this.persistenceService.find_url(url, 'image').then(function (data_uri) {
         _this.set('image_data_uri', data_uri);
         return _this;
       });
@@ -988,14 +990,14 @@ LingoLinq.Board = DS.Model.extend({
     }
     var url = this.get('background.image');
     if (!this.get('background_image_data_uri') && LingoLinq.remote_url(url)) {
-      this.persistence.find_url(url, 'image').then(function (data_uri) {
+      this.persistenceService.find_url(url, 'image').then(function (data_uri) {
         _this.set('background_image_data_uri', data_uri);
         return _this;
       });
     }
     var url = this.get('background.prompt.sound');
     if (!this.get('background_sound_data_uri') && LingoLinq.remote_url(url)) {
-      this.persistence.find_url(url, 'sound').then(function (data_uri) {
+      this.persistenceService.find_url(url, 'sound').then(function (data_uri) {
         _this.set('background_sound_data_uri', data_uri);
         return _this;
       });
@@ -1183,7 +1185,7 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_real_time_inflections: function () {
-    var history = this.stashes.get('working_vocalization') || [];
+    var history = this.stashesService.get('working_vocalization') || [];
     // TODO: update inflections for linked buttons as well
     // for load_board settings add a new option to support inflections
     var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), history, false, this.appState.get('inflection_shift'));
@@ -1191,10 +1193,10 @@ LingoLinq.Board = DS.Model.extend({
     var trans = this.get('translations') || {};
     var loc = this.appState.get('label_locale') == this.appState.get('vocalization_locale') ? this.appState.get('label_locale') : null;
     buttons.forEach(function (button) {
-      var cap = this.appState.get('shift');
+      var cap = _this.appState.get('shift');
       if ((button.vocalization || '').match(/^:/)) {
       } else if (button.tweaked) {
-        var revert = (history.length == 0 && !this.appState.get('inflection_shift'));
+        var revert = (history.length == 0 && !_this.appState.get('inflection_shift'));
         var str = revert ? button.original_label : button.label;
         if (cap) {
           str = utterance.capitalize(str);
@@ -1212,7 +1214,7 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_word_suggestions: function (board_ids) {
-    var working = [].concat(this.stashes.get('working_vocalization') || []);
+    var working = [].concat(this.stashesService.get('working_vocalization') || []);
     var in_progress = null;
     if (working.length > 0 && working[working.length - 1].in_progress) {
       in_progress = working.pop().label;
@@ -1225,7 +1227,7 @@ LingoLinq.Board = DS.Model.extend({
     var buttons = {};
     var inflection_buttons = {};
     var skip_labels = {};
-    var history = this.stashes.get('working_vocalization') || [];
+    var history = this.stashesService.get('working_vocalization') || [];
     var known_buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), history, false, null) || [];
     var inflections = [];
     LingoLinq.special_actions.forEach(function (act) {
@@ -1271,7 +1273,7 @@ LingoLinq.Board = DS.Model.extend({
       if (last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
         var res = {};
         act.alter(null, last_button.label, last_button.label, res);
-        if (this.appState.get('shift')) {
+        if (_this.appState.get('shift')) {
           res.label = utterance.capitalize(res.label);
         }
         _this.update_suggestion_button(infl, { word: res.label, temporary: true });
@@ -1289,13 +1291,13 @@ LingoLinq.Board = DS.Model.extend({
       (result || []).forEach(function (sugg, idx) {
         if (suggested_buttons[idx]) {
           var suggestion_button = suggested_buttons[idx];
-          if (sugg.word && this.appState.get('shift')) {
+          if (sugg.word && _this.appState.get('shift')) {
             sugg = $.extend({}, sugg);
             sugg.word = utterance.capitalize(sugg.word);
           }
           _this.update_suggestion_button(suggestion_button, sugg);
           sugg.image_update = function () {
-            this.persistence.find_url(sugg.image, 'image').then(function (data_uri) {
+            _this.persistenceService.find_url(sugg.image, 'image').then(function (data_uri) {
               sugg.data_image = data_uri;
               _this.update_suggestion_button(suggestion_button, sugg);
             }, function () {
@@ -1323,8 +1325,8 @@ LingoLinq.Board = DS.Model.extend({
             if (!suggestion.temporary) {
               lookups[button.id.toString()] = suggestion;
               url = suggestion.data_image || suggestion.image;
-              if (this.persistence.url_cache[url]) {
-                url = this.persistence.url_cache[url];
+              if (this.persistenceService.url_cache[url]) {
+                url = this.persistenceService.url_cache[url];
               }
             }
             var lbl = btn.getElementsByClassName('button-label')[0];
@@ -1387,7 +1389,7 @@ LingoLinq.Board = DS.Model.extend({
   render_fast_html: function (size) {
     LingoLinq.log.track('redrawing');
 
-    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), this.stashes.get('working_vocalization'), false, this.appState.get('inflection_shift'));
+    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), this.stashesService.get('working_vocalization'), false, this.appState.get('inflection_shift'));
     var grid = this.get('grid');
     var ob = [];
     for (var idx = 0; idx < grid.rows; idx++) {
@@ -1429,7 +1431,7 @@ LingoLinq.Board = DS.Model.extend({
     }
 
     var _this = this;
-    var preferred_symbols = size.symbols || this.appState.get('referenced_user.preferences.preferred_symbols') || (this.appState.get('speak_mode') && this.stashes.get('session_preferred_symbols')) || 'original';
+    var preferred_symbols = size.symbols || this.appState.get('referenced_user.preferences.preferred_symbols') || (this.appState.get('speak_mode') && this.stashesService.get('session_preferred_symbols')) || 'original';
 
     var button_html = function (button, pos) {
       var res = "";
@@ -1438,9 +1440,9 @@ LingoLinq.Board = DS.Model.extend({
       var original_image_url = vars[button.image_id];
       var pref_original_image_url = vars[button.image_id + '-' + preferred_symbols];
       var unvarianted_image_url = original_image_url && original_image_url.replace(/\.variant-.+\.(png|svg)$/, '');
-      var local_image_url = this.persistence.url_cache[pref_original_image_url || 'none'] || this.persistence.url_cache[original_image_url || 'none'] || this.persistence.url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      var local_image_url = _this.persistenceService.url_cache[pref_original_image_url || 'none'] || _this.persistenceService.url_cache[original_image_url || 'none'] || _this.persistenceService.url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
-      var local_sound_url = this.persistence.url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none';
+      var local_sound_url = _this.persistenceService.url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none';
       var opts = Button.button_styling(button, _this, pos);
 
       res = res + "<a href='#' style='" + opts.button_style + "' class='" + opts.button_class + "' data-id='" + button.id + "' tabindex='0'>";

@@ -4,6 +4,10 @@ import app_state from '../utils/app_state';
 
 export default Controller.extend({
   appState: service('app-state'),
+  persistenceService: service('persistence'),
+  stashesService: service('stashes'),
+  sessionService: service('session'),
+  modal: service(),
 
   update_selected: function() {
     var user = this.get('model');
