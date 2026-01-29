@@ -14,6 +14,7 @@ import session from '../utils/session';
 import i18n from '../utils/i18n';
 
 export default Route.extend({
+  // Service injections for Ember 3.28 migration
   appState: service('app-state'),
   persistenceService: service('persistence'),
   stashesService: service('stashes'),
