@@ -672,9 +672,9 @@ export default Controller.extend({
     },
     startRecording: function () {
       // currently-speaking user must have active paid subscription to do video recording
-      app_state.check_for_currently_premium(this.appState.get('speakModeUser'), 'record_session').then(function () {
+      this.appState.check_for_currently_premium(this.appState.get('speakModeUser'), 'record_session').then(() => {
         alert("not yet implemented");
-      }, function () { });
+      }, () => { });
     },
     toggleEditMode: function (decision) {
       if (!this.appState.get('edit_mode')) {
