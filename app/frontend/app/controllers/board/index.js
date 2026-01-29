@@ -23,7 +23,7 @@ var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
 export default Controller.extend({
-  // Explicit service injections (Ember 3.28 migration)
+  // Verified service injections (Ember 3.28 migration)
   appState: service('app-state'),
   persistenceService: service('persistence'),
   stashesService: service('stashes'),
