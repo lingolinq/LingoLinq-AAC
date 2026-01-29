@@ -92,22 +92,22 @@ export default Controller.extend({
       if(capabilities.system == 'Android') {
         _this.set('suggestions.pending', true);
       }
-      runLater(function() {
+      runLater(() => {
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
-          board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashesService.get('temporary_root_board_state.id')]
-        }).then(function(result) {
+          board_ids: [this.appState.get('currentUser.preferences.home_board.id'), this.stashesService.get('temporary_root_board_state.id')]
+        }).then((result) => {
           // this delay prevents a weird use case on android
           // where it hits the next button before listeners are
           // attached and triggers a HashChangeEvent which causes
           // navigation back to the index page
-          runLater(function() {
-            _this.set('suggestions.pending', null);
+          runLater(() => {
+            this.set('suggestions.pending', null);
           }, 200);
-          _this.set('suggestions.list', result);
-        }, function() {
-          _this.set('suggestions.list', []);
+          this.set('suggestions.list', result);
+        }, () => {
+          this.set('suggestions.list', []);
         });
       });
     }
