@@ -11,7 +11,14 @@
       <div class="modal-content">
         {{!-- Dynamically render the current modal component --}}
         {{!-- The modal template will be looked up by name --}}
-        {{component currentModal options=modalOptions close=(action "closeModal")}}
+        {{#if isComponent}}
+          {{component currentModal options=modalOptions close=(action "closeModal")}}
+        {{else}}
+          <div class="modal-body">
+            <p class="text-danger">Error: Modal "{{currentModal}}" is not converted to a component yet.</p>
+            <p>Please move its template to <code>app/templates/components/{{currentModal}}.hbs</code></p>
+          </div>
+        {{/if}}
       </div>
     </div>
   </div>
