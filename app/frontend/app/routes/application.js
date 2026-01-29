@@ -82,9 +82,8 @@ export default Route.extend({
       this.modal.open('speak-menu', { inactivity_timeout: true, scannable: true });
     },
     newBoard: function () {
-      var _this = this;
-      this.appState.check_for_needing_purchase().then(function () {
-        _this.modal.open('new-board');
+      this.appState.check_for_needing_purchase().then(() => {
+        this.modal.open('new-board');
       });
     },
     pickWhichHome: function () {
