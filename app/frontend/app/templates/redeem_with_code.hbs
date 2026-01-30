@@ -24,7 +24,7 @@
       {{else}}
         <p>
           {{t "Before you can redeem this code you'll need to " key="before_redeem"}}
-          <a href="#" {{action "authenticateSession"}}>{{t "sign in" key="sign_in"}}</a>
+          <LinkTo @route="login">{{t "sign in" key="sign_in"}}</LinkTo>
           {{#if this.app_state.domain_settings.full_domain}}
             {{t "or" key="or"}}
             {{#link-to "register"}}{{t "create a new account" key="create_a_new_account"}}{{/link-to}}.
