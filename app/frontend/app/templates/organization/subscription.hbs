@@ -5,31 +5,31 @@
       <div class="form-group">
         <label for="allotted_licenses" class="col-sm-2 control-label">{{t "Purchased Licenses" key="purchased_licenses"}}</label>
         <div class="col-sm-1">
-          {{input value=this.model.allotted_licenses class="form-control" id="allotted_licenses" placeholder="0"}}
+          <Input @value={{this.model.allotted_licenses}} class="form-control" id="allotted_licenses" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_supervisor_licenses" class="col-sm-2 control-label">{{t "Premium Supervisors" key="premium_supervisors"}}</label>
         <div class="col-sm-1">
-          {{input value=this.model.allotted_supervisor_licenses class="form-control" id="allotted_supervisor_licenses" placeholder="0"}}
+          <Input @value={{this.model.allotted_supervisor_licenses}} class="form-control" id="allotted_supervisor_licenses" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_eval_licenses" class="col-sm-2 control-label">{{t "Eval Accounts" key="eval_accounts"}}</label>
         <div class="col-sm-1">
-          {{input value=this.model.allotted_eval_licenses class="form-control" id="allotted_eval_licenses" placeholder="0"}}
+          <Input @value={{this.model.allotted_eval_licenses}} class="form-control" id="allotted_eval_licenses" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
         <label for="allotted_extras" class="col-sm-2 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
         <div class="col-sm-1">
-          {{input value=this.model.allotted_extras class="form-control" id="allotted_extras" placeholder="0"}}
+          <Input @value={{this.model.allotted_extras}} class="form-control" id="allotted_extras" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
         <label for="licenses_expire" class="col-sm-2 control-label">{{t "Expires" key="expires"}}</label>
         <div class="col-sm-3">
-          {{input type="date" value=this.model.licenses_expire class="form-control" id="licenses_expire" placeholder="YYYY-MM-DD"}}
+          <Input @type="date" @value={{this.model.licenses_expire}} class="form-control" id="licenses_expire" placeholder="YYYY-MM-DD" />
         </div>
       </div>
       <div class="form-group">

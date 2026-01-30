@@ -35,7 +35,7 @@
     <div style='font-size: 16px; margin: 10px 0; border: 2px solid #c88; padding: 10px 20px; border-radius: 5px;'>
       <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
         <label style='display: block; margin-top: -2px;'>
-          {{input type="checkbox" checked=this.profile.with_communicator}}
+          <Input @type="checkbox" @checked={{this.profile.with_communicator}} />
           {{t "This profile was completed with the communicator's participation" key="profile_completed_with_communicator"}}
         </label>
       </div>
@@ -100,7 +100,7 @@
               <div class='manual_select'>
                 <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
                   <label style='display: block; margin-top: -2px;'>
-                    {{input type="checkbox" checked=question.manual}}
+                    <Input @type="checkbox" @checked={{question.manual}} />
                     {{question.manual_selection}}
                   </label>
                 </div>

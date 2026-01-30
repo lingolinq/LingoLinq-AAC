@@ -14,7 +14,7 @@
 {{#if this.app_state.sessionUser.permissions.admin_support_actions}}
   <p>
     {{t "Roll back newest version before (limited to last 6 months):" key="rollback_to_version_before"}}
-    <span style='display: inline-block;'>{{input type="date" class="form-control" value=this.rollback_date}}</span>
+    <span style='display: inline-block;'><Input @type="date" class="form-control" @value={{this.rollback_date}} /></span>
     <button class='btn btn-default' disabled={{this.rollback_status.saving}} {{action "rollback"}}>
       {{#if this.rollback_status.saving}}
         {{t "Rolling back..." key="rolling_back"}}

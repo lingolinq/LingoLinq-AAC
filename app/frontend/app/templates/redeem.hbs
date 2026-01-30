@@ -4,7 +4,7 @@
     <span class="glyphicon glyphicon-gift" style="font-size: 30px; float: left; margin: 5px 10px 10px 0;"></span>
     <p>{{t "Congratulations, someone shared a %app_name% gift code with you! To redeem this code for a free %app_name% license, please enter the redemption code you received in the box below." key="enter_redeem_code"}}</p>
     <div style="width: 200px; margin-bottom: 10px;">
-    {{input type="text" value=this.redeem_code class="form-control input-lg" placeholder="abcd123"}}
+    <Input @type="text" @value={{this.redeem_code}} class="form-control input-lg" placeholder="abcd123" />
     </div>
     <div>
       <button class='btn btn-primary btn-lg' {{action "check_code"}}>{{t "Redeem Code" key="check_code"}}</button>

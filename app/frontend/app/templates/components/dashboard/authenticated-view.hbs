@@ -133,7 +133,7 @@
               {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
                 <div style="margin: 5px 0 5px 60px;">
                   <label style="font-weight: normal;">
-                    {{input type="checkbox" checked=this.autoOpenSpeakMode}}
+                    <Input @type="checkbox" @checked={{this.autoOpenSpeakMode}} />
                     {{t "always start in Speak Mode" key="auto_open_speak_mode"}}
                   </label>
                 </div>

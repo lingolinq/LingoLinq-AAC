@@ -34,7 +34,7 @@
     {{else if this.model.board.downstream_boards}}
       <div style='margin: 30px 0 10px;'>
         <label>
-          {{input type="checkbox" checked=this.delete_downstream}}
+          <Input @type="checkbox" @checked={{this.delete_downstream}} />
           {{t "Also delete any of my boards that are linked from this board" key="delete_downstream_boards"}}
         </label>
         {{#if this.delete_downstream}}

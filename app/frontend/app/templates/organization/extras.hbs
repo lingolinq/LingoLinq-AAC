@@ -18,20 +18,20 @@
           <p>{{t "No data available" key="no_data_available"}}</p>
         {{/if}}
         <div>
-          {{input value=this.blocked_email_address placeholder="email address" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.blocked_email_address}} placeholder="email address" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "block_email"}}>{{t "Block Email Address" key="block_email_address"}}</button>
         </div>
       </div>
       <div class='col-sm-6'>
         <h4>{{t "Sale End Date" key="sale_date"}}</h4>
         <div style='margin-bottom: 30px;'>
-          {{input value=this.sale_cutoff_date placeholder="YYYY-MM-DD" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "update_sale_date"}}>{{t "Update" key="update"}}</button>
         </div>
 
         <h4>{{t "Start Code Lookup" key="start_code_lookup"}}</h4>
         <div style='margin-bottom: 30px;'>
-          {{input value=this.start_code placeholder="start code" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.start_code}} placeholder="start code" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "start_code_lookup"}}>{{t "Lookup" key="lookup"}}</button>
         </div>
 
@@ -52,7 +52,7 @@
 
         <h4 style='margin-top: 20px;'>{{t "Word Data Import" key="word_data_import"}}</h4>
         <div style='margin-bottom: 30px;'>
-          {{input value=this.word_data_url placeholder="URL" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.word_data_url}} placeholder="URL" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "import_word_data"}}>{{t "Import" key="import"}}</button>
         </div>
 
@@ -65,7 +65,7 @@
       <p>{{t "Error loading custom purchases" key="error_loading_gifts"}}</p>
     {{else if this.gifts}}
       <div style='max-width: 400px; margin-bottom: 2px;'>
-        {{input type="text" value=this.code_lookup placeholder="Find code" class="form-control inline inline-masquerade input-sm"}}
+        <Input @type="text" @value={{this.code_lookup}} placeholder="Find code" class="form-control inline inline-masquerade input-sm" />
         <button {{action "find_code"}} class='btn btn-default'>{{t "Find" key="find"}}</button>
       </div>
       <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
@@ -168,65 +168,65 @@
       </div>
       {{#if this.current_gift_type.user_gift}}
         <div style='margin-top: 15px;'>
-          {{input value=this.gift_name placeholder="gift name" class="form-control inline inline-masquerade input-sm"}}
-          {{input value=this.duration placeholder="# of years" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.gift_name}} placeholder="gift name" class="form-control inline inline-masquerade input-sm" />
+          <Input @value={{this.duration}} placeholder="# of years" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "add_gift" "gift"}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
         </div>
       {{else if this.current_gift_type.bulk_purchase}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.org placeholder="client name" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.email placeholder="client email" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.org}} placeholder="client name" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.email}} placeholder="client email" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.amount placeholder="dollars" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.licenses placeholder="# of licenses" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.amount}} placeholder="dollars" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.licenses}} placeholder="# of licenses" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-top: -15px;'>
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=this.include_extras type="checkbox"}}
+                <Input @checked={{this.include_extras}} @type="checkbox" />
                 {{t "include premium symbols" key="include_premium_symbols"}}
               </label>
             </div>
           </div>
           <span style='display: inline-block; width: 304px;'>
-            {{input value=this.memo placeholder="memo" class="form-control inline input-sm"}}
+            <Input @value={{this.memo}} placeholder="memo" class="form-control inline input-sm" />
           </span>
           <button class="btn btn-default btn-sm" {{action "add_gift" "purchase"}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
         </div>
       {{else if this.current_gift_type.discount}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.org placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.email placeholder="org email" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.org}} placeholder="org name" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.email}} placeholder="org email" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.code placeholder="code" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.discount_pct placeholder="10%" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.code}} placeholder="code" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.discount_pct}} placeholder="10%" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.limit placeholder="limit # of uses" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.limit}} placeholder="limit # of uses" class="form-control inline inline-masquerade input-sm" />
           </div>
           <span style='display: inline-block; width: 304px;'>
             <span style='width: 150px; display: inline-block; text-align: right; padding-right: 5px;'>{{t "expires (optional)" key="expires_optional"}}</span>
-            {{input type="date" value=this.expires placeholder="(optional)" class="form-control inline inline-masquerade input-sm"}}
+            <Input @type="date" @value={{this.expires}} placeholder="(optional)" class="form-control inline inline-masquerade input-sm" />
           </span>
           <button class="btn btn-default btn-sm" {{action "add_gift" "discount"}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
         </div>
       {{else if this.current_gift_type.multi_code}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.org placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.email placeholder="org email" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.org}} placeholder="org name" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.email}} placeholder="org email" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.total_codes placeholder="# of codes" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.years placeholder="years" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.total_codes}} placeholder="# of codes" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.years}} placeholder="years" class="form-control inline inline-masquerade input-sm" />
           </div>
           <div style='margin-bottom: 5px;'>
-            {{input value=this.org_id placeholder="org_id" class="form-control inline inline-masquerade input-sm"}}
-            {{input value=this.memo placeholder="memo" class="form-control inline inline-masquerade input-sm"}}
+            <Input @value={{this.org_id}} placeholder="org_id" class="form-control inline inline-masquerade input-sm" />
+            <Input @value={{this.memo}} placeholder="memo" class="form-control inline inline-masquerade input-sm" />
             <button class="btn btn-default btn-sm" {{action "add_gift" "multi_code"}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
           </div>
         </div>

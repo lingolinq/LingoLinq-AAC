@@ -587,7 +587,7 @@
               {{/if}}
               <form style="margin-bottom: 10px;" {{action "nothing" on="submit"}}>
                 <div style="width: 250px;">
-                {{input type="text" value=this.filterString class="form-control" placeholder="Filter Results"}}
+                <Input @type="text" @value={{this.filterString}} class="form-control" placeholder="Filter Results" />
                 </div>
               </form>
               <div class="row">
@@ -663,14 +663,14 @@
               <div class="form-group">
                 <label for="old_key" class="col-sm-3 control-label">{{t "Current User Name" key="current_user_name"}}</label>
                 <div class="col-sm-5">
-                  {{input type="text" class="form-control" id="old_key" value=this.new_user_name.old_value placeholder="current user name"}}
+                  <Input @type="text" class="form-control" id="old_key" @value={{this.new_user_name.old_value}} placeholder="current user name" />
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="new_key" class="col-sm-3 control-label">{{t "New User Name" key="new_user_name"}}</label>
                 <div class="col-sm-5">
-                  {{input type="text" class="form-control" id="new_key" value=this.new_user_name.value placeholder="new key"}}
+                  <Input @type="text" class="form-control" id="new_key" @value={{this.new_user_name.value}} placeholder="new key" />
                 </div>
               </div>
 

@@ -60,7 +60,7 @@
       {{#if this.persistence.online}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+          <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
           </div>
           <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>

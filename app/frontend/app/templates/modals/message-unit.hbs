@@ -42,7 +42,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify_user type="checkbox"}}
+                <Input @checked={{notify_user}} @type="checkbox" />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -52,7 +52,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=include_footer type="checkbox"}}
+                <Input @checked={{include_footer}} @type="checkbox" />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
@@ -83,7 +83,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=notify_user type="checkbox"}}
+                <Input @checked={{notify_user}} @type="checkbox" />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -93,7 +93,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=include_footer type="checkbox"}}
+                <Input @checked={{include_footer}} @type="checkbox" />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>

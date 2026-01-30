@@ -205,10 +205,10 @@
         {{#if this.stashes.enabled}}
           <form class="col-sm-12 form-horizontal" {{action "saveProfile" on="submit"}}>
             <div class="form-group">
-              {{input value=this.user.name class="form-control" id="name" title="Full Name" placeholder="Full Name"}}
+              <Input @value={{this.user.name}} class="form-control" id="name" title="Full Name" placeholder="Full Name" />
             </div>
             <div class="form-group">
-              {{input value=this.user.user_name class="form-control" id="user_name" title="user name" placeholder="User name (optional, we can pick for you)"}}
+              <Input @value={{this.user.user_name}} class="form-control" id="user_name" title="user name" placeholder="User name (optional, we can pick for you)" />
               {{#if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.checking}}
@@ -219,13 +219,13 @@
               {{/if}}
             </div>
             <div class="form-group">
-              {{input value=this.user.email class="form-control" id="email" title="Email" placeholder="Email"}}
+              <Input @value={{this.user.email}} class="form-control" id="email" title="Email" placeholder="Email" />
               {{#if this.badEmail}}
                 <span class='text-danger'>{{t "email required" key="email_required"}}</span>
               {{/if}}
             </div>
             <div class="form-group">
-              {{input type="password" value=this.user.password class="form-control" id="password" title="password" placeholder="Password"}}
+              <Input @type="password" @value={{this.user.password}} class="form-control" id="password" title="password" placeholder="Password" />
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br>
               {{/if}}
@@ -235,7 +235,7 @@
             </div>
             <div class='form-group'>
               {{#if this.start_code}}
-                {{input value=this.user.start_code class="form-control" id="start_code" title="Start Code" placeholder="Start Code (optional, if provided)"}}
+                <Input @value={{this.user.start_code}} class="form-control" id="start_code" title="Start Code" placeholder="Start Code (optional, if provided)" />
               {{else}}
                 <a href='#' {{action "set_start_code"}}>{{t " I have a start code" key="have_a_start_code"}}</a>
               {{/if}}
@@ -243,13 +243,13 @@
             <div class="form-group">
               <div class="checkbox big_checkbox">
                 <label style="font-weight: normal;">
-                  {{input type="checkbox" checked=this.user.preferences.cookies}}
+                  <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
                   {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
                 </label>
               </div>
               <div class="checkbox big_checkbox" style='margin-bottom: 10px;'>
                 <label style="font-weight: normal;">
-                  {{input type="checkbox" checked=this.user.terms_agree}}
+                  <Input @type="checkbox" @checked={{this.user.terms_agree}} />
                   By registering or using the product, you are agreeing that you have read and understood the <a href="/terms">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
                 </label>
               </div>

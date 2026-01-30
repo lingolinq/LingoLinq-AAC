@@ -9,7 +9,7 @@
       <p class='text-danger'>{{t "NOTE: This list does not include all sub-boards, but you can still choose to copy all sub-boards even if they aren't in the list" key="missing_boards_selectable"}}</p>
       {{#if this.selectable}}
         <label>
-          {{input type="checkbox" checked=this.hierarchy.include_missing}}
+          <Input @type="checkbox" @checked={{this.hierarchy.include_missing}} />
           {{t "Include all sub-boards, even if not listed" key="include_missing_sub_boards"}}
         </label>
       {{/if}}

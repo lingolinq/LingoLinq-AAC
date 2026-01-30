@@ -4,7 +4,7 @@
     <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
     <div class="col-sm-7">
       {{#if this.model.permissions.update_licenses}}
-        {{input value=this.model.name class="form-control" id="name" placeholder="Recording Name"}}
+        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Recording Name" />
       {{else}}
         <p class='form-control-static'>{{this.model.name}}</p>
       {{/if}}
@@ -40,7 +40,7 @@
     <div class="form-group">
       <label for="logo_url" class="col-sm-3 control-label">{{t "Logo URL" key="logo_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.image_url class="form-control" id="logo_url" placeholder="URL to (circular) image, ~50px"}}
+        <Input @value={{this.model.image_url}} class="form-control" id="logo_url" placeholder="URL to (circular) image, ~50px" />
       </div>
     </div>
   {{/if}}
@@ -48,7 +48,7 @@
     <div class="form-group">
       <label for="inactivity_timeout" class="col-sm-3 control-label">{{t "Login Timeout" key="inactivity_timeout"}}</label>
       <div class="col-sm-3">
-        {{input id="inactivity_timeout" value=this.model.inactivity_timeout class="form-control" type="text"}}
+        <Input id="inactivity_timeout" @value={{this.model.inactivity_timeout}} class="form-control" @type="text" />
       </div>
       <div class='col-sm-3'>{{t "minutes" key="minutes"}}</div>
     </div>
@@ -57,7 +57,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.model.org_access type="checkbox"}}
+            <Input @checked={{this.model.org_access}} @type="checkbox" />
             {{t "Allow manager access to the org management tool" key="allow_org_access"}}
           </label>
         </div>
@@ -68,7 +68,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.model.premium type="checkbox"}}
+            <Input @checked={{this.model.premium}} @type="checkbox" />
               {{t "This org has an active annual subscription" key="allow_premium"}}
           </label>
         </div>
@@ -77,7 +77,7 @@
     <div class="form-group">
       <label for="parent_org_id" class="col-sm-3 control-label">{{t "Parent Org ID" key="parent_org_id"}}</label>
       <div class="col-sm-1">
-        {{input value=this.model.parent_org_id class="form-control" id="parent_org_id" placeholder="ID of Parent Org"}}
+        <Input @value={{this.model.parent_org_id}} class="form-control" id="parent_org_id" placeholder="ID of Parent Org" />
       </div>
       <div class="col-sm-5">
         {{#if this.model.parent_org.name}}
@@ -96,22 +96,22 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.external_auth type="checkbox"}}
+            <Input @checked={{this.external_auth}} @type="checkbox" />
             {{t "Enable external authentication (beta)" key="enable_external_auth"}}
           </label>
         </div>
       </div>
       {{#if this.external_auth}}
         <div class="col-sm-7 col-sm-offset-3" style='margin-top: 5px;'>
-          {{input value=this.model.saml_metadata_url class="form-control" id="metadata_url" placeholder="SAML Metadata URL"}}
+          <Input @value={{this.model.saml_metadata_url}} class="form-control" id="metadata_url" placeholder="SAML Metadata URL" />
         </div>
         <div class="col-sm-7 col-sm-offset-3" style='margin-top: 5px;'>
-          {{input value=this.model.saml_sso_url class="form-control" id="sso_url" placeholder="SSO URL Override (optional)"}}
+          <Input @value={{this.model.saml_sso_url}} class="form-control" id="sso_url" placeholder="SSO URL Override (optional)" />
         </div>
         <div class="col-sm-7 col-sm-offset-3" style='margin-top: 5px;'>
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=this.model.saml_enforced type="checkbox"}}
+              <Input @checked={{this.model.saml_enforced}} @type="checkbox" />
               {{t "Require all org users to log in using external authentication" key="require_external_auth"}}
             </label>
           </div>
@@ -125,7 +125,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.allow_support_target type="checkbox"}}
+            <Input @checked={{this.allow_support_target}} @type="checkbox" />
               {{t "Email a copy of all support tickets from within this organization" key="allow_support_target"}}
           </label>
         </div>
@@ -133,7 +133,7 @@
     </div>
     {{#if this.allow_support_target}}
       <div class='col-sm-7 col-sm-offset-3' style='margin-top: -5px; margin-bottom: 10px;'>
-        {{input value=this.support_email class="form-control" placeholder="email address"}}
+        <Input @value={{this.support_email}} class="form-control" placeholder="email address" />
       </div>
     {{/if}}
   {{/if}}
@@ -177,28 +177,28 @@
     <div class="form-group">
       <label for="comm_prof_id" class="col-sm-3 control-label">{{t "Profiles" key="profiling"}}</label>
       <div class="col-sm-2" style='margin-bottom: 5px;'>
-        {{input value=this.model.communicator_profile_id class="form-control" id="comm_prof_id" placeholder="ID of default for communicators"}}
+        <Input @value={{this.model.communicator_profile_id}} class="form-control" id="comm_prof_id" placeholder="ID of default for communicators" />
       </div>
       <div class='col-sm-4' style='margin-bottom: 5px;'>
         <p class='form-control-static'>{{t "for communicators" key="for_communicators"}}</p>
       </div>
       {{#unless this.no_communicator_profile}}
         <div class="col-sm-1 col-sm-offset-3">
-          {{input value=this.model.communicator_profile_frequency class="form-control" id="comm_prof_freq" placeholder="##"}}
+          <Input @value={{this.model.communicator_profile_frequency}} class="form-control" id="comm_prof_freq" placeholder="##" />
         </div>
         <div class='col-sm-5'>
           <p class='form-control-static'>{{t "months until next profile due" key="days_until_next_profile_due"}}</p>
         </div>
       {{/unless}}
       <div class="col-sm-2 col-sm-offset-3" style='margin-top: 5px; margin-bottom: 5px;'>
-        {{input value=this.model.supervisor_profile_id class="form-control" id="comm_sup_id" placeholder="ID of default for supervisors"}}
+        <Input @value={{this.model.supervisor_profile_id}} class="form-control" id="comm_sup_id" placeholder="ID of default for supervisors" />
       </div>
       <div class='col-sm-4' style='margin-top: 5px; margin-bottom: 5px;'>
         <p class='form-control-static'>{{t "for supervisors" key="for_supervisors"}}</p>
       </div>
       {{#unless this.no_supervisor_profile}}
         <div class="col-sm-1 col-sm-offset-3">
-          {{input value=this.model.supervisor_profile_frequency class="form-control" id="comm_sup_freq" placeholder="##"}}
+          <Input @value={{this.model.supervisor_profile_frequency}} class="form-control" id="comm_sup_freq" placeholder="##" />
         </div>
         <div class='col-sm-5'>
           <p class='form-control-static'>{{t "months until next profile due" key="days_until_next_profile_due"}}</p>
@@ -225,103 +225,103 @@
     <div class="form-group">
       <label for="app_name" class="col-sm-3 control-label">{{t "App Name" key="app_name_prompt"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.app_name class="form-control" id="app_name" placeholder="name for the application"}}
+        <Input @value={{this.model.host_settings.app_name}} class="form-control" id="app_name" placeholder="name for the application" />
       </div>
     </div>
     <div class="form-group">
       <label for="company_name" class="col-sm-3 control-label">{{t "Organization Name" key="company_name"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.company_name class="form-control" id="company_name" placeholder="shown in the app"}}
+        <Input @value={{this.model.host_settings.company_name}} class="form-control" id="company_name" placeholder="shown in the app" />
       </div>
     </div>
     <div class="form-group">
       <label for="admin_email" class="col-sm-3 control-label">{{t "Admin Email" key="admin_email"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.admin_email class="form-control" id="admin_email" placeholder="for alerts and messages"}}
+        <Input @value={{this.model.host_settings.admin_email}} class="form-control" id="admin_email" placeholder="for alerts and messages" />
       </div>
     </div>
     <div class="form-group">
       <label for="logo_url" class="col-sm-3 control-label">{{t "Logo Image URL" key="logo_image_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.logo_url class="form-control" id="logo_url" placeholder="100px x 100px"}}
+        <Input @value={{this.model.host_settings.logo_url}} class="form-control" id="logo_url" placeholder="100px x 100px" />
       </div>
     </div>
     <div class="form-group">
       <label for="css_url" class="col-sm-3 control-label">{{t "CSS Override URL" key="css_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.css_url class="form-control" id="css_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.css_url}} class="form-control" id="css_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="support_url" class="col-sm-3 control-label">{{t "Customer Support URL" key="support_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.support_url class="form-control" id="support_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.support_url}} class="form-control" id="support_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="board_user_name" class="col-sm-3 control-label">{{t "Suggest Boards User Name" key="board_user_name"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.board_user_name class="form-control" id="board_user_name" placeholder="user_name"}}
+        <Input @value={{this.model.host_settings.board_user_name}} class="form-control" id="board_user_name" placeholder="user_name" />
       </div>
     </div>
     <div class="form-group">
       <label for="ios_store_url" class="col-sm-3 control-label">{{t "iOS App Store URL" key="ios_store_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.ios_store_url class="form-control" id="ios_store_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.ios_store_url}} class="form-control" id="ios_store_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="play_store_url" class="col-sm-3 control-label">{{t "Google Play Store URL" key="play_store_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.play_store_url class="form-control" id="play_store_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.play_store_url}} class="form-control" id="play_store_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="kindle_store_url" class="col-sm-3 control-label">{{t "Amazon Kindle Store URL" key="kindle_store_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.kindle_store_url class="form-control" id="kindle_store_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.kindle_store_url}} class="form-control" id="kindle_store_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="windows_64_bit_url" class="col-sm-3 control-label">{{t "Windows 64-bit URL" key="windows_64_bit_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.windows_64_bit_url class="form-control" id="windows_64_bit_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.windows_64_bit_url}} class="form-control" id="windows_64_bit_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="windows_32_bit_url" class="col-sm-3 control-label">{{t "Windows 32-bit Download URL" key="windows_32_bit_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.windows_32_bit_url class="form-control" id="windows_32_bit_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.windows_32_bit_url}} class="form-control" id="windows_32_bit_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="blog_url" class="col-sm-3 control-label">{{t "Blog URL" key="blog_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.blog_url class="form-control" id="blog_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.blog_url}} class="form-control" id="blog_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="twitter_url" class="col-sm-3 control-label">{{t "Twitter URL" key="twitter_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.twitter_url class="form-control" id="twitter_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.twitter_url}} class="form-control" id="twitter_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="twitter_handle" class="col-sm-3 control-label">{{t "Twitter Handle" key="twitter_handle"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.twitter_handle class="form-control" id="twitter_handle" placeholder="@whoever"}}
+        <Input @value={{this.model.host_settings.twitter_handle}} class="form-control" id="twitter_handle" placeholder="@whoever" />
       </div>
     </div>
     <div class="form-group">
       <label for="facebook_url" class="col-sm-3 control-label">{{t "Facebook URL" key="facebook_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.facebook_url class="form-control" id="facebook_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.facebook_url}} class="form-control" id="facebook_url" placeholder="https://" />
       </div>
     </div>
     <div class="form-group">
       <label for="youtube_url" class="col-sm-3 control-label">{{t "YouTube URL" key="youtube_url"}}</label>
       <div class="col-sm-7">
-        {{input value=this.model.host_settings.youtube_url class="form-control" id="youtube_url" placeholder="https://"}}
+        <Input @value={{this.model.host_settings.youtube_url}} class="form-control" id="youtube_url" placeholder="https://" />
       </div>
     </div>
   {{/if}}

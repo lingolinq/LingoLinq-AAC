@@ -38,7 +38,7 @@
               {{#each this.word_types as |type|}}
                 {{#if type.id}}
                   <li class='list-group-item' style={{type.style}}>
-                    <label>{{input type="checkbox" checked=type.checked}} {{type.name}}</label>
+                    <label><Input @type="checkbox" @checked={{type.checked}} /> {{type.name}}</label>
                   </li>
                 {{/if}}
               {{/each}}
@@ -49,7 +49,7 @@
           <div class="form-group">
             <label for="base" class="col-sm-3 control-label">{{t "Root Noun" key="base"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="base" placeholder="root word"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="base" placeholder="root word" />
               <em class='text-muted'>{{t "I would like to own a <b>%{word}</b>." word=this.inflection_options.base key="base_noun_example"}}</em>
             </div>
           </div>
@@ -57,7 +57,7 @@
           <div class="form-group">
             <label for="base" class="col-sm-3 control-label">{{t "Root Adjective" key="root_adjective"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="base" placeholder="root word"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="base" placeholder="root word" />
               <em class='text-muted'>{{t "That looks very <b>%{word}</b> to me." word=this.inflection_options.base key="base_adjective_example"}}</em>
             </div>
           </div>
@@ -65,7 +65,7 @@
           <div class="form-group">
             <label for="base" class="col-sm-3 control-label">{{t "Root Adverb" key="root_adverb"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="base" placeholder="root word"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="base" placeholder="root word" />
               <em class='text-muted'>{{t "He stood there <b>%{word}</b> waiting." word=this.inflection_options.base key="base_adverb_example"}}</em>
             </div>
           </div>
@@ -73,7 +73,7 @@
           <div class="form-group">
             <label for="base" class="col-sm-3 control-label">{{t "Root Verb" key="root_verb"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="base" placeholder="root word"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="base" placeholder="root word" />
               <em class='text-muted'>{{t "I <b>%{word}</b> in the face of danger!" word=this.inflection_options.base key="base_verb_example"}}</em>
             </div>
           </div>
@@ -81,7 +81,7 @@
           <div class="form-group">
             <label for="base" class="col-sm-3 control-label">{{t "Root Pronoun" key="root_pronoun"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="base" placeholder="root"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="base" placeholder="root" />
               <em class='text-muted'>{{t "That is not what <b>%{word}</b> said." word=this.inflection_options.base key="base_pronoun_example"}}</em>
             </div>
           </div>
@@ -100,14 +100,14 @@
           <div class="form-group">
             <label for="plural" class="col-sm-3 control-label">{{t "Plural" key="plural"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.plural class="form-control" id="plural" placeholder="plural"}}
+              <Input @value={{this.inflection_options.plural}} class="form-control" id="plural" placeholder="plural" />
               <em class='text-muted'>{{t "Can I have two <b>%{word}</b>, please?" word=this.inflection_options.plural key="plural_noun_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="possessive" class="col-sm-3 control-label">{{t "Possessive" key="possessive"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.possessive class="form-control" id="possessive" placeholder="possessive"}}
+              <Input @value={{this.inflection_options.possessive}} class="form-control" id="possessive" placeholder="possessive" />
               <em class='text-muted'>{{t "The <b>%{word}</b> age is starting to show." word=this.inflection_options.possessive key="possessive_noun_example"}}</em>
             </div>
           </div>
@@ -116,28 +116,28 @@
           <div class="form-group">
             <label for="comparative" class="col-sm-3 control-label">{{t "Comparative" key="comparative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.comparative class="form-control" id="comparative" placeholder="comparative"}}
+              <Input @value={{this.inflection_options.comparative}} class="form-control" id="comparative" placeholder="comparative" />
               <em class='text-muted'>{{t "Yours is much <b>%{word}</b> than mine." word=this.inflection_options.comparative key="comparative_adjective_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="superlative" class="col-sm-3 control-label">{{t "Superlative" key="superlative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.superlative class="form-control" id="superlative" placeholder="superlative"}}
+              <Input @value={{this.inflection_options.superlative}} class="form-control" id="superlative" placeholder="superlative" />
               <em class='text-muted'>{{t "His is <b>%{word}</b> of all!" word=this.inflection_options.superlative key="superlative_adjective_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="negative_comparative" class="col-sm-3 control-label">{{t "Negative Comparative" key="negative_comparative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.negative_comparative class="form-control" id="negative_comparative" placeholder="negative_comparative"}}
+              <Input @value={{this.inflection_options.negative_comparative}} class="form-control" id="negative_comparative" placeholder="negative_comparative" />
               <em class='text-muted'>{{t "Oh well, mine is <b>%{word}</b> than I hoped it would be." word=this.inflection_options.negative_comparative key="negative_comparative_adjective_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="plural_adj" class="col-sm-3 control-label">{{t "Plural" key="plural"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.plural class="form-control" id="plural_adj" placeholder="plural"}}
+              <Input @value={{this.inflection_options.plural}} class="form-control" id="plural_adj" placeholder="plural" />
               <em class='text-muted'>{{t "I like how the <b>%{word}</b> stand out in that picture." word=this.inflection_options.plural key="plural_adjective_example"}}</em>
             </div>
           </div>
@@ -146,21 +146,21 @@
           <div class="form-group">
             <label for="comparative_adv" class="col-sm-3 control-label">{{t "Comparative" key="comparative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.comparative class="form-control" id="comparative_adv" placeholder="comparative"}}
+              <Input @value={{this.inflection_options.comparative}} class="form-control" id="comparative_adv" placeholder="comparative" />
               <em class='text-muted'>{{t "She waved her arms <b>%{word}</b> than last time." word=this.inflection_options.comparative key="comparative_adverb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="superlative_adv" class="col-sm-3 control-label">{{t "Superlative" key="superlative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.superlative class="form-control" id="superlative_adv" placeholder="superlative"}}
+              <Input @value={{this.inflection_options.superlative}} class="form-control" id="superlative_adv" placeholder="superlative" />
               <em class='text-muted'>{{t "They looked up <b>%{word}</b>." word=this.inflection_options.superlative key="superlative_adverb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="negative_comparative_adv" class="col-sm-3 control-label">{{t "Negative Comparative" key="negative_comparative"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.negative_comparative class="form-control" id="negative_comparative_adv" placeholder="negative_comparative"}}
+              <Input @value={{this.inflection_options.negative_comparative}} class="form-control" id="negative_comparative_adv" placeholder="negative_comparative" />
               <em class='text-muted'>{{t "The ball rolled <b>%{word}</b> today than yesterday." word=this.inflection_options.negative_comparative key="negative_comparative_adverb_example"}}</em>
             </div>
           </div>
@@ -169,56 +169,56 @@
           <div class="form-group">
             <label for="infinitive" class="col-sm-3 control-label">{{t "Infinitive" key="infinitive"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.infinitive class="form-control" id="infinitive" placeholder="infinitive"}}
+              <Input @value={{this.inflection_options.infinitive}} class="form-control" id="infinitive" placeholder="infinitive" />
               <em class='text-muted'>{{t "I do not want <b>%{word}</b> until next week." word=this.inflection_options.infinitive key="infinitive_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="present" class="col-sm-3 control-label">{{t "Personal Present" key="present"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.present class="form-control" id="present" placeholder="present"}}
+              <Input @value={{this.inflection_options.present}} class="form-control" id="present" placeholder="present" />
               <em class='text-muted'>{{t "Next time I <b>%{word}</b> I will include you." word=this.inflection_options.present key="present_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="simple_present" class="col-sm-3 control-label">{{t "Simple Present" key="simple_present"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.simple_present class="form-control" id="simple_present" placeholder="simple_present"}}
+              <Input @value={{this.inflection_options.simple_present}} class="form-control" id="simple_present" placeholder="simple_present" />
               <em class='text-muted'>{{t "I think he <b>%{word}</b> a little too often." word=this.inflection_options.simple_present key="simple_present_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="plural_present" class="col-sm-3 control-label">{{t "Plural Present" key="plural_present"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.plural_present class="form-control" id="plural_present" placeholder="plural_present"}}
+              <Input @value={{this.inflection_options.plural_present}} class="form-control" id="plural_present" placeholder="plural_present" />
               <em class='text-muted'>{{t "They <b>%{word}</b> when they should be doing something else." word=this.inflection_options.plural_present key="plural_present_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="past" class="col-sm-3 control-label">{{t "Personal Past" key="past"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.past class="form-control" id="past" placeholder="past"}}
+              <Input @value={{this.inflection_options.past}} class="form-control" id="past" placeholder="past" />
               <em class='text-muted'>{{t "I can't remember when I last <b>%{word}</b> like that." word=this.inflection_options.past key="past_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="simple_past" class="col-sm-3 control-label">{{t "Simple Past" key="simple_past"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.simple_past class="form-control" id="simple_past" placeholder="simple_past"}}
+              <Input @value={{this.inflection_options.simple_past}} class="form-control" id="simple_past" placeholder="simple_past" />
               <em class='text-muted'>{{t "Yesterday they <b>%{word}</b> before lunch." word=this.inflection_options.simple_past key="simple_past_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="present_participle" class="col-sm-3 control-label">{{t "Present Participle" key="present_participle"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.present_participle class="form-control" id="present_participle" placeholder="present_participle"}}
+              <Input @value={{this.inflection_options.present_participle}} class="form-control" id="present_participle" placeholder="present_participle" />
               <em class='text-muted'>{{t "I plan on <b>%{word}</b> after I finish this sandwich." word=this.inflection_options.present_participle key="present_participle_verb_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="past_participle" class="col-sm-3 control-label">{{t "Past Participle" key="past_participle"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.past_participle class="form-control" id="past_participle" placeholder="past_participle"}}
+              <Input @value={{this.inflection_options.past_participle}} class="form-control" id="past_participle" placeholder="past_participle" />
               <em class='text-muted'>{{t "She has <b>%{word}</b> several times already." word=this.inflection_options.past_participle key="past_participle_verb_example"}}</em>
             </div>
           </div>
@@ -227,35 +227,35 @@
           <div class="form-group">
             <label for="subjective" class="col-sm-3 control-label">{{t "Subjective" key="subjective"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.base class="form-control" id="subjective" placeholder="subjective"}}
+              <Input @value={{this.inflection_options.base}} class="form-control" id="subjective" placeholder="subjective" />
               <em class='text-muted'>{{t "Why did <b>%{word}</b> eat so many of those?" word=this.inflection_options.base key="subjective_pronoun_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="objective" class="col-sm-3 control-label">{{t "Objective" key="objective"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.objective class="form-control" id="objective" placeholder="objective"}}
+              <Input @value={{this.inflection_options.objective}} class="form-control" id="objective" placeholder="objective" />
               <em class='text-muted'>{{t "Someone should probably talk to <b>%{word}</b>." word=this.inflection_options.objective key="objective_pronoun_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="possessive" class="col-sm-3 control-label">{{t "Possessive" key="possessive"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.possessive class="form-control" id="possessive" placeholder="possessive"}}
+              <Input @value={{this.inflection_options.possessive}} class="form-control" id="possessive" placeholder="possessive" />
               <em class='text-muted'>{{t "Are you sure that monkey isn't <b>%{word}</b>?" word=this.inflection_options.possessive key="possessive_pronoun_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="possessive_adjective" class="col-sm-3 control-label">{{t "Possessive Adj." key="possessive_adjective"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.possessive_adjective class="form-control" id="possessive_adjective" placeholder="possessive_adjective"}}
+              <Input @value={{this.inflection_options.possessive_adjective}} class="form-control" id="possessive_adjective" placeholder="possessive_adjective" />
               <em class='text-muted'>{{t "That sounds like one of <b>%{word}</b> songs." word=this.inflection_options.possessive_adjective key="possessive_adjective_pronoun_example"}}</em>
             </div>
           </div>
           <div class="form-group">
             <label for="reflexive" class="col-sm-3 control-label">{{t "Reflexive" key="reflexive"}}</label>
             <div class="col-sm-7">
-              {{input value=this.inflection_options.reflexive class="form-control" id="reflexive" placeholder="reflexive"}}
+              <Input @value={{this.inflection_options.reflexive}} class="form-control" id="reflexive" placeholder="reflexive" />
               <em class='text-muted'>{{t "Wow, %{word_base} solved the maze all by <b>%{word}</b>!" word_base=this.inflection_options.base word=this.inflection_options.reflexive key="reflexive_pronoun_example"}}</em>
             </div>
           </div>
@@ -266,17 +266,17 @@
           <div class="form-group">
             <label for="antonyms" class="col-sm-3 control-label">{{t "Opposite(s)" key="opposites"}}</label>
             <div class="col-sm-7">
-              {{input value=this.antonyms class="form-control" id="antonyms" placeholder="comma, for, multiple"}}
+              <Input @value={{this.antonyms}} class="form-control" id="antonyms" placeholder="comma, for, multiple" />
             </div>
           </div>
         {{/if}}
         {{#each this.extra_inflections as |extra|}}
           <div class="form-group">
             <div class="col-sm-3">
-              {{input value=extra.type class="form-control" placeholder="N, S, E, W, etc."}}
+              <Input @value={{extra.type}} class="form-control" placeholder="N, S, E, W, etc." />
             </div>
             <div class="col-sm-7">
-              {{input value=extra.value class="form-control" placeholder="inflection"}}
+              <Input @value={{extra.value}} class="form-control" placeholder="inflection" />
             </div>
           </div>
         {{/each}}

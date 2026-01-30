@@ -97,7 +97,7 @@
       <p class="form-control-static"><strong>{{t "Add a Room" key="add_a_room"}} </strong></p>
     </div>
     <div class="form-group">
-      {{input type="text" value=this.new_unit_name placeholder="Room Name" class="form-control"}}
+      <Input @type="text" @value={{this.new_unit_name}} placeholder="Room Name" class="form-control" />
     </div>
     <button type="submit" class="btn btn-default">{{t "Add Room" key="add_room"}}</button>
   </form>

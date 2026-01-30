@@ -51,7 +51,7 @@
             <div>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input checked=this.board.update_visibility_downstream type="checkbox"}}
+                  <Input @checked={{this.board.update_visibility_downstream}} @type="checkbox" />
                   {{t "Make all linked boards public as well" key="make_all_public"}}
                 </label>
               </div>
@@ -105,7 +105,7 @@
         <form {{action "share_with_user"  on="submit"}} class="form-inline">
           <div class="row">
             <div class="col-sm-5 col-xs-6" style="margin-top: 5px;">
-              {{input value=this.share_user_name class="form-control" placeholder="user name to add"}}
+              <Input @value={{this.share_user_name}} class="form-control" placeholder="user name to add" />
             </div>
             {{#if this.app_state.currentUser.known_supervisees}}
               <div class="col-sm-1" style='margin-left: -80px; margin-top: 5px;'>
@@ -124,13 +124,13 @@
             <div class="col-sm-6">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=this.share_include_downstream}}
+                  <Input @type="checkbox" @checked={{this.share_include_downstream}} />
                   {{t "also share any linked boards" key="include_downstream_boards"}}
                 </label>
               </div>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=this.share_allow_editing}}
+                  <Input @type="checkbox" @checked={{this.share_allow_editing}} />
                   {{t "allow editing (and deleting) as well" key="include_editing_downstream_boards"}}
                 </label>
               </div>

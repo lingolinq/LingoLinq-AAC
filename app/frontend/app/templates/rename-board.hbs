@@ -19,14 +19,14 @@
       <div class="form-group">
         <label for="old_key" class="col-sm-3 control-label">{{t "Current Key" key="current_key"}}</label>
         <div class="col-sm-5">
-          {{input type="text" class="form-control" id="old_key" value=this.old_key_value placeholder="shown above"}}
+          <Input @type="text" class="form-control" id="old_key" @value={{this.old_key_value}} placeholder="shown above" />
         </div>
       </div>
 
       <div class="form-group">
         <label for="new_key" class="col-sm-3 control-label">{{t "New Key" key="new_key"}}</label>
         <div class="col-sm-5">
-          {{input type="text" class="form-control" id="new_key" value=this.new_key_value placeholder="new key"}}
+          <Input @type="text" class="form-control" id="new_key" @value={{this.new_key_value}} placeholder="new key" />
         </div>
       </div>
     </form>

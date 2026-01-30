@@ -88,7 +88,7 @@
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=this.selected_goal.user_primary id="primary"}}
+                  <Input @type="checkbox" @checked={{this.selected_goal.user_primary}} id="primary" />
                   {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
                 </label>
               </div>
@@ -99,7 +99,7 @@
           <div class="form-group">
             <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
             <div class="col-sm-7" style='max-width: 300px;'>
-              {{input type="date" value=this.goal.expires class="form-control" id="new_goal_concludes"}}
+              <Input @type="date" @value={{this.goal.expires}} class="form-control" id="new_goal_concludes" />
             </div>
             <div class='col-sm-3'>
               <button class='btn btn-default' {{action "clear_expires"}}>{{t "clear" key="clear_lower"}}</button>
@@ -171,9 +171,9 @@
             <label for="new_goal_strings_list" class="col-sm-2 control-label">{{t "Target Words" key="target_words"}}</label>
             <div class="col-sm-10" style='max-width: 300px;'>
               {{#if this.goal_type.modeling}}
-                {{input value=this.goal.strings_list class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)"}}
+                <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)" />
               {{else}}
-                {{input value=this.goal.strings_list class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for"}}
+                <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for" />
               {{/if}}
             </div>
           </div>
@@ -182,7 +182,7 @@
           <div class="form-group">
             <label for="new_goal_instance_count" class="col-sm-2 control-label">{{t "Try For" key="try_for"}}</label>
             <div class="col-sm-2">
-              {{input value=this.goal.instance_count class="form-control" id="new_goal_instance_count" placeholder="#"}}
+              <Input @value={{this.goal.instance_count}} class="form-control" id="new_goal_instance_count" placeholder="#" />
             </div>
             <div class="col-sm-8">
               <p class='form-control-static'>{{this.goal_simple_action}} {{t "per day" key="per_day_lower"}}</p>
@@ -194,7 +194,7 @@
             <div class="form-group">
               <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
               <div class="col-sm-10" style='max-width: 300px;'>
-                {{input value=this.goal.summary class="form-control" id="new_goal_summary" placeholder="short goal summary"}}
+                <Input @value={{this.goal.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
               </div>
             </div>
           {{/if}}
@@ -229,7 +229,7 @@
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=this.goal.auto_assessment id="auto_assessment"}}
+                  <Input @type="checkbox" @checked={{this.goal.auto_assessment}} id="auto_assessment" />
                   {{t "Generate a daily progress report for mastery of this goal" key="auto_generate_goal_daily"}}
                 </label>
               </div>
@@ -249,7 +249,7 @@
                   {{#each this.model.users as |user|}}
                     <li>
                       <label class={{if user.not_premium "not_premium"}} style={{if user.add_goal "font-weight: bold;" "font-weight: normal;"}}>
-                        {{input type="checkbox" checked=user.add_goal disabled=user.not_premium}}
+                        <Input @type="checkbox" @checked={{user.add_goal}} disabled={{user.not_premium}} />
                         <img src={{user.avatar_url}} style="height: 30px; max-width: 30px;">
                         {{user.user_name}}
                       </label>
@@ -267,7 +267,7 @@
                 <div class="col-sm-10">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input type="checkbox" checked=this.goal.set_badges id="set_badges"}}
+                      <Input @type="checkbox" @checked={{this.goal.set_badges}} id="set_badges" />
                       {{t "I want to create earnable badges as part of this goal" key="created_badges"}}
                     </label>
                   </div>
@@ -281,7 +281,7 @@
                   <div class="col-sm-10">
                     <div class="checkbox big_checkbox">
                       <label>
-                        {{input type="checkbox" checked=this.goal.primary id="primary"}}
+                        <Input @type="checkbox" @checked={{this.goal.primary}} id="primary" />
                         {{#if this.model.user.user_goal}}
                           {{t "Set as the User's New Primary Goal" key="set_as_new_primary_user_goal"}}
                         {{else}}
@@ -299,7 +299,7 @@
           <div class="form-group">
             <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
             <div class="col-sm-7" style='max-width: 300px;'>
-              {{input type="date" value=this.goal.expires class="form-control" id="new_goal_concludes"}}
+              <Input @type="date" @value={{this.goal.expires}} class="form-control" id="new_goal_concludes" />
             </div>
             <div class='col-sm-3'>
               <button class='btn btn-default' {{action "clear_expires"}}>{{t "clear" key="clear_lower"}}</button>

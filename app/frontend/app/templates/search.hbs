@@ -2,7 +2,7 @@
   <div class="col-sm-12">
     <form class="form-inline">
       <div class="form-group">
-      {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+      <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
       </div>
       <div class="form-group thin_select" style='width: 80px;'>
         {{bound-select select_class="form-control" content=this.locales selection=this.locale action=(action (mut this.locale)) }}

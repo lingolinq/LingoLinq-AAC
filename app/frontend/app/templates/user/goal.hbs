@@ -113,7 +113,7 @@
         <div class="form-group">
           <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
           <div class="col-sm-10" style='max-width: 300px;'>
-            {{input value=this.model.summary class="form-control" id="new_goal_summary" placeholder="short goal summary"}}
+            <Input @value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
           </div>
         </div>
         <div class="form-group">
@@ -145,7 +145,7 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.auto_assessment id="auto_assessment"}}
+                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
                 {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
@@ -166,7 +166,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.model.badges_enabled id="badges"}}
+              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
@@ -176,7 +176,7 @@
         <div class="form-group">
           <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
-            {{input value=this.model.badge_name class="form-control" id="badge_name" placeholder=this.model.summary}}
+            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} />
           </div>
         </div>
         {{#each this.model.badges as |badge index|}}

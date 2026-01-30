@@ -200,7 +200,7 @@
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=this.manager_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <Input @value={{this.manager_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
       <button class="btn btn-default btn-sm" {{action "management_action" "add_manager"}}>{{t "Add Manager" key="add_manager"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_assistant"}}>{{t "Add Assistant" key="add_assistant"}}</button>
       <a href="#" {{action "new_user" "add_manager"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
@@ -265,7 +265,7 @@
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=this.supervisor_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <Input @value={{this.supervisor_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
       <button disabled={{this.no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
       <a href="#" {{action "new_user" "add_supervisor"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
@@ -330,7 +330,7 @@
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=this.user_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <Input @value={{this.user_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
       <button disabled={{this.no_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
       <button class="btn btn-default btn-sm" {{action "management_action" "add_unsponsored_user"}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
       <a href="#" {{action "new_user" "add_user"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
@@ -383,7 +383,7 @@
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=this.eval_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <Input @value={{this.eval_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
       <button disabled={{this.no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
       {{#unless this.no_eval_licenses}}
         <a href="#" {{action "new_user" "add_eval"}} style='padding-left: 10px;'>{{t "New Eval Account" key="new_eval"}}</a>
@@ -427,7 +427,7 @@
       <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
     {{/if}}
     <div style='margin-top: -15px;'>
-      {{input value=this.extras_user_name placeholder="user name" class="form-control inline inline-masquerade input-sm"}}
+      <Input @value={{this.extras_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
       <button disabled={{this.no_extras}} class="btn btn-default btn-sm" {{action "management_action" "add_extras" this.extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
     </div>
   {{/if}}
@@ -458,7 +458,7 @@
             {{t "organization" key="n_organizations" count=this.orgs.data.length}}
           </p>
           <span style='display: block; width: 200px;'>
-            {{input type="text" value=this.org_filter class="form-control" placeholder="search orgs"}}
+            <Input @type="text" @value={{this.org_filter}} class="form-control" placeholder="search orgs" />
           </span>
           <table class="table table-hover" style="width: 400px;">
             <tbody>
@@ -530,8 +530,8 @@
           <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
         {{/if}}
         <div style='margin-top: -15px;'>
-          {{input value=this.org_org_name placeholder="org name" class="form-control inline inline-masquerade input-sm"}}
-          {{input value=this.org_user_name placeholder="admin user name" class="form-control inline inline-masquerade input-sm"}}
+          <Input @value={{this.org_org_name}} placeholder="org name" class="form-control inline inline-masquerade input-sm" />
+          <Input @value={{this.org_user_name}} placeholder="admin user name" class="form-control inline inline-masquerade input-sm" />
           <button class="btn btn-default btn-sm" {{action "add_org"}}>{{t "Add Organization" key="add_org"}}</button>
         </div>
       {{/if}}

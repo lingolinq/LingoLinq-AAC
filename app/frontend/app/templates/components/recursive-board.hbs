@@ -1,6 +1,6 @@
 <li class={{if @board.selected "selected"}}>
   {{#if @selectable}}
-    {{input type="checkbox" checked=@board.selected disabled=@board.disabled}}
+    <Input @type="checkbox" @checked={{@board.selected}} disabled={{@board.disabled}} />
   {{/if}}
   {{#if @board.children}}
     <a href="#" {{action @toggleBoardHierarchy @board.id}}>

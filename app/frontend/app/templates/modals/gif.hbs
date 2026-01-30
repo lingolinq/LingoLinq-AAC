@@ -7,7 +7,7 @@
   </div>
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div style='display: none;'>
-      {{input type="text" value=search class="input"}}
+      <Input @type="text" @value={{search}} class="input" />
       <button type='button' class="btn btn-default" {{action "search"}}>{{t "Search" key="search"}}</button>
     </div>
 

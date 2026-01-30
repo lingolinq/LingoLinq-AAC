@@ -20,7 +20,7 @@
         <label for="name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           <div style="width: 100px;">
-            {{input value=this.model.board.name class="form-control" id="name" placeholder="Board"}}
+            <Input @value={{this.model.board.name}} class="form-control" id="name" placeholder="Board" />
           </div>
         </div>
       </div>
@@ -44,7 +44,7 @@
         <label for="home" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
         <div class="col-sm-10">
           <label id='home'>
-            {{input type="checkbox" checked=this.model.board.home_lock}}
+            <Input @type="checkbox" @checked={{this.model.board.home_lock}} />
             {{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}
           </label>
         </div>

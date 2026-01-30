@@ -85,7 +85,7 @@
     <div class="form-group">
       <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
       <div class="col-sm-5">
-        {{input value=this.new_goal.summary class="form-control" id="summary" placeholder="short goal summary"}}
+        <Input @value={{this.new_goal.summary}} class="form-control" id="summary" placeholder="short goal summary" />
       </div>
     </div>
     <div class="form-group">
@@ -100,7 +100,7 @@
         <div class="col-sm-5">
           <div class='checkbox big_checkbox'>
             <label>
-              {{input type="checkbox" checked=this.new_goal.global id="global"}}
+              <Input @type="checkbox" @checked={{this.new_goal.global}} id="global" />
               {{t "This will be a global goal - all users can automatically earn badges for it" key="make_goal_global"}}
             </label>
           </div>
@@ -113,7 +113,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.new_goal.sequence id="sequence"}}
+              <Input @type="checkbox" @checked={{this.new_goal.sequence}} id="sequence" />
               {{t "This will be a sequence of goals" key="make_goal_sequence"}}
             </label>
           </div>
@@ -124,7 +124,7 @@
       <div class="form-group">
         <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
         <div class="col-sm-5">
-          {{input value=this.new_goal.sequence_summary class="form-control" id="sequence_summary" placeholder="short sequence summary"}}
+          <Input @value={{this.new_goal.sequence_summary}} class="form-control" id="sequence_summary" placeholder="short sequence summary" />
         </div>
       </div>
       <div class="form-group">
@@ -140,7 +140,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.new_goal.auto_assessment id="auto_assessment"}}
+              <Input @type="checkbox" @checked={{this.new_goal.auto_assessment}} id="auto_assessment" />
               {{t "Assess this goal daily based on usage data" key="assess_goal_daily"}}
             </label>
           </div>
@@ -155,7 +155,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            {{input type="checkbox" checked=this.new_goal.badges_enabled id="badges"}}
+            <Input @type="checkbox" @checked={{this.new_goal.badges_enabled}} id="badges" />
             {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
           </label>
         </div>
@@ -165,7 +165,7 @@
       <div class="form-group">
         <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
         <div class="col-sm-5">
-          {{input value=this.new_goal.badge_name class="form-control" id="badge_name" placeholder="optional badge name"}}
+          <Input @value={{this.new_goal.badge_name}} class="form-control" id="badge_name" placeholder="optional badge name" />
         </div>
       </div>
       {{#each this.new_goal.badges as |badge index|}}

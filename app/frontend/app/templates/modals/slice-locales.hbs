@@ -33,7 +33,7 @@
               <li>
                 <div class="checkbox big_checkbox" style='margin: 0;'>
                 <label style={{if lang.keep "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
-                  {{input type="checkbox" checked=lang.keep}}
+                  <Input @type="checkbox" @checked={{lang.keep}} />
                   {{lang.str}} ({{lang.loc}})
                 </label>
                 </div>

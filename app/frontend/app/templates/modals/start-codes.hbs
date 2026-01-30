@@ -108,7 +108,7 @@
             <div class="form-group">
               <label for="code" class="col-sm-3 control-label">{{t "Code" key="code"}}</label>
               <div class="col-sm-9">
-                {{input class="form-control" type="text" value=this.code placeholder="(optional)"}}
+                <Input class="form-control" @type="text" @value={{this.code}} placeholder="(optional)" />
                 {{#if this.invalid_code}}
                   <em class='text-danger'>{{t "codes must be 7+ characters long and start with a letter" key="codes_must_start_with_letter"}}</em>
                 {{/if}}
@@ -127,7 +127,7 @@
                 <div class="col-sm-9">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input id="premium" type="checkbox" checked=this.premium}}
+                      <Input id="premium" @type="checkbox" @checked={{this.premium}} />
                       {{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}
                     </label>
                   </div>
@@ -139,7 +139,7 @@
                   <div class="col-sm-9">
                     <div class="checkbox big_checkbox">
                       <label>
-                        {{input id="premium_symbols" type="checkbox" checked=this.premium_symbols}}
+                        <Input id="premium_symbols" @type="checkbox" @checked={{this.premium_symbols}} />
                         {{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}
                       </label>
                     </div>
@@ -163,21 +163,21 @@
               <div class="form-group">
                 <label for="supervisor" class="col-sm-3 control-label">{{t "Supervisor" key="supervisor"}}</label>
                 <div class="col-sm-9">
-                  {{input class="form-control" type="text" value=this.supervisors placeholder="(optional supervisor user names, comma-separated)"}}
+                  <Input class="form-control" @type="text" @value={{this.supervisors}} placeholder="(optional supervisor user names, comma-separated)" />
                 </div>
               </div>
             {{/if}}
             <div class="form-group">
               <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
               <div class="col-sm-9">
-                {{input class="form-control" type="text" value=this.home_board_key placeholder="(optional board key to copy)"}}
+                <Input class="form-control" @type="text" @value={{this.home_board_key}} placeholder="(optional board key to copy)" />
                 <!-- TODO: dropdown on org, search option on supervisor -->
               </div>
               {{#if this.home_board_key}}
                 <div class="col-sm-9 col-sm-offset-3">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input id="premium" type="checkbox" checked=this.shallow_clone}}
+                      <Input id="premium" @type="checkbox" @checked={{this.shallow_clone}} />
                       {{t "Apply shallow clones" key="apply_shallow_clones"}}
                     </label>
                   </div>
@@ -209,7 +209,7 @@
                 </label>
                 <div class="col-sm-9">
                   <label id='home'>
-                    {{input type="checkbox" checked=this.downstream}}
+                    <Input @type="checkbox" @checked={{this.downstream}} />
                     {{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}
                   </label>
                 </div>

@@ -4,7 +4,7 @@
   <div class="form-group">
     <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.name class="form-control" id="name" placeholder="Full Name"}}
+      <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
     </div>
   </div>
   <div class="form-group">
@@ -18,13 +18,13 @@
   <div class="form-group">
     <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.email class="form-control" id="email" placeholder=""}}
+      <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
     </div>
   </div>
   <div class="form-group">
     <label for="email" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.cell_phone class="form-control" id="cell_phone" placeholder="optional, for alerts"}}
+      <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
     </div>
   </div>
   <div class="form-group">
@@ -96,10 +96,10 @@
       </div>
       {{#if this.model.permissions.edit}}
         <div class='col-sm-3 col-sm-offset-3'>
-          {{input type="text" class="form-control" value=this.contact_name placeholder="Contact Name"}}
+          <Input @type="text" class="form-control" @value={{this.contact_name}} placeholder="Contact Name" />
         </div>
         <div class='col-sm-2'>
-          {{input type="text" class="form-control" value=this.contact_contact placeholder="email or cell #"}}
+          <Input @type="text" class="form-control" @value={{this.contact_contact}} placeholder="email or cell #" />
           <span style="font-size: 12px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>
@@ -128,7 +128,7 @@
     <div class="col-sm-5">
       <div class="checkbox big_checkbox">
         <label>
-          {{input type="checkbox" checked=this.model.public id="public"}}
+          <Input @type="checkbox" @checked={{this.model.public}} id="public" />
           {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
           <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
         </label>
@@ -148,13 +148,13 @@
     <div class="form-group">
       <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
       <div class="col-sm-5">
-        {{input type="password" value=this.model.old_password class="form-control" id="old_password" placeholder="current password"}}
+        <Input @type="password" @value={{this.model.old_password}} class="form-control" id="old_password" placeholder="current password" />
       </div>
     </div>
     <div class="form-group">
       <label class="col-sm-3 control-label"></label>
       <div class="col-sm-5">
-        {{input type="password" value=this.model.password class="form-control" id="password" placeholder="new password"}}
+        <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="new password" />
       </div>
     </div>
   {{/unless}}
@@ -164,7 +164,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            {{input type="checkbox" checked=this.allow_external_device id="third_party"}}
+            <Input @type="checkbox" @checked={{this.allow_external_device}} id="third_party" />
             {{t "This user uses a third-party app instead of %app_name% to communicate" key="user_third_party_app"}}
           </label>
         </div>
@@ -174,7 +174,7 @@
       <div class="form-group">
         <label for="device_type" class="col-sm-3 control-label">{{t "App/Device" key="app_device"}}</label>
         <div class="col-sm-4">
-          {{input value=this.external_device class="form-control" id="device_type" placeholder="third-party app or device name"}}
+          <Input @value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" />
         </div>
         <div class="col-sm-1" style='margin-left: -35px;'>
           <div class='btn-group dropdown'>
@@ -193,7 +193,7 @@
         <div class="form-group">
           <label for="vocabulary_type" class="col-sm-3 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
           <div class="col-sm-4">
-            {{input value=this.external_vocab class="form-control" id="vocabulary_type" placeholder="vocabulary used"}}
+            <Input @value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" />
           </div>
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group dropdown' style='max-height: 183px;'>
@@ -211,7 +211,7 @@
         <div class="form-group">
           <label for="vocab_size" class="col-sm-3 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
           <div class="col-sm-2">
-            {{input type="number" value=this.external_vocab_size class="form-control" id="vocab_size" placeholder="###"}}
+            <Input @type="number" @value={{this.external_vocab_size}} class="form-control" id="vocab_size" placeholder="###" />
           </div>
           <div class='col-sm-3'>
             <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>
@@ -233,7 +233,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.model.valet_login id="valet_login"}}
+              <Input @type="checkbox" @checked={{this.model.valet_login}} id="valet_login" />
               <p>{{t "Classroom login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom2"}}</p>
             </label>
           </div>
@@ -259,9 +259,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Classroom Password" key="classroom_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              {{input type="password" value=this.model.valet_password class="form-control" id="valet_password" placeholder="enter to change"}}
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" />
             {{else}}
-              {{input type="password" value=this.model.valet_password class="form-control" id="valet_password" placeholder="required"}}
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" />
             {{/if}}
           </div>
           <div class="col-sm-2">
@@ -277,7 +277,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.model.valet_login id="valet_login"}}
+              <Input @type="checkbox" @checked={{this.model.valet_login}} id="valet_login" />
               <p>{{t "Enable valet login for modeling-only access, or for shared account access within a single classroom" key="enabled_valed_login"}}</p>
               <p>{{t "Additionally, a valet login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom"}}</p>
               {{#if this.model.valet_disabled}}
@@ -307,9 +307,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Valet Password" key="valet_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              {{input type="password" value=this.model.valet_password class="form-control" id="valet_password" placeholder="enter to change"}}
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" />
             {{else}}
-              {{input type="password" value=this.model.valet_password class="form-control" id="valet_password" placeholder="required"}}
+              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" />
             {{/if}}
           </div>
           <div class="col-sm-2">
@@ -322,7 +322,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.valet_long_term id="valet_long_term"}}
+                <Input @type="checkbox" @checked={{this.model.valet_long_term}} id="valet_long_term" />
                 {{t "Allow valet logins to last longer than 24 hours" key="allow_valet_long_term"}}
               </label>
             </div>
@@ -333,7 +333,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.valet_prevent_disable id="valet_prevent_disable"}}
+                <Input @type="checkbox" @checked={{this.model.valet_prevent_disable}} id="valet_prevent_disable" />
                 {{t "Don't require re-authorization after a valet login is used" key="valet_prevent_disable"}}
               </label>
             </div>
@@ -346,19 +346,19 @@
   <div class="form-group">
     <label for="description" class="col-sm-3 control-label">{{t "One-Liner" key="one_liner"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.description class="form-control" id="description" placeholder="a short bio"}}
+      <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" />
     </div>
   </div>
   <div class="form-group">
     <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.details_url class="form-control" id="url" placeholder="https://"}}
+      <Input @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" />
     </div>
   </div>
   <div class="form-group">
     <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
     <div class="col-sm-5">
-      {{input value=this.model.location class="form-control" id="location" placeholder="City, State, Whatever"}}
+      <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" />
     </div>
   </div>
   <div class="form-group">
@@ -381,7 +381,7 @@
           {{qr-code text=this.status_2fa.uri size=300}}
           </div>
           <span style='display: inline-block; width: 200px;'>
-            {{input type="number" class="form-control" value=this.code_2fa placeholder="# # # # # #"}}
+            <Input @type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" />
           </span>
           {{#if this.status_2fa.error}}
             <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>

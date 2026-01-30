@@ -3,14 +3,14 @@
   <div class="form-group">
     <label for="label" class="col-sm-2 control-label">{{t "Label" key="label"}}</label>
     <div class="col-sm-10">
-      {{input value=this.model.label class="form-control" id="label"}}
+      <Input @value={{this.model.label}} class="form-control" id="label" />
     </div>
   </div>
   <div class="form-group" style='margin-top: -20px;'>
     <div class="col-sm-10 col-sm-offset-2">
       <div class="checkbox big_checkbox">
         <label>
-          {{input checked=this.model.hide_label type="checkbox"}}
+          <Input @checked={{this.model.hide_label}} @type="checkbox" />
           {{t "Hide the label when the picture is shown" key="hide_label"}}
         </label>
       </div>
@@ -27,7 +27,7 @@
     <div class="col-sm-10">
       <span {{action "toggle_color" "fill"}} style="display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom;" class={{this.fake_button_class}}></span>
       <span class="button_field">
-        {{input value=this.model.background_color class="form-control" id="fill"}}
+        <Input @value={{this.model.background_color}} class="form-control" id="fill" />
       </span>
       <br>
       <em style="font-size: 12px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
@@ -38,7 +38,7 @@
     <div class="col-sm-10">
       <span {{action "toggle_color" "border"}} id="background_pattern" style="display: inline-block; border-width: 3px; height: 34px; width: 70px; vertical-align: bottom;" class={{this.fake_button_class}}></span>
       <span class="button_field">
-        {{input value=this.model.border_color class="form-control" id="border"}}
+        <Input @value={{this.model.border_color}} class="form-control" id="border" />
       </span>
     </div>
   </div>
@@ -47,7 +47,7 @@
     <div class="col-sm-10">
       <div class="checkbox big_checkbox">
         <label>
-          {{input checked=this.model.hidden type="checkbox"}}
+          <Input @checked={{this.model.hidden}} @type="checkbox" />
           {{t "Hide this button from view" key="hide_this_button_from_view"}}
         </label>
       </div>

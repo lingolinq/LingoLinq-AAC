@@ -31,7 +31,7 @@
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
           <label>
-            {{input type="checkbox" checked=this.default_language}}
+            <Input @type="checkbox" @checked={{this.default_language}} />
             {{t "Switch to this as the Default Language" key="set_as_default_language"}}
           </label>
         </div>

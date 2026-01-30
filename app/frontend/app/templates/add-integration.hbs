@@ -10,14 +10,14 @@
       <div class="form-group">
         <label for="integration_name" class="col-sm-3 control-label">{{t "Tool Name" key="tool_name"}}</label>
         <div class="col-sm-9" style='max-width: 300px;'>
-          {{input value=this.integration.name class="form-control" id="integration_name" placeholder="Name"}}
+          <Input @value={{this.integration.name}} class="form-control" id="integration_name" placeholder="Name" />
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
         <div class="col-sm-9 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=this.integration.with_button_url type="checkbox"}}
+              <Input @checked={{this.integration.with_button_url}} @type="checkbox" />
               {{t "enable custom button triggers via this tool" key="enable_button_actions"}}
             </label>
           </div>
@@ -27,7 +27,7 @@
         <div class="form-group" style='margin-top: -10px; margin-bottom: 20px;'>
           <label for="integration_button_url" class="col-sm-offset-3 col-sm-3 control-label">{{t "Event URL" key="event_url"}}</label>
           <div class="col-sm-6">
-            {{input value=this.integration.button_webhook_url class="form-control" id="integration_button_url" placeholder="Button Action URL"}}
+            <Input @value={{this.integration.button_webhook_url}} class="form-control" id="integration_button_url" placeholder="Button Action URL" />
             {{#if this.integration.insecure_button_webhook_url}}
               <span class='text-danger'>{{t "please use https URLs to protect user information" key="https_only_please"}}</span>
             {{/if}}
@@ -37,7 +37,7 @@
           <div class="col-sm-8 col-sm-offset-4">
             <div class="checkbox big_checkbox">
               <label>
-                {{input checked=this.integration.button_webhook_local type="checkbox"}}
+                <Input @checked={{this.integration.button_webhook_local}} @type="checkbox" />
                 {{t "this URL is to a local address on the same network" key="local_address"}}
               </label>
               {{#if this.integration.button_webhook_local}}
@@ -54,7 +54,7 @@
         <div class="col-sm-9 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=this.integration.with_board_url type="checkbox"}}
+              <Input @checked={{this.integration.with_board_url}} @type="checkbox" />
               {{t "enable custom page renderings via this tool" key="enable_board_renders"}}
             </label>
           </div>
@@ -64,7 +64,7 @@
         <div class="form-group" style='margin-top: -10px; margin-bottom: 20px;'>
           <label for="integration_button_url" class="col-sm-3 col-sm-offset-3 control-label">{{t "Event URL" key="event_url"}}</label>
           <div class="col-sm-6">
-            {{input value=this.integration.board_render_url class="form-control" id="board_render_url" placeholder="Board Render URL"}}
+            <Input @value={{this.integration.board_render_url}} class="form-control" id="board_render_url" placeholder="Board Render URL" />
             {{#if this.integration.insecure_board_render_url}}
               <span class='text-danger'>{{t "please use https URLs to protect user information" key="https_only_please"}}</span>
             {{/if}}

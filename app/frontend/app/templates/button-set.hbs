@@ -32,7 +32,7 @@
             {{this.model.board.name}}
           </div>
           <div style='float: left; width: 45%;'>
-            {{input type="text" value=this.model.board.translated_name class="form-control" placeholder="translation"}}
+            <Input @type="text" @value={{this.model.board.translated_name}} class="form-control" placeholder="translation" />
           </div>
           <div style='clear: left;'></div>
         </div>
@@ -47,7 +47,7 @@
               {{/if}}
             </div>
             <div style='float: left; width: 45%;'>
-              {{input type="text" value=button.translation class="form-control" placeholder="translation"}}
+              <Input @type="text" @value={{button.translation}} class="form-control" placeholder="translation" />
             </div>
             {{#if button.secondary_translation}}
               <div style='float: left; width: 45%;'>
@@ -57,7 +57,7 @@
                 {{/if}}
               </div>
               <div style='float: left; width: 45%;'>
-                {{input type="text" value=button.secondary_translation class="form-control" placeholder="translation"}}
+                <Input @type="text" @value={{button.secondary_translation}} class="form-control" placeholder="translation" />
               </div>
             {{/if}}
             <div style='clear: left;'></div>

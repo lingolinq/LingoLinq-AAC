@@ -12,7 +12,7 @@
     <div>
       <label class='form-control-static' style='display: inline-block;' for='board_name'>{{t "Name:" key="name_colon"}}</label>
       <span style='width: 200px; display: inline-block;'>
-        {{input type="text" class="form-control" id="board_name" value=this.board_name placeholder="Name for board copy"}}
+        <Input @type="text" class="form-control" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
       </span>
     </div>
     <div>
@@ -24,7 +24,7 @@
             {{else}}
               {{t "Set as My Home Board (required for offline syncing)" key="set_as_new_home_board"}}
             {{/if}}
-            {{input type="checkbox" checked=this.set_as_home}}
+            <Input @type="checkbox" @checked={{this.set_as_home}} />
           </label>
         </span>
       </span>
@@ -62,7 +62,7 @@
               <li>
                 <div class="checkbox big_checkbox" style='margin: 0;'>
                 <label style={{if supervisee.share "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
-                  {{input type="checkbox" checked=supervisee.share}}
+                  <Input @type="checkbox" @checked={{supervisee.share}} />
                   <img src={{supervisee.avatar_url}} style="height: 30px; max-width: 30px;">
                   {{supervisee.user_name}}
                 </label>
@@ -87,14 +87,14 @@
       <div style='margin-top: 5px;'>
         <label class='form-control-static' style='display: inline-block;' for='board_prefix'>{{t "Prefix:" key="prefix"}}</label>
         <span style='width: 100px; display: inline-block;'>
-          {{input type="text" class="form-control" id="board_prefix" value=this.board_prefix placeholder="Prefix"}}
+          <Input @type="text" class="form-control" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
         </span>
         <span style='font-style: italic;'>{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</span>
       </div>
       <div class="row">
         <div class='col-sm-12'><div class="checkbox big_checkbox">
           <label style='font-weight: normal;'>
-            {{input type="checkbox" checked=this.public}}
+            <Input @type="checkbox" @checked={{this.public}} />
             &nbsp;&nbsp;{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}
           </label>
         </div></div>
@@ -102,7 +102,7 @@
       <div class="row">
         <div class='col-sm-12'><div class="checkbox big_checkbox">
           <label style='font-weight: normal;'>
-            {{input type="checkbox" checked=this.translate}}
+            <Input @type="checkbox" @checked={{this.translate}} />
             &nbsp;&nbsp;{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}
           </label>
         </div></div>
@@ -112,7 +112,7 @@
           <div class="row">
             <div class='col-sm-12'><div class="checkbox big_checkbox">
               <label style='font-weight: normal; color: #888;'>
-                {{input type="checkbox" checked=this.new_owner}}
+                <Input @type="checkbox" @checked={{this.new_owner}} />
                 &nbsp;&nbsp;{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}
               </label>
             </div></div>
@@ -123,7 +123,7 @@
         <div class="row">
           <div class='col-sm-12'><div class="checkbox big_checkbox">
             <label style='font-weight: normal; color: #888;'>
-              {{input type="checkbox" checked=this.disconnect}}
+              <Input @type="checkbox" @checked={{this.disconnect}} />
               &nbsp;&nbsp;{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}
             </label>
           </div></div>

@@ -109,13 +109,13 @@
             {{#if reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  {{input id="find_source" value=title placeholder="Word List Name" class="form-control inline select_on_click"}}
+                  <Input id="find_source" @value={{title}} placeholder="Word List Name" class="form-control inline select_on_click" />
                 </span>
               </span>
             {{else}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  {{input id="find_source" value=search_term enter=(action "find_source") placeholder="search" class="form-control inline select_on_click"}}
+                  <Input id="find_source" @value={{search_term}} @enter={{action "find_source"}} placeholder="search" class="form-control inline select_on_click" />
                 </span>
               </span>
               <button type="button" class='btn btn-default' {{action "find_source"}}>{{t "Search" key="search"}}</button>
@@ -225,7 +225,7 @@
             <div class="col-sm-12" style='margin-top: -30px;'>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" checked=reuse}}
+                  <Input @type="checkbox" @checked={{reuse}} />
                   {{t "Save for Re-Use" key="save_for_reuse"}}
                   {{#if model.user.user_name}}
                     {{t "(%{user_name})" user_name=model.user.user_name key="paren_user_name"}}
