@@ -427,7 +427,7 @@ var i18n = EmberObject.extend({
 
     if(res) {
       // Re-capitalize if we started that way
-      if(window.utterance && str == window.utterance.capitalize(str)) {
+      if(typeof window !== 'undefined' && window.utterance && typeof window.utterance.capitalize === 'function' && str == window.utterance.capitalize(str)) {
         res = window.utterance.capitalize(res);
       }
     } else if(options.infinitive) {
@@ -667,12 +667,14 @@ var i18n = EmberObject.extend({
     }
     return res;
   },
-  load_lang_override: function(lang, store_result) {
+  load_lang_override: function(lang, store_result, persistence) {
     i18n.lang_overrides = i18n.lang_overrides || {}
     if(i18n.lang_overrides[lang] || (i18n.lang_overrides[lang] === false && !store_result)) {
       return;
     }
-    if(window.persistence) {
+    // Accept persistence as parameter or fall back to window.persistence for backward compatibility
+    persistence = persistence || (typeof window !== 'undefined' && window.persistence);
+    if(persistence) {
       var path = "/api/v1/lang/" + encodeURIComponent(lang);
       var handle_result = function(res) {
         if(!res) {
@@ -687,7 +689,7 @@ var i18n = EmberObject.extend({
         }
       };
       var remote_lookup = function() {
-        window.persistence.store_json(path).then(function(res) {
+        persistence.store_json(path).then(function(res) {
           handle_result(res);
         }, function(err) {
           i18n.lang_overrides[lang] = false;
@@ -696,7 +698,7 @@ var i18n = EmberObject.extend({
       if(store_result) {
         remote_lookup();
       } else {
-        window.persistence.find_json(path).then(function(res) {
+        persistence.find_json(path).then(function(res) {
           handle_result(res);
         }, function(err) {
           remote_lookup();

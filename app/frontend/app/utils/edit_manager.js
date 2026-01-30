@@ -37,11 +37,11 @@ var editManager = EmberObject.extend({
       });
     }
     this.set('dragMode', false);
-    var edit = stashes.get('current_mode') == 'edit';
+    var edit = editManager.get_stashes().get('current_mode') == 'edit';
     if(this.auto_edit.edits && this.auto_edit.edits[board.get('model.id')]) {
       edit = true;
       this.auto_edit.edits[board.get('model.id')] = false;
-      stashes.persist('current_mode', 'edit');
+      editManager.get_stashes().persist('current_mode', 'edit');
     }
     this.swapId = null;
     this.stashedButtonToApply = null;
@@ -869,11 +869,11 @@ var editManager = EmberObject.extend({
       var lbl_height = Math.max(lbl.getBoundingClientRect().height);
       inner.style.display = '';
       var text_position = 'top';
-      if(app_state.get('referenced_user.preferences.device.button_text_position') == 'bottom') {
+      if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'bottom') {
         text_position = 'bottom';
-      } else if(app_state.get('referenced_user.preferences.device.button_text_position') == 'text_only') {
+      } else if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'text_only') {
         text_position = 'no_image';
-      } else if(app_state.get('referenced_user.preferences.device.button_text_position') == 'none') {
+      } else if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'none') {
         text_position = 'bottom';
       }
       var formatted_button = function(label, image_url, opposite) {
@@ -1014,7 +1014,7 @@ var editManager = EmberObject.extend({
     this.update_color_key_id();
   },
   update_color_key_id: function() {
-    app_state.set('color_key_id', Math.random() + "." + (new Date()).getTime());
+    editManager.get_app_state().set('color_key_id', Math.random() + "." + (new Date()).getTime());
   },
   update_history: observer('history', 'history.[]', 'future', 'future.[]', function() {
     if(this.controller) {
@@ -1164,7 +1164,7 @@ var editManager = EmberObject.extend({
       }
     }
     var board = this.controller.get('model');
-    var buttons = board.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
+    var buttons = board.contextualized_buttons(editManager.get_app_state().get('label_locale'), editManager.get_app_state().get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, editManager.get_app_state().get('inflection_shift'));
     if(res) {
       var trans_button = buttons.find(function(b) { return b.id == id; });
       // If contextualized button exists, we should
@@ -1238,7 +1238,7 @@ var editManager = EmberObject.extend({
     emberSet(button, 'empty', !!empty);
   },
   stash_button: function(id) {
-    var list = stashes.get_object('stashed_buttons', true) || [];
+    var list = editManager.get_stashes().get_object('stashed_buttons', true) || [];
     var button = null;
     if(id && id.raw) {
       button = id.raw();
@@ -1253,7 +1253,7 @@ var editManager = EmberObject.extend({
     if(button && list[list.length - 1] != button) {
       list.pushObject(button);
     }
-    stashes.persist('stashed_buttons', list);
+    editManager.get_stashes().persist('stashed_buttons', list);
   },
   get_ready_to_apply_stashed_button: function(button) {
     if(!button || !button.raw) {
@@ -1520,9 +1520,9 @@ var editManager = EmberObject.extend({
     }
     var board = controller.get('model');
     if(!board) { return; }
-    var board_level = controller.get('current_level') || stashes.get('board_level') || 10;
+    var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
-    var buttons = board.contextualized_buttons(appState.get('label_locale'), appState.get('vocalization_locale'), stashes.get('working_vocalization'), false, appState.get('inflection_shift'));
+    var buttons = board.contextualized_buttons(appState.get('label_locale'), appState.get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, appState.get('inflection_shift'));
     var preferred_symbols = appState.get('referenced_user.preferences.preferred_symbols') || 'original';
     var grid = board.get('grid');
     if(!grid) { return; }
@@ -1634,11 +1634,11 @@ var editManager = EmberObject.extend({
         LingoLinq.Image.unskins[btn.image_id] = true
       }
     });
-    var image_urls = board.variant_image_urls(app_state.get('referenced_user.preferences.skin'));
+    var image_urls = board.variant_image_urls(editManager.get_app_state().get('referenced_user.preferences.skin'));
     var sound_urls = board.get('sound_urls');
     prefetch.then(function() {
       LingoLinq.log.track('creating buttons');
-      preferred_symbols = app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+      preferred_symbols = editManager.get_app_state().get('referenced_user.preferences.preferred_symbols') || 'original';
       for(var idx = 0; idx < grid.rows; idx++) {
         var row = [];
         for(var jdx = 0; jdx < grid.columns; jdx++) {
@@ -1899,11 +1899,11 @@ var editManager = EmberObject.extend({
   lucky_symbols: function(ids) {
     var _this = this;
     var board = _this.controller.get('model');
-    var library = (app_state.get('currentUser') && app_state.get('currentUser').preferred_symbol_library(board)) || 'opensymbols';
+    var library = (editManager.get_app_state().get('currentUser') && editManager.get_app_state().get('currentUser').preferred_symbol_library(board)) || 'opensymbols';
     var now = (new Date()).getTime();
-    var lookup = parseInt(stashes.get('last_image_library_at') || 0, 10);
-    if(lookup > (now - (15 * 60 * 1000) && !(stashes.get('last_image_library') || "").match(/required/))) {
-      library = stashes.get('last_image_library');
+    var lookup = parseInt(editManager.get_stashes().get('last_image_library_at') || 0, 10);
+    if(lookup > (now - (15 * 60 * 1000) && !(editManager.get_stashes().get('last_image_library') || "").match(/required/))) {
+      library = editManager.get_stashes().get('last_image_library');
     }
     ids.forEach(function(id) {
       var board_id = _this.controller.get('model.id');
@@ -1930,7 +1930,7 @@ var editManager = EmberObject.extend({
               uneditable: true
             };
             var preview = {
-              url: persistence.normalize_url(image.image_url),
+              url: editManager.get_persistence().normalize_url(image.image_url),
               content_type: image.content_type,
               suggestion: button.label,
               protected: image.protected,
@@ -1967,7 +1967,7 @@ var editManager = EmberObject.extend({
     });
   },
   lucky_symbol: function(id) {
-    if(!this.controller || !app_state.get('edit_mode')) {
+    if(!this.controller || !editManager.get_app_state().get('edit_mode')) {
       this.lucky_symbol.pendingSymbols = this.lucky_symbol.pendingSymbols || [];
       this.lucky_symbol.pendingSymbols.push(id);
     } else {
@@ -2099,7 +2099,7 @@ var editManager = EmberObject.extend({
           } else {
             finalize(true, board);
           }
-          stashes.persist('last_index_browse', 'personal');
+          editManager.get_stashes().persist('last_index_browse', 'personal');
           old_board.reload_including_all_downstream(affected_board_ids);
         };
         var endpoint = null;
@@ -2113,7 +2113,7 @@ var editManager = EmberObject.extend({
           endpoint = '/api/v1/users/' + user.get('id') + '/copy_board_links';
         }
         if(endpoint) {
-          persistence.ajax(endpoint, {
+          editManager.get_persistence().ajax(endpoint, {
             type: 'POST',
             data: {
               old_board_id: old_board.get('id'),
@@ -2133,7 +2133,7 @@ var editManager = EmberObject.extend({
               if(event.status == 'finished') {
                 runLater(function() {
                   user.reload();
-                  app_state.refresh_session_user();
+                  editManager.get_app_state().refresh_session_user();
                 }, 100);
                 done_callback(event.result);
               } else if(event.status == 'errored') {
@@ -2148,7 +2148,7 @@ var editManager = EmberObject.extend({
             reject(i18n.t('re_linking_failed', "Board re-linking failed unexpectedly"));
           });
         } else if((decision == 'remove_links' || decision == 'keep_links') && swap_library && swap_library != 'original') {
-          persistence.ajax('/api/v1/boards/' + board.get('id') + '/swap_images', {
+          editManager.get_persistence().ajax('/api/v1/boards/' + board.get('id') + '/swap_images', {
             type: 'POST',
             data: {
               library: swap_library,
@@ -2160,7 +2160,7 @@ var editManager = EmberObject.extend({
                 reject(i18n.t('swap_imaged_failed2', "Swapping images for new board failed unexpectedly"));
               } else if(event.status == 'finished') {
                 board.reload(true).then(function() {
-                  app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+                  editManager.get_app_state().set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
                   done_callback();
                 }, function() {
                   done_callback();
@@ -2249,4 +2249,28 @@ $(window).bind('message', function(event) {
   }
 });
 window.editManager = editManager;
+
+// Static service registry for explicit injection
+editManager._services = {};
+
+// Getter methods for services with fallback to globals
+editManager.get_app_state = function() {
+  return editManager._services.app_state || window.app_state;
+};
+
+editManager.get_persistence = function() {
+  return editManager._services.persistence || window.persistence;
+};
+
+editManager.get_stashes = function() {
+  return editManager._services.stashes || window.stashes;
+};
+
+// Service registration method
+editManager.register_services = function(appStateService, persistenceService, stashesService) {
+  if(appStateService) { editManager._services.app_state = appStateService; }
+  if(persistenceService) { editManager._services.persistence = persistenceService; }
+  if(stashesService) { editManager._services.stashes = stashesService; }
+};
+
 export default editManager;

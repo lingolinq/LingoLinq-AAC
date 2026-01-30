@@ -8,6 +8,7 @@ import { htmlSafe } from '@ember/template';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
 import Badge from '../../models/badge';
+import Log from '../../models/log';
 import session from '../../utils/session';
 import modal from '../../utils/modal';
 import sync from '../../utils/sync';

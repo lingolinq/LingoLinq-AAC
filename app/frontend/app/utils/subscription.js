@@ -53,6 +53,18 @@ var Subscription = EmberObject.extend({
   init: function() {
     this.reset();
   },
+  init_services: function(appStateService, persistenceService, stashesService) {
+    // Accept services as parameters for explicit injection
+    // Fall back to imported utilities for backward compatibility
+    this.appState = appStateService || app_state;
+    this.persistence = persistenceService || persistence;
+    this.stashes = stashesService || stashes;
+    
+    // Also register services statically for use in event listeners
+    if(appStateService || persistenceService || stashesService) {
+      Subscription.register_services(appStateService, persistenceService, stashesService);
+    }
+  },
   reset: function() {
     this.set('user_type', 'communicator');
     this.set('subscription_type', 'monthly');
@@ -246,7 +258,8 @@ var Subscription = EmberObject.extend({
     'app_state.installed_app',
     'app_state.app_store_purchase_types',
     function() {
-      return app_state.get('installed_app') && (!Subscription.product_types || !app_state.get('feature_flags.app_store_purchases'));
+      var appState = this.appState || app_state;
+      return appState.get('installed_app') && (!Subscription.product_types || !appState.get('feature_flags.app_store_purchases'));
     }
   ),
   app_pricing_override: computed('app_state.app_store_purchase_types', function() {
@@ -256,7 +269,8 @@ var Subscription = EmberObject.extend({
     'app_state.app_store_purchase_types',
     'app_state.feature_flags.app_store_monthly_purchases',
     function() {
-      return !!Subscription.product_types && !app_state.get('feature_flags.app_store_monthly_purchases');
+      var appState = this.appState || app_state;
+      return !!Subscription.product_types && !appState.get('feature_flags.app_store_monthly_purchases');
     }
   ),
   manual_refresh: computed('app_pricing_override', function() {
@@ -534,7 +548,8 @@ var Subscription = EmberObject.extend({
     var _this = this;
     var code = _this.get('gift_code');
     _this.set('gift_status', {checking: true});
-    persistence.ajax('/api/v1/gifts/code_check?code=' + code, {
+    var persistenceService = this.persistence || persistence;
+    persistenceService.ajax('/api/v1/gifts/code_check?code=' + code, {
       type: 'GET'
     }).then(function(res) {
       var num = 1.0;
@@ -653,6 +668,26 @@ var Subscription = EmberObject.extend({
 Subscription.reopenClass({
   obs_func: obs_func,
   obs_properties: obs_properties,
+  // Static service registry for use in event listeners and static methods
+  _services: {
+    appState: null,
+    persistence: null,
+    stashes: null
+  },
+  register_services: function(appStateService, persistenceService, stashesService) {
+    if(appStateService) { Subscription._services.appState = appStateService; }
+    if(persistenceService) { Subscription._services.persistence = persistenceService; }
+    if(stashesService) { Subscription._services.stashes = stashesService; }
+  },
+  get_app_state: function() {
+    return Subscription._services.appState || app_state;
+  },
+  get_persistence: function() {
+    return Subscription._services.persistence || persistence;
+  },
+  get_stashes: function() {
+    return Subscription._services.stashes || stashes;
+  },
   init: function() {
     if(window.StripeCheckout) { return; }
     var $div = $("<div/>", {id: 'stripe_script'});
@@ -790,10 +825,10 @@ document.addEventListener("deviceready", function() {
       if(product.type == 'application') {
         return callback(true, {});
       }
-      var user_id = store.user_id || Subscription.in_app_store.user_id || app_state.get('currentUser.id');
-      var user = store.user || Subscription.in_app_store.user || app_state.get('currentUser');
+      var user_id = store.user_id || Subscription.in_app_store.user_id || Subscription.get_app_state().get('currentUser.id');
+      var user = store.user || Subscription.in_app_store.user || Subscription.get_app_state().get('currentUser');
       var pre_purchase = product.alias == 'App Pre-Purchase';
-      var device_id = (window.device && window.device.uuid) || stashes.get_raw('coughDropDeviceId');
+      var device_id = (window.device && window.device.uuid) || Subscription.get_stashes().get_raw('coughDropDeviceId');
       if(!user_id) {
         return callback(false, {
           code: store.INTERNAL_ERROR,
@@ -815,7 +850,7 @@ document.addEventListener("deviceready", function() {
       if(store.validator.promise) {
         promise = store.validator.promise;
       } else {
-        promise = persistence.ajax('/api/v1/users/' + user_id + '/verify_receipt', {
+        promise = Subscription.get_persistence().ajax('/api/v1/users/' + user_id + '/verify_receipt', {
           type: 'POST',
           data: {receipt_data: {ios: true, product_id: product.id, receipt: product.transaction, pre_purchase: pre_purchase, device_id: device_id}}
         }).then(function(res) {
@@ -887,7 +922,7 @@ document.addEventListener("deviceready", function() {
       if(product.valid) {
         Subscription.product_types = Subscription.product_types || {};
         Subscription.product_types[product.id] = product;
-        app_state.set('app_store_purchase_types', Subscription.product_types);
+        Subscription.get_app_state().set('app_store_purchase_types', Subscription.product_types);
       }
     });
     store.when("subscription").updated(function(product) {
@@ -905,7 +940,7 @@ document.addEventListener("deviceready", function() {
         } else {
           Subscription.in_app_store.validator(Subscription.product_types[subscription_id], function(success, data) {
             if(!success && data.code == store.PURCHASE_EXPIRED) {
-              app_state.get('sessionUser').reload(true);
+              Subscription.get_app_state().get('sessionUser').reload(true);
             }
           });        
         }
@@ -930,8 +965,8 @@ document.addEventListener("deviceready", function() {
       product.finish();
     });
     store.when("product").finished(function(product) {
-      if(app_state.get('sessionUser')) {
-        app_state.get('sessionUser').reload();
+      if(Subscription.get_app_state().get('sessionUser')) {
+        Subscription.get_app_state().get('sessionUser').reload();
         if(store.defer) {
           store.defer.resolve({id: 'ios_iap'});
           store.defer = null;
