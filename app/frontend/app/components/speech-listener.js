@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import app_state from '../utils/app_state';
+
 import { computed, observer } from '@ember/object';
 
 export default Component.extend({

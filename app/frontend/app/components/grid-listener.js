@@ -1,8 +1,6 @@
 import Component from '@ember/component';
 import $ from 'jquery';
-import buttonTracker from '../utils/raw_events';
-import app_state from '../utils/app_state';
-import capabilities from '../utils/capabilities';
+
 
 export default Component.extend({
   touchStart: function(event) {

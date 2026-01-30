@@ -15,7 +15,8 @@
     "lint:hbs": "ember-template-lint .",
     "lint:js": "eslint .",
     "start": "ember serve",
-    "test": "ember test"
+    "test": "ember test",
+    "postinstall": "patch-package"
   },
   "engines": {
     "node": ">= 18.0.0"
@@ -52,6 +53,8 @@
     "loader.js": "^4.7.0",
     "lodash": ">=4.17.11",
     "merge": ">=1.2.1",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "qunit-dom": "^0.8.4",
     "sass": "^1.97.1"
   },

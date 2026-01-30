@@ -1,0 +1,67 @@
+diff --git a/node_modules/ember-cli-template-lint/index.js b/node_modules/ember-cli-template-lint/index.js
+index 8d7ec1b..ce30fee 100644
+--- a/node_modules/ember-cli-template-lint/index.js
++++ b/node_modules/ember-cli-template-lint/index.js
+@@ -80,7 +80,7 @@ module.exports = {
+ 
+     return {
+       name: 'remove-configuration-html-comments',
+-      plugin: RemoveConfigurationHtmlComments(),
++      plugin: RemoveConfigurationHtmlComments,
+       baseDir() {
+         return __dirname;
+       }
+diff --git a/node_modules/ember-cli-template-lint/lib/plugins/remove-configuration-html-comments.js b/node_modules/ember-cli-template-lint/lib/plugins/remove-configuration-html-comments.js
+index a5b3b60..7376a43 100644
+--- a/node_modules/ember-cli-template-lint/lib/plugins/remove-configuration-html-comments.js
++++ b/node_modules/ember-cli-template-lint/lib/plugins/remove-configuration-html-comments.js
+@@ -6,36 +6,29 @@
+ 
+ const AstNodeInfo = require('ember-template-lint/lib/helpers/ast-node-info');
+ 
+-module.exports = function() {
+-  function RemoveConfigurationHtmlCommentsPlugin() {}
+-
+-  RemoveConfigurationHtmlCommentsPlugin.prototype.transform = function(ast) {
+-    let walker = new this.syntax.Walker();
+-    let bodyEntry;
+-
+-    walker.visit(ast, node => {
+-      if (node.type === 'Program') {
++module.exports = function(env) {
++  return {
++    name: 'remove-configuration-html-comments',
++    visitor: {
++      Program(node) {
+         for (let i = 0; i < node.body.length; i++) {
+-          bodyEntry = node.body[i];
++          let bodyEntry = node.body[i];
+ 
+           if(AstNodeInfo.isConfigurationHtmlComment(bodyEntry)) {
+             // remove the entry
+             node.body.splice(i, 1);
++            i--;
+           }
+         }
+       }
+-    });
+-
+-    return ast;
+-  };
+-
+-  RemoveConfigurationHtmlCommentsPlugin.parallelBabel = {
+-    requireFile: __filename,
+-    buildUsing: 'self',
++    }
+   };
++};
+ 
+-  return RemoveConfigurationHtmlCommentsPlugin;
++module.exports.parallelBabel = {
++  requireFile: __filename,
++  buildUsing: 'self',
+ };
+ 
+-module.exports.self = function(){ return module.exports(); };
++module.exports.self = function() { return module.exports; };
+ 

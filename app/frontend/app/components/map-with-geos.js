@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
+
 import { observer } from '@ember/object';
 
 export default Component.extend({
