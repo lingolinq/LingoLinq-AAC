@@ -154,7 +154,9 @@
               </td>
               <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
                 {{t "user management tools available for organizations," key="org_tools_available"}}
-                {{#link-to "contact"}}{{t "contact us!" key="contact_us_excl"}}{{/link-to}}
+                {{#unless this.subscription.app_pricing_override}}
+                  <LinkTo @route="contact">{{t "contact us!" key="contact_us_excl"}}</LinkTo>
+                {{/unless}}
               </td>
             {{/if}}
           </tr>

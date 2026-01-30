@@ -10,7 +10,7 @@ import modal from './modal';
 import capabilities from './capabilities';
 // import app_state from './app_state';
 import scanner from './scanner';
-import stashes from './_stashes';
+// import stashes from './_stashes';
 import utterance from './utterance';
 import frame_listener from './frame_listener';
 // TODO: change scanning options to allow multiple buttons
@@ -344,9 +344,42 @@ $(window).on('blur', function(event) {
 });
 
 var buttonTracker = EmberObject.extend({
-  setup: function(appState, persistence) {
-    this.appState = appState;
-    this.persistence = persistence;
+  _services: {
+    appState: null,
+    persistence: null,
+    stashes: null
+  },
+  
+  get appState() {
+    return this._services.appState || (window.LingoLinq && window.LingoLinq.appState) || window.app_state;
+  },
+
+  set appState(val) {
+    this._services.appState = val;
+  },
+  
+  get persistence() {
+    return this._services.persistence || (window.LingoLinq && window.LingoLinq.persistence) || window.persistence;
+  },
+
+  set persistence(val) {
+    this._services.persistence = val;
+  },
+
+  get stashes() {
+    return this._services.stashes || (window.LingoLinq && window.LingoLinq.stashes) || window.stashes;
+  },
+
+  set stashes(val) {
+    this._services.stashes = val;
+  },
+
+  setup: function(appState, persistence, stashes) {
+    this._services.appState = appState;
+    this._services.persistence = persistence;
+    if (stashes) {
+      this._services.stashes = stashes;
+    }
     // cheap trick to get us ahead of the line in front of ember
     $("#within_ember").on('click mousedown mouseup', function(event) {
       // on iOS (probably just UIWebView) this phantom
@@ -534,8 +567,8 @@ var buttonTracker = EmberObject.extend({
         window.screenInnerOffsetX = 0;
       }
       if(priors[0] != window.screenInnerOffsetX || priors[1] != window.screenInnerOffsetY) {
-        stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
-        stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
+        this.stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
+        this.stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
       }
     }
     if(event.type == 'touchstart' || event.type == 'mousedown' || event.type == 'touchmove') {
@@ -1146,7 +1179,7 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+            this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
             buttonTracker.ignoreUp = true;
             buttonTracker.buttonDown = false;
           } else {
@@ -2407,7 +2440,7 @@ var buttonTracker = EmberObject.extend({
     } else if((ls.selection_type == 'touch' || ls.selection_type == 'mouse') && buttonTracker.check('scan_modeling')) {
       ls.modeling = true;
     }
-    stashes.last_selection = ls;
+    this.stashes.last_selection = ls;
     buttonTracker.last_selection = ls;
     return { proceed: true };
   },

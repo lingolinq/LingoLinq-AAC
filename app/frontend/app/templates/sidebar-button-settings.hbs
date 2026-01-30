@@ -10,7 +10,7 @@
         <div class="col-sm-10">
           <p class='form-control-static'>
             {{#if this.model.button.key}}
-              {{#link-to "board" this.model.button.key}}{{t "Open board %{board}" key="open_board_key" board=this.model.button.key}}{{/link-to}}
+              <LinkTo @route="board" @model={{this.model.button.key}}>{{t "Open board %{board}" key="open_board_key" board=this.model.button.key}}</LinkTo>
             {{else if this.model.button.alert}}
               <a href="#" {{action "alert"}}>
                 <span class="glyphicon glyphicon-bullhorn"></span>

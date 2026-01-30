@@ -7,11 +7,11 @@
           {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
-          {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}} <span class='text-muted'>|</span>
+          <LinkTo @route="about">{{t "About" key="about"}}</LinkTo> <span class='text-muted'>|</span>
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                {{#link-to "pricing"}}{{t "Pricing" key="pricing"}}{{/link-to}} <span class='text-muted'>|</span>
+                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
@@ -19,7 +19,7 @@
         <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
         {{#unless this.app_state.installed_app}}
           <span class='text-muted'>|</span>
-          {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
+          <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
         <a href='#' {{action "language"}} style='margin-left: 10px;'>
           <img src={{path "images/language-icon.svg"}} style='height: 30px; margin: -20px 0 -10px;' alt="Language">
@@ -30,8 +30,8 @@
         {{#unless this.app_state.installed_app}}
           <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
         {{/unless}}
-        {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
-        {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
+        <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
+        <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
       </div>
       {{#if this.persistence.online}}
         {{#unless this.app_state.no_linky}}
@@ -64,7 +64,7 @@
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Web Site" key="web_site"}}</a>
           </li>
           <li>
-            {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}}
+            <LinkTo @route="about">{{t "About" key="about"}}</LinkTo>
           </li>
         {{/unless}}
         <li>
@@ -77,10 +77,10 @@
           </a>
         </li>
         <li>
-          {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}}
+          <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo>
         </li>
         <li>
-          {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
+          <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
         </li>
         {{#unless this.app_state.no_linky}}
           {{#if this.persistence.online}}

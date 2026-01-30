@@ -63,10 +63,10 @@
       {{#each this.model.processed_org_subscriptions as |sub|}}
         <tr>
           <td>
-            {{#link-to "user" sub.user_name}}
+            <LinkTo @route="user" @model={{sub.user_name}}>
               <img src={{sub.avatar_url}} style='height: 30px; max-width: 30px;'>
               {{sub.user_name}}
-            {{/link-to}}
+            </LinkTo>
           </td>
           <td>{{sub.subscription_object.subscription_plan_description}}</td>
           <td>

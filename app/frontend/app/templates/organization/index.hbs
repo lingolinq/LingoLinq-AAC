@@ -95,14 +95,14 @@
             </button>
             <ul class="dropdown-menu">
               {{#each this.model.home_board_keys as |key|}}
-                <li>{{#link-to "board" key}}{{key}}{{/link-to}}</li>
+                <li><LinkTo @route="board" @model={{key}}>{{key}}</LinkTo></li>
               {{/each}}
             </ul>
           </div>
         {{else if this.model.default_home_board}}
           <div class='text-muted'>
             {{t "default home board:" key="default_home_board"}}
-            {{#link-to "board" this.model.default_home_board.key}}{{this.model.default_home_board.key}}{{/link-to}}
+            <LinkTo @route="board" @model={{this.model.default_home_board.key}}>{{this.model.default_home_board.key}}</LinkTo>
           </div>
         {{/if}}
         <div style='clear: right;'></div>
@@ -145,9 +145,9 @@
   {{#if this.model.parent_org}}
     {{#if this.model.parent_org.permissions.view}}
       {{t "Parent Organization: " key="parent_org_colon"}}
-      {{#link-to "organization" this.model.parent_org.id}}
+      <LinkTo @route="organization" @model={{this.model.parent_org.id}}>
         {{this.model.parent_org.name}}
-      {{/link-to}}
+      </LinkTo>
     {{else}}
       {{t "Parent Organization: " key="parent_org_colon"}}
       {{this.model.parent_org.name}}
@@ -175,10 +175,10 @@
           {{#each this.managers.data as |manager|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to "user" manager.user_name}}
+                <LinkTo @route="user" @model={{manager.user_name}}>
                   <img src={{manager.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{manager.user_name}}
-                {{/link-to}}
+                </LinkTo>
               </td>
               <td>
                 {{#if manager.org_manager}}
@@ -225,10 +225,10 @@
           {{#each this.supervisors.data as |user|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to "user" user.user_name}}
+                <LinkTo @route="user" @model={{user.user_name}}>
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
-                {{/link-to}}
+                </LinkTo>
                 {{#if user.org_supervision_pending}}
                   <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
                 {{else if user.org_premium_supervisor}}
@@ -242,7 +242,7 @@
               </td>
               <td style='font-size: 14px;'>
                 {{#each user.org_supervisees as |sup|}}
-                  {{#link-to "user" sup.user_name}}{{sup.user_name}}{{/link-to}}<br>
+                  <LinkTo @route="user" @model={{sup.user_name}}>{{sup.user_name}}</LinkTo><br>
                 {{/each}}
               </td>
               <td>
@@ -254,9 +254,9 @@
       </table>
       {{#if this.more_supervisors}}
         <p style="margin-bottom: 30px;">
-          {{#link-to "organization.reports" (query-params current_report="all_supervisors")}}
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_supervisors"}}>
             {{t "See all supervisors" key="see_all_supervisors"}}
-          {{/link-to}}
+          </LinkTo>
         </p>
       {{/if}}
     {{else if this.supervisors.loading}}
@@ -291,10 +291,10 @@
           {{#each this.users.data as |user|}}
             <tr>
               <td>
-                {{#link-to "user" user.user_name}}
+                <LinkTo @route="user" @model={{user.user_name}}>
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
-                {{/link-to}}
+                </LinkTo>
                 {{#if this.model.permissions.manage}}
                   <em>{{user.name}}</em>
                 {{/if}}
@@ -319,9 +319,9 @@
       </table>
       {{#if this.more_users}}
         <p style="margin-bottom: 30px;">
-          {{#link-to "organization.reports" (query-params current_report="all_users")}}
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_users"}}>
             {{t "See all users" key="see_all_users"}}
-          {{/link-to}}
+          </LinkTo>
         </p>
       {{/if}}
     {{else if this.users.loading}}
@@ -355,10 +355,10 @@
           {{#each this.evals.data as |user|}}
             <tr>
               <td>
-                {{#link-to "user" user.user_name}}
+                <LinkTo @route="user" @model={{user.user_name}}>
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
-                {{/link-to}}
+                </LinkTo>
                 {{#if user.org_pending}}
                   <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
                 {{/if}}
@@ -372,9 +372,9 @@
       </table>
       {{#if this.more_evals}}
         <p style="margin-bottom: 30px;">
-          {{#link-to "organization.reports" (query-params current_report="all_evals")}}
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_evals"}}>
             {{t "See all eval accounts" key="see_all_evals"}}
-          {{/link-to}}
+          </LinkTo>
         </p>
       {{/if}}
     {{else if this.evals.loading}}
@@ -409,10 +409,10 @@
           {{#each this.org_extras.data as |user|}}
             <tr>
               <td>
-                {{#link-to "user" user.user_name}}
+                <LinkTo @route="user" @model={{user.user_name}}>
                   <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
                   {{user.user_name}}
-                {{/link-to}}
+                </LinkTo>
               </td>
               <td>
                 <a href='#' {{action "management_action" "remove_extras" user.user_name true}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
@@ -442,10 +442,10 @@
           {{#each this.model.children_orgs as |org|}}
             <tr>
               <td style='font-size: 20px;'>
-                {{#link-to "organization" org.id}}
+                <LinkTo @route="organization" @model={{org.id}}>
                   <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                   {{org.name}}
-                {{/link-to}}
+                </LinkTo>
               </td>
             </tr>
           {{/each}}
@@ -466,14 +466,14 @@
                 {{#each this.filtered_orgs as |org|}}
                     <tr>
                       <td style='font-size: 20px;'>
-                        {{#link-to "organization" org.id}}
+                        <LinkTo @route="organization" @model={{org.id}}>
                           <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                           {{#if org.premium}}
                             <b>{{org.name}}</b>
                           {{else}}
                             {{org.name}}
                           {{/if}}
-                        {{/link-to}}
+                        </LinkTo>
                       </td>
                       <td>
                         {{#unless org.admin}}
@@ -503,14 +503,14 @@
                     {{#each letter.orgs as |org|}}
                       <tr>
                         <td style='font-size: 20px;'>
-                          {{#link-to "organization" org.id}}
+                          <LinkTo @route="organization" @model={{org.id}}>
                             <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
                             {{#if org.premium}}
                               <b>{{org.name}}</b>
                             {{else}}
                               {{org.name}}
                             {{/if}}
-                          {{/link-to}}
+                          </LinkTo>
                         </td>
                         <td>
                           {{#unless org.admin}}
@@ -586,13 +586,13 @@
       {{#each this.logs.data as |log|}}
         <li>
           <p>
-            {{#link-to "user" log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
+            <LinkTo @route="user" @model={{log.user.user_name}}>{{log.user.user_name}}</LinkTo> -
             <span title={{date log.started_at}}>
               {{date_ago log.started_at}}
             </span>
-            {{#link-to "user.log" log.user.user_name log.id}}
+            <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
               {{t "button" count=log.button_count key="button_count"}}
-            {{/link-to}}
+            </LinkTo>
             <br>
             <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
           </p>

@@ -10,10 +10,10 @@
         <tr>
           <td style='padding: 10px 10px 30px;'>
             <h4 style='margin-top: 0;'>
-              {{#link-to "organization.room" unit.id}}
+              <LinkTo @route="organization.room" @model={{unit.id}}>
                 {{unit.name}}
                 {{t "(more details)" key="more_details"}}
-              {{/link-to}}
+              </LinkTo>
             </h4>
 
             {{#if unit.adding_users}}
@@ -69,9 +69,9 @@
             {{else}}
               <div style='margin-top: 20px; margin-left: 30px;'>
                 <span class='text-muted'>{{t "Supervisors" key="supervisors"}} ({{unit.supervisors.length}})</span>
-                {{#each unit.supervisors as |user index|}}{{if index ", "}}{{#link-to "user" user.user_name}}{{user.user_name}}{{/link-to}}{{/each}}<br>
+                {{#each unit.supervisors as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{user.user_name}}>{{user.user_name}}</LinkTo>{{/each}}<br>
                 <span class='text-muted'>{{t "Communicators" key="communicators"}} ({{unit.communicators.length}})</span>
-                {{#each unit.communicators as |user index|}}{{if index ", "}}{{#link-to "user" user.user_name}}{{user.user_name}}{{/link-to}}{{/each}}<br>
+                {{#each unit.communicators as |user index|}}{{if index ", "}}<LinkTo @route="user" @model={{user.user_name}}>{{user.user_name}}</LinkTo>{{/each}}<br>
               </div>
             {{/if}}
           </td>

@@ -9,9 +9,9 @@
           <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
         {{/if}}
       </div>
-      {{#link-to "goals.goal" goal.id}}
+      <LinkTo @route="goals.goal" @model={{goal.id}}>
         {{goal.high_level_summary}}
-      {{/link-to}}
+      </LinkTo>
       {{#if goal.sequence}}
         <div class='details'>
           {{#if goal.template_stats.loop}}{{t "repeating" key="repeating"}}{{/if}}
@@ -50,9 +50,9 @@
             <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
           {{/if}}
         </div>
-        {{#link-to "goals.goal" goal.id}}
+        <LinkTo @route="goals.goal" @model={{goal.id}}>
           {{goal.high_level_summary}}
-        {{/link-to}}
+        </LinkTo>
         {{#if goal.sequence}}
           <div class='details'>
             {{#if goal.template_stats.loop}}{{t "repeating" key="repeating"}}{{/if}}

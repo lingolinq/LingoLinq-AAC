@@ -1,7 +1,7 @@
 {{#if this.model.template_or_unit}}
   <h2>{{ this.model.summary }}</h2>
   {{#if this.model.unit_id}}
-    {{#link-to "organization.room" this.model.unit_org_id this.model.unit_id}}{{t "Return to " key="return_to"}}{{#if this.model.unit_name}}{{ this.model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}{{/link-to}}
+    <LinkTo @route="organization.room" @models={{array this.model.unit_org_id this.model.unit_id}}>{{t "Return to " key="return_to"}}{{#if this.model.unit_name}}{{ this.model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}</LinkTo>
   {{/if}}
   {{#if this.model.sequence}}
     {{#if this.model.related.header}}
@@ -15,9 +15,9 @@
               {{#if this.model.template_header}}
                 {{this.model.related.header.sequence_summary}}
               {{else}}
-                {{#link-to "goals.goal" this.model.related.header.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.header.id}}>
                   {{this.model.related.header.sequence_summary}}
-                {{/link-to}}
+                </LinkTo>
                 &nbsp;
               {{/if}}
               <div class='sub_link text-muted'>
@@ -61,9 +61,9 @@
             </div>
             <div class="panel-body">
               {{#if this.model.related.previous}}
-                {{#link-to "goals.goal" this.model.related.previous.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.previous.id}}>
                   {{this.model.related.previous.summary}}
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -78,9 +78,9 @@
             </div>
             <div class="panel-body">
               {{#if this.model.related.next}}
-                {{#link-to "goals.goal" this.model.related.next.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.next.id}}>
                   {{this.model.related.next.summary}}
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -320,7 +320,7 @@
                     {{#if goal.template_header}}
                       {{goal.summary}}
                     {{else}}
-                      {{#link-to "goals.goal" goal.id}}{{goal.summary}}{{/link-to}}
+                      <LinkTo @route="goals.goal" @model={{goal.id}}>{{goal.summary}}</LinkTo>
                     {{/if}}
                   </td>
                   <td>
@@ -334,9 +334,9 @@
                   </td>
                   <td>
                     {{#if goal.related.next}}
-                      {{#link-to "goals.goal" goal.related.next.id}}
+                      <LinkTo @route="goals.goal" @model={{goal.related.next.id}}>
                         {{goal.related.next.summary}}
-                      {{/link-to}}
+                      </LinkTo>
                     {{else}}
                       {{t "None" key="none_upper"}}
                     {{/if}}

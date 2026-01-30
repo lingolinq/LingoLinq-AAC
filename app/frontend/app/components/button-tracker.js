@@ -5,7 +5,8 @@ import buttonTracker from '../utils/raw_events';
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
+  stashes: service('stashes'),
   didInsertElement: function() {
-    buttonTracker.setup(this.appState, this.persistence);
+    buttonTracker.setup(this.appState, this.persistence, this.stashes);
   }
 });

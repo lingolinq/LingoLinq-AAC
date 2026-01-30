@@ -25,7 +25,7 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
         <div class="panel-body">
-          {{#link-to "user" @model.author.user_name}}{{@model.author.user_name}}{{/link-to}}
+          <LinkTo @route="user" @model={{@model.author.user_name}}>{{@model.author.user_name}}</LinkTo>
         </div>
       </div>
     </div>
