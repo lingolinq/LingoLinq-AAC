@@ -27,6 +27,7 @@ import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  router: service(),
   modalService: service('modal'),
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -317,12 +318,12 @@ export default Controller.extend({
     },
     authenticateSession: function() {
       if(location.hostname == '127.0.0.1') {
-        this.transitionToRoute('login');
+        this.router.transitionTo('login');
         // location.href = "//localhost:" + location.port + "/login";
       } else if(location.hostname == 'www.mylingolinq.com') {
         location.href = "//app.mylingolinq.com/login";
       } else {
-        this.transitionToRoute('login');
+        this.router.transitionTo('login');
       }
     },
     cancel_sync: function() {
@@ -353,9 +354,9 @@ export default Controller.extend({
     },
     searchBoards: function() {
       if(this.get('searchString') == 'home') {
-        this.transitionToRoute('home-boards');
+        this.router.transitionTo('home-boards');
       } else {
-        this.transitionToRoute('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
+        this.router.transitionTo('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
       }
     },
     backspace: function(opts) {
@@ -1101,7 +1102,7 @@ export default Controller.extend({
     },
     back_to_from_route: function() {
       if(this.appState.get('from_route')) {
-        this.transitionToRoute.apply(this, this.appState.get('from_route'));
+        this.router.transitionTo.apply(this, this.appState.get('from_route'));
       } else {
         this.appState.return_to_index();
       }
@@ -1146,7 +1147,7 @@ export default Controller.extend({
         if(user_id) {
           params.user_id = user_id;
         }
-        _this.transitionToRoute('setup', {queryParams: params});
+        _this.router.transitionTo('setup', {queryParams: params});
       }, function() { });
     },
     speak_mode_notification: function() {
