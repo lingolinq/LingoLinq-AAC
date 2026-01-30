@@ -299,29 +299,29 @@ else
     puts "✓ Log sessions already exist, skipping"
   end
 
-  # Import word data only if not already imported
-  puts "==== Checking Parts-of-Speech Data ===="
-  word_count = WordData.where(locale: 'en').count
-  if word_count == 0
-    puts "Importing words (this may take a while)..."
-    MobyParser.import_words
-    puts "✓ Imported words"
-  else
-    puts "✓ Words already imported (#{word_count} words found), skipping import"
-  end
-  
-  suggestion_count = WordData.where(locale: 'en').where("data LIKE '%suggestions%'").count
-  if suggestion_count == 0
-    puts "Importing word suggestions..."
-    WordData.import_suggestions
-    puts "✓ Imported suggestions"
-  else
-    puts "✓ Word suggestions already imported, skipping"
-  end
-  
   puts "=" * 60
   puts "Initial seeding complete!"
   puts "=" * 60
+end
+
+# Import word data - runs regardless of whether initial seed data exists
+puts "==== Checking Parts-of-Speech Data ===="
+word_count = WordData.where(locale: 'en').count
+if word_count == 0
+  puts "Importing words (this may take a while)..."
+  MobyParser.import_words
+  puts "✓ Imported words"
+else
+  puts "✓ Words already imported (#{word_count} words found), skipping import"
+end
+
+suggestion_count = WordData.where(locale: 'en').where("data LIKE '%suggestions%'").count
+if suggestion_count == 0
+  puts "Importing word suggestions..."
+  WordData.import_suggestions
+  puts "✓ Imported suggestions"
+else
+  puts "✓ Word suggestions already imported, skipping"
 end
 
 # Helper function to seed an organization with users and relationships
