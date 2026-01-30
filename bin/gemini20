@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+# Wrapper to ensure gemini runs with Node 20
+export NVM_DIR="/usr/local/share/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Switch to Node 20 for gemini
+nvm exec 20 gemini "$@"
