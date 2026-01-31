@@ -485,9 +485,9 @@
                     {{/link-to}}
                   {{else}}
                     {{#if event.board}}
-                      {{#link-to "board" event.board.key class="text-muted"}}
+                      <LinkTo @route="board" @model={{event.board.key}} class="text-muted">
                         {{event.board.key}}
-                      {{/link-to}}
+                      </LinkTo>
                     {{/if}}
                   {{/if}}
                 </td>
@@ -561,13 +561,13 @@
           {{/if}}
           {{#if this.model.geo_cluster_id}}
             <br>
-            {{#link-to "user.logs" this.model.user.user_name (query-params highlighted=null start="" end="" location_id=this.model.geo_cluster_id device_id="" type="session") class="btn btn-default"}}
+            <LinkTo @route="user.logs" @model={{this.model.user.user_name}} @query={{hash highlighted=null start="" end="" location_id=this.model.geo_cluster_id device_id="" type="session"}} class="btn btn-default">
               {{t "more entries" key="see_more"}}
-            {{/link-to}}
+            </LinkTo>
 
-            {{#link-to "user.stats" this.model.user.user_name (query-params highlighted=null start=null end=null location_id=this.model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+            <LinkTo @route="user.stats" @model={{this.model.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=this.model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session"}} class="btn btn-default">
               {{t "filtered report" key="see_stats"}}
-            {{/link-to}}
+            </LinkTo>
           {{/if}}
           </dd>
         <dt style="margin-top: 15px;">{{t "IP Address" key="ip_address"}}</dt>
@@ -577,13 +577,13 @@
             {{/if}}
             {{#if this.model.ip_cluster_id}}
               <br>
-              {{#link-to "user.logs" this.model.user.user_name (query-params highlighted=null start="" end="" location_id=this.model.ip_cluster_id device_id="" type="session") class="btn btn-default"}}
+              <LinkTo @route="user.logs" @model={{this.model.user.user_name}} @query={{hash highlighted=null start="" end="" location_id=this.model.ip_cluster_id device_id="" type="session"}} class="btn btn-default">
                 {{t "more entries" key="see_more"}}
-              {{/link-to}}
+              </LinkTo>
 
-              {{#link-to "user.stats" this.model.user.user_name (query-params highlighted=null start=null end=null location_id=this.model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+              <LinkTo @route="user.stats" @model={{this.model.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=this.model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session"}} class="btn btn-default">
                 {{t "filtered report" key="see_stats"}}
-              {{/link-to}}
+              </LinkTo>
             {{/if}}
           </dd>
       </dl>
@@ -603,10 +603,10 @@
   {{/if}}
   <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
   {{#if this.model.previous_log_id}}
-    {{#link-to "user.log" this.user.user_name this.model.previous_log_id class="btn btn-default"}}
+    <LinkTo @route="user.log" @models={{array this.user.user_name this.model.previous_log_id}} class="btn btn-default">
       <span class="glyphicon glyphicon-arrow-left"></span>
       {{t "Previous Entry" key="previous_entry"}}
-    {{/link-to}}
+    </LinkTo>
   {{/if}}
   {{#if this.model.note_type}}
     {{#if this.user.permissions.supervise}}
@@ -614,10 +614,10 @@
     {{/if}}
   {{/if}}
   {{#if this.model.next_log_id}}
-    {{#link-to "user.log" this.user.user_name this.model.next_log_id class="btn btn-default"}}
+    <LinkTo @route="user.log" @models={{array this.user.user_name this.model.next_log_id}} class="btn btn-default">
       {{t "Next Entry" key="next_entry"}}
       <span class="glyphicon glyphicon-arrow-right"></span>
-    {{/link-to}}
+    </LinkTo>
   {{/if}}
 </div>
 {{/opening-observer}}

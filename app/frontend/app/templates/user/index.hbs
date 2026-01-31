@@ -84,7 +84,7 @@
           {{/each}}
           </div>
         {{/if}}
-        {{#link-to "home-boards" class="btn btn-default"}}{{t "Help me Choose" key="help_me_choose"}}{{/link-to}}
+        <LinkTo @route="home-boards" class="btn btn-default">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
         <button class="btn btn-default" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
         </div>
       {{/unless}}
@@ -146,10 +146,10 @@
           {{board-icon board=home_board_pref localized=true}}
         {{else}}
           <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
-          {{#link-to "home-boards" class="btn big_button btn-default"}}
+          <LinkTo @route="home-boards" class="btn big_button btn-default">
             <span class='glyphicon glyphicon-home'></span>
             {{t "No Home<br>Board Set" key="no_home_board_set"}}
-          {{/link-to}}
+          </LinkTo>
         {{/if}}
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
@@ -159,10 +159,10 @@
         </button>
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
-        {{#link-to "user.goals" this.model.user_name class="btn big_button btn-default alternate_button"}}
+        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="btn big_button btn-default alternate_button">
           <span class='glyphicon glyphicon-flag'></span>
           {{t "Goals" key="goals"}}
-        {{/link-to}}
+        </LinkTo>
       </div>
       <div class='col-sm-3 col-xs-6 big_button_holder'>
         <button class='btn big_button btn-default lesser_button' {{action "supervision_settings"}}>
@@ -693,7 +693,7 @@
         {{else}}
           <a href="#" {{action "reset_password"}} class="btn btn-default">{{t "Reset Password" key="reset_password"}}</a>
           <a href="#" {{action "rename_user"}} class="btn btn-default">{{t "Change User Name" key="change_user_name"}}</a>
-          {{#link-to "user.history" this.model.user_name class="btn btn-default"}}{{t "Edit History" key="edit_history"}}{{/link-to}}
+          <LinkTo @route="user.history" @model={{this.model.user_name}} class="btn btn-default">{{t "Edit History" key="edit_history"}}</LinkTo>
         {{/if}}
         {{#if this.model.permissions.admin_support_actions}}
           <h5 style="margin-top: 20px;">{{t "Subscription:" key="subscription_colon"}}</h5>
