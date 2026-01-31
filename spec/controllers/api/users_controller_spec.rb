@@ -2204,25 +2204,25 @@ describe Api::UsersController, :type => :controller do
       assert_not_found('asdf')
     end
     
-    it 'should require admin permission' do
+    it "should allow a user to check their own daily use" do
       token_user
-      get 'daily_use', params: {:user_id => @user.global_id}
-      assert_unauthorized
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log']).to eq(nil)
     end
-    
-    it 'should return nothing if data not available' do
+
+    it "should allow a supervisor to check a user's daily use" do
       token_user
-      o = Organization.create(:admin => true)
-      o.add_manager(@user.user_name, true)
-      get 'daily_use', params: {:user_id => @user.global_id}
-      assert_error('no data available', 400)
+      u = User.create
+      User.link_supervisor_to_user(@user, u)
+      get :daily_use, params: {:user_id => u.global_id}
+      expect(response).to be_successful
     end
 
     it 'should return data if available' do
       token_user
       d = Device.create(:user => @user)
-      o = Organization.create(:admin => true)
-      o.add_manager(@user.user_name, true)
       log = LogSession.process_as_follow_on({
         'type' => 'daily_use',
         'events' => [
@@ -3356,4 +3356,6 @@ describe Api::UsersController, :type => :controller do
       expect(json[1]['id']).to eq(b2.global_id)
     end
   end
+
+
 end

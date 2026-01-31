@@ -21,7 +21,10 @@ export default Route.extend({
     // instead of the 'example' user, causing an Ember Data warning. This is a backend
     // behavior (possibly due to permissions or routing) and the warning is informational.
     // The functionality works correctly - see PHASE2_STATUS.md for more details.
-    var obj = this.store.findRecord('user', params.user_id);
+    // Use queryRecord with 'path' to allow the adapter to construct the correct URL
+    // while checking for a single record response, avoiding ID mismatch warnings
+    // when 'example' redirects to '1_1'
+    var obj = this.store.queryRecord('user', { path: params.user_id });
     var _this = this;
     return obj.then(function(data) {
       if(!data.get('really_fresh') && _this.persistence.get('online')) {
