@@ -445,6 +445,7 @@ var persistence = Service.extend({
     });
   },
   push_records: function(store, keys) {
+    var _this = this;
     var hash = {};
     var res = {};
     // Any non-found records will remain marked as missing
@@ -477,7 +478,7 @@ var persistence = Service.extend({
               // is a pending persistence.
               if(LingoLinq.store) {
                 var existing = LingoLinq.store.peekRecord(store, item.data.raw.id);
-                this.validate_board(existing, item.data.raw);
+                _this.validate_board(existing, item.data.raw);
                 var json_api = { data: {
                   id: item.data.raw.id,
                   type: store,
@@ -664,7 +665,7 @@ var persistence = Service.extend({
                 } else {
                   res.push(existing);
                 }
-                this.validate_board(existing, item.data.raw);
+                _this.validate_board(existing, item.data.raw);
               }
             }
           });
