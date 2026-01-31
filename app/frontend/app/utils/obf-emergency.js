@@ -574,7 +574,7 @@ emergency._services = {};
 
 // Getter method for app_state service with fallback to global
 emergency.get_app_state = function() {
-  return emergency._services.app_state || window.app_state;
+  return emergency._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 // Method to initialize services (called from app_state or other services)

@@ -1089,15 +1089,15 @@ sync._services = {};
 
 // Getter methods for services with fallback to globals
 sync.get_app_state = function() {
-  return sync._services.app_state || window.app_state;
+  return sync._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 sync.get_persistence = function() {
-  return sync._services.persistence || window.persistence;
+  return sync._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 sync.get_stashes = function() {
-  return sync._services.stashes || window.stashes;
+  return sync._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 // Method to initialize services (called from app_state or other services)

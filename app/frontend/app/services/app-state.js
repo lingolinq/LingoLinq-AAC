@@ -54,6 +54,8 @@ export default Service.extend({
   contentGrabbers: service('content-grabbers'),
   init() {
     LingoLinq.appState = this;
+    // Expose globally for utilities
+    window.appState = this;
     if (typeof window !== 'undefined') {
       window.LingoLinq = window.LingoLinq || {};
       window.LingoLinq.appState = this;
@@ -571,7 +573,7 @@ export default Service.extend({
     // On desktop, setting too soon causes a re-render, but on mobile
     // calling it too late does.
     if(capabilities.mobile) {
-//       this.set('index_view', transition.to_route == 'index');
+      this.set('index_view', transition.to_route == 'index');
     }
     if(transition.to_route == 'board.index') {
       boundClasses.setup();
@@ -606,7 +608,7 @@ export default Service.extend({
     this.set('already_homed', true);
     runNext(function() {
       var target = _this.get('current_route');
-//       _this.set('index_view', target == 'index');
+      _this.set('index_view', target == 'index');
     });
     // footer was showing up too quickly and looking weird when the rest of the page hadn't
     // re-rendered yet.

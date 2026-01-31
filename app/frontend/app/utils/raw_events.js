@@ -351,7 +351,7 @@ var buttonTracker = EmberObject.extend({
   },
   
   get appState() {
-    return this._services.appState || (window.LingoLinq && window.LingoLinq.appState) || window.app_state;
+    return this._services.appState || (window.LingoLinq && window.LingoLinq.appState) || window.appState;
   },
 
   set appState(val) {
@@ -359,7 +359,7 @@ var buttonTracker = EmberObject.extend({
   },
   
   get persistence() {
-    return this._services.persistence || (window.LingoLinq && window.LingoLinq.persistence) || window.persistence;
+    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
 
   set persistence(val) {
@@ -367,7 +367,7 @@ var buttonTracker = EmberObject.extend({
   },
 
   get stashes() {
-    return this._services.stashes || (window.LingoLinq && window.LingoLinq.stashes) || window.stashes;
+    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
 
   set stashes(val) {

@@ -1277,15 +1277,15 @@ speecher._services = {};
 
 // Getter methods for services with fallback to globals
 speecher.get_app_state = function() {
-  return speecher._services.app_state || window.app_state;
+  return speecher._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 speecher.get_persistence = function() {
-  return speecher._services.persistence || window.persistence;
+  return speecher._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 speecher.get_stashes = function() {
-  return speecher._services.stashes || window.stashes;
+  return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 speecher.get_tts_voices = function() {

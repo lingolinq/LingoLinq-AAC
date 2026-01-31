@@ -18,24 +18,46 @@ import { observer } from '@ember/object';
 import utterance from './utterance';
 
 var editManager = EmberObject.extend({
+  _services: {},
+  get appState() {
+    return this._services.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+  },
+  set appState(val) {
+    this._services.appState = val;
+  },
+  get persistence() {
+    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  },
+  set persistence(val) {
+    this._services.persistence = val;
+  },
+  get stashes() {
+    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  },
+  set stashes(val) {
+    this._services.stashes = val;
+  },
+
   setup: function(board, appState, persistence, stashes) {
     editManager.Button = Button;
     this.controller = board;
     this.appState = appState;
     this.persistence = persistence;
     this.stashes = stashes;
-    this.set('app_state', appState); // Keeping this for now if referenced by property
-    
-    if(appState.controller) {
-      appState.controller.addObserver('dragMode', function() {
-        if(editManager.controller == board) {
-          var newMode = appState.controller.get('dragMode');
-          if(newMode != editManager.dragMode) {
-            editManager.set('dragMode', newMode);
-          }
+    if (appState) {
+        this.set('app_state', appState); // Keeping this for now if referenced by property
+        if(appState.controller) {
+        appState.controller.addObserver('dragMode', function() {
+            if(editManager.controller == board) {
+            var newMode = appState.controller.get('dragMode');
+            if(newMode != editManager.dragMode) {
+                editManager.set('dragMode', newMode);
+            }
+            }
+        });
         }
-      });
     }
+    
     this.set('dragMode', false);
     var edit = editManager.get_stashes().get('current_mode') == 'edit';
     if(this.auto_edit.edits && this.auto_edit.edits[board.get('model.id')]) {
@@ -48,18 +70,19 @@ var editManager = EmberObject.extend({
     this.clear_history();
   },
   set_drag_mode: function(enable) {
-    if(this.appState.controller) {
+    if(this.appState && this.appState.controller) {
       this.appState.controller.set('dragMode', enable);
     }
   },
   edit_mode_triggers: observer('app_state.edit_mode', function() {
-    if(this.controller && this.lucky_symbol.pendingSymbols && this.appState.get('edit_mode')) {
+    if(this.controller && this.lucky_symbol.pendingSymbols && this.appState && this.appState.get('edit_mode')) {
       this.lucky_symbols(this.lucky_symbol.pendingSymbols);
       this.lucky_symbol.pendingSymbols = [];
     }
 
   }),
   long_press_mode: function(opts) {
+    if(!this.appState) { return; }
     var app = this.appState.controller;
     if(!this.appState.get('edit_mode')) {
       if(opts.button_id && this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.long_press_edit_disabled')) {
@@ -2255,15 +2278,15 @@ editManager._services = {};
 
 // Getter methods for services with fallback to globals
 editManager.get_app_state = function() {
-  return editManager._services.app_state || window.app_state;
+  return editManager._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 editManager.get_persistence = function() {
-  return editManager._services.persistence || window.persistence;
+  return editManager._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 editManager.get_stashes = function() {
-  return editManager._services.stashes || window.stashes;
+  return editManager._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 // Service registration method

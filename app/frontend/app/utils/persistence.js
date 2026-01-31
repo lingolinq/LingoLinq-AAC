@@ -2051,9 +2051,12 @@ var persistence = EmberObject.extend({
         });
       }
 
-      if(window.app_state && !ignore_supervisees) {
-        eventuallies.push(function() {
-          window.app_state.check_free_space().then(function(res) {
+      if(window.appState && !ignore_supervisees) {
+        // We only really care about checking free space if we're dealing with
+        // a user who has supervisees, because we might need to purge old ones.
+        // It's expensive to run so we just skip it for normal users.
+        setTimeout(function() {
+          window.appState.check_free_space().then(function(res) {
             if(res && res.too_little) {
               modal.error(i18n.t('too_little_free_space', "Your device is almost out of free space, you may need to delete some data to make room for LingoLinq"));
             }
@@ -3023,7 +3026,7 @@ var persistence = EmberObject.extend({
               safely_cached = safely_cached || (full_set_revisions[board.get('id')] && board.get('full_set_revision') == full_set_revisions[board.get('id')] && !cache_mismatch);
               // If the board has been loaded locally but not via sync, then this check will return true even though the content hasn't
               // been saved for offline use. That would be wrong, and mildly offensive.
-//               safely_cached = safely_cached || (fresh_revisions[board.get('id')] && board.get('current_revision') == fresh_revisions[board.get('id')]);
+//               safely_cached = safely_cached || (fresh_revisions[board.get('id')] && board.get('current_revision') == fresh_revisions[board.get('id']]);
               if(force == 'all_reload') { safely_cached = false; }
               if(safely_cached) {
                 console.log("this board (" + board.get('key') + ") has already been cached locally");
@@ -3842,13 +3845,13 @@ var persistence = EmberObject.extend({
                 persistence.sync('self', null, null, 'sync_stamp_changed:' + res.sync_stamp + ":" + _this.get('last_sync_stamp')).then(null, function() { });
               }
             }
-            if(window.app_state && window.app_state.get('currentUser')) {
-              window.app_state.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
-              if(res.unread_messages != null) {
-                window.app_state.set('currentUser.unread_messages', res.unread_messages);
+            if(window.appState && window.appState.get('currentUser')) {
+              window.appState.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
+              if(res.unread_messages !== undefined) {
+                window.appState.set('currentUser.unread_messages', res.unread_messages);
               }
-              if(res.unread_alerts != null) {
-                window.app_state.set('currentUser.unread_alerts', res.unread_alerts);
+              if(res.unread_alerts !== undefined) {
+                window.appState.set('currentUser.unread_alerts', res.unread_alerts);
               }
             }
           }, function(err) {

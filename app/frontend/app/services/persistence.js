@@ -26,15 +26,12 @@ var loaded = (new Date()).getTime() / 1000;
 var persistence = Service.extend({
   stashes: service('stashes'),
 
+
   // Helper method to safely get stashes instance (handles case where injection returns class)
   _getStashesInstance: function() {
     var stashes = this.stashes;
     // If stashes is a class (not an instance), try to get the instance
     if(stashes && typeof stashes.create === 'function') {
-      // Try window.stashes first (set by instance initializer)
-      if(window.stashes && typeof window.stashes.get === 'function') {
-        return window.stashes;
-      }
       // Try owner lookup
       try {
         var owner = this.get('owner') || (this.constructor && this.constructor.owner);
@@ -56,8 +53,10 @@ var persistence = Service.extend({
     return null;
   },
 
+
   init() {
     this._super(...arguments);
+    window.persistence = this;
     try {
       var initStack = new Error().stack;
       console.log('[PERSISTENCE INIT] ========== init() START ==========');
@@ -86,16 +85,6 @@ var persistence = Service.extend({
           }
         } catch(e) {
           console.warn('[PERSISTENCE INIT] Error looking up stashes service (before _super):', e);
-        }
-        // Fallback to window.stashes if owner lookup didn't work
-        if(!this.stashes || typeof this.stashes.get !== 'function') {
-          if(window.stashes && typeof window.stashes.get === 'function') {
-            console.log('[PERSISTENCE INIT] Using window.stashes as fallback (before _super)');
-            this.stashes = window.stashes;
-          } else {
-            console.warn('[PERSISTENCE INIT] WARNING: stashes service not available, setting to null to prevent errors');
-            this.stashes = null;
-          }
         }
       }
       
@@ -126,19 +115,8 @@ var persistence = Service.extend({
         } catch(e) {
           console.warn('[PERSISTENCE INIT] Error looking up stashes service:', e);
         }
-        // Fallback to window.stashes if owner lookup didn't work
-        if(!this.stashes || typeof this.stashes.get !== 'function') {
-          if(window.stashes && typeof window.stashes.get === 'function') {
-            console.log('[PERSISTENCE INIT] Using window.stashes as fallback');
-            this.stashes = window.stashes;
-          }
-        }
       }
       
-      // Set window.persistence immediately for backward compatibility
-      // This ensures observers can use window.persistence as fallback
-      window.persistence = this;
-      console.log('[PERSISTENCE INIT] window.persistence set:', window.persistence);
       
       // Initialize online property immediately - this is critical for early requests
       // Using a direct property assignment to avoid triggering observers
@@ -190,10 +168,7 @@ var persistence = Service.extend({
       console.log('[PERSISTENCE INIT] ========== init() END ==========');
     } catch(e) {
       console.error('[PERSISTENCE DEBUG] CRITICAL ERROR in init():', e, e.stack);
-      // Still set window.persistence as fallback
-      if(this) {
-        window.persistence = this;
-      }
+      // Log critical error
     }
   },
 
@@ -205,11 +180,7 @@ var persistence = Service.extend({
       if(this.stashes && typeof this.stashes.create === 'function') {
         // this.stashes is a class, not an instance - fix it immediately
         try {
-          // Try window.stashes first (set by instance initializer)
-          if(window.stashes && typeof window.stashes.get === 'function') {
-            this.stashes = window.stashes;
-          } else {
-            // Try owner lookup
+          // Try owner lookup
             var owner = (this.constructor && this.constructor.owner) || (this.owner) || (this.get && this.get('owner'));
             if(owner && typeof owner.lookup === 'function') {
               var stashesService = owner.lookup('service:stashes');
@@ -221,7 +192,6 @@ var persistence = Service.extend({
             if(!this.stashes || typeof this.stashes.get !== 'function') {
               this.stashes = null;
             }
-          }
         } catch(e) {
           console.warn('[PERSISTENCE SETUP] Error fixing stashes injection:', e);
           this.stashes = null;
@@ -274,12 +244,6 @@ var persistence = Service.extend({
       return;
     }
     
-    // Guard: Fix stashes injection - if this.stashes is a class (not an instance), use window.stashes
-    if(this.stashes && typeof this.stashes.create === 'function') {
-      // this.stashes is a class, not an instance - use window.stashes instead
-      console.warn('[PERSISTENCE SETUP] WARNING: this.stashes is a class, not an instance. Using window.stashes as fallback.');
-      this.stashes = window.stashes || null;
-    }
     // If stashes is still not an instance, try to get it from the owner
     if(!this.stashes || typeof this.stashes.get !== 'function') {
       try {
@@ -295,14 +259,9 @@ var persistence = Service.extend({
         console.warn('[PERSISTENCE SETUP] Error looking up stashes service:', e);
       }
     }
-    // Final fallback to window.stashes
+    // Final fallback
     if(!this.stashes || typeof this.stashes.get !== 'function') {
-      if(window.stashes && typeof window.stashes.get === 'function') {
-        console.log('[PERSISTENCE SETUP] Using window.stashes as final fallback');
-        this.stashes = window.stashes;
-      } else {
         console.warn('[PERSISTENCE SETUP] WARNING: stashes service not available!');
-      }
     }
     
     // TEMPORARILY DISABLED: Empty setup to debug initialization error

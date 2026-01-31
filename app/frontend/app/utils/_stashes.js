@@ -675,7 +675,7 @@ var stashes = EmberObject.extend({
         modeling = true;
       }
       var phrase = null;
-      if((obj.add_vocalization || obj.add_vocalization == null) && window.app_state && window.app_state.get('currentUser.supporter_role') && (stashes.get('logging_enabled') || window.app_state.get('currentUser.supervised_units.length'))) {
+      if((obj.add_vocalization || obj.add_vocalization == null) && window.appState && window.appState.get('currentUser.supporter_role') && (stashes.get('logging_enabled') || window.appState.get('currentUser.supervised_units.length'))) {
         // unit supervisors and those with logging enabled 
         // with have their models explicitly tracked for reporting
         phrase = obj.vocalization || obj.label;
@@ -684,7 +684,7 @@ var stashes = EmberObject.extend({
     }
     if(!stashes.get('history_enabled')) { return null; }
     if(!stashes.get('logging_enabled')) { return null; }
-    if(window.app_state && window.app_state.get('eval_mode')) { return null; }
+    if(window.appState && window.appState.get('eval_mode')) { return null; }
     if(stashes.get('logging_paused_at')) {
       var last_event = stashes.get('last_event');
       var pause = stashes.get('logging_paused_at');
