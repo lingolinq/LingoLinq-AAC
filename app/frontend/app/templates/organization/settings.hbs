@@ -48,7 +48,7 @@
     <div class="form-group">
       <label for="inactivity_timeout" class="col-sm-3 control-label">{{t "Login Timeout" key="inactivity_timeout"}}</label>
       <div class="col-sm-3">
-        <Input id="inactivity_timeout" @value={{this.model.inactivity_timeout}} class="form-control" @type="text" />
+        <Input id="inactivity_timeout" @value={{this.model.inactivity_timeout}} class="form-control" type="text" />
       </div>
       <div class='col-sm-3'>{{t "minutes" key="minutes"}}</div>
     </div>
@@ -57,7 +57,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @checked={{this.model.org_access}} @type="checkbox" />
+            <Input @checked={{this.model.org_access}} type="checkbox" />
             {{t "Allow manager access to the org management tool" key="allow_org_access"}}
           </label>
         </div>
@@ -68,7 +68,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @checked={{this.model.premium}} @type="checkbox" />
+            <Input @checked={{this.model.premium}} type="checkbox" />
               {{t "This org has an active annual subscription" key="allow_premium"}}
           </label>
         </div>
@@ -96,7 +96,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @checked={{this.external_auth}} @type="checkbox" />
+            <Input @checked={{this.external_auth}} type="checkbox" />
             {{t "Enable external authentication (beta)" key="enable_external_auth"}}
           </label>
         </div>
@@ -111,7 +111,7 @@
         <div class="col-sm-7 col-sm-offset-3" style='margin-top: 5px;'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @checked={{this.model.saml_enforced}} @type="checkbox" />
+              <Input @checked={{this.model.saml_enforced}} type="checkbox" />
               {{t "Require all org users to log in using external authentication" key="require_external_auth"}}
             </label>
           </div>
@@ -125,7 +125,7 @@
       <div class="col-sm-7">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @checked={{this.allow_support_target}} @type="checkbox" />
+            <Input @checked={{this.allow_support_target}} type="checkbox" />
               {{t "Email a copy of all support tickets from within this organization" key="allow_support_target"}}
           </label>
         </div>

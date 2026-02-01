@@ -11,7 +11,7 @@
         <div class="col-sm-9">
           {{#if model.user.board_tags}}
             <div class="input-group">
-              <Input @type="text" id="category" class="form-control" @value={{tag}} />
+              <Input type="text" id="category" class="form-control" @value={{tag}} />
               <div class="input-group-btn">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{t "Categories" key="categories"}} <span class="caret"></span></button>
                 <ul class="dropdown-menu dropdown-menu-right">
@@ -22,7 +22,7 @@
               </div>
             </div>
           {{else}}
-            <Input @type="text" id="category" class="form-control" @value={{tag}} />
+            <Input type="text" id="category" class="form-control" @value={{tag}} />
           {{/if}}
         </div>
       </div>
@@ -33,7 +33,7 @@
           </label>
           <div class="col-sm-9">
             <label id='home'>
-              <Input @type="checkbox" @checked={{downstream}} />
+              <Input type="checkbox" @checked={{downstream}} />
               {{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}
             </label>
           </div>

@@ -44,7 +44,7 @@
         <span class={{if notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text"}}>
           {{t "As Text Messages" key="via_text"}}
           <br>
-          <span style='display: inline-block; width: 300px;'><Input @type="text" class="form-control input-lg" @value={{cell}} placeholder="cell #" /></span>
+          <span style='display: inline-block; width: 300px;'><Input type="text" class="form-control input-lg" @value={{cell}} placeholder="cell #" /></span>
         </span>
         <a href="#" class={{if notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email"}}>{{t "As Email Messages" key="via_email"}}</a>
         <a href="#" class={{if notification.app "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "app"}}>{{t "As Dashboard Notifications" key="via_dashboard"}}</a>

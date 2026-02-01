@@ -105,7 +105,7 @@
         </table>
         <div class='row' style='margin: 15px 0;'>
           <div class='col-sm-5' style='padding-right: 0;'>
-            <Input @type="text" class="form-control" @enter={{action "lookup"}} @value={{find_profile_id}} placeholder="Look up profile by ID" />
+            <Input type="text" class="form-control" @enter={{action "lookup"}} @value={{find_profile_id}} placeholder="Look up profile by ID" />
           </div>
           <div class='col-sm-3' style='padding-left: 3px;'>
             <button class='btn btn-default' {{action "lookup"}}>{{t "Go" key="go"}}</button>

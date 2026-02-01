@@ -38,7 +38,7 @@
       <div class="col-sm-8 col-sm-offset-2">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.badge.enable_auto_tracking}} />
+            <Input type="checkbox" @checked={{this.badge.enable_auto_tracking}} />
             {{t "This badge is automatically awarded based on user activity" key="auto_tracking"}}
           </label>
         </div>
@@ -100,7 +100,7 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <div class='checkbox big_checkbox'>
             <label>
-              <Input @type="checkbox" @checked={{this.badge.enable_watch_type_minimum}} />
+              <Input type="checkbox" @checked={{this.badge.enable_watch_type_minimum}} />
               {{t "limit to %{types} used at least" types=this.watchlist_type_plural key="watch_type_minimum"}}
             </label>
           </div>
@@ -116,7 +116,7 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.badge.enable_watch_total}} />
+              <Input type="checkbox" @checked={{this.badge.enable_watch_total}} />
               {{t "require a total every %{unit_type} of" unit_type=this.unit_type key="watch_total"}}
             </label>
           </div>
@@ -132,7 +132,7 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.badge.enable_watch_type_count}} />
+              <Input type="checkbox" @checked={{this.badge.enable_watch_type_count}} />
               {{t "require different %{types}, at least" types=this.watchlist_type_plural key="watch_type_count"}}
             </label>
           </div>
@@ -152,7 +152,7 @@
           <div class='col-sm-3 col-sm-offset-2'>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.badge.enable_watch_type_interval}} />
+                <Input type="checkbox" @checked={{this.badge.enable_watch_type_interval}} />
                 {{t "also require different %{types}, at least" types=this.watchlist_type_plural key="watch_type_interval_count"}}
               </label>
             </div>

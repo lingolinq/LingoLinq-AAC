@@ -65,7 +65,7 @@
       <p>{{t "Error loading custom purchases" key="error_loading_gifts"}}</p>
     {{else if this.gifts}}
       <div style='max-width: 400px; margin-bottom: 2px;'>
-        <Input @type="text" @value={{this.code_lookup}} placeholder="Find code" class="form-control inline inline-masquerade input-sm" />
+        <Input type="text" @value={{this.code_lookup}} placeholder="Find code" class="form-control inline inline-masquerade input-sm" />
         <button {{action "find_code"}} class='btn btn-default'>{{t "Find" key="find"}}</button>
       </div>
       <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
@@ -185,7 +185,7 @@
           <div style='margin-top: -15px;'>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @checked={{this.include_extras}} @type="checkbox" />
+                <Input @checked={{this.include_extras}} type="checkbox" />
                 {{t "include premium symbols" key="include_premium_symbols"}}
               </label>
             </div>
@@ -210,7 +210,7 @@
           </div>
           <span style='display: inline-block; width: 304px;'>
             <span style='width: 150px; display: inline-block; text-align: right; padding-right: 5px;'>{{t "expires (optional)" key="expires_optional"}}</span>
-            <Input @type="date" @value={{this.expires}} placeholder="(optional)" class="form-control inline inline-masquerade input-sm" />
+            <Input type="date" @value={{this.expires}} placeholder="(optional)" class="form-control inline inline-masquerade input-sm" />
           </span>
           <button class="btn btn-default btn-sm" {{action "add_gift" "discount"}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
         </div>
