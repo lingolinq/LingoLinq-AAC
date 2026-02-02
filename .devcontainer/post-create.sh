@@ -17,11 +17,6 @@ fi
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
-# Install Node 18 alongside Node 20
-echo "Installing Node 18..."
-nvm install 18
-nvm alias node18 18
-
 # Set Node 20 as default
 nvm use 20
 nvm alias default 20

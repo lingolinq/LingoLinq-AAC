@@ -23,9 +23,9 @@ else
 fi
 set -e
 
-echo "=== Using Node 18 for Ember ==="
-nvm install 18
-nvm use 18
+echo "=== Using Node 20 for Ember ==="
+nvm install 20
+nvm use 20
 echo "Node version for Ember: $(node -v)"
 echo "NPM version: $(npm -v)"
 

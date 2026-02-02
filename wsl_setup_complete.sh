@@ -114,7 +114,7 @@ fi
 # Install Node versions
 print_step "Installing Node.js versions..."
 nvm install 22
-nvm install 18
+nvm install 20
 nvm alias default 22
 nvm use 22
 
@@ -141,7 +141,6 @@ echo "   bundle install"
 echo ""
 echo "   # Install frontend dependencies"
 echo "   cd app/frontend"
-echo "   nvm use 18  # Frontend needs Node 18"
 echo "   npm install"
 echo "   bower install"
 echo "   cd ../.."
