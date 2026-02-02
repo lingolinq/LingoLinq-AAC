@@ -23,6 +23,7 @@
   "devDependencies": {
     "@ember/jquery": "^1.1.0",
     "@ember/optional-features": "^2.3.0",
+    "@ember/test-helpers": "^2.9.3",
     "broccoli-asset-rev": "^3.0.0",
     "broccoli-replace": "^0.12.0",
     "ember-cli": "~3.28.0",
@@ -50,7 +51,9 @@
     "loader.js": "^4.7.0",
     "lodash": ">=4.17.11",
     "merge": ">=1.2.1",
-    "qunit-dom": "^0.8.4",
+    "puppeteer": "^24.36.1",
+    "qunit": "^2.19.4",
+    "qunit-dom": "^2.0.0",
     "sass": "^1.97.1"
   },
   "dependencies": {

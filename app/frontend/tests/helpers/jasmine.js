@@ -1,8 +1,7 @@
 /*jshint -W079 */
 // import { async } from 'qunit';
 import QUnit from 'qunit';
-import newTestHelpers from '@ember/test-helpers';
-import testHelpers from 'ember-test-helpers';
+import * as testHelpers from '@ember/test-helpers';
 import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
@@ -45,9 +44,11 @@ function test_wrap(name, instance, befores, afters, lookup) {
 
       var this_arg = _this;
 
-      if(lookup) {
-        this_arg = new testHelpers.TestModule(lookup, name, []);
-      }
+      // Note: TestModule was removed in @ember/test-helpers v2
+      // Tests using lookup should use setupTest/setupRenderingTest hooks instead
+      // if(lookup) {
+      //   this_arg = new testHelpers.TestModule(lookup, name, []);
+      // }
 
       current_test_id++;
       // try {
@@ -229,8 +230,22 @@ var afterEach = function(callback) {
 var stub = function(object, method, replacement) {
   stub.stubs = stub.stubs || [];
   var stash = object[method];
-  emberSet(object, method, replacement);
-  //console.log(stubs);
+  // Use Object.defineProperty to bypass proxy restrictions
+  try {
+    Object.defineProperty(object, method, {
+      value: replacement,
+      writable: true,
+      configurable: true
+    });
+  } catch(e) {
+    // Fallback to direct assignment if defineProperty fails
+    try {
+      object[method] = replacement;
+    } catch(e2) {
+      // Last resort: use emberSet
+      emberSet(object, method, replacement);
+    }
+  }
   stub.stubs.push([object, method, stash]);
 };
 stub.stubs = [];
