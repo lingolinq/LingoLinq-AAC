@@ -111,12 +111,11 @@ else
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 fi
 
-# Install Node versions
-print_step "Installing Node.js versions..."
-nvm install 22
+# Install Node 20
+print_step "Installing Node.js..."
 nvm install 20
-nvm alias default 22
-nvm use 22
+nvm alias default 20
+nvm use 20
 
 # Install bower globally
 print_step "Installing bower..."
