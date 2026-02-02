@@ -6,7 +6,9 @@ import capabilities from '../utils/capabilities';
 
 export default Component.extend({
   tagName: 'span',
-  tripleClick: function() {
-    this.sendAction('triple_click');
+  tripleClick: function () {
+    if (this.triple_click) {
+      this.triple_click();
+    }
   }
 });

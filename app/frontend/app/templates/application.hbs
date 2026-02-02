@@ -3,7 +3,7 @@
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
     <span id="speak">
-      {{#triple-click-listener triple_click="meta_home_click"}}
+      {{#triple-click-listener triple_click=(action "meta_home_click")}}
         <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
           <span class="sr-only">{{t "Home" key="home"}}</span>
           <span class="glyphicon glyphicon-home button_icon"></span>
@@ -154,7 +154,7 @@
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
       </button>
-      {{#triple-click-listener triple_click="toggle_modeling"}}
+      {{#triple-click-listener triple_click=(action "toggle_modeling")}}
         <button class="btn btn-default access" id="clear_button" {{action "clear"}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
           <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>

@@ -19,10 +19,14 @@ export default Component.extend({
   }),
   actions: {
     word_cloud: function() {
-      this.sendAction('word_cloud');
+      if (this.word_cloud) {
+        this.word_cloud();
+      }
     },
     word_data: function(word) {
-      this.sendAction('word_data', word);
+      if (this.word_data) {
+        this.word_data(word);
+      }
     },
   }
 });

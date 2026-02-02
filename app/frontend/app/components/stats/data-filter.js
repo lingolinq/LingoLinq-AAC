@@ -48,13 +48,19 @@ export default Component.extend({
   ),
   actions: {
     compare_to: function() {
-      this.sendAction('compare_to');
+      if (this.compare_to) {
+        this.compare_to();
+      }
     },
     clear_side: function() {
-      this.sendAction('clear_side');
+      if (this.clear_side) {
+        this.clear_side();
+      }
     },
     update_filter: function(type) {
-      this.sendAction('update_filter', type);
+      if (this.update_filter) {
+        this.update_filter(type);
+      }
     }
   }
 });

@@ -1,7 +1,7 @@
 <div class="row">
   <div class='col-sm-12'>
   {{#if this.browse_audio}}
-    {{audio-browser audio_selected="audio_selected" prompt=text}}
+    {{audio-browser audio_selected=(action "audio_selected") prompt=this.text}}
     <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Stop Browsing" key="stop_browsing"}}</button>
   {{else if this.sound_preview}}
     <div class="form-horizontal">

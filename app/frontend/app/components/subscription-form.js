@@ -80,7 +80,9 @@ export default Component.extend({
       user.set('preferences.progress', progress);
       user.save().then(null, function() { });
       // TODO: this really belongs in the modal controller
-      this.sendAction('subscription_skip');
+      if (this.subscription_skip) {
+        this.subscription_skip();
+      }
     },
     reload: function() {
       location.reload();
@@ -169,7 +171,9 @@ export default Component.extend({
         }).then(function(data) {
           progress_tracker.track(data.progress, function(event) {
             if(event.status == 'errored') {
-              _this.sendAction('subscription_error', i18n.t('user_subscription_update_failed_try_again', "Purchase failed. Please try again or contact support for help."));
+              if (_this.subscription_error) {
+                _this.subscription_error(i18n.t('user_subscription_update_failed_try_again', "Purchase failed. Please try again or contact support for help."));
+              }
               _this.set('purchase_state', null);
               _this.send('reset');
               console.log(event);
@@ -187,12 +191,16 @@ export default Component.extend({
                 str = i18n.t('card_declined_by_billing_stolen', "Purchase failed, our billing system has flagged your card as being stolen. Please try a different card or contact support for help.");
               }
 
-              _this.sendAction('subscription_error', str);
+              if (_this.subscription_error) {
+                _this.subscription_error(str);
+              }
               _this.send('reset');
               console.log(event);
             } else if (event.result && event.result.success === false) {
               _this.set('purchase_state', null);
-              _this.sendAction('subscription_error', i18n.t('user_subscription_update_failed_try_again', "Purchase failed. Please try again or contact support for help."));
+              if (_this.subscription_error) {
+                _this.subscription_error(i18n.t('user_subscription_update_failed_try_again', "Purchase failed. Please try again or contact support for help."));
+              }
               _this.send('reset');
               console.log(event);
               console.error('purchase_other_error');
@@ -203,10 +211,14 @@ export default Component.extend({
                 user.reload().then(function() {
                   user.set('preferences.progress.subscription_set', true);
                   user.save();
-                  _this.sendAction('subscription_success', i18n.t('user_subscribed', "Your purchase succeeded! Thank you for supporting %app_name%!"));
+                  if (_this.subscription_success) {
+                    _this.subscription_success(i18n.t('user_subscribed', "Your purchase succeeded! Thank you for supporting %app_name%!"));
+                  }
                   try { _this.send('reset'); } catch(e) {  }
                 }, function() {
-                  _this.sendAction('subscription_error', i18n.t('user_subscription_reload_failed', "Purchase succeeded, but there was a problem reloading your user account. Please try loading this page again."));
+                  if (_this.subscription_error) {
+                    _this.subscription_error(i18n.t('user_subscription_reload_failed', "Purchase succeeded, but there was a problem reloading your user account. Please try loading this page again."));
+                  }
                 });
               } else {
                 location.reload();
@@ -221,9 +233,13 @@ export default Component.extend({
           var message = (err.result && err.result.error) || err.error || err;
           if(message && message.match(/Access token required/)) {
             console.error('purchase_subscription_missing_token');
-            _this.sendAction('subscription_authentication_error', i18n.t('user_subscription_unauthenticated', "Purchase failed, it looks like your login may have timed out. Please try logging out and back in. If that doesn't help, please contact support and we'll help figure things out."));
+            if (_this.subscription_authentication_error) {
+              _this.subscription_authentication_error(i18n.t('user_subscription_unauthenticated', "Purchase failed, it looks like your login may have timed out. Please try logging out and back in. If that doesn't help, please contact support and we'll help figure things out."));
+            }
           } else {
-            _this.sendAction('subscription_error', i18n.t('user_subscription_update_failed_logout', "Purchase failed unexpectedly. Please try logging out and back in. If that doesn't work, please contact support for help."));
+            if (_this.subscription_error) {
+              _this.subscription_error(i18n.t('user_subscription_update_failed_logout', "Purchase failed unexpectedly. Please try logging out and back in. If that doesn't work, please contact support for help."));
+            }
           }
         });
       };

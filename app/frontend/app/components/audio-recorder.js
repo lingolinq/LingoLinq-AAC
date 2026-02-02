@@ -21,7 +21,9 @@ export default Component.extend({
     var _this = this;
     if(!_this.get('sound')) {
       runLater(function() {
-        _this.sendAction('audio_not_ready');
+        if (_this.audio_not_ready) {
+          _this.audio_not_ready();
+        }
         _this.send('record_sound');
       });
     }
@@ -64,7 +66,9 @@ export default Component.extend({
       contentGrabbers.soundGrabber.toggle_recording_sound(action);
     },
     audio_selected: function(sound) {
-      this.sendAction('audio_ready', sound);
+      if (this.audio_ready) {
+        this.audio_ready(sound);
+      }
       try {
         this.set('sound', sound);
       } catch(e) { }
@@ -74,17 +78,23 @@ export default Component.extend({
       contentGrabbers.soundGrabber.select_sound_preview();
     },
     clear_sound: function() {
-      this.sendAction('audio_not_ready');
+      if (this.audio_not_ready) {
+        this.audio_not_ready();
+      }
     },
     clear_sound_work: function() {
       contentGrabbers.soundGrabber.clear_sound_work();
       this.send('record_sound');
     },
     select_phrase: function(id) {
-      this.sendAction('select_phrase', id);
+      if (this.select_phrase) {
+        this.select_phrase(id);
+      }
     },
     decide_on_recording: function(decision) {
-      this.sendAction('decide_on_recording', decision);
+      if (this.decide_on_recording) {
+        this.decide_on_recording(decision);
+      }
     }
   }
 });

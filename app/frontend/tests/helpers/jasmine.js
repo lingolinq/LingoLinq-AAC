@@ -7,6 +7,7 @@ import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
+var currentHooks = null;
 var names = [];
 var all_befores = [[]];
 var all_afters = [[]];
@@ -15,8 +16,10 @@ var current_test_id = 0;
 var current_afters = [];
 var waiting = {};
 
+var LingoLinq = window.LingoLinq || (window.LingoLinq = {});
+
 var assert = null;
-function test_wrap(name, instance, befores, afters, lookup) {
+function test_wrap(name, instance, befores, afters) {
   var pre = [];
   var post = [];
   all_befores.forEach(function(list) {
@@ -44,12 +47,6 @@ function test_wrap(name, instance, befores, afters, lookup) {
 
       var this_arg = _this;
 
-      // Note: TestModule was removed in @ember/test-helpers v2
-      // Tests using lookup should use setupTest/setupRenderingTest hooks instead
-      // if(lookup) {
-      //   this_arg = new testHelpers.TestModule(lookup, name, []);
-      // }
-
       current_test_id++;
       // try {
         instance.call(this_arg);
@@ -70,36 +67,67 @@ function test_wrap(name, instance, befores, afters, lookup) {
 
 var container_lookup = null;
 var describe = function(name, lookup, callback) {
+  // Handle optional lookup parameter
   if(!callback) {
     callback = lookup;
+    lookup = null;
   } else {
-    if(names.length === 0) { container_lookup = lookup; }
+    if(names.length === 0) {
+      container_lookup = lookup;
+    }
   }
-  var add_test = function() {
+
+  var add_test = function(hooks) {
     names.push(name);
     all_tests.push([]);
     all_befores.push([]);
     all_afters.unshift([]);
+
+    // Store hooks for nested beforeEach/afterEach to use
+    var previousHooks = currentHooks;
+    if (hooks) {
+      currentHooks = hooks;
+    }
+
     callback();
+
     all_tests[all_tests.length - 1].forEach(function(args) {
       if(args[1]) {
-        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
+        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters);
       } else {
         console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
       }
     });
+
+    currentHooks = previousHooks;
     names.pop();
     all_befores.pop();
     all_afters.shift();
     all_tests.pop();
-  }
+  };
+
   if(names.length === 0) {
+    // Top-level describe: create QUnit.module with proper lifecycle
     QUnit.module(name, function(hooks) {
-      // setupTest(hooks);
-      add_test();
+      // Determine which setup function to use based on lookup
+      if (container_lookup && container_lookup.startsWith('component:')) {
+        setupRenderingTest(hooks);
+      } else {
+        setupTest(hooks);
+      }
+
+      // Set up LingoLinq.store in beforeEach so this.owner is available
+      hooks.beforeEach(function() {
+        if (this.owner) {
+          LingoLinq.store = this.owner.lookup('service:store');
+        }
+      });
+
+      add_test(hooks);
     });
   } else {
-    add_test();
+    // Nested describe: inherit parent module's hooks, don't create new module
+    add_test(currentHooks);
   }
 };
 var context = describe;

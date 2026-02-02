@@ -53,7 +53,9 @@ export default Component.extend({
           action('self');
         } else if (action && typeof action === 'string') {
           // Fallback for string-based actions (legacy support)
-          this.sendAction('action', 'self');
+          if (this.action) {
+            this.action('self');
+          }
         }
       }
     }
@@ -67,7 +69,9 @@ export default Component.extend({
           action('self');
         } else if (action && typeof action === 'string') {
           // Fallback for string-based actions (legacy support)
-          this.sendAction('action', 'self');
+          if (this.action) {
+            this.action('self');
+          }
         }
       }
     }
@@ -151,7 +155,9 @@ export default Component.extend({
       });
       if(found) {
         // NOTE: user-select needs to handle when set id is from the extras list
-        this.sendAction('action', id);
+        if (this.action) {
+          this.action(id);
+        }
       }
     },
     set_extra_user: function(user) {
@@ -169,7 +175,9 @@ export default Component.extend({
         action(user.id);
       } else if (action && typeof action === 'string') {
         // Fallback for string-based actions (legacy support)
-        this.sendAction('action', user.id);
+        if (this.action) {
+          this.action(user.id);
+        }
       }
     }
   }
