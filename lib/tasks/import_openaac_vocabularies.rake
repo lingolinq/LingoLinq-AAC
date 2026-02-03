@@ -77,10 +77,16 @@ namespace :openaac do
           # Use Converters::Utils for OBZ files
           result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
+          result.each do |board|
+            board.generate_stats
+            board.save_without_post_processing
+          end
         elsif filename.end_with?('.obf')
           # Use Converters::Utils for OBF files
           result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
+          result.generate_stats
+          result.save_without_post_processing
         end
         
         # Clean up downloaded file

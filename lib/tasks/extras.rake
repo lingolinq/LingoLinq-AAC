@@ -43,6 +43,16 @@ task "extras:clear_report_tallies" => :environment do
   RedisInit.default.del('overridden_parts_of_speech')
 end
 
+task "extras:reindex_public_boards" => :environment do
+  puts "Reindexing public boards..."
+  Board.where(public: true).find_each do |board|
+    print "."
+    board.generate_stats
+    board.save_without_post_processing
+  end
+  puts "\nDone!"
+end
+
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
   message = "Something got deployed!"
   if !args[:system] && ARGV.length > 1

@@ -479,6 +479,7 @@ class Board < ActiveRecord::Base
       self.popularity = 0
       self.home_popularity = 0
     end
+    self.home_popularity = 1 if self.public && self.home_popularity <= 0 && (self.buttons || []).length > 0
     true
   end
 
