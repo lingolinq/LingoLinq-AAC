@@ -3,6 +3,7 @@ namespace :openaac do
   task import_vocabularies: :environment do
     require 'open-uri'
     require 'fileutils'
+    require Rails.root.join('lib', 'converters', 'cough_drop')
     
     # Create temp directory for downloads
     temp_dir = Rails.root.join('tmp', 'vocab_import')
@@ -68,14 +69,12 @@ namespace :openaac do
         puts "Importing into database..."
         if filename.end_with?('.obz')
           # Use Converters::Utils for OBZ files
-          result = Converters::Utils.obz_to_boards(file_path.to_s, admin_user)
+          result = Converters::LingoLinq.from_obz(file_path.to_s, {'user' => admin_user})
           puts "✓ Successfully imported #{vocab[:name]}"
-          puts "  Boards created: #{result[:boards]&.count || 'unknown'}"
         elsif filename.end_with?('.obf')
           # Use Converters::Utils for OBF files
-          result = Converters::Utils.obf_to_boards(file_path.to_s, admin_user)
+          result = Converters::LingoLinq.from_obf(file_path.to_s, {'user' => admin_user})
           puts "✓ Successfully imported #{vocab[:name]}"
-          puts "  Board created: #{result[:board]&.key || 'unknown'}"
         end
         
         # Clean up downloaded file
