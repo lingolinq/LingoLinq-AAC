@@ -39,6 +39,12 @@ namespace :openaac do
       puts "ERROR: No admin user found. Please run db:seed first."
       exit 1
     end
+
+    # Initialize options hash for converter
+    import_opts = {
+      'user' => admin_user,
+      'boards' => {}  # Track board mappings during import
+    }
     
     puts "\n" + "="*60
     puts "OpenAAC Vocabulary Import"
@@ -69,11 +75,11 @@ namespace :openaac do
         puts "Importing into database..."
         if filename.end_with?('.obz')
           # Use Converters::Utils for OBZ files
-          result = Converters::LingoLinq.from_obz(file_path.to_s, {'user' => admin_user})
+          result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
         elsif filename.end_with?('.obf')
           # Use Converters::Utils for OBF files
-          result = Converters::LingoLinq.from_obf(file_path.to_s, {'user' => admin_user})
+          result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
         end
         
@@ -82,8 +88,8 @@ namespace :openaac do
         
       rescue => e
         puts "✗ ERROR importing #{vocab[:name]}: #{e.message}"
-        puts e.backtrace.first(5).join("\n") if ENV['VERBOSE']
-        # Continue with next vocabulary even if one fails
+      puts e.backtrace.first(10).join("\n")  # Always show backtrace for debugging       
+      # Continue with next vocabulary even if one fails
       end
     end
     
