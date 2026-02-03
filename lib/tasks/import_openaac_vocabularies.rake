@@ -77,7 +77,17 @@ namespace :openaac do
           # Use Converters::Utils for OBZ files
           result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
-          result.each do |board|
+          result.each_with_index do |board, idx|
+            if idx == 0
+              # The first board is typically the main navigation board
+              board.public = true
+              board.settings['home_board'] = true
+              board.settings['unlisted'] = false
+            else
+              # Topic boards should be public but unlisted (only accessible via navigation)
+              board.public = true
+              board.settings['unlisted'] = true
+            end
             board.generate_stats
             board.save_without_post_processing
           end
@@ -85,6 +95,9 @@ namespace :openaac do
           # Use Converters::Utils for OBF files
           result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
           puts "✓ Successfully imported #{vocab[:name]}"
+          result.public = true
+          result.settings['home_board'] = true
+          result.settings['unlisted'] = false
           result.generate_stats
           result.save_without_post_processing
         end

@@ -53,6 +53,55 @@ task "extras:reindex_public_boards" => :environment do
   puts "\nDone!"
 end
 
+task "extras:fix_vocabulary_organization" => :environment do
+  main_board_names = [
+    'Quick Core 24', 'Quick Core 40', 'Quick Core 60', 'Quick Core 84', 'Quick Core 112',
+    'Vocal Flair 24', 'Vocal Flair 40', 'Vocal Flair 60', 'Vocal Flair 84', 'Vocal Flair 112',
+    'Vocal Flair 84 With Keyboard', 'CommuniKate Top Page', 'Project Core-36 Universal Universal Core© 2017 by the CLDS', 'Sequoia 15'
+  ]
+  
+  puts "Fixing vocabulary organization..."
+  
+  main_board_names.each do |name|
+    # Try different serialized formats
+    board = Board.where("settings LIKE ?", "%\"name\"=>\"#{name}\"%").first
+    board ||= Board.where("settings LIKE ?", "%\"name\":\"#{name}\"%").first
+    
+    # Fallback to slow but sure method for missing ones
+    if !board
+      board = Board.all.detect { |b| b.settings['name'] == name }
+    end
+
+    if board
+      puts "Organizing: #{name}"
+      board.public = true
+      board.settings['home_board'] = true
+      board.settings['unlisted'] = false
+      board.generate_stats
+      board.save_without_post_processing
+      
+      # Find topic boards and unlist them
+      prefix = name.split('-')[0].strip
+      # Unlist boards starting with the name/prefix followed by " - "
+      Board.where("public = ?", true).find_each do |b|
+        b_name = b.settings['name'].to_s
+        if b_name.start_with?("#{prefix} - ") || b_name.start_with?("#{name} - ")
+          if b.id != board.id
+            puts "  Unlisting topic: #{b_name}"
+            b.settings['unlisted'] = true
+            b.generate_stats
+            b.save_without_post_processing
+          end
+        end
+      end
+    else
+      puts "Main board not found: #{name}"
+    end
+  end
+  
+  puts "\nDone!"
+end
+
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
   message = "Something got deployed!"
   if !args[:system] && ARGV.length > 1
