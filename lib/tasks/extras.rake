@@ -14,6 +14,17 @@ task "extras:assert_js" do
   `touch ./app/frontend/dist/assets/vendor.js`
   `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/frontend.js frontend.js`
   `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/vendor.js vendor.js`
+  # Also symlink CSS files for Ember frontend
+  # Create placeholder CSS files if they don't exist (they'll be replaced when Ember builds)
+  `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
+  `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
+  # Create symlinks for CSS files (remove existing first to avoid errors)
+  Dir.chdir('app/assets/stylesheets') do
+    File.delete('vendor.css') if File.exist?('vendor.css') || File.symlink?('vendor.css')
+    File.delete('frontend.css') if File.exist?('frontend.css') || File.symlink?('frontend.css')
+    `ln -s ../../frontend/dist/assets/vendor.css vendor.css`
+    `ln -s ../../frontend/dist/assets/frontend.css frontend.css`
+  end
 end
 
 task "extras:jobs_list" do
@@ -30,6 +41,16 @@ task "extras:clear_report_tallies" => :environment do
   RedisInit.default.del('missing_words')
   RedisInit.default.del('missing_symbols')
   RedisInit.default.del('overridden_parts_of_speech')
+end
+
+task "extras:reindex_public_boards" => :environment do
+  puts "Reindexing public boards..."
+  Board.where(public: true).find_each do |board|
+    print "."
+    board.generate_stats
+    board.save_without_post_processing
+  end
+  puts "\nDone!"
 end
 
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
@@ -335,18 +356,42 @@ end
 
 # ============================================================
 # Vocabulary Organization Tasks (Serialized Column Safe)
+# Now searches ALL boards, not just public ones
 # ============================================================
 
 task "extras:list_board_names" => :environment do
-  puts "Listing public board names (limited):"
-
+  puts "=== Board Statistics ==="
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts "Non-public boards: #{Board.where(public: false).count}"
+  puts ""
+  
+  puts "=== Public Board Names (first 100) ==="
   Board.where(public: true)
        .order("id ASC")
-       .limit(200)
-       .pluck(:id, :key, :public)
-       .each do |id, key, pub|
-    board = Board.find(id)
-    puts "#{id}: #{board.settings['name']} (key: #{key})"
+       .limit(100)
+       .each do |board|
+    name = board.settings['name'] rescue 'N/A'
+    puts "#{board.id}: #{name} (key: #{board.key})"
+  end
+  
+  puts ""
+  puts "=== Looking for vocabulary sets in ALL boards ==="
+  vocab_patterns = ['Quick Core', 'Vocal Flair', 'CommuniKate', 'Project Core', 'Sequoia']
+  
+  vocab_patterns.each do |pattern|
+    puts "\n--- #{pattern} ---"
+    count = 0
+    Board.find_each(batch_size: 100) do |board|
+      name = board.settings['name'].to_s rescue ''
+      if name.include?(pattern)
+        status = board.public ? "PUBLIC" : "private"
+        puts "  #{board.id}: #{name} [#{status}]"
+        count += 1
+      end
+    end
+    puts "  (#{count} boards found)" if count > 0
+    puts "  (none found)" if count == 0
   end
 
   puts "\nDone."
@@ -370,7 +415,11 @@ task "extras:fix_vocabulary_organization" => :environment do
     { search: 'Sequoia 15', full: 'Sequoia 15' }
   ]
 
-  puts "Fixing vocabulary organization (Serialized Column Safe Mode)..."
+  puts "=============================================="
+  puts "Fixing vocabulary organization"
+  puts "(Searches ALL boards, not just public)"
+  puts "=============================================="
+  puts ""
   puts "Total boards: #{Board.count}"
   puts "Public boards: #{Board.where(public: true).count}"
   puts ""
@@ -380,12 +429,14 @@ task "extras:fix_vocabulary_organization" => :environment do
     term = target[:search]
 
     begin
-      board = Board.where(public: true).find_each(batch_size: 100).find do |b|
+      # Search ALL boards (not just public) for exact match first
+      board = Board.find_each(batch_size: 100).find do |b|
         b.settings['name'] == name
       end
 
+      # If not found, try partial match (but not subtopic boards)
       if !board
-        board = Board.where(public: true).find_each(batch_size: 100).find do |b|
+        board = Board.find_each(batch_size: 100).find do |b|
           b_name = b.settings['name'].to_s
           b_name.include?(term) && !b_name.include?(' - ')
         end
@@ -393,34 +444,49 @@ task "extras:fix_vocabulary_organization" => :environment do
 
       if board
         actual_name = board.settings['name']
-        puts "Found main board: #{actual_name}"
+        was_public = board.public
+        puts "✓ Found main board: #{actual_name}"
+        puts "  ID: #{board.id}, Was public: #{was_public}"
 
+        # Mark main board as public home board
         board.public = true
         board.settings['home_board'] = true
         board.settings['unlisted'] = false
         board.generate_stats
         board.save_without_post_processing
-        puts "  ✓ Marked as home board"
+        puts "  → Marked as PUBLIC home board"
 
+        # Determine prefix for topics (e.g., "Quick Core 40")
         prefix = actual_name.split(' - ')[0].split('©')[0].strip
-        puts "  Searching for topic boards with prefix: '#{prefix}'"
+        puts "  Searching for subtopic boards with prefix: '#{prefix}'"
 
+        # Search ALL boards for subtopics (not just public)
         topic_count = 0
-        Board.where(public: true).where.not(id: board.id).find_each(batch_size: 50) do |b|
+        made_public_count = 0
+        Board.where.not(id: board.id).find_each(batch_size: 50) do |b|
           b_name = b.settings['name'].to_s
           if b_name.start_with?("#{prefix} - ") || (b_name.include?("#{prefix} -") && b_name != prefix)
-            puts "    Unlisting: #{b_name}"
+            was_public = b.public
+            
+            # Make subtopic PUBLIC but UNLISTED (visible via navigation, not search)
+            b.public = true
             b.settings['unlisted'] = true
             b.generate_stats
             b.save_without_post_processing
+            
+            status_change = was_public ? "" : " [was private → now public]"
+            puts "    Organized: #{b_name}#{status_change}"
             topic_count += 1
+            made_public_count += 1 unless was_public
           end
         end
 
-        puts "  ✓ Organized #{topic_count} topic boards"
+        puts "  → Organized #{topic_count} subtopic boards"
+        puts "  → Made #{made_public_count} previously private boards public" if made_public_count > 0
         puts ""
       else
         puts "⚠ Could not find main board for: #{term}"
+        puts "  (Board doesn't exist in database)"
         puts ""
       end
     rescue => e
@@ -430,5 +496,7 @@ task "extras:fix_vocabulary_organization" => :environment do
     end
   end
 
+  puts "=============================================="
   puts "Done!"
+  puts "=============================================="
 end
