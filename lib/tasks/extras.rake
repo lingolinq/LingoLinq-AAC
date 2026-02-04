@@ -54,52 +54,71 @@ task "extras:reindex_public_boards" => :environment do
 end
 
 task "extras:fix_vocabulary_organization" => :environment do
-  main_board_names = [
-    'Quick Core 24', 'Quick Core 40', 'Quick Core 60', 'Quick Core 84', 'Quick Core 112',
-    'Vocal Flair 24', 'Vocal Flair 40', 'Vocal Flair 60', 'Vocal Flair 84', 'Vocal Flair 112',
-    'Vocal Flair 84 With Keyboard', 'CommuniKate Top Page', 'Project Core-36 Universal Universal Core© 2017 by the CLDS', 'Sequoia 15'
+  # Maps common search terms to the expected main board name
+  vocabulary_targets = [
+    { search: 'Quick Core 24', full: 'Quick Core 24' },
+    { search: 'Quick Core 40', full: 'Quick Core 40' },
+    { search: 'Quick Core 60', full: 'Quick Core 60' },
+    { search: 'Quick Core 84', full: 'Quick Core 84' },
+    { search: 'Quick Core 112', full: 'Quick Core 112' },
+    { search: 'Vocal Flair 24', full: 'Vocal Flair 24' },
+    { search: 'Vocal Flair 40', full: 'Vocal Flair 40' },
+    { search: 'Vocal Flair 60', full: 'Vocal Flair 60' },
+    { search: 'Vocal Flair 84', full: 'Vocal Flair 84' },
+    { search: 'Vocal Flair 112', full: 'Vocal Flair 112' },
+    { search: 'Vocal Flair 84 With Keyboard', full: 'Vocal Flair 84 With Keyboard' },
+    { search: 'CommuniKate Top', full: 'CommuniKate Top Page' },
+    { search: 'Project Core', full: 'Project Core-36 Universal Universal Core© 2017 by the CLDS' },
+    { search: 'Sequoia 15', full: 'Sequoia 15' }
   ]
   
-  puts "Fixing vocabulary organization..."
+  puts "Fixing vocabulary organization (Resilient Mode)..."
   
-  main_board_names.each do |name|
-    # Try different serialized formats
-    board = Board.where("settings LIKE ?", "%\"name\"=>\"#{name}\"%").first
-    board ||= Board.where("settings LIKE ?", "%\"name\":\"#{name}\"%").first
+  vocabulary_targets.each do |target|
+    name = target[:full]
+    term = target[:search]
     
-    # Fallback to slow but sure method for missing ones
-    if !board
-      board = Board.all.detect { |b| b.settings['name'] == name }
-    end
-
+    # Try multiple ways to find the board
+    board = Board.all.detect { |b| b.settings['name'] == name }
+    board ||= Board.all.detect { |b| b.settings['name'].to_s.include?(term) && !b.settings['name'].to_s.include?(' - ') }
+    
     if board
-      puts "Organizing: #{name}"
+      actual_name = board.settings['name']
+      puts "Organizing: #{actual_name}"
       board.public = true
       board.settings['home_board'] = true
       board.settings['unlisted'] = false
       board.generate_stats
       board.save_without_post_processing
       
-      # Find topic boards and unlist them
-      prefix = name.split('-')[0].strip
-      # Unlist boards starting with the name/prefix followed by " - "
-      Board.where("public = ?", true).find_each do |b|
+      # Determine prefix for topics (e.g., "Quick Core 40")
+      prefix = actual_name.split(' - ')[0].split('©')[0].strip
+      
+      # Find and unlist topic boards
+      Board.where(public: true).find_each do |b|
+        next if b.id == board.id
         b_name = b.settings['name'].to_s
-        if b_name.start_with?("#{prefix} - ") || b_name.start_with?("#{name} - ")
-          if b.id != board.id
-            puts "  Unlisting topic: #{b_name}"
-            b.settings['unlisted'] = true
-            b.generate_stats
-            b.save_without_post_processing
-          end
+        if b_name.start_with?("#{prefix} - ") || b_name.include?("#{prefix} -")
+          puts "  Unlisting topic: #{b_name}"
+          b.settings['unlisted'] = true
+          b.generate_stats
+          b.save_without_post_processing
         end
       end
     else
-      puts "Main board not found: #{name}"
+      puts "Could not find main board for: #{term}"
     end
   end
   
   puts "\nDone!"
+end
+
+# Helper to see what's actually in the DB if things still fail
+task "extras:list_board_names" => :environment do
+  puts "Public Board Names:"
+  Board.where(public: true).find_each do |b|
+    puts "- #{b.settings['name']} (ID: #{b.id})"
+  end
 end
 
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
