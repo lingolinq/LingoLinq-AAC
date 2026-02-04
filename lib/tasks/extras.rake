@@ -53,74 +53,6 @@ task "extras:reindex_public_boards" => :environment do
   puts "\nDone!"
 end
 
-task "extras:fix_vocabulary_organization" => :environment do
-  # Maps common search terms to the expected main board name
-  vocabulary_targets = [
-    { search: 'Quick Core 24', full: 'Quick Core 24' },
-    { search: 'Quick Core 40', full: 'Quick Core 40' },
-    { search: 'Quick Core 60', full: 'Quick Core 60' },
-    { search: 'Quick Core 84', full: 'Quick Core 84' },
-    { search: 'Quick Core 112', full: 'Quick Core 112' },
-    { search: 'Vocal Flair 24', full: 'Vocal Flair 24' },
-    { search: 'Vocal Flair 40', full: 'Vocal Flair 40' },
-    { search: 'Vocal Flair 60', full: 'Vocal Flair 60' },
-    { search: 'Vocal Flair 84', full: 'Vocal Flair 84' },
-    { search: 'Vocal Flair 112', full: 'Vocal Flair 112' },
-    { search: 'Vocal Flair 84 With Keyboard', full: 'Vocal Flair 84 With Keyboard' },
-    { search: 'CommuniKate Top', full: 'CommuniKate Top Page' },
-    { search: 'Project Core', full: 'Project Core-36 Universal Universal Core© 2017 by the CLDS' },
-    { search: 'Sequoia 15', full: 'Sequoia 15' }
-  ]
-  
-  puts "Fixing vocabulary organization (Resilient Mode)..."
-  
-  vocabulary_targets.each do |target|
-    name = target[:full]
-    term = target[:search]
-    
-    # Try multiple ways to find the board
-    board = Board.all.detect { |b| b.settings['name'] == name }
-    board ||= Board.all.detect { |b| b.settings['name'].to_s.include?(term) && !b.settings['name'].to_s.include?(' - ') }
-    
-    if board
-      actual_name = board.settings['name']
-      puts "Organizing: #{actual_name}"
-      board.public = true
-      board.settings['home_board'] = true
-      board.settings['unlisted'] = false
-      board.generate_stats
-      board.save_without_post_processing
-      
-      # Determine prefix for topics (e.g., "Quick Core 40")
-      prefix = actual_name.split(' - ')[0].split('©')[0].strip
-      
-      # Find and unlist topic boards
-      Board.where(public: true).find_each do |b|
-        next if b.id == board.id
-        b_name = b.settings['name'].to_s
-        if b_name.start_with?("#{prefix} - ") || b_name.include?("#{prefix} -")
-          puts "  Unlisting topic: #{b_name}"
-          b.settings['unlisted'] = true
-          b.generate_stats
-          b.save_without_post_processing
-        end
-      end
-    else
-      puts "Could not find main board for: #{term}"
-    end
-  end
-  
-  puts "\nDone!"
-end
-
-# Helper to see what's actually in the DB if things still fail
-task "extras:list_board_names" => :environment do
-  puts "Public Board Names:"
-  Board.where(public: true).find_each do |b|
-    puts "- #{b.settings['name']} (ID: #{b.id})"
-  end
-end
-
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
   message = "Something got deployed!"
   if !args[:system] && ARGV.length > 1
@@ -420,4 +352,151 @@ task "extras:mobile" => :environment do
       puts "  NO DOMAIN SETTINGS FOUND FOR #{domain}"
     end
   end
+end
+
+# ============================================================
+# Vocabulary Organization Tasks (Serialized Column Safe)
+# Now searches ALL boards, not just public ones
+# ============================================================
+
+task "extras:list_board_names" => :environment do
+  puts "=== Board Statistics ==="
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts "Non-public boards: #{Board.where(public: false).count}"
+  puts ""
+  
+  puts "=== Public Board Names (first 100) ==="
+  Board.where(public: true)
+       .order("id ASC")
+       .limit(100)
+       .each do |board|
+    name = board.settings['name'] rescue 'N/A'
+    puts "#{board.id}: #{name} (key: #{board.key})"
+  end
+  
+  puts ""
+  puts "=== Looking for vocabulary sets in ALL boards ==="
+  vocab_patterns = ['Quick Core', 'Vocal Flair', 'CommuniKate', 'Project Core', 'Sequoia']
+  
+  vocab_patterns.each do |pattern|
+    puts "\n--- #{pattern} ---"
+    count = 0
+    Board.find_each(batch_size: 100) do |board|
+      name = board.settings['name'].to_s rescue ''
+      if name.include?(pattern)
+        status = board.public ? "PUBLIC" : "private"
+        puts "  #{board.id}: #{name} [#{status}]"
+        count += 1
+      end
+    end
+    puts "  (#{count} boards found)" if count > 0
+    puts "  (none found)" if count == 0
+  end
+
+  puts "\nDone."
+end
+
+task "extras:fix_vocabulary_organization" => :environment do
+  vocabulary_targets = [
+    { search: 'Quick Core 24', full: 'Quick Core 24' },
+    { search: 'Quick Core 40', full: 'Quick Core 40' },
+    { search: 'Quick Core 60', full: 'Quick Core 60' },
+    { search: 'Quick Core 84', full: 'Quick Core 84' },
+    { search: 'Quick Core 112', full: 'Quick Core 112' },
+    { search: 'Vocal Flair 24', full: 'Vocal Flair 24' },
+    { search: 'Vocal Flair 40', full: 'Vocal Flair 40' },
+    { search: 'Vocal Flair 60', full: 'Vocal Flair 60' },
+    { search: 'Vocal Flair 84', full: 'Vocal Flair 84' },
+    { search: 'Vocal Flair 112', full: 'Vocal Flair 112' },
+    { search: 'Vocal Flair 84 With Keyboard', full: 'Vocal Flair 84 With Keyboard' },
+    { search: 'CommuniKate Top', full: 'CommuniKate Top Page' },
+    { search: 'Project Core', full: 'Project Core-36 Universal Universal Core© 2017 by the CLDS' },
+    { search: 'Sequoia 15', full: 'Sequoia 15' }
+  ]
+
+  puts "=============================================="
+  puts "Fixing vocabulary organization"
+  puts "(Searches ALL boards, not just public)"
+  puts "=============================================="
+  puts ""
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts ""
+
+  vocabulary_targets.each do |target|
+    name = target[:full]
+    term = target[:search]
+
+    begin
+      # Search ALL boards (not just public) for exact match first
+      board = Board.find_each(batch_size: 100).find do |b|
+        b.settings['name'] == name
+      end
+
+      # If not found, try partial match (but not subtopic boards)
+      if !board
+        board = Board.find_each(batch_size: 100).find do |b|
+          b_name = b.settings['name'].to_s
+          b_name.include?(term) && !b_name.include?(' - ')
+        end
+      end
+
+      if board
+        actual_name = board.settings['name']
+        was_public = board.public
+        puts "✓ Found main board: #{actual_name}"
+        puts "  ID: #{board.id}, Was public: #{was_public}"
+
+        # Mark main board as public home board
+        board.public = true
+        board.settings['home_board'] = true
+        board.settings['unlisted'] = false
+        board.generate_stats
+        board.save_without_post_processing
+        puts "  → Marked as PUBLIC home board"
+
+        # Determine prefix for topics (e.g., "Quick Core 40")
+        prefix = actual_name.split(' - ')[0].split('©')[0].strip
+        puts "  Searching for subtopic boards with prefix: '#{prefix}'"
+
+        # Search ALL boards for subtopics (not just public)
+        topic_count = 0
+        made_public_count = 0
+        Board.where.not(id: board.id).find_each(batch_size: 50) do |b|
+          b_name = b.settings['name'].to_s
+          if b_name.start_with?("#{prefix} - ") || (b_name.include?("#{prefix} -") && b_name != prefix)
+            was_public = b.public
+            
+            # Make subtopic PUBLIC but UNLISTED (visible via navigation, not search)
+            b.public = true
+            b.settings['unlisted'] = true
+            b.generate_stats
+            b.save_without_post_processing
+            
+            status_change = was_public ? "" : " [was private → now public]"
+            puts "    Organized: #{b_name}#{status_change}"
+            topic_count += 1
+            made_public_count += 1 unless was_public
+          end
+        end
+
+        puts "  → Organized #{topic_count} subtopic boards"
+        puts "  → Made #{made_public_count} previously private boards public" if made_public_count > 0
+        puts ""
+      else
+        puts "⚠ Could not find main board for: #{term}"
+        puts "  (Board doesn't exist in database)"
+        puts ""
+      end
+    rescue => e
+      puts "❌ ERROR processing #{term}: #{e.message}"
+      puts e.backtrace.first(3)
+      puts ""
+    end
+  end
+
+  puts "=============================================="
+  puts "Done!"
+  puts "=============================================="
 end
