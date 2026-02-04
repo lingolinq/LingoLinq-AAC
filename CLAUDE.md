@@ -246,6 +246,10 @@ rake extras:desktop
 
 ### Code Style
 
+**Callback and plain-object context:**
+- When a computed property or function returns a **plain object** whose methods are later called (e.g. `appState.get('board_virtual_dom').button_from_point(x,y)`), inside those methods `this` is the plain object, not the Ember service/controller. Use a closure: `var _this = this;` at the top of the computed/function, then use `_this.get()` / `_this.set()` inside the returned object's methods. Same for callbacks passed to `new RSVP.Promise()`, `.then()`, or `forEach`: capture the outer `this` as `_this` and use `_this` in the callback so "this.get is not a function" does not occur.
+- **ESLint:** The custom rule `lingolinq/no-this-in-promise-executor` flags `this.get` / `this.set` inside the executor function of `new RSVP.Promise(function(resolve, reject) { ... })`. In that callback, `this` is not the service/controller, so using `_this` avoids runtime errors. The rule only checks Promise executors (not every `.then()` or plain object), to limit false positives while catching a common mistake.
+
 **String Quoting Convention:**
 - **User-facing strings:** ALWAYS use double quotes `"string"`
 - **All other strings:** ALWAYS use single quotes `'string'`

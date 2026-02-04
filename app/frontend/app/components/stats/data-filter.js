@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import app_state from '../../utils/app_state';
+
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';

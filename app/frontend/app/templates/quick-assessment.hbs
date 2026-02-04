@@ -10,7 +10,7 @@
       <div class="form-group">
         <label for="description" class="col-sm-4 control-label">{{t "Assessment Type" key="assessment_type"}}</label>
         <div class="col-sm-5">
-          {{input value=this.description disabled=this.goal_id class="form-control" id="description" placeholder="brief description"}}
+          <Input @value={{this.description}} disabled={{this.goal_id}} class="form-control" id="description" placeholder="brief description" />
         </div>
         {{#if this.goal_options}}
           <div class="col-sm-1" style='margin-left: -35px;'>
@@ -30,7 +30,7 @@
       <div class="form-group">
         <label for="correct_tally" class="col-sm-4 control-label">{{t "Correct" key="correct"}}</label>
         <div class="col-sm-2">
-          {{input value=this.totals.correct class="form-control input-lg" id="correct_tally" placeholder="0"}}
+          <Input @value={{this.totals.correct}} class="form-control input-lg" id="correct_tally" placeholder="0" />
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
           <span class="text-muted">{{t "oops?" key="oops_q"}}</span>
@@ -41,7 +41,7 @@
       <div class="form-group">
         <label for="incorrect_tally" class="col-sm-4 control-label">{{t "Incorrect" key="incorrect"}}</label>
         <div class="col-sm-2">
-          {{input value=this.totals.incorrect class="form-control input-lg" id="incorrect_tally" placeholder="0"}}
+          <Input @value={{this.totals.incorrect}} class="form-control input-lg" id="incorrect_tally" placeholder="0" />
         </div>
         <div class="col-sm-3" style="padding-top: 5px;">
           <span class="text-muted">{{t "oops?" key="oops_q"}}</span>

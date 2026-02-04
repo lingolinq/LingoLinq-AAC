@@ -2,7 +2,7 @@
   {{outlet}}
 {{else}}
   <div class="board_status">
-    {{#if this.persistence.online}}
+    {{#if (persistence-online)}}
       {{#if this.model.error.deleted}}
         <p>{{t "This board has been deleted." key="board_deleted"}}</p>
         {{#if this.model.show_history}}
@@ -18,7 +18,7 @@
     {{else}}
       <p>{{t "This board isn't available, or hasn't been synced for offline use." key="board_not_synced"}}</p>
     {{/if}}
-    {{#unless session.isAuthenticated}}
+    {{#unless this.session.isAuthenticated}}
       <div style="margin: 50px 15px;">
         {{login-form left=true prompt=true return=true restore=false}}
       </div>

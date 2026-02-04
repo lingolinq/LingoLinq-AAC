@@ -47,12 +47,16 @@ export default Controller.extend({
       var _this = this;
       _this.set('daily_use', {loading: true});
       _this.persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
-        var log = LingoLinq.store.push({ data: {
-          id: data.log.id,
-          type: 'log',
-          attributes: data.log
-        }});
-        _this.set('daily_use', log);
+        if(data && data.log) {
+          var log = LingoLinq.store.push({ data: {
+            id: data.log.id,
+            type: 'log',
+            attributes: data.log
+          }});
+          _this.set('daily_use', log);
+        } else {
+          _this.set('daily_use', null);
+        }
       }, function(err) {
         if(err && err.result && err.result.error == 'no data available') {
           _this.set('daily_use', null);
@@ -285,6 +289,7 @@ export default Controller.extend({
     this.set('show_all_boards', true);
   },
   reload_logs: observer('persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -436,6 +441,7 @@ export default Controller.extend({
     }
   }),
   update_selected: observer('selected', 'persistence.online', 'current_tag', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var list_id = Math.random().toString();
     this.set('list_id', list_id);

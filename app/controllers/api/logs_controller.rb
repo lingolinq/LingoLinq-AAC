@@ -14,13 +14,13 @@ class Api::LogsController < ApplicationController
     if user_id_param.to_s == 'cache'
       # Security: require_api_token_for_cache_user already ensures authentication
       # Return empty result set since there are no logs for a cache user
-      logs = LogSession.where(:id => 0)
+      logs = LogSession.none
       json = JsonApi::Log.paginate(params, logs)
       return render json: json
     end
     
     user = User.find_by_path(user_id_param)
-    return unless user
+    return unless exists?(user, user_id_param)
     return unless allowed?(user, 'supervise')
     if user.modeling_only?
       return unless allowed?(user, 'never_allow')
@@ -92,7 +92,7 @@ class Api::LogsController < ApplicationController
       if goal && goal.user == user
         logs = logs.where(:user_id => user.id, :goal_id => goal.id)
       else
-        logs = logs.where(:id => 0)
+        logs = LogSession.none
       end
     end
     if params['location_id']
@@ -104,7 +104,7 @@ class Api::LogsController < ApplicationController
           logs = logs.where(:ip_cluster_id => location.id)
         end
       else
-        logs = logs.where(:id => 0)
+        logs = LogSession.none
       end
     end
     if params['device_id']
@@ -112,7 +112,7 @@ class Api::LogsController < ApplicationController
       if device
         logs = logs.where(:device_id => device.id)
       else
-        logs = logs.where(:id => 0)
+        logs = LogSession.none
       end
     end
     if params['start']
@@ -353,12 +353,8 @@ class Api::LogsController < ApplicationController
   protected
   
   def require_api_token_for_cache_user
-    # Security: Require authentication when user_id='cache' is used to prevent
-    # unauthorized access to log listings via the cache endpoint bypass
-    user_id_param = params['user_id'] || params[:user_id]
-    if user_id_param.to_s == 'cache'
-      require_api_token
-    end
+    # Index is in require_api_token's except list; require auth for all index requests (including user_id=cache)
+    require_api_token
   end
   
 end

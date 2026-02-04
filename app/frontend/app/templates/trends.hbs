@@ -208,12 +208,12 @@
           <div style='height: 300px; overflow: auto;'>
             <div class="list-group">
               {{#each this.home_boards as |board|}}
-                {{#link-to "board" board.key class="list-group-item"}}
+                <LinkTo @route="board" @model={{board.key}} class="list-group-item">
                   {{board.key}}
                   {{#if this.showing_private_info}}
                     <span class='text-muted'>({{board.pct}}%)</span>
                   {{/if}}
-                {{/link-to}}
+                </LinkTo>
               {{/each}}
             </div>
           </div>
@@ -253,12 +253,12 @@
             <div style='height: 300px; overflow: auto;'>
               <div class="list-group">
                 {{#each this.common_boards as |board|}}
-                  {{#link-to "board" board.key class="list-group-item"}}
+                  <LinkTo @route="board" @model={{board.key}} class="list-group-item">
                     {{board.key}}
                     {{#if this.showing_private_info}}
                       <span class='text-muted'>({{delimit board.pct}})</span>
                     {{/if}}
-                  {{/link-to}}
+                  </LinkTo>
                 {{/each}}
               </div>
             </div>
@@ -508,7 +508,7 @@
       <div class='col-sm-6'>
         <h4>{{t "Have More Questions?" key="have_more_questions"}}</h4>
         <p>{{t "We hope this small data sample has helped you think of some of the additional questions we could  all benefit from answering with the help of anonymized AAC usage data. We have over <b>%{cnt}</b> communicators who have opted in to sharing their anonymized usage data with researchers, in a strictly private and protected manner." key="data_summary_2" cnt=this.trends.research_communicators}}</p>
-        <p>{{#link-to "contact"}}{{t "Please contact us" key="please_contact_us"}}{{/link-to}} {{t "if you'd like to collaborate on an AAC research project." key="for_research_project"}}</p>
+        <p><LinkTo @route="contact">{{t "Please contact us" key="please_contact_us"}}</LinkTo> {{t "if you'd like to collaborate on an AAC research project." key="for_research_project"}}</p>
       </div>
 
     {{else}}

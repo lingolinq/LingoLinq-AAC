@@ -12,13 +12,13 @@
       <div class="form-group">
         <label for='sound_preview_name' class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class='col-sm-10'>
-          {{input id="sound_preview_name" type="text" value=this.sound_preview.name class="form-control"}}
+          <Input id="sound_preview_name" type="text" @value={{this.sound_preview.name}} class="form-control" />
         </div>
       </div>
       <div class="form-group">
         <label for='sound_preview_transcription' class="col-sm-2 control-label">{{t "Transcription" key="transcription"}}</label>
         <div class='col-sm-10'>
-          {{input id="sound_preview_transcription" type="text" value=this.sound_preview.transcription class="form-control"}}
+          <Input id="sound_preview_transcription" type="text" @value={{this.sound_preview.transcription}} class="form-control" />
         </div>
       </div>
 

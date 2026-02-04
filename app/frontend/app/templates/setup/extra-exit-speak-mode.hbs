@@ -9,7 +9,7 @@
   <label>
     {{t "Optionally set a 4-digit pin to prevent exiting Speak Mode:" key="pin_for_exiting_speak_mode"}}
     <span style='display: inline-block; width: 200px;'>
-      {{input type="text" value=this.pin placeholder="4-digit PIN" class="form-control input-lg"}}
+      <Input type="text" @value={{this.pin}} placeholder="4-digit PIN" class="form-control input-lg" />
     </span>
   </label>
 </div>

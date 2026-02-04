@@ -10,13 +10,13 @@
     <div class="form-group">
       <label for={{locale.label_id}} class="col-sm-4 control-label">{{t "Label" key="label"}}</label>
       <div class="col-sm-8">
-        {{input value=locale.label class="form-control" id=locale.label_id}}
+        <Input @value={{locale.label}} class="form-control" id={{locale.label_id}} />
       </div>
     </div>
     <div class="form-group">
       <label for={{locale.vocalization_id}} class="col-sm-4 control-label">{{t "Speech" key="speech"}}</label>
       <div class="col-sm-8">
-        {{input value=locale.vocalization class="form-control" id=locale.vocalization_id placeholder="matches label if empty"}}
+        <Input @value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty" />
       </div>
     </div>
     {{#if this.app_state.feature_flags.inflections_overlay}}
@@ -28,34 +28,34 @@
         <div class='col-sm-10 col-sm-offset-2'>
           <div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.nw placeholder=locale.inflections_suggestions.nw}}
+              <Input class="form-control" @value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.n placeholder=locale.inflections_suggestions.n}}
+              <Input class="form-control" @value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.ne placeholder=locale.inflections_suggestions.ne}}
+              <Input class="form-control" @value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.w placeholder=locale.inflections_suggestions.w}}
+              <Input class="form-control" @value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
               {{locale.label}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.e placeholder=locale.inflections_suggestions.e}}
+              <Input class="form-control" @value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.sw placeholder=locale.inflections_suggestions.sw}}
+              <Input class="form-control" @value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.s placeholder=locale.inflections_suggestions.s}}
+              <Input class="form-control" @value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}} />
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              {{input class="form-control" value=locale.inflections_hash.se placeholder=locale.inflections_suggestions.se}}
+              <Input class="form-control" @value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} />
             </div>
             <div>
-              {{textarea class="form-control" value=locale.rules_string placeholder=this.inflection_overrides_placeholder}}
+              <Textarea @value={{locale.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
             </div>
           </div>
         </div>

@@ -43,7 +43,7 @@
             </td>
             <td>
               <div style="font-size: 20px;">{{supervisor.name}}</div>
-              {{#link-to "user" supervisor.user_name}}{{supervisor.user_name}}{{/link-to}}
+              <LinkTo @route="user" @model={{supervisor.user_name}}>{{supervisor.user_name}}</LinkTo>
               {{#if supervisor.organization_unit_id}}
                 <span class="text-muted">({{t "added by organization" key="org_added"}})</span>
               {{/if}}
@@ -93,7 +93,7 @@
                     {{t "Alias" key="alias"}}
                     {{#if org.aliasable}}
                       <div style='display: inline-block; width: 200px;'>
-                        {{input type="text" class="form-control" value=org.external_auth_alias placeholder="external login id or email"}}
+                        <Input type="text" class="form-control" @value={{org.external_auth_alias}} placeholder="external login id or email" />
                       </div>
                       <button type='submit' disabled={{org.alias_state.updating}} class='btn btn-default'>
                         {{#if org.alias_state.updating}}
@@ -142,7 +142,7 @@
               </td>
               <td>
                 <div style="font-size: 20px;">{{supervisee.name}}</div>
-                {{#link-to "user" supervisee.user_name}}{{supervisee.user_name}}{{/link-to}}
+                <LinkTo @route="user" @model={{supervisee.user_name}}>{{supervisee.user_name}}</LinkTo>
                 {{#if supervisee.edit_permission}}
                   <span class="text-muted">{{t "(editing allowed)" key="editing_allowed"}}</span>
                 {{else if supervisee.modeling_only}}

@@ -34,13 +34,13 @@
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-8">
-          {{input value=this.model.name class="form-control" id="name" placeholder="Full Name"}}
+          <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
         </div>
       </div>
       <div class="form-group">
         <label for="user_name" class="col-sm-4 control-label">{{t "Username" key="username"}}</label>
         <div class="col-sm-8">
-          {{input value=this.model.user_name class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)"}}
+          <Input @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" />
           {{#if this.noSpacesName}}
             <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
           {{else if this.user.user_name_check.checking}}
@@ -54,7 +54,7 @@
       <div class="form-group">
         <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-8">
-          {{input value=this.model.email class="form-control" id="email" placeholder=""}}
+          <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
           {{#if this.badEmail}}
             <span class='text-danger'>{{t "email required" key="email_required"}}</span>
           {{/if}}
@@ -63,7 +63,7 @@
       <div class="form-group">
         <label class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-8">
-            {{input type="password" value=this.model.password class="form-control" id="password" placeholder="at least 6 characters"}}
+            <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
             {{#if this.shortPassword}}
               <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br>
             {{/if}}
@@ -79,7 +79,7 @@
         {{#if this.start_code}}
           <label for="start_code" class="col-sm-4 control-label">{{t "Start Code" key="start_code"}}</label>
           <div class="col-sm-8">
-            {{input value=this.model.start_code class="form-control" placeholder="optional, if provided"}}
+            <Input @value={{this.model.start_code}} class="form-control" placeholder="optional, if provided" />
           </div>
         {{else}}
           <div class='col-sm-8 col-sm-offset-4'>
@@ -91,17 +91,17 @@
         <div class="col-sm-offset-4 col-sm-8">
           <div class="checkbox big_checkbox">
             <label style="font-weight: normal;">
-              {{input type="checkbox" checked=this.user.preferences.cookies}}
+              <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
               {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
             </label>
           </div>
           <div class="checkbox big_checkbox" style='margin-bottom: 10px;'>
             <label style="font-weight: normal;">
-              {{input type="checkbox" checked=this.model.terms_agree}}
+              <Input @type="checkbox" @checked={{this.model.terms_agree}} />
               By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
             </label>
           </div>
-          {{#if this.persistence.online}}
+          {{#if (persistence-online)}}
             <button type="submit" disabled={{this.registering.saving}} class="btn btn-primary">
               {{#if this.registering.initializing}}
                 {{t "Handling Start Code..." key="processing_start_code"}}

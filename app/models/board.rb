@@ -718,7 +718,7 @@ class Board < ActiveRecord::Base
     self.any_upstream = self.settings && self.settings['immediately_upstream_board_ids'] && self.settings['immediately_upstream_board_ids'].length > 0
     self.any_upstream ||= false
     grid = BoardContent.load_content(self, 'grid')
-    grid ||= {}
+    grid = {} if !grid.is_a?(Hash)
     grid['rows'] = (grid['rows'] || 2).to_i
     grid['columns'] = (grid['columns'] || 4).to_i
     # Convert grid['order'] from Hash to Array if needed (Rails params often come as hash with string keys)
@@ -1561,7 +1561,13 @@ class Board < ActiveRecord::Base
     end
     self.star(non_user_params[:updater], params['starred']) if params['starred'] != nil
     
-    self.settings['grid'] = params['grid'] if params['grid']
+    if params['grid']
+      grid_val = params['grid']
+      if grid_val.is_a?(String)
+        grid_val = JSON.parse(grid_val) rescue nil
+      end
+      self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
+    end
     if params['visibility'] != nil && !self.unshareable?
       if params['update_visibility_downstream']
         self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])

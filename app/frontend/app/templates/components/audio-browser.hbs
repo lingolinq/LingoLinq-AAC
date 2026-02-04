@@ -1,14 +1,14 @@
 {{#if this.browse_audio.loading}}
   <p>{{t "Loading stored audio..." key="loading_stored_audio"}}</p>
 {{else if this.browse_audio.error}}
-  {{#if this.persistence.online}}
+  {{#if (persistence-online)}}
     <p>{{t "Error loading stored audio" key="error_loading_stored_audio"}}</p>
   {{else}}
     <p>{{t "Stored audio files not available offline" key="audio_not_available_offline"}}</p>
   {{/if}}
 {{else}}
   <div style='margin-bottom: 5px;'>
-    {{input type="text" class="form-control" value=this.browse_audio.filter_string placeholder="filter results"}}
+    <Input type="text" class="form-control" @value={{this.browse_audio.filter_string}} placeholder="filter results" />
   </div>
   {{# if this.browse_audio.results}}
     <div style='max-height: 200px; overflow: auto;'>

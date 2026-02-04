@@ -32,6 +32,7 @@ export default Controller.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  router: service('router'),
   app_state: alias('appState'),
   board: inject('board.index'),
   session: session,
@@ -69,8 +70,11 @@ export default Controller.extend({
     }
   },
   copy_board: function(decision, for_editing, selected_user_name) {
+    if(!this || !this.get('persistence')) {
+      return RSVP.reject();
+    }
     var oldBoard = this.get('board').get('model');
-    if(!this.persistence.get('online')) {
+    if(!this.get('persistence').get('online')) {
       modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
       return RSVP.reject();
     }
@@ -199,11 +203,12 @@ export default Controller.extend({
     var _this = this;
     var defer = _this.get('highlight_button_defer') || RSVP.defer();
     runLater(function() {
+      if(!_this || _this.isDestroyed) { return; }
       var will_render = false;
       if(defer.revert_board_level == undefined && buttons != 'resume') {
-        defer.revert_board_level = this.stashes.get('board_level') || 'none';
-        var was = this.stashes.get('board_level');
-        var level_changed = this.stashes.get('board_level') && this.stashes.get('board_level') != 10;
+        defer.revert_board_level = _this.stashes.get('board_level') || 'none';
+        var was = _this.stashes.get('board_level');
+        var level_changed = _this.stashes.get('board_level') && _this.stashes.get('board_level') != 10;
         if(level_changed) {
           _this.send('set_level', 10);
           will_render = true;
@@ -223,9 +228,10 @@ export default Controller.extend({
         }
         defer.promise.then(null, function(err) { 
           console.error("highlight sequence failed", err);
-          _this.set('button_highlights', null);
+          if(_this && !_this.isDestroyed) { _this.set('button_highlights', null); }
           return RSVP.resolve(); 
         }).then(function() {
+          if(!_this || _this.isDestroyed) { return; }
           if(_this.get('highlight_button_defer') == defer) {
             _this.set('highlight_button_defer', null);
             _this.set('last_highlight_selection', null);
@@ -239,8 +245,8 @@ export default Controller.extend({
               } else {
                 new_level = defer.revert_board_level;
               }
-              var level_changed = this.stashes.get('board_level') != new_level;
-              var was = this.stashes.get('board_level');
+              var level_changed = _this.stashes.get('board_level') != new_level;
+              var was = _this.stashes.get('board_level');
               if(level_changed) {
                 _this.send('set_level', new_level);
               }
@@ -285,7 +291,7 @@ export default Controller.extend({
     return defer.promise;
   },
   allow_search: computed(
-    'this.appState.domain_settings.full_domain',
+    'appState.domain_settings.full_domain',
     'session.isAuthenticated',
     function() {
       return this.appState.get('domain_settings.full_domain') || session.get('isAuthenticated');
@@ -312,6 +318,10 @@ export default Controller.extend({
     if(this.stashes.get('all_buttons_enabled')) { return false; }
     return !this.get('board.model.hidden_buttons');
   }),
+  no_hidden_buttons_link_style: computed('session.isAuthenticated', function() {
+    var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
+    return htmlSafe(s);
+  }),
   actions: {
     invalidateSession: function() {
       session.invalidate(true);
@@ -327,7 +337,10 @@ export default Controller.extend({
       }
     },
     cancel_sync: function() {
-      this.persistence.cancel_sync();
+      var p = this && (this.get && this.get('persistence')) || (typeof window !== 'undefined' && window.persistence);
+      if (p && typeof p.cancel_sync === 'function') {
+        p.cancel_sync();
+      }
     },
     index: function() {
       this.appState.return_to_index();
@@ -469,16 +482,17 @@ export default Controller.extend({
       }
     },
     jump: function(path, source, board) {
+      console.log('[BOARD-DEBUG] application.jump', { path: path, source: source, boardId: board && board.id, boardKey: board && board.key });
       if(this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         this.jumpToBoard({
           key: path,
           source: source,
-          level: board.level,
-          locale: board.locale,
-          home_lock: board.home_lock,
-          meta_home: board.meta_home
+          level: board && board.level,
+          locale: board && board.locale,
+          home_lock: board && board.home_lock,
+          meta_home: board && board.meta_home
         });
       }
     },
@@ -503,12 +517,12 @@ export default Controller.extend({
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
-            if(sync && _this.persistence.get('online') && _this.persistence.get('auto_sync')) {
+            if(sync && _this && _this.get && _this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
               _this.set('simple_board_header', false);
               runLater(function() {
-                if(_this.persistence.get('auto_sync')) {
+                if(_this && _this.get && _this.get('persistence') && _this.get('persistence').get('auto_sync')) {
                   console.debug('syncing because home board changes');
-                  _this.persistence.sync('self', null, null, 'home_board_changed').then(null, function() { });
+                  _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
                 }
               }, 1000);
               if(_this.get('setup_footer')) {
@@ -752,12 +766,12 @@ export default Controller.extend({
       this.appState.check_for_needing_purchase().then(function() {
         _this.copy_board(null, true).then(function(board) {
           if(board) {
-            this.appState.jump_to_board({
+            _this.appState.jump_to_board({
               id: board.id,
               key: board.key
             });
             runLater(function() {
-              this.appState.toggle_edit_mode();
+              if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
             });
           }
         }, function() { });
@@ -771,21 +785,21 @@ export default Controller.extend({
         decision = null;
       }
       this.appState.check_for_needing_purchase().then(function() {
-        this.appState.assert_source().then(function() {
-          if(this.appState.get('edit_mode')) {
-            this.appState.toggle_mode('edit');
+        _this.appState.assert_source().then(function() {
+          if(_this.appState.get('edit_mode')) {
+            _this.appState.toggle_mode('edit');
           }
           _this.copy_board(decision).then(function(board) {
             if(board) {
-              this.stashes.persist('label_locale', update_locale);
-              this.stashes.persist('vocalization_locale', update_locale);
-              this.stashes.persist('override_label_locale', update_locale);
-              this.stashes.persist('override_vocalization_locale', update_locale);
+              _this.stashes.persist('label_locale', update_locale);
+              _this.stashes.persist('vocalization_locale', update_locale);
+              _this.stashes.persist('override_label_locale', update_locale);
+              _this.stashes.persist('override_vocalization_locale', update_locale);
               if(update_locale) {
-                this.appState.set('label_locale', update_locale);
-                this.appState.set('vocalization_locale', update_locale);  
+                _this.appState.set('label_locale', update_locale);
+                _this.appState.set('vocalization_locale', update_locale);  
               }
-              this.appState.jump_to_board({
+              _this.appState.jump_to_board({
                 id: board.id,
                 key: board.key
               });
@@ -812,9 +826,17 @@ export default Controller.extend({
       this.get('board').saveButtonChanges();
     },
     resetBoard: function() {
+      if(!this || !this.get) { return; }
       this.toggleMode('edit');
-      this.get('board').get('model').rollbackAttributes();
-      this.get('board').processButtons();
+      var board = this.get('board');
+      if(!board) { return; }
+      var model = board.get('model');
+      if(model && typeof model.rollbackAttributes === 'function') {
+        model.rollbackAttributes();
+      }
+      if(typeof board.processButtons === 'function') {
+        board.processButtons();
+      }
     },
     undoEdit: function() {
       editManager.undo();
@@ -853,7 +875,10 @@ export default Controller.extend({
       }, function() { });
     },
     check_scanning: function() {
-      this.appState.check_scanning();
+      if(!this) { return; }
+      if(this.appState && typeof this.appState.check_scanning === 'function') {
+        this.appState.check_scanning();
+      }
     },
     boardDetails: function() {
       modal.open('board-details', {board: this.get('board.model')});
@@ -909,6 +934,7 @@ export default Controller.extend({
       modal.open('modals/board-actions', {board: this.get('board.model')})
     },
     highlight_button: function(options) {
+      if(!this || this.isDestroyed) { return; }
       options = options || {};
       // TODO: this and activateButton belong somewhere more testable
       var buttons = this.get('button_highlights');
@@ -942,8 +968,8 @@ export default Controller.extend({
             defer.not_first_action = true;
 
             if(button.pre == 'true_home' || button.pre == 'home') {
-              var has_temporary_home = !!this.stashes.get('temporary_root_board_state');
-              var already_on_temporary_home = this.stashes.get('temporary_root_board_state.id') == this.appState.get('currentBoardState.id');
+              var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
+              var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');
               if(!has_temporary_home || already_on_temporary_home) {
                 buttons.shift();
               }
@@ -1101,8 +1127,9 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      if(this.appState.get('from_route')) {
-        this.router.transitionTo.apply(this, this.appState.get('from_route'));
+      var from = this.appState.get('from_route');
+      if(from && from.length && this.router) {
+        this.router.transitionTo.apply(this.router, from);
       } else {
         this.appState.return_to_index();
       }
@@ -1177,6 +1204,7 @@ export default Controller.extend({
   }),
   activateButton: function(button, options) {
     var _this = this;
+    speecher.unlock_speech();
     button.findContentLocally().then(function() {
       options = options || {};
       var image = options.image || button.get('image');
@@ -1192,7 +1220,7 @@ export default Controller.extend({
       if(image && image.get('personalized_url') && !button.no_skin) {
         image_url = image.get('personalized_url');
       } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
-        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), this.appState.get('currentUser.user_token'), this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
       }
       var obj = {
         label: button.label,
@@ -1254,7 +1282,7 @@ export default Controller.extend({
           defer.not_first_action = true;
         }
       }
-      this.appState.activate_button(button, obj);
+      _this.appState.activate_button(button, obj);
     }, function() { });
   },
   background_class: computed(
@@ -1333,6 +1361,7 @@ export default Controller.extend({
     }
   },
   jumpToBoard: function(new_state, old_state) {
+    console.log('[BOARD-DEBUG] application.jumpToBoard', { key: new_state && new_state.key, oldKey: old_state && old_state.key });
     this.appState.jump_to_board(new_state, old_state);
   },
   backOneBoard: function(opts) {
@@ -1547,7 +1576,7 @@ export default Controller.extend({
   // Check if a component-based modal is active (so we can conditionally hide the outlet)
   hasComponentBasedModal: computed('modalService.currentTemplate', function() {
     const template = this.get('modalService.currentTemplate');
-    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal'];
     return template && convertedModals.indexOf(template) >= 0;
   })
 });

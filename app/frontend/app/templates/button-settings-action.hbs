@@ -27,7 +27,7 @@
         <button class="btn btn-default" {{action "find_board"}} style='display: none; margin-right: 20px;'>{{t "Find" key="find"}}</button>
         <button class="btn btn-default" {{action "build_board"}} style='margin-right: 20px;'>{{t "New" key="new"}}</button>
         <span class="board_search_field">
-          {{input value=this.linkedBoardName class="form-control" id="change_to" placeholder="Board name or key" enter=(action "find_board")}}
+          <Input @value={{this.linkedBoardName}} class="form-control" id="change_to" placeholder="Board name or key" @enter={{action "find_board"}} />
         </span>
         <button class="btn btn-default" {{action "find_board"}}>{{t "Find" key="find"}}</button>
         {{#unless this.pending_board}}
@@ -165,13 +165,13 @@
       <div class="form-group">
         <label for="pending_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
-          {{input value=this.pending_board.name id="pending_board_name" class="form-control" placeholder="Board name"}}
+          <Input @value={{this.pending_board.name}} id="pending_board_name" class="form-control" placeholder="Board name" />
         </div>
       </div>
       <div class="form-group">
         <label for="pending_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
         <div class="col-sm-10">
-          {{input value=this.pending_board.key id="pending_board_key" class="form-control" placeholder=this.pending_board.key_placeholder}}
+          <Input @value={{this.pending_board.key}} id="pending_board_key" class="form-control" placeholder={{this.pending_board.key_placeholder}} />
         </div>
       </div>
       <div class="form-group">
@@ -181,7 +181,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.rows"}}>-</button>
             </span>
-            {{input value=pending_board.grid.rows class="form-control" id="pending_board_rows" placeholder="##" title="rows"}}
+            <Input @value={{pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.rows"}}>+</button>
             </span>
@@ -194,7 +194,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.columns"}}>-</button>
             </span>
-            {{input value=pending_board.grid.columns class="form-control" id="pending_board_columns" placeholder="##" title="columns"}}
+            <Input @value={{pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.columns"}}>+</button>
             </span>
@@ -206,7 +206,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=pending_board.copy_access type="checkbox"}}
+              <Input @checked={{pending_board.copy_access}} @type="checkbox" />
               {{t "Use same license and access settings as are set for this board" key="use_same_license"}}
             </label>
           </div>
@@ -262,7 +262,7 @@
       <div class="form-group">
         <label for="tool_action" class="col-sm-2 control-label">{{t "Code" key="code"}}</label>
         <div class="col-sm-10">
-          {{input value=this.model.integration.action id="tool_action" class="form-control" placeholder="Action code provided by tool"}}
+          <Input @value={{this.model.integration.action}} id="tool_action" class="form-control" placeholder="Action code provided by tool" />
         </div>
       </div>
     {{/if}}
@@ -278,7 +278,7 @@
            {{t "URL" key="url"}}
         </label>
         <div class="col-sm-10 options">
-          {{input value=this.model.url class="form-control" id="link_to" placeholder="https://"}}
+          <Input @value={{this.model.url}} class="form-control" id="link_to" placeholder="https://" />
           <div style='font-size: 11px;' class='text-muted'>
             <em>{{t "%app_name% works great with YouTube and TarHeel Reader links!" key="youtube_and_tarheel_reader_compatible"}}</em>
           </div>
@@ -290,7 +290,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.video.popup}}
+                <Input @type="checkbox" @checked={{this.model.video.popup}} />
                 {{t "Show video in a popup" key="show_video_popup"}}
               </label>
             </div>
@@ -318,7 +318,7 @@
           <div class="form-group">
             <label for="youtube_start" class="col-sm-2 control-label">{{t "Start" key="start_at"}}</label>
             <div class="col-sm-3">
-              {{input value=this.model.video.start class="form-control" id="youtube_start" placeholder="0"}}
+              <Input @value={{this.model.video.start}} class="form-control" id="youtube_start" placeholder="0" />
             </div>
             <div class="col-sm-3">
               <p class="form-control-static">
@@ -329,7 +329,7 @@
           <div class="form-group">
             <label for="youtube_end" class="col-sm-2 control-label">{{t "End" key="end_at"}}</label>
             <div class="col-sm-3">
-              {{input value=this.model.video.end class="form-control" id="youtube_end" placeholder="ending"}}
+              <Input @value={{this.model.video.end}} class="form-control" id="youtube_end" placeholder="ending" />
             </div>
             <div class="col-sm-3">
               <p class="form-control-static">
@@ -343,7 +343,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.book.popup}}
+                <Input @type="checkbox" @checked={{this.model.book.popup}} />
                 {{t "Show book in a popup" key="show_book_popup"}}
               </label>
             </div>
@@ -375,7 +375,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class='checkbox'>
                 <label>
-                  {{input type="checkbox" checked=this.model.book.speech}}
+                  <Input @type="checkbox" @checked={{this.model.book.speech}} />
                   {{t "Automatically read pages aloud" key="read_pages_aloud"}}
                 </label>
               </div>
@@ -385,7 +385,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class='checkbox'>
                 <label>
-                  {{input type="checkbox" checked=this.model.book.utterance}}
+                  <Input @type="checkbox" @checked={{this.model.book.utterance}} />
                   {{t "Add spoken pages to the vocalization box" key="utterance_pages"}}
                 </label>
               </div>
@@ -452,7 +452,7 @@
                   <br>
                   {{#if this.model.apps.ios.custom}}
                     {{t "Custom mobile launch URL/scheme:" key="custom_launch"}}
-                    {{input value=this.model.apps.ios.launch_url class="form-control" placeholder="i.e. fb://feed"}}
+                    <Input @value={{this.model.apps.ios.launch_url}} class="form-control" placeholder="i.e. fb://feed" />
                   {{else}}
                     {{#if this.model.apps.ios.launch_url}}
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
@@ -471,7 +471,7 @@
             <label for="app_search" class="col-sm-2 control-label">{{t "Find" key="find"}}</label>
             <div class="col-sm-10 options">
               <span class="board_search_field">
-                {{input value=this.ios_app_name class="form-control" id="app_search" placeholder="App name"}}
+                <Input @value={{this.ios_app_name}} class="form-control" id="app_search" placeholder="App name" />
               </span>
               <button class="btn btn-default" {{action "find_app"}}>{{t "Find" key="find"}}</button>
               {{#if this.foundApps.ready}}
@@ -530,7 +530,7 @@
                   <br>
                   {{#if this.model.apps.android.custom}}
                     {{t "App-registered URL/scheme:" key="app_launch"}}
-                    {{input value=this.model.apps.android.launch_url class="form-control" placeholder="i.e. https://www.twitter.com/"}}
+                    <Input @value={{this.model.apps.android.launch_url}} class="form-control" placeholder="i.e. https://www.twitter.com/" />
                   {{else}}
                     {{#if this.model.apps.android.launch_url}}
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
@@ -549,7 +549,7 @@
             <label for="app_search" class="col-sm-2 control-label">{{t "Find" key="find"}}</label>
             <div class="col-sm-10 options">
               <span class="board_search_field">
-                {{input value=this.android_app_name class="form-control" id="app_search" placeholder="App name"}}
+                <Input @value={{this.android_app_name}} class="form-control" id="app_search" placeholder="App name" />
               </span>
               <button class="btn btn-default" {{action "find_app"}}>{{t "Find" key="find"}}</button>
               {{#if this.foundApps.ready}}
@@ -599,7 +599,7 @@
           <div class="form-group">
             <label for="app_url" class="col-sm-2 control-label">{{t "URL" key="url"}}</label>
             <div class="col-sm-10">
-              {{input value=this.model.apps.web.launch_url class="form-control" id="app_url" placeholder="https://"}}
+              <Input @value={{this.model.apps.web.launch_url}} class="form-control" id="app_url" placeholder="https://" />
             </div>
           </div>
           {{#if this.model.apps.web.launch_url}}
@@ -623,7 +623,7 @@
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.model.prevent_adding_to_vocalization type="checkbox"}}
+            <Input @checked={{this.model.prevent_adding_to_vocalization}} @type="checkbox" />
             {{t "Do not add this button to the vocalization box" key="prevent_adding_to_vocalization"}}
           </label>
         </div>
@@ -634,14 +634,14 @@
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.model.force_add_to_vocalization type="checkbox"}}
+            <Input @checked={{this.model.force_add_to_vocalization}} @type="checkbox" />
             {{t "Also speak & add to the vocalization box" key="add_to_vocalization"}}
           </label>
         </div>
         {{#if this.model.folderAction}}
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=this.model.home_lock type="checkbox"}}
+              <Input @checked={{this.model.home_lock}} @type="checkbox" />
               {{t "Set as temporary home when loaded" key="set_home_lock"}}
             </label>
           </div>
@@ -649,7 +649,7 @@
             <div style='margin-left: 30px;'>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input checked=this.model.meta_home type="checkbox"}}
+                  <Input @checked={{this.model.meta_home}} @type="checkbox" />
                   {{t "Require menu action to return from link" key="set_meta_home"}}
                 </label>
               </div>
@@ -658,7 +658,7 @@
         {{/if}}
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=this.model.link_disabled type="checkbox"}}
+            <Input @checked={{this.model.link_disabled}} @type="checkbox" />
             {{t "Disable this link action for now" key="disable_link_action"}}
           </label>
         </div>

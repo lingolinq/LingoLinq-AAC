@@ -27,7 +27,7 @@
         <p>{{t "Please enter the confirmation code provided by your two-factor authentication app:" key="enter_2fa_code"}}</p>
       {{/if}}
       <div style='margin-bottom: 10px;'>
-        {{input type="number" class="form-control input-lg" value=this.code_2fa placeholder="# # # # # #" style="text-align: center;"}}
+        <Input @type="number" class="form-control input-lg" @value={{this.code_2fa}} placeholder="# # # # # #" style="text-align: center;" />
       </div>
       <button {{action "confirm_2fa"}} disabled={{this.status_2fa.loading}} class='btn btn-primary' style='width: 100%;'>
         <div style='font-size: 25px;'>
@@ -57,13 +57,13 @@
           {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username"}}
         </div>
         <div class="form-group">
-          {{input type="password" id="password" class="form-control input-lg touchy" value=this.password placeholder="password"}}
+          <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" />
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.long_token id="long_token"}}
+                <Input @type="checkbox" @checked={{this.long_token}} id="long_token" />
                 Keep me logged in on this device
               </label>
             </div>
@@ -76,7 +76,7 @@
             </p>
           </div>
         {{else}}
-          <div style='margin-top:-15px; margin-bottom: 10px;'><em style={{if this.first_login "color: #ba4a59;" "color: #888"}}>{{t "Remember: all boards and reports may contain user data, and should be kept private and treated with respect." key="private_data_reminder"}}</em></div>
+          <div style='margin-top:-15px; margin-bottom: 10px;'><em style={{safe-style (if this.first_login "color: #ba4a59;" "color: #888")}}>{{t "Remember: all boards and reports may contain user data, and should be kept private and treated with respect." key="private_data_reminder"}}</em></div>
         {{/if}}
         <div class="form-group">
           <button type="submit" class='btn btn-primary btn-lg' disabled={{this.noSubmit}}>
@@ -87,7 +87,7 @@
               {{#if this.checking_for_secret}}
                 {{t "Initializing..." key="initializing"}}
               {{else}}
-                {{#if this.persistence.online}}
+                {{#if (persistence-online)}}
                   <span style='font-size: 14px;'>{{t "Can't Reach %app_name% Cloud,<br>Check Your Signal Quality" key="cant_reach_app"}}</span>
                 {{else}}
                   {{t "Not Online" key="not_connected"}}

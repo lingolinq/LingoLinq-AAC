@@ -8,6 +8,10 @@ import progress_tracker from '../utils/progress_tracker';
 import ttsVoices from '../utils/tts_voices';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
+import evaluation from '../utils/eval';
+import obf from '../utils/obf';
+import utterance from '../utils/utterance';
+import i18n from '../utils/i18n';
 
 // ApplicationRouteMixin.reopen({
 //   actions: {
@@ -40,6 +44,8 @@ export default Route.extend({
     geo.setup(this.appState, this.persistence, this.stashes);
     progress_tracker.setup(this.persistence);
     capabilities.setup(this.stashes, ttsVoices);
+    evaluation.setup(this.appState, this.persistence, this.stashes, speecher, utterance, obf, modal, i18n, capabilities);
+    obf.register_services(this.appState);
 
     this.appState.setup_controller(this, controller);
     speecher.refresh_voices();

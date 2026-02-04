@@ -9,7 +9,7 @@
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-7">
-          {{input value=this.model.unit.name class="form-control" id="name" placeholder="Room Name"}}
+          <Input @value={{this.model.unit.name}} class="form-control" id="name" placeholder="Room Name" />
         </div>
       </div>
       {{else}}
@@ -26,8 +26,8 @@
         <div class="col-sm-8">
           {{#each this.model.unit.topics as |row|}}
             <div class='row' style='margin-top: 5px;'>
-              <div class='col-sm-5'>{{input value=row.title class="form-control" placeholder="topic"}}</div>
-              <div class='col-sm-6'>{{input value=row.url class="form-control" placeholder="https://"}}</div>
+              <div class='col-sm-5'><Input @value={{row.title}} class="form-control" placeholder="topic" /></div>
+              <div class='col-sm-6'><Input @value={{row.url}} class="form-control" placeholder="https://" /></div>
               <div class='col-sm-1'><a href='#' {{action "remove_curriculum_row" row}}><span class='glyphicon glyphicon-remove'></span></a></div>
             </div>
           {{/each}}

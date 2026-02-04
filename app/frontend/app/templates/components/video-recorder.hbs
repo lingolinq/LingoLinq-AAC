@@ -67,9 +67,9 @@
   <p>
     {{t "Video recording is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1c"}}
     {{#if this.user}}
-      {{#link-to "user.subscription" this.user.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+      <LinkTo @route="user.subscription" @model={{this.user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else if this.app_state.currentUser}}
-      {{#link-to "user.subscription" this.app_state.currentUser.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+      <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

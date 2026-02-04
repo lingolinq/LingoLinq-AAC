@@ -19,10 +19,10 @@
       <label for="license_author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
       <div class="col-sm-4">
         <!-- Ember is now barfing if I add more than one element with the same id, so changed to refid for now -->
-        {{input value=this.license.author_name class="form-control" refid="license_author" placeholder="Name"}}
+        <Input @value={{this.license.author_name}} class="form-control" refid="license_author" placeholder="Name" />
       </div>
       <div class="col-sm-6">
-        {{input value=this.license.author_url class="form-control" title="Author URL" placeholder="Author URL"}}
+        <Input @value={{this.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" />
       </div>
     </div>
   {{/unless}}

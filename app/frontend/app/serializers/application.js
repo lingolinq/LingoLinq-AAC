@@ -16,27 +16,37 @@ export default DS.RESTSerializer.extend({
    * which prevents Ember Data warnings about ID mismatches.
    */
   normalizeResponse(store, primaryModelClass, payload, id, requestType) {
-    // Handle the case where we request 'user' with id 'self' but get back a different ID
-    // ONLY normalize when we specifically requested 'self' via findRecord, not for other user lookups
+    // Handle the case where we request 'user' with id 'self' but get back a different ID.
+    // Pass a copy with id forced to 'self' so Ember Data never sees the real id and never
+    // tries to update the RecordIdentifier (which would trigger the "id should not be updated" warning).
     if (primaryModelClass.modelName === 'user' && id === 'self' && requestType === 'findRecord' && payload) {
-      // The payload structure might be {user: {...}} or just the user object
       var userData = payload.user || payload;
       if (userData && userData.id && userData.id !== 'self') {
-        // Store the actual ID before normalizing
         var actualId = userData.id;
-        // Normalize the ID to 'self' to match the request
-        // This prevents Ember Data from trying to update the identifier
-        userData.id = 'self';
-        // Store the actual ID for reference if needed (though it's not currently used)
         if (payload.user) {
-          payload.user._actual_id = actualId;
+          payload = Object.assign({}, payload, {
+            user: Object.assign({}, userData, { id: 'self', _actual_id: actualId })
+          });
         } else {
-          payload._actual_id = actualId;
+          payload = Object.assign({}, userData, { id: 'self', _actual_id: actualId });
         }
       }
     }
-    
-    // Call the parent normalizeResponse
-    return this._super(...arguments);
+
+    // Handle board findRecord when API returns a list (meta + board array) instead of a single board.
+    // This can happen if the wrong endpoint is hit or the response shape is a list. Extract the
+    // matching board so the board route gets a single record and the board page can render.
+    if (primaryModelClass.modelName === 'board' && requestType === 'findRecord' && payload && Array.isArray(payload.board)) {
+      var requestedId = id;
+      var match = payload.board.find(function (b) {
+        return b && (String(b.id) === String(requestedId) || String(b.key) === String(requestedId));
+      });
+      if (match) {
+        payload.board = match;
+      }
+    }
+
+    // Call the parent normalizeResponse (pass payload in case we replaced it for user 'self')
+    return this._super(store, primaryModelClass, payload, id, requestType);
   }
 });

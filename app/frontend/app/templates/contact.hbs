@@ -13,13 +13,13 @@
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-5">
-          {{input value=this.name class="form-control" id="name" placeholder="Your Name"}}
+          <Input @value={{this.name}} class="form-control" id="name" placeholder="Your Name" />
         </div>
       </div>
       <div class="form-group">
         <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-5">
-          {{input value=this.email class="form-control" id="email" placeholder="you@example.com"}}
+          <Input @value={{this.email}} class="form-control" id="email" placeholder="you@example.com" />
         </div>
       </div>
       <div class="form-group">
@@ -45,13 +45,13 @@
       <div class="form-group">
         <label for="subject" class="col-sm-3 control-label">{{t "Subject" key="subject"}}</label>
         <div class="col-sm-5">
-          {{input value=this.subject class="form-control" id="subject" placeholder=""}}
+          <Input @value={{this.subject}} class="form-control" id="subject" placeholder="" />
         </div>
       </div>
       <div class="form-group">
         <label for="message" class="col-sm-3 control-label">{{t "Message" key="message"}}</label>
         <div class="col-sm-5">
-          {{textarea value=this.message class="form-control" id="message" placeholder="" rows=4}}
+          <Textarea @value={{this.message}} class="form-control" id="message" placeholder="" rows={{4}} />
         </div>
       </div>
       <div class="form-group">

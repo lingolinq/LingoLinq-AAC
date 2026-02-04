@@ -337,29 +337,40 @@ module Purchasing
         if include_n_supporters > 0
           amount += (include_n_supporters * self.extras_supporter_cost)
           description += " (plus #{include_n_supporters} premium supporters)"
-        end 
-    
-        return {success: false, error: "Charge amount is zero"} if amount <= 0
-        meta = {
-          'user_id' => user.global_id,
-          'plan_id' => plan_id,
-          'platform_source' => 'lingolinq',
-          'type' => 'license'
-        }
-        meta['purchased_symbols'] = 'true' if include_extras
-        meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
-        charge = Stripe::Charge.create({
-          :amount => (amount * 100).to_i,
-          :currency => 'usd',
-          :source => token['id'],
-          :description => description,
-          :receipt_email => (user && user.external_email_allowed?) ? (user && user.settings && user.settings['email']) : nil,
-          :metadata => meta
-        })
-        if include_extras || include_n_supporters > 0
-          extras_added = {:customer_id => charge['customer'], :purchase_id => charge['id'], :symbols => !!include_extras, :supporters => include_n_supporters}
         end
+
         time = 5.years.to_i
+        charge = nil
+        if amount <= 0
+          # 100% discount or free: grant subscription without a Stripe charge
+          user && user.log_subscription_event({:log => 'long-term - zero amount (discount/free), granting without charge'})
+          purchase_id = discount_code ? "discount_#{gift&.id || 'code'}" : 'free'
+          customer_id = 'free'
+          token_summary = nil
+        else
+          meta = {
+            'user_id' => user.global_id,
+            'plan_id' => plan_id,
+            'platform_source' => 'lingolinq',
+            'type' => 'license'
+          }
+          meta['purchased_symbols'] = 'true' if include_extras
+          meta['purchased_supporters'] = include_n_supporters if include_n_supporters > 0
+          charge = Stripe::Charge.create({
+            :amount => (amount * 100).to_i,
+            :currency => 'usd',
+            :source => token['id'],
+            :description => description,
+            :receipt_email => (user && user.external_email_allowed?) ? (user && user.settings && user.settings['email']) : nil,
+            :metadata => meta
+          })
+          purchase_id = charge['id']
+          customer_id = charge['customer']
+          token_summary = token['summary']
+        end
+        if include_extras || include_n_supporters > 0
+          extras_added = {:customer_id => customer_id, :purchase_id => purchase_id, :symbols => !!include_extras, :supporters => include_n_supporters}
+        end
         user && user.log_subscription_event({:log => 'persisting long-term purchase update'})
         if plan_id.match(/free/)
           user.update_subscription({
@@ -372,12 +383,12 @@ module Purchasing
           User.subscription_event({
             'purchase' => true,
             'user_id' => user.global_id,
-            'purchase_id' => charge['id'],
-            'customer_id' => charge['customer'],
-            'token_summary' => token['summary'],
+            'purchase_id' => purchase_id,
+            'customer_id' => customer_id,
+            'token_summary' => token_summary,
             'discount_code' => discount_code,
             'purchase_amount' => amount,
-            'source_id' => 'stripe',
+            'source_id' => amount <= 0 ? 'discount' : 'stripe',
             'plan_id' => plan_id,
             'seconds_to_add' => time,
             'source' => 'new purchase'

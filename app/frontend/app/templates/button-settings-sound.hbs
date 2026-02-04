@@ -4,7 +4,7 @@
     <label for="vocalization" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
     <div class="col-sm-10 options">
       <span class="vocalization_field">
-        {{input value=this.model.vocalization class="form-control inline" id="vocalization" placeholder=this.label}}
+        <Input @value={{this.model.vocalization}} class="form-control inline" id="vocalization" placeholder={{this.label}} />
       </span>
       <button type="button" {{action "record_sound" on="click"}} disabled={{this.recorder_unavailable}} class="btn btn-default">
         <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
@@ -31,7 +31,7 @@
     <div class="col-sm-10">
       <div class="checkbox big_checkbox">
         <label>
-          {{input checked=this.model.blocking_speech type="checkbox"}}
+          <Input @checked={{this.model.blocking_speech}} @type="checkbox" />
           {{t "Hold other speech until this button completes" key="hold_other_speech_until_this_button_completes"}}
         </label>
       </div>
@@ -54,7 +54,7 @@
       <div class="form-group">
         <div class="col-sm-2 control-label">{{t "Name" key="name"}}</div>
         <div class='col-sm-10'>
-          {{input type="text" value=this.sound_preview.name class="form-control"}}
+          <Input @type="text" @value={{this.sound_preview.name}} class="form-control" />
         </div>
       </div>
     </div>
@@ -121,7 +121,7 @@
             {{/each}}
             {{#if this.modifiers.any_basic}}
               <span class="modifier_example_field">
-                {{input value=this.modifier_text class="form-control" id="modifier" placeholder="enter a word to hear it modified"}}
+                <Input @value={{this.modifier_text}} class="form-control" id="modifier" placeholder="enter a word to hear it modified" />
               </span>
             {{/if}}
           {{else}}

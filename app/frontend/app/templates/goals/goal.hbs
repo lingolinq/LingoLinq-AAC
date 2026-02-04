@@ -1,7 +1,7 @@
 {{#if this.model.template_or_unit}}
   <h2>{{ this.model.summary }}</h2>
   {{#if this.model.unit_id}}
-    {{#link-to "organization.room" this.model.unit_org_id this.model.unit_id}}{{t "Return to " key="return_to"}}{{#if this.model.unit_name}}{{ this.model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}{{/link-to}}
+    <LinkTo @route="organization.room" @models={{array this.model.unit_org_id this.model.unit_id}}>{{t "Return to " key="return_to"}}{{#if this.model.unit_name}}{{ this.model.unit_name }}{{else}}{{t "organization room" key="organization_room"}}{{/if}}</LinkTo>
   {{/if}}
   {{#if this.model.sequence}}
     {{#if this.model.related.header}}
@@ -15,9 +15,9 @@
               {{#if this.model.template_header}}
                 {{this.model.related.header.sequence_summary}}
               {{else}}
-                {{#link-to "goals.goal" this.model.related.header.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.header.id}}>
                   {{this.model.related.header.sequence_summary}}
-                {{/link-to}}
+                </LinkTo>
                 &nbsp;
               {{/if}}
               <div class='sub_link text-muted'>
@@ -61,9 +61,9 @@
             </div>
             <div class="panel-body">
               {{#if this.model.related.previous}}
-                {{#link-to "goals.goal" this.model.related.previous.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.previous.id}}>
                   {{this.model.related.previous.summary}}
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -78,9 +78,9 @@
             </div>
             <div class="panel-body">
               {{#if this.model.related.next}}
-                {{#link-to "goals.goal" this.model.related.next.id}}
+                <LinkTo @route="goals.goal" @model={{this.model.related.next.id}}>
                   {{this.model.related.next.summary}}
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -97,26 +97,26 @@
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
           <div class="col-sm-5">
-            {{input value=this.model.sequence_summary class="form-control" id="sequence_summary" placeholder="short sequence summary"}}
+            <Input @value={{this.model.sequence_summary}} class="form-control" id="sequence_summary" placeholder="short sequence summary" />
           </div>
         </div>
         <div class="form-group">
           <label for="sequence_description" class="col-sm-2 control-label">{{t "Details" key="details"}}</label>
           <div class="col-sm-5">
-            {{textarea value=this.model.sequence_description class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence"}}
+            <Textarea @value={{this.model.sequence_description}} class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence" />
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
         <div class="col-sm-5">
-          {{input value=this.model.summary class="form-control" id="summary" placeholder="short goal summary"}}
+          <Input @value={{this.model.summary}} class="form-control" id="summary" placeholder="short goal summary" />
         </div>
       </div>
       <div class="form-group">
         <label for="description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-5">
-          {{textarea value=this.model.description class="form-control" id="description" placeholder="longer, detailed description of the goal"}}
+          <Textarea @value={{this.model.description}} class="form-control" id="description" placeholder="longer, detailed description of the goal" />
         </div>
       </div>
       {{#if this.model.sequence}}
@@ -127,11 +127,11 @@
           </div>
           {{#if this.model.date_advance}}
             <div class='col-sm-3'>
-              {{input value=this.model.goal_advances_at class="form-control" id="date_advance" placeholder="month, day"}}
+              <Input @value={{this.model.goal_advances_at}} class="form-control" id="date_advance" placeholder="month, day" />
             </div>
           {{else if this.model.duration_advance}}
             <div class='col-sm-1'>
-              {{input type="number" value=this.model.goal_duration_number class="form-control" id="duration_advance" placeholder="##"}}
+              <Input type="number" @value={{this.model.goal_duration_number}} class="form-control" id="duration_advance" placeholder="##" />
             </div>
             <div class='col-sm-2'>
               {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(action (mut this.model.goal_duration_unit)) }}
@@ -157,7 +157,7 @@
         <div class="form-group">
           <label for="new_summary" class="col-sm-2 control-label">&nbsp;</label>
           <div class="col-sm-5">
-            {{input value=this.model.new_next_template_summary class="form-control" id="new_summary" placeholder="short sequence summary"}}
+            <Input @value={{this.model.new_next_template_summary}} class="form-control" id="new_summary" placeholder="short sequence summary" />
           </div>
         </div>
       {{/if}}
@@ -169,7 +169,7 @@
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    {{input type="checkbox" checked=this.model.template_header id="template_header"}}
+                    <Input type="checkbox" @checked={{this.model.template_header}} id="template_header" />
                     {{t "This goal is a public template for others to use" key="make_goal_a_template"}}
                   </label>
                 </div>
@@ -185,7 +185,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.model.auto_assessment id="auto_assessment"}}
+                <Input type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
                 {{t "Assess this goal daily based on usage data" key="assess_goal_daily"}}
               </label>
             </div>
@@ -200,7 +200,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.model.badges_enabled id="badges"}}
+              <Input type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
@@ -210,7 +210,7 @@
         <div class="form-group">
           <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
-            {{input value=this.model.badge_name class="form-control" id="badge_name" placeholder="optional badge name"}}
+            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder="optional badge name" />
           </div>
         </div>
         {{#each this.model.badges as |badge index|}}
@@ -320,7 +320,7 @@
                     {{#if goal.template_header}}
                       {{goal.summary}}
                     {{else}}
-                      {{#link-to "goals.goal" goal.id}}{{goal.summary}}{{/link-to}}
+                      <LinkTo @route="goals.goal" @model={{goal.id}}>{{goal.summary}}</LinkTo>
                     {{/if}}
                   </td>
                   <td>
@@ -334,9 +334,9 @@
                   </td>
                   <td>
                     {{#if goal.related.next}}
-                      {{#link-to "goals.goal" goal.related.next.id}}
+                      <LinkTo @route="goals.goal" @model={{goal.related.next.id}}>
                         {{goal.related.next.summary}}
-                      {{/link-to}}
+                      </LinkTo>
                     {{else}}
                       {{t "None" key="none_upper"}}
                     {{/if}}

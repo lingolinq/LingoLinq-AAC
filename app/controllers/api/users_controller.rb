@@ -678,12 +678,12 @@ class Api::UsersController < ApplicationController
   def daily_use
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'admin_support_actions')
+    return unless allowed?(user, 'supervise')
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user).to_json
     else
-      api_error 400, {error: 'no data available'}
+      render json: {log: nil}.to_json
     end
   end
   

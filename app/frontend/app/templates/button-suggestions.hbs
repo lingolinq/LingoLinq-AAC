@@ -34,7 +34,7 @@
         {{t "Now you can search for images and pictures from Tar Heel Reader books! Just search for the book you're using and add the pictures and text from any of the pages you want to use." key="extras_explainer"}}
         <div style='margin-top: 10px;'>
           <span style='display: inline-block; width: 300px;'>
-            {{input type="text" value=this.extras_search class="form-control"}}
+            <Input @type="text" @value={{this.extras_search}} class="form-control" />
           </span>
           <button class='btn btn-default' {{action "search_extras"}}>{{t "Go" key="go"}}</button>
         </div>

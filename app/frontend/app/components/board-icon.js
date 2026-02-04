@@ -50,9 +50,11 @@ export default Component.extend({
       }
     } else {
       // If a localized name wasn't sent from the server
-      // then use the specified locale for displaying the name
-      if(this.get('locale') && (!isEmberDataModel || !board.get('localized_name'))) {
-        if(isEmberDataModel) {
+      // then use the specified locale for displaying the name.
+      // Only call .get() when board is an Ember Data model; use plain property for plain objects.
+      var needsLocalized = isEmberDataModel ? !board.get('localized_name') : !board.localized_name;
+      if (this.get('locale') && needsLocalized) {
+        if (isEmberDataModel) {
           board.set('localized_locale', this.get('locale'));
         } else {
           board.localized_locale = this.get('locale');
@@ -102,12 +104,12 @@ export default Component.extend({
   }),
   isReady: computed('board_record', 'board_record.key', 'board_record.id', function() {
     var board_record = this.get('board_record');
-    if(!board_record) { return false; }
-    // Check if board_record has a key or id (indicating it's a valid board)
-    // Explicitly check if get is a function before calling it to avoid operator precedence issues
-    var hasKey = (typeof board_record.get === 'function' && board_record.get('key')) || board_record.key;
-    var hasId = (typeof board_record.get === 'function' && board_record.get('id')) || board_record.id;
-    return !!(hasKey || hasId);
+    if (!board_record) { return false; }
+    // Check if board_record has a key or id (indicating it's a valid board).
+    // Use explicit ternary so falsy key/id (e.g. '', 0) still counts as "present" when the property exists.
+    var hasKey = typeof board_record.get === 'function' ? board_record.get('key') : board_record.key;
+    var hasId = typeof board_record.get === 'function' ? board_record.get('id') : board_record.id;
+    return hasKey != null || hasId != null;
   }),
   cursor_style: computed('isReady', function() {
     if(this.get('isReady')) {

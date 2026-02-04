@@ -20,9 +20,13 @@ export default Component.extend({
           return;
         }
         if(_this.get('active_tracking')) {
-          var computeHeight = _this.get('computeHeight');
+          var computeHeight = _this.get('computeHeight') || _this.get('compute_height');
           if (computeHeight && typeof computeHeight === 'function') {
             computeHeight(true);
+          } else if (computeHeight && typeof computeHeight === 'string') {
+            _this.sendAction(computeHeight, true);
+          } else {
+            _this.sendAction('compute_height', true);
           }
         }
       }, 100);
@@ -30,9 +34,13 @@ export default Component.extend({
     $(window).on('resize orientationchange', resizeHandler);
     // Store handler reference for cleanup
     _this.set('resizeHandler', resizeHandler);
-    var computeHeight = _this.get('computeHeight');
+    var computeHeight = _this.get('computeHeight') || _this.get('compute_height');
     if (computeHeight && typeof computeHeight === 'function') {
       computeHeight();
+    } else if (computeHeight && typeof computeHeight === 'string') {
+      _this.sendAction(computeHeight);
+    } else {
+      _this.sendAction('compute_height');
     }
   },
   willDestroyElement: function() {
@@ -49,9 +57,13 @@ export default Component.extend({
     return $button.attr('data-id') || $(event.target).attr('id');
   },
   speakMenuSelect: function(event) {
-    var buttonEvent = this.get('buttonEvent');
+    var buttonEvent = this.get('buttonEvent') || this.get('button_event');
     if (buttonEvent && typeof buttonEvent === 'function') {
       buttonEvent('speakMenuSelect', event.button_id, event);
+    } else if (buttonEvent && typeof buttonEvent === 'string') {
+      this.sendAction(buttonEvent, 'speakMenuSelect', event.button_id, event);
+    } else {
+      this.sendAction('button_event', 'speakMenuSelect', event.button_id, event);
     }
   },
   buttonSelect: function(event) {
@@ -79,18 +91,26 @@ export default Component.extend({
     if(this.appState.get('edit_mode') && editManager.paint_mode) {
       this.buttonPaint(event);
     } else {
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('buttonSelect', button_id, event);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'buttonSelect', button_id, event);
+      } else {
+        this.sendAction('button_event', 'buttonSelect', button_id, event);
       }
     }
   },
   buttonPaint: function(event) {
     if(editManager.paint_mode) {
       var button_id = this.buttonId(event);
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('buttonPaint', button_id);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'buttonPaint', button_id);
+      } else {
+        this.sendAction('button_event', 'buttonPaint', button_id);
       }
     }
   },
@@ -100,9 +120,13 @@ export default Component.extend({
         return this.buttonSelect(event);
       }
       var button_id = this.buttonId(event);
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('symbolSelect', button_id);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'symbolSelect', button_id);
+      } else {
+        this.sendAction('button_event', 'symbolSelect', button_id);
       }
     }
   },
@@ -112,9 +136,13 @@ export default Component.extend({
         return this.buttonSelect(event);
       }
       var button_id = this.buttonId(event);
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('actionSelect', button_id);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'actionSelect', button_id);
+      } else {
+        this.sendAction('button_event', 'actionSelect', button_id);
       }
     }
   },
@@ -122,27 +150,39 @@ export default Component.extend({
     if(this.appState.get('edit_mode')) {
       var dragId = $(event.target).data('drag_id');
       var dropId = $(event.target).data('drop_id');
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('rearrangeButtons', dragId, dropId);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'rearrangeButtons', dragId, dropId);
+      } else {
+        this.sendAction('button_event', 'rearrangeButtons', dragId, dropId);
       }
     }
   },
   clear: function(event) {
     if(this.appState.get('edit_mode')) {
       var button_id = this.buttonId(event);
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('clear_button', button_id);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'clear_button', button_id);
+      } else {
+        this.sendAction('button_event', 'clear_button', button_id);
       }
     }
   },
   stash: function(event) {
     if(this.appState.get('edit_mode')) {
       var button_id = this.buttonId(event);
-      var buttonEvent = this.get('buttonEvent');
+      var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('stash_button', button_id);
+      } else if (buttonEvent && typeof buttonEvent === 'string') {
+        this.sendAction(buttonEvent, 'stash_button', button_id);
+      } else {
+        this.sendAction('button_event', 'stash_button', button_id);
       }
     }
   }

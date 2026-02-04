@@ -44,10 +44,10 @@
         {{#if this.model.permissions.update_licenses}}
             <span class="btn btn-default" style='text-align: left; display: none;'>
               <div style='margin-bottom: 4px;'>
-                {{input value=this.model.allotted_licenses class="form-control inline inline-licenses"}}
+                <Input @value={{this.model.allotted_licenses}} class="form-control inline inline-licenses" />
                 {{t "purchased licenses" key="purchased_licenses_lower"}}
               </div>
-              {{input value=this.model.allotted_eval_licenses class="form-control inline inline-licenses"}}
+              <Input @value={{this.model.allotted_eval_licenses}} class="form-control inline inline-licenses" />
               {{t "eval accounts" key="eval_accounts_lower"}}
               <button class="btn btn-default" {{action "update_org"}}>{{t "update" key="update_lower"}}</button>
             </span>
@@ -62,15 +62,15 @@
               <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
             {{/if}}
             <span class="btn btn-default">
-              {{input value=this.masquerade_user_name enter=(action "masquerade") placeholder="user name" class="form-control inline inline-masquerade"}}
+              <Input @value={{this.masquerade_user_name}} @enter={{action "masquerade"}} placeholder="user name" class="form-control inline inline-masquerade" />
               <button class="btn btn-default" {{action "masquerade"}} style='width: 110px;'>{{t "masquerade" key="masquerade"}}</button>
             </span>
             <span class="btn btn-default">
-              {{input value=this.search_user enter=(action "find_user") placeholder="user name/email" class="form-control inline inline-masquerade"}}
+              <Input @value={{this.search_user}} @enter={{action "find_user"}} placeholder="user name/email" class="form-control inline inline-masquerade" />
               <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
             </span>
             <span class="btn btn-default">
-              {{input value=this.search_board enter=(action "find_board") placeholder="board id/key" class="form-control inline inline-masquerade"}}
+              <Input @value={{this.search_board}} @enter={{action "find_board"}} placeholder="board id/key" class="form-control inline inline-masquerade" />
               <button class="btn btn-default" {{action "find_board"}} style='width: 110px;'>{{t "find board" key="find_board_lower"}}</button>
             </span>
           {{/if}}
@@ -78,7 +78,7 @@
           {{#if this.model.permissions.edit}}
             <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
             <span class="btn btn-default">
-              {{input value=this.search_user enter=(action "find_user") placeholder="user name/email" class="form-control inline inline-masquerade"}}
+              <Input @value={{this.search_user}} @enter={{action "find_user"}} placeholder="user name/email" class="form-control inline inline-masquerade" />
               <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
             </span>
           {{/if}}

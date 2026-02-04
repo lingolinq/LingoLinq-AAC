@@ -30,8 +30,14 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
 
-    // Initialize model
-    this.set('model', LingoLinq.store.createRecord('board', {public: false, license: {type: 'private'}, grid: {rows: 2, columns: 4}}));
+    // Initialize model; for_user_id 'self' ensures create payload includes owner for API
+    var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
+    this.set('model', LingoLinq.store.createRecord('board', {
+      public: false,
+      license: {type: 'private'},
+      grid: {rows: 2, columns: 4},
+      for_user_id: currentUserId ? 'self' : undefined
+    }));
     
     // Initialize speech recognition if available
     if(window.webkitSpeechRecognition) {
@@ -89,9 +95,18 @@ export default Component.extend({
   }),
 
   willDestroy() {
+    // Stop recording before teardown (don't use send() - component is being destroyed)
+    var speech = this.get('speech');
+    if(speech && speech.engine) {
+      try { speech.engine.abort(); } catch(e) { }
+    }
+    if(speech) {
+      this.set('speech.resume', false);
+      this.set('speech.recording', false);
+      this.set('speech.ready', false);
+      this.set('speech.almost_recording', false);
+    }
     this._super(...arguments);
-    // Stop recording when component is destroyed
-    this.send('stop_recording');
   },
 
   locales: computed(function() {
@@ -345,6 +360,11 @@ export default Component.extend({
           }
         });
         this.set('model.categories', cats);
+      }
+      // Ensure API has an owner: use for_user_id when creating for a supervisee, otherwise 'self' for current user
+      var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
+      if(!this.get('model.for_user_id') && currentUserId) {
+        this.set('model.for_user_id', 'self');
       }
       this.get('model').save().then(function(board) {
         board.set('button_locale', board.get('locale'));

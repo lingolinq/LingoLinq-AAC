@@ -135,7 +135,7 @@
               {{#if this.organization.premium}}
                 {{#if this.model.goal}}
                   <div style='font-style: italic; margin-top: 5px;'>
-                    {{#link-to "goals.goal" this.model.goal.id}}{{this.model.goal.summary}}{{/link-to}}
+                    <LinkTo @route="goals.goal" @model={{this.model.goal.id}}>{{this.model.goal.summary}}</LinkTo>
                   </div>
                 {{/if}}
               {{/if}}
@@ -276,13 +276,13 @@
       {{#each this.model.logs.data as |log|}}
         <li>
           <p>
-            {{#link-to "user" log.user.user_name}}{{log.user.user_name}}{{/link-to}} -
+            <LinkTo @route="user" @model={{log.user.user_name}}>{{log.user.user_name}}</LinkTo> -
             <span title={{date log.started_at}}>
               {{date_ago log.started_at}}
             </span>
-            {{#link-to "user.log" log.user.user_name log.id}}
+            <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
               {{t "button" count=log.button_count key="button_count"}}
-            {{/link-to}}
+            </LinkTo>
             <br>
             <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
           </p>

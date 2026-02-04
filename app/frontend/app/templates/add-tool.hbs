@@ -32,7 +32,7 @@
             <div class="form-group">
               <label for={{param.name}} class="col-sm-3 control-label">{{param.label}}</label>
               <div class="col-sm-6">
-                {{input type=param.type value=param.value class="form-control" id=param.name placeholder=param.hint}}
+                <Input @type={{param.type}} @value={{param.value}} class="form-control" id={{param.name}} placeholder={{param.hint}} />
               </div>
             </div>
           {{/each}}

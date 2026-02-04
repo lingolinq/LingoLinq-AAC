@@ -13,9 +13,9 @@
       <h2>
         <span style='font-size: 0.8em;'>
         {{#if this.user_showable}}
-          {{#link-to "user.index" this.model.user.user_name}}
+          <LinkTo @route="user.index" @model={{this.model.user.user_name}}>
             {{this.model.user.name}}
-          {{/link-to}}
+          </LinkTo>
           {{t "said:" key="said_colon"}}
         {{else}}
           <span style="color: #aaa;">
@@ -29,9 +29,11 @@
         <div style='margin-bottom: 50px;'>{{this.model.sentence}}</div>
       {{else}}
         <div id="utterance" class="button_list" {{ action "vocalize"}}>
-          {{#with this.model.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
-          {{/with}}
+          {{#let this.model.button_list as |button_list|}}
+            {{#if button_list}}
+              {{button-list buttonList=button_list}}
+            {{/if}}
+          {{/let}}
         </div>
       {{/if}}
     {{/unless}}
@@ -61,7 +63,7 @@
             {{/if}}
           {{/if}}
         {{/if}}
-        {{textarea value=this.message class="form-control" id="utterance_reply"}}
+        <Textarea @value={{this.message}} class="form-control" id="utterance_reply" />
         <button class='btn btn-lg btn-primary' {{action "reply"}} disabled={{this.reply_status.loading}}>
           {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}
@@ -109,7 +111,7 @@
               <div class="col-sm-8">
                 <div class="checkbox big_checkbox">
                   <label>
-                    {{input type="checkbox" checked=this.model.show_user}}
+                    <Input @type="checkbox" @checked={{this.model.show_user}} />
                     {{t "Show author name when sharing" key="show_author"}}
                   </label>
                 </div>

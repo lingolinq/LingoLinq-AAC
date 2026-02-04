@@ -12,7 +12,8 @@ import {
 import {
   later as runLater,
   cancel as runCancel,
-  next as runNext
+  next as runNext,
+  scheduleOnce
 } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
@@ -54,6 +55,8 @@ export default Service.extend({
   contentGrabbers: service('content-grabbers'),
   init() {
     LingoLinq.appState = this;
+    // Expose globally for utilities
+    window.appState = this;
     if (typeof window !== 'undefined') {
       window.LingoLinq = window.LingoLinq || {};
       window.LingoLinq.appState = this;
@@ -545,6 +548,9 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
+    if(transition.to_route === 'board.index' || transition.to_route === 'board') {
+      console.log('[BOARD-DEBUG] app-state global_transition', { to_route: transition.to_route, from_route: transition.from_route });
+    }
     var route = this.get('route');
     var from_url = null;
     if(route && typeof route.get === 'function') {
@@ -571,7 +577,7 @@ export default Service.extend({
     // On desktop, setting too soon causes a re-render, but on mobile
     // calling it too late does.
     if(capabilities.mobile) {
-//       this.set('index_view', transition.to_route == 'index');
+      this.set('index_view', transition.to_route == 'index');
     }
     if(transition.to_route == 'board.index') {
       boundClasses.setup();
@@ -606,7 +612,7 @@ export default Service.extend({
     this.set('already_homed', true);
     runNext(function() {
       var target = _this.get('current_route');
-//       _this.set('index_view', target == 'index');
+      _this.set('index_view', target == 'index');
     });
     // footer was showing up too quickly and looking weird when the rest of the page hadn't
     // re-rendered yet.
@@ -716,16 +722,15 @@ export default Service.extend({
     this.set('depth_actions', actions);
   },
   return_to_index: function() {
-    var router = this.router || (this.controller && this.controller.target) || (window.router);
+    var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
       router.transitionTo('index');
-    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-      this.controller.transitionToRoute('index');
     } else {
-      console.warn('[APP-STATE] Cannot transition to index route: router and controller not available');
+      console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
   },
   jump_to_board: function(new_state, old_state) {
+    console.log('[BOARD-DEBUG] app-state.jump_to_board entry', { newKey: new_state && new_state.key, source: new_state && new_state.source, oldKey: old_state && old_state.key });
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -775,29 +780,41 @@ export default Service.extend({
     this.set('referenced_board', new_state);
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
-      var router = _this.router || (_this.controller && _this.controller.target) || (window.router);
+      var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
-        router.transitionTo('board', new_state.key);
-      } else if(_this.controller && typeof _this.controller.transitionToRoute === 'function') {
-        _this.controller.transitionToRoute('board', new_state.key);
+        try {
+          console.log('[BOARD-DEBUG] app-state calling router.transitionTo', { route: 'board', key: new_state.key });
+          router.transitionTo('board', new_state.key);
+          console.log('[BOARD-DEBUG] app-state router.transitionTo returned (async transition started)');
+        } catch(e) {
+          console.warn('[APP-STATE] router.transitionTo threw:', e);
+        }
       } else {
-        console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+        console.warn('[APP-STATE] Cannot transition to board route: router not available');
       }
-      if(old_state.key == new_state.key) {
+      if(old_state && new_state && old_state.key == new_state.key) {
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
       }
       var check = function() {
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
-        if(this.get('currentBoardState.key') == new_state.key) {
+        var currentKey = _this.get('currentBoardState.key');
+        if(check.attempts <= 3 || check.attempts % 5 === 0 || check.attempts > 18) {
+          console.log('[BOARD-DEBUG] app-state check attempt', check.attempts, { currentKey: currentKey, expectedKey: new_state.key, match: currentKey === new_state.key });
+        }
+        if(currentKey == new_state.key) {
+          console.log('[BOARD-DEBUG] app-state currentBoardState matched, resolving');
+          buttonTracker.transitioning = false;
           resolve();
         } else {
           if(check.attempts > 20) {
+            console.warn('[BOARD-DEBUG] app-state check timeout after 20 attempts', { currentKey: currentKey, expectedKey: new_state.key });
+            buttonTracker.transitioning = false;
             reject({error: 'not loaded'});
           } else {
             runLater(check, 200);
-          }  
+          }
         }
       };
       runLater(check, 100);
@@ -916,13 +933,11 @@ export default Service.extend({
     var state = history.pop();
     if(!state) { 
       if(this.get('currentBoardState.extra_back') == 'emergency') {
-        var router = this.router || (this.controller && this.controller.target) || (window.router);
+        var router = this.get('router') || this.router;
         if(router && typeof router.transitionTo === 'function') {
           router.transitionTo('offline_boards');
-        } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-          this.controller.transitionToRoute('offline_boards');
         } else {
-          console.warn('[APP-STATE] Cannot transition to offline_boards route: router and controller not available');
+          console.warn('[APP-STATE] Cannot transition to offline_boards route: router not available');
         }
       }
       return; 
@@ -940,13 +955,11 @@ export default Service.extend({
       this.stashes.persist('board_level', state.level);
     }
     this.set('referenced_board', state);
-    var router = this.router || (this.controller && this.controller.target) || (window.router);
+    var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
       router.transitionTo('board', state.key);
-    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-      this.controller.transitionToRoute('board', state.key);
     } else {
-      console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+      console.warn('[APP-STATE] Cannot transition to board route: router not available');
     }
   },
   jump_to_root_board: function(options) {
@@ -979,13 +992,11 @@ export default Service.extend({
           this.stashes.persist('vocalization_locale', state.locale);
         }
         this.set('referenced_board', state);
-        var router = this.router || (this.controller && this.controller.target) || (window.router);
+        var router = this.get('router') || this.router;
         if(router && typeof router.transitionTo === 'function') {
           router.transitionTo('board', state.key);
-        } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-          this.controller.transitionToRoute('board', state.key);
         } else {
-          console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
+          console.warn('[APP-STATE] Cannot transition to board route: router not available');
         }
         do_log = current && current.key && state.key != current.key;
       }
@@ -1281,12 +1292,13 @@ export default Service.extend({
         var brd = this.controller.get('board.model');
         if(brd) {
           var pref_locale = this.get('label_locale');
+          var translated_locales = brd.get('translated_locales') || [];
           this.controller.set('board.model.button_locale', this.controller.get('board.model.locale'));
-          if(!brd.get('translated_locales').includes(pref_locale)) {
-            if(brd.get('translated_locales').includes(pref_locale.split(/-|_/)[0])) {
+          if(pref_locale && !translated_locales.includes(pref_locale)) {
+            if(translated_locales.includes(pref_locale.split(/-|_/)[0])) {
               pref_locale = pref_locale.split(/-|_/)[0];
             } else {
-              var found_loc = brd.get('translated_locales').find(function(l) { return pref_locale = l.split(/-|_/)[0]; });
+              var found_loc = translated_locales.find(function(l) { return pref_locale = l.split(/-|_/)[0]; });
               if(found_loc) {
                 pref_locale = found_loc;
               } else {
@@ -1462,16 +1474,22 @@ export default Service.extend({
     if(preferred && speak_mode_user && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
       preferred = speak_mode_user.get('preferences.home_board') || preferred;
     }
-    // NOTE: text-direction is updated on board load, so it's ok that it's not known here
-    // preferred should include the user's home board setting
-    this.toggle_mode('speak', {force: true, override_state: preferred});
-    this.set('referenced_board', preferred);
-    // Use router service instead of controller for transition
+    // Resolve board key for URL (route uses key, e.g. example/yesno)
+    var boardKey = preferred && (preferred.key || (preferred.get && preferred.get('key')));
+    if(!boardKey && preferred && (preferred.id || (preferred.get && preferred.get('id')))) {
+      var bid = preferred.id || (preferred.get && preferred.get('id'));
+      var peek = LingoLinq.store.peekRecord('board', bid);
+      if(peek && peek.get('key')) {
+        boardKey = peek.get('key');
+      }
+    }
+    if(!boardKey && preferred) {
+      boardKey = preferred.id || (preferred.get && preferred.get('id'));
+    }
+    // Transition first so the URL updates immediately; then set speak mode state
     var router = null;
     try {
-      // Try to get router service via injection first
       router = this.router;
-      // If not available, try to look it up via getOwner
       if(!router || typeof router.transitionTo !== 'function') {
         try {
           var owner = getOwner(this);
@@ -1479,54 +1497,46 @@ export default Service.extend({
             router = owner.lookup('service:router');
           }
         } catch(e) {
-          // getOwner might fail in some contexts, try alternative methods
           var owner = (this.constructor && this.constructor.owner) || (this.owner) || (this._owner);
           if(owner && typeof owner.lookup === 'function') {
             router = owner.lookup('service:router');
           }
         }
       }
-      // Fallback to controller's target (router)
       if((!router || typeof router.transitionTo !== 'function') && this.controller && this.controller.target) {
         router = this.controller.target;
       }
-      // Last resort: try window.router
       if(!router || typeof router.transitionTo !== 'function') {
         router = window.router;
       }
     } catch(e) {
       console.warn('[APP-STATE] Error getting router service:', e);
     }
-    
-    if(router && typeof router.transitionTo === 'function') {
+    if(boardKey && router && typeof router.transitionTo === 'function') {
       try {
-        router.transitionTo('board', preferred.key);
+        router.transitionTo('board', boardKey);
       } catch(e) {
         console.error('[APP-STATE] Error transitioning to board route:', e);
-        // Fallback to controller if router transition fails
-        if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-          this.controller.transitionToRoute('board', preferred.key);
-        }
       }
-    } else if(this.controller && typeof this.controller.transitionToRoute === 'function') {
-      this.controller.transitionToRoute('board', preferred.key);
+    } else if(!boardKey) {
+      console.warn('[APP-STATE] home_in_speak_mode: no board key available for transition', preferred);
     } else {
-      console.warn('[APP-STATE] Cannot transition to board route: router and controller not available', {
-        hasRouter: !!this.router,
-        routerType: typeof this.router,
-        hasController: !!this.controller,
-        controllerType: typeof this.controller
-      });
+      console.warn('[APP-STATE] Cannot transition to board route: router and controller not available');
     }
+    // NOTE: text-direction is updated on board load, so it's ok that it's not known here
+    this.toggle_mode('speak', {force: true, override_state: preferred});
+    this.set('referenced_board', preferred);
     if(speak_mode_user && speak_mode_user == this.get('sessionUser') && speak_mode_user.get('communicator_in_supporter_view')) {
       // Supporter devices for communicators should start in modeling mode
       this.set('modeling_for_self', true);
     }
   },
   check_scanning: function() {
+    if(!this || (this.isDestroyed !== undefined && this.isDestroyed)) { return; }
     var _this = this;
     sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'));
     runLater(function() {
+      if(!_this || (_this.isDestroyed !== undefined && _this.isDestroyed)) { return; }
       buttonTracker.scan_modeling = false;
       if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
         buttonTracker.scanning_enabled = true;
@@ -2937,20 +2947,23 @@ export default Service.extend({
     return (this.get('short_refresh_stamp') || new Date());
   }),
   check_for_user_updated: observer('short_refresh_stamp', 'sessionUser', function(obj, changes) {
-    // Guard: check this before accessing properties
-    if(!this || typeof this !== 'object') {
+    // Guard: check this before accessing properties (avoids "reading 'persistence' of null")
+    if(!this || typeof this !== 'object' || typeof this.get !== 'function') {
       return;
     }
-    if(this.persistence) {
-      if(changes == 'sessionUser' || !this.persistence.get('last_sync_stamp')) {
-        this.persistence.set('last_sync_stamp', this.get('sessionUser.sync_stamp'));
+    var p = null;
+    try { p = this.get('persistence'); } catch (e) { /* teardown / null context */ }
+    if (!p && typeof window !== 'undefined') { p = window.persistence; }
+    if(p && typeof p.get === 'function') {
+      if(changes == 'sessionUser' || !p.get('last_sync_stamp')) {
+        p.set('last_sync_stamp', this.get('sessionUser.sync_stamp'));
       }
     }
     if(this.get('sessionUser')) {
       var interval = (this.get('sessionUser.preferences.sync_refresh_interval') || (5 * 60)) * 1000;
-      if(this.persistence) {
-        if(this.persistence.get('last_sync_stamp_interval') != interval) {
-          this.persistence.set('last_sync_stamp_interval', interval);
+      if(p && typeof p.get === 'function') {
+        if(p.get('last_sync_stamp_interval') != interval) {
+          p.set('last_sync_stamp_interval', interval);
         }
       } else {
         console.error('persistence needed for checking user status');
@@ -3094,8 +3107,9 @@ export default Service.extend({
 
     // speak or make a sound to show the button was selected
     if(obj.label && !skip_sound) {
+      var _this = this;
       var click_sound = function() {
-        if(this.get('currentUser.preferences.click_buttons')) {
+        if(_this.get('currentUser.preferences.click_buttons')) {
           if(specialty_button && specialty_button.has_sound) {
           } else {
             speecher.click();
@@ -3103,7 +3117,7 @@ export default Service.extend({
         }
       };
       var vibrate = function() {
-        if(this.get('currentUser.preferences.vibrate_buttons') && this.get('speak_mode')) {
+        if(_this.get('currentUser.preferences.vibrate_buttons') && _this.get('speak_mode')) {
           capabilities.vibrate();
         }
       };
@@ -3589,13 +3603,15 @@ export default Service.extend({
       }
     }
   }),
+  // Returned object is a plain object; when its methods are called (e.g. from raw_events),
+  // 'this' is the plain object, not the service. Always use _this.get/_this.set inside these methods.
   board_virtual_dom: computed(function() {
     var _this = this;
     var dom = {
       sendAction: function() {
       },
       trigger: function(event, id, args) {
-        if(this.get('currentUser.preferences.device.canvas_render')) {
+        if(_this.get('currentUser.preferences.device.canvas_render')) {
           if(LingoLinq.customEvents[event]) {
             dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
           }
@@ -3655,7 +3671,7 @@ export default Service.extend({
       },
       button_from_point: function(x, y) {
         var res = null;
-        if(this.get('currentUser.preferences.device.canvas_render')) {
+        if(_this.get('currentUser.preferences.device.canvas_render')) {
           dom.each_button(function(b) {
             var pos = b.positioning;
             if(!b.hidden) {
@@ -3732,22 +3748,20 @@ export default Service.extend({
         try {
           // Guard: ensure service is still valid before setting properties
           if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
-            // Defer property update to avoid render errors
-            runLater(function() {
-              if(_this && typeof _this.set === 'function' && !_this.isDestroyed && !_this.isDestroying) {
-                _this.set('short_refresh_stamp', (new Date()).getTime());
-                // Guard: ensure window.persistence exists and has set method before using it
-                if(window.persistence && typeof window.persistence.set === 'function') {
-                  try {
+            // Schedule after render to avoid "Cannot read properties of null (reading 'persistence')"
+            // when run loop flush runs during transition/teardown (e.g. from _setupRefreshTimers).
+            scheduleOnce('afterRender', _this, function() {
+              try {
+                if(this && typeof this.set === 'function' && !this.isDestroyed && !this.isDestroying) {
+                  this.set('short_refresh_stamp', (new Date()).getTime());
+                  if(window.persistence && typeof window.persistence.set === 'function') {
                     window.persistence.set('refresh_stamp', (new Date()).getTime());
-                  } catch(e) {
-                    // Silently fail if persistence service isn't ready yet
-                    // This can happen during initialization
-
                   }
                 }
+              } catch(e) {
+                // Ignore errors during teardown or when context is null
               }
-            }, 0);
+            });
           }
         } catch(e) {
           console.warn('[app-state] Error setting short_refresh_stamp:', e);

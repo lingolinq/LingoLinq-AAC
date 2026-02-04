@@ -8,13 +8,13 @@
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
         <div class="col-sm-6">
-          {{input value=this.model.user.name class="form-control" id="name" placeholder="Full name"}}
+          <Input @value={{this.model.user.name}} class="form-control" id="name" placeholder="Full name" />
         </div>
       </div>
       <div class="form-group">
         <label for="user_name" class="col-sm-4 control-label">{{t "User Name" key="uesr_name"}}</label>
         <div class="col-sm-6">
-          {{input value=this.model.user.user_name class="form-control" placeholder="User name"}}
+          <Input @value={{this.model.user.user_name}} class="form-control" placeholder="User name" />
           {{#if this.model.user.user_name_check.checking}}
           {{else if this.model.user.user_name_check.exists}}
             <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.model.user.user_name}}</span>
@@ -24,13 +24,13 @@
       <div class="form-group">
         <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-6">
-          {{input value=this.model.user.email class="form-control" placeholder="Email address"}}
+          <Input @value={{this.model.user.email}} class="form-control" placeholder="Email address" />
         </div>
       </div>
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-6">
-          {{input type="password" value=this.model.user.password class="form-control" placeholder="Password"}}
+          <Input @type="password" @value={{this.model.user.password}} class="form-control" placeholder="Password" />
         </div>
       </div>
       <div class="form-group">
@@ -46,7 +46,7 @@
             <div class="col-sm-6">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" id="extras" checked=this.model.user.add_symbols}}
+                  <Input @type="checkbox" id="extras" @checked={{this.model.user.add_symbols}} />
                   {{t "Grant user premium symbol access" key="grand_premium_symbols"}}
                   <br>({{this.model.org.extras_available_count}} {{t "left" key="left"}})
                 </label>
@@ -87,7 +87,7 @@
         <div class="form-group">
           <label for="device_type" class="col-sm-4 control-label">{{t "App/Device" key="app_device"}}</label>
           <div class="col-sm-6">
-            {{input value=this.external_device class="form-control" id="device_type" placeholder="third-party app or device name"}}
+            <Input @value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" />
           </div>
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group dropup'>
@@ -106,7 +106,7 @@
           <div class="form-group">
             <label for="vocabulary_type" class="col-sm-4 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
             <div class="col-sm-6">
-              {{input value=this.external_vocab class="form-control" id="vocabulary_type" placeholder="vocabulary used"}}
+              <Input @value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" />
             </div>
             <div class="col-sm-1" style='margin-left: -35px;'>
               <div class='btn-group dropup' style='max-height: 183px;'>
@@ -124,7 +124,7 @@
           <div class="form-group">
             <label for="vocab_size" class="col-sm-4 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
             <div class="col-sm-2">
-              {{input type="number" value=this.external_vocab_size class="form-control" id="vocab_size" placeholder="typical buttons per board"}}
+              <Input @type="number" @value={{this.external_vocab_size}} class="form-control" id="vocab_size" placeholder="typical buttons per board" />
             </div>
             <div class='col-sm-4'>
               <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>

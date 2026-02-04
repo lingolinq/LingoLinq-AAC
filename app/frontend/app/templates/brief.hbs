@@ -57,10 +57,10 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.empty_header}}
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+          <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
           </div>
           <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
@@ -393,7 +393,7 @@
           <img src={{board.image}} style="width: 50px;" alt="">
         </a>
       {{else}}
-        <a href={{board.key}} {{action "jump" board.key "sidebar"}}>
+        <a href='#' {{action "jump" board.key "sidebar" board}}>
           {{board.name}}
           <img src={{board.image}} style="width: 50px;" alt="">
         </a>
@@ -450,7 +450,7 @@
           {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
           {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
         </div>
-        {{#if this.persistence.online}}
+        {{#if (persistence-online)}}
           <div class='col-sm-2'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons">
@@ -490,7 +490,7 @@
           <li>
             {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
           </li>
-        {{#if this.persistence.online}}
+        {{#if (persistence-online)}}
           <li>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons" style="padding-left: 17px;">

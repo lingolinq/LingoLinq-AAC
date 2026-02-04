@@ -19,13 +19,13 @@
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "Current User Name" key="current_user_name"}}</label>
             <div class='col-sm-6'>
-              {{input type="text" value=this.reset_user_name class="form-control"}}
+              <Input type="text" @value={{this.reset_user_name}} class="form-control" />
             </div>
           </div>
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "New Email Address" key="new_email"}}</label>
             <div class='col-sm-6'>
-              {{input type="text" value=this.reset_email class="form-control"}}
+              <Input type="text" @value={{this.reset_email}} class="form-control" />
               {{#if this.status.reset_email_used}}
                 <p class='text-danger'><i>{{t "Must be a different email address than last time" key="must_be_different_email"}}</i></p>
               {{/if}}
@@ -50,13 +50,13 @@
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "New Expiration" key="new_expiration"}}</label>
             <div class='col-sm-6'>
-              {{input type="date" value=this.eval_expires class="form-control"}}
+              <Input type="date" @value={{this.eval_expires}} class="form-control" />
             </div>
           </div>
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "New Password" key="new_password"}}</label>
             <div class='col-sm-6'>
-              {{input type="password" placeholder="(optional)" value=this.reset_password class="form-control"}}
+              <Input type="password" placeholder="(optional)" @value={{this.reset_password}} class="form-control" />
             </div>
           </div>
         </form>
@@ -72,7 +72,7 @@
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "New User Name" key="new_user_name"}}</label>
             <div class='col-sm-6'>
-              {{input type="text" value=this.transfer_user_name class="form-control"}}
+              <Input type="text" @value={{this.transfer_user_name}} class="form-control" />
               {{#if this.status.transfer_bad_credentials}}
                 <p class='text-danger'><i>{{t "No account found with that user name and password" key="no_account_found"}}</i></p>
               {{/if}}
@@ -81,7 +81,7 @@
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "New Password" key="new_password"}}</label>
             <div class='col-sm-6'>
-              {{input type="password" value=this.transfer_password class="form-control"}}
+              <Input type="password" @value={{this.transfer_password}} class="form-control" />
             </div>
           </div>
         </form>
@@ -104,7 +104,7 @@
           <div class='form-group'>
             <label class='control-label col-sm-5'>{{t "Updated Expiration" key="updated_expiration"}}</label>
             <div class='col-sm-6'>
-              {{input type="date" value=this.extend_date class="form-control"}}
+              <Input type="date" @value={{this.extend_date}} class="form-control" />
             </div>
           </div>
         </form>

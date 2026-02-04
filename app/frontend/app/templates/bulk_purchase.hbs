@@ -183,7 +183,7 @@
             <div class="col-sm-9" style="padding-top: 30px;">
               <label>{{t "Your Email" key="your_email"}}</label><br>
               <span style="display: inline-block; width: 300px;">
-                {{input type="text" value=subscription.email class="form-control input-lg" placeholder="email@example.com"}}
+                <Input @type="text" @value={{subscription.email}} class="form-control input-lg" placeholder="email@example.com" />
               </span>
             </div>
           </div>

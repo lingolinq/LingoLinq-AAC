@@ -569,4 +569,19 @@ for(var loc in emergency.boards) {
   })
 }
 
+// Static service registry for explicit injection
+emergency._services = {};
+
+// Getter method for app_state service with fallback to global
+emergency.get_app_state = function() {
+  return emergency._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+};
+
+// Method to initialize services (called from app_state or other services)
+emergency.init_services = function(services) {
+  if (services) {
+    if (services.app_state) { emergency._services.app_state = services.app_state; }
+  }
+};
+
 export default emergency;

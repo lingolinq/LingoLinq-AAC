@@ -1,0 +1,23 @@
+{{#if this.message}}
+  <div class="flash" style={{this.extraStyles}}>
+    <div class={{this.displayClass}}>
+      <div class='shadow'></div>
+      {{#if this.sticky}}
+        {{#if this.redirectContact}}
+          <div style='float: right; width: 100px; margin: -10px -30px -10px 10px;'>
+            <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px;' {{action "confirm"}} aria-hidden='true'>{{t "Got It" key="got_it"}}</button>
+            <button type='button' class='btn btn-default' data-dismiss='alert' style='width: 100px; margin-top: 2px;' {{action "contact"}} aria-hidden='true'>{{t "Contact Us" key="contact_us"}}</button>
+          </div>
+        {{else}}
+          <button type='button' class='btn btn-default' data-dismiss='alert' {{action "confirm"}} aria-hidden='true' style='float: right; margin: -8px -20px -10px 10px;'>{{t "Got It" key="got_it"}}</button>
+        {{/if}}
+      {{else if this.actionText}}
+        <button type='button' class='btn btn-default' data-dismiss='alert' {{action "confirm"}} aria-hidden='true' style='float: right; margin: -8px -20px -10px 10px;'>{{this.actionText}}</button>
+      {{else}}
+        <button type="button" class="close" data-dismiss="alert" {{action "confirm"}} aria-hidden="true">&times;</button>
+      {{/if}}
+      {{this.message}}
+      <div style='clear: right;'></div>
+    </div>
+  </div>
+{{/if}}

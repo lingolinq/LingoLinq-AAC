@@ -7,7 +7,7 @@
     {{#if this.model.devices}}
       <table class="table table-hover">
         <tbody>
-        {{#with this as |contr|}}
+        {{#with this}}
         {{#each this.model.devices as |device|}}
           <tr>
             <td style="width: 60px; font-size: 25px; vertical-align: top;" class={{if device.current_device "text-info"}}>
@@ -24,7 +24,7 @@
                 </span>
                 <button {{action "update_device"}} class="btn btn-default">{{t "Save" key="save"}}</button>
               {{else}}
-                {{#if contr.persistence.online}}
+                {{#if (persistence-online)}}
                   <div style="font-size: 20px;" {{action "rename_device" device.id}} class={{if device.current_device "text-info"}}>{{device.name}}</div>
                 {{else}}
                   <div style="font-size: 20px;" class={{if device.current_device "text-info"}}>{{device.name}}</div>
@@ -40,7 +40,7 @@
             <td style="width: 30px; font-size: 20px; vertical-align: middle;">
               {{#if this.model.permissions.edit}}
                 {{#unless device.current_device}}
-                  {{#if contr.persistence.online}}
+                  {{#if (persistence-online)}}
                     <a href='#' {{action "remove_device" device.id}} class="glyphicon glyphicon-remove"><span class='text-hide'>hide</span></a>
                   {{/if}}
                 {{/unless}}

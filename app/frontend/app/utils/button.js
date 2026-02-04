@@ -42,6 +42,18 @@ var Button = EmberObject.extend({
     this.findContentLocally();
     this.set('stashes', stashes);
   },
+  init_services: function(appStateService, persistenceService, stashesService) {
+    // Accept services as parameters for explicit injection
+    // Fall back to imported utilities for backward compatibility
+    this.appState = appStateService || app_state;
+    this.persistence = persistenceService || persistence;
+    this.stashes = stashesService || stashes;
+    
+    // Also register services statically for use in static methods
+    if(appStateService || persistenceService || stashesService) {
+      Button.register_services(appStateService, persistenceService, stashesService);
+    }
+  },
   buttonAction: 'talk',
   updateAction: observer(
     'load_board',
@@ -348,15 +360,16 @@ var Button = EmberObject.extend({
       res = res + "</span>";
       res = res + "</div>";
 
+      var appState = this.appState || app_state;
       res = res + "<span style='" + this.get('image_holder_style') + "'>";
-      if(!app_state.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
+      if(!appState.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
         res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(this.get('sound')) {
         res = res + "<audio style='display: none;' preload='auto' src=\"" + clean_url(this.get('local_sound_url')) + "\" rel=\"" + clean_url(this.get('sound.url')) + "\"></audio>";
       }
-      var button_class = this.get('text_only') ? app_state.get('text_only_button_symbol_class') : app_state.get('button_symbol_class');
+      var button_class = this.get('text_only') ? appState.get('text_only_button_symbol_class') : appState.get('button_symbol_class');
       var txt = clean_text(this.get('label'));
       var text_style = '';
       var holder_style = '';
@@ -553,8 +566,9 @@ var Button = EmberObject.extend({
     }
   }),
   update_translations: observer('translations_hash', 'label', 'vocalization', function() {
-    var label_locale = app_state.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
-    var vocalization_locale = app_state.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
+    var appState = this.appState || app_state;
+    var label_locale = appState.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
+    var vocalization_locale = appState.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
     var _this = this;
     var res = _this.get('translations') || [];
     var hash = _this.get('translations_hash') || {};
@@ -591,8 +605,9 @@ var Button = EmberObject.extend({
     'translations.@each.label',
     'translations.@each.vocalization',
     function() {
-      var label_locale = app_state.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
-      var vocalization_locale = app_state.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
+      var appState = this.appState || app_state;
+      var label_locale = appState.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
+      var vocalization_locale = appState.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
       var _this = this;
       (this.get('translations') || []).forEach(function(locale) {
         if(locale.code == label_locale && locale.label) {
@@ -652,10 +667,12 @@ var Button = EmberObject.extend({
     });
   }),
   check_for_parts_of_speech: function() {
-    if(app_state.get('edit_mode') && !this.get('empty') && this.get('label')) {
+    var appState = this.appState || app_state;
+    var persistenceService = this.persistence || persistence;
+    if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
       var text = this.get('vocalization') || this.get('label');
       var _this = this;
-      persistence.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
           var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
@@ -702,6 +719,27 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Static service registry for use in static methods
+Button._services = {
+  appState: null,
+  persistence: null,
+  stashes: null
+};
+Button.register_services = function(appStateService, persistenceService, stashesService) {
+  if(appStateService) { Button._services.appState = appStateService; }
+  if(persistenceService) { Button._services.persistence = persistenceService; }
+  if(stashesService) { Button._services.stashes = stashesService; }
+};
+Button.get_app_state = function() {
+  return Button._services.appState || app_state;
+};
+Button.get_persistence = function() {
+  return Button._services.persistence || persistence;
+};
+Button.get_stashes = function() {
+  return Button._services.stashes || stashes;
+};
 
 Button.style = function(style) {
   var res = {};
@@ -1122,7 +1160,7 @@ Button.extra_actions = function(button) {
       update_state({pending: true});
       var url = button.integration.local_url || "https://www.example.com";
       url = url.replace(/\{code\}/g, encodeURIComponent(button.integration.action));
-      persistence.ajax(url, {
+      Button.get_persistence().ajax(url, {
         type: 'POST',
         data: {
           action: button.integration.action
@@ -1179,7 +1217,7 @@ Button.extra_actions = function(button) {
           update_state(null);
           update_state({pending: true});
           runLater(function() {
-            persistence.ajax('/api/v1/users/' + user_id + '/activate_button', {
+            Button.get_persistence().ajax('/api/v1/users/' + user_id + '/activate_button', {
               type: 'POST',
               data: {
                 board_id: board_id,
@@ -1429,8 +1467,8 @@ Button.load_actions = function() {
       action: ':shift',
       description: i18n.t('toggle_shift', "Toggle Shift State (capitalization)"),
       trigger: function() {
-        app_state.set('shift', !app_state.get('shift'));
-        app_state.set('suggestion_id', null);
+        Button.get_app_state().set('shift', !Button.get_app_state().get('shift'));
+        Button.get_app_state().set('suggestion_id', null);
         app_state.refresh_suggestions();
       }
     },
@@ -1811,11 +1849,11 @@ Button.load_actions = function() {
         var rule = match && match[1];
 
         if(app_state.get('inflection_shift') == rule) {
-          app_state.set('inflection_shift', false);
+          Button.get_app_state().set('inflection_shift', false);
         } else {
-          app_state.set('inflection_shift', rule);
+          Button.get_app_state().set('inflection_shift', rule);
         }
-        app_state.set('suggestion_id', null);
+        Button.get_app_state().set('suggestion_id', null);
         app_state.refresh_suggestions();
       }
     },

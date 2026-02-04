@@ -19,13 +19,13 @@
     {{/unless}}
     {{#each styled_colors as |row|}}
       <div class='row' style='margin-bottom: 5px;'>
-        <div class='col-sm-3'>{{input type="text" class="form-control" value=row.label placeholder="Brief Label"}}</div>
+        <div class='col-sm-3'><Input type="text" class="form-control" @value={{row.label}} placeholder="Brief Label" /></div>
         <div class='col-sm-1'><div class='extra_color_preview' style={{row.style}}></div></div>
         <div class='col-sm-3'>
-          {{input type="text" class="form-control" value=row.border placeholder="#ABC123"}}
+          <Input type="text" class="form-control" @value={{row.border}} placeholder="#ABC123" />
         </div>
         <div class='col-sm-3'>
-          {{input type="text" class="form-control" value=row.fill placeholder="#FED987"}}
+          <Input type="text" class="form-control" @value={{row.fill}} placeholder="#FED987" />
         </div>
         <div class='col-sm-1'><a href='#' {{action "remove" row}}><span class='glyphicon glyphicon-remove'></span></a></div>
       </div>

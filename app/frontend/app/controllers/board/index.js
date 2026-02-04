@@ -35,10 +35,15 @@ export default Controller.extend({
   }),
   ordered_buttons: null,
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
+    console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') });
+    if(!this || typeof this.get !== 'function' || !this.appState) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); return; }
+    if(!this.get('model')) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); return; }
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying');
     editManager.process_for_displaying(ignore_fast_html);
+    console.log('[BOARD-DEBUG] board/index processButtons() done');
   }),
   check_for_share_approval: observer(
     'model.id',
@@ -397,8 +402,11 @@ export default Controller.extend({
         this.appState.set('suggestion_id', null);
         this.set('model.fast_html', null);
         editManager.process_for_displaying();
+        var _thisCtrl = this;
         runLater(function() {
-          this.appState.refresh_suggestions();
+          if(_thisCtrl && _thisCtrl.appState && typeof _thisCtrl.appState.refresh_suggestions === 'function') {
+            _thisCtrl.appState.refresh_suggestions();
+          }
         });
       }
     }
@@ -493,7 +501,8 @@ export default Controller.extend({
       var draw_id = redraw_button_id ? this.get('last_draw_id') : Math.random();
       this.set('last_draw_id', draw_id);
       var grid = this.get('current_grid');
-      if(!grid) {
+      var ob = this.get('ordered_buttons');
+      if(!grid || !ob || !Array.isArray(ob) || !ob.length) {
         return;
       }
       last_redraw = (new Date()).getTime();
@@ -538,8 +547,7 @@ export default Controller.extend({
 
       var _this = this;
       var stretchable = !_this.appState.get('edit_mode') && _this.appState.get('currentUser.preferences.stretch_buttons') && _this.appState.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
-      var buttons = this.get('ordered_buttons');
-      var ob = this.get('ordered_buttons');
+      var buttons = ob;
 
       var img_checker = function(url, callback) {
         if(cached_images[url]) {
@@ -812,7 +820,7 @@ export default Controller.extend({
   button_levels: computed('ordered_buttons.@each.level_modifications', 'levels_change', function() {
     var levels = [];
     (this.get('ordered_buttons') || []).forEach(function(row) {
-      row.forEach(function(button) {
+      (row || []).forEach(function(button) {
         var mods = button.get('level_modifications') || {};
         for(var idx in mods) {
           var lvl = parseInt(idx, 10);
@@ -856,10 +864,12 @@ export default Controller.extend({
   }),
   current_grid: computed('ordered_buttons', function() {
     var ob = this.get('ordered_buttons');
-    if(!ob) { return null; }
+    if(!ob || !Array.isArray(ob) || !ob.length) {
+      return { rows: 0, columns: 0 };
+    }
     return {
       rows: ob.length,
-      columns: ob[0].length
+      columns: (ob[0] && Array.isArray(ob[0]) && ob[0].length) || 0
     };
   }),
   extra_pad: computed(
@@ -975,8 +985,8 @@ export default Controller.extend({
     return this.get('nothing_visible') && !this.appState.get('edit_mode');
   }),
   display_class: computed(
-    'this.stashes.all_buttons_enabled',
-    'this.stashes.current_mode',
+    'stashes.all_buttons_enabled',
+    'stashes.current_mode',
     'paint_mode',
     'border_style',
     'text_style',
@@ -999,12 +1009,12 @@ export default Controller.extend({
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
       }
-      if(this.get('this.stashes.current_mode')) {
-        res = res + this.get('this.stashes.current_mode')  + " ";
+      if(this.get('stashes.current_mode')) {
+        res = res + this.get('stashes.current_mode')  + " ";
       }
       var stretchable = !this.appState.get('edit_mode') && this.appState.get('currentUser.preferences.stretch_buttons') && this.appState.get('currentUser.preferences.stretch_buttons') != 'none'; // not edit mode and user-enabled
       if(!this.appState.get('eval_mode')) {
-        if(this.get('this.stashes.all_buttons_enabled')) {
+        if(this.get('stashes.all_buttons_enabled')) {
           res = res + 'show_all_buttons ';
         } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'hint' && !this.get('model.hide_empty')) {
           res = res + 'hint_hidden_buttons ';
@@ -1101,7 +1111,8 @@ export default Controller.extend({
     }
   ),
   reload_on_connect: observer('persistence.online', function() {
-    var persistenceService = this.persistence || this.persistence;
+    if(!this || typeof this.get !== 'function') { return; }
+    var persistenceService = this.get('persistence') || this.persistence;
     if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && !this.get('model.id')) {
       try {
         this.send('refreshData');

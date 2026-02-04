@@ -38,7 +38,7 @@
       <div class="col-sm-8 col-sm-offset-2">
         <div class="checkbox big_checkbox">
           <label>
-            {{input type="checkbox" checked=this.badge.enable_auto_tracking}}
+            <Input type="checkbox" @checked={{this.badge.enable_auto_tracking}} />
             {{t "This badge is automatically awarded based on user activity" key="auto_tracking"}}
           </label>
         </div>
@@ -93,20 +93,20 @@
           <p class='form-control-static'>{{t "list of %{types}:" types=this.watchlist_type_plural key="list_of_watchlist_types"}}</p>
         </label>
         <div class='col-sm-6'>
-          {{input value=this.badge.string_list class="form-control" placeholder="comma-separated list"}}
+          <Input @value={{this.badge.string_list}} class="form-control" placeholder="comma-separated list" />
         </div>
       </div>
       <div class='form-group'>
         <div class='col-sm-3 col-sm-offset-2'>
           <div class='checkbox big_checkbox'>
             <label>
-              {{input type="checkbox" checked=this.badge.enable_watch_type_minimum}}
+              <Input type="checkbox" @checked={{this.badge.enable_watch_type_minimum}} />
               {{t "limit to %{types} used at least" types=this.watchlist_type_plural key="watch_type_minimum"}}
             </label>
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          {{input value=this.badge.watch_type_minimum class="form-control" placeholder="#"}}
+          <Input @value={{this.badge.watch_type_minimum}} class="form-control" placeholder="#" />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>{{t "times per %{unit_type}" unit_type=this.unit_type key="from_the_type_list"}}</p>
@@ -116,13 +116,13 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.badge.enable_watch_total}}
+              <Input type="checkbox" @checked={{this.badge.enable_watch_total}} />
               {{t "require a total every %{unit_type} of" unit_type=this.unit_type key="watch_total"}}
             </label>
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          {{input value=this.badge.watch_total class="form-control" placeholder="#"}}
+          <Input @value={{this.badge.watch_total}} class="form-control" placeholder="#" />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>{{t "of any %{types} from the list" types=this.watchlist_type_plural key="type_from_the_list"}}</p>
@@ -132,13 +132,13 @@
         <div class='col-sm-3 col-sm-offset-2'>
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=this.badge.enable_watch_type_count}}
+              <Input type="checkbox" @checked={{this.badge.enable_watch_type_count}} />
               {{t "require different %{types}, at least" types=this.watchlist_type_plural key="watch_type_count"}}
             </label>
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          {{input value=this.badge.watch_type_count class="form-control" placeholder="#"}}
+          <Input @value={{this.badge.watch_type_count}} class="form-control" placeholder="#" />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>
@@ -152,13 +152,13 @@
           <div class='col-sm-3 col-sm-offset-2'>
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=this.badge.enable_watch_type_interval}}
+                <Input type="checkbox" @checked={{this.badge.enable_watch_type_interval}} />
                 {{t "also require different %{types}, at least" types=this.watchlist_type_plural key="watch_type_interval_count"}}
               </label>
             </div>
           </div>
           <div class='col-sm-1'>
-            {{input value=this.badge.watch_type_interval_count class="form-control" placeholder="#"}}
+            <Input @value={{this.badge.watch_type_interval_count}} class="form-control" placeholder="#" />
           </div>
           <div class='col-sm-2'>
             <p class='form-control-static'>{{t "different %{types} used" types=this.watchlist_type_plural key="different_types_used"}}</p>
@@ -180,7 +180,7 @@
           </p>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          {{input value=this.badge.instance_count class="form-control" placeholder="#"}}
+          <Input @value={{this.badge.instance_count}} class="form-control" placeholder="#" />
         </div>
         <div class={{if this.in_list "col-sm-3" "col-sm-4"}}>
           {{bound-select select_class="form-control" content=this.instance_metric_list selection=this.badge.instance_metric action=(action (mut this.badge.instance_metric)) }}
@@ -203,21 +203,21 @@
           </div>
           {{#if this.badge.for_consecutive_units}}
             <div class='col-sm-1'>
-              {{input value=this.badge.consecutive_units class="form-control" placeholder="#"}}
+              <Input @value={{this.badge.consecutive_units}} class="form-control" placeholder="#" />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.unit_type_plural}}</p>
             </div>
           {{else if this.badge.for_matching_units}}
             <div class='col-sm-1'>
-              {{input value=this.badge.matching_units class="form-control" placeholder="#"}}
+              <Input @value={{this.badge.matching_units}} class="form-control" placeholder="#" />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.unit_type_plural}}</p>
             </div>
           {{else if this.badge.for_matching_instances}}
             <div class='col-sm-1'>
-              {{input value=this.badge.matching_instances class="form-control" placeholder="#"}}
+              <Input @value={{this.badge.matching_instances}} class="form-control" placeholder="#" />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.event_type_plural}}</p>
@@ -234,7 +234,7 @@
         <p class='form-control-static'>{{t "list of words:" key="list_of_words"}}</p>
       </label>
       <div class='col-sm-5'>
-          {{input value=this.badge.string_list class="form-control" placeholder="list, of, words"}}
+          <Input @value={{this.badge.string_list}} class="form-control" placeholder="list, of, words" />
       </div>
     {{/if}}
     <div class='col-sm-10 col-sm-offset-2'>
@@ -250,9 +250,9 @@
         {{/if}}
         <span style='display: inline-block; width: 50px; margin: 0 5px;'>
           {{#if this.simple_word_badge}}
-            {{input value=this.badge.watch_total class="form-control" placeholder="#"}}
+            <Input @value={{this.badge.watch_total}} class="form-control" placeholder="#" />
           {{else}}
-            {{input value=this.badge.instance_count class="form-control" placeholder="#"}}
+            <Input @value={{this.badge.instance_count}} class="form-control" placeholder="#" />
           {{/if}}
         </span>
         {{#if this.simple_word_badge}}
@@ -266,7 +266,7 @@
         {{/if}}
         {{#if this.in_list}}
           {{t "for" key="for_lower"}}
-          <span style='display: inline-block; width: 50px; margin: 0 5px;'>{{input value=this.badge.consecutive_units class="form-control" placeholder="#"}}</span>
+          <span style='display: inline-block; width: 50px; margin: 0 5px;'><Input @value={{this.badge.consecutive_units}} class="form-control" placeholder="#" /></span>
           {{this.simple_badge_unit}} {{t "in a row" key="in_a_row"}}
         {{else}}
           {{t "each day" key="each_day"}}

@@ -25,6 +25,7 @@ var stash_capabilities = null;
 export default Service.extend({
   init() {
     this._super(...arguments);
+    window.stashes = this;
     this.setup();
   },
 
@@ -121,11 +122,6 @@ export default Service.extend({
     }
   },
 
-  connect: function(application) {
-    // Legacy method for backward compatibility during migration
-    // Modern services don't need this - they're auto-registered
-    stash_capabilities = null;
-  },
 
   db_connect: function(cap) {
     // NOTE: this may be called before or after a call to stashes.setup
@@ -305,8 +301,8 @@ export default Service.extend({
         var done = false;
         var lookup = cap.storage.get_file_url('json', 'db_stats.json').then((local_url) => {
           var local_url = cap.storage.fix_url(local_url);
-          if(typeof(capabilities) == 'string' && window.persistence) {
-            return window.persistence.ajax(local_url, {type: 'GET', dataType: 'json'});
+          if(typeof(capabilities) == 'string' && LingoLinq.persistence) {
+            return LingoLinq.persistence.ajax(local_url, {type: 'GET', dataType: 'json'});
           } else {
             return {};
           }

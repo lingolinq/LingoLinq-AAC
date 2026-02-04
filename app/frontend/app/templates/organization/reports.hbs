@@ -37,13 +37,13 @@
                   <span title={{date item.started_at}}>
                     {{date_ago item.started_at}}
                   </span>
-                  {{#link-to "user.log" item.user.user_name this.log.id}}
+                  <LinkTo @route="user.log" @models={{array item.user.user_name this.log.id}}>
                     {{t "button" count=item.button_count key="button_count"}}
-                  {{/link-to}}
+                  </LinkTo>
                   <span> -
-                    {{#link-to "user" item.user.user_name}}
+                    <LinkTo @route="user" @model={{item.user.user_name}}>
                       {{item.user.user_name}}
-                    {{/link-to}}
+                    </LinkTo>
                   </span>
                   <br>
                   <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{item.summary}}</span>

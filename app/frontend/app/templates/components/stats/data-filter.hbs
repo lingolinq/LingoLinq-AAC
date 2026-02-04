@@ -23,11 +23,11 @@
         {{/if}}
         <span style="white-space: nowrap;">
         <div class="form-group">
-          {{input type="date" value=this.usage_stats.start_date_field class="form-control"}}
+          <Input @type="date" @value={{this.usage_stats.start_date_field}} class="form-control" />
         </div>
           &nbsp;{{t "to" key="to"}}&nbsp;
         <div class="form-group">
-          {{input type="date" value=this.usage_stats.end_date_field class="form-control"}}
+          <Input @type="date" @value={{this.usage_stats.end_date_field}} class="form-control" />
         </div>
         </span>
       {{else if this.usage_stats.show_filtered_snapshot}}

@@ -52,7 +52,7 @@
           {{#if this.custom_phrase}}
             <span class='btn btn-default' style='text-align: left; height: 50px;'>
               <span style='display: inline-block; width: 300px;'>
-                {{input insert-newline=(action "confirm_add_phrase") escape-press=(action "cancel_add_phrase") id="custom_phrase_text" type="text" class="form-control" value=this.custom_phrase.text}}
+                <Input @insert-newline={{action "confirm_add_phrase"}} @escape-press={{action "cancel_add_phrase"}} id="custom_phrase_text" @type="text" class="form-control" @value={{this.custom_phrase.text}} />
               </span>
               <button class='btn btn-default' {{action "confirm_add_phrase"}}>{{t "Add" key="add"}}</button>
             </span>

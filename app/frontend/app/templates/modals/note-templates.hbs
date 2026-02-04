@@ -19,12 +19,12 @@
     {{#if current_template}}
       <div class='row' style='margin-top: 15px;'>
         <div class='col-sm-9'>
-          {{input value=current_template.title class="form-control" type="text" placeholder="Template Name"}}
+          <Input @value={{current_template.title}} class="form-control" type="text" placeholder="Template Name" />
         </div>
       </div>
       <div class='row' style='margin-top: 5px;'>
         <div class='col-sm-9'>
-          {{textarea rows=8 class="form-control" value=current_template.text placeholder="Template Contents"}}
+          <Textarea @value={{current_template.text}} rows={{8}} class="form-control" placeholder="Template Contents" />
         </div>
         <div class='col-sm-12' style='text-align: right;'>
           <button class='btn btn-default' {{ action "remove" current_template }}>{{t "Remove Template" key="remove_template"}}</button>

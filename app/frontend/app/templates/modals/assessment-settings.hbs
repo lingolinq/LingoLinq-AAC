@@ -20,7 +20,7 @@
       <div class='form-group'>
         <label class='control-label col-sm-3'>{{t "Title" key="title"}}</label>
         <div class='col-sm-6'>
-          {{input type="text" value=this.settings.name class="form-control" placeholder=this.name_placeholder}}
+          <Input type="text" @value={{this.settings.name}} class="form-control" placeholder={{this.name_placeholder}} />
         </div>
       </div>
       {{#unless this.save_option}}
@@ -63,7 +63,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='prompts'>
-                {{input type="checkbox" checked=this.settings.prompts}}
+                <Input type="checkbox" @checked={{this.settings.prompts}} />
                 {{t "Speak prompts out loud" key="speak_prompts_out_loud"}}
               </label>
             </div>
@@ -73,7 +73,7 @@
           <div class='form-group'>
             <label class='control-label col-sm-3'>{{t "Prompt Delay" key="prompt_delay"}}</label>
             <div class='col-sm-3'>
-              {{input type="text" value=this.settings.prompts_delay class="form-control" placeholder="no delay"}}
+              <Input type="text" @value={{this.settings.prompts_delay}} class="form-control" placeholder="no delay" />
             </div>
             <div class='col-sm-3'>
               <p class='form-control-static'>
@@ -87,7 +87,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='chimes'>
-                {{input type="checkbox" checked=this.settings.chimes}}
+                <Input type="checkbox" @checked={{this.settings.chimes}} />
                 {{t "Play a sound on correct actions" key="play_sound_on_success"}}
               </label>
             </div>
@@ -100,10 +100,10 @@
       <div class='form-group'>
         <label class='control-label col-sm-3'>{{t "Notes" key="notes"}}</label>
         <div class='col-sm-9'>
-          {{textarea class="form-control" value=this.settings.accommodations placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows=2}}
+          <Textarea @value={{this.settings.accommodations}} class="form-control" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} />
         </div>
         <div class='col-sm-9 col-sm-offset-3' style='margin-top: 10px;'>
-          {{textarea class="form-control" value=this.settings.notes placeholder="additional notes" rows=4}}
+          <Textarea @value={{this.settings.notes}} class="form-control" placeholder="additional notes" rows={{4}} />
         </div>
       </div>
     </form>

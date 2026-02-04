@@ -65,7 +65,7 @@
             <form class="form-horizontal" {{action "update_logging_code" on="submit"}}>
               <div class="form-group">
                 <div class="col-sm-2">
-                  {{input type="text" value=this.logging_code class="form-control"}}
+                  <Input type="text" @value={{this.logging_code}} class="form-control" />
                 </div>
                 <div class="col-sm-2">
                   <button class='btn btn-default'>{{t "Submit Code" key="submit_code"}}</button>
