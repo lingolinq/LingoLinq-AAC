@@ -1,76 +1,252 @@
+# LingoLinq Infrastructure Blueprint
+# This file defines all Render services, databases, and shared configuration.
+#
+# IMPORTANT: Sensitive secrets use `sync: false` - they must be set in the
+# Render Dashboard and won't be overwritten by blueprint syncs.
+#
+# To apply: Push to GitHub, then in Render Dashboard go to Blueprints and sync.
+
+#------------------------------------------------------------------------------
+# ENVIRONMENT GROUPS - Shared variables across services
+#------------------------------------------------------------------------------
+envVarGroups:
+  # Variables shared by ALL LingoLinq services (dev, staging, prod)
+  - name: lingolinq-shared
+    envVars:
+      # AWS Configuration
+      - key: AWS_KEY
+        sync: false  # Set in dashboard
+      - key: AWS_SECRET
+        sync: false  # Set in dashboard
+      - key: AWS_REGION
+        value: us-east-1
+      - key: STATIC_S3_BUCKET
+        value: lingolinq-uploads
+      - key: UPLOADS_S3_BUCKET
+        value: lingolinq-uploads
+
+      # External APIs
+      - key: GEMINI_API_KEY
+        sync: false  # Set in dashboard
+      - key: OPENSYMBOLS_SECRET
+        sync: false  # Set in dashboard
+
+      # Websocket Configuration
+      - key: CDWEBSOCKET_ENCRYPTION_KEY
+        sync: false  # Set in dashboard
+      - key: CDWEBSOCKET_SHARED_VERIFIER
+        sync: false  # Set in dashboard
+
+      # SMS Configuration
+      - key: SMS_ENCRYPTION_KEY
+        sync: false  # Set in dashboard
+
+      # Rails Configuration
+      - key: RACK_ENV
+        value: production
+      - key: RAILS_LOG_TO_STDOUT
+        value: enabled
+      - key: RAILS_SERVE_STATIC_FILES
+        value: enabled
+
+      # Email (defaults - can be overridden per service)
+      - key: SYSTEM_ERROR_EMAIL
+        value: errors@localhost
+      - key: NEW_REGISTRATION_EMAIL
+        value: registration@localhost
+
+  # Variables shared by dev and staging (same database)
+  - name: lingolinq-dev-staging
+    envVars:
+      - key: SECRET_KEY_BASE
+        sync: false  # Set in dashboard
+      - key: SECURE_ENCRYPTION_KEY
+        sync: false  # Set in dashboard
+      - key: SECURE_NONCE_KEY
+        sync: false  # Set in dashboard
+      - key: COOKIE_KEY
+        sync: false  # Set in dashboard
+
+#------------------------------------------------------------------------------
+# DATABASES
+#------------------------------------------------------------------------------
+databases:
+  - name: lingolinq-prod-db
+    plan: basic_256mb
+    region: oregon
+    databaseName: lingolinq_prod_db
+    ipAllowList:
+      - source: 73.20.107.47/32
+        description: Scot Wahlquist
+
+  - name: lingolinq-dev-staging-db
+    plan: basic_256mb
+    region: oregon
+    databaseName: lingolinq_dev_staging_db
+    ipAllowList:
+      - source: 73.20.107.47/32
+        description: Scot Wahlquist
+
+#------------------------------------------------------------------------------
+# REDIS
+#------------------------------------------------------------------------------
+# Note: Redis defined here, services reference via fromService
+# Different services use different DB indices (/0, /1, /2) to avoid conflicts
+
+#------------------------------------------------------------------------------
+# PRODUCTION SERVICES
+#------------------------------------------------------------------------------
 services:
   - type: web
+    name: lingolinq-prod
+    runtime: ruby
+    repo: https://github.com/swahlquist/LingoLinq-AAC
+    branch: main  # Change from feature branch when ready
+    region: oregon
+    plan: standard
+    buildCommand: ./bin/render-build.sh
+    startCommand: bundle exec puma -C config/puma.rb
+    preDeployCommand: bundle exec rails db:migrate
+    envVars:
+      - fromGroup: lingolinq-shared
+      # Production-specific secrets (different from dev/staging)
+      - key: SECRET_KEY_BASE
+        sync: false
+      - key: SECURE_ENCRYPTION_KEY
+        sync: false
+      - key: SECURE_NONCE_KEY
+        sync: false
+      - key: COOKIE_KEY
+        sync: false
+      - key: RAILS_MASTER_KEY
+        sync: false
+      # Database
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-prod-db
+          property: connectionString
+      # Redis (DB index 0 for prod)
+      - key: REDIS_URL
+        value: redis://red-d46rhqer433s738dha9g:6379/0
+      # Host configuration
+      - key: DEFAULT_HOST
+        value: lingolinq-prod.onrender.com
+      - key: DEFAULT_EMAIL_FROM
+        value: LingoLinq <noreply@lingolinq-prod.onrender.com>
+      - key: NODE_VERSION
+        value: "20"
+
+#------------------------------------------------------------------------------
+# STAGING SERVICE
+#------------------------------------------------------------------------------
+  - type: web
+    name: lingolinq-staging
+    runtime: ruby
+    repo: https://github.com/swahlquist/LingoLinq-AAC
+    branch: staging
+    region: oregon
+    plan: starter
+    buildCommand: ./bin/render-build.sh
+    startCommand: bundle exec puma -C config/puma.rb
+    preDeployCommand: bundle exec rails db:migrate
+    envVars:
+      - fromGroup: lingolinq-shared
+      - fromGroup: lingolinq-dev-staging
+      # Database (shared with dev)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-dev-staging-db
+          property: connectionString
+      # Redis (DB index 1 for staging)
+      - key: REDIS_URL
+        value: redis://red-d46rhqer433s738dha9g:6379/1
+      # Host configuration
+      - key: DEFAULT_HOST
+        value: lingolinq-staging.onrender.com
+      - key: DEFAULT_EMAIL_FROM
+        value: LingoLinq <noreply@lingolinq-staging.onrender.com>
+      - key: RAILS_ENV
+        value: staging
+
+#------------------------------------------------------------------------------
+# DEVELOPMENT SERVICE
+#------------------------------------------------------------------------------
+  - type: web
+    name: lingolinq-dev
+    runtime: ruby
+    repo: https://github.com/swahlquist/LingoLinq-AAC
+    branch: develop
+    region: oregon
+    plan: starter
+    buildCommand: ./bin/render-build.sh
+    startCommand: bundle exec puma -C config/puma.rb
+    preDeployCommand: bundle exec rails db:migrate
+    envVars:
+      - fromGroup: lingolinq-shared
+      - fromGroup: lingolinq-dev-staging
+      # Database (shared with staging)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lingolinq-dev-staging-db
+          property: connectionString
+      # Redis (DB index 2 for dev)
+      - key: REDIS_URL
+        value: redis://red-d46rhqer433s738dha9g:6379/2
+      # Host configuration
+      - key: DEFAULT_HOST
+        value: lingolinq-dev.onrender.com
+      - key: DEFAULT_EMAIL_FROM
+        value: LingoLinq <noreply@lingolinq-dev.onrender.com>
+
+#------------------------------------------------------------------------------
+# BACKGROUND WORKER (for main/production)
+#------------------------------------------------------------------------------
+  - type: worker
     name: LingoLinq-AAC
     runtime: ruby
-    plan: starter
-    branch: functional-baseline
-    buildCommand: "./bin/render-build.sh"
-    preDeployCommand: bundle exec rails db:migrate
-    startCommand: bundle exec puma -C config/puma.rb
-    envVars:
-      - key: RAILS_ENV
-        value: production
-      - key: RACK_ENV
-        value: production
-      - key: RAILS_MASTER_KEY
-        sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: lingolinq-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: lingolinq-redis
-          property: connectionString
-      - key: RAILS_SERVE_STATIC_FILES
-        value: "true"
-      - key: DEFAULT_HOST
-        value: lingolinq-aac.onrender.com
-      - key: DEFAULT_EMAIL_FROM
-        value: noreply@lingolinq-aac.onrender.com
-      - key: SECRET_KEY_BASE
-        generateValue: true
-      - key: SECURE_ENCRYPTION_KEY
-        generateValue: true
-      - key: SECURE_NONCE_KEY
-        generateValue: true
-      - key: COOKIE_KEY
-        generateValue: true
-      - key: RAILS_LOG_TO_STDOUT
-        value: "true"
-  - type: worker
-    name: LingoLinq-AAC-Worker
-    runtime: ruby
-    plan: starter
+    repo: https://github.com/swahlquist/LingoLinq-AAC
     branch: main
-    buildCommand: "bundle install --deployment"
-
+    region: oregon
+    plan: starter
+    buildCommand: bundle install
     startCommand: env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
     envVars:
+      - fromGroup: lingolinq-shared
+      - key: SECRET_KEY_BASE
+        sync: false
+      - key: SECURE_ENCRYPTION_KEY
+        sync: false
+      - key: SECURE_NONCE_KEY
+        sync: false
+      - key: COOKIE_KEY
+        sync: false
       - key: RAILS_ENV
         value: production
-      - key: RACK_ENV
-        value: production
-      - key: RAILS_MASTER_KEY
-        sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: lingolinq-db
+          name: lingolinq-prod-db
           property: connectionString
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: lingolinq-redis
-          property: connectionString
-      - key: RAILS_LOG_TO_STDOUT
-        value: "true"
+        value: redis://red-d46rhqer433s738dha9g:6379/0
 
-databases:
-  - name: lingolinq-db
-    plan: free
-    databaseName: lingolinq_production_jron
-    user: lingolinq_production_jron_user
-
-  - name: lingolinq-redis
-    plan: free
+#------------------------------------------------------------------------------
+# N8N AUTOMATION SERVICE
+#------------------------------------------------------------------------------
+  - type: web
+    name: lingolinq-n8n
+    runtime: image
+    image:
+      url: docker.io/n8nio/n8n:latest
+    region: oregon
+    plan: starter
+    disk:
+      name: n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 1
+    envVars:
+      - key: N8N_HOST
+        value: lingolinq-n8n.onrender.com
+      - key: N8N_PROTOCOL
+        value: https
+      - key: WEBHOOK_URL
+        value: https://lingolinq-n8n.onrender.com/
