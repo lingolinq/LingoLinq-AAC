@@ -126,16 +126,24 @@ export default Component.extend({
         _this.set('status', null);
       } else {
         _this.set('status', {error: true});
-        var loadError = _this.get('loadError');
+        var loadError = _this.get('load_error') || _this.get('loadError');
         if (loadError && typeof loadError === 'function') {
           loadError();
+        } else if (loadError && typeof loadError === 'string') {
+          _this.sendAction(loadError);
+        } else {
+          _this.sendAction('load_error');
         }
       }
     }, function(err) {
       _this.set('status', {error: true});
-      var loadError = _this.get('loadError');
+      var loadError = _this.get('load_error') || _this.get('loadError');
       if (loadError && typeof loadError === 'function') {
         loadError();
+      } else if (loadError && typeof loadError === 'string') {
+        _this.sendAction(loadError);
+      } else {
+        _this.sendAction('load_error');
       }
     });
   },
@@ -317,8 +325,8 @@ export default Component.extend({
         if (select && typeof select === 'function') {
           select(_this.get('current_board'));
         } else if (select && typeof select === 'string') {
-          // Fallback for string-based actions (legacy support)
-          _this.sendAction('select', _this.get('current_board'));
+          // Use the string as the action name so parent can specify a custom action (e.g. select="chooseBoard")
+          _this.sendAction(select, _this.get('current_board'));
         }
       } else {
         _this.set('current_level', _this.get('base_level'));

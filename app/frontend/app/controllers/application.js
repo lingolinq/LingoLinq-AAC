@@ -1203,6 +1203,7 @@ export default Controller.extend({
   }),
   activateButton: function(button, options) {
     var _this = this;
+    speecher.unlock_speech();
     button.findContentLocally().then(function() {
       options = options || {};
       var image = options.image || button.get('image');
@@ -1218,7 +1219,7 @@ export default Controller.extend({
       if(image && image.get('personalized_url') && !button.no_skin) {
         image_url = image.get('personalized_url');
       } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
-        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), this.appState.get('currentUser.user_token'), this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
       }
       var obj = {
         label: button.label,
@@ -1280,7 +1281,7 @@ export default Controller.extend({
           defer.not_first_action = true;
         }
       }
-      this.appState.activate_button(button, obj);
+      _this.appState.activate_button(button, obj);
     }, function() { });
   },
   background_class: computed(

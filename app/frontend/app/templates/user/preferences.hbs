@@ -464,7 +464,7 @@
         <div class='col-sm-5 col-sm-offset-3'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @disabled={{this.cant_change_private_logging}} @checked={{this.limited_logging}} id="limited_logging" />
+              <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.limited_logging}} id="limited_logging" />
               {{t "Restrict access to my raw usage logs. NOTE: User account reports will still be available to supervisors with access permissions." key='restrict_log_access'}}
               {{#if cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -524,7 +524,7 @@
             <div class='col-sm-5'>
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @disabled={{this.cant_change_private_logging}} @checked={{this.logging_pin}} id="logging_code" />
+                  <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.logging_pin}} id="logging_code" />
                   {{t "Only allow changes to my logging preferences, and temporary access to all my logs, with a PIN" key='restrict_log_access_by_pin'}}
                   {{#if cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -544,7 +544,7 @@
               {{/if}}
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @disabled={{this.cant_change_private_logging}} @checked={{this.pending_preferences.private_logging}} id="private_logging" />
+                  <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.pending_preferences.private_logging}} id="private_logging" />
                   {{t "Completely Restrict Data Log Access outside this login (includes supervisors, support, integrations & community summaries)." key='completely_restrict_log_access'}}
                   {{#if cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -1915,13 +1915,13 @@
           <div class="col-sm-5 col-xs-7">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_scanning}} @disabled={{this.not_scanning}} id="for_scanning" />
+                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_scanning}} disabled={{this.not_scanning}} id="for_scanning" />
                 {{t "Use for Scanning Prompts" key='use_for_scanning'}}
               </label>
             </div>
             <div class="checkbox big_checkbox" style='display: none;'>
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_fishing}} @disabled={{this.not_fishing}} id="for_fishing" />
+                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_fishing}} disabled={{this.not_fishing}} id="for_fishing" />
                 {{t "Use for Auditory Fishing" key='use_for_fishing'}}
               </label>
             </div>

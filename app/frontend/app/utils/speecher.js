@@ -325,6 +325,20 @@ var speecher = EmberObject.extend({
     }
 //     this.ready = !!(!speecher.scope.speechSynthesis.voiceList || speecher.scope.speechSynthesis.voiceList.length > 0);
   },
+  // Unlock speech/audio in the same synchronous turn as a user gesture so that
+  // later async speech (e.g. after findContentLocally().then()) is not blocked by browser autoplay policy.
+  unlock_speech: function() {
+    if(speecher._speech_unlocked) { return; }
+    if(speecher.scope && speecher.scope.speechSynthesis) {
+      try {
+        var u = new speecher.scope.SpeechSynthesisUtterance('\u200B');
+        u.volume = 0;
+        speecher.scope.speechSynthesis.speak(u);
+        speecher.scope.speechSynthesis.cancel();
+      } catch(e) { }
+    }
+    speecher._speech_unlocked = true;
+  },
   set_voice: function(voice, alternate_voice) {
     this.pitch = voice.pitch;
     this.volume = voice.volume;

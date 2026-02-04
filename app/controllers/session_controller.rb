@@ -594,22 +594,32 @@ class SessionController < ApplicationController
         if params['2fa_code']
           if device
             begin
-              json['valid_2fa'] = !!device.confirm_2fa!(params['2fa_code'])
+              json[:valid_2fa] = !!device.confirm_2fa!(params['2fa_code'])
               json[:scopes] = device.permission_scopes
-              json['cooldown_2fa'] = device.settings['2fa']['cooldown'] if device.settings && device.settings['2fa'] && device.settings['2fa']['cooldown']
+              json[:cooldown_2fa] = device.settings['2fa']['cooldown'] if device.settings && device.settings['2fa'] && device.settings['2fa']['cooldown']
             rescue => e
               Rails.logger.warn("Error processing 2FA: #{e.message}")
-              json['valid_2fa'] = false
+              json[:valid_2fa] = false
+              json[:error] = '2FA validation failed'
+              json[:error_status] = 401
             end
           else
             # Security: If 2FA code is provided but device is missing, this is an error condition
             # Previously this would silently ignore the 2FA code, potentially bypassing security
             Rails.logger.error("2FA code provided but device not found for user #{@api_user.global_id}")
-            json['valid_2fa'] = false
-            json['2fa_error'] = 'Device not found for 2FA validation'
+            json[:valid_2fa] = false
+            json[:"2fa_error"] = 'Device not found for 2FA validation'
+            json[:error] = 'Device not found for 2FA validation'
+            json[:error_status] = 401
           end
         end
-        if params['include_token']
+        # Ensure 2FA failure (invalid code or missing device) always returns 401 and is not considered authenticated
+        if params['2fa_code'] && json[:valid_2fa] != true
+          json[:authenticated] = false
+          json[:error] ||= json[:"2fa_error"] || '2FA validation failed'
+          json[:error_status] = 401
+        end
+        if params['include_token'] && device
           json[:token] = JsonApi::Token.as_json(@api_user, device)
         end
         json[:can_refresh] = true if needs_refresh && !expired
@@ -651,16 +661,23 @@ class SessionController < ApplicationController
       json = {
         authenticated: false,
         error: "Internal server error",
+        error_status: 500,
         sale: nil,
         ws_url: ENV['CDWEBSOCKET_URL'],
         global_integrations: []
       }
     end
-    
+
     # Single render point to avoid double render errors
     # Note: render json: automatically calls .to_json, so don't call it explicitly
+    # error_status is set explicitly for 2FA (401) and server errors (500)
     if json
-      render json: json, status: (json[:error] ? 500 : 200)
+      status_code = json[:error_status]
+      if status_code.nil? && json[:error]
+        status_code = (json[:error] == 'Internal server error') ? 500 : 401
+      end
+      status_code ||= 200
+      render json: json, status: status_code
     else
       render json: {authenticated: false, error: "Unknown error"}, status: 500
     end

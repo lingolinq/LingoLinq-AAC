@@ -20,7 +20,7 @@ class Api::LogsController < ApplicationController
     end
     
     user = User.find_by_path(user_id_param)
-    return unless user
+    return unless exists?(user, user_id_param)
     return unless allowed?(user, 'supervise')
     if user.modeling_only?
       return unless allowed?(user, 'never_allow')
@@ -353,12 +353,8 @@ class Api::LogsController < ApplicationController
   protected
   
   def require_api_token_for_cache_user
-    # Security: Require authentication when user_id='cache' is used to prevent
-    # unauthorized access to log listings via the cache endpoint bypass
-    user_id_param = params['user_id'] || params[:user_id]
-    if user_id_param.to_s == 'cache'
-      require_api_token
-    end
+    # Index is in require_api_token's except list; require auth for all index requests (including user_id=cache)
+    require_api_token
   end
   
 end

@@ -1,13 +1,10 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
   before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
-  before_action :require_api_token_for_cache_user, :only => [:index]
-  before_action :require_api_token_for_cache_endpoint, :only => [:cache]
+  before_action :require_api_token_for_cache_user, :only => [:index, :cache]
 
   def cache
-    # Security: require_api_token_for_cache_endpoint already ensures authentication
-    # This endpoint provides minimal cache user info and should require authentication
-    # to prevent unauthenticated access to cache-related functionality
+    # Security: require_api_token_for_cache_user ensures authentication for this action
     render json: { user: { id: 'cache' } }
   end
 
@@ -703,17 +700,7 @@ class Api::BoardsController < ApplicationController
   protected
   
   def require_api_token_for_cache_user
-    # Security: Require authentication when user_id='cache' is used to prevent
-    # unauthorized access to board listings via the cache endpoint bypass
-    user_id_param = params['user_id'] || params[:user_id]
-    if user_id_param.to_s == 'cache'
-      require_api_token
-    end
-  end
-  
-  def require_api_token_for_cache_endpoint
-    # Security: Require authentication for the cache endpoint to prevent
-    # unauthenticated access to cache-related functionality
+    # Index and cache are excepted from require_api_token; enforce auth for both (no conditional on user_id)
     require_api_token
   end
 

@@ -3107,8 +3107,9 @@ export default Service.extend({
 
     // speak or make a sound to show the button was selected
     if(obj.label && !skip_sound) {
+      var _this = this;
       var click_sound = function() {
-        if(this.get('currentUser.preferences.click_buttons')) {
+        if(_this.get('currentUser.preferences.click_buttons')) {
           if(specialty_button && specialty_button.has_sound) {
           } else {
             speecher.click();
@@ -3116,7 +3117,7 @@ export default Service.extend({
         }
       };
       var vibrate = function() {
-        if(this.get('currentUser.preferences.vibrate_buttons') && this.get('speak_mode')) {
+        if(_this.get('currentUser.preferences.vibrate_buttons') && _this.get('speak_mode')) {
           capabilities.vibrate();
         }
       };

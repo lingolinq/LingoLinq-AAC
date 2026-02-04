@@ -16,13 +16,13 @@ export default Component.extend({
     var $cell = $(event.target).closest('div.cell');
     if($cell.length) {
       event.preventDefault();
-      var gridEvent = this.get('gridEvent');
+      var gridEvent = this.get('gridEvent') || this.get('grid_event');
       if (gridEvent && typeof gridEvent === 'function') {
         gridEvent('setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       } else if (gridEvent && typeof gridEvent === 'string') {
-        // Fallback for string-based actions (legacy support)
-        // Use the property VALUE (the actual action name string) as the action name
-        this.sendAction(this.get('gridEvent'), 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+        this.sendAction(gridEvent, 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      } else {
+        this.sendAction('grid_event', 'setGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       }
     }
   },
@@ -38,7 +38,7 @@ export default Component.extend({
   },
   handleMouseMove: function(event) {
     var $cell = $(event.target).closest('div.cell');
-    var gridEvent = this.get('gridEvent');
+    var gridEvent = this.get('gridEvent') || this.get('grid_event');
     if (gridEvent && typeof gridEvent === 'function') {
       if($cell.length) {
         gridEvent('hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
@@ -46,12 +46,16 @@ export default Component.extend({
         gridEvent('hoverOffGrid');
       }
     } else if (gridEvent && typeof gridEvent === 'string') {
-      // Fallback for string-based actions (legacy support)
-      // Use the property VALUE (the actual action name string) as the action name
       if($cell.length) {
-        this.sendAction(this.get('gridEvent'), 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+        this.sendAction(gridEvent, 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
       } else {
-        this.sendAction(this.get('gridEvent'), 'hoverOffGrid');
+        this.sendAction(gridEvent, 'hoverOffGrid');
+      }
+    } else {
+      if($cell.length) {
+        this.sendAction('grid_event', 'hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));
+      } else {
+        this.sendAction('grid_event', 'hoverOffGrid');
       }
     }
   }
