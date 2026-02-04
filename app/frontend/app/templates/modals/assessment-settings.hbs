@@ -100,10 +100,10 @@
       <div class='form-group'>
         <label class='control-label col-sm-3'>{{t "Notes" key="notes"}}</label>
         <div class='col-sm-9'>
-          {{textarea class="form-control" value=this.settings.accommodations placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows=2}}
+          <Textarea @value={{this.settings.accommodations}} class="form-control" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} />
         </div>
         <div class='col-sm-9 col-sm-offset-3' style='margin-top: 10px;'>
-          {{textarea class="form-control" value=this.settings.notes placeholder="additional notes" rows=4}}
+          <Textarea @value={{this.settings.notes}} class="form-control" placeholder="additional notes" rows={{4}} />
         </div>
       </div>
     </form>

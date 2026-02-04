@@ -30,7 +30,7 @@
   <div class="form-group">
     <label for="board" class="col-sm-3 control-label">{{t "Home Boards" key="home_boards"}}</label>
     <div class="col-sm-7">
-      {{textarea value=this.home_board_key_lines class="form-control" id="board" placeholder=this.board_keys_placeholder}}
+      <Textarea @value={{this.home_board_key_lines}} class="form-control" id="board" placeholder={{this.board_keys_placeholder}} />
       <div class='text-muted'>
         <em>{{t "any users you add that don't have a home board set will be set with the first board unless specified" key="default_home_board_explainer"}}</em>
       </div>

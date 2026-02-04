@@ -55,7 +55,7 @@
               <Input class="form-control" @value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} />
             </div>
             <div>
-              {{textarea class="form-control" value=locale.rules_string placeholder=this.inflection_overrides_placeholder}}
+              <Textarea @value={{locale.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
             </div>
           </div>
         </div>

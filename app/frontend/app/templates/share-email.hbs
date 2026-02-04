@@ -22,7 +22,7 @@
         <div class="form-group">
           <label for="message" class="col-sm-2 control-label">{{t "Message" key="message"}}</label>
           <div class="col-sm-10">
-            {{textarea value=this.message class="form-control" id="message" placeholder="Message" rows=3}}
+            <Textarea @value={{this.message}} class="form-control" id="message" placeholder="Message" rows={{3}} />
           </div>
         </div>
         <div class="form-group">

@@ -203,7 +203,7 @@
           <div class="form-group">
             <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
             <div class="col-sm-10">
-              {{textarea value=this.goal.description class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal"}}
+              <Textarea @value={{this.goal.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
             </div>
           </div>
           {{#if this.goal.video}}

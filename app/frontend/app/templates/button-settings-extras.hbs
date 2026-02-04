@@ -69,7 +69,7 @@
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          {{textarea class="form-control" value=this.model.level_json placeholder="level override configuration"}}
+          <Textarea @value={{this.model.level_json}} class="form-control" placeholder="level override configuration" />
         </div>
       </div>
     {{/if}}
@@ -110,7 +110,7 @@
                 <Input class="form-control" @value={{this.inflections_hash.se}} placeholder={{this.inflections_suggestions.se}} />
               </div>
               <div>
-                {{textarea class="form-control" value=this.rules_string placeholder=this.inflection_overrides_placeholder}}
+                <Textarea @value={{this.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
               </div>
             {{/if}}
           </div>

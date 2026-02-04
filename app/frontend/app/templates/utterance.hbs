@@ -63,7 +63,7 @@
             {{/if}}
           {{/if}}
         {{/if}}
-        {{textarea value=this.message class="form-control" id="utterance_reply"}}
+        <Textarea @value={{this.message}} class="form-control" id="utterance_reply" />
         <button class='btn btn-lg btn-primary' {{action "reply"}} disabled={{this.reply_status.loading}}>
           {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}

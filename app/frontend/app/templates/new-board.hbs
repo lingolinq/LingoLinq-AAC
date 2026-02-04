@@ -37,7 +37,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.rows"}}>-</button>
             </span>
-            <Input @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
+            <Input @type="number" @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.rows"}}>+</button>
             </span>
@@ -51,7 +51,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.columns"}}>-</button>
             </span>
-            <Input @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
+            <Input @type="number" @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.columns"}}>+</button>
             </span>
@@ -122,7 +122,7 @@
         <div class="form-group">
           <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
-            {{textarea value=this.model.description class="form-control" id="new_board_description" placeholder="brief description of the board"}}
+            <Textarea @value={{this.model.description}} class="form-control" id="new_board_description" placeholder="brief description of the board" />
           </div>
         </div>
         <div class="form-group">
@@ -130,7 +130,7 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.home_board}} />
+                <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
                 {{t "This board can be used as a home board" key="is_home_board"}}
               </label>
             </div>
@@ -156,8 +156,8 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.word_suggestions}} />
-                {{t "Show word completion suggestions" key="show_word_suggestions"}}
+<Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
+              {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
             </div><br>
             <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
@@ -166,7 +166,7 @@
         <div class="form-group">
           <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
           <div class="col-sm-10">
-            {{textarea value=this.model.grid.labels class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas"}}
+            <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
             {{bound-select select_class="form-control" select_id="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action (mut this.model.grid.labels_order)) }}
             <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
             <span class={{this.labels_class}}>

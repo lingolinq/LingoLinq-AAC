@@ -119,7 +119,7 @@
         <div class="form-group">
           <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
-            {{textarea value=this.model.description class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal"}}
+            <Textarea @value={{this.model.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
           </div>
         </div>
         {{#if this.model.video}}
@@ -145,7 +145,7 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                <Input type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
+                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
                 {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
@@ -166,7 +166,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
+              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>

@@ -845,7 +845,7 @@
     <div class="form-group">
       <label for="talk_text" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
       <div class="col-sm-10">
-        {{textarea value=this.model.talk_text class="form-control" id="talk_text" rows=3}}
+        <Textarea @value={{this.model.talk_text}} class="form-control" id="talk_text" rows={{3}} />
       </div>
     </div>
     <div class="form-group">
@@ -878,7 +878,7 @@
     <div class="form-group">
       <label for="insert_text" class="col-sm-2 control-label">{{t "Insert" key="insert"}}</label>
       <div class="col-sm-10">
-        {{textarea value=this.model.insert_text class="form-control" id="insert_text" rows=3}}
+        <Textarea @value={{this.model.insert_text}} class="form-control" id="insert_text" rows={{3}} />
         <p class='text-muted'>{{t "Will insert text without speaking it" key="insert_without_speaking"}}</p>
       </div>
     </div>
@@ -1197,7 +1197,7 @@
               <Input class="form-control" @value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} />
             </div>
             <div>
-              {{textarea class="form-control" value=locale.rules_string placeholder=this.inflection_overrides_placeholder}}
+              <Textarea @value={{locale.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
             </div>
           </div>
         </div>
@@ -1279,7 +1279,7 @@
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          {{textarea class="form-control" value=this.model.level_json placeholder="level override configuration"}}
+          <Textarea @value={{this.model.level_json}} class="form-control" placeholder="level override configuration" />
         </div>
       </div>
     {{/if}}
@@ -1320,7 +1320,7 @@
                 <Input class="form-control" @value={{this.inflections_hash.se}} placeholder={{this.inflections_suggestions.se}} />
               </div>
               <div>
-                {{textarea class="form-control" value=this.rules_string placeholder=this.inflection_overrides_placeholder}}
+                <Textarea @value={{this.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
               </div>
             {{/if}}
           </div>

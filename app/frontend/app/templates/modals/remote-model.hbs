@@ -38,7 +38,7 @@
             {{/each}}
           </div>
           <div style='display: none;'>
-            {{textarea class="form-control" value=model_message placeholder="Enter message to send to communicator"}}
+            <Textarea @value={{model_message}} class="form-control" placeholder="Enter message to send to communicator" />
             <div style='text-align: right; margin-top: 5px; margin-bottom: 50px;'>
               <!-- TODO: if modeling pair, option to start video call -->
               <button class='btn btn-primary' {{action "send_message"}}>{{t "Send Message to %{un}" un=app_state.pairing.user.user_name key="send_message_to_user"}}</button>

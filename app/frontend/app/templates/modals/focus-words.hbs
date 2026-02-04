@@ -218,7 +218,7 @@
         {{else}}
           <div class='col-sm-12' style='margin-top: -10px;'>
             <div class="form-group">
-              {{textarea value=words class="form-control" placeholder="Enter a custom list of focus words" }}
+              <Textarea @value={{words}} class="form-control" placeholder="Enter a custom list of focus words" />
             </div>
           </div>
           {{#if model.user}}

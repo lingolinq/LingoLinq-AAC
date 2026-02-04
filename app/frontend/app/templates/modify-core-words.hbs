@@ -21,7 +21,7 @@
     </div>
     <div style='margin-top: 10px; margin-bottom: 20px;'>
       {{#if this.editing}}
-        {{textarea value=this.word_lines class="form-control" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows=6}}
+        <Textarea @value={{this.word_lines}} class="form-control" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows={{6}} />
       {{else}}
         <div style='max-height: 150px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc;'>
           {{this.raw_words_list}}

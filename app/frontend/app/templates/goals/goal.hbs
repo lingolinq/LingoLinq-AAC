@@ -103,7 +103,7 @@
         <div class="form-group">
           <label for="sequence_description" class="col-sm-2 control-label">{{t "Details" key="details"}}</label>
           <div class="col-sm-5">
-            {{textarea value=this.model.sequence_description class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence"}}
+            <Textarea @value={{this.model.sequence_description}} class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence" />
           </div>
         </div>
       {{/if}}
@@ -116,7 +116,7 @@
       <div class="form-group">
         <label for="description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-5">
-          {{textarea value=this.model.description class="form-control" id="description" placeholder="longer, detailed description of the goal"}}
+          <Textarea @value={{this.model.description}} class="form-control" id="description" placeholder="longer, detailed description of the goal" />
         </div>
       </div>
       {{#if this.model.sequence}}

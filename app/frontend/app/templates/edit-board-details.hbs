@@ -17,7 +17,7 @@
         <label for="decription" class="col-sm-3 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-7">
           <!-- TODO: placeholder i18n magic for textarea too -->
-          {{textarea value=this.model.description class="form-control" id="decription" placeholder="Details about this board"}}
+          <Textarea @value={{this.model.description}} class="form-control" id="decription" placeholder="Details about this board" />
         </div>
       </div>
       <div class="form-group">
@@ -235,7 +235,7 @@
               {{/unless}}
               {{#each this.model.intro.sections as |section index|}}
                 <div class={{if index "col-sm-7 col-sm-offset-3" "col-sm-7"}}>
-                  {{textarea value=section.description class="form-control" placeholder="Explanation, notes, etc."}}
+                  <Textarea @value={{section.description}} class="form-control" placeholder="Explanation, notes, etc." />
                   <div style='margin-top: 3px; margin-bottom: 15px;'>
                     <Input @type="text" @value={{section.prompt}} class="form-control" placeholder="optional button sequence to find" />
                   </div>
