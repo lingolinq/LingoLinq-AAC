@@ -113,8 +113,9 @@ export default Service.extend({
     });
     
     // Create promise for modal lifecycle
+    var _this = this;
     const promise = new RSVP.Promise((resolve, reject) => {
-      this.set('currentPromise', { resolve, reject });
+      _this.set('currentPromise', { resolve, reject });
     });
     
     return promise;

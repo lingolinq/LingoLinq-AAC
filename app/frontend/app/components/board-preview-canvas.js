@@ -32,6 +32,7 @@ export default Component.extend({
       this.element.style.height = 'calc(100% - 55px)';
     }
     var _this = this; // Capture _this for closure access
+    var persistence = _this.persistence;
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
     var show_links = this.get('show_links');
@@ -161,7 +162,7 @@ export default Component.extend({
                 if(show_links && !button.hidden && button.image_id && board.get('image_urls') && board.get('image_urls')[button.image_id]) {
                   var orig_url = variant_urls[button.image_id];
                   var url = variant_urls[button.image_id + "-" + preferred_symbols] || orig_url;
-                  (function(button, x, y, url) {
+                  (function(button, x, y, url, persistence) {
                     var draw = function(url) {
                       var img = new Image();
                       var button_ratio = image_width / image_height;
@@ -186,8 +187,6 @@ export default Component.extend({
                       };
                       img.src = url;
                     };
-                    // Capture outer scope's persistence service
-                    var persistence = _this.persistence;
                     persistence.find_url(url).then(function(uri) {
                       draw(uri);
                     }, function() {
@@ -197,7 +196,7 @@ export default Component.extend({
                         draw(url);
                       });
                     });
-                  })(button, x, y, url);
+                  })(button, x, y, url, persistence);
                 }
               }
             }

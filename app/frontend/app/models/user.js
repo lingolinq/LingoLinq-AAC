@@ -927,11 +927,13 @@ LingoLinq.User = DS.Model.extend({
         user.set('copy_level', home_level);
         editManager.copy_board(board, 'links_copy_as_home', user, false, swap_library).then(function(new_board) {
           user.set('home_board_pending', false);
-          if(user.persistence.get('online') && user.persistence.get('auto_sync')) {
+          var p = (user && user.persistence) || (typeof window !== 'undefined' && window.persistence);
+          if(p && typeof p.get === 'function' && p.get('online') && p.get('auto_sync')) {
             runLater(function() {
-              if(user.persistence.get('auto_sync')) {
+              var p2 = (user && user.persistence) || (typeof window !== 'undefined' && window.persistence);
+              if(p2 && typeof p2.get === 'function' && p2.get('auto_sync')) {
                 console.debug('syncing because home board changes');
-                user.persistence.sync('self', null, null, 'home_board_copied').then(null, function() { });
+                p2.sync('self', null, null, 'home_board_copied').then(null, function() { });
               }
             }, 1000);
           }
@@ -1011,9 +1013,11 @@ LingoLinq.User = DS.Model.extend({
           defer.reject();
         };
         // retrieve board
+        var persistenceForSwap = user.persistence || (typeof window !== 'undefined' && window.persistence);
         BoardHierarchy.load_with_button_set(board, {prevent_keyboard: true, prevent_different: true}).then(function(hierarchy) {
+          if(!persistenceForSwap) { return err(); }
           var board_ids_to_include = hierarchy.selected_board_ids();
-          this.persistence.ajax('/api/v1/boards/' + board_id + '/swap_images', {
+          persistenceForSwap.ajax('/api/v1/boards/' + board_id + '/swap_images', {
             type: 'POST',
             data: {
               library: swap_library,
@@ -1025,12 +1029,12 @@ LingoLinq.User = DS.Model.extend({
               if(event.status == 'errored') {
                 err();
               } else if(event.status == 'finished') {
-                // reload board and re-sync
+                // reload board and re-sync (use persistenceForSwap from outer closure; avoid this.persistence in .then callback)
                 runLater(function() {
                   board.reload(true).then(function() {
-                    if(this.persistence.get('auto_sync')) {
+                    if(persistenceForSwap && persistenceForSwap.get && persistenceForSwap.get('auto_sync')) {
                       console.debug('syncing because home board symbol changes');
-                      this.persistence.sync('self', null, null, 'home_board_symbols_changed').then(null, function() { });
+                      persistenceForSwap.sync('self', null, null, 'home_board_symbols_changed').then(null, function() { });
                     }
                   }, function() { });
                   defer.resolve();

@@ -5,6 +5,7 @@ import { computed } from '@ember/object';
 
 export default Controller.extend({
   appState: service('app-state'),
+  store: service('store'),
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   

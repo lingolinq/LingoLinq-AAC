@@ -21,6 +21,8 @@ module.exports = function(environment) {
     APP: {
       // Here you can pass flags/options to your application instance
       // when it is created
+      // Use an explicit root so we never use body (avoids "same root element (body) multiple times")
+      rootElement: '#ember-application-root'
     }
   };
 

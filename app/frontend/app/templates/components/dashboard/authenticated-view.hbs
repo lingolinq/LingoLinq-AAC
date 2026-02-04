@@ -70,33 +70,33 @@
           <a href="#" class={{this.small_needs_sync_class}} {{action "sync"}}>
             <span>
             <span class={{this.refreshing_class}}></span>
-            {{#if this.persistence.sync_succeeded}}
+            {{#if (persistence-value 'sync_succeeded')}}
               {{#if this.session.invalid_token}}
                 {{t "Please re-login and sync again" key="please_resync"}}
               {{else}}
                 {{t "Sync Done!" key="sync_done"}}
               {{/if}}
-            {{else if this.persistence.sync_finished}}
+            {{else if (persistence-value 'sync_finished')}}
               {{t "Done with " key="done_with"}}
-              {{t "error" key="n_errors_lower" count=this.persistence.sync_errors}}
+              {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
               {{t "(see log)" key="see_log"}}
             {{else}}
-              {{#if this.persistence.sync_failed}}
+              {{#if (persistence-value 'sync_failed')}}
                 {{t "Sync Failed, see details below" key="sync_failed"}}
-                {{#if this.persistence.sync_status_error}}
-                  <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
+                {{#if (persistence-value 'sync_status_error')}}
+                  <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
                 {{/if}}
               {{else}}
-                {{#if this.persistence.syncing}}
+                {{#if (persistence-value 'syncing')}}
                   {{t "Syncing..." key="syncing_ellipsis"}}
-                  {{#if this.persistence.sync_progress}}
-                    {{#if this.persistence.sync_progress.total}}
-                      {{this.persistence.sync_progress.visited}} /
-                      {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
-                    {{else if this.persistence.sync_progress.pre_total}}
+                  {{#if (persistence-value 'sync_progress')}}
+                    {{#if (persistence-value 'sync_progress.total')}}
+                      {{persistence-value 'sync_progress.visited'}} /
+                      {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
+                    {{else if (persistence-value 'sync_progress.pre_total')}}
                       {{t "checking" key="checking_lower"}}
-                      {{this.persistence.sync_progress.pre_visited}} /
-                      {{t "board" key="communication_set_board" count=this.persistence.sync_progress.pre_total}}
+                      {{persistence-value 'sync_progress.pre_visited'}} /
+                      {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.pre_total')}}
                     {{else}}
                       {{t "initializing..." key="initializing_lower"}}
                     {{/if}}
@@ -145,13 +145,13 @@
           <a href="#" class={{this.needs_sync_class}} {{action "sync"}}>
             <span>
             <span class={{this.refreshing_class}}></span>
-            {{#if this.persistence.sync_succeeded}}
+            {{#if (persistence-value 'sync_succeeded')}}
               {{t "Sync Done!" key="sync_done"}}
             {{else}}
-              {{#if this.persistence.sync_failed}}
+              {{#if (persistence-value 'sync_failed')}}
                 {{t "Sync Failed, see details below" key="sync_failed"}}
               {{else}}
-                {{#if this.persistence.syncing}}
+                {{#if (persistence-value 'syncing')}}
                   {{t "Syncing..." key="syncing_ellipsis"}}
                 {{else}}
                   {{#if this.needs_sync}}
@@ -168,11 +168,11 @@
             {{/if}}
             {{#if this.app_state.currentUser.stats.board_set_ids}}
               <br>
-              {{#if this.persistence.sync_progress}}
-                {{this.persistence.sync_progress.visited}} /
-                {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
-              {{else if this.persistence.sync_status_error}}
-                {{this.persistence.sync_status_error}}
+              {{#if (persistence-value 'sync_progress')}}
+                {{persistence-value 'sync_progress.visited'}} /
+                {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
+              {{else if (persistence-value 'sync_status_error')}}
+                {{persistence-value 'sync_status_error'}}
               {{else}}
                 {{t "board" key="communication_set_board" count=this.app_state.currentUser.stats.board_set_ids}}
               {{/if}}
@@ -302,7 +302,7 @@
     <div style="float: right;">
       <a href="#" {{action "reload"}}>{{t "reload" key="reload"}}</a>
     </div>
-    {{#if this.persistence.sync_log}}
+    {{#if (persistence-value 'sync_log')}}
       <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
     {{/if}}
   </div>
@@ -369,7 +369,7 @@
                   {{supervisee.goal.summary}}
                 {{else}}
                   <span style='color: #ccc;'>{{t "no goal set" key="no_goal_set"}}</span>
-                  {{#if this.persistence.online}}
+                  {{#if (persistence-online)}}
                     {{#unless this.app_state.currentUser.modeling_only}}
                       - <a {{action "set_goal" supervisee}} href="#">{{t "set a goal" key="set_a_goal"}}</a>
                     {{/unless}}
@@ -696,7 +696,7 @@
               </div>
             {{/if}}
           {{/if}}
-        {{else if this.persistence.online}}
+        {{else if (persistence-online)}}
           {{#if this.app_state.currentUser.current_badge}}
             {{badge-progress badge=this.app_state.currentUser.current_badge big=true}}
           {{/if}}

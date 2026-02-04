@@ -16,8 +16,10 @@ export default Route.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   model: function(params) {
+    console.log('[BOARD-DEBUG] route board/index.model() start');
     LingoLinq.log.track('getting model');
     var res = this.modelFor('board');
+    console.log('[BOARD-DEBUG] route board/index.model() modelFor(board)', { id: res && res.get && res.get('id'), key: res && res.get && res.get('key') });
     if((this.appState.get('board_reloads') || {})[res.get('id')]) {
       res.set('should_reload', true);
     }
@@ -29,9 +31,11 @@ export default Route.extend({
       LingoLinq.log.track('reloading');
       res.reload(!this.appState.get('speak_mode'));
     }
+    console.log('[BOARD-DEBUG] route board/index.model() returning', { id: res && res.get && res.get('id'), key: res && res.get && res.get('key') });
     return res;
   },
   setupController: function(controller, model) {
+    console.log('[BOARD-DEBUG] route board/index.setupController() start', { modelId: model && model.get && model.get('id'), modelKey: model && model.get && model.get('key') });
     LingoLinq.log.track('setting up controller');
     var _this = this;
     _this.set('board', model);
@@ -40,8 +44,10 @@ export default Route.extend({
     controller.set('preview_level', null);
     model.set('show_history', false);
     model.set('focus_id', _this.appState.get('focus_words.focus_id'));
-    // do we need to preload the buttonset here?
-    // model.load_button_set();
+    if(model.get('valid_id') && !model.get('integration')) {
+      model.load_button_set();
+    }
+    console.log('[BOARD-DEBUG] route board/index.setupController() setting currentBoardState');
     _this.appState.set('currentBoardState', {
       id: model.get('id'),
       key: model.get('key'),
@@ -79,7 +85,7 @@ export default Route.extend({
     var loc_types = ['label_locale', 'vocalization_locale'];
     loc_types.forEach(function(loc_type) {
       if(_this.stashes.get(loc_type)) {
-        var preferred_lang = _this.stashes.get(loc_type)
+        var preferred_lang = _this.stashes.get(loc_type);
         var preferred_stripped_lang = preferred_lang.split(/-|_/)[0];
         if(stripped_langs.indexOf(preferred_stripped_lang) == -1) {
           _this.appState.set(loc_type, model.get('locale'));
@@ -90,7 +96,7 @@ export default Route.extend({
         }
       } else {
         _this.appState.set(loc_type, model.get('locale'));
-      }  
+      }
     });
     if(LingoLinq.embedded && !_this.appState.get('speak_mode')) {
       // Embedded mode should only operate in Speak Mode, so force it
@@ -114,9 +120,21 @@ export default Route.extend({
     var prior_revision = model.get('current_revision');
     LingoLinq.log.track('processing buttons without lookups');
     _this.set('load_state', {retrieved: true});
-    model.without_lookups(function() {
-      controller.processButtons();
-    });
+    console.log('[BOARD-DEBUG] route board/index.setupController() calling processButtons (without_lookups)');
+    try {
+      model.without_lookups(function() {
+        try {
+          controller.processButtons();
+          console.log('[BOARD-DEBUG] route board/index.setupController() processButtons() returned');
+        } catch (e) {
+          console.error('[BOARD-DEBUG] route board/index.setupController() processButtons() threw', e);
+          throw e;
+        }
+      });
+    } catch (e) {
+      console.error('[BOARD-DEBUG] route board/index.setupController() without_lookups/processButtons threw', e);
+    }
+    console.log('[BOARD-DEBUG] route board/index.setupController() processButtons scheduled');
     model.prefetch_linked_boards();
 
     // if you have the model.id but not permissions, that means you got it from an /index
@@ -131,23 +149,25 @@ export default Route.extend({
       // TODO: is there a way to wait until current speaking has
       // finished to activate the prompt?
       runLater(function() {
-        model.prompt();
+        if(model && typeof model.prompt === 'function') { model.prompt(); }
       }, 100);
     }
     if(!model.get('valid_id')) {
-    } else if(_this.persistence.get('online') || insufficient_data) {
+      console.log('[BOARD-DEBUG] route board/index.setupController() skip reload (invalid id)');
+    } else if((_this.persistence && _this.persistence.get('online')) || insufficient_data) {
+      console.log('[BOARD-DEBUG] route board/index.setupController() will reload', { online: _this.persistence && _this.persistence.get('online'), insufficient_data: insufficient_data });
       LingoLinq.log.track('considering reload');
       _this.set('load_state', {not_local: true});
       var reload = RSVP.resolve(model);
       // if we're online then we should reload, but do it softly if we're in speak mode
-      if(_this.persistence.get('online') && !model.get('local_only')) {
+      if(_this.persistence && _this.persistence.get('online') && !model.get('local_only')) {
         // reload(false) says "hey, reload but you can use the local copy if you need to"
         // reload(true) says "definitely ping the server" (same as reload() )
         // TODO: this is failing when the board is available locally but the image isn't available locally
         // looks like this (usually, handle both cases) happens if it's stored in the local db but not
         // yet loaded into ember-data
         var force_fetch = !_this.appState.get('speak_mode');
-        if(_this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
+        if(_this.persistence && _this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', {remote_reload: true});
         reload = model.reload(force_fetch).then(null, function(err) {
           _this.set('load_state', {remote_reload_local_reload: true});
@@ -169,16 +189,21 @@ export default Route.extend({
       }
 
       reload.then(function(updated) {
+        console.log('[BOARD-DEBUG] route board/index.setupController() reload.then resolved', { has_rendered: controller.get('has_rendered_material'), revisionChanged: updated.get('current_revision') != prior_revision });
         if(!controller.get('has_rendered_material') || updated.get('current_revision') != prior_revision || insufficient_data) {
           LingoLinq.log.track('processing buttons again');
           controller.processButtons(true);
         }
       }, function(error) {
+        console.warn('[BOARD-DEBUG] route board/index.setupController() reload.then rejected', error);
         if(!controller.get('has_rendered_material') || !_this.appState.get('speak_mode')) {
           _this.send('error', error);
         }
       });
+    } else {
+      console.log('[BOARD-DEBUG] route board/index.setupController() skip reload (offline and sufficient data)');
     }
+    console.log('[BOARD-DEBUG] route board/index.setupController() done');
   },
   error_message: computed('load_state', 'load_state.has_permissions', 'model.id', function() {
     if(this.get('model.id')) {
@@ -188,7 +213,7 @@ export default Route.extend({
       if(error && error.errors) {
         error = error.errors[0];
       }
-      if(this.persistence.get('online')) {
+      if(this.persistence && this.persistence.get('online')) {
         // retrieved, not_local, remote_reload, remote_reload_local_reload, local_reload, local_reload_remote_reload
         if(error && error.unauthorized) {
           return i18n.t('error_unauthorized', "You don't have permission to access this board.");
@@ -252,5 +277,10 @@ export default Route.extend({
       }
       this.get('controller').set('model', LingoLinq.store.createRecord('board', {}));
     },
+  },
+  resetController: function(controller, isExiting) {
+    if (isExiting && editManager.controller === controller) {
+      editManager.controller = null;
+    }
   }
 });

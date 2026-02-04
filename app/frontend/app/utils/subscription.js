@@ -779,6 +779,9 @@ Subscription.reopenClass({
           return RSVP.resolve({id: 'free'});
         }
       }
+      if(amount <= 0) {
+        return RSVP.resolve({id: 'free'});
+      }
       var defer = RSVP.defer();
       if(Subscription.handler.defer) {
       }

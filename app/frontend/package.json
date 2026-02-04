@@ -48,6 +48,7 @@
     "ember-welcome-page": "^4.0.0",
     "eslint": "^5.16.0",
     "eslint-plugin-ember": "^6.2.0",
+    "eslint-plugin-lingolinq": "file:./eslint-plugin-lingolinq",
     "eslint-plugin-node": "^9.0.1",
     "jquery": "^3.7.1",
     "loader.js": "^4.7.0",

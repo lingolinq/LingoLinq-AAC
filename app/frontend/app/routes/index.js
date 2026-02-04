@@ -20,7 +20,7 @@ export default Route.extend({
     if(session.get('access_token')) {
       return LingoLinq.store.findRecord('user', 'self').then(function(user) {
         // notifications and logs should show up when you re-visit the dashboard
-        if(!user.get('really_fresh') && _this.persistence.get('online')) {
+        if(!user.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
           user.reload();
         }
         return RSVP.resolve(user);
@@ -57,7 +57,7 @@ export default Route.extend({
     // This prevents showing the modal when data is incomplete due to API errors (like 401)
     if(model && model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
       // If data is not fresh, try to reload first before showing modal
-      if(!model.get('really_fresh') && _this.persistence.get('online')) {
+      if(!model.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
         model.reload().then(function() {
           // After successful reload, check again if terms_agree is still missing
           if(model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
@@ -153,14 +153,15 @@ export default Route.extend({
       var _this = this;
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
-      if(!_this.persistence.get('online')) { return; }
+      var p = (_this && _this.persistence) || (typeof window !== 'undefined' && window.persistence);
+      if(!p || typeof p.get !== 'function' || !p.get('online')) { return; }
       if(controller.get('badEmail') || controller.get('shortPassword') || controller.get('noName') || controller.get('noSpacesName')) {
         return;
       }
       controller.set('registering', {saving: true});
       user.save().then(function(user) {
         controller.set('start_code', null);
-        var meta = _this.persistence.meta('user', null);
+        var meta = p && typeof p.meta === 'function' ? p.meta('user', null) : null;
         controller.set('triedToSave', false);
         user.set('password', null);
         var save_done = function() {

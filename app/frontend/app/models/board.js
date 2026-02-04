@@ -100,6 +100,9 @@ LingoLinq.Board = DS.Model.extend({
   }),
   icon_url_with_fallback: computed('image_url', function() {
     // TODO: way to fall back to something other than a broken image when disconnected
+    if(!this || !this.persistence || typeof this.persistence.get !== 'function') {
+      return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
+    }
     if(this.persistence.get('online')) {
       return this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url;
     } else {
@@ -113,7 +116,7 @@ LingoLinq.Board = DS.Model.extend({
     var result = [];
     var grid = this.get('grid');
     var buttons = this.get('buttons');
-    if(!grid || !buttons) { return []; }
+    if(!grid || !buttons || !grid.order || !Array.isArray(grid.order) || !grid.order.length || !grid.order[0] || !Array.isArray(grid.order[0])) { return []; }
     for(var idx = 0; idx < grid.order[0].length; idx++) {
       for(var jdx = 0; jdx < grid.order.length; jdx++) {
         var id = grid.order[jdx][idx];
@@ -156,6 +159,9 @@ LingoLinq.Board = DS.Model.extend({
     return !found_visible;
   }),
   variant_image_urls: function(skin) {
+    if(!this || !this.persistence) {
+      return this ? (this.get('image_urls') || {}) : {};
+    }
     var local_map = this.get('image_urls') || {};
     var unskins = {};
     this.get('buttons').forEach(function(btn) {
@@ -548,14 +554,16 @@ LingoLinq.Board = DS.Model.extend({
                     var buttons = _this.get('button_set').redepth(_this.get('id'));
                     var match = buttons.find(function(b) { return b.ref_id == ref_id; });
                     if(match) {
-                      var urls = _this.variant_image_urls(this.appState.get('referenced_user.preferences.skin')) || {};
+                      var urls = _this.variant_image_urls(_this.appState.get('referenced_user.preferences.skin')) || {};
                       // try to find cache of image
                       if(!urls[match.image_id]) {
                         // urls[match.image_id] = match.image;
-                        this.persistence.find_url(match.image, 'image').then(function(data_uri) {
-                          emberSet(match, 'image', data_uri);
-                          // urls[match.image_id] = data_uri;
-                        });  
+                        var p = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+                        if(p) {
+                          p.find_url(match.image, 'image').then(function(data_uri) {
+                            emberSet(match, 'image', data_uri);
+                          });
+                        }
                       }
                       inflection_types["btn" + button.id] = {
                         label: match.label,
@@ -659,11 +667,14 @@ LingoLinq.Board = DS.Model.extend({
     }
   ),
   prefetch_linked_boards: function() {
+    var _this = this;
     var boards = this.get('linked_boards');
+    var p = _this.persistence || (typeof window !== 'undefined' && window.persistence);
     runLater(function() {
+      if(!p) { return; }
       var board_ids = [];
       boards.forEach(function(b) { if(b.id) { board_ids.push(b.id); } });
-      this.persistence.push_records('board', board_ids).then(function(boards_hash) {
+      p.push_records('board', board_ids).then(function(boards_hash) {
         for(var idx in boards_hash) {
           if(idx && boards_hash[idx]) {
 //            boards_hash[idx].find_content_locally();
@@ -972,28 +983,31 @@ LingoLinq.Board = DS.Model.extend({
     return false;
   },
   checkForDataURL: function() {
+    if(!this || !this.persistence) {
+      return RSVP.reject({ error: 'board or persistence not ready' });
+    }
     this.set('checked_for_data_url', true);
     var url = this.get('icon_url_with_fallback');
     var _this = this;
     if(!this.get('image_data_uri') && LingoLinq.remote_url(url)) {
       return this.persistence.find_url(url, 'image').then(function(data_uri) {
-        _this.set('image_data_uri', data_uri);
+        if(_this) { _this.set('image_data_uri', data_uri); }
         return _this;
       });
     } else if(url && url.match(/^data/)) {
       return RSVP.resolve(this);
     }
     var url = this.get('background.image');
-    if(!this.get('background_image_data_uri') && LingoLinq.remote_url(url)) {
+    if(!this.get('background_image_data_uri') && LingoLinq.remote_url(url) && this.persistence) {
       this.persistence.find_url(url, 'image').then(function(data_uri) {
-        _this.set('background_image_data_uri', data_uri);
+        if(_this) { _this.set('background_image_data_uri', data_uri); }
         return _this;
       });
     }
     var url = this.get('background.prompt.sound');
-    if(!this.get('background_sound_data_uri') && LingoLinq.remote_url(url)) {
+    if(!this.get('background_sound_data_uri') && LingoLinq.remote_url(url) && this.persistence) {
       this.persistence.find_url(url, 'sound').then(function(data_uri) {
-        _this.set('background_sound_data_uri', data_uri);
+        if(_this) { _this.set('background_sound_data_uri', data_uri); }
         return _this;
       });
     }
@@ -1111,13 +1125,22 @@ LingoLinq.Board = DS.Model.extend({
   }),
   load_button_set: function(force) {
     var _this = this;
+    var sync_buttons_from_set = function(button_set) {
+      var buttons = button_set && button_set.redepth(_this.get('id'));
+      var current_buttons = _this.get('buttons');
+      if(buttons && buttons.length && (!current_buttons || !current_buttons.length)) {
+        _this.set('buttons', buttons);
+        _this.get('appState').incrementProperty('board_reload_key');
+      }
+      return button_set;
+    };
     if(this.get('button_set_needs_reload')) {
       force = true;
       this.set('button_set_needs_reload', null);
     }
     if(this.get('button_set') && !force) {
       if(this.get('button_set.buttons') || this.get('button_set.root_url')) {
-        return this.get('button_set').load_buttons();
+        return this.get('button_set').load_buttons().then(sync_buttons_from_set);
       }
     }
     if(this.get('local_only')) { 
@@ -1129,7 +1152,7 @@ LingoLinq.Board = DS.Model.extend({
     var button_set = LingoLinq.store.peekRecord('buttonset', this.get('id'));
     if(button_set && !force && (button_set.get('buttons') || button_set.get('root_url'))) {
       this.set('button_set', button_set);
-      return button_set.load_buttons();
+      return button_set.load_buttons().then(sync_buttons_from_set);
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
@@ -1145,7 +1168,7 @@ LingoLinq.Board = DS.Model.extend({
       if(valid_button_set && !force) {
         if(!_this.get('fresh') || valid_button_set.get('fresh')) {
           _this.set('button_set', valid_button_set);
-          return valid_button_set.load_buttons();  
+          return valid_button_set.load_buttons().then(sync_buttons_from_set);
         } else{
         }
       }
@@ -1157,7 +1180,7 @@ LingoLinq.Board = DS.Model.extend({
           return button_set.load_buttons(force);
         }
       });
-      res.then(null, function() { });
+      res.then(sync_buttons_from_set, function() { });
       return res;
     }
   },
@@ -1291,8 +1314,10 @@ LingoLinq.Board = DS.Model.extend({
             sugg.word = utterance.capitalize(sugg.word);
           }
           _this.update_suggestion_button(suggestion_button, sugg);
+          var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
           sugg.image_update = function() {
-            this.persistence.find_url(sugg.image, 'image').then(function(data_uri) {
+            if(!persistenceForSugg) { return; }
+            persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
               sugg.data_image = data_uri;
               _this.update_suggestion_button(suggestion_button, sugg);
             }, function() {
@@ -1435,9 +1460,11 @@ LingoLinq.Board = DS.Model.extend({
       var original_image_url = vars[button.image_id];
       var pref_original_image_url = vars[button.image_id + '-' + preferred_symbols];
       var unvarianted_image_url = original_image_url && original_image_url.replace(/\.variant-.+\.(png|svg)$/, '');
-      var local_image_url = this.persistence.url_cache[pref_original_image_url || 'none'] || this.persistence.url_cache[original_image_url || 'none'] || this.persistence.url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      var persistence = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+      var url_cache = persistence && persistence.url_cache ? persistence.url_cache : {};
+      var local_image_url = url_cache[pref_original_image_url || 'none'] || url_cache[original_image_url || 'none'] || url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
-      var local_sound_url = this.persistence.url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none';
+      var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
 
       res = res + "<a href='#' style='" + opts.button_style + "' class='" + opts.button_class + "' data-id='" + button.id + "' tabindex='0'>";
@@ -1448,7 +1475,8 @@ LingoLinq.Board = DS.Model.extend({
       res = res + "</div>";
 
       res = res + "<span style='" + opts.image_holder_style + "'>";
-      if(!this.appState.get('currentUser.hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
+      var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
+      if(appState && !appState.get('currentUser.hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
         res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";

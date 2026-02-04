@@ -34,7 +34,7 @@ export default Component.extend({
    */
   isComponentBased: computed('currentTemplate', function() {
     const template = this.get('currentTemplate');
-    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal'];
     return template && convertedModals.indexOf(template) >= 0;
   }),
   

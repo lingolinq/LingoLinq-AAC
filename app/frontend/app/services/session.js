@@ -174,6 +174,7 @@ export default Service.extend({
   },
 
   check_token: function(allow_invalidate) {
+    if(!this) { return RSVP.resolve({ success: false }); }
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
     
@@ -204,9 +205,13 @@ export default Service.extend({
     });
     
     var _this = this;
+    if(!this.persistence) {
+      return RSVP.resolve({ success: false });
+    }
     return this.persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
+      if(!_this) { return RSVP.resolve({ success: false }); }
       console.log('[check_token] Token check succeeded', {
         authenticated: data.authenticated,
         has_user_name: !!data.user_name,
@@ -267,6 +272,7 @@ export default Service.extend({
       
       return RSVP.resolve({success: true, browserToken: browserToken});
     }, function(data) {
+      if(!_this) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
       
       console.log('[check_token] Token check failed', {

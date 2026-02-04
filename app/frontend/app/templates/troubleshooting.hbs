@@ -154,7 +154,7 @@
             </td>
             <td style='vertical-align: middle;'>
               {{#if this.local_boards}}
-                {{#if this.persistence.online}}
+                {{#if (persistence-online)}}
                   <button class='btn btn-default' {{action "push_to_cloud"}} style='width: 150px;'>{{t "Push to Cloud" key="push_to_cloud"}}</button>
                 {{/if}}
               {{/if}}

@@ -1,7 +1,7 @@
 {{#if this.browse_audio.loading}}
   <p>{{t "Loading stored audio..." key="loading_stored_audio"}}</p>
 {{else if this.browse_audio.error}}
-  {{#if this.persistence.online}}
+  {{#if (persistence-online)}}
     <p>{{t "Error loading stored audio" key="error_loading_stored_audio"}}</p>
   {{else}}
     <p>{{t "Stored audio files not available offline" key="audio_not_available_offline"}}</p>

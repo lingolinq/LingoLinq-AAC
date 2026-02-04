@@ -402,6 +402,11 @@ var buttonTracker = EmberObject.extend({
       // so we don't want any unintentional double-triggers
       if(event.pass_through) { return; }
 
+      // allow dropdown menu item clicks to propagate so Ember actions run
+      if($(event.target).closest('.dropdown-menu').length > 0) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       // if no recent mouseup or touchend, then we can assume
@@ -567,8 +572,11 @@ var buttonTracker = EmberObject.extend({
         window.screenInnerOffsetX = 0;
       }
       if(priors[0] != window.screenInnerOffsetX || priors[1] != window.screenInnerOffsetY) {
-        this.stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
-        this.stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
+        var stashes = (this && this.stashes) || window.stashes;
+        if (stashes && typeof stashes.persist === 'function') {
+          stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
+          stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
+        }
       }
     }
     if(event.type == 'touchstart' || event.type == 'mousedown' || event.type == 'touchmove') {

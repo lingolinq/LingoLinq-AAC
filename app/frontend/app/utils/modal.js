@@ -71,7 +71,7 @@ var modal = EmberObject.extend({
     
     // List of modals that have been converted to components
     // These will use component-based rendering instead of route.render()
-    var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+    var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal'];
     var useComponentRendering = service && outlet == 'modal' && convertedModals.indexOf(template) >= 0;
     
     // If this modal uses component-based rendering, handle it completely via service
@@ -224,30 +224,14 @@ var modal = EmberObject.extend({
         if(modalElement && modalElement.parentNode) {
           modalElement.parentNode.removeChild(modalElement);
         }
-        // Clear outlet wrappers
-        var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
-        for(var i = 0; i < outletWrappers.length; i++) {
-          var wrapper = outletWrappers[i];
-          if(wrapper.querySelector && wrapper.querySelector('.modal')) {
-            wrapper.innerHTML = '';
-            break;
-          }
-        }
-        // Clear the outlet element directly - this is critical for reopening modals
+        // Clear only the modal outlet element - do NOT clear any parent that contains .modal
+        // (clearing parents like .ember-view would wipe the entire app including main content)
         var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
                            document.querySelector('[id="modal"]') ||
                            document.querySelector('.ember-view[data-outlet-name="modal"]') ||
                            document.querySelector('[data-outlet-name="modal"]');
         if(outletElement) {
           outletElement.innerHTML = '';
-        }
-        // Also clear any Ember outlet containers that might be holding onto the old modal
-        var emberOutlets = document.querySelectorAll('[data-ember-outlet], [id^="ember"]');
-        for(var j = 0; j < emberOutlets.length; j++) {
-          var outlet = emberOutlets[j];
-          if(outlet.querySelector && outlet.querySelector('.modal')) {
-            outlet.innerHTML = '';
-          }
         }
         // Note: disconnectOutlet is deprecated and not needed - Ember manages outlets automatically
         // Removing it prevents deprecation warnings and doesn't affect functionality
@@ -283,7 +267,7 @@ var modal = EmberObject.extend({
             // This prevents Ember from trying to use component DOM as outlet keys
             if (service && service.get('currentTemplate')) {
               var serviceTemplate = service.get('currentTemplate');
-              var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board'];
+              var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal'];
               if (convertedModals.indexOf(serviceTemplate) >= 0) {
                 // Component-based modal is still open in service, clear it first
                 service.set('currentTemplate', null);
@@ -542,32 +526,15 @@ var modal = EmberObject.extend({
       if(modalElement && modalElement.parentNode) {
         modalElement.parentNode.removeChild(modalElement);
       }
-      // Clear the outlet element to ensure it's ready for the next modal
+      // Clear ONLY the modal outlet element - never #content or the main outlet (main board view)
       var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
                          document.querySelector('[id="modal"]') ||
                          document.querySelector('.ember-view[data-outlet-name="modal"]') ||
                          document.querySelector('[data-outlet-name="modal"]');
-      if(outletElement) {
+      if(outletElement && outletElement.id !== 'content' && !outletElement.querySelector('#content')) {
         outletElement.innerHTML = '';
       }
-      // Also clear outlet wrappers synchronously
-      var outletWrappers = document.querySelectorAll('[data-ember-outlet], [id^="ember"], .ember-view');
-      for(var i = 0; i < outletWrappers.length; i++) {
-        var wrapper = outletWrappers[i];
-        // Check if this wrapper contains a modal
-        if(wrapper.querySelector && wrapper.querySelector('.modal')) {
-          wrapper.innerHTML = '';
-          break;
-        }
-      }
-      // Also try to find and clear the outlet element directly
-      var outletElement = document.querySelector('[data-ember-outlet="modal"]') ||
-                         document.querySelector('[id="modal"]') ||
-                         document.querySelector('.ember-view[data-outlet-name="modal"]') ||
-                         document.querySelector('[data-outlet-name="modal"]');
-      if(outletElement) {
-        outletElement.innerHTML = '';
-      }
+      // Do NOT clear any parent .ember-view containing .modal - that wipes the entire app
     } else {
       // For other outlets, do async cleanup
       var _this = this;
@@ -609,21 +576,33 @@ var modal = EmberObject.extend({
   flash: function(text, type, below_header, sticky, opts) {
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
     type = type || 'notice';
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
-    this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: (opts || {}).action};
+    opts = opts || {};
+    this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: opts.action};
     if(below_header) {
       this.settings_for['flash'].below_header = below_header;
     }
-    if(opts && opts.redirect) {
-      var hash = {};
-      hash[opts.redirect] = true;
-      this.settings_for['flash'].redirect = hash;
+    var redirectHash;
+    if(opts.redirect) {
+      redirectHash = {};
+      redirectHash[opts.redirect] = true;
+      this.settings_for['flash'].redirect = redirectHash;
     }
-
+    var service = this._getService();
+    if(service) {
+      var serviceOpts = Object.assign({}, opts, redirectHash ? { redirect: redirectHash } : {});
+      service.flash(text, type, below_header, sticky, serviceOpts);
+      var _this = this;
+      if(!sticky) {
+        runLater(function() {
+          _this.fade_flash();
+        }, below_header ? 500 : (opts.timeout || 1500));
+      }
+      return;
+    }
     var _this = this;
     runLater(function() {
       var timeout = below_header ? 500 : 1500;
-      if(opts && opts.timeout) { timeout = opts.timeout; }
+      if(opts.timeout) { timeout = opts.timeout; }
       modal.route.render('flash-message', { into: 'application', outlet: 'flash-message'});
       if(!sticky) {
         runLater(function() {

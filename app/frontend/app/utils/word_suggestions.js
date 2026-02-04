@@ -112,6 +112,8 @@ var word_suggestions = EmberObject.extend({
       // TODO: concurrent downloads can happen just fine as long as you
       // receive them as text instead of json, and call JSON.parse one
       // at a time.
+      // Skip remote ngrams in development to avoid CORS/404 console noise (file may not exist on S3)
+      var is_dev = typeof window !== 'undefined' && window.location && /localhost|127\.0\.0\.1/.test(window.location.origin || '');
       ['trimmed'].forEach(function(idx) {
         var defer = RSVP.defer();
         promises.push(defer.promise);
@@ -120,7 +122,14 @@ var word_suggestions = EmberObject.extend({
           // TODO: CDN
           var remote_url = "https://lingolinq.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
           var persistenceService = word_suggestions.get_persistence();
+          if(!persistenceService || typeof persistenceService.find !== 'function') {
+            runLater(function() { defer.resolve(); });
+            return;
+          }
           var find_or_store = persistenceService.find('settings', store_key).then(null, function() {
+            if(is_dev) {
+              return { suggestions: {} };
+            }
             return $.ajax({
               url: remote_url,
               type: "GET",
@@ -130,13 +139,18 @@ var word_suggestions = EmberObject.extend({
                 res = JSON.parse(res.text);
               }
               res.storageId = store_key;
-              return persistenceService.store('settings', {suggestions: res}, store_key);
+              return persistenceService && typeof persistenceService.store === 'function' ? persistenceService.store('settings', {suggestions: res}, store_key) : res;
+            }, function() {
+              // Remote ngrams file missing (404) or CORS - fail gracefully
+              return { suggestions: {} };
             });
           });
           find_or_store.then(function(res) {
-            for(var idx in res.suggestions) {
-              ngrams[idx] = ngrams[idx] || [];
-              ngrams[idx] = ngrams[idx].concat(res.suggestions[idx]);
+            if(res && res.suggestions) {
+              for(var k in res.suggestions) {
+                ngrams[k] = ngrams[k] || [];
+                ngrams[k] = ngrams[k].concat(res.suggestions[k]);
+              }
             }
             runLater(function() {
               defer.resolve();

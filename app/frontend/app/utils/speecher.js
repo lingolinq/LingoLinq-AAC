@@ -124,9 +124,10 @@ var speecher = EmberObject.extend({
     capabilities.tts.available_voices().then(function(voices) {
       var orig_voices = _this.get('voices');
       var more_voices = [];
+      var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
       voices.forEach(function(voice) {
         if(voice.active) {
-          var ref_voice = speecher.speecher.get_tts_voices().find_voice(voice.voice_id);
+          var ref_voice = (ttsService && ttsService.find_voice && ttsService.find_voice(voice.voice_id)) || null;
           if(ref_voice) {
             voice.name = ref_voice.name;
             voice.locale = ref_voice.locale;
@@ -228,7 +229,9 @@ var speecher = EmberObject.extend({
     return list;
   },
   check_for_upgrades: function() {
-    var latest_version = this.speecher.get_tts_voices().get('versions.' + capabilities.system);
+    var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
+    if(!ttsService || typeof ttsService.get !== 'function') { return; }
+    var latest_version = ttsService.get('versions.' + capabilities.system);
     if(capabilities.system == 'Windows' && !this.get('checked_for_voice_upgrades')) {
       this.set('checked_for_voice_upgrades', true);
       if(window.file_storage) {
@@ -541,14 +544,15 @@ var speecher = EmberObject.extend({
       voice = voice || uri_match();
       // Then look for the first default voice
       voice = voice || local_voices.find(function(v) { return v['default']; });
-      // Finally use a remote voice if it's all there is
-      if(this.speecher.get_persistence().get('online')) {
+      // Finally use a remote voice if it's all there is (use module-level get_persistence - this.speecher can be undefined in runLater callbacks)
+      var persistenceService = speecher.get_persistence && speecher.get_persistence();
+      if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
         voice = voice || voices.find(function(v) { return locale && locale.match(/-|_/) && v.lang && (v.lang.toLowerCase().replace(/_/, '-') == locale || v.lang.toLowerCase().replace(/-/, '_') == locale); });
         voice = voice || voices.find(function(v) { return language && v.lang && [language, mapped_lang].indexOf(v.lang.toLowerCase().split(/[-_]/)[0]) != -1; });
         voice = voice || voices.find(function(v) { return v['default']; });
       }
       // If none found, return a temporary voice from the cloud_locales list
-      if(!voice && this.speecher.get_persistence().get('online')) {
+      if(!voice && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
         var remote = cloud_locales.find(function(loc) { return loc.toLowerCase().replace(/-/, '_') == locale; });
         remote = remote || cloud_locales.find(function(loc) { return loc.split(/-|_/)[0] == mapped_lang; });
         if(remote) {
@@ -624,9 +628,10 @@ var speecher = EmberObject.extend({
       if(opts.voiceURI != 'force_default') {
         voice = speecher.find_voice_by_uri(opts.voiceURI, current_locale, true);
       }
-      // Try to render default prompts in the locale's language
+      // Try to render default prompts in the locale's language (use module-level get_tts_voices - speecher.speecher can be undefined)
       if(opts.default_prompt) {
-        var prompts = speecher.speecher.get_tts_voices().get('prompts') || {};
+        var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
+        var prompts = (ttsService && ttsService.get && ttsService.get('prompts')) || {};
         var lang = ((voice && voice.lang) || navigator.language).toLowerCase().split(/-|_/)[0];
         var prompt = prompts[lang] || prompts[i18n.lang_map[lang]];
         if(prompt) {

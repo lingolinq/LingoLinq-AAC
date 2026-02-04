@@ -3,7 +3,7 @@
     <h2>{{t "Redeem a Gift Code" key="redeem_gift_code"}}</h2>
     <span class="glyphicon glyphicon-gift" style="font-size: 30px; float: left; margin: 5px 10px 10px 0;"></span>
     {{#if this.model.invalid}}
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         <p>{{t "No available gift was found for the code <b>%{code}</b>. It's possible the code has already been redeemed, or the code was entered incorrectly. Please contact the giver and confirm the details." key="invalid_code" code=this.model.code}}</p>
       {{else}}
         <p>{{t "No gift could be found. Please check your Internet connection." key="invalid_code_check_internet"}}</p>

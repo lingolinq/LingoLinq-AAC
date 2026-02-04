@@ -10,7 +10,7 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if this.persistence.online}}
+    {{#if (persistence-online)}}
       {{#if this.finished}}
         <div class='alert alert-success'>{{this.status_message}}</div>
         <b>
@@ -96,7 +96,7 @@
     {{/if}}
   </div>
   <div class="modal-footer">
-    {{#if this.persistence.online}}
+    {{#if (persistence-online)}}
       {{#if this.finished}}
       {{else}}
         {{#if this.errored}}

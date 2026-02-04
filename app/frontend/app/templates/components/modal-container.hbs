@@ -8,6 +8,20 @@
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}
     {{new-board}}
+  {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
+    {{confirm-delete-board}}
+  {{else if (is-equal this.currentTemplate "speak-menu")}}
+    {{speak-menu}}
+  {{else if (is-equal this.currentTemplate "modals/board-intro")}}
+    {{board-intro}}
+  {{else if (is-equal this.currentTemplate "modals/board-actions")}}
+    {{board-actions}}
+  {{else if (is-equal this.currentTemplate "modals/start-codes")}}
+    {{start-codes}}
+  {{else if (is-equal this.currentTemplate "modals/confirm-delete-user")}}
+    {{confirm-delete-user}}
+  {{else if (is-equal this.currentTemplate "modals/confirm-remove-goal")}}
+    {{confirm-remove-goal}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

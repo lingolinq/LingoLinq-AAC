@@ -38,7 +38,7 @@
           {{/each}}
         </div>
       {{else}}
-        {{#if this.persistence.online}}
+        {{#if (persistence-online)}}
           <p>{{t "None found" key="none_found"}}</p>
         {{else}}
           <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
@@ -48,7 +48,7 @@
   </div>
   {{#if this.app_state.currentUser}}
     <div class="col-sm-4">
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         <h2>{{t "My Boards" key="my_boards"}}</h2>
         {{#if this.personal_results}}
           {{#if this.personal_results.loading}}
@@ -65,7 +65,7 @@
             </div>
             {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
           {{else}}
-            {{#if this.persistence.online}}
+            {{#if (persistence-online)}}
               <p>{{t "None found" key="none_found"}}</p>
               {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
             {{else}}

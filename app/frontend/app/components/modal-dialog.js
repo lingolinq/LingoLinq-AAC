@@ -7,6 +7,7 @@ import { observer } from '@ember/object';
 
 export default Component.extend({
   didRender: function() {
+    if(!this || typeof this.get !== 'function') { return; }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
@@ -33,6 +34,7 @@ export default Component.extend({
     this.set('already_opened', false);
   },
   stretch: observer('stretch_ratio', 'desired_width', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     if(this.get('stretch_ratio')) {
       var height = $(window).height() - 50;
       var width = $(window).width();
@@ -108,6 +110,7 @@ export default Component.extend({
   },
   actions: {
     close: function(event) {
+      if(!this || typeof this.get !== 'function') { return; }
       // Close on backdrop clicks (event.target has 'modal' class) or explicit button calls
       // The mouseUp/touchEnd handlers only call this for backdrop clicks (they filter first)
       // Buttons with {{action "close"}} explicitly call this, so we allow those too
@@ -139,6 +142,7 @@ export default Component.extend({
       // This prevents accidental closes when clicking inside modal content
     },
     any_select: function(e) {
+      if(!this) { return; }
       if(e && e.type == 'select' && e.target && e.target.closest('.auto_focus') != null) {
         // auto-focus should not disable inactivity_timeout
       } else {

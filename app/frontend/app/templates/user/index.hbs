@@ -587,14 +587,14 @@
               {{/if}}
               <form style="margin-bottom: 10px;" {{action "nothing" on="submit"}}>
                 <div style="width: 250px;">
-                <Input type="text" @value={{this.filterString}} class="form-control" placeholder="Filter Results" />
+                <Input @type="text" @value={{this.filterString}} class="form-control" placeholder="Filter Results" />
                 </div>
               </form>
               <div class="row">
                 {{#each this.filtered_results as |board|}}
                   {{#if board.board.key}}
                     {{#unless board.board.removed}}
-                      <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{if board.hidden "position: absolute; left: -1000px; visibility: hidden;" ""}}>
+                      <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
                         {{#if board.children}}
                           {{board-icon board=board noinfo=true action="load_children"}}
                         {{else}}
@@ -611,7 +611,7 @@
                     {{/unless}}
                   {{else if board.orphan}}
                     {{#if board.children}}
-                      <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{if board.hidden "position: absolute; left: -1000px; visibility: hidden;" ""}}>
+                      <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
                         {{board-icon board=board noinfo=true action="load_children"}}
                         {{#if this.model.permissions.edit}}
                           <button class="board_action" {{action "remove_board" "delete_orphans" board}}>
@@ -663,14 +663,14 @@
               <div class="form-group">
                 <label for="old_key" class="col-sm-3 control-label">{{t "Current User Name" key="current_user_name"}}</label>
                 <div class="col-sm-5">
-                  <Input type="text" class="form-control" id="old_key" @value={{this.new_user_name.old_value}} placeholder="current user name" />
+                  <Input @type="text" class="form-control" id="old_key" @value={{this.new_user_name.old_value}} placeholder="current user name" />
                 </div>
               </div>
 
               <div class="form-group">
                 <label for="new_key" class="col-sm-3 control-label">{{t "New User Name" key="new_user_name"}}</label>
                 <div class="col-sm-5">
-                  <Input type="text" class="form-control" id="new_key" @value={{this.new_user_name.value}} placeholder="new key" />
+                  <Input @type="text" class="form-control" id="new_key" @value={{this.new_user_name.value}} placeholder="new key" />
                 </div>
               </div>
 

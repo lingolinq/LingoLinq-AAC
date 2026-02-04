@@ -35,7 +35,13 @@ import app_state from './app_state';
       runLater(function() {
         $('html,body').scrollTop(0);
         console.log("LINGOLINQ: ready to start");
-        LingoLinq.app.advanceReadiness();
+        // Only advance readiness once to prevent "same root element" / "descendant of existing app" errors
+        if(!window.LingoLinq || !window.LingoLinq.readinessAdvanced) {
+          if(window.LingoLinq && window.LingoLinq.app) {
+            window.LingoLinq.app.advanceReadiness();
+            window.LingoLinq.readinessAdvanced = true;
+          }
+        }
         LingoLinq.ready();
       });
     }

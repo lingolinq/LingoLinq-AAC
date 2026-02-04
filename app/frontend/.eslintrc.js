@@ -6,7 +6,8 @@ module.exports = {
     sourceType: 'module'
   },
   plugins: [
-    'ember'
+    'ember',
+    'lingolinq'
   ],
   extends: [
     'eslint:recommended',
@@ -16,6 +17,7 @@ module.exports = {
     browser: true
   },
   rules: {
+    'lingolinq/no-this-in-promise-executor': 'warn',
     'no-console': 'off',
     'no-unused-vars': 'off',
     'ember/no-function-prototype-extensions': 'off',

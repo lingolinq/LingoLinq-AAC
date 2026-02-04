@@ -33,7 +33,7 @@
         <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
         <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
       </div>
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         {{#unless this.app_state.no_linky}}
           <div class='col-sm-2'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
@@ -83,7 +83,7 @@
           <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
         </li>
         {{#unless this.app_state.no_linky}}
-          {{#if this.persistence.online}}
+          {{#if (persistence-online)}}
             <li>
               <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
               <span class="icons" style="padding-left: 17px;">

@@ -18,7 +18,7 @@
         {{#if results.loading}}
           {{t "Loading results..." key="loading_results"}}
         {{else if results.error}}
-          {{#if persistence.online}}
+          {{#if (persistence-online)}}
             {{t "Error loading results" key="error_loading_results"}}
           {{else}}
             {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}

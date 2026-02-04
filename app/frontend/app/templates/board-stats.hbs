@@ -61,7 +61,7 @@
         </dl>
       {{/if}}
     {{else}}
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         {{#if this.app_state.currentUser}}
           {{t "Loading..." key="loading"}}
         {{else}}

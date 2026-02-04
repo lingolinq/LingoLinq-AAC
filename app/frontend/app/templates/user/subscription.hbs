@@ -110,7 +110,7 @@
               <p>{{t "Canceling subscription..." key="canceling"}}</p>
             {{else}}
               <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
-              <p style='display: block; max-width: 500px;'><Input type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
+              <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
               <button type="button" class="btn btn-primary" {{action "cancel_subscription" true}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
               <button type="button" class="btn btn-default" {{action "reset"}}>{{t "Never Mind" key="never_mind"}}</button>
             {{/if}}
@@ -199,7 +199,7 @@
                 <p>{{t "Canceling subscription..." key="canceling"}}</p>
               {{else}}
                 <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
-                <p style='display: block; max-width: 500px;'><Input type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
+                <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
                 <button type="button" class="btn btn-primary" {{action "cancel_subscription" true}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
                 <button type="button" class="btn btn-default" {{action "reset"}}>{{t "Never Mind" key="never_mind"}}</button>
               {{/if}}

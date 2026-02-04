@@ -13,42 +13,49 @@ export default class BoardActionsController extends modal.ModalController {
   }
 
   get cannot_edit() {
-    return !this.model.board.permissions.edit;
+    return !this || !this.model || !this.model.board || !this.model.board.permissions || !this.model.board.permissions.edit;
   }
 
   get cannot_categorize() {
-    return !this.appState.currentUser;
+    return !this || !this.appState || !this.appState.currentUser;
   }
 
   @action
   privacy() {
+    if(!this || !this.model || !this.model.board) { return; }
     modal.open('modals/board-privacy', {board: this.model.board, button_set: this.model.board.button_set});
   }
 
   @action
   categorize() {
+    if(!this || !this.model || !this.model.board || !this.appState) { return; }
     modal.open('modals/tag-board', {board: this.model.board, user: this.appState.currentUser});
   }
 
   @action
   langs() {
+    if(!this || !this.model || !this.model.board) { return; }
     modal.open('modals/slice-locales', {board: this.model.board, button_set: this.model.board.button_set});
   }
 
   @action
   translate() {
+    if(!this || !this.model || !this.model.board) { return; }
     modal.open('translation-select', {board: this.model.board, button_set: this.model.board.button_set});
   }
 
   @action
   swap_images() {
+    if(!this || !this.model || !this.model.board) { return; }
     modal.open('swap-images', {board: this.model.board, button_set: this.model.board.button_set});
   }
 
   @action
   download() {
     var _this = this;
-    this.appState.assert_source().then(function() {
+    if(!_this || !_this.model || !_this.model.board || !_this.appState) { return; }
+    _this.appState.assert_source().then(function() {
+      if(!_this.model || !_this.model.board) { return; }
       var has_links = _this.model.board.linked_boards.length > 0;
       modal.open('download-board', {type: 'obf', has_links: has_links, id: _this.model.board.id});
     }, function() { });
@@ -57,16 +64,21 @@ export default class BoardActionsController extends modal.ModalController {
   @action
   batch_recording() {
     var _this = this;
-    modal.open('batch-recording', {user: this.appState.currentUser, board: this.model.board}).then(function() {
+    if(!_this || !_this.model || !_this.model.board || !_this.appState) { return; }
+    modal.open('batch-recording', {user: _this.appState.currentUser, board: _this.model.board}).then(function() {
+      if(!_this.model) { return; }
       _this.model.reload().then(function() {
-        _this.model.load_button_set(true);
-        editManager.process_for_displaying();
+        if(_this.model) {
+          _this.model.load_button_set(true);
+          editManager.process_for_displaying();
+        }
       });
     });
   }
 
   @action
   delete() {
+    if(!this || !this.model || !this.model.board) { return; }
     modal.open('confirm-delete-board', {board: this.model.board, redirect: true});
   }
 }

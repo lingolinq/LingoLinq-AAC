@@ -689,7 +689,7 @@ var persistence = Service.extend({
     if(board && raw_board) {
       if(board.get('current_revision') != raw_board.current_revision) {
         if(board.get('updated') > raw_board.updated) {
-          var eventuals = persistence.eventual_store || [];
+          var eventuals = (window.persistence || this).eventual_store || [];
           var found_persist = false;
           for(var idx = 0; idx < eventuals.length; idx++) {
             if(eventuals[idx] && eventuals[idx][1] && eventuals[idx][1].id == raw_board.id) {
@@ -803,15 +803,16 @@ var persistence = Service.extend({
     return RSVP.resolve(obj);
   },
   store_eventually: function(store, obj, key) {
-    persistence.eventual_store = persistence.eventual_store || [];
-    persistence.eventual_store.push([store, obj, key, true]);
-    if(!persistence.eventual_store_timer) {
-      persistence.eventual_store_timer = runLater(persistence, this.next_eventual_store, 100);
+    var _this = this;
+    _this.eventual_store = _this.eventual_store || [];
+    _this.eventual_store.push([store, obj, key, true]);
+    if(!_this.eventual_store_timer) {
+      _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 100);
     }
     return RSVP.resolve(obj);
   },
   refresh_after_eventual_stores: function() {
-    if(persistence.eventual_store && persistence.eventual_store.length > 0) {
+    if(this.eventual_store && this.eventual_store.length > 0) {
       this.refresh_after_eventual_stores.waiting = true;
     } else {
       // TODO: I can't figure out a reliable way to know for sure
@@ -824,21 +825,23 @@ var persistence = Service.extend({
     }
   },
   next_eventual_store: function() {
-    if(persistence.eventual_store_timer) {
-      runCancel(persistence.eventual_store_timer);
+    var _this = window.persistence || this;
+    if(!_this) { return; }
+    if(_this.eventual_store_timer) {
+      runCancel(_this.eventual_store_timer);
     }
     try {
-      var args = (persistence.eventual_store || []).shift();
+      var args = (_this.eventual_store || []).shift();
       if(args) {
-        this.store.apply(persistence, args);
-      } else if(this.refresh_after_eventual_stores.waiting) {
-        this.refresh_after_eventual_stores.waiting = false;
+        _this.store.apply(_this, args);
+      } else if(_this.refresh_after_eventual_stores && _this.refresh_after_eventual_stores.waiting) {
+        _this.refresh_after_eventual_stores.waiting = false;
         if(LingoLinq.Board) {
           LingoLinq.Board.refresh_data_urls();
         }
       }
     } catch(e) { }
-    persistence.eventual_store_timer = runLater(persistence, this.next_eventual_store, 200);
+    _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, 200);
   },
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
@@ -1278,6 +1281,10 @@ var persistence = Service.extend({
       var _this = this;
       return new RSVP.Promise(function(res, rej) {
         runLater(function() {
+          if(!_this || !_this.find_url) {
+            rej({ error: 'persistence not ready' });
+            return;
+          }
           _this.find_url(url, type).then(function(r) { res(r); }, function(e) { rej(e); });
         }, 500);
       });
@@ -1746,7 +1753,7 @@ var persistence = Service.extend({
 
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
-        if(this.get('local_system.available') && this.get('local_system.allowed') && this.stashes && this.stashes.get && this.stashes.get('auth_settings')) {
+        if(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')) {
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {
@@ -1796,7 +1803,7 @@ var persistence = Service.extend({
                   object.local_url = res;
                   object.persisted = true;
                   object.url = url_id;
-                  write_resolve(this.store('dataCache', object, object.url));
+                  write_resolve(_this.store('dataCache', object, object.url));
                 }, function(err) { write_reject(err); });
               };
               // this is a promise-lite, to it can't handle reframing rejects into resolves
@@ -1809,7 +1816,7 @@ var persistence = Service.extend({
           if(!object.persisted) {
             object.persisted = true;
             object.url = url_id;
-            return this.store('dataCache', object, object.url);
+            return _this.store('dataCache', object, object.url);
           } else {
             return object;
           }
@@ -1832,22 +1839,22 @@ var persistence = Service.extend({
         var error = {error: "saving to data cache failed for " + url_id};
         if(err && err.name == "QuotaExceededError") {
           capabilities.storage.already_limited_size = true;
-          if(this.stashes && this.stashes.persist) {
-            this.stashes.persist('allow_local_filesystem_request', false);
+          if(_this.stashes && _this.stashes.persist) {
+            _this.stashes.persist('allow_local_filesystem_request', false);
           }
           persistence.url_cache = persistence.url_cache || {};
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
-          this.set('local_system.allowed', false);
+          _this.set('local_system.allowed', false);
         } else if(err.error == 'rejected' || err.error == 'already_rejected') {
           capabilities.storage.already_limited_size = true;
-          if(this.stashes && this.stashes.persist) {
-            this.stashes.persist('allow_local_filesystem_request', false);
+          if(_this.stashes && _this.stashes.persist) {
+            _this.stashes.persist('allow_local_filesystem_request', false);
           }
           persistence.url_cache = persistence.url_cache || {};
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
-          this.set('local_system.allowed', false);
+          _this.set('local_system.allowed', false);
         }
         reject(error);
       });
@@ -2081,8 +2088,8 @@ var persistence = Service.extend({
     // even if the app itself isn't running. whaaaat?! yeah.
 
     var sync_promise = new RSVP.Promise(function(sync_resolve, sync_reject) {
-      if(!this.get('sync_progress.root_user')) {
-        this.set('sync_progress', {
+      if(!_this_sync.get('sync_progress.root_user')) {
+        _this_sync.set('sync_progress', {
           root_user: user_id,
           sync_id: sync_id,
           progress_for: {
@@ -2096,7 +2103,7 @@ var persistence = Service.extend({
 
 
       var check_first = function(callback) {
-        if(!this.get('sync_progress') || this.get('sync_progress.canceled') || this.get('sync_progress.sync_id') != sync_id) {
+        if(!_this_sync.get('sync_progress') || _this_sync.get('sync_progress.canceled') || _this_sync.get('sync_progress.sync_id') != sync_id) {
           return function() {
             return RSVP.reject({error: 'canceled'});
           };
@@ -2110,20 +2117,20 @@ var persistence = Service.extend({
         // Test if the local storage connection is live and, if not, reset
         check_db = new RSVP.Promise(function(res, rej) {
           var sql_caught_up = false;
-          capabilities.dbman.db.executeSql("SELECT * FROM board LIMIT 1", function(r) { 
+          capabilities.dbman.db.executeSql('SELECT * FROM board LIMIT 1', function(r) {
             res();
             sql_caught_up = true;
-          }, function(e) { 
+          }, function(e) {
             res();
             sql_caught_up = true;
           });
           setTimeout(function() {
             if(!sql_caught_up) {
               console.log("Local DB Transactions Flushed");
-              capabilities.dbman.db.abortAllPendingTransactions()
+              capabilities.dbman.db.abortAllPendingTransactions();
             }
             res();
-          }, 1000);  
+          }, 1000);
         });
       }
 
@@ -2131,7 +2138,7 @@ var persistence = Service.extend({
       var prime_caches = check_db;
       if(!ignore_supervisees && !sync_reason.match(/supervisee/)) {
         prime_caches = check_db.then(check_first(function() {
-          return this.time_promise(this.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
+          return _this_sync.time_promise(_this_sync.prime_caches(sync_reason == 'manual_sync').then(null, function() { return RSVP.resolve(); }), "priming caches");
         }));
       }
 
@@ -2142,7 +2149,7 @@ var persistence = Service.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return this.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
+            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
               sync_reject({error: "failed to retrieve user details"});
             });
           }
@@ -2154,11 +2161,11 @@ var persistence = Service.extend({
       // cache images used for keyboard spelling to work offline
       if(!ignore_supervisees && (!LingoLinq.testing || LingoLinq.sync_testing)) {
         eventuallies.push(function() {
-          this.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
-          this.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
-          this.store_url('https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png', 'image', false, false).then(null, function() { });
-          this.store_url('https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/274c.svg', 'image', false, false).then(null, function() { });
-          this.store_url('https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/274c.svg', 'image', false, false).then(null, function() { });
+          _this_sync.store_url('https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg', 'image', false, false).then(null, function() { });
         });
       }
 
@@ -2185,23 +2192,23 @@ var persistence = Service.extend({
       };
       next_eventually();
 
-      var confirm_quota_for_user = this.time_promise(find_user.then(check_first(function(user) {
+      var confirm_quota_for_user = _this_sync.time_promise(find_user.then(check_first(function(user) {
         if(user && !ignore_supervisees) {
-          this.set('online', true);
+          _this_sync.set('online', true);
           if(user.get('preferences.skip_supervisee_sync')) {
             ignore_supervisees = true;
           }
           user_name = user.get('user_name') || user_id;
-          if(this.get('local_system.available') && user.get('preferences.home_board') &&
-                    !this.get('local_system.allowed') && this.get('local_system.requires_confirmation') &&
-                    this.stashes && this.stashes.get && this.stashes.get('allow_local_filesystem_request')) {
+          if(_this_sync.get('local_system.available') && user.get('preferences.home_board') &&
+                    !_this_sync.get('local_system.allowed') && _this_sync.get('local_system.requires_confirmation') &&
+                    _this_sync.stashes && _this_sync.stashes.get && _this_sync.stashes.get('allow_local_filesystem_request')) {
             return new RSVP.Promise(function(check_resolve, check_reject) {
               capabilities.storage.root_entry().then(function() {
-                this.set('local_system.allowed', true);
+                _this_sync.set('local_system.allowed', true);
                 check_resolve(user);
               }, function() {
-                this.set('local_system.available', false);
-                this.set('local_system.allowed', false);
+                _this_sync.set('local_system.available', false);
+                _this_sync.set('local_system.allowed', false);
                 check_resolve(user);
               });
             });
@@ -2211,7 +2218,7 @@ var persistence = Service.extend({
       })), "confirming quota");
 
       // Ensure the image filename cache is up-to-date
-      var prime_image_cache = this.time_promise(confirm_quota_for_user.then(check_first(function(user) {
+      var prime_image_cache = _this_sync.time_promise(confirm_quota_for_user.then(check_first(function(user) {
         if(!ignore_supervisees) {
           return capabilities.storage.list_files('image').then(function(images) {
             persistence.image_filename_cache = {};
@@ -2229,10 +2236,10 @@ var persistence = Service.extend({
         if(user) {
           var old_user_id = user_id;
           user_id = user.get('id');
-          if(!this.get('sync_progress.root_user') || this.get('sync_progress.root_user') == old_user_id) {
-            this.set('sync_progress', {
+          if(!_this_sync.get('sync_progress.root_user') || _this_sync.get('sync_progress.root_user') == old_user_id) {
+            _this_sync.set('sync_progress', {
               root_user: user.get('id'),
-              sync_id: this.get('sync_progress.sync_id'),
+              sync_id: _this_sync.get('sync_progress.sync_id'),
               progress_for: {
               }
             });
@@ -2254,11 +2261,11 @@ var persistence = Service.extend({
 
         // Step 0.5: Check for an invalidated token
         if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
-          if(this.get('sync_progress.root_user') == user_id) {
+          if(_this_sync.get('sync_progress.root_user') == user_id) {
             LingoLinq.session.check_token(false);
             if(user.get('single_org.image_url')) {
               // Store org image url for header rendering
-              this.store_url(user.get('single_org.image_url'), 'image', false, false).then(function() {
+              _this_sync.store_url(user.get('single_org.image_url'), 'image', false, false).then(function() {
               }, function() {
               });
             }
@@ -2288,9 +2295,9 @@ var persistence = Service.extend({
         // (needs to also support s3 uploading for locally-saved images/sounds)
         // (needs to be smart about handling conflicts)
         // http://www.cs.tufts.edu/~nr/pubs/sync.pdf
-        if(this.get('sync_progress.root_user') == user_id) {
+        if(_this_sync.get('sync_progress.root_user') == user_id) {
           spread_out(function() {
-            return this.time_promise(this.sync_changed(), "syncing changed");
+            return _this_sync.time_promise(_this_sync.sync_changed(), "syncing changed");
           }, "syncing changed");
         }
 
@@ -2301,7 +2308,7 @@ var persistence = Service.extend({
         spread_out(function() {
           // Timed promised cannot call store_url() which gets queued
           // so it calls store_url_now instead
-          return this.time_promise(this.sync_user(user, importantIds), "sync user data");
+          return _this_sync.time_promise(_this_sync.sync_user(user, importantIds), "sync user data");
         }, "sync user data");
 
         // Step 3: If online
@@ -2310,13 +2317,13 @@ var persistence = Service.extend({
         // (add to settings.importantIds list)
         // (also download through proxy any image data URIs needed for board set)
         // (this takes the longest, so start it right away - no spread_out)
-        var get_local_revisions = this.find('settings', 'synced_full_set_revisions').then(function(res) {
-          if(this.get('sync_progress') && !this.get('sync_progress.full_set_revisions')) {
-            this.set('sync_progress.full_set_revisions', res);
+        var get_local_revisions = _this_sync.find('settings', 'synced_full_set_revisions').then(function(res) {
+          if(_this_sync.get('sync_progress') && !_this_sync.get('sync_progress.full_set_revisions')) {
+            _this_sync.set('sync_progress.full_set_revisions', res);
           }
-          return this.sync_boards(user, importantIds, synced_boards, force);
+          return _this_sync.sync_boards(user, importantIds, synced_boards, force);
         }, function() {
-          return this.sync_boards(user, importantIds, synced_boards, force);
+          return _this_sync.sync_boards(user, importantIds, synced_boards, force);
         });
         get_local_revisions.promise_name = "syncing boards for " + user.get('user_name');
         sync_promises.push(get_local_revisions);
@@ -2325,7 +2332,7 @@ var persistence = Service.extend({
         // Step 4: If user has any supervisees, sync them as well
         if(user && user.get('supervisees') && !ignore_supervisees) {
           spread_out(function() {
-            var res = this.sync_supervisees(user, force);
+            var res = _this_sync.sync_supervisees(user, force);
             res.promise_name = "syncing supervisees";
             return res;
           }, "syncing supervisees");
@@ -2334,7 +2341,7 @@ var persistence = Service.extend({
         // Step 5: Cache needed sound files
         if(!ignore_supervisees) {
           spread_out(function() {
-            return this.time_promise(speecher.load_beep().then(null, function(err) {
+            return _this_sync.time_promise(speecher.load_beep().then(null, function(err) {
               modal.warning(i18n.t('sound_sync_failed', "Sound effects failed to sync"));
               console.error("sound sync error", err);
               return RSVP.resolve();
@@ -2345,18 +2352,18 @@ var persistence = Service.extend({
         // Step 6: Push stored logs
         if(!ignore_supervisees) {
           spread_out(function() {
-            return this.time_promise(this.sync_logs(user), "pushing logs");
+            return _this_sync.time_promise(_this_sync.sync_logs(user), "pushing logs");
           }, "pushing logs");
         }
 
         // Step 7: Sync user tags
         spread_out(function() {
-          return this.time_promise(this.sync_tags(user), "syncing tags");
+          return _this_sync.time_promise(_this_sync.sync_tags(user), "syncing tags");
         }, "syncing tags");
 
         // Step 8: Sync contacts
         spread_out(function() {
-          return this.time_promise(this.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
+          return _this_sync.time_promise(_this_sync.sync_contacts(user), "syncing contacts", 2 * 60 * 1000);
         }, "syncing contacts");
 
         // reject on any errors
@@ -2377,38 +2384,38 @@ var persistence = Service.extend({
           // even after being offline for a long time. Also store lastSync somewhere
           // that's easy to get to (localStorage much?) for use in the interface.
           persistence.important_ids = importantIds.uniq();
-          this.store('settings', {ids: persistence.important_ids}, 'importantIds').then(function(r) {
-            this.refresh_after_eventual_stores();
+          _this_sync.store('settings', {ids: persistence.important_ids}, 'importantIds').then(function(r) {
+            _this_sync.refresh_after_eventual_stores();
             sync_resolve(sync_log);
           }, function() {
-            this.refresh_after_eventual_stores();
+            _this_sync.refresh_after_eventual_stores();
             sync_reject(arguments);
           });
         }, function() {
           check_again.done = true;
-          this.refresh_after_eventual_stores();
+          _this_sync.refresh_after_eventual_stores();
           sync_reject.apply(null, arguments);
         });
         runLater(check_again, 5000);
       })).then(null, function() {
-        this.refresh_after_eventual_stores();
+        _this_sync.refresh_after_eventual_stores();
         sync_reject(null, arguments);
       });
 
     }).then(function() {
       // make a list of all buttons in the set so we can figure out the button
       // sequence needed to get from A to B
-      var track_buttons = this.sync_buttons(synced_boards);
+      var track_buttons = _this_sync.sync_buttons(synced_boards);
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(this.get('sync_progress.root_user') == user_id) {
-          var sync_stamps = this.get('sync_progress.sync_stamps');
-          var statuses = this.get('sync_progress.board_statuses') || [];
-          if(this.get('sync_progress.last_sync_stamp')) {
-            this.set('last_sync_stamp', this.get('sync_progress.last_sync_stamp'));
+        if(_this_sync.get('sync_progress.root_user') == user_id) {
+          var sync_stamps = _this_sync.get('sync_progress.sync_stamps');
+          var statuses = _this_sync.get('sync_progress.board_statuses') || [];
+          if(_this_sync.get('sync_progress.last_sync_stamp')) {
+            _this_sync.set('last_sync_stamp', _this_sync.get('sync_progress.last_sync_stamp'));
           }
-          var errors = this.get('sync_progress.errors') || [];
+          var errors = _this_sync.get('sync_progress.errors') || [];
           errors.forEach(function(error) {
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
@@ -2423,31 +2430,31 @@ var persistence = Service.extend({
               }
             }
           });
-          this.set('sync_progress', null);
+          _this_sync.set('sync_progress', null);
           var sync_message = null;
           if(errors.length > 0) {
-            this.set('sync_status', 'finished');
-            if(this.stashes && this.stashes.persist) {
-              this.stashes.persist('last_sync_status', 'finished');
+            _this_sync.set('sync_status', 'finished');
+            if(_this_sync.stashes && _this_sync.stashes.persist) {
+              _this_sync.stashes.persist('last_sync_status', 'finished');
             }
-            this.set('sync_errors', errors.length);
+            _this_sync.set('sync_errors', errors.length);
             sync_message = i18n.t('finished_with_errors', "Finished syncing %{user_id} with %{n} error(s)", {user_id: user_name, n: errors.length});
           } else {
-            this.set('sync_status', 'succeeded');
-            if(this.stashes && this.stashes.persist) {
-              this.stashes.persist('last_sync_status', 'succeeded');
+            _this_sync.set('sync_status', 'succeeded');
+            if(_this_sync.stashes && _this_sync.stashes.persist) {
+              _this_sync.stashes.persist('last_sync_status', 'succeeded');
             }
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
           }
           console.log('synced!');
-          this.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
-            this.set('last_sync_at', res.last_sync);
-            this.set('sync_stamps', res.stamps);
-            this.set('last_sync_event_at', (new Date()).getTime());
+          _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
+            _this_sync.set('last_sync_at', res.last_sync);
+            _this_sync.set('sync_stamps', res.stamps);
+            _this_sync.set('last_sync_event_at', (new Date()).getTime());
           }, function() {
             debugger;
           });
-          var log = [].concat(this.get('sync_log') || []);
+          var log = [].concat(_this_sync.get('sync_log') || []);
           log.push({
             user_id: user_name,
             reason: sync_reason,
@@ -2457,39 +2464,39 @@ var persistence = Service.extend({
             statuses: statuses,
             summary: sync_message
           });
-          this.set('sync_log', log);
-          this.set('sync_log_rand', Math.random());
+          _this_sync.set('sync_log', log);
+          _this_sync.set('sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
       });
       return complete_sync;
     }, function(err) {
-      if(this.get('sync_progress.root_user') == user_id) {
-        var statuses = this.get('sync_progress.board_statuses') || [];
-        var stamps = this.get('sync_progress.sync_stamps');
-        this.set('sync_progress', null);
-        this.set('sync_status', 'failed');
-        // if last sync attempt ended in failure and this attempt also 
+      if(_this_sync.get('sync_progress.root_user') == user_id) {
+        var statuses = _this_sync.get('sync_progress.board_statuses') || [];
+        var stamps = _this_sync.get('sync_progress.sync_stamps');
+        _this_sync.set('sync_progress', null);
+        _this_sync.set('sync_status', 'failed');
+        // if last sync attempt ended in failure and this attempt also
         // failed, then set last_sync_at to prevent repeated attempts to sync
-        if(this.stashes.get('last_sync_status') == 'failed') {
+        if(_this_sync.stashes.get('last_sync_status') == 'failed') {
           var last_sync = (new Date()).getTime() / 1000;
-          this.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
-            this.set('last_sync_at', res.last_sync);
-            this.set('sync_stamps', stamps);
+          _this_sync.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
+            _this_sync.set('last_sync_at', res.last_sync);
+            _this_sync.set('sync_stamps', stamps);
           }, function() { });
         }
-        if(this.stashes && this.stashes.persist) {
-          this.stashes.persist('last_sync_status', 'failed');
+        if(_this_sync.stashes && _this_sync.stashes.persist) {
+          _this_sync.stashes.persist('last_sync_status', 'failed');
         }
-        this.set('sync_status_error', null);
+        _this_sync.set('sync_status_error', null);
         if(err.board_unauthorized) {
-          this.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
-        } else if(!this.get('online')) {
-          this.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+        } else if(!_this_sync.get('online')) {
+          _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
         }
         var message = (err && err.error) || "unspecified sync error";
         var statuses = statuses.uniq(function(s) { return s.id; });
-        var log = [].concat(this.get('sync_log') || []);
+        var log = [].concat(_this_sync.get('sync_log') || []);
         log.push({
           user_id: user_name,
           manual: force,
@@ -2498,8 +2505,8 @@ var persistence = Service.extend({
           statuses: statuses,
           summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
-        this.set('last_sync_event_at', (new Date()).getTime());
-        this.set('sync_log', log);
+        _this_sync.set('last_sync_event_at', (new Date()).getTime());
+        _this_sync.set('sync_log', log);
         if(err && err.error) {
           modal.error(err.error);
         }
@@ -2616,16 +2623,17 @@ var persistence = Service.extend({
 //     });
   },
   sync_supervisees: function(user, force) {
+    var _this = this;
     var sync_id = this.get('sync_progress.sync_id');
     return new RSVP.Promise(function(resolve, reject) {
       var supervisee_promises = [];
       user.get('supervisees').forEach(function(supervisee) {
-        var find_supervisee = this.queue_sync_action('find_supervisee', sync_id, function() {
+        var find_supervisee = _this.queue_sync_action('find_supervisee', sync_id, function() {
           return LingoLinq.store.findRecord('user', supervisee.id);
         });
         var reload_supervisee = find_supervisee.then(function(record) {
           if(!record.get('fresh') || force) {
-            return this.time_promise(record.reload(), 'reload supervisor', 5000);
+            return _this.time_promise(record.reload(), 'reload supervisor', 5000);
           } else {
             return record;
           }
@@ -2634,21 +2642,21 @@ var persistence = Service.extend({
         var sync_supervisee = reload_supervisee.then(function(supervisee_user) {
           var permissions = supervisee_user.get('permissions');
           if(permissions && permissions.supervise) {
-            var stamp = (this.get('sync_stamps') || {})[supervisee_user.get('id')];
-            if(this.get('sync_progress')) {
-              var stamps = this.get('sync_progress.sync_stamps') || {};
+            var stamp = (_this.get('sync_stamps') || {})[supervisee_user.get('id')];
+            if(_this.get('sync_progress')) {
+              var stamps = _this.get('sync_progress.sync_stamps') || {};
               stamps[supervisee_user.get('id')] = supervisee_user.get('sync_stamp');
-              this.set('sync_progress.sync_stamps', stamps);
+              _this.set('sync_progress.sync_stamps', stamps);
             }
 
             if(stamp >= supervisee_user.get('sync_stamp')) {
               console.log('supervisee already synced to current: ' + supervisee.user_name + " " + supervisee.id);
-              return this.sync(supervisee.id, false, true, 'supervisee-synced');  
+              return _this.sync(supervisee.id, false, true, 'supervisee-synced');
             } else {
               console.log('syncing supervisee: ' + supervisee.user_name + " " + supervisee.id);
-              return this.sync(supervisee.id, force, true, 'supervisee');  
+              return _this.sync(supervisee.id, force, true, 'supervisee');
             }
-            
+
           } else {
             return RSVP.reject({error: "supervise permission missing"});
           }
@@ -2669,6 +2677,7 @@ var persistence = Service.extend({
     });
   },
   fetch_inbox: function(user, force) {
+    var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       var url = '/api/v1/users/' + user.get('id') + '/alerts';
       var parse_before_resolve = function(object) {
@@ -2683,7 +2692,7 @@ var persistence = Service.extend({
         resolve(object);
       };
       var fallback = function() {
-        this.find('dataCache', url).then(function(data) {
+        _this.find('dataCache', url).then(function(data) {
           data.object.url = data.url;
           parse_before_resolve(data.object);
         }, function(err) {
@@ -2697,21 +2706,21 @@ var persistence = Service.extend({
           content_type: 'json/object',
           object: force.persist
         };
-        this.find('dataCache', url).then(null, function() { RSVP.resolve({object: {}}); }).then(function(data) {
+        _this.find('dataCache', url).then(null, function() { RSVP.resolve({object: {}}); }).then(function(data) {
           if(data && data.object && data.object.clears) {
             object.object.clears = (object.object.clears || []).concat(data.object.clears || []).uniq();
           }
           if(data && data.object && data.object.alerts) {
             object.object.alerts = (object.object.alerts || []).concat(data.object.alerts || []).uniq();
           }
-          this.store('dataCache', object, object.url).then(function() {
+          _this.store('dataCache', object, object.url).then(function() {
             parse_before_resolve(object.object);
           }, function(err) { reject(err); });
         });
         return;
       }
-      if(this.get('online') || force) {
-        var _this_find_url = this;
+      if(_this.get('online') || force) {
+        var _this_find_url = _this;
         _this_find_url.ajax(url, {type: 'GET'}).then(function(res) {
           var object = {
             url: url,
@@ -2719,14 +2728,14 @@ var persistence = Service.extend({
             content_type: 'json/object',
             object: res
           };
-          this.find('dataCache', url).then(null, function() { RSVP.resolve({object: {}}); }).then(function(data) {
+          _this.find('dataCache', url).then(null, function() { RSVP.resolve({object: {}}); }).then(function(data) {
             if(data && data.object && data.object.clears) {
               object.object.clears = (object.object.clears || []).concat(data.object.clears || []).uniq();
             }
             if(data && data.object && data.object.alerts) {
               object.object.alerts = (object.object.alerts || []).concat(data.object.alerts || []).uniq();
             }
-            this.store('dataCache', object, object.url).then(function() {
+            _this.store('dataCache', object, object.url).then(function() {
               parse_before_resolve(object.object);
             }, function(err) { reject(err); });
           });
@@ -2836,10 +2845,11 @@ var persistence = Service.extend({
     return defer.promise;
   },
   next_sync_action: function() {
-    persistence.sync_actions = persistence.sync_actions || [];
-    var action = persistence.sync_actions.shift();
+    var _this = this;
+    _this.sync_actions = _this.sync_actions || [];
+    var action = _this.sync_actions.shift();
     var next = function() {
-      runLater(function() { this.next_sync_action(); });
+      runLater(function() { _this.next_sync_action(); });
     };
     if(action && action.callback) {
       var start = (new Date()).getTime();
@@ -2863,13 +2873,14 @@ var persistence = Service.extend({
         next();
       }
     } else {
-      if(persistence.syncing_action_watchers) {
-        persistence.syncing_action_watchers--;
+      if(_this.syncing_action_watchers) {
+        _this.syncing_action_watchers--;
       }
     }
   },
   sync_boards: function(user, importantIds, synced_boards, force) {
-    var sync_id = this.get('sync_progress.sync_id') || true;
+    var _this = this;
+    var sync_id = _this.get('sync_progress.sync_id') || true;
     var full_set_revisions = {};
     var fresh_revisions = {};
     var board_errors = [];
@@ -2933,7 +2944,7 @@ var persistence = Service.extend({
                   }};
                   var board_record = LingoLinq.store.push(json_api);
                   lookups[brd.data.raw.id] = RSVP.resolve(board_record);
-                  lookups[brd.data.raw.key] = lookups[brd.data.raw.id]
+                  lookups[brd.data.raw.key] = lookups[brd.data.raw.id];
                   board_statuses.push({id: brd.data.raw.id, key: brd.data.raw.key, status: 'cached'});
                 }
               } else {
@@ -3046,7 +3057,7 @@ var persistence = Service.extend({
       });
     });
 
-    var sync_all_boards = get_sounds.then(function() {
+    var sync_all_boards = get_sounds.then((function(soundRes, _sync) {
       return new RSVP.Promise(function(resolve, reject) {
         var to_visit_boards = [];
         if(user.get('preferences.home_board.id')) {
@@ -3081,24 +3092,24 @@ var persistence = Service.extend({
         var checked_linked_boards = {};
 
         var visited_boards = [];
-        if(!this.get('sync_progress.progress_for')) {
-          this.set('sync_progress.progress_for', {});
-          this.get('sync_progress.progress_for')[user.get('id')] = {
+        if(!_sync.get('sync_progress.progress_for')) {
+          _sync.set('sync_progress.progress_for', {});
+          _sync.get('sync_progress.progress_for')[user.get('id')] = {
             visited: visited_boards.length,
             to_visit: to_visit_boards.length,
             board_errors: board_errors
           };
-          this.update_sync_progress();
+          _sync.update_sync_progress();
         }
         var board_load_promises = [];
         var dead_thread = false;
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
-          if(!this.get('sync_progress') || this.get('sync_progress.canceled')) {
+          if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
             defer.reject({error: 'canceled'});
             return;
           }
-          var p_for = this.get('sync_progress.progress_for');
+          var p_for = _sync.get('sync_progress.progress_for');
           if(p_for) {
             p_for[user.get('id')] = {
               visited: visited_boards.length,
@@ -3106,7 +3117,7 @@ var persistence = Service.extend({
               board_errors: board_errors
             };
           }
-          this.update_sync_progress();
+          _sync.update_sync_progress();
           var next = to_visit_boards.shift();
           var id = next && (next.id || next.key);
           var key = next && next.key;
@@ -3116,7 +3127,7 @@ var persistence = Service.extend({
 
             // check if there's a local copy that's already been loaded
             
-            var find_board = this.time_promise(this.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
+            var find_board = _sync.time_promise(_sync.board_lookup(id, safely_cached_boards, fresh_revisions, sync_id, allow_any_cached), 'syncing board:' + id);
 
             find_board.then(function(board) {
               local_full_set_revision = board.get('local_full_set_revision');
@@ -3127,7 +3138,7 @@ var persistence = Service.extend({
               // force a reload of the buttonset if the board changed
               if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board')) {
                 // Confirm if the button set is stored locally
-                this.find('buttonset', board.get('id')).then(function(bs) {
+                _sync.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
                     board.load_button_set(!safely_cached);
                   }
@@ -3150,10 +3161,10 @@ var persistence = Service.extend({
               synced_boards.push(board);
               visited_boards.push(id);
 
-              if(LingoLinq.remote_url(board.get('icon_url_with_fallback')) && !this.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
+              if(LingoLinq.remote_url(board.get('icon_url_with_fallback')) && !_sync.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
                 // store_url already has a queue, we don't need to fill the sync queue with these
                 content_promises++;
-                visited_board_promises.push(this.store_url(board.get('icon_url_with_fallback'), 'image', false, force, sync_id).then(null, function() {
+                visited_board_promises.push(_sync.store_url(board.get('icon_url_with_fallback'), 'image', false, force, sync_id).then(null, function() {
                   console.log("icon url failed to sync, " + board.get('icon_url_with_fallback'));
                   return RSVP.resolve();
                 }));
@@ -3167,9 +3178,9 @@ var persistence = Service.extend({
                 }));
                 importantIds.push("dataCache_" + board.get('background.image'));
               }
-              if(LingoLinq.remote_url(board.get('background.prompt.sound')) && !this.store_url_quick_check(board.get('background.prompt.sound'), 'sound')) {
+              if(LingoLinq.remote_url(board.get('background.prompt.sound')) && !_sync.store_url_quick_check(board.get('background.prompt.sound'), 'sound')) {
                 content_promises++;
-                visited_board_promises.push(this.store_url(board.get('background.prompt.sound'), 'sound', true, force, sync_id).then(null, function() {
+                visited_board_promises.push(_sync.store_url(board.get('background.prompt.sound'), 'sound', true, force, sync_id).then(null, function() {
                   console.log("bg sound url failed to sync, " + board.get('background.prompt.sound'));
                   return RSVP.resolve();
                 }));
@@ -3208,10 +3219,10 @@ var persistence = Service.extend({
                     personalized = LingoLinq.Image.personalize_url(image.url, user.get('user_token'), user.get('preferences.skin'));
                   }
 
-                  if(!this.store_url_quick_check(personalized, 'image')) {
+                  if(!_sync.store_url_quick_check(personalized, 'image')) {
                     content_promises++;
-                    visited_board_promises.push(//this.queue_sync_action('store_button_image', sync_id, function() {
-                      /*return*/ this.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function() {
+                    visited_board_promises.push(//_sync.queue_sync_action('store_button_image', sync_id, function() {
+                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function() {
                         return RSVP.reject({error: "button image failed to sync, " + image.url});
                       })
                   /*})*/);
@@ -3450,24 +3461,25 @@ var persistence = Service.extend({
           reject.apply(null, arguments);
         });
       });
-    });
+    }));
 
     return sync_all_boards.then(function(full_set_revisions) {
-      return this.store('settings', full_set_revisions, 'synced_full_set_revisions');
+      return _this.store('settings', full_set_revisions, 'synced_full_set_revisions');
     });
   },
   sync_user: function(user, importantIds) {
+    var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       importantIds.push('user_' + user.get('id'));
-      var lookup = this.time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
+      var lookup = _this.time_promise(user.get('fresh') ? RSVP.resolve(user) : user.reload(), "getting latest user details", 5000);
       var find_user = lookup.then(function(u) {
-        if(this.get('sync_progress.root_user') == u.get('id')) {
-          this.set('sync_progress.last_sync_stamp', u.get('sync_stamp'));
+        if(_this.get('sync_progress.root_user') == u.get('id')) {
+          _this.set('sync_progress.last_sync_stamp', u.get('sync_stamp'));
         }
-        if(this.get('sync_progress')) {
-          var stamps = this.get('sync_progress.sync_stamps') || {};
+        if(_this.get('sync_progress')) {
+          var stamps = _this.get('sync_progress.sync_stamps') || {};
           stamps[u.get('id')] = u.get('sync_stamp');
-          this.set('sync_progress.sync_stamps', stamps);             
+          _this.set('sync_progress.sync_stamps', stamps);
         }
 
         return RSVP.resolve(u);
@@ -3478,15 +3490,15 @@ var persistence = Service.extend({
       // also download the latest avatar as a data uri
       var save_avatar = find_user.then(function(user) {
         // is this also a user object? does user = u work??
-        if(this.get('sync_progress.root_user') == user.get('id')) {
+        if(_this.get('sync_progress.root_user') == user.get('id')) {
           if(user.get('preferences.device') && !user.get('preferences.device.ever_synced') && user.save) {
             user.set('preferences.device.ever_synced', true);
             user.save();
           }
         }
         var url = user.get('avatar_url');
-        if(url && !this.store_url_quick_check(url, 'image')) {
-          return this.store_url_now(url, 'image');
+        if(url && !_this.store_url_quick_check(url, 'image')) {
+          return _this.store_url_now(url, 'image');
         } else {
           return RSVP.resolve({});
         }
@@ -3507,9 +3519,10 @@ var persistence = Service.extend({
     });
   },
   sync_changed: function() {
+    var _this = this;
     var sync_id = this.get('sync_progress.sync_id');
     return new RSVP.Promise(function(resolve, reject) {
-      var changed = this.find_changed().then(null, function() {
+      var changed = _this.find_changed().then(null, function() {
         reject({error: "failed to retrieve list of changed records"});
       });
 
@@ -3520,11 +3533,11 @@ var persistence = Service.extend({
         // TODO: need to better handle errors with updates and deletes
         list.forEach(function(item) {
           if(item.store == 'deletion') {
-            var promise = this.queue_sync_action('find_deletion', sync_id, function() {
+            var promise = _this.queue_sync_action('find_deletion', sync_id, function() {
               return LingoLinq.store.findRecord(item.data.store, item.data.id).then(function(res) {
                 res.deleteRecord();
                 return res.save().then(function() {
-                  return this.remove(item.store, item.data);
+                  return _this.remove(item.store, item.data);
                 }, function() { debugger; });
               }, function() {
                 // if it's already deleted, there's nothing for us to do
@@ -3542,7 +3555,7 @@ var persistence = Service.extend({
               object.id = null;
               find_record = RSVP.resolve(LingoLinq.store.createRecord(item.store, object));
             } else {
-              find_record = this.queue_sync_action('find_changed_record', sync_id, function() {
+              find_record = _this.queue_sync_action('find_changed_record', sync_id, function() {
                 return LingoLinq.store.findRecord(item.store, object.id).then(null, function() {
                   return RSVP.reject({error: "failed to retrieve " + item.store + " " + object.id + "for updating"});
                 });
@@ -3554,7 +3567,7 @@ var persistence = Service.extend({
               if(!record.get('id') && (item.store == 'image' || item.store == 'sound')) {
                 record.set('data_url', object.data_url);
                 return contentGrabbers.save_record(record).then(function() {
-                  return this.time_promise(record.reload(), "reload changed record", 10000);
+                  return _this.time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
                 return record.save();
@@ -3567,7 +3580,7 @@ var persistence = Service.extend({
               }
               if(tmp_id) {
                 tmp_id_map[tmp_id] = record;
-                return this.remove(item.store, {}, tmp_id);
+                return _this.remove(item.store, {}, tmp_id);
               }
               return RSVP.resolve();
             }, function() {
@@ -4468,7 +4481,7 @@ persistence.DSExtend = {
   },
   createRecord: function(store, type, obj) {
     var _this = this;
-    if(this.get('online')) {
+    if(_this.get('online')) {
       return new RSVP.Promise(function(create_resolve, create_reject) {
         var tmp_id = null, tmp_key = null;
   //       if(obj.id && obj.id.match(/^tmp[_\/]/)) {
@@ -4482,9 +4495,9 @@ persistence.DSExtend = {
           if(obj.record && obj.record.tmp_key) {
             record[type.modelName].tmp_key = obj.record.tmp_key;
           }
-          this.store(type.modelName, record).then(function() {
+          _this.store(type.modelName, record).then(function() {
             if(tmp_id) {
-              this.remove('board', {}, tmp_id).then(function() {
+              _this.remove('board', {}, tmp_id).then(function() {
                 create_resolve(record);
               }, function() {
                 create_reject({error: "failed to remove temporary record"});
@@ -4493,7 +4506,7 @@ persistence.DSExtend = {
               create_resolve(record);
             }
           }, function() {
-            if(capabilities.installed_app || this.get('auto_sync')) {
+            if(capabilities.installed_app || _this.get('auto_sync')) {
               create_reject({error: "failed to create in local db"});
             } else {
               create_resolve(record);
@@ -4504,26 +4517,25 @@ persistence.DSExtend = {
         });
       });
     } else {
-      var record = this.convert_model_to_json(store, type.modelName, obj);
+      var record = _this.convert_model_to_json(store, type.modelName, obj);
       record[type.modelName].changed = true;
       if(record[type.modelName].key && record[type.modelName].key.match(/^tmp_/)) {
         record[type.modelName].tmp_key = record[type.modelName].key;
       }
       if(record[type.modelName].id.match(/^tmp/) && ['board', 'image', 'sound'].indexOf(type.modelName) == -1) {
-        // only certain record types can be created offline
-        return this.offline_reject();
+        return _this.offline_reject();
       }
-      return this.store(type.modelName, record).then(function() {
+      return _this.store(type.modelName, record).then(function() {
         return RSVP.resolve(record);
       }, function() {
-        return this.offline_reject();
+        return _this.offline_reject();
       });
     }
   },
   updateRecord: function(store, type, obj) {
     var _this = this;
     return new RSVP.Promise(function(update_resolve, update_reject) {
-      if(this.get('online')) {      
+      if(_this.get('online')) {
         if(obj.id.match(/^tmp[_\/]/)) {
           _this.createRecord(store, type, obj).then(function(res) {
             update_resolve(res);
@@ -4532,7 +4544,7 @@ persistence.DSExtend = {
           });
         } else {
           _this._super(store, type, obj).then(function(record) {
-            this.store(type.modelName, record).then(function() {
+            _this.store(type.modelName, record).then(function() {
               update_resolve(record);
             }, function() {
               update_reject({error: "failed to update to local db"});
@@ -4540,11 +4552,11 @@ persistence.DSExtend = {
           }, function(err) {
             update_reject(err);
           });
-        }  
+        }
       } else {
-        var record = this.convert_model_to_json(store, type.modelName, obj);
+        var record = _this.convert_model_to_json(store, type.modelName, obj);
         record[type.modelName].changed = true;
-        this.store(type.modelName, record).then(function() {
+        _this.store(type.modelName, record).then(function() {
           update_resolve(record);
         }, function() {
           update_reject({offline: true, error: "not online"});
@@ -4556,9 +4568,9 @@ persistence.DSExtend = {
     // need raw object
     var _this = this;
     return new RSVP.Promise(function(delete_resolve, delete_reject) {
-      if(this.get('online')) {
+      if(_this.get('online')) {
         _this._super(store, type, obj).then(function(record) {
-          this.remove(type.modelName, record).then(function() {
+          _this.remove(type.modelName, record).then(function() {
             delete_resolve(record);
           }, function() {
             delete_reject({error: "failed to delete in local db"});
@@ -4567,8 +4579,8 @@ persistence.DSExtend = {
           delete_reject(err);
         });
       } else {
-        var record = this.convert_model_to_json(store, type.modelName, obj);
-        this.remove(type.modelName, record, null, true).then(function() {
+        var record = _this.convert_model_to_json(store, type.modelName, obj);
+        _this.remove(type.modelName, record, null, true).then(function() {
           delete_resolve(record);
         }, function(err) {
           delete_reject(err);

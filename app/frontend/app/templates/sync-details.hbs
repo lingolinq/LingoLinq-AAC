@@ -5,12 +5,12 @@
   </div>
   <div class="modal-body">
     <div style='float: right;'>
-      {{#if this.persistence.syncing}}
+      {{#if (persistence-value 'syncing')}}
         <button class='btn btn-lg btn-default' {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
       {{/if}}
       <button class='btn btn-lg btn-default' {{action "sync"}}>
         <span class={{this.refreshing_class}}></span>
-        {{#if this.persistence.syncing}}
+        {{#if (persistence-value 'syncing')}}
           {{t "Syncing..." key="syncing_ellipsis"}}
         {{else}}
           {{t "Sync Now" key="sync_now"}}
@@ -19,29 +19,29 @@
     </div>
     <h3>
       <span>
-      {{#if this.persistence.sync_succeeded}}
+      {{#if (persistence-value 'sync_succeeded')}}
         {{#if this.session.invalid_token}}
           {{t "Please re-login and sync again" key="please_resync"}}
         {{else}}
           {{t "Sync Done!" key="sync_done"}}
         {{/if}}
-      {{else if this.persistence.sync_finished}}
+      {{else if (persistence-value 'sync_finished')}}
         {{t "Done with " key="done_with"}}
-        {{t "error" key="n_errors_lower" count=this.persistence.sync_errors}}
+        {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
         {{t "(see log)" key="see_log"}}
       {{else}}
-        {{#if this.persistence.sync_failed}}
+        {{#if (persistence-value 'sync_failed')}}
           {{t "Sync Failed, see details below" key="sync_failed"}}
-          {{#if this.persistence.sync_status_error}}
-            <span title={{this.persistence.sync_status_error}}>{{this.persistence.sync_status_error}}</span>
+          {{#if (persistence-value 'sync_status_error')}}
+            <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
           {{/if}}
         {{else}}
-          {{#if this.persistence.syncing}}
+          {{#if (persistence-value 'syncing')}}
             {{t "Syncing..." key="syncing_ellipsis"}}
-            {{#if this.persistence.sync_progress}}
-              {{#if this.persistence.sync_progress.total}}
-                {{this.persistence.sync_progress.visited}} /
-                {{t "board" key="communication_set_board" count=this.persistence.sync_progress.total}}
+            {{#if (persistence-value 'sync_progress')}}
+              {{#if (persistence-value 'sync_progress.total')}}
+                {{persistence-value 'sync_progress.visited'}} /
+                {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
               {{else}}
                 {{t "initializing..." key="initializing_lower"}}
               {{/if}}

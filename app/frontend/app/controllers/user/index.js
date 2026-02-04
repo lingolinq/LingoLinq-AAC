@@ -289,6 +289,7 @@ export default Controller.extend({
     this.set('show_all_boards', true);
   },
   reload_logs: observer('persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -440,6 +441,7 @@ export default Controller.extend({
     }
   }),
   update_selected: observer('selected', 'persistence.online', 'current_tag', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var list_id = Math.random().toString();
     this.set('list_id', list_id);

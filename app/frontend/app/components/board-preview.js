@@ -50,11 +50,12 @@ export default Component.extend({
       this.appState.controller.transitionToRoute('board', this.get('model.key'));
     },
     copy: function() {
-      var oldBoard = this.get('model');
+      var _this = this;
+      var oldBoard = _this.get('model');
       modal.close_board_preview();
       modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
         decision = decision || {};
-        decision.user = decision.user || this.appState.get('currentUser');
+        decision.user = decision.user || _this.appState.get('currentUser');
         decision.action = decision.action || "nothing";
         oldBoard.set('copy_name', decision.board_name);
         oldBoard.set('copy_prefix', decision.board_prefix);

@@ -169,11 +169,11 @@
         <button {{action "show_badge"}} class='btn btn-lg btn-default'>{{t "Back to Badge" key="back_to_badge"}}</button>
       {{/if}}
     {{else}}
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         <button {{action "user_badges"}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-flag'></span> {{t "Goals and Badges" key="see_user_goals_and_badges"}}</button>
       {{/if}}
     {{/if}}
-    {{#if this.persistence.online}}
+    {{#if (persistence-online)}}
       {{#unless this.app_state.speak_mode}}
         <button {{action "new_goal"}} class='btn btn-lg btn-default'>{{t "New Goal" key="new_goal"}}</button>
       {{/unless}}

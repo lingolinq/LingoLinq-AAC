@@ -253,7 +253,7 @@
                   By registering or using the product, you are agreeing that you have read and understood the <a href="/terms">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
                 </label>
               </div>
-              {{#if this.persistence.online}}
+              {{#if (persistence-online)}}
                 <button type="submit" class="btn btn-primary" disabled={{this.registering.saving}} style="width: 100px;">
                   {{#if this.registering.initializing}}
                     {{t "Processing..." key="processing"}}

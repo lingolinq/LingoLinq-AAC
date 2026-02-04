@@ -188,7 +188,7 @@
           {{t "Back" key="back"}}
         </button>
       {{/if}}
-      <button class='btn btn-lg btn-default' {{action "next" }} style={{if this.pages.last_page "visibility: hidden;" ""}}>
+      <button class='btn btn-lg btn-default' {{action "next" }} style={{safe-style (if this.pages.last_page "visibility: hidden;" "")}}>
         {{t "Next" key="next"}}
         <span class='glyphicon glyphicon-chevron-right'></span>
       </button>

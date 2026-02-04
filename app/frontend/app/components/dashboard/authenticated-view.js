@@ -41,8 +41,13 @@ export default Component.extend({
     }
   ),
   needs_sync: computed('persistence.last_sync_at', function() {
+    if (!this || typeof this.get !== 'function') { return false; }
+    var p = null;
+    try { p = this.get('persistence'); } catch (e) { }
+    if (!p && typeof window !== 'undefined') { p = window.persistence; }
+    if(!p || typeof p.get !== 'function') { return false; }
     var now = (new Date()).getTime() / 1000;
-    var lastSync = this.persistence.get('last_sync_at') || 0;
+    var lastSync = p.get('last_sync_at') || 0;
     return (now - lastSync) > (7 * 24 * 60 * 60);
   }),
   blank_slate: computed(
@@ -86,9 +91,14 @@ export default Component.extend({
     return htmlSafe("width: " + this.get('blank_slate_percent') + "%;");
   }),
   checkForBlankSlate: observer('persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
+    var persistenceService = null;
+    try { persistenceService = this.get('persistence') || this.persistence; } catch (e) { }
+    if (!persistenceService && typeof window !== 'undefined') { persistenceService = window.persistence; }
+    if(!persistenceService || typeof persistenceService.find_recent !== 'function') { return; }
     var _this = this;
     if(this.get('isGenerated')) { return; } // Ember testing check equivalent?
-    this.persistence.find_recent('board').then(function(boards) {
+    persistenceService.find_recent('board').then(function(boards) {
       if(boards && boards.slice) {
         boards = boards.slice(0, 12);
       }
@@ -96,7 +106,8 @@ export default Component.extend({
       if(_this.get('homeBoards') == [] && _this.get('popularBoards') == []) {
         _this.set('showOffline', true);
       } else {
-        if(!_this.persistence.get('online')) {
+        var p = _this.get && _this.get('persistence');
+        if(!p || !p.get || !p.get('online')) {
           _this.set('showOffline', true);
         } else {
           _this.set('showOffline', false);
@@ -131,7 +142,11 @@ export default Component.extend({
   }),
   refreshing_class: computed('persistence.syncing', function() {
     var res = "glyphicon glyphicon-refresh ";
-    if(this.persistence.get('syncing')) {
+    if (!this || typeof this.get !== 'function') { return res; }
+    var p = null;
+    try { p = this.get('persistence'); } catch (e) { }
+    if (!p && typeof window !== 'undefined') { p = window.persistence; }
+    if(p && typeof p.get === 'function' && p.get('syncing')) {
       res = res + "spinning ";
     }
     return res;
@@ -201,8 +216,12 @@ export default Component.extend({
     }
   ),
   update_selected: observer('selected', 'persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
+    var persistenceService = null;
+    try { persistenceService = this.get('persistence') || this.persistence; } catch (e) { }
+    if (!persistenceService && typeof window !== 'undefined') { persistenceService = window.persistence; }
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var _this = this;
-    if(!this.persistence.get('online')) { return; }
     var last_browse = this.stashes.get('last_index_browse');
     var default_index = 2;
     // If a user already has a home board they're not going to care about popular boards,
@@ -222,12 +241,15 @@ export default Component.extend({
           _this.stashes.persist('last_index_browse', key);
         }
         if(key == 'recent') {
-          _this.persistence.find_recent('board').then(function(boards) {
+          var p = _this.get && _this.get('persistence');
+          if(p && typeof p.find_recent === 'function') {
+            p.find_recent('board').then(function(boards) {
             if(boards && boards.slice) {
               boards = boards.slice(0, 12);
             }
             _this.set('recentOfflineBoards', boards);
           });
+          }
         } else {
           var list = 'homeBoards';
           var locale = ((i18n.langs || {}).preferred || window.navigator.language || 'en').split(/-/)[0];
@@ -262,11 +284,15 @@ export default Component.extend({
     return this.appState.get('currentUser.preferences.logging') && !this.appState.get('currentUser.supporter_role') && !this.appState.get('currentUser.modeling_only') && !session.get('modeling_session');
   }),
   reload_logs: observer('model.id', 'persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var model = this.get('model');
     var _this = this;
+    var persistenceService = null;
+    try { persistenceService = this.get('persistence') || this.persistence; } catch (e) { }
+    if (!persistenceService && typeof window !== 'undefined') { persistenceService = window.persistence; }
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     var model_id = model && model.get('id');
-    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && this.persistence.get('online')) {
+    if(model && model_id && model_id != 'cache' && !model_id.toString().match(/^cache:/) && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
       var controller = this;
       var find_args = {user_id: model.get('id'), type: 'session'};
       if(model.get('supporter_role')) {
@@ -541,12 +567,14 @@ export default Component.extend({
       }.bind(this));
     },
     sync: function() {
-      if(!this.persistence.get('online') || this.persistence.get('syncing')) {
+      var p = this.get && this.get('persistence');
+      if(!p || typeof p.get !== 'function') { return; }
+      if(!p.get('online') || p.get('syncing')) {
         return;
       }
-      if(!this.persistence.get('syncing')) {
+      if(!p.get('syncing')) {
         console.debug('syncing because manually triggered');
-        this.persistence.sync('self', true).then(null, function() { });
+        p.sync('self', true).then(null, function() { });
       } else {
         this.send('sync_details');
       }
@@ -628,11 +656,12 @@ export default Component.extend({
       }
     },
     sync_details: function() {
-      if(!this.persistence.get('online')) {
+      var p = (this && (this.get && this.get('persistence') || this.persistence)) || (typeof window !== 'undefined' && window.persistence);
+      if(!p || !p.get || !p.get('online')) {
         modal.open('sync-details', {details: []});
         return;
       }
-      var list = ([].concat(this.persistence.get('sync_log') || [])).reverse();
+      var list = ([].concat(p.get('sync_log') || [])).reverse();
       modal.open('sync-details', {details: list});
     },
     stats: function(user_name) {

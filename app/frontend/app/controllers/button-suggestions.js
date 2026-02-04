@@ -58,8 +58,9 @@ export default modal.ModalController.extend({
   },
   on_board: function(opts) {
     var found = false;
-    editManager.controller.ordered_buttons.forEach(function(row) {
-      row.forEach(function(button) {
+    var ordered_buttons = editManager.controller.get('ordered_buttons') || [];
+    ordered_buttons.forEach(function(row) {
+      (row || []).forEach(function(button) {
         if(opts.label && button.label && button.label.toLowerCase() == opts.label.toLowerCase()) {
           found = true;
         } else if(opts.sound_id && button.sound_id == opts.sound_id) {
@@ -101,8 +102,9 @@ export default modal.ModalController.extend({
         if(sup.premium) { _this.set('premium_ideas', true); }
       });
     }
-    user = user || LingoLinq.store.peekRecord('user', _this.get('for_user_id'));
-    user = user || (app_state.get('quick_users') || {})[_this.get('for_user_id')];
+    var for_user_id = _this.get('for_user_id');
+    user = user || (for_user_id ? LingoLinq.store.peekRecord('user', for_user_id) : null);
+    user = user || (for_user_id ? (app_state.get('quick_users') || {})[for_user_id] : null);
     _this.set('user', user);
   }),
   update_list: observer('list_type', 'user', function() {

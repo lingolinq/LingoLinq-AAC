@@ -101,7 +101,7 @@
               By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
             </label>
           </div>
-          {{#if this.persistence.online}}
+          {{#if (persistence-online)}}
             <button type="submit" disabled={{this.registering.saving}} class="btn btn-primary">
               {{#if this.registering.initializing}}
                 {{t "Handling Start Code..." key="processing_start_code"}}

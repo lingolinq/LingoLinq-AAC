@@ -33,7 +33,7 @@
         {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
         {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
       </div>
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         {{#unless this.app_state.no_linky}}
           <div class='col-sm-2'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
@@ -83,7 +83,7 @@
           {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
         </li>
         {{#unless this.app_state.no_linky}}
-          {{#if this.persistence.online}}
+          {{#if (persistence-online)}}
             <li>
               <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
               <span class="icons" style="padding-left: 17px;">

@@ -1,4 +1,5 @@
 <div id="within_ember" class={{this.background_class}} style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="audio"></div>
 <header class={{this.header_class}}>
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
@@ -237,7 +238,7 @@
       <div id='org_name'>{{this.app_state.currentUser.single_org.name}}</div>
     {{/if}}
     {{#if this.app_state.empty_header}}
-      {{#if this.persistence.online}}
+      {{#if (persistence-online)}}
         {{#unless this.app_state.super_no_linky}}
           {{#if this.allow_search}}
             <form id="header_search">
@@ -675,7 +676,7 @@
   {{/if}}
     <span id="identity" class={{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}}>
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
-        <a class={{if this.persistence.online "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
+        <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
             {{#if this.stashes.logging_enabled}}
               {{#unless this.stashes.logging_paused_at}}
@@ -698,12 +699,12 @@
               <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
             {{else if this.stashes.logging_paused_at }}
               <span class="label label-primary unread" style='padding: 3px;'><span class='glyphicon glyphicon-pause'></span></span>
-            {{else if this.persistence.syncing}}
+            {{else if (persistence-value 'syncing')}}
               <span class='spinning unread'>
                 <span class="glyphicon glyphicon-refresh" style='z-index: 2;'></span>
                 <span class="glyphicon glyphicon-refresh" style='color: #fff; position: absolute; left: 2px; top: 2px;'></span>
               </span>
-            {{else if this.persistence.app_needs_update}}
+            {{else if (persistence-value 'app_needs_update')}}
               <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
             {{else if this.app_state.currentUser.unread_messages}}
               {{#unless this.app_state.speak_mode}}
@@ -811,7 +812,7 @@
                 </a>
               </li>
             {{/if}}
-          {{else if this.persistence.app_needs_update}}
+          {{else if (persistence-value 'app_needs_update')}}
             <li role="presentation">
               <a href="#" {{action "confirm_update"}}>
                 <span class='label label-danger'>{{t "!" key="exclaim"}}</span>
@@ -837,7 +838,7 @@
                   {{#link-to "user" this.app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
                 </li>
               {{/if}}
-              {{#if this.persistence.syncing}}
+              {{#if (persistence-value 'syncing')}}
                 <li role="presentation" style='display: none;'>
                   <a href="#" {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</a>
                 </li>
@@ -856,7 +857,7 @@
                 {{#unless this.app_state.currentUser.preferences.prevent_hide_buttons}}
                   {{#unless this.app_state.eval_mode}}
                     {{#if this.no_hidden_buttons}}
-                      <li><a href="#" {{action "toggle_all_buttons"}} style={{if this.session.isAuthenticated "margin-top: -10px; font-size: 14px;" "font-size: 14px;"}}>
+                      <li><a href="#" {{action "toggle_all_buttons"}} style={{this.no_hidden_buttons_link_style}}>
                         <span class="glyphicon glyphicon-apple"></span>
                         {{t "No Hidden Buttons" key="no_hidden_buttons"}}
                       </a></li>
@@ -1022,7 +1023,7 @@
           {{board.name}}
         </a>
       {{else}}
-        <a href={{board.key}} class='sidebar_item' {{action "jump" board.key "sidebar" board}} data-key={{board.key}}>
+        <a href="#" class='sidebar_item' {{action "jump" board.key "sidebar" board}} data-key={{board.key}}>
           {{#if board.home_lock}}
             <span class="glyphicon glyphicon-home"></span>
           {{/if}}
@@ -1066,6 +1067,7 @@
 {{outlet "highlight"}}
 {{outlet "highlight-secondary"}}
 {{outlet "board-preview"}}
+<FlashOutlet />
 {{outlet "flash-message"}}
 {{#if this.setup_footer}}
   <div id='setup_footer'>

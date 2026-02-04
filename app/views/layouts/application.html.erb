@@ -33,7 +33,7 @@
     <meta property="og:url" content="<%= @meta_record.link %>" />
     <meta property="og:image" content="<%= @meta_record.large_image || @meta_record.image %>" />
     <meta property="og:description" content="<%= @meta_record.summary %>" />
-    <meta property="og:site_name" content="<%= @domain_overrides['settings']['a[[_name'] %>" />
+    <meta property="og:site_name" content="<%= @domain_overrides['settings']['app_name'] %>" />
     <meta property="article:published_time" content="<%= @meta_record.created %>" />
     <meta property="article:modified_time" content="<%= @meta_record.updated %>" />
     <!-- TODO 
@@ -49,7 +49,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="<% app_name %>">
+  <meta name="apple-mobile-web-app-title" content="<%= app_name %>">
   <%= csrf_meta_tags %>
   <!-- Latest compiled and minified CSS -->
 
