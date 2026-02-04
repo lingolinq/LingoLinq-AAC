@@ -332,3 +332,103 @@ task "extras:mobile" => :environment do
     end
   end
 end
+
+# ============================================================
+# Vocabulary Organization Tasks (Serialized Column Safe)
+# ============================================================
+
+task "extras:list_board_names" => :environment do
+  puts "Listing public board names (limited):"
+
+  Board.where(public: true)
+       .order("id ASC")
+       .limit(200)
+       .pluck(:id, :key, :public)
+       .each do |id, key, pub|
+    board = Board.find(id)
+    puts "#{id}: #{board.settings['name']} (key: #{key})"
+  end
+
+  puts "\nDone."
+end
+
+task "extras:fix_vocabulary_organization" => :environment do
+  vocabulary_targets = [
+    { search: 'Quick Core 24', full: 'Quick Core 24' },
+    { search: 'Quick Core 40', full: 'Quick Core 40' },
+    { search: 'Quick Core 60', full: 'Quick Core 60' },
+    { search: 'Quick Core 84', full: 'Quick Core 84' },
+    { search: 'Quick Core 112', full: 'Quick Core 112' },
+    { search: 'Vocal Flair 24', full: 'Vocal Flair 24' },
+    { search: 'Vocal Flair 40', full: 'Vocal Flair 40' },
+    { search: 'Vocal Flair 60', full: 'Vocal Flair 60' },
+    { search: 'Vocal Flair 84', full: 'Vocal Flair 84' },
+    { search: 'Vocal Flair 112', full: 'Vocal Flair 112' },
+    { search: 'Vocal Flair 84 With Keyboard', full: 'Vocal Flair 84 With Keyboard' },
+    { search: 'CommuniKate Top', full: 'CommuniKate Top Page' },
+    { search: 'Project Core', full: 'Project Core-36 Universal Universal Core© 2017 by the CLDS' },
+    { search: 'Sequoia 15', full: 'Sequoia 15' }
+  ]
+
+  puts "Fixing vocabulary organization (Serialized Column Safe Mode)..."
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts ""
+
+  vocabulary_targets.each do |target|
+    name = target[:full]
+    term = target[:search]
+
+    begin
+      board = Board.where(public: true).find_each(batch_size: 100).find do |b|
+        b.settings['name'] == name
+      end
+
+      if !board
+        board = Board.where(public: true).find_each(batch_size: 100).find do |b|
+          b_name = b.settings['name'].to_s
+          b_name.include?(term) && !b_name.include?(' - ')
+        end
+      end
+
+      if board
+        actual_name = board.settings['name']
+        puts "Found main board: #{actual_name}"
+
+        board.public = true
+        board.settings['home_board'] = true
+        board.settings['unlisted'] = false
+        board.generate_stats
+        board.save_without_post_processing
+        puts "  ✓ Marked as home board"
+
+        prefix = actual_name.split(' - ')[0].split('©')[0].strip
+        puts "  Searching for topic boards with prefix: '#{prefix}'"
+
+        topic_count = 0
+        Board.where(public: true).where.not(id: board.id).find_each(batch_size: 50) do |b|
+          b_name = b.settings['name'].to_s
+          if b_name.start_with?("#{prefix} - ") || (b_name.include?("#{prefix} -") && b_name != prefix)
+            puts "    Unlisting: #{b_name}"
+            b.settings['unlisted'] = true
+            b.generate_stats
+            b.save_without_post_processing
+            topic_count += 1
+          end
+        end
+
+        puts "  ✓ Organized #{topic_count} topic boards"
+        puts ""
+      else
+        puts "⚠ Could not find main board for: #{term}"
+        puts ""
+      end
+    rescue => e
+      puts "❌ ERROR processing #{term}: #{e.message}"
+      puts e.backtrace.first(3)
+      puts ""
+    end
+  end
+
+  puts "Done!"
+end
