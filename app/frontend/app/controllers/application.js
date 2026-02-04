@@ -27,6 +27,7 @@ import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  router: service(),
   modalService: service('modal'),
   appState: service('app-state'),
   stashes: service('stashes'),

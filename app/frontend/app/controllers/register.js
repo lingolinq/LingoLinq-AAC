@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../app';
 import { computed, observer } from '@ember/object';
 import persistence from '../utils/persistence';
@@ -6,6 +7,8 @@ import persistence from '../utils/persistence';
 // TODO: Maybe a pretty img they can send/embed to share with users
 
 export default Controller.extend({
+  stashes: service('stashes'),
+  persistence: service('persistence'),
   title: "Register",
   queryParams: ['code', 'v'],
   registration_types: LingoLinq.registrationTypes,

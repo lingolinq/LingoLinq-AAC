@@ -973,7 +973,7 @@
               {{/unless}}
             {{else}}
               <li role="presentation">
-                <a href="#" {{action "authenticateSession"}}>{{t "Sign In" key="login"}}</a>
+                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
               </li>
               {{#unless this.app_state.no_linky}}
                 {{#if this.app_state.domain_settings.full_domain}}
