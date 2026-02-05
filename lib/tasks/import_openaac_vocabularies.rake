@@ -139,4 +139,125 @@ namespace :openaac do
     puts "\nTo import all: rake openaac:import_vocabularies"
     puts "\n"
   end
+
+  desc "Import a single OpenAAC vocabulary set"
+  task :import_single, [:vocab_name] => :environment do |t, args|
+    require 'open-uri'
+    require 'fileutils'
+    require Rails.root.join('lib', 'converters', 'cough_drop')
+
+    # Define all vocabulary sets
+    all_vocabularies = {
+      'quick-core-24' => { name: 'Quick Core 24', url: 'https://openboards.s3.amazonaws.com/examples/quick-core-24.obz' },
+      'quick-core-40' => { name: 'Quick Core 40', url: 'https://openboards.s3.amazonaws.com/examples/quick-core-40.obz' },
+      'quick-core-60' => { name: 'Quick Core 60', url: 'https://openboards.s3.amazonaws.com/examples/quick-core-60.obz' },
+      'quick-core-84' => { name: 'Quick Core 84', url: 'https://openboards.s3.amazonaws.com/examples/quick-core-84.obz' },
+      'quick-core-112' => { name: 'Quick Core 112', url: 'https://openboards.s3.amazonaws.com/examples/quick-core-112.obz' },
+      'vocal-flair-24' => { name: 'Vocal Flair 24', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-24.obz' },
+      'vocal-flair-40' => { name: 'Vocal Flair 40', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-40.obz' },
+      'vocal-flair-60' => { name: 'Vocal Flair 60', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-60.obz' },
+      'vocal-flair-84' => { name: 'Vocal Flair 84', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-84.obz' },
+      'vocal-flair-84-keyboard' => { name: 'Vocal Flair 84 With Keyboard', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-84-with-keyboard.obz' },
+      'vocal-flair-112' => { name: 'Vocal Flair 112', url: 'https://openboards.s3.amazonaws.com/examples/vocal-flair-112.obz' },
+      'communikate-20' => { name: 'CommuniKate 20', url: 'https://openboards.s3.amazonaws.com/examples/communikate-20.obz' },
+      'communikate-12' => { name: 'CommuniKate 12', url: 'https://openboards.s3.amazonaws.com/examples/ck12.obz' },
+      'project-core' => { name: 'Project Core', url: 'https://openboards.s3.amazonaws.com/examples/project-core.obf' },
+      'sequoia-15' => { name: 'Sequoia 15', url: 'https://openboards.s3.amazonaws.com/examples/sequoia-15.obz' }
+    }
+
+    vocab_key = args[:vocab_name]
+    unless vocab_key
+      puts "ERROR: Please specify a vocabulary name"
+      puts "Usage: rake openaac:import_single[quick-core-24]"
+      puts "\nAvailable vocabularies:"
+      all_vocabularies.keys.each { |k| puts "  - #{k}" }
+      exit 1
+    end
+
+    vocab = all_vocabularies[vocab_key]
+    unless vocab
+      puts "ERROR: Unknown vocabulary '#{vocab_key}'"
+      puts "\nAvailable vocabularies:"
+      all_vocabularies.keys.each { |k| puts "  - #{k}" }
+      exit 1
+    end
+
+    # Get or create admin user
+    admin_user = User.find_by(user_name: 'example') || User.first
+    unless admin_user
+      puts "ERROR: No admin user found. Please run db:seed first."
+      exit 1
+    end
+
+    # Create temp directory
+    temp_dir = Rails.root.join('tmp', 'vocab_import')
+    FileUtils.mkdir_p(temp_dir)
+
+    import_opts = {
+      'user' => admin_user,
+      'boards' => {}
+    }
+
+    puts "="*60
+    puts "Importing: #{vocab[:name]}"
+    puts "="*60
+
+    begin
+      # Download file
+      filename = File.basename(URI.parse(vocab[:url]).path)
+      file_path = temp_dir.join(filename)
+
+      puts "Downloading from #{vocab[:url]}..."
+      URI.open(vocab[:url]) do |remote_file|
+        File.open(file_path, 'wb') do |local_file|
+          local_file.write(remote_file.read)
+        end
+      end
+
+      file_size_mb = File.size(file_path) / 1024.0 / 1024.0
+      puts "Downloaded #{file_size_mb.round(2)} MB"
+
+      # Import
+      puts "Importing into database..."
+      if filename.end_with?('.obz')
+        result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
+        puts "✓ Successfully imported #{vocab[:name]}"
+        result.each_with_index do |board, idx|
+          if idx == 0
+            board.public = true
+            board.settings['home_board'] = true
+            board.settings['unlisted'] = false
+          else
+            board.public = true
+            board.settings['unlisted'] = true
+          end
+          board.generate_stats
+          board.save_without_post_processing
+        end
+        puts "  Imported #{result.length} boards"
+      elsif filename.end_with?('.obf')
+        result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
+        puts "✓ Successfully imported #{vocab[:name]}"
+        result.public = true
+        result.settings['home_board'] = true
+        result.settings['unlisted'] = false
+        result.generate_stats
+        result.save_without_post_processing
+        puts "  Imported 1 board"
+      end
+
+      # Clean up
+      File.delete(file_path) if File.exist?(file_path)
+
+    rescue => e
+      puts "✗ ERROR: #{e.message}"
+      puts e.backtrace.first(10).join("\n")
+      exit 1
+    end
+
+    puts "="*60
+    puts "Import complete!"
+    puts "="*60
+  end
+end
 end
