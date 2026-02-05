@@ -1,17 +1,17 @@
 /* global require, module */
 var EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
-module.exports = function(defaults) {
+module.exports = function (defaults) {
   var app = new EmberApp(defaults, {
     sourcemaps: {
       enabled: false
     },
     storeConfigInMeta: false,
-//    vendorFiles: {
-//      'handlebars.js': null,
-//      'ember.js': 'bower_components/ember/ember.prod.js',
-//      'ember-data.js': 'bower_components/ember-data/ember-data.prod.js'
-//    },
+    //    vendorFiles: {
+    //      'handlebars.js': null,
+    //      'ember.js': 'bower_components/ember/ember.prod.js',
+    //      'ember-data.js': 'bower_components/ember-data/ember-data.prod.js'
+    //    },
     fingerprint: {
       enabled: false
     },
@@ -39,13 +39,13 @@ module.exports = function(defaults) {
   // please specify an object with the list of modules as keys
   // along with the exports of each module as its value.
   // Import CSS files
-  app.import('bower_components/bootstrap/dist/css/bootstrap.min.css');
-  app.import('bower_components/jquery-minicolors/jquery.minicolors.css');
+  app.import('node_modules/bootstrap/dist/css/bootstrap.min.css');
+  app.import('node_modules/jquery-minicolors/jquery.minicolors.css');
 
   // Import JS files
-  app.import('bower_components/IndexedDBShim/dist/indexeddbshim.min.js');
+  app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js');
   // Import source map to prevent 404 errors
-  app.import('bower_components/IndexedDBShim/dist/indexeddbshim.min.js.map', {
+  app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js.map', {
     destDir: 'assets'
   });
   // Hammer-Time causes a weird bug in Windows Chrome where if you
@@ -54,14 +54,14 @@ module.exports = function(defaults) {
   // matching the coordinates of the touch relative to the top left corner of
   // the dropdown list. This typically results in a click on the "home"
   // link in the top right corner of the app.
-//  app.import('bower_components/hammer-time/hammer-time.js');
-  app.import('bower_components/qrcode-js/qrcode.js');
-  app.import('bower_components/moment/moment.js');
-  app.import('bower_components/tinycolor/tinycolor.js');
-  app.import('bower_components/jquery-minicolors/jquery.minicolors.min.js');
-  app.import('bower_components/bootstrap/dist/js/bootstrap.min.js');
-  app.import('bower_components/recordrtc/RecordRTC.min.js');
-  app.import('bower_components/wordcloud2.js/src/wordcloud2.js');
+  //  app.import('bower_components/hammer-time/hammer-time.js');
+  app.import('node_modules/davidshimjs-qrcodejs/qrcode.min.js');
+  app.import('node_modules/moment/moment.js');
+  app.import('node_modules/tinycolor2/tinycolor.js');
+  app.import('node_modules/jquery-minicolors/jquery.minicolors.min.js');
+  app.import('node_modules/bootstrap/dist/js/bootstrap.min.js');
+  app.import('node_modules/recordrtc/RecordRTC.min.js');
+  app.import('node_modules/wordcloud2/src/wordcloud2.js');
   app.import('vendor/media_recorder/media_recorder.js');
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
