@@ -32,6 +32,16 @@
     {{tag-board}}
   {{else if (is-equal this.currentTemplate "modals/assign-lesson")}}
     {{assign-lesson}}
+  {{else if (is-equal this.currentTemplate "modals/slice-locales")}}
+    {{slice-locales}}
+  {{else if (is-equal this.currentTemplate "modals/confirm-org-action")}}
+    {{confirm-org-action}}
+  {{else if (is-equal this.currentTemplate "modals/assessment-settings")}}
+    {{assessment-settings}}
+  {{else if (is-equal this.currentTemplate "modals/eval-jump")}}
+    {{eval-jump}}
+  {{else if (is-equal this.currentTemplate "modals/eval-status")}}
+    {{eval-status}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}
