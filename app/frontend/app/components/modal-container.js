@@ -34,7 +34,7 @@ export default Component.extend({
    */
   isComponentBased: computed('currentTemplate', function() {
     const template = this.get('currentTemplate');
-    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal'];
+    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson'];
     return template && convertedModals.indexOf(template) >= 0;
   }),
   

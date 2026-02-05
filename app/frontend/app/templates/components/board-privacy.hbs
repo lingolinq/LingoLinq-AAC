@@ -1,0 +1,51 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Adjust Board Privacy" key="adjust_board_privacy"}}</h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.model.confirmation}}
+      <p>{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
+    {{else}}
+      <p>{{t "Select the boards you would like modified and the new level of privacy you would like set for those boards." key="privacy_instructions"}}</p>
+    {{/if}}
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
+      <div class="form-group">
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
+        <div class="col-sm-9">
+          {{#if this.hierarchy.loading}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
+          {{else if this.hierarchy.error}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
+          {{else if this.hierarchy}}
+            <div style='margin-top: 5px;'>
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            </div>
+          {{else}}
+            {{t "No linked boards" key="no_linked_boards"}}
+          {{/if}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="privacy_level">
+          {{t "Privacy" key="privacy"}}
+        </label>
+        <div class="col-sm-9">
+          {{bound-select select_class="form-control" select_id="privacy_level" content=this.privacy_levels selection=this.privacy action=(action (mut this.privacy)) }}
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-primary' {{action "update"}} disabled={{this.status.loading}}>
+      {{#if this.status.loading}}
+        {{t "Updating Boards..." key="updating_boards"}}
+      {{else if this.status.error}}
+        {{t "Updating Boards Failed" key="updating_boards_failed"}}
+      {{else}}
+        {{t "Update Board(s)" key="update_boards"}}
+      {{/if}}
+    </button>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+  </div>
+{{/modal-dialog}}

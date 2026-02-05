@@ -22,6 +22,16 @@
     {{confirm-delete-user}}
   {{else if (is-equal this.currentTemplate "modals/confirm-remove-goal")}}
     {{confirm-remove-goal}}
+  {{else if (is-equal this.currentTemplate "modals/board-privacy")}}
+    {{board-privacy}}
+  {{else if (is-equal this.currentTemplate "modals/gif")}}
+    {{gif}}
+  {{else if (is-equal this.currentTemplate "modals/choose-locale")}}
+    {{choose-locale}}
+  {{else if (is-equal this.currentTemplate "modals/tag-board")}}
+    {{tag-board}}
+  {{else if (is-equal this.currentTemplate "modals/assign-lesson")}}
+    {{assign-lesson}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}
