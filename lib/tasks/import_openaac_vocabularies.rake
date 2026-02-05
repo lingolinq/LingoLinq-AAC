@@ -260,4 +260,3 @@ namespace :openaac do
     puts "="*60
   end
 end
-end
