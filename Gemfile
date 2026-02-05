@@ -15,6 +15,8 @@ group :development, :test do
   gem 'irb'
   gem 'ruby-lsp', require: false
   gem 'ruby-lsp-rails', require: false
+  gem 'rubocop', require: false
+  gem 'rubocop-rails', require: false
 end
 
 gem 'benchmark'
