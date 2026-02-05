@@ -42,6 +42,16 @@
     {{eval-jump}}
   {{else if (is-equal this.currentTemplate "modals/eval-status")}}
     {{eval-status}}
+  {{else if (is-equal this.currentTemplate "modals/big-button")}}
+    {{big-button}}
+  {{else if (is-equal this.currentTemplate "modals/external-device")}}
+    {{external-device}}
+  {{else if (is-equal this.currentTemplate "modals/extra-colors")}}
+    {{extra-colors-modal}}
+  {{else if (is-equal this.currentTemplate "modals/timer")}}
+    {{timer}}
+  {{else if (is-equal this.currentTemplate "modals/paint-level")}}
+    {{paint-level}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

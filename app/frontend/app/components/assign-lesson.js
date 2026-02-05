@@ -75,6 +75,12 @@ export default Component.extend({
       this.set('status', null);
     },
     closing() {},
+    clear_due_date() {
+      const lesson = this.get('lesson');
+      if (lesson) {
+        lesson.set('due_at', null);
+      }
+    },
     confirm() {
       const _this = this;
       this.set('status', { saving: true });

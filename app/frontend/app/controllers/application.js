@@ -1576,7 +1576,7 @@ export default Controller.extend({
   // Check if a component-based modal is active (so we can conditionally hide the outlet)
   hasComponentBasedModal: computed('modalService.currentTemplate', function() {
     const template = this.get('modalService.currentTemplate');
-    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status'];
+    const convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status', 'modals/big-button', 'modals/external-device', 'modals/extra-colors', 'modals/timer', 'modals/paint-level'];
     return template && convertedModals.indexOf(template) >= 0;
   })
 });

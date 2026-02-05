@@ -1,0 +1,51 @@
+{{#modal-dialog desired_width=850 action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
+    <div class='cursor_holder' style={{if this.flipped "transform: rotate(180deg);"}}>
+      <div class='cursor_navigation repair_buttons'>
+        <button class='btn btn-default btn-lg up' {{action "move" "up"}} disabled={{this.not_scrollable}}>
+          <span class='glyphicon glyphicon-chevron-up'></span>
+          {{t "Up" key="up"}}
+        </button>
+        <button class='btn btn-default btn-lg down' {{action "move" "down"}} disabled={{this.not_scrollable}}>
+          <span class='glyphicon glyphicon-chevron-down'></span>
+          {{t "Down" key="down"}}
+        </button>
+      </div>
+      <div class='row cursor_area any_size'>
+        <button class={{if this.holding "btn btn-default big_btn unselectable" "btn btn-default big_btn"}} {{action "speak" true}} id='full_button'>
+          {{#unless this.model.text_only}}
+            <img src={{path "images/speak.svg"}} style='height: calc(100vh / 4);'><br>
+          {{/unless}}
+          <span class={{this.text_class}}>
+            {{this.model.text}}
+          </span>
+        </button>
+      </div>
+    </div>
+    <div class='row repair_buttons'>
+      <div class='col-sm-12'>
+        <button class='btn btn-lg btn-default' {{action "close"}}>
+          <span class='glyphicon glyphicon-remove'></span>
+          {{t "Close" key="close"}}
+        </button>
+        <button class='btn btn-lg btn-default' {{action "speak"}} disabled={{this.holding}}>
+          <span class='glyphicon glyphicon-volume-up'></span>
+          {{t "Speak" key="speak"}}
+        </button>
+        <button class='btn btn-lg btn-default' {{action "flip"}}>
+          <span class='glyphicon glyphicon-repeat'></span>
+          {{t "Flip Text" key="flip_text"}}
+        </button>
+        <button class='btn btn-lg btn-default' {{action "hold"}}>
+          {{#if this.holding}}
+            <span class='glyphicon glyphicon-play'></span>
+            {{t "Release" key="release"}}
+          {{else}}
+            <span class='glyphicon glyphicon-pause'></span>
+            {{t "Wait" key="wait"}}
+          {{/if}}
+        </button>
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

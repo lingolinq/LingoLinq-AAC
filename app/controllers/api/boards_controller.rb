@@ -1,10 +1,10 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
-  before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
-  before_action :require_api_token_for_cache_user, :only => [:index, :cache]
+  before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download]
+  # index and cache require authentication (not in except list)
 
   def cache
-    # Security: require_api_token_for_cache_user ensures authentication for this action
+    # Security: require_api_token ensures authentication for this action
     render json: { user: { id: 'cache' } }
   end
 
@@ -53,15 +53,14 @@ class Api::BoardsController < ApplicationController
       if params['user_id'] || params[:user_id]
         # Handle special case where user_id is 'cache' (from boards cache endpoint)
         # Return public boards only since there are no user-specific boards for cache
-        # Security: require_api_token_for_cache_user already ensures authentication
+        # Security: require_api_token already ensures authentication
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
-          # Security: require_api_token_for_cache_user already ensures authentication
           # Only return public boards for cache user - no user-specific data
           params['public'] = true
         else
           user = User.find_by_path(user_id_param)
-          return unless user
+          return unless exists?(user, user_id_param)
           return unless allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
@@ -699,11 +698,6 @@ class Api::BoardsController < ApplicationController
 
   protected
   
-  def require_api_token_for_cache_user
-    # Index and cache are excepted from require_api_token; enforce auth for both (no conditional on user_id)
-    require_api_token
-  end
-
   def star_or_unstar(star)
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])

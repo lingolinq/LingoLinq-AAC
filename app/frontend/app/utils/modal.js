@@ -71,7 +71,7 @@ var modal = EmberObject.extend({
     
     // List of modals that have been converted to components
     // These will use component-based rendering instead of route.render()
-    var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status'];
+    var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status', 'modals/big-button', 'modals/external-device', 'modals/extra-colors', 'modals/timer', 'modals/paint-level'];
     var useComponentRendering = service && outlet == 'modal' && convertedModals.indexOf(template) >= 0;
     
     // If this modal uses component-based rendering, handle it completely via service
@@ -267,7 +267,7 @@ var modal = EmberObject.extend({
             // This prevents Ember from trying to use component DOM as outlet keys
             if (service && service.get('currentTemplate')) {
               var serviceTemplate = service.get('currentTemplate');
-              var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status'];
+              var convertedModals = ['about-lingolinq', 'supervision-settings', 'new-board', 'confirm-delete-board', 'speak-menu', 'modals/board-intro', 'modals/board-actions', 'modals/start-codes', 'modals/confirm-delete-user', 'modals/confirm-remove-goal', 'modals/board-privacy', 'modals/gif', 'modals/choose-locale', 'modals/tag-board', 'modals/assign-lesson', 'modals/slice-locales', 'modals/confirm-org-action', 'modals/assessment-settings', 'modals/eval-jump', 'modals/eval-status', 'modals/big-button', 'modals/external-device', 'modals/extra-colors', 'modals/timer', 'modals/paint-level'];
               if (convertedModals.indexOf(serviceTemplate) >= 0) {
                 // Component-based modal is still open in service, clear it first
                 service.set('currentTemplate', null);

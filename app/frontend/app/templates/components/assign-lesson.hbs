@@ -71,7 +71,7 @@
             <Input type="date" @value={{this.lesson.due_at}} class="form-control" />
             <div class='text-muted' style='margin-left: 10px; font-size: 14px; font-style: italic;'>{{t "leave blank for no due date" key="blank_for_no_due"}}</div>
           </div>
-          <div class='col-sm-2'><button type="button" class='btn btn-default'>{{t "clear" key="clear_lower"}}</button></div>
+          <div class='col-sm-2'><button type="button" class='btn btn-default' {{action "clear_due_date"}}>{{t "clear" key="clear_lower"}}</button></div>
         </div>
       {{/if}}
       <div class='form-group'>

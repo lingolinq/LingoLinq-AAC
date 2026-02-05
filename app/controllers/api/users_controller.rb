@@ -681,9 +681,9 @@ class Api::UsersController < ApplicationController
     return unless allowed?(user, 'supervise')
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')
     if log
-      render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      render json: {log: nil}.to_json
+      render json: {log: nil}
     end
   end
   

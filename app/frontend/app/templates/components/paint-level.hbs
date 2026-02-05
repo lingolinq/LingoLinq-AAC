@@ -1,0 +1,31 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Level Modifications" key="level_modifications"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "%app_name% boards can have levels of development built-in, so you can start basic and gradually add vocabulary and resources as the communicator develops. You can use the paint tool to make defining growth levels easier by updating multiple buttons at the same time." key="paint_levels_explainer"}}</p>
+    <p>{{t "NOTE: The level descriptions are an optional suggestion, you may want to define your own levels based on the target audience you are working with. In general it is better to skip middle levels and at least use Level 1 and Level 10 as progression points." key="levels_are_suggestions"}}</p>
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
+      <div class="form-group">
+        <label for="paint_type" class="col-sm-3 control-label">{{t "Update Setting" key="update_setting"}}</label>
+        <div class="col-sm-9">
+          {{bound-select select_class="form-control" select_id="paint_type" content=this.paint_types selection=this.paint_type action=(action (mut this.paint_type)) }}
+        </div>
+      </div>
+      {{#if this.level_select}}
+        <div class="form-group">
+          <label for="paint_level" class="col-sm-3 control-label">{{t "Update At Level" key="update_at_level"}}</label>
+          <div class="col-sm-9">
+            {{bound-select select_class="form-control" select_id="paint_level" content=this.paint_levels selection=this.paint_level action=(action (mut this.paint_level)) }}
+          </div>
+        </div>
+      {{/if}}
+    </form>
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn btn-primary" {{action "paint"}}>{{t "Paint" key="paint"}}</a>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+  </div>
+{{/modal-dialog}}
