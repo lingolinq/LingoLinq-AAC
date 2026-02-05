@@ -76,7 +76,7 @@ namespace :openaac do
         if filename.end_with?('.obz')
           # Use Converters::Utils for OBZ files
           result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
-          puts "✓ Successfully imported #{vocab[:name]}"
+          puts "OK Successfully imported #{vocab[:name]}"
           result.each_with_index do |board, idx|
             if idx == 0
               # The first board is typically the main navigation board
@@ -94,7 +94,7 @@ namespace :openaac do
         elsif filename.end_with?('.obf')
           # Use Converters::Utils for OBF files
           result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
-          puts "✓ Successfully imported #{vocab[:name]}"
+          puts "OK Successfully imported #{vocab[:name]}"
           result.public = true
           result.settings['home_board'] = true
           result.settings['unlisted'] = false
@@ -106,7 +106,7 @@ namespace :openaac do
         File.delete(file_path) if File.exist?(file_path)
         
       rescue => e
-        puts "✗ ERROR importing #{vocab[:name]}: #{e.message}"
+        puts "ERROR ERROR importing #{vocab[:name]}: #{e.message}"
       puts e.backtrace.first(10).join("\n")  # Always show backtrace for debugging       
       # Continue with next vocabulary even if one fails
       end
@@ -221,7 +221,7 @@ namespace :openaac do
       puts "Importing into database..."
       if filename.end_with?('.obz')
         result = Converters::LingoLinq.from_obz(file_path.to_s, import_opts)
-        puts "✓ Successfully imported #{vocab[:name]}"
+        puts "OK Successfully imported #{vocab[:name]}"
         result.each_with_index do |board, idx|
           if idx == 0
             board.public = true
@@ -237,7 +237,7 @@ namespace :openaac do
         puts "  Imported #{result.length} boards"
       elsif filename.end_with?('.obf')
         result = Converters::LingoLinq.from_obf(file_path.to_s, import_opts)
-        puts "✓ Successfully imported #{vocab[:name]}"
+        puts "OK Successfully imported #{vocab[:name]}"
         result.public = true
         result.settings['home_board'] = true
         result.settings['unlisted'] = false
@@ -250,7 +250,7 @@ namespace :openaac do
       File.delete(file_path) if File.exist?(file_path)
 
     rescue => e
-      puts "✗ ERROR: #{e.message}"
+      puts "ERROR ERROR: #{e.message}"
       puts e.backtrace.first(10).join("\n")
       exit 1
     end
