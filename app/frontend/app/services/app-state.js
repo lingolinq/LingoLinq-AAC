@@ -1316,9 +1316,10 @@ export default Service.extend({
         var communicator_limited = speaking_user && speaking_user.get('expired');
         var supervisor_limited = this.get('currentUser.supporter_role') && this.get('currentUser.modeling_only') && !this.get('speakModeUser') && !this.session.get('modeling_session');
         if (this.get('currentUser') && !opts.reminded && (communicator_limited || supervisor_limited) && !already_speaking_as_someone_else) {
+          var _this = this;
           return modal.open('premium-required', { user_name: this.get('currentUser.user_name'), user: this.get('currentUser'), remind_to_upgrade: true, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode' }).then(function () {
             opts.reminded = true;
-            this.toggle_mode(mode, opts);
+            _this.toggle_mode(mode, opts);
           });
         }
         if (this.get('currentBoardState')) {
@@ -1454,9 +1455,10 @@ export default Service.extend({
     var communicator_limited = speak_mode_user && speak_mode_user.get('expired');
     var supervisor_limited = speak_mode_user && speak_mode_user.get('supporter_role') && speak_mode_user.get('modeling_only') && !this.session.get('modeling_session');
     if (speak_mode_user && !opts.reminded && (communicator_limited || supervisor_limited)) {
+      var _this = this;
       return modal.open('premium-required', { user_name: speak_mode_user.get('user_name'), user: speak_mode_user, reason: (communicator_limited ? 'communicator_limited' : 'supervisor_limited'), remind_to_upgrade: true, limited_supervisor: (!communicator_limited && supervisor_limited), action: 'app_speak_mode' }).then(function () {
         opts.reminded = true;
-        this.home_in_speak_mode(opts);
+        _this.home_in_speak_mode(opts);
       });
     }
     if (preferred && speak_mode_user && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
