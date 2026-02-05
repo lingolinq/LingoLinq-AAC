@@ -36,6 +36,7 @@ export default Component.extend({
   },
   handleMouseMove: function (event) {
     var $cell = $(event.target).closest('div.cell');
+    var gridEvent = this.get('gridEvent');
     if (gridEvent && typeof gridEvent === 'function') {
       if ($cell.length) {
         gridEvent('hoverGrid', parseInt($cell.attr('data-row'), 10), parseInt($cell.attr('data-col'), 10));

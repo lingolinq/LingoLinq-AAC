@@ -1,6 +1,7 @@
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
+import Ember from 'ember';
 import { later as runLater, run } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
