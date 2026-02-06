@@ -141,6 +141,12 @@ class Api::SearchController < ApplicationController
     # Handle S3 paths - convert relative S3 paths to full S3 URLs
     # Paths like /extras.../BoardDownstreamButtonSet/... are S3 paths, not server paths
     if url_param.start_with?('/extras') || url_param.start_with?('/extras-')
+      # Reject directory traversal attempts (e.g. /extras-/../../../)
+      decoded = URI.decode_www_form_component(url_param) rescue url_param
+      if decoded.include?('..') || url_param.include?('%2e%2e') || url_param.include?('%2E%2E')
+        Rails.logger.error("Invalid proxy URL - path traversal rejected: #{url_param}")
+        return api_error 400, {error: "Invalid URL: path traversal not allowed", original_url: params['url']}
+      end
       # This is an S3 path - convert to full S3 URL
       bucket = ENV['UPLOADS_S3_BUCKET']
       if bucket

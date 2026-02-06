@@ -50,12 +50,13 @@ class Api::BoardsController < ApplicationController
     
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
-      if params['user_id'] || params[:user_id]
-        user_id_param = params['user_id'] || params[:user_id]
+      user_id_param = params['user_id'] || params[:user_id]
+      if user_id_param.present?
+        # Special pseudo-user IDs for index: not a real user lookup; no permission check.
         if user_id_param.to_s == 'cache'
-          # Cache user: return public boards only (works for unauthenticated or authenticated).
           params['public'] = true
         else
+          # Real user lookup: resolve user and enforce existence + view_detailed permission.
           user = User.find_by_path(user_id_param)
           return unless exists?(user, user_id_param)
           return unless allowed?(user, 'view_detailed')
@@ -302,11 +303,15 @@ class Api::BoardsController < ApplicationController
       json = JsonApi::Board.paginate(params, boards, {locale: params['locale'], extra_results: other_boards})
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
     end
+    # Always set meta for consistent structure; uncached = true only for this fresh response
+    json[:meta] ||= {}
+    json[:meta]['uncached'] = true
     if cache_key
-      # Put uncached flag in meta before caching so cached and non-cached responses are consistent
-      json[:meta] ||= {}
-      json[:meta]['uncached'] = true
-      RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
+      # Cache a copy without uncached so cached responses don't incorrectly claim to be uncached
+      json_for_cache = json.deep_dup
+      json_for_cache[:meta] = (json_for_cache[:meta] || {}).dup
+      json_for_cache[:meta].delete('uncached')
+      RedisInit.default.setex(cache_key, 12.hours.to_i, json_for_cache.to_json)
     end
 
     if (Time.now.to_i - start) > 5

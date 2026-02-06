@@ -17,8 +17,7 @@
         <span class='sr-only'>{{t "Read This Step" key="read_this_step"}}</span>
       {{/if}}
     </a>
-    {{! template-lint-disable no-partial }}
-    {{partial this.partial}}
+    {{component this.setupComponent setup=this}}
   {{/if}}
 </div>
 <div style='white-space: pre-wrap; display: none;'>

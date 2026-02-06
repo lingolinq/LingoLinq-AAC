@@ -1,0 +1,63 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{#if this.delete_action}}
+        {{t "Delete this Board" key="delete_this_board"}}
+      {{else if this.unstar_action}}
+        {{t "Unlike this Board" key="unstar_this_board"}}
+      {{else if this.unlink_action}}
+        {{t "Unlink this Board" key="unlink_this_board"}}
+      {{else if this.untag_action}}
+        {{t "Remove this Board from Category" key="untag_this_board"}}
+      {{else}}
+        {{t "Remove this Board" key="remove_this_board"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.loading}}
+      <p>{{t "Removing board..." key="removing board"}}</p>
+    {{else if this.error}}
+      <p class='text-danger'>{{t "There was an unexpected error trying to remove this board, please try again" key="error_removing_board"}}</p>
+    {{else}}
+      <p>
+        {{#if this.delete_action}}
+          <span class="glyphicon glyphicon-trash"></span>
+          {{t "Are you sure you want to delete this board?" key="confirm_delete_board"}}
+        {{else if this.unstar_action}}
+          <span class="glyphicon glyphicon-star-empty"></span>
+          {{t "Are you sure you want to unlike this board?" key="confirm_unstar_board"}}
+        {{else if this.unlink_action}}
+          <span class="glyphicon glyphicon-remove"></span>
+          {{t "Are you sure you want to unlink this board?" key="confirm_unlink_board"}}
+        {{else if this.untag_action}}
+          <span class="glyphicon glyphicon-remove"></span>
+          {{t "Are you sure you want to remove this board from the category \"%{cat}\"?" cat=this.model.tag key="confirm_untag_board"}}
+        {{else}}
+          <span class="glyphicon glyphicon-remove"></span>
+          {{t "Are you sure you want to remove this board?" key="confirm_remove_board"}}
+        {{/if}}
+      </p>
+    {{/if}}
+    <img src={{this.model.board.icon_url_with_fallback}} style="width: 40px; float: left; margin-right: 10px;">
+    <strong>{{this.model.board.name}}</strong><br>
+    {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
+  </div>
+  <div class='modal-footer'>
+    <button class='btn btn-primary' {{action "remove"}}>
+      {{#if this.delete_action}}
+        {{t "Delete Board" key="delete_board"}}
+      {{else if this.unstar_action}}
+        {{t "Unlike Board" key="unstar_board"}}
+      {{else if this.unlink_action}}
+        {{t "Unlink Board" key="unlink_board"}}
+      {{else if this.untag_action}}
+        {{t "Unlink Board" key="unlink_board"}}
+      {{else}}
+        {{t "Remove Board" key="remove_board"}}
+      {{/if}}
+    </button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}

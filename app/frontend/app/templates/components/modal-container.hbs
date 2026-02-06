@@ -58,6 +58,26 @@
     {{record-note}}
   {{else if (is-equal this.currentTemplate "sync-details")}}
     {{sync-details}}
+  {{else if (is-equal this.currentTemplate "confirm-notify-user")}}
+    {{confirm-notify-user}}
+  {{else if (is-equal this.currentTemplate "share-utterance")}}
+    {{share-utterance}}
+  {{else if (is-equal this.currentTemplate "share-email")}}
+    {{share-email}}
+  {{else if (is-equal this.currentTemplate "edit-board-details")}}
+    {{edit-board-details}}
+  {{else if (is-equal this.currentTemplate "approve-board-share")}}
+    {{approve-board-share}}
+  {{else if (is-equal this.currentTemplate "importing-recordings")}}
+    {{importing-recordings}}
+  {{else if (is-equal this.currentTemplate "importing-boards")}}
+    {{importing-boards}}
+  {{else if (is-equal this.currentTemplate "confirm-remove-board")}}
+    {{confirm-remove-board}}
+  {{else if (is-equal this.currentTemplate "modeling-intro")}}
+    {{modeling-intro}}
+  {{else if (is-equal this.currentTemplate "confirm-external-app")}}
+    {{confirm-external-app}}
   {{else if (is-equal this.currentTemplate "supervision-settings")}}
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}

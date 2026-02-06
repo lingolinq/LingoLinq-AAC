@@ -7,10 +7,9 @@ set -e
 run_ember() {
   if [ -s "${HOME}/.nvm/nvm.sh" ]; then
     . "${HOME}/.nvm/nvm.sh"
+    nvm install 18 && nvm use 18
   elif [ -s "/usr/local/share/nvm/nvm.sh" ]; then
     . "/usr/local/share/nvm/nvm.sh"
-  fi
-  if command -v nvm >/dev/null 2>&1; then
     nvm install 18 && nvm use 18
   fi
   cd ./app/frontend/ && npx ember server --port 8184 --proxy http://127.0.0.1:5000

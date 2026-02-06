@@ -676,6 +676,8 @@ class SessionController < ApplicationController
         status_code = (json[:error] == 'Internal server error') ? 500 : 401
       end
       status_code ||= 200
+      # Ensure we never return 200 when an error message is present (safety for any path that set :error but not :error_status)
+      status_code = 500 if json[:error] && status_code == 200
       render json: json, status: status_code
     else
       render json: {authenticated: false, error: "Unknown error"}, status: 500
