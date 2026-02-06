@@ -143,7 +143,8 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['id'])
     return unless exists?(log, params['id'])
     user = log && log.user
-    return unless allowed?(user, 'supervise')
+    # Check self first so we don't trigger "Not authorized" from supervise when log owner is in valet mode (they have view_detailed/model but not supervise).
+    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -151,7 +152,7 @@ class Api::LogsController < ApplicationController
     if cutoff && log.started_at < cutoff.hours.ago
       return unless allowed?(user, 'never_allow')
     end
-    render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user, :encryption_allowed => (request.headers["X-SUPPORTS-REMOTE-ENCRYPTION"] == 'true')).to_json
+    render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user, :encryption_allowed => (request.headers["X-SUPPORTS-REMOTE-ENCRYPTION"] == 'true'))
   end
 
   def create

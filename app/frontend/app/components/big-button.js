@@ -55,6 +55,14 @@ export default Component.extend({
     }
   },
 
+  willDestroyElement() {
+    this._super(...arguments);
+    const snap = this.get('snap');
+    if (snap) {
+      window.removeEventListener('resize', snap);
+    }
+  },
+
   actions: {
     close() {
       this.get('modal').close();

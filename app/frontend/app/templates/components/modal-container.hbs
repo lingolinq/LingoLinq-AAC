@@ -4,6 +4,50 @@
   {{! Component-based modals are rendered here, template-based modals still use outlets }}
   {{#if (is-equal this.currentTemplate "about-lingolinq")}}
     {{about-lingolinq}}
+  {{else if (is-equal this.currentTemplate "support")}}
+    {{support}}
+  {{else if (is-equal this.currentTemplate "intro")}}
+    {{intro}}
+  {{else if (is-equal this.currentTemplate "terms-agree")}}
+    {{terms-agree}}
+  {{else if (is-equal this.currentTemplate "confirm-update-app")}}
+    {{confirm-update-app}}
+  {{else if (is-equal this.currentTemplate "download-board")}}
+    {{download-board}}
+  {{else if (is-equal this.currentTemplate "share-board")}}
+    {{share-board}}
+  {{else if (is-equal this.currentTemplate "set-as-home")}}
+    {{set-as-home}}
+  {{else if (is-equal this.currentTemplate "copying-board")}}
+    {{copying-board}}
+  {{else if (is-equal this.currentTemplate "confirm-edit-board")}}
+    {{confirm-edit-board}}
+  {{else if (is-equal this.currentTemplate "confirm-needs-copying")}}
+    {{confirm-needs-copying}}
+  {{else if (is-equal this.currentTemplate "speak-mode-pin")}}
+    {{speak-mode-pin}}
+  {{else if (is-equal this.currentTemplate "premium-required")}}
+    {{premium-required}}
+  {{else if (is-equal this.currentTemplate "which-home")}}
+    {{which-home}}
+  {{else if (is-equal this.currentTemplate "force-logout")}}
+    {{force-logout}}
+  {{else if (is-equal this.currentTemplate "switch-languages")}}
+    {{switch-languages}}
+  {{else if (is-equal this.currentTemplate "badge-awarded")}}
+    {{badge-awarded}}
+  {{else if (is-equal this.currentTemplate "getting-started")}}
+    {{getting-started}}
+  {{else if (is-equal this.currentTemplate "add-to-sidebar")}}
+    {{add-to-sidebar}}
+  {{else if (is-equal this.currentTemplate "copy-board")}}
+    {{copy-board}}
+  {{else if (is-equal this.currentTemplate "find-button")}}
+    {{find-button}}
+  {{else if (is-equal this.currentTemplate "board-details")}}
+    {{board-details}}
+  {{else if (is-equal this.currentTemplate "speak-mode-intro")}}
+    {{speak-mode-intro}}
   {{else if (is-equal this.currentTemplate "supervision-settings")}}
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}
@@ -52,6 +96,40 @@
     {{timer}}
   {{else if (is-equal this.currentTemplate "modals/paint-level")}}
     {{paint-level}}
+  {{else if (is-equal this.currentTemplate "modals/focus-words")}}
+    {{focus-words}}
+  {{else if (is-equal this.currentTemplate "modals/remote-model")}}
+    {{remote-model}}
+  {{else if (is-equal this.currentTemplate "modals/modeling-ideas")}}
+    {{modeling-ideas}}
+  {{else if (is-equal this.currentTemplate "modals/repairs")}}
+    {{repairs}}
+  {{else if (is-equal this.currentTemplate "modals/inbox")}}
+    {{inbox}}
+  {{else if (is-equal this.currentTemplate "modals/phrases")}}
+    {{phrases}}
+  {{else if (is-equal this.currentTemplate "modals/masquerade")}}
+    {{masquerade}}
+  {{else if (is-equal this.currentTemplate "modals/manual-log")}}
+    {{manual-log}}
+  {{else if (is-equal this.currentTemplate "modals/importing-logs")}}
+    {{importing-logs}}
+  {{else if (is-equal this.currentTemplate "modals/request-supervisee")}}
+    {{request-supervisee}}
+  {{else if (is-equal this.currentTemplate "modals/user-status")}}
+    {{user-status}}
+  {{else if (is-equal this.currentTemplate "modals/valet-mode")}}
+    {{valet-mode}}
+  {{else if (is-equal this.currentTemplate "modals/note-templates")}}
+    {{note-templates}}
+  {{else if (is-equal this.currentTemplate "modals/message-unit")}}
+    {{message-unit}}
+  {{else if (is-equal this.currentTemplate "modals/profiles")}}
+    {{profiles}}
+  {{else if (is-equal this.currentTemplate "modals/program-nfc")}}
+    {{program-nfc}}
+  {{else if (is-equal this.currentTemplate "modals/push_to_cloud")}}
+    {{push-to-cloud}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

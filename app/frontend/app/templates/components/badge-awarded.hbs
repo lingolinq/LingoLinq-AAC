@@ -1,0 +1,187 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{#if this.model.badge.avatar_url}}
+        <img src={{this.model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
+      {{/if}}
+      {{#if this.user_goals_and_badges}}
+        {{t "Badges and Goals" key="badges_and_goals"}}
+      {{else if this.model.badge.earned}}
+        {{t "Badge Awarded!" key="badge_awarded"}}
+      {{else if this.model.badge.id}}
+        {{t "Badge In Progress" key="badge_in_progress"}}
+      {{else}}
+        {{t "Badge Details" key="badge_details"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.user_goals_and_badges}}
+      <div style='margin-bottom: 15px;'>
+        {{#if this.user_badges.loading}}
+          {{t "Loading badges..." key="loading_badges"}}
+        {{else if this.user_badges.error}}
+          {{t "Error Loading Badges" key="error_loading_badges"}}
+        {{else if this.user_badges}}
+          {{#each this.user_badges as |badge|}}
+            <div style='float: left;'>
+              <a href="#" {{action "show_badge" badge.id}}>
+                {{#if badge.image_url}}
+                  <img src={{badge.image_url}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                {{else}}
+                  <img src={{path "images/badge-fallback.png"}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                {{/if}}
+              </a>
+            </div>
+          {{/each}}
+          <div style='clear: left;'></div>
+        {{/if}}
+      </div>
+      <div>
+      {{#if this.user_goals.loading}}
+        {{t "Loading goals..." key="loading_goals"}}
+      {{else if this.user_goals.error}}
+        {{t "Error Loading Goals" key="error_loading_goals_cap"}}
+      {{else if this.user_goals}}
+        {{#each this.user_goals as |goal|}}
+          <div {{action "show_goal" goal.id}} class={{if goal.badge_image_url "cursor"}} style='padding-top: 10px; padding-bottom: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee;'>
+            <div style='float: left; margin-right: 10px;'>
+            {{#if goal.badge_image_url}}
+              <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
+            {{else}}
+              <span class='glyphicon glyphicon-flag' style='margin-top: 5px; display: inline-block;width: 50px; height: 40px; font-size: 30px; text-align: center;'></span>
+            {{/if}}
+            </div>
+            <div style='font-size: 20px; white-space: nowrap; overflow: hidden;'>
+            {{goal.summary}}
+            </div>
+            <div class='text-muted'>
+              {{#if goal.advance}}
+                {{t "advances" key="advances_in"}}
+                {{date_ago goal.advance "day"}}
+              {{else if goal.expires}}
+                {{t "concludes" key="concludes_in"}}
+                {{date_ago goal.expires "day"}}
+              {{else}}
+                long goal
+              {{/if}}
+            </div>
+          </div>
+        {{/each}}
+      {{else}}
+        <span class='glyphicon glyphicon-flag' style='font-size: 30px; float: left; margin-right: 10px;'></span>
+        <p>{{t "This communicator had earned one or more badges! Some badges are automatically set up in %app_name%, but you can also easily set your own goals and assign new badges to go with them." key="badges_explainer"}}</p>
+        <p>{{t "Setting goals is an important part of the communication process! In %app_name%, goals can help keep the team on the same page and working on the same thing, which is important for newly-developing communicators." key="goals_explainer"}}</p>
+        {{#if this.appState.speak_mode}}
+          <p>{{t "If you exit Speak Mode and go to the 'Goals' section of your account you can find an existing goal or set one of your own. You can even have the system automatically track progress toward the goal, and award badges to the communicator as they progress!" key="goals_explainer_12"}}</p>
+        {{else}}
+          <p>{{t "To set your first goal, hit the 'New Goal' button below and get started. You can find an existing goal or set one of your own. You can even have the system automatically track progress toward the goal, and award badges to the communicator as they progress!" key="goals_explainer_2"}}</p>
+        {{/if}}
+      {{/if}}
+      </div>
+    {{else}}
+      <div style='text-align: center;'>
+        {{#if this.model.badge.loading}}
+          {{t "Loading badge details" key="loading_badge_details"}}
+        {{else if this.model.badge.error}}
+          {{t "Error loading badge details" key="error_loading_badge_details"}}
+        {{else}}
+          {{#if this.model.badge.earned}}
+            <div class='medal-holder'>
+              <div class='medal'>
+                {{#if this.model.badge.image_url}}
+                  <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                {{else}}
+                  <img src={{path "images/badge-fallback.png"}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                {{/if}}
+                <div class='sparkle'>&#10022;</div>
+              </div>
+              <div class="medal-ribbon">
+                <div style="width: 34px;height: 0;border-left: 11px solid transparent;border-right: 11px solid transparent;border-top: 111px solid #444;top: 0;left: 0;transform: rotate(-33deg) translate(44px,24px);position: absolute;"></div>
+                <div style="width: 30px;height: 0;border-left: 10px solid transparent;border-right: 10px solid transparent;border-top: 112px solid red;top: 0;left: 0;transform: rotate(-33deg) translate(46px,27px);position: absolute;"></div>
+                <div style="width: 35px;height: 0;border-left: 11px solid transparent;border-right: 11px solid transparent;border-top: 111px solid #444;top: 0;left: 0;transform: rotate(36deg) translate(96px,-72px);position: absolute;"></div>
+                <div style="width: 30px;height: 0;border-left: 10px solid transparent;border-right: 10px solid transparent;border-top: 112px solid red;top: 0;left: 0;transform: rotate(36deg) translate(98px,-72px);position: absolute;"></div>
+              </div>
+              <div class='medal-hanger'>
+                <div style='border: 2px solid #444; background: #ff0; width: 30px; height: 30px; border-radius: 15px; position: absolute; top: 95px; left: 85px;'></div>
+              </div>
+            </div>
+            {{#if this.model.badge.sound_url_with_fallback}}
+              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' />
+            {{/if}}
+          {{else}}
+            <div>
+              <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+            </div>
+          {{/if}}
+          <div style='font-weight: bold; font-size: 30px;'>{{this.model.badge.name}}</div>
+          {{#if this.model.badge.level}}
+            <div style='color: #888; font-size: 16px;'>{{t "Level %{level}" level=this.model.badge.level key="level_n2"}}</div>
+          {{/if}}
+          {{#if this.model.badge.earned}}
+            <div style='color: #888;'>
+              {{t "earned" key="earned_lower"}}
+              {{date this.model.badge.earned "short_day"}}
+            </div>
+          {{else if this.model.badge.id}}
+            <div style='color: #888; font-size: 25px; margin-top: 10px;'>
+              {{#if this.model.badge.progress}}
+                {{this.model.badge.time_left}}
+              {{/if}}
+            </div>
+            <div style='width: 200px; margin: 0 auto;'>
+              <div class="progress" style="border: 1px solid #aaa;height: 25px;">
+                <div class="progress-bar" role="progressbar" aria-value={{this.model.badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
+                  <span class="sr-only">
+                    {{t "%{pct}% Complete" key="percent_complete" pct=this.model.badge.progress_out_of_100}}
+                  </span>
+                </div>
+              </div>
+            </div>
+          {{/if}}
+          {{#if this.model.badge.completion_explanation}}
+            <div style='font-size: 14px; margin: 10px auto; max-width: 300px;'>
+              <span style='color: #888;'>
+                {{#if this.model.badge.earned}}
+                  {{t "To earn this badge, %{user} had to:" user=this.user_name key="to_earn_user_had_to"}}<br>
+                {{else}}
+                  {{t "To earn this badge, %{user} needs to:" user=this.user_name key="to_earn_user_needs_to"}}<br>
+                {{/if}}
+              </span>
+
+              {{this.model.badge.completion_explanation}}
+            </div>
+          {{/if}}
+        {{/if}}
+      </div>
+      {{#if this.model.badge.earned}}
+        {{#each this.confettis as |confetti|}}
+          <div class='confetti' style={{confetti.style}}></div>
+        {{/each}}
+      {{/if}}
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <button {{action "close"}} class="btn btn-lg btn-default">{{t "Close" key="close"}}</button>
+    {{#if this.user_goals_and_badges}}
+      {{#if this.model.badge}}
+        <button {{action "show_badge"}} class='btn btn-lg btn-default'>{{t "Back to Badge" key="back_to_badge"}}</button>
+      {{/if}}
+    {{else}}
+      {{#if (persistence-online)}}
+        <button {{action "user_badges"}} class='btn btn-lg btn-default'><span class='glyphicon glyphicon-flag'></span> {{t "Goals and Badges" key="see_user_goals_and_badges"}}</button>
+      {{/if}}
+    {{/if}}
+    {{#if (persistence-online)}}
+      {{#unless this.appState.speak_mode}}
+        <button {{action "new_goal"}} class='btn btn-lg btn-default'>{{t "New Goal" key="new_goal"}}</button>
+      {{/unless}}
+    {{/if}}
+    {{#if this.model.speak_mode}}
+      {{#if this.has_modeling_activities}}
+        <button {{action "modeling_ideas"}} class='btn btn-sm btn-default'>{{t "Modeling Ideas" key="modeling_ideas"}}</button>
+      {{/if}}
+    {{/if}}
+  </div>
+{{/modal-dialog}}
