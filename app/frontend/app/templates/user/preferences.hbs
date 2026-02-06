@@ -1611,7 +1611,7 @@
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input type="checkbox" @checked={{this.pending_preferences.device.dwell_head_pointer}} id="dwell_head_pointer" />
+                    <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_head_pointer}} id="dwell_head_pointer" />
                     {{t "Use head position as a direct pointer" key='use_dwell_head_pointer'}}
                   </label>
                 </div>
@@ -1632,7 +1632,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input type="checkbox" @checked={{this.pending_preferences.device.dwell_cursor}} id="dwell_cursor" />
+                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_cursor}} id="dwell_cursor" />
                   {{t "Show icon at current dwell location" key='show_dwell_cursor'}}
                 </label>
               </div>
@@ -1679,7 +1679,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input type="checkbox" @checked={{this.pending_preferences.device.dwell_no_cutoff}} id="dwell_no_cutoff" />
+                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_no_cutoff}} id="dwell_no_cutoff" />
                   {{t "Keep dwell targeting even if cursor stops moving" key='dwell_no_cutoff'}}
                 </label>
               </div>
@@ -1739,7 +1739,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input type="checkbox" @checked={{this.pending_preferences.device.dwell_gravity}} id="dwell_gravity" />
+                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_gravity}} id="dwell_gravity" />
                   {{t "Stay on the same target if the user's gaze leaves a bit" key='enable_dwell_gravity'}}
                 </label>
               </div>
