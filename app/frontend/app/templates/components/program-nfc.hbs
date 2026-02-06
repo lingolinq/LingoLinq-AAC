@@ -1,0 +1,90 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Program NFC Tag" key="program_nfc_tag"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <span class='glyphicon glyphicon-tag' style='font-size: 50px; padding-right: 10px; float: left;'></span>
+    <p>
+      {{t "Using NFC tags, you can connect %app_name% buttons and phrases to real-world items by attaching an NFC tag to them!" key="nfc_explainer"}}
+      {{#if this.model.listen}}
+        {{t "You can save already-programmed tags to your account so that they will be saved so they can work even when this device is offline." key="program_offline_support"}}
+      {{else if this.model.button}}
+        {{t "To connect this button to a tag, hit \"Program\" and then bring the tag up against the device's sensor." key="program_button_explainer"}}
+      {{else}}
+        {{t "To program this phrase onto a tag, hit \"Program\" and then bring the tag up against the device's sensor." key="program_label_explainer"}}
+      {{/if}}
+    </p>
+    {{#if this.update_tag_id}}
+      <p class='text-info'>{{t "There is no available settings for this tag. You can program the tag by entering a message below, or by finding an existing button and programming it using the \"Word Data\" popup" key="tag_not_programmed"}}</p>
+    {{/if}}
+
+    {{#unless this.listening_without_tag_id}}
+      <div style='max-width: 300px; margin: 20px auto;'>
+        {{#if this.model.button}}
+          <div style='text-align: center;'>
+            {{button-preview button=this.model.button}}
+          </div>
+        {{else}}
+          {{t "Phrase to speak" key="phrase_to_speak"}}
+          <div>
+            <Input type="text" class="form-control" @value={{this.label}} />
+          </div>
+        {{/if}}
+      </div>
+    {{/unless}}
+
+    {{#if this.status.loading}}
+      <p class='text-info'>{{t "Loading Tag Settings..." key="loading_tag_settings"}}</p>
+    {{else if this.status.error}}
+      <p class='text-danger'>{{t "Error Loading Tag Settings..." key="error_loading_tag_settings"}}</p>
+    {{else if this.status.no_nfc}}
+      <p class='text-danger'>
+        {{t "No NFC Tag Reader Detected." key="no_nfc_tag_reader_detected"}}
+        {{t "Not all devices have NFC tag readers installed. Android phones/tablets and newer iPhones are the most likely to have built-in tag readers." key="where_to_find_nfc_readers"}}
+      </p>
+    {{else if this.status.saving}}
+      <p class='text-info'>{{t "Saving Tag..." key="saving_tag"}}</p>
+    {{else if this.status.saved}}
+      <p class='text-success'>{{t "Tag Successfully Programmed!" key="tag_successfully_programmed"}}</p>
+    {{else if this.status.error_saving}}
+      <p class='text-danger'>{{t "Error Saving Tag" key="error_saving_tag"}}</p>
+    {{else if this.status.error_writing}}
+      <p class='text-info'>{{t "Error Writing to Tag" key="error_writing_to_tag"}}</p>
+    {{else if this.status.read_timeout}}
+      <p class='text-danger'>{{t "There was an error while trying to access the tag" key="error_reading_tag"}}</p>
+    {{else if this.status.programming}}
+      <p class='text-info'>{{t "Searching, Place Tag Near the Sensor..." key="searching_for_tag"}}</p>
+    {{/if}}
+
+    {{#unless this.listening_without_tag_id}}
+      {{#if this.can_write}}
+        {{#unless this.update_tag_id}}
+          <label>
+            <Input type="checkbox" @checked={{this.write_tag}} />
+            {{t "Write data to the NFC tag if possible" key="write_data_to_nfc_tag"}}
+          </label>
+        {{/unless}}
+      {{/if}}
+      <label>
+        <Input type="checkbox" @checked={{this.public}} />
+        {{t "Let others see this data when they tap the tag to their devices" key="share_tag_with_others"}}
+      </label>
+    {{/unless}}
+  </div>
+  <div class="modal-footer">
+    {{#if this.update_tag_id}}
+      <button class='btn btn-primary' {{action "save"}}>{{t "Update Tag" key="update_tag"}}</button>
+    {{else}}
+      <button class='btn btn-primary' disabled={{this.not_programmable}} {{action "program"}}>
+        {{#if this.status.programming}}
+          {{t "Waiting for Tag..." key="waiting_for_tag"}}
+        {{else}}
+          {{t "Program Tag" key="program_tag"}}
+        {{/if}}
+      </button>
+    {{/if}}
+    <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
+  </div>
+{{/modal-dialog}}

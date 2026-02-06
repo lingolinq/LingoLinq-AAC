@@ -48,7 +48,7 @@ class Api::SearchController < ApplicationController
       RedisInit.default.hincrby('missing_symbols', query.to_s, 1)
     end
 
-    render json: results.to_json
+    render json: results
   end
 
   def protected_symbols
@@ -89,7 +89,7 @@ class Api::SearchController < ApplicationController
         'copyright_notice_url' => item['license']['copyright_notice_url']
       }
     end
-    render json: formatted.to_json
+    render json: formatted
   end
   
   def external_resources
@@ -100,7 +100,7 @@ class Api::SearchController < ApplicationController
       return unless allowed?(ref_user, 'edit')
     end
     res = Uploader.find_resources(params['q'], params['source'], ref_user)
-    render json: res.to_json
+    render json: res
   end
 
   def focuses
@@ -128,7 +128,7 @@ class Api::SearchController < ApplicationController
       RedisInit.default.hincrby('overridden_parts_of_speech', str, 1) if RedisInit.default
     end
 
-    render json: res.merge(data || {}).to_json
+    render json: res.merge(data || {})
   end
   
   def proxy
@@ -208,7 +208,7 @@ class Api::SearchController < ApplicationController
     if !error
       str = "data:" + content_type
       str += ";base64," + Base64.strict_encode64(body)
-      render json: {content_type: content_type, data: str}.to_json
+      render json: {content_type: content_type, data: str}
     else
       api_error 400, {error: error}
     end
@@ -216,7 +216,7 @@ class Api::SearchController < ApplicationController
   
   def apps
     res = AppSearcher.find(params['q'], params['os'])
-    render json: res.to_json
+    render json: res
   end
   
   def audio

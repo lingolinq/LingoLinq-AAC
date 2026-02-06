@@ -608,7 +608,6 @@ class SessionController < ApplicationController
             # Previously this would silently ignore the 2FA code, potentially bypassing security
             Rails.logger.error("2FA code provided but device not found for user #{@api_user.global_id}")
             json[:valid_2fa] = false
-            json[:"2fa_error"] = 'Device not found for 2FA validation'
             json[:error] = 'Device not found for 2FA validation'
             json[:error_status] = 401
           end
@@ -616,7 +615,7 @@ class SessionController < ApplicationController
         # Ensure 2FA failure (invalid code or missing device) always returns 401 and is not considered authenticated
         if params['2fa_code'] && json[:valid_2fa] != true
           json[:authenticated] = false
-          json[:error] ||= json[:"2fa_error"] || '2FA validation failed'
+          json[:error] ||= '2FA validation failed'
           json[:error_status] = 401
         end
         if params['include_token'] && device

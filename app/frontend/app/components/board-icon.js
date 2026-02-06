@@ -150,7 +150,7 @@ export default Component.extend({
         var key = board_record.get ? board_record.get('key') : board_record.key;
         _this.sendAction('action_override', key);
       } else if(this.get('children')) {
-        _this.sendAction('action', this.get('board'));
+        _this.sendAction('action', board_record);
       } else if(this.get('option') == 'select') {
         board_record.preview_option = 'select';
         if(_this.get('localized')) {

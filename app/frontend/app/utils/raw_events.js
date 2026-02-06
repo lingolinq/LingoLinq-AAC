@@ -1187,7 +1187,12 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+            var hiddenAt = this.stashes.get && this.stashes.get('sidebar_hidden_at');
+            if(hiddenAt && (Date.now() - hiddenAt) < 400) {
+              this.stashes.set('sidebar_hidden_at', null);
+            } else {
+              this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+            }
             buttonTracker.ignoreUp = true;
             buttonTracker.buttonDown = false;
           } else {

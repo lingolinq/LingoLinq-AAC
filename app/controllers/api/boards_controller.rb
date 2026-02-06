@@ -1,7 +1,7 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
-  before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download]
-  # index and cache require authentication (not in except list)
+  before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
+  # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
   def cache
     # Security: require_api_token ensures authentication for this action
@@ -51,12 +51,9 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
       if params['user_id'] || params[:user_id]
-        # Handle special case where user_id is 'cache' (from boards cache endpoint)
-        # Return public boards only since there are no user-specific boards for cache
-        # Security: require_api_token already ensures authentication
         user_id_param = params['user_id'] || params[:user_id]
         if user_id_param.to_s == 'cache'
-          # Only return public boards for cache user - no user-specific data
+          # Cache user: return public boards only (works for unauthenticated or authenticated).
           params['public'] = true
         else
           user = User.find_by_path(user_id_param)
@@ -306,10 +303,10 @@ class Api::BoardsController < ApplicationController
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
     end
     if cache_key
-      RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
-      # Put uncached flag in meta to avoid Ember Data trying to parse it as a model
+      # Put uncached flag in meta before caching so cached and non-cached responses are consistent
       json[:meta] ||= {}
       json[:meta]['uncached'] = true
+      RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
     end
 
     if (Time.now.to_i - start) > 5
@@ -379,13 +376,14 @@ class Api::BoardsController < ApplicationController
         # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
         return api_error(400, {error: "User not found", for_user_id: processed_params['board']['for_user_id']})
       elsif !allowed?(user, 'edit')
-        # User exists but no permission
-        return
+        # User exists but current user lacks edit permission for that user
+        return api_error(400, {error: "Not authorized", unauthorized: true})
       else
         @board_user = user
       end
     end
-    opts = {:user => @board_user, :author => @api_user, :key => params['board']['key']}
+    board_params = processed_params['board'] || params['board'] || {}
+    opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if processed_params['board'] && processed_params['board']['parent_board_id']
       pb = Board.find_by_path(processed_params['board']['parent_board_id'])
       if pb && pb.copyable_if_authorized?(@api_user)
@@ -400,7 +398,7 @@ class Api::BoardsController < ApplicationController
     if board.errored?
       api_error(400, {error: "board creation failed", errors: board && board.processing_errors})
     else
-      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end
   end
 

@@ -1,0 +1,249 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{t "Focus Words" key="focus_words"}}
+      {{#if this.model.user}}
+        -
+        <img src={{this.model.user.avatar_url_with_fallback}} style='width: 50px;'>
+        {{this.model.user.user_name}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <div class='row'>
+      {{#if this.analysis}}
+        <div class='col-sm-12'>
+          {{#if this.analysis.loading}}
+            <p>{{t "Loading Analysis..." key="loading_analysis"}}</p>
+          {{else if this.analysis.error}}
+            <p>{{t "Erroor Loading Analysis" key="error_loading_analysis"}}</p>
+          {{else}}
+            {{#if this.title}}
+              <h4>{{this.title}}</h4>
+            {{else}}
+              <div class='text-muted' style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{this.words}}</div>
+            {{/if}}
+            <h4>{{t "Found Words (%{cnt})" cnt=this.analysis.found.length key="found_words"}}</h4>
+            {{#if this.analysis.found}}
+              {{#each this.analysis_subset as |btn|}}
+                <strong>{{btn.label}}:</strong><br>
+                <div style='white-space: nowrap; overflow: hidden;'>
+                  {{#if btn.sequence.buttons}}
+                    {{#each btn.sequence.buttons as |sub|}}
+                      <span style={{sub.style}}>
+                        {{sub.label}}<br>
+                        <img src={{sub.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
+                      </span>
+                    {{/each}}
+                    <span style={{btn.style}}>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
+                    </span>
+                  {{else}}
+                    <span style={{btn.style}}>
+                      {{btn.label}}<br>
+                      <img src={{btn.focus_image}} style='width: 50px; height: 50px;' class='fit_image'>
+                    </span>
+                  {{/if}}
+                </div>
+              {{/each}}
+              {{#if this.analysis_extras}}
+                <p>
+                  <em>{{t "Plus %{n} more:" n=this.analysis_extras.length key="plus_n_more"}}</em>
+                  {{#each this.analysis_extras as |btn|}}
+                    <span style={{btn.mini_style}}>{{btn.label}}</span>
+                  {{/each}}
+                  <button class='btn btn-default' {{action "report"}}>{{t "see all" key="see_all"}}</button>
+                </p>
+              {{/if}}
+            {{else}}
+              <p>{{t "No words found" key="no_words_found"}}</p>
+            {{/if}}
+            {{#if this.analysis.missing}}
+              <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=this.analysis.missing.length key="missing_words"}}</h4>
+              {{#each this.analysis.missing as |word|}}
+                {{word}}
+              {{/each}}
+              {{#if this.model.user}}
+                <div>
+                  {{#if this.ideas.saving}}
+                    {{t "Saving..." key="saving"}}
+                  {{else if this.ideas.saved}}
+                    {{t "Saved!" key="saved_excl"}}
+                  {{else if this.ideas.error}}
+                    {{t "Error Saving Words" key="error_saving_words"}}
+                  {{else}}
+                    <button class='btn btn-default' {{action "save_missing"}}>{{t "Save Missing Words to Requested Ideas" key="save_to_ideas"}}</button>
+                  {{/if}}
+                </div>
+              {{/if}}
+            {{/if}}
+          {{/if}}
+        </div>
+      {{else}}
+        {{#unless this.navigated}}
+          <div class='col-sm-12' style='margin-bottom: 30px;'>
+            <div class="form-group">
+              {{#if this.recent_list}}
+                <div class="list-group">
+                  {{#each this.recent_list as |list|}}
+                    <a class={{if list.tmp "btn btn-default list-group-item-info" "btn btn-default list-group-item-success"}} {{action "pick_set" list}} href='#' style='width: 100%; text-align: left; margin-bottom: 5px;'>
+                      <b>{{list.title}}{{#if list.user_name}} ({{list.user_name}}){{/if}}</b><br>
+                      <span class='text-muted' style='font-style: italic; display: inline-block; width: 100%; overflow: hidden; text-overflow: ellipsis;'>
+                        {{list.words}}
+                      </span>
+                    </a>
+                  {{/each}}
+                </div>
+              {{else}}
+                <span class='glyphicon glyphicon-blackboard' style='float: left; margin-right: 5px; font-size: 50px;'></span>
+                <p>{{t "Focus Words is a tool for prividing easier access to the subset of words that have to do with a specific topic or activity. Rather than creating a separate context-specific copy of the vocabulary, Focus Words allows communicators and supporters to learn the location of relevant words in the communicator's default vocabulary." key="focus_words_explainer"}}</p>
+                <p>{{t "You can use Focus Words by entering the text of a shared reading book, words related to a specific activity, etc. You can also browse the community's collection of Focus Word sets or save your own for quick access." key="focus_words_explainer2"}}</p>
+              {{/if}}
+            </div>
+          </div>
+        {{/unless}}
+        <div class='col-sm-12'>
+          <div class="form-group">
+            {{#if this.reuse_or_existing}}
+              <span style='width: 240px; display: inline-block;'>
+                <span style='display: inline-block; width: 100%; vertical-align: middle;'>
+                  <Input id="find_source" @value={{this.title}} placeholder="Word List Name" class="form-control inline select_on_click" />
+                </span>
+              </span>
+            {{else}}
+              <span style='width: 240px; display: inline-block;'>
+                <span style='display: inline-block; width: 100%; vertical-align: middle;'>
+                  <Input id="find_source" @value={{this.search_term}} @enter={{action "find_source"}} placeholder="search" class="form-control inline select_on_click" />
+                </span>
+              </span>
+              <button type="button" class='btn btn-default' {{action "find_source"}}>{{t "Search" key="search"}}</button>
+              {{#if this.browse}}
+                <button type="button" class='btn btn-default' {{action "back"}}>{{t "Custom" key="custom"}}</button>
+              {{else}}
+                <button type="button" class='btn btn-default' {{action "browse"}}>{{t "Browse" key="browse"}}</button>
+              {{/if}}
+            {{/if}}
+            {{#if this.speech.ready}}
+              {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+            {{else if this.speech.engine}}
+              {{#unless this.search_or_browse}}
+                <button type="button" class="btn btn-default" {{action "record"}}>
+                  <img src={{path "images/microphone.svg"}} style="height: 25px; margin: -5px -5px -5px -10px;" alt="take a picture">
+                  {{t "Speech Recognition" key="speech_recognition"}}
+                </button>
+              {{/unless}}
+            {{/if}}
+          </div>
+        </div>
+        {{#if this.browse}}
+          <div class='col-sm-10 col-sm-offset-1'>
+            {{#if this.browse.category}}
+              <button class="btn btn-default" {{action "back" this.browse.category}} style="float: left; margin-right: 5px; height: 50px;"><span class="glyphicon glyphicon-arrow-left"></span><span class="sr-only">{{t "Back to Category" key="back_to_category"}}</span></button>
+              <h4 style="margin-bottom: 0;">{{this.browse.category.title}}</h4>
+              <div style='clear: left; margin-bottom: 10px;'></div>
+              {{#if this.browse.pending}}
+                <p>{{t "Loading results..." key="loading_results"}}</p>
+              {{else if this.browse.error}}
+                <p>{{t "Error loading results" key="error_loading_results"}}</p>
+              {{else if this.browse.items}}
+                <div>
+                  {{#each this.browse.items as |item|}}
+                    {{#unless item.deleted}}
+                      <div style='margin-bottom: 5px;'>
+                        <span style={{if this.browse.category.saved "display: inline-block; width: calc(100% - 100px);" "display: inline-block; width: 100%;"}}>
+                          <button class='btn btn-default list-group-item-warning' {{action "pick_set" item}} style='width: 100%; text-align: left;'>
+                            <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
+                            <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
+                              {{item.title}}
+                              {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
+                              {{#if item.user_name}} ({{item.user_name}}){{/if}}
+                            </span>
+                            <div class='text-muted' style='overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{item.words}}</div>
+                          </button>
+                        </span>
+                        {{#if this.browse.category.saved}}
+                          <span style='display: inline-block; width: 80px; text-align: right;'>
+                            <button class='btn btn-default' {{action "remove_set" item}} style='width: 100%; height: 55px;'>
+                              <span class='glyphicon glyphicon-remove'></span>
+                            </button>
+                          </span>
+                        {{/if}}
+                      </div>
+                    {{/unless}}
+                  {{/each}}
+                </div>
+              {{else}}
+                <p>{{t "No results found" key="no_results_found"}}</p>
+              {{/if}}
+            {{else}}
+              <div class='row'>
+                {{#each this.browse_categories as |cat|}}
+                  <button class='btn btn-default list-group-item-warning' {{action "browse" cat}} style='width: 100%; margin-bottom: 5px; padding: 15px 10px; font-size: 16px; text-align: left;'><span class='glyphicon glyphicon-list'></span> {{cat.title}}</button>
+                {{/each}}
+              </div>
+            {{/if}}
+          </div>
+        {{else if this.search}}
+          <div class='col-sm-10 col-sm-offset-1'>
+            {{#if this.search.loading}}
+              <p>{{t "Searching for term \"%{term}\"" term=this.search.term key="searching_for_term"}}</p>
+            {{else if this.search.error}}
+              <p>{{t "Error retrieving search results" key="error_search_results"}}</p>
+            {{else if this.search.results}}
+              <div class='row'>
+                {{#each this.search.results as |item|}}
+                  <button class='btn btn-default list-group-item-success' {{action "pick_set" item}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
+                    <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
+                    <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
+                      {{item.title}}
+                      {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
+                      {{#if item.user_name}} ({{item.user_name}}){{/if}}
+                    </span>
+                    <div class='text-muted' style='overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{item.words}}</div>
+                  </button>
+                {{/each}}
+              </div>
+            {{else}}
+              <p>{{t "No results found" key="no_results_found"}}</p>
+            {{/if}}
+            {{#unless this.search.loading}}
+              <div style='text-align: center; margin-top: 10px;'>
+                <button type="button" class='btn btn-default btn-lg' {{action "clear_search"}}>{{t "Clear Search Results" key="clear_search_results"}}</button>
+              </div>
+            {{/unless}}
+          </div>
+        {{else}}
+          <div class='col-sm-12' style='margin-top: -10px;'>
+            <div class="form-group">
+              <Textarea @value={{this.words}} class="form-control" placeholder="Enter a custom list of focus words" />
+            </div>
+          </div>
+          {{#if this.model.user}}
+            <div class="col-sm-12" style='margin-top: -30px;'>
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input type="checkbox" @checked={{this.reuse}} />
+                  {{t "Save for Re-Use" key="save_for_reuse"}}
+                  {{#if this.model.user.user_name}}
+                    {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}
+                  {{/if}}
+                </label>
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
+      {{/if}}
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
+    {{#if this.analysis}}
+      <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
+    {{else}}
+      <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
+    {{/if}}
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}
