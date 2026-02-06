@@ -1,0 +1,154 @@
+import Component from '@ember/component';
+import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
+import { htmlSafe } from '@ember/template';
+import modal from '../utils/modal';
+import i18n from '../utils/i18n';
+import app_state from '../utils/app_state';
+import persistence from '../utils/persistence';
+
+/**
+ * Word Data modal (Phase 2).
+ */
+export default Component.extend({
+  modal: service('modal'),
+  appState: service('app-state'),
+  tagName: '',
+
+  init() {
+    this._super(...arguments);
+    const modalService = this.get('modal');
+    const template = 'word-data';
+    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
+                    (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
+                    this.get('model') || {};
+    this.set('model', options);
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    const _this = this;
+    _this.set('sentence_state', {});
+    _this.load_part_of_speech();
+    if (!this.get('model.user.core_lists') && this.get('model.user.id')) {
+      persistence.ajax('/api/v1/users/' + this.get('model.user.id') + '/core_lists', { type: 'GET' }).then(function(res) {
+        _this.set('model.user.core_lists', res);
+      }, function() {});
+    }
+    if (this.get('model.user').find_button && !this.get('model.button')) {
+      this.get('model.user').find_button(this.get('model.word')).then(function(btn) {
+        _this.set('model.button', btn);
+      }, function() {});
+    }
+  },
+
+  load_part_of_speech() {
+    const _this = this;
+    _this.set('parts_of_speech', { loading: true });
+    persistence.ajax('/api/v1/search/parts_of_speech?suggestions=true&q=' + encodeURIComponent(_this.get('model.word')), {
+      type: 'GET'
+    }).then(function(res) {
+      _this.set('parts_of_speech', res);
+      _this.set('suggestions', res.sentences);
+    }, function(err) {
+      if (err.error === 'word not found') {
+        _this.set('parts_of_speech', null);
+      } else {
+        _this.set('parts_of_speech', { error: true });
+      }
+    });
+  },
+
+  reachability: computed('model.word', 'model.user.core_lists', function() {
+    const lists = this.get('model.user.core_lists');
+    const res = {};
+    const word = this.get('model.word').toLowerCase();
+    if (lists && lists.reachable_for_user) {
+      const found = lists.for_user.find(function(w) { return w.toLowerCase() === word; });
+      const reachable_found = lists.reachable_for_user.find(function(w) { return w.toLowerCase() === word; });
+      if (found) {
+        res.core = true;
+        if (reachable_found) {
+          res.reachable = true;
+        } else {
+          res.unreachable = true;
+        }
+      } else {
+        res.not_core = true;
+      }
+    }
+    return res;
+  }),
+
+  part_of_speech: computed('model.button.part_of_speech', 'parts_of_speech', function() {
+    if (this.get('model.button.part_of_speech')) {
+      return this.get('model.button.part_of_speech');
+    } else if (this.get('parts_of_speech.types')) {
+      return this.get('parts_of_speech.types')[0];
+    }
+    return null;
+  }),
+
+  part_of_speech_class: computed('part_of_speech', function() {
+    const pos = this.get('part_of_speech');
+    if (pos) {
+      return htmlSafe('part_of_speech_box ' + pos);
+    }
+    return null;
+  }),
+
+  frequency: computed('model.usage_stats', function() {
+    const _this = this;
+    const word = (this.get('model.usage_stats.words_by_frequency') || []).find(function(w) {
+      return w.text.toLowerCase() === _this.get('model.word').toLowerCase();
+    });
+    const count = (word && word.count) || 0;
+    let pct = 0;
+    if (this.get('model.usage_stats.total_words')) {
+      pct = Math.round(count / this.get('model.usage_stats.total_words') * 1000) / 10;
+    }
+    return {
+      total: count,
+      percent: pct
+    };
+  }),
+
+  actions: {
+    close() {
+      this.get('modal').close();
+    },
+    opening() {},
+    closing() {},
+    add_sentence() {
+      const _this = this;
+      const sentence = _this.get('sentence');
+      const org = (app_state.get('currentUser.organizations') || []).find(function(o) { return o.admin && o.full_manager; });
+      if (!sentence) { return; }
+      if (org) {
+        _this.set('sentence_state', { loading: true });
+        persistence.ajax('/api/v1/organizations/' + org.id + '/extra_action', {
+          type: 'POST',
+          data: {
+            extra_action: 'add_sentence_suggestion',
+            word: _this.get('model.word'),
+            sentence: sentence
+          }
+        }).then(function() {
+          _this.set('sentence_state', {});
+          _this.set('sentence', '');
+          _this.load_part_of_speech();
+        }, function() {
+          _this.set('sentence_state', { error: true });
+        });
+      } else {
+        _this.set('sentence_state', { error: true });
+      }
+    },
+    program_nfc() {
+      const button = this.get('model.button');
+      if (button) {
+        modal.open('modals/program-nfc', { button: button });
+      }
+    }
+  }
+});

@@ -1,0 +1,30 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Delete Logs" key="delete_logs"}}</h3>
+  </div>
+  <div class="modal-body">
+    <div class="form-horizontal">
+      <div class="form-group">
+        <div class="col-sm-8 col-sm-offset-3">
+          <p class="form-control-static">
+            {{t "Are you sure you want to delete your logs? This will remove all usage history currently recorded and cannot be undone. Your logs will be deleted in the next approximate 24 hours. To confirm, please enter your user name below." key="confirm_user_name_for_delete_logs"}}
+          </p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
+        <div class="col-sm-5">
+          <Input @value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-header">
+    <button class='btn btn-primary btn-lg' {{action "delete_logs"}}>{{t "Delete Logs" key="delete_logs"}}</button>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    {{#if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
+    {{/if}}
+  </div>
+{{/modal-dialog}}
