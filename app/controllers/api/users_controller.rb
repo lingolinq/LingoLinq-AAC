@@ -676,10 +676,11 @@ class Api::UsersController < ApplicationController
   end
   
   def daily_use
+    # Authentication is enforced by require_api_token before_action (daily_use is not in :except).
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     # Restrict to own data or admin_support_actions (not supervise) to avoid privilege escalation
-    if user.id != @api_user.id
+    if user.global_id != @api_user.global_id
       return unless allowed?(user, 'admin_support_actions')
     end
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')

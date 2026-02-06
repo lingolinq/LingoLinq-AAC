@@ -30,7 +30,7 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     const appState = this.get('appState');
-    this.set('has_supervisees', appState.get('sessionUser.supervisees.length') > 0 || appState.get('sessionUser.managed_orgs.length') > 0);
+    this.set('has_supervisees', (appState.get('sessionUser.supervisees') || []).length > 0 || (appState.get('sessionUser.managed_orgs') || []).length > 0);
     this.set('loading', false);
     this.set('error', false);
     this.set('model.level', this.get('stashes').get('board_level'));

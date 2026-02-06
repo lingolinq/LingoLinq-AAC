@@ -25,10 +25,12 @@ class Api::BoardsController < ApplicationController
       params['sort'] = 'home_popularity'
     end
     if cache_key
-      json = RedisInit.default.get(cache_key)      
-      if json && json != {}.to_json
-        return render(json: json) 
+      cached = RedisInit.default.get(cache_key)
+      if cached.present?
+        # Return cached value (real data or empty placeholder for stampede protection); render as body to avoid double-encoding
+        return render(body: cached, content_type: 'application/json')
       else
+        # Set empty placeholder so concurrent requests return it instead of all running the heavy query
         RedisInit.default.setex(cache_key, 5.minutes.to_i, {}.to_json)
       end
     end
@@ -59,7 +61,7 @@ class Api::BoardsController < ApplicationController
           # Real user lookup: resolve user and enforce existence + view_detailed permission.
           user = User.find_by_path(user_id_param)
           return unless exists?(user, user_id_param)
-          return unless allowed?(user, 'view_detailed')
+          return unless user && allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
               Rails.logger.warn('looking up shared board ids')
@@ -301,6 +303,7 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('start paginated result')
     self.class.trace_execution_scoped(['boards/json_paginate']) do
       json = JsonApi::Board.paginate(params, boards, {locale: params['locale'], extra_results: other_boards})
+      json[:meta] ||= {}
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
     end
     # Always set meta for consistent structure; uncached = true only for this fresh response
@@ -374,6 +377,8 @@ class Api::BoardsController < ApplicationController
     if request.content_type == 'application/json'
       processed_params = JSON.parse(request.body.read)
     end
+    # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
+    board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
     if processed_params['board'] && processed_params['board']['for_user_id'] && processed_params['board']['for_user_id'] != 'self'
       user = User.find_by_path(processed_params['board']['for_user_id'])
       if !user
@@ -387,7 +392,6 @@ class Api::BoardsController < ApplicationController
         @board_user = user
       end
     end
-    board_params = processed_params['board'] || params['board'] || {}
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if board_params['parent_board_id']
       pb = Board.find_by_path(board_params['parent_board_id'])
