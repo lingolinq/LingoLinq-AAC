@@ -177,22 +177,22 @@
     <div class="form-group">
       <label for="board_background" class="col-sm-3 control-label">{{t "Board Background Color" key='board_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="board_background" content=buttonBackgroundList selection=this.pending_preferences.board_background action=(action (mut this.pending_preferences.board_background)) }}
+        {{bound-select select_class="form-control" select_id="board_background" content=this.buttonBackgroundList selection=this.pending_preferences.board_background action=(action (mut this.pending_preferences.board_background)) }}
       </div>
     </div>
     <div class="form-group">
       <label for="symbol_background" class="col-sm-3 control-label">{{t "Image Background Color" key='symbol_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="symbol_background" content=symbolBackgroundList selection=this.pending_preferences.symbol_background action=(action (mut this.pending_preferences.symbol_background)) }}
+        {{bound-select select_class="form-control" select_id="symbol_background" content=this.symbolBackgroundList selection=this.pending_preferences.symbol_background action=(action (mut this.pending_preferences.symbol_background)) }}
       </div>
     </div>
     <div class="form-group">
       <label for="hidden_buttons" class="col-sm-3 control-label">{{t "Hidden Buttons" key='hidden_buttons'}}</label>
       <div class="col-sm-5">
-        {{#if buttons_stretched}}
+        {{#if this.buttons_stretched}}
           <p class='form-control-static'><em>{{t "When \"Stretch Buttons\" is enabled, hidden buttons cannot be shown" key='no_hidden_buttons_when_stretching'}}</em></p>
         {{else}}
-          {{bound-select select_class="form-control" select_id="hidden_buttons" content=hiddenButtonsList selection=this.pending_preferences.hidden_buttons action=(action (mut this.pending_preferences.hidden_buttons)) }}
+          {{bound-select select_class="form-control" select_id="hidden_buttons" content=this.hiddenButtonsList selection=this.pending_preferences.hidden_buttons action=(action (mut this.pending_preferences.hidden_buttons)) }}
         {{/if}}
       </div>
       {{#if this.app_state.feature_flags.enable_all_buttons}}
@@ -209,7 +209,7 @@
     <div class="form-group">
       <label for="dim_level" class="col-sm-3 control-label">{{t "Dimmed Button Brightness" key='dim_level'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="dim_level" content=dimLevelList selection=this.pending_preferences.dim_level action=(action (mut this.pending_preferences.dim_level)) }}
+        {{bound-select select_class="form-control" select_id="dim_level" content=this.dimLevelList selection=this.pending_preferences.dim_level action=(action (mut this.pending_preferences.dim_level)) }}
       </div>
     </div>
     <div class="form-group">
@@ -259,13 +259,13 @@
     <div class="form-group" style="display: none;">
       <label for="stretch_buttons" class="col-sm-3 control-label">{{t "Fill Empty Button Spaces" key='stretch_buttons'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="stretch_buttons" content=buttonSpaceList selection=this.pending_preferences.stretch_buttons action=(action (mut this.pending_preferences.stretch_buttons)) }}
+        {{bound-select select_class="form-control" select_id="stretch_buttons" content=this.buttonSpaceList selection=this.pending_preferences.stretch_buttons action=(action (mut this.pending_preferences.stretch_buttons)) }}
       </div>
     </div>
     <div class='form-group'>
       <label class="col-sm-3 control-label">{{t "Editing Colors" key='editing_colors'}}</label>
       <div class="col-sm-6">
-        {{extra-colors colors=pending_preferences.extra_colors}}
+        {{extra-colors colors=this.pending_preferences.extra_colors}}
       </div>
     </div>
   {{/preference-box}}
@@ -320,10 +320,10 @@
       <div class="form-group">
         <label for="highlighted_buttons" class="col-sm-3 control-label">{{t "Selection Highlights" key='highlighted_buttons'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="highlighted_buttons" content=highlighted_buttons_list selection=this.pending_preferences.highlighted_buttons action=(action (mut this.pending_preferences.highlighted_buttons)) }}
+          {{bound-select select_class="form-control" select_id="highlighted_buttons" content=this.highlighted_buttons_list selection=this.pending_preferences.highlighted_buttons action=(action (mut this.pending_preferences.highlighted_buttons)) }}
         </div>
       </div>
-      {{#if some_highlighted_buttons}}
+      {{#if this.some_highlighted_buttons}}
         <div class="form-group">
           <label for="highlight_popup_text" class="col-sm-3 control-label">{{t "Literacy Highlights" key='highlighted_popup_text'}}</label>
           <div class="col-sm-5">
@@ -389,7 +389,7 @@
       <div class="form-group">
         <label for="activation_location" class="col-sm-3 control-label">{{t "Select Based on" key='activation_location'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="activation_location" content=activationLocationList selection=this.pending_preferences.activation_location action=(action (mut this.pending_preferences.activation_location)) }}
+          {{bound-select select_class="form-control" select_id="activation_location" content=this.activationLocationList selection=this.pending_preferences.activation_location action=(action (mut this.pending_preferences.activation_location)) }}
         </div>
       </div>
       <div class="form-group">
@@ -466,7 +466,7 @@
             <label>
               <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.limited_logging}} id="limited_logging" />
               {{t "Restrict access to my raw usage logs. NOTE: User account reports will still be available to supervisors with access permissions." key='restrict_log_access'}}
-              {{#if cant_change_private_logging}}
+              {{#if this.cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
               {{/if}}
             </label>
@@ -482,7 +482,7 @@
                {{t "Before you can change log access settings, you must confirm permission using the current logging code. If you have lost or forgotten this code, please contact technical support." key='confirm_logging_code'}}
               </p>
             </div>
-            {{#if cant_change_private_logging }}
+            {{#if this.cant_change_private_logging }}
               <div class='col-sm-5 col-sm-offset-3'>
                 <p class='form-control-static text-muted'>
                   {{t "Only the user can adjust these settings." key='user_only_these'}}
@@ -512,9 +512,9 @@
             <label for="logging_cutoff" class="col-sm-3 control-label">{{t "Logging Cutoff" key='logging_cutoff'}}</label>
             <div class='col-sm-5'>
               <div>
-                {{bound-select disabled=cant_change_private_logging select_class="form-control" select_id="external_links" content=cutoffsList selection=this.pending_preferences.logging_cutoff action=(action (mut this.pending_preferences.logging_cutoff)) }}
+                {{bound-select disabled=this.cant_change_private_logging select_class="form-control" select_id="external_links" content=this.cutoffsList selection=this.pending_preferences.logging_cutoff action=(action (mut this.pending_preferences.logging_cutoff)) }}
               </div>
-              {{#if cant_change_private_logging}}
+              {{#if this.cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
               {{/if}}
             </div>
@@ -526,13 +526,13 @@
                 <label>
                   <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.logging_pin}} id="logging_code" />
                   {{t "Only allow changes to my logging preferences, and temporary access to all my logs, with a PIN" key='restrict_log_access_by_pin'}}
-                  {{#if cant_change_private_logging}}
+                  {{#if this.cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
                   {{/if}}
                 </label>
               </div>
               {{#if logging_pin}}
-                {{#if cant_change_private_logging}}
+                {{#if this.cant_change_private_logging}}
                 {{else}}
                   <div>
                     <Input @type="text" @value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" />
@@ -546,7 +546,7 @@
                 <label>
                   <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.pending_preferences.private_logging}} id="private_logging" />
                   {{t "Completely Restrict Data Log Access outside this login (includes supervisors, support, integrations & community summaries)." key='completely_restrict_log_access'}}
-                  {{#if cant_change_private_logging}}
+                  {{#if this.cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
                   {{/if}}
                 </label>
@@ -672,7 +672,7 @@
         </div>
       </div>
     </div>
-    {{#if fullscreen_capable}}
+    {{#if this.fullscreen_capable}}
       <div class="form-group">
         <label for="fullscreen" class="col-sm-3 control-label">{{t "Full Screen" key='full_screen'}}</label>
         <div class="col-sm-5">
@@ -785,7 +785,7 @@
         </div>
       </div>
     </div>
-    {{#if wakelock_capable}}
+    {{#if this.wakelock_capable}}
       <div class="form-group">
         <label for="wakelock" class="col-sm-3 control-label">{{t "Screen Wake" key='screen_wake'}}</label>
         <div class="col-sm-5">
@@ -829,7 +829,7 @@
     <div class="form-group">
       <label for="external_links" class="col-sm-3 control-label">{{t "External Links" key='external_links'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="external_links" content=externalLinksList selection=this.pending_preferences.external_links action=(action (mut this.pending_preferences.external_links)) }}
+        {{bound-select select_class="form-control" select_id="external_links" content=this.externalLinksList selection=this.pending_preferences.external_links action=(action (mut this.pending_preferences.external_links)) }}
       </div>
     </div>
     <div class="form-group">
@@ -875,7 +875,7 @@
           </label>
         </div>
       </div>
-      {{#if native_keyboard_available}}
+      {{#if this.native_keyboard_available}}
         {{#if this.app_state.feature_flags.native_keyboard}}
           <div class='col-sm-5 col-sm-offset-3'>
             <div class='checkbox big_checkbox'>
@@ -1313,14 +1313,14 @@
         <div class="form-group">
           <label for="scanning_mode" class="col-sm-3 control-label">{{t "Scanning Mode" key='scanning_mode'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=scanningModeList selection=this.pending_preferences.device.scanning_mode action=(action (mut this.pending_preferences.device.scanning_mode)) }}
+            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.scanningModeList selection=this.pending_preferences.device.scanning_mode action=(action (mut this.pending_preferences.device.scanning_mode)) }}
           </div>
         </div>
         {{#if axes_scanning}}
           <div class="form-group">
             <label for="scanning_sweep_speed" class="col-sm-3 control-label">{{t "Scanning Speed" key='scanning_sweep_speed'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_sweep_speed" content=scanningAxisSpeedList selection=this.pending_preferences.device.scanning_sweep_speed action=(action (mut this.pending_preferences.device.scanning_sweep_speed)) }}
+              {{bound-select select_class="form-control" select_id="scanning_sweep_speed" content=this.scanningAxisSpeedList selection=this.pending_preferences.device.scanning_sweep_speed action=(action (mut this.pending_preferences.device.scanning_sweep_speed)) }}
             </div>
           </div>
         {{else}}
@@ -1446,11 +1446,11 @@
             <div class="form-group">
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_left">{{t "Left Half" key='left_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_left" content=scan_pseudo_options selection=this.pending_preferences.device.scanning_left_screen_action action=(action (mut this.pending_preferences.device.scanning_left_screen_action)) }}
+                {{bound-select select_class="form-control" select_id="scan_left" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_left_screen_action action=(action (mut this.pending_preferences.device.scanning_left_screen_action)) }}
               </div>
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_right">{{t "Right Half" key='right_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_right" content=scan_pseudo_options selection=this.pending_preferences.device.scanning_right_screen_action action=(action (mut this.pending_preferences.device.scanning_right_screen_action)) }}
+                {{bound-select select_class="form-control" select_id="scan_right" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_right_screen_action action=(action (mut this.pending_preferences.device.scanning_right_screen_action)) }}
               </div>
             </div>
           {{/unless}}
@@ -1541,42 +1541,42 @@
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Type" key='dwell_type'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=dwellList selection=this.pending_preferences.device.dwell_type action=(action (mut this.pending_preferences.device.dwell_type)) }}
+            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.dwellList selection=this.pending_preferences.device.dwell_type action=(action (mut this.pending_preferences.device.dwell_type)) }}
           </div>
           <div class="col-sm-2">
             <button class='btn btn-default' {{action "test_dwell"}} style='width: 100%;'>
-              {{#if testing_dwell}}
+              {{#if this.testing_dwell}}
                 {{t "Stop Tracking" key='stop_test_dwell'}}
               {{else}}
                 {{t "Test Dwell Tracking" key='test_dwell'}}
               {{/if}}
             </button>
           </div>
-          {{#if eyegaze_type}}
-            {{#if calibratable}}
+          {{#if this.eyegaze_type}}
+            {{#if this.calibratable}}
               <div class="col-sm-2">
                 <button class='btn btn-default' {{action "calibrate"}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
               </div>
             {{/if}}
           {{/if}}
-          {{#if testing_dwell}}
+          {{#if this.testing_dwell}}
             <div class="col-sm-5 col-sm-offset-3">
               {{dwell-tracker user=this.model preferences=this.pending_preferences type=this.pending_preferences.device.dwell_type}}
             </div>
           {{/if}}
         </div>
-        {{#if eyegaze_type}}
+        {{#if this.eyegaze_type}}
           <div class="form-group">
             <div class="col-sm-5 col-sm-offset-3">
               {{#if this.ios_app}}
-                {{#if native_eyegaze_capable}}
+                {{#if this.native_eyegaze_capable}}
                   <p class="form-control-static"><em>{{t "The built-in features of Apple Face ID support limited eye gaze control. This eye gaze is not as accurate as dedicated eye-tracking hardware, but combined with limited head movement it may be sufficient for some communicators." key='ios_eye_tracking'}}</em></p>
                 {{else}}
                   <p class="form-control-static"><em>{{t "The built-in features of Apple Face ID support limited eye gaze control. For devices without Face ID a camera-based head tracker will be used." key='ios_gaze_tracking'}}</em></p>
                 {{/if}}
               {{else}}
                 <p class="form-control-static"><em>{{t "Many eye trackers will work in %app_name% using cursor control mode or using a built-in integrate (EyeX, Eyegaze Edge). If no native trackers are available then a lower-quality camera-based eye tracker can be used." key='supported_eye_trackers'}}</em></p>
-                {{#unless native_eyegaze_capable}}
+                {{#unless this.native_eyegaze_capable}}
                   <p class='form-control-static text-danger'>
                     {{t "Integrated eye trackers will only work in the" key='eyegaze_windows_only_1'}}
                     {{#link-to 'download'}}{{t "Windows app" key='windows_app'}}{{/link-to}}.
@@ -1597,12 +1597,12 @@
             </div>
           </div>
         {{/if}}
-        {{#if arrow_or_head_dwell}}
+        {{#if this.arrow_or_head_dwell}}
           {{#if head_dwell}}
             <div class="form-group">
               <label for="dwell_tilt_sensitivity" class="col-sm-3 control-label">{{t "Dwell Head Sensitivity" key='dwell_tilt_sensitivity'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_tilt_sensitivity" content=dwellTiltList selection=this.pending_preferences.device.dwell_tilt_sensitivity action=(action (mut this.pending_preferences.device.dwell_tilt_sensitivity)) }}
+                {{bound-select select_class="form-control" select_id="dwell_tilt_sensitivity" content=this.dwellTiltList selection=this.pending_preferences.device.dwell_tilt_sensitivity action=(action (mut this.pending_preferences.device.dwell_tilt_sensitivity)) }}
               </div>
             </div>
 
@@ -1622,7 +1622,7 @@
             <div class="form-group">
               <label for="dwell_arrow_speed" class="col-sm-3 control-label">{{t "Dwell Cursor Speed" key='dwell_arrow_speed'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_arrow_speed" content=arrowSpeedList selection=this.pending_preferences.device.dwell_arrow_speed action=(action (mut this.pending_preferences.device.dwell_arrow_speed)) }}
+                {{bound-select select_class="form-control" select_id="dwell_arrow_speed" content=this.arrowSpeedList selection=this.pending_preferences.device.dwell_arrow_speed action=(action (mut this.pending_preferences.device.dwell_arrow_speed)) }}
               </div>
             </div>
           {{/unless}}
@@ -1643,20 +1643,20 @@
           <div class="form-group">
             <label for="dwell_icon_option" class="col-sm-3 control-label">{{t "Dwell Cursor Icon" key='dwell_icon'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="dwell_icon_option" content=dwellIconList selection=this.pending_preferences.device.dwell_icon action=(action (mut this.pending_preferences.device.dwell_icon)) }}
+              {{bound-select select_class="form-control" select_id="dwell_icon_option" content=this.dwellIconList selection=this.pending_preferences.device.dwell_icon action=(action (mut this.pending_preferences.device.dwell_icon)) }}
             </div>
             <div class='col-sm-1'>
-              <div id='dwell_icon' style='z-index: 1;' class={{dwell_icon_class}}></div>
+              <div id='dwell_icon' style='z-index: 1;' class={{this.dwell_icon_class}}></div>
             </div>
           </div>
         {{/if}}
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Selection" key='dwell_selection'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="dwell_selection" content=dwellSelectList selection=this.pending_preferences.device.dwell_selection action=(action (mut this.pending_preferences.device.dwell_selection)) }}
+            {{bound-select select_class="form-control" select_id="dwell_selection" content=this.dwellSelectList selection=this.pending_preferences.device.dwell_selection action=(action (mut this.pending_preferences.device.dwell_selection)) }}
           </div>
         </div>
-        {{#if button_dwell}}
+        {{#if this.button_dwell}}
           <div class="form-group">
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Dwell \"Select\" Key" key='dwell_select_keycode'}}</label>
             <div class="col-sm-5">
@@ -1666,11 +1666,11 @@
               &nbsp;{{select_keycode_string}}
             </div>
           </div>
-        {{else if expression_select}}
+        {{else if this.expression_select}}
           <div class="form-group">
             <label for="select_expression" class="col-sm-3 control-label">{{t "Dwell Expression" key='select_expression'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="select_expression" content=expressionList selection=this.pending_preferences.device.select_expression action=(action (mut this.pending_preferences.device.select_expression)) }}
+              {{bound-select select_class="form-control" select_id="select_expression" content=this.expressionList selection=this.pending_preferences.device.select_expression action=(action (mut this.pending_preferences.device.select_expression)) }}
             </div>
           </div>
         {{else}}
@@ -1722,7 +1722,7 @@
           <div class="form-group">
             <label for="dwell_release_distance" class="col-sm-3 control-label">{{t "Next Dwell Movement" key='dwell_release'}}</label>
             <div class="col-sm-2">
-              {{bound-select select_class="form-control" select_id="dwell_release_distance" content=dwellReleaseDistanceList selection=this.pending_preferences.device.dwell_release_distance action=(action (mut this.pending_preferences.device.dwell_release_distance)) }}
+              {{bound-select select_class="form-control" select_id="dwell_release_distance" content=this.dwellReleaseDistanceList selection=this.pending_preferences.device.dwell_release_distance action=(action (mut this.pending_preferences.device.dwell_release_distance)) }}
             </div>
             <div class="col-sm-3">
               <p class='form-control-static'>{{t "before starting a new selection" key='move_after_select'}}</p>
@@ -1731,7 +1731,7 @@
           <div class="form-group">
             <label for="dwell_targeting" class="col-sm-3 control-label">{{t "Dwell Targeting Style" key='dwell_targeting'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_mode" content=targetingList selection=this.pending_preferences.device.dwell_targeting action=(action (mut this.pending_preferences.device.dwell_targeting)) }}
+              {{bound-select select_class="form-control" select_id="scanning_mode" content=this.targetingList selection=this.pending_preferences.device.dwell_targeting action=(action (mut this.pending_preferences.device.dwell_targeting)) }}
             </div>
           </div>
           <div class="form-group">
@@ -1883,7 +1883,7 @@
         <div class="form-group">
           <label for="voice_output" class="col-sm-3 control-label">{{t "Voice Output" key='voice_output'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="voice_output" content=audioOutputList selection=this.pending_preferences.device.voice.target action=(action (mut this.pending_preferences.device.voice.target)) }}
+            {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(action (mut this.pending_preferences.device.voice.target)) }}
             {{#if audio_switching_delays.primary}}
               <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
             {{/if}}
@@ -1994,7 +1994,7 @@
           <div class="form-group">
             <label for="alternate_voice_output" class="col-sm-3 control-label">{{t "Secondary Voice Output" key='alternate_voice_output'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="alternate_voice_output" content=audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(action (mut this.pending_preferences.device.alternate_voice.target)) }}
+              {{bound-select select_class="form-control" select_id="alternate_voice_output" content=this.audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(action (mut this.pending_preferences.device.alternate_voice.target)) }}
               {{#if audio_switching_delays.alternate}}
                 <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
               {{/if}}
