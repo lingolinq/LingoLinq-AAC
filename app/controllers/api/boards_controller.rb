@@ -384,14 +384,14 @@ class Api::BoardsController < ApplicationController
     end
     board_params = processed_params['board'] || params['board'] || {}
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
-    if processed_params['board'] && processed_params['board']['parent_board_id']
-      pb = Board.find_by_path(processed_params['board']['parent_board_id'])
+    if board_params['parent_board_id']
+      pb = Board.find_by_path(board_params['parent_board_id'])
       if pb && pb.copyable_if_authorized?(@api_user)
         opts[:allow_copying_protected_boards] = true
       end
     end
     begin
-      board = Board.process_new(processed_params['board'], opts)
+      board = Board.process_new(board_params, opts)
     rescue ActiveRecord::RecordNotUnique
       return api_error(400, {error: 'board key already in use'})
     end
