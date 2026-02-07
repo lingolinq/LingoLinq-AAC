@@ -209,7 +209,7 @@ class Api::UsersController < ApplicationController
       end
       render json: json
     else
-      api_error 400, {error: 'update failed', errors: user.processing_errors}
+      return api_error 400, {error: 'update failed', errors: user.processing_errors}
     end
   end
   
@@ -687,7 +687,7 @@ class Api::UsersController < ApplicationController
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      api_error 400, { error: 'No daily_use log found for this user' }
+      return api_error 400, { error: 'No daily_use log found for this user' }
     end
   end
   

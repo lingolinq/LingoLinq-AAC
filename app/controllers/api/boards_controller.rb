@@ -379,12 +379,12 @@ class Api::BoardsController < ApplicationController
     end
     # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
     board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
-    if processed_params['board'] && processed_params['board']['for_user_id'] && processed_params['board']['for_user_id'] != 'self'
-      user = User.find_by_path(processed_params['board']['for_user_id'])
+    if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
+      user = User.find_by_path(board_params['for_user_id'])
       if !user
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
-        return api_error(400, {error: "User not found", for_user_id: processed_params['board']['for_user_id']})
+        return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       elsif !allowed?(user, 'edit')
         # User exists but current user lacks edit permission for that user
         return api_error(400, {error: "Not authorized", unauthorized: true})
