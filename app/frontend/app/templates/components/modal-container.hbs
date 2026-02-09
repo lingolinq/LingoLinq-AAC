@@ -4,6 +4,132 @@
   {{! Component-based modals are rendered here, template-based modals still use outlets }}
   {{#if (is-equal this.currentTemplate "about-lingolinq")}}
     {{about-lingolinq}}
+  {{else if (is-equal this.currentTemplate "support")}}
+    {{support}}
+  {{else if (is-equal this.currentTemplate "intro")}}
+    {{intro}}
+  {{else if (is-equal this.currentTemplate "terms-agree")}}
+    {{terms-agree}}
+  {{else if (is-equal this.currentTemplate "confirm-update-app")}}
+    {{confirm-update-app}}
+  {{else if (is-equal this.currentTemplate "download-board")}}
+    {{download-board}}
+  {{else if (is-equal this.currentTemplate "share-board")}}
+    {{share-board}}
+  {{else if (is-equal this.currentTemplate "set-as-home")}}
+    {{set-as-home}}
+  {{else if (is-equal this.currentTemplate "copying-board")}}
+    {{copying-board}}
+  {{else if (is-equal this.currentTemplate "confirm-edit-board")}}
+    {{confirm-edit-board}}
+  {{else if (is-equal this.currentTemplate "confirm-needs-copying")}}
+    {{confirm-needs-copying}}
+  {{else if (is-equal this.currentTemplate "speak-mode-pin")}}
+    {{speak-mode-pin}}
+  {{else if (is-equal this.currentTemplate "premium-required")}}
+    {{premium-required}}
+  {{else if (is-equal this.currentTemplate "which-home")}}
+    {{which-home}}
+  {{else if (is-equal this.currentTemplate "force-logout")}}
+    {{force-logout}}
+  {{else if (is-equal this.currentTemplate "switch-languages")}}
+    {{switch-languages}}
+  {{else if (is-equal this.currentTemplate "badge-awarded")}}
+    {{badge-awarded}}
+  {{else if (is-equal this.currentTemplate "getting-started")}}
+    {{getting-started}}
+  {{else if (is-equal this.currentTemplate "add-to-sidebar")}}
+    {{add-to-sidebar}}
+  {{else if (is-equal this.currentTemplate "add-tool")}}
+    {{add-tool}}
+  {{else if (is-equal this.currentTemplate "copy-board")}}
+    {{copy-board}}
+  {{else if (is-equal this.currentTemplate "find-button")}}
+    {{find-button}}
+  {{else if (is-equal this.currentTemplate "board-details")}}
+    {{board-details}}
+  {{else if (is-equal this.currentTemplate "speak-mode-intro")}}
+    {{speak-mode-intro}}
+  {{else if (is-equal this.currentTemplate "button-stash")}}
+    {{button-stash}}
+  {{else if (is-equal this.currentTemplate "board-copies")}}
+    {{board-copies}}
+  {{else if (is-equal this.currentTemplate "switch-communicators")}}
+    {{switch-communicators}}
+  {{else if (is-equal this.currentTemplate "record-note")}}
+    {{record-note}}
+  {{else if (is-equal this.currentTemplate "sync-details")}}
+    {{sync-details}}
+  {{else if (is-equal this.currentTemplate "confirm-notify-user")}}
+    {{confirm-notify-user}}
+  {{else if (is-equal this.currentTemplate "share-utterance")}}
+    {{share-utterance}}
+  {{else if (is-equal this.currentTemplate "share-email")}}
+    {{share-email}}
+  {{else if (is-equal this.currentTemplate "edit-board-details")}}
+    {{edit-board-details}}
+  {{else if (is-equal this.currentTemplate "approve-board-share")}}
+    {{approve-board-share}}
+  {{else if (is-equal this.currentTemplate "importing-recordings")}}
+    {{importing-recordings}}
+  {{else if (is-equal this.currentTemplate "importing-boards")}}
+    {{importing-boards}}
+  {{else if (is-equal this.currentTemplate "confirm-remove-board")}}
+    {{confirm-remove-board}}
+  {{else if (is-equal this.currentTemplate "modeling-intro")}}
+    {{modeling-intro}}
+  {{else if (is-equal this.currentTemplate "confirm-external-app")}}
+    {{confirm-external-app}}
+  {{else if (is-equal this.currentTemplate "confirm-external-link")}}
+    {{confirm-external-link}}
+  {{else if (is-equal this.currentTemplate "download-log")}}
+    {{download-log}}
+  {{else if (is-equal this.currentTemplate "add-app")}}
+    {{add-app}}
+  {{else if (is-equal this.currentTemplate "confirm-delete-logs")}}
+    {{confirm-delete-logs}}
+  {{else if (is-equal this.currentTemplate "inline-book")}}
+    {{inline-book}}
+  {{else if (is-equal this.currentTemplate "swap-or-drop-button")}}
+    {{swap-or-drop-button}}
+  {{else if (is-equal this.currentTemplate "subscribe")}}
+    {{subscribe}}
+  {{else if (is-equal this.currentTemplate "inline-video")}}
+    {{inline-video}}
+  {{else if (is-equal this.currentTemplate "device-settings")}}
+    {{device-settings}}
+  {{else if (is-equal this.currentTemplate "translation-select")}}
+    {{translation-select}}
+  {{else if (is-equal this.currentTemplate "swap-images")}}
+    {{swap-images}}
+  {{else if (is-equal this.currentTemplate "quick-assessment")}}
+    {{quick-assessment}}
+  {{else if (is-equal this.currentTemplate "add-supervisor")}}
+    {{add-supervisor}}
+  {{else if (is-equal this.currentTemplate "word-data")}}
+    {{word-data}}
+  {{else if (is-equal this.currentTemplate "new-goal")}}
+    {{new-goal}}
+  {{else if (is-equal this.currentTemplate "button-suggestions")}}
+    {{button-suggestions}}
+  {{else if (is-equal this.currentTemplate "batch-recording")}}
+    {{batch-recording}}
+  {{else if (is-equal this.currentTemplate "button-settings")}}
+    {{button-settings}}
+  {{else if (is-equal this.currentTemplate "enable-logging")}}
+    {{enable-logging}}
+  {{else if (is-equal this.currentTemplate "sidebar-button-settings")}}
+    {{sidebar-button-settings}}
+  {{else if (is-equal this.currentTemplate "premium-voices")}}
+    {{premium-voices}}
+  {{else if (is-equal this.currentTemplate "modify-core-words")}}
+    {{modify-core-words}}
+  {{else if (is-equal this.currentTemplate "button-set")}}
+    {{button-set}}
+  {{else if (is-equal this.currentTemplate "board-stats")}}
+    {{board-stats}}
+  {{else if (is-equal this.currentTemplate "rename-board")}}
+    {{rename-board}}
   {{else if (is-equal this.currentTemplate "supervision-settings")}}
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}
@@ -22,6 +148,70 @@
     {{confirm-delete-user}}
   {{else if (is-equal this.currentTemplate "modals/confirm-remove-goal")}}
     {{confirm-remove-goal}}
+  {{else if (is-equal this.currentTemplate "modals/board-privacy")}}
+    {{board-privacy}}
+  {{else if (is-equal this.currentTemplate "modals/gif")}}
+    {{gif}}
+  {{else if (is-equal this.currentTemplate "modals/choose-locale")}}
+    {{choose-locale}}
+  {{else if (is-equal this.currentTemplate "modals/tag-board")}}
+    {{tag-board}}
+  {{else if (is-equal this.currentTemplate "modals/assign-lesson")}}
+    {{assign-lesson}}
+  {{else if (is-equal this.currentTemplate "modals/slice-locales")}}
+    {{slice-locales}}
+  {{else if (is-equal this.currentTemplate "modals/confirm-org-action")}}
+    {{confirm-org-action}}
+  {{else if (is-equal this.currentTemplate "modals/assessment-settings")}}
+    {{assessment-settings}}
+  {{else if (is-equal this.currentTemplate "modals/eval-jump")}}
+    {{eval-jump}}
+  {{else if (is-equal this.currentTemplate "modals/eval-status")}}
+    {{eval-status}}
+  {{else if (is-equal this.currentTemplate "modals/big-button")}}
+    {{big-button}}
+  {{else if (is-equal this.currentTemplate "modals/external-device")}}
+    {{external-device}}
+  {{else if (is-equal this.currentTemplate "modals/extra-colors")}}
+    {{extra-colors-modal}}
+  {{else if (is-equal this.currentTemplate "modals/timer")}}
+    {{timer}}
+  {{else if (is-equal this.currentTemplate "modals/paint-level")}}
+    {{paint-level}}
+  {{else if (is-equal this.currentTemplate "modals/focus-words")}}
+    {{focus-words}}
+  {{else if (is-equal this.currentTemplate "modals/remote-model")}}
+    {{remote-model}}
+  {{else if (is-equal this.currentTemplate "modals/modeling-ideas")}}
+    {{modeling-ideas}}
+  {{else if (is-equal this.currentTemplate "modals/repairs")}}
+    {{repairs}}
+  {{else if (is-equal this.currentTemplate "modals/inbox")}}
+    {{inbox}}
+  {{else if (is-equal this.currentTemplate "modals/phrases")}}
+    {{phrases}}
+  {{else if (is-equal this.currentTemplate "modals/masquerade")}}
+    {{masquerade}}
+  {{else if (is-equal this.currentTemplate "modals/manual-log")}}
+    {{manual-log}}
+  {{else if (is-equal this.currentTemplate "modals/importing-logs")}}
+    {{importing-logs}}
+  {{else if (is-equal this.currentTemplate "modals/request-supervisee")}}
+    {{request-supervisee}}
+  {{else if (is-equal this.currentTemplate "modals/user-status")}}
+    {{user-status}}
+  {{else if (is-equal this.currentTemplate "modals/valet-mode")}}
+    {{valet-mode}}
+  {{else if (is-equal this.currentTemplate "modals/note-templates")}}
+    {{note-templates}}
+  {{else if (is-equal this.currentTemplate "modals/message-unit")}}
+    {{message-unit}}
+  {{else if (is-equal this.currentTemplate "modals/profiles")}}
+    {{profiles}}
+  {{else if (is-equal this.currentTemplate "modals/program-nfc")}}
+    {{program-nfc}}
+  {{else if (is-equal this.currentTemplate "modals/push_to_cloud")}}
+    {{push-to-cloud}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

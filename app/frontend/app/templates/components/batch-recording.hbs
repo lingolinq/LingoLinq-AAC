@@ -1,0 +1,112 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{#if this.model.single}}
+        {{t "Record Audio" key="record_audio"}}
+      {{else}}
+        {{t "Batch Recording" key="batch_recording"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.appState.currentUser.supervisees}}
+      <div class="row">
+        <div for="for_user_id" class="col-sm-3" style='padding-top: 5px; font-weight: bold;'>{{t "Recording For" key="recording_for"}}</div>
+        <div class="col-sm-9">
+          {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "updateForUserId") }}
+        </div>
+      </div>
+    {{/if}}
+    {{#if this.model.user}}
+      {{#if this.model.single}}
+        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording=(action "decide_on_recording") select_phrase=(action "select_phrase") audio_ready=(action "audio_ready") audio_not_ready=(action "audio_not_ready")}}
+      {{else if this.phrase}}
+        <button class='btn btn-default' {{action "select_phrase"}} style='float: left; margin-right: 5px; height: 50px;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to %{category}" key="back_to_named_category" category=this.category.name}}</span></button>
+        <h4 style='margin-bottom: 0;'>
+          "{{this.phrase.text}}"
+        </h4>
+        <span class='text-muted' style='overflow: hidden; width: 100%;'>
+         {{this.category.name}}, <span style='color: #aaa;'>{{this.repository.name}}</span>
+        </span>
+        <div style='clear: both; margin-bottom: 10px;'></div>
+        {{audio-recorder id=this.phrase.id user_id=this.model.user.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording="decide_on_recording" select_phrase="select_phrase" audio_ready="audio_ready" audio_not_ready="audio_not_ready"}}
+      {{else if this.category}}
+        <button class='btn btn-default' {{action "select_category"}} style='float: left; margin-right: 5px; height: 50px; vertical-align: top;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to List" key="back_to_list"}}</span></button>
+        <h4 style='margin-bottom: 0;'>
+          {{this.category.name}}
+        </h4>
+        <span class='text-muted' style='overflow: hidden; width: 100%;'>{{this.repository.name}}</span>
+        <div style='clear: both; margin-bottom: 10px;'></div>
+        <div class='btn-group-vertical' style='width: 100%;'>
+          {{#each this.category.phrases as |p|}}
+            <button class='btn btn-default' style='height: 50px; text-align: left;' {{action "select_phrase" p.id}}>
+              {{#if p.pending_sound}}
+                <span class='glyphicon glyphicon-warning-sign'></span>&nbsp;&nbsp;
+              {{else if p.sound}}
+                <span class='glyphicon glyphicon-ok'></span>&nbsp;&nbsp;
+              {{/if}}
+              {{p.text}}
+            </button>
+          {{/each}}
+          {{#if this.custom_phrase}}
+            <span class='btn btn-default' style='text-align: left; height: 50px;'>
+              <span style='display: inline-block; width: 300px;'>
+                <Input @insert-newline={{action "confirm_add_phrase"}} @escape-press={{action "cancel_add_phrase"}} id="custom_phrase_text" @type="text" class="form-control" @value={{this.custom_phrase.text}} />
+              </span>
+              <button class='btn btn-default' {{action "confirm_add_phrase"}}>{{t "Add" key="add"}}</button>
+            </span>
+          {{else}}
+            <button class='btn btn-default' style='height: 50px; text-align: left; color: #888;' {{action "add_phrase"}}>
+              <span class='glyphicon glyphicon-plus'></span>
+              {{t "Add another phrase" key="add_another_phrase"}}
+            </button>
+          {{/if}}
+        </div>
+        {{#if this.next_category}}
+          <div style='text-align: right; margin-top: 10px;'>
+            <button class='btn btn-default' {{action "select_category" this.next_category.id}} style='margin-left: 5px; height: 50px;'>{{t "Next Category" key="next_category"}}</button>
+          </div>
+        {{/if}}
+      {{else if this.repository}}
+        {{#if this.repository.loading}}
+          <p>{{t "Loading repository..." key="loading_repository"}}</p>
+        {{else if this.repository.error}}
+          <p>{{t "Error loading repository" key="error_loading_repository"}}</p>
+        {{else }}
+          <h4>{{this.repository.name}}</h4>
+          <div class='text-muted' style='font-size: 10px;'>
+            {{this.repository.description}}
+            {{#if this.repository.url}}
+              <a href={{this.repository.url}} target="_blank" rel="noopener">{{t "learn more" key="learn_more_lower"}}</a>
+            {{/if}}
+          </div>
+          {{#if this.repository.total}}
+            <div style='margin-top: 5px; text-align: right;'>{{delimit this.repository.recorded}} / {{delimit this.repository.total}} {{t "recorded" key="recorded"}}</div>
+          {{/if}}
+          <div class="btn-group-vertical" style="width: 100%; margin-top: 20px;">
+            {{#each this.repository.categories as |cat|}}
+              <button class='btn btn-default' style='height: 50px; text-align: left;' {{action "select_category" cat.id}}>
+                {{#if cat.pending_sound}}
+                  <span class='glyphicon glyphicon-warning-sign'></span>
+                {{/if}}
+                {{cat.name}}
+                ( {{cat.recordings}} / {{cat.phrases.length}} )
+              </button>
+            {{/each}}
+          </div>
+        {{/if}}
+      {{else}}
+        ho hum, not working
+      {{/if}}
+    {{else}}
+      <p>
+        {{t "Select the user to record audio for" key="select_recording_user"}}
+        {{user-select select_id="for_user_id" buttons=true selection=this.for_user_id action=(action "updateForUserId") }}
+      </p>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}

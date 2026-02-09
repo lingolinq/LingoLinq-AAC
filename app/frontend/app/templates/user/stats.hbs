@@ -11,9 +11,9 @@
     </h2>
     {{#if this.usage_stats}}
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/data-filter usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 app_state=this.app_state snapshots=this.snapshots compare_to="compare_to" clear_side="clear_left_side" update_filter="update_left_filter"}}
+        {{stats/data-filter usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 app_state=this.app_state snapshots=this.snapshots compare_to=(action "compare_to") clear_side=(action "clear_left_side") update_filter=(action "update_left_filter")}}
         {{#if this.usage_stats2}}
-          {{stats/data-filter usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true snapshots=this.snapshots right_side=true clear_side="clear_right_side" update_filter="update_right_filter"}}
+          {{stats/data-filter usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true snapshots=this.snapshots right_side=true clear_side=(action "clear_right_side") update_filter=(action "update_right_filter")}}
         {{/if}}
       </div>
     {{/if}}

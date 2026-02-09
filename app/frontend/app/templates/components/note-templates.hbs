@@ -1,0 +1,39 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{t "Note Templates" key="note_templates"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "When recording notes to a user's log, it can be useful to have a template to ensure consistent record-keeping across the organization. Here you can define templates that any supervisor or manager can use when recording notes to a user's log." key="note_templates_explainer"}}</p>
+    <div class='row'>
+      <div class='col-sm-9'>
+        {{bound-select select_class="form-control" select_id="template" content=this.template_list selection=this.current_template_id action=(action "updateTemplateId") }}
+      </div>
+      <div class='col-sm-3'>
+        <button class='btn btn-default' {{ action "add_row" }}>{{t "Add New" key="add_new"}}</button>
+      </div>
+
+    </div>
+    {{#if this.current_template}}
+      <div class='row' style='margin-top: 15px;'>
+        <div class='col-sm-9'>
+          <Input @value={{this.current_template.title}} class="form-control" type="text" placeholder="Template Name" />
+        </div>
+      </div>
+      <div class='row' style='margin-top: 5px;'>
+        <div class='col-sm-9'>
+          <Textarea @value={{this.current_template.text}} rows={{8}} class="form-control" placeholder="Template Contents" />
+        </div>
+        <div class='col-sm-12' style='text-align: right;'>
+          <button class='btn btn-default' {{ action "remove" this.current_template }}>{{t "Remove Template" key="remove_template"}}</button>
+        </div>
+      </div>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-primary btn-lg' {{action "confirm"}}>{{t "Update" key="update"}}</button>
+    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}

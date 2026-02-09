@@ -12,11 +12,13 @@ import Utils from '../utils/misc';
 import Stats from '../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 
 var order = ['intro', 'usage', 'board_category', 'core', 'symbols', 'access', 'voice', 'logging', 'supervisors', 'done'];
 var extra_order = ['extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-supervisors', 'extra-reports', 'extra-logs', 'extra-done'];
 export default Controller.extend({
   appState: service('app-state'),
+  app_state: alias('appState'),
   persistence: service('persistence'),
   speecher: speecher,
   title: computed(function() {
@@ -25,16 +27,16 @@ export default Controller.extend({
   queryParams: ['page', 'finish', 'user_id'],
   order: order,
   extra_order: extra_order,
-  partial: computed('page', function() {
+  setupComponent: computed('page', function() {
     var page = this.get('page');
     var pages = order.concat(extra_order);
     if(page && page.match(/^extra/) && this.appState && this.appState.controller) {
       this.appState.controller.set('setup_order', order.concat(extra_order));
     }
     if(pages.indexOf(page) != -1) {
-      return "setup/" + page;
+      return 'setup/' + page;
     } else {
-      return "setup/intro";
+      return 'setup/intro';
     }
   }),
   utterance_layout: computed(

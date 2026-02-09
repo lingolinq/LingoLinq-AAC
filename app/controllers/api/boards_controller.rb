@@ -1,10 +1,10 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
-  before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
-  before_action :require_api_token_for_cache_user, :only => [:index, :cache]
+  before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
+  # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
   def cache
-    # Security: require_api_token_for_cache_user ensures authentication for this action
+    # Security: require_api_token ensures authentication for this action
     render json: { user: { id: 'cache' } }
   end
 
@@ -25,10 +25,12 @@ class Api::BoardsController < ApplicationController
       params['sort'] = 'home_popularity'
     end
     if cache_key
-      json = RedisInit.default.get(cache_key)      
-      if json && json != {}.to_json
-        return render(json: json) 
+      cached = RedisInit.default.get(cache_key)
+      if cached.present?
+        # Return cached value (real data or empty placeholder for stampede protection); render as body to avoid double-encoding
+        return render(body: cached, content_type: 'application/json')
       else
+        # Set empty placeholder so concurrent requests return it instead of all running the heavy query
         RedisInit.default.setex(cache_key, 5.minutes.to_i, {}.to_json)
       end
     end
@@ -50,19 +52,16 @@ class Api::BoardsController < ApplicationController
     
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
-      if params['user_id'] || params[:user_id]
-        # Handle special case where user_id is 'cache' (from boards cache endpoint)
-        # Return public boards only since there are no user-specific boards for cache
-        # Security: require_api_token_for_cache_user already ensures authentication
-        user_id_param = params['user_id'] || params[:user_id]
+      user_id_param = params['user_id'] || params[:user_id]
+      if user_id_param.present?
+        # Special pseudo-user IDs for index: not a real user lookup; no permission check.
         if user_id_param.to_s == 'cache'
-          # Security: require_api_token_for_cache_user already ensures authentication
-          # Only return public boards for cache user - no user-specific data
           params['public'] = true
         else
+          # Real user lookup: resolve user and enforce existence + view_detailed permission.
           user = User.find_by_path(user_id_param)
-          return unless user
-          return unless allowed?(user, 'view_detailed')
+          return unless exists?(user, user_id_param)
+          return unless user && allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
               Rails.logger.warn('looking up shared board ids')
@@ -304,13 +303,18 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('start paginated result')
     self.class.trace_execution_scoped(['boards/json_paginate']) do
       json = JsonApi::Board.paginate(params, boards, {locale: params['locale'], extra_results: other_boards})
+      json[:meta] ||= {}
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
     end
+    # Always set meta for consistent structure; uncached = true only for this fresh response
+    json[:meta] ||= {}
+    json[:meta]['uncached'] = true
     if cache_key
-      RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
-      # Put uncached flag in meta to avoid Ember Data trying to parse it as a model
-      json[:meta] ||= {}
-      json[:meta]['uncached'] = true
+      # Cache a copy without uncached so cached responses don't incorrectly claim to be uncached
+      json_for_cache = json.deep_dup
+      json_for_cache[:meta] = (json_for_cache[:meta] || {}).dup
+      json_for_cache[:meta].delete('uncached')
+      RedisInit.default.setex(cache_key, 12.hours.to_i, json_for_cache.to_json)
     end
 
     if (Time.now.to_i - start) > 5
@@ -373,35 +377,37 @@ class Api::BoardsController < ApplicationController
     if request.content_type == 'application/json'
       processed_params = JSON.parse(request.body.read)
     end
-    if processed_params['board'] && processed_params['board']['for_user_id'] && processed_params['board']['for_user_id'] != 'self'
-      user = User.find_by_path(processed_params['board']['for_user_id'])
+    # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
+    board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
+    if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
+      user = User.find_by_path(board_params['for_user_id'])
       if !user
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
-        return api_error(400, {error: "User not found", for_user_id: processed_params['board']['for_user_id']})
+        return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       elsif !allowed?(user, 'edit')
-        # User exists but no permission
-        return
+        # User exists but current user lacks edit permission for that user
+        return api_error(400, {error: "Not authorized", unauthorized: true})
       else
         @board_user = user
       end
     end
-    opts = {:user => @board_user, :author => @api_user, :key => params['board']['key']}
-    if processed_params['board'] && processed_params['board']['parent_board_id']
-      pb = Board.find_by_path(processed_params['board']['parent_board_id'])
+    opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
+    if board_params['parent_board_id']
+      pb = Board.find_by_path(board_params['parent_board_id'])
       if pb && pb.copyable_if_authorized?(@api_user)
         opts[:allow_copying_protected_boards] = true
       end
     end
     begin
-      board = Board.process_new(processed_params['board'], opts)
+      board = Board.process_new(board_params, opts)
     rescue ActiveRecord::RecordNotUnique
       return api_error(400, {error: 'board key already in use'})
     end
     if board.errored?
       api_error(400, {error: "board creation failed", errors: board && board.processing_errors})
     else
-      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end
   end
 
@@ -699,11 +705,6 @@ class Api::BoardsController < ApplicationController
 
   protected
   
-  def require_api_token_for_cache_user
-    # Index and cache are excepted from require_api_token; enforce auth for both (no conditional on user_id)
-    require_api_token
-  end
-
   def star_or_unstar(star)
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])

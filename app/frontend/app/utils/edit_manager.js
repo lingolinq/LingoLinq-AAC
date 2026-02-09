@@ -1800,7 +1800,7 @@ var editManager = EmberObject.extend({
           if(border._ok) {
             newButton.border_color = border.toRgbString();
           }
-          newButton.hidden = !!currentButton.hidden;
+          newButton.hidden = currentButton.hidden === true;
           newButton.link_disabled = !!currentButton.link_disabled;
           if(currentButton.text_only) {
             newButton.text_only = true;

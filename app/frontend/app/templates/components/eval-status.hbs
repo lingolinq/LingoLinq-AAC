@@ -1,0 +1,190 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{t "Evaluation Status" key="eval_status"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.choice.reset}}
+      {{#if this.user.can_reset_eval}}
+        <p>
+          {{t "Are you sure you want to reset the evaluation period for the account, <b>%{user_name}</b>? This will erase any personalizations and logs created on the account before now." user_name=this.user.user_name key="confirm_reset_eval"}}
+        </p>
+        <p>
+          {{t "To confirm the reset, please enter the user name for this evaluation account (%{user_name}), as well as a new email address to be used during the next eval." key="parameters_for_reset" user_name=this.user.user_name}}
+          {{t "NOTE: You should also change the password on the account for each new eval, otherwise previous trial users would be able to log in and see content and logs for the current trial user." key="password_should_be_reset"}}
+        </p>
+        <form class="form-horizontal">
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "Current User Name" key="current_user_name"}}</label>
+            <div class='col-sm-6'>
+              <Input type="text" @value={{this.reset_user_name}} class="form-control" />
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "New Email Address" key="new_email"}}</label>
+            <div class='col-sm-6'>
+              <Input type="text" @value={{this.reset_email}} class="form-control" />
+              {{#if this.status.reset_email_used}}
+                <p class='text-danger'><i>{{t "Must be a different email address than last time" key="must_be_different_email"}}</i></p>
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.org_board_keys}}
+            <div class='form-group'>
+              <label class='control-label col-sm-5' for='home_board'>{{t "New Home Board" key="new_home_board"}}</label>
+              <div class='col-sm-6'>
+                {{bound-select select_class="form-control" select_id="home_board" content=this.org_board_keys selection=this.home_board_key action=(action (mut this.home_board_key)) }}
+              </div>
+            </div>
+            {{#if this.org_board_set}}
+              <div class='form-group'>
+                <label class='control-label col-sm-5' for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
+                <div class='col-sm-6'>
+                  {{bound-select select_class="form-control" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action (mut this.symbol_library)) }}
+                </div>
+              </div>
+            {{/if}}
+          {{/if}}
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "New Expiration" key="new_expiration"}}</label>
+            <div class='col-sm-6'>
+              <Input type="date" @value={{this.eval_expires}} class="form-control" />
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "New Password" key="new_password"}}</label>
+            <div class='col-sm-6'>
+              <Input type="password" placeholder="(optional)" @value={{this.reset_password}} class="form-control" />
+            </div>
+          </div>
+        </form>
+
+      {{else}}
+        <p>{{t "You don't have permission to reset this evaluation" key="reset_not_allowed"}}</p>
+      {{/if}}
+    {{else if this.choice.transfer}}
+      <p>
+        {{t "Once you are ready to use %app_name% long-term, it will make sense to transfer your boards and logs out of this evaluation account and into a new, permanent account. To do this, sign up for a free trial account and the enter the login information for that new account below. The boards and logs created during the evaluation will all be transferred to the new account." key="how_to_transfer"}}
+      </p>
+        <form class="form-horizontal">
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "New User Name" key="new_user_name"}}</label>
+            <div class='col-sm-6'>
+              <Input type="text" @value={{this.transfer_user_name}} class="form-control" />
+              {{#if this.status.transfer_bad_credentials}}
+                <p class='text-danger'><i>{{t "No account found with that user name and password" key="no_account_found"}}</i></p>
+              {{/if}}
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "New Password" key="new_password"}}</label>
+            <div class='col-sm-6'>
+              <Input type="password" @value={{this.transfer_password}} class="form-control" />
+            </div>
+          </div>
+        </form>
+    {{else if this.choice.extend}}
+      <p>
+        {{#if this.user.can_reset_eval}}
+          {{t "You can extend an existing evaluation as needed for the current communicator. Please enter a new expiration date and the evaluation account will update the next time it syncs." key="set_new_eval_expiration"}}
+        {{else}}
+          {{t "You can extend an extra week if you need a little more time, but you will only be able to extend the evaluation once. After that you'll need to talk to the group who gave you this account about extending your evaluation longer." key="one_week_extension_or_talk_to_supervisors"}}
+        {{/if}}
+      </p>
+      {{#if this.user.can_reset_eval}}
+        <form class="form-horizontal">
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "Current Expiration" key="current_expiration"}}</label>
+            <div class='col-sm-6'>
+              <p class='form-control-static'>{{date this.user.subscription.eval_expires "day"}}</p>
+            </div>
+          </div>
+          <div class='form-group'>
+            <label class='control-label col-sm-5'>{{t "Updated Expiration" key="updated_expiration"}}</label>
+            <div class='col-sm-6'>
+              <Input type="date" @value={{this.extend_date}} class="form-control" />
+            </div>
+          </div>
+        </form>
+      {{/if}}
+    {{else}}
+      {{#if this.user.eval_end_date}}
+        <p>
+          {{#if this.user.eval_ended}}
+            {{t "The evaluation period for <b>%{user_name}</b> expired" key="eval_expired_for_user" user_name=this.user.user_name}}
+            {{date this.user.eval_end_date "day"}}{{t "." key="period"}}
+          {{else}}
+            {{t "The evaluation period for <b>%{user_name}</b> will end on" key="eval_expiring_for_user" user_name=this.user.user_name}}
+            {{date this.user.eval_end_date "day"}}{{t "." key="period"}}
+          {{/if}}
+          {{#if this.user.can_reset_eval}}
+            {{t "You can reset or extend the current evaluation period, or wipe the account clean to start a new evaluation." key="reset_or_extend"}}
+          {{else if this.user.subscription.eval_extendable}}
+            {{t "You can extend an extra week if you need a little extra time or to transfer content to a different account." key="extend_or_transfer"}}
+          {{/if}}
+          {{#if this.user.permissions.supervise}}
+            {{t "If there are boards and logs you would like to preserve from this evaluation, you can also transfer all evaluation content to a different %app_name% account." key="can_transfer_content"}}
+          {{/if}}
+        </p>
+        <div style='text-align: center; margin-top: 20px;'>
+          {{#if this.user.can_reset_eval}}
+            <button class='btn btn-default' {{action "choose" "reset"}}>{{t "Reset Account" key="reset_account"}}</button>
+            <button class='btn btn-default' {{action "choose" "extend"}}>{{t "Extend Evaluation" key="extend_evaluation"}}</button>
+          {{else if this.user.subscription.eval_extendable}}
+            <button class='btn btn-default' {{action "choose" "extend"}}>{{t "Extend Evaluation" key="extend_evaluation"}}</button>
+          {{/if}}
+          {{#if this.user.permissions.supervise}}
+            <button class='btn btn-default' {{action "choose" "transfer"}}>{{t "Transfer Account" key="transfer_account"}}</button>
+          {{/if}}
+        </div>
+      {{else}}
+        <p>{{t "This is not an evaluation account." key="not_eval_account"}}</p>
+      {{/if}}
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    {{#if this.choice.reset}}
+      <button {{action "reset"}} class='btn btn-primary'>
+        {{#if this.status.reset_error}}
+          {{t "Reset Failed" key="reset_failed"}}
+        {{else if this.status.resetting}}
+          {{t "Resetting..." key="resetting"}}
+        {{else if this.status.reset_finished}}
+          {{t "Reset Complete! Waiting to reload..." key="reset_complete"}}
+        {{else}}
+          {{t "Confirm Reset" key="confirm_reset"}}
+        {{/if}}
+      </button>
+      <button class='btn btn-default' {{action "choose"}}>{{t "Back" key="back"}}</button>
+    {{else if this.choice.transfer}}
+      <button {{action "transfer"}} class='btn btn-primary'>
+        {{#if this.status.transfer_error}}
+          {{t "Transfer Failed" key="transfer_failed"}}
+        {{else if this.status.transferring}}
+          {{t "Transferring..." key="transferring"}}
+        {{else if this.status.transfer_finished}}
+          {{t "Transfer Complete! Logging Out..." key="transfer_complete_logging_out"}}
+        {{else}}
+          {{t "Confirm Transfer" key="confirm_transfer"}}
+        {{/if}}
+      </button>
+      <button class='btn btn-default' {{action "choose"}}>{{t "Back" key="back"}}</button>
+    {{else if this.choice.extend}}
+      <button {{action "extend"}} class='btn btn-primary'>
+        {{#if this.status.extend_error}}
+          {{t "Extension Failed" key="extension_failed"}}
+        {{else if this.status.extending}}
+          {{t "Extending Evaluation..." key="extending_evaluation"}}
+        {{else if this.status.cant_extend}}
+          {{t "Can't Extend Evaluation" key="cant_extend_evaluation"}}
+        {{else}}
+          {{t "Confirm Extension" key="confirm_extension"}}
+        {{/if}}
+      </button>
+      <button class='btn btn-default' {{action "choose"}}>{{t "Back" key="back"}}</button>
+    {{/if}}
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}

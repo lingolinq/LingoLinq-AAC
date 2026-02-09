@@ -1,0 +1,76 @@
+{{#modal-dialog desired_width=850 action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3 style='max-width: calc(100% - 30px);white-space: nowrap;text-overflow: ellipsis;overflow: hidden;'>
+      {{t "GIF Search for \"%{str}\"" str=this.search key="gif_search_for_string"}}
+    </h3>
+  </div>
+  <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
+    <div style='display: none;'>
+      <Input type="text" @value={{this.search}} class="input" />
+      <button type='button' class="btn btn-default" {{action "search"}}>{{t "Search" key="search"}}</button>
+    </div>
+
+    <div style={{if this.flipped "transform: rotate(180deg);"}}>
+      {{#if this.selected_gif}}
+        <img src={{this.selected_gif.image_url}} style='width: 100%; height: calc(100vh - 220px);' class='fit_image'>
+      {{else if this.results}}
+        {{#if this.results.loading}}
+          {{t "Loading results..." key="loading_results"}}
+        {{else if this.results.error}}
+          {{#if (persistence-online)}}
+            {{t "Error loading results" key="error_loading_results"}}
+          {{else}}
+            {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}
+          {{/if}}
+        {{else}}
+          <div class='cursor_holder'>
+            <div class='cursor_navigation repair_buttons'>
+              <button class='btn btn-default btn-lg up' {{action "move" "up"}} disabled={{this.not_scrollable}}>
+                <span class='glyphicon glyphicon-chevron-up'></span>
+                {{t "Up" key="up"}}
+              </button>
+              <button class='btn btn-default btn-lg down' {{action "move" "down"}} disabled={{this.not_scrollable}}>
+                <span class='glyphicon glyphicon-chevron-down'></span>
+                {{t "Down" key="down"}}
+              </button>
+            </div>
+            <div class='row cursor_area' id='gif_scroll' style='max-height: calc(100vh - 220px);'>
+              {{#each this.results.columns as |col|}}
+                <div style='width: calc(33% - 5px); float: left; margin-right: 5px;'>
+                  {{#each col.list as |pic|}}
+                    {{#if pic.image_url}}
+                      <a href='#' {{action "choose" pic}}>
+                        <img src={{pic.image_url}} class='fit_image' style='width: 100%; margin-bottom: 5px;' >
+                      </a>
+                    {{/if}}
+                  {{/each}}
+                </div>
+              {{/each}}
+            </div>
+          </div>
+        {{/if}}
+      {{else}}
+        {{t "No results" key="no_results"}}
+      {{/if}}
+    </div>
+    <div class='row repair_buttons' style='margin-top: 10px;'>
+      <div class='col-sm-12'>
+        <button class='btn btn-lg btn-default' {{action "close"}}>
+          <span class='glyphicon glyphicon-remove'></span>
+          {{t "Close" key="close"}}
+        </button>
+        {{#if this.selected_gif}}
+          <button class='btn btn-lg btn-default' {{action "back"}}>
+            <span class='glyphicon glyphicon-arrow-left'></span>
+            {{t "Back" key="back"}}
+          </button>
+          <button class='btn btn-lg btn-default' {{action "flip"}}>
+            <span class='glyphicon glyphicon-repeat'></span>
+            {{t "Flip Image" key="flip_image"}}
+          </button>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

@@ -88,9 +88,9 @@ This document summarizes all the bug fixes and improvements made in this commit.
 ## Infrastructure Fixes
 
 ### 13. Procfile Node Version Installation
-**File:** `Procfile`
-**Issue:** Removed `nvm install 18` command, causing deployment failures when Node 18 wasn't pre-installed.
-**Fix:** Added `nvm install 18` before `nvm use 18` to ensure Node 18 is always available.
+**File:** `Procfile`, `bin/ember-server`
+**Issue:** The Procfile calls `bin/ember-server` for the ember process. If the script did not reliably set up Node 18 (e.g. when run under POSIX `sh`, `command -v nvm` can be false because `nvm` is a shell function), deployment could fail when the system Node version does not match Ember's requirements (Node 18).
+**Fix:** Node 18 setup is handled inside `bin/ember-server`. The script sources nvm when available (from `$HOME/.nvm/nvm.sh` or `/usr/local/share/nvm/nvm.sh`) and immediately runs `nvm install 18 && nvm use 18` after sourcing, so Node 18 is used regardless of `command -v nvm` behavior in sh. The Procfile line remains `ember: bin/ember-server`; no shell escaping is required.
 
 ## Summary
 

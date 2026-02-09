@@ -321,12 +321,17 @@ export default Component.extend({
             modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
           });
         }
-        var select = _this.get('select');
-        if (select && typeof select === 'function') {
-          select(_this.get('current_board'));
-        } else if (select && typeof select === 'string') {
-          // Use the string as the action name so parent can specify a custom action (e.g. select="chooseBoard")
-          _this.sendAction(select, _this.get('current_board'));
+        // Prefer onSelect (parent closure) to avoid name collision with this component's select action
+        var selectHandler = _this.get('onSelect');
+        if (selectHandler && typeof selectHandler === 'function') {
+          selectHandler(_this.get('current_board'));
+        } else {
+          var selectAction = _this.get('select');
+          if (selectAction && typeof selectAction === 'string') {
+            _this.sendAction(selectAction, _this.get('current_board'));
+          } else {
+            _this.sendAction('select', _this.get('current_board'));
+          }
         }
       } else {
         _this.set('current_level', _this.get('base_level'));

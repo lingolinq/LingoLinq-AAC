@@ -1,0 +1,20 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Edit this Board" key="edit_this_board"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>
+      {{#if this.model.definitely_in_use}}
+        {{t "Other people are currently using this board, and making changes directly to the board will affect their communication sets. Do you want to make a copy of this board instead?" key="in_use_make_copy_instead"}}
+      {{else}}
+        {{t "Other people may be using this board, and making changes could affect their communication sets. Do you want to make a copy of this board instead?" key="maybe_in_use_make_copy_instead"}}
+      {{/if}}
+    </p>
+  </div>
+  <div class="modal-header">
+    <button class='btn btn-primary' {{action "tweakBoard"}}>{{t "Make a Copy" key="make_a_copy"}}</button>
+    <button class='btn btn-default' {{action "editBoard"}}>{{t "Edit this Board" key="edit_this_board"}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}

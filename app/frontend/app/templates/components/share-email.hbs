@@ -1,0 +1,43 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Share Text" key="share_text"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "The following message will be emailed to the address you specify." key="email_explanation"}}</p>
+
+    <form class="form-horizontal" {{action "confirm" on="submit" preventDefault=true}}>
+      <div class="form-group">
+        <label for="email" class="col-sm-2 control-label">{{t "Email" key="email"}}</label>
+        <div class="col-sm-10">
+          <Input @value={{this.email}} class="form-control" id="email" placeholder="Email Address" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="subject" class="col-sm-2 control-label">{{t "Subject" key="subject"}}</label>
+        <div class="col-sm-10">
+          <Input @value={{this.subject}} class="form-control" id="subject" placeholder="Email Subject Line" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="message" class="col-sm-2 control-label">{{t "Message" key="message"}}</label>
+        <div class="col-sm-10">
+          <Textarea @value={{this.message}} class="form-control" id="message" placeholder="Message" rows={{3}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10 col-sm-offset-2">
+          {{#if this.loading}}
+            <p>{{t "Sending Email..." key="sending_email"}}</p>
+          {{else}}
+            <button class='btn btn-primary' disabled={{this.no_email}} {{action "confirm"}}>{{t "Send Email" key="send_email"}}</button>
+            <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+          {{/if}}
+          {{#if this.error}}
+            <p class='text-danger'>{{t "There was an unexpected problem sending the email" key="error_sending_email"}}</p>
+          {{/if}}
+        </div>
+      </div>
+    </form>
+  </div>
+{{/modal-dialog}}

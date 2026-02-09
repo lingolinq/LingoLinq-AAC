@@ -1506,7 +1506,8 @@ LingoLinq.Board = DS.Model.extend({
     };
     var html = "";
 
-    var text_position = "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
+    var devicePrefs = (this.appState && this.appState.get('currentUser.preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
+    var text_position = "text_position_" + (devicePrefs && devicePrefs.button_text_position ? devicePrefs.button_text_position : 'top');
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
     LingoLinq.log.track('computing dimensions');

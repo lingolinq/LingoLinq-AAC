@@ -154,8 +154,7 @@ describe('audio-browser', function() {
   describe("select_audio", function() {
     it('should update correctly', function() {
       var called = false;
-      stub(component, 'sendAction', function(message, val) {
-        expect(message).toEqual('audio_selected');
+      component.set('audio_selected', function(val) {
         expect(val).toEqual('asdf');
         called = true;
       });

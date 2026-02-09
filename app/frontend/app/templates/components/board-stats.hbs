@@ -1,0 +1,75 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      Usage Report for
+      {{this.model.name}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.stats}}
+      {{# if this.stats.error}}
+        {{t "Stats failed to load" key="stats_failed_to_load"}}
+      {{else}}
+        <dl class="dl-horizontal">
+          <dt>{{t "Uses" key="people_using_this_board"}}</dt>
+          <dd>{{t "%{num} people use this board" num=this.stats.uses key="n_people_use_this_board"}}</dd>
+
+          {{#if this.model.using_user_names}}
+            <dt>{{t "Known Users" key="known_users"}}</dt>
+            <dd><div style='max-height: 50px; overflow: auto;'>{{this.using_user_names}}</div></dd>
+          {{/if}}
+
+          <dt>{{t "Home Uses" key="people_using_this_home_board"}}</dt>
+          <dd>{{t "%{num} people use this as their home board" num=this.stats.home_uses key="n_people_use_this_home_board"}}</dd>
+
+          <dt>{{t "Likes" key="stars"}}</dt>
+          <dd>{{ this.stats.stars }}</dd>
+
+          <dt>{{t "Copies" key="forks"}}</dt>
+          <dd>{{ this.stats.forks }}</dd>
+
+          <dt>{{t "Popular Copies" key="popular_forks"}}</dt>
+          <dd>
+            {{#if this.stats.popular_forks}}
+              <ul>
+              {{#each this.stats.popular_forks as |fork|}}
+                <li>
+                  {{#link-to "board" fork.key}}
+                    {{fork.key}}
+                  {{/link-to}} - {{t "use" count=fork.uses key="n_uses" }}
+                </li>
+              {{/each}}
+              </ul>
+            {{else}}
+              {{t "None" key="none_upper"}}
+            {{/if}}
+          </dd>
+          <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
+            <dd>
+              {{this.model.downstream_boards}}
+            </dd>
+          <dt>{{t "Dimensions" key="dimensions"}}</dt>
+            <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
+
+          <dt>{{t "Total Buttons" key="total_buttons"}}</dt>
+            <dd>
+              {{this.model.total_buttons}}
+            </dd>
+          <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
+            <dd>{{this.model.unlinked_buttons}}</dd>
+        </dl>
+      {{/if}}
+    {{else}}
+      {{#if (persistence-online)}}
+        {{#if this.appState.currentUser}}
+          {{t "Loading..." key="loading"}}
+        {{else}}
+          <p class="text-danger">{{t "Must be logged in to see board stats" key="must_be_logged_for_board_state"}}</p>
+        {{/if}}
+      {{else}}
+        <p class="text-danger">{{t "Not Online" key="not_online"}}</p>
+      {{/if}}
+    {{/if}}
+  </div>
+{{/modal-dialog}}

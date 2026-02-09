@@ -1,0 +1,44 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+      <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{#if this.model.header}}
+        {{this.model.header}}
+      {{else}}
+        {{t "Switch Communicators" key="switch_communicators"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#unless this.model.stay}}
+      <div class="btn-group" role="group" aria-label="Jump Home" style='margin-bottom: 20px; width: 100%;'>
+        <button type="button" {{action "set_attribute" "jump_home" true}} class={{if this.model.jump_home "btn btn-primary" "btn btn-default"}} style='width: 50%; padding: 10px 30px 10px;'>
+          <span class='glyphicon glyphicon-home' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
+          {{t "Go to the Communicator's<br>Home Board" key="go_to_users_home_board"}}
+        </button>
+        <button type="button" {{action "set_attribute" "jump_home" false}} class={{if this.model.jump_home "btn btn-default" "btn btn-primary"}} style='width: 50%; padding: 10px 30px 10px;'>
+          <span class='glyphicon glyphicon-pushpin' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
+          {{t "Stay on<br>This Board" key="stay_on_this_board"}}
+        </button>
+      </div>
+    {{/unless}}
+    {{#unless this.modeling_choice}}
+      {{#unless this.model.route}}
+        <div class="btn-group" role="group" aria-label="Speak Mode Style" style='margin-bottom: 20px; width: 100%;'>
+          <button type="button" {{action "set_attribute" "keep_as_self" true}} class={{if this.model.keep_as_self "btn btn-primary" "btn btn-default"}} style='width: 50%; padding: 10px 30px 10px;'>
+            <span class='glyphicon glyphicon-hand-up' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
+            Model for the<br>Communicator
+          </button>
+          <button type="button" {{action "set_attribute" "keep_as_self" false}} class={{if this.model.keep_as_self "btn btn-default" "btn btn-primary"}} style='width: 50%; padding: 10px 30px 10px;'>
+            <span class='glyphicon glyphicon-volume-up' style='font-size: 40px; float: left; margin-right: 5px; padding-top: 5px;'></span>
+            Speak as the<br>Communicator
+          </button>
+        </div>
+      {{/unless}}
+    {{/unless}}
+    {{user-select select_id="currently_selected_id" skip_me=this.model.skip_me allow_all=this.allow_all buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+  </div>
+  <div class="modal-footer">
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}
