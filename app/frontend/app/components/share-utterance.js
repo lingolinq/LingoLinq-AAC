@@ -60,7 +60,7 @@ export default Component.extend({
     'appState.referenced_user.contacts',
     'appState.reply_note',
     function() {
-      const res = [];
+      let res = [];
       (app_state.get('referenced_user.contacts') || []).forEach(function(contact) {
         res.push({
           user_name: contact.name,

@@ -303,7 +303,7 @@ export default Component.extend({
           per_page: this.get('goals.meta.per_page'),
           offset: this.get('goals.meta.next_offset')
         }).then(function(list) {
-          const goals = _this.get('goals') || [];
+          let goals = _this.get('goals') || [];
           goals = goals.concat(list.map(function(i) { return i; }));
           _this.set('goals', goals);
           _this.set('goals.meta', list.meta);
