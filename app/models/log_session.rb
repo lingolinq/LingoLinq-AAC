@@ -1195,7 +1195,8 @@ class LogSession < ActiveRecord::Base
           'events' => []
         }
         lines = params['note']['log_events_string'].split(/\n/)
-        ts = (params['note']['timestamp'] || Time.now.to_i) - (5 * lines.length) - 10
+        base_ts = params['note']['timestamp'] || Time.now.to_i
+        ts = base_ts.to_i - (5 * lines.length) - 10
         lines.each do |line|
           if line.strip.length > 0
             stash_params['events'] << {

@@ -1,0 +1,88 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      <img src={{this.model.user.avatar_url}} style='height: 50px;'>
+      {{t "Progress for %{un}" un=this.model.user.user_name key="progress_for_user"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <div style='margin: 0 20px;'>
+      <div style='margin: 30px 0px; font-size: 24px;'>
+        <span class={{this.state_class}}></span>
+        {{this.state}}
+        {{#if this.model.user.org_status.note}}
+          <div style='margin-top: 10px; font-size: 16px;'>
+            <p><em>{{this.model.user.org_status.note}}</em></p>
+          </div>
+        {{/if}}
+        {{#if this.model.user.org_status.date}}
+          <div style='margin-top: 10px; font-size: 14px; color: #888;'>
+            <p>{{t "Last updated" key="last_updated"}} {{date_ago this.model.user.org_status.date "day"}}</p>
+          </div>
+        {{/if}}
+      </div>
+      {{#if this.editing}}
+        <form class="form-horizontal" {{action "nothing" on="submit"}}>
+          <div class="form-group">
+            <label for="status" class="col-sm-3 control-label">{{t "Status" key="status"}}</label>
+            <div class="col-sm-9">
+              <span class="dropdown" style="display: inline-block; width: 100%;">
+                <button class='btn btn-default' id='status' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
+                  <span class='text'>
+                    <span class={{this.current_status.glyph}}></span>
+                    {{this.current_status.label}}
+                  </span>
+                  <span class='caret' style='position: absolute; right: 5px; top: 15px;'></span>
+                </button>
+                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 180px; overflow: auto; max-width: 100%;'>
+                  {{#each this.statuses as |option|}}
+                    <li role="presentation">
+                      <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose" option.id}}>
+                        <span class={{option.glyph}}></span>
+                        {{option.label}}
+                      </a>
+                    </li>
+                  {{/each}}
+                </ul>
+              </span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="col-sm-3 control-label" for="notes">
+              {{t "Notes" key="notes"}}
+            </label>
+            <div class="col-sm-9">
+              <Textarea @value={{this.status_note}} id="notes" class="form-control" placeholder="brief note related to this status" rows={{3}} />
+            </div>
+          </div>
+        </form>
+
+      {{else}}
+        <div>
+          <button class='btn btn-default' {{action "edit"}}>{{t "Update Progress" key="update_state"}}</button>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+  <div class="modal-footer">
+    {{#if this.editing}}
+      <button class='btn btn-lg btn-primary' {{action "update"}} disabled={{this.save_status.loading}}>
+        {{#if this.save_status.loading}}
+          {{t "Updating" key="updating"}}
+        {{else if this.save_status.error}}
+          {{t "Update Failed" key="update_failed"}}
+        {{else}}
+          {{t "Update" key="update"}}
+        {{/if}}
+      </button>
+    {{/if}}
+    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>
+      {{#if this.editing}}
+        {{t "Cancel" key="cancel"}}
+      {{else}}
+        {{t "Close" key="close"}}
+      {{/if}}
+    </a>
+  </div>
+{{/modal-dialog}}

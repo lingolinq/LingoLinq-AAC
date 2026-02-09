@@ -33,8 +33,8 @@
     <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
       {{t "step" key="step"}} {{this.setup_index}} {{t "of" key="of"}} {{this.setup_order.length}}
     </span>
-    <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless this.setup_previous "visibility: hidden;"}} >Previous</button>
-    <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless this.setup_next "visibility: hidden;"}} >Next</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{safe-style (unless this.setup_previous "visibility: hidden;" "")}} >Previous</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{safe-style (unless this.setup_next "visibility: hidden;" "")}} >Next</button>
   </div>
   <div class='clear'></div>
 </div>

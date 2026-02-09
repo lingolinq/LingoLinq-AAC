@@ -1035,7 +1035,7 @@
   </div>
   {{#if this.browse_audio}}
     <div class="col-sm-10 col-sm-offset-2">
-    {{audio-browser audio_selected="audio_selected" prompt=this.model.vocalization fallback_prompt=this.model.label}}
+    {{audio-browser audio_selected=(action "audio_selected") prompt=this.model.vocalization fallback_prompt=this.model.label}}
     <button class='btn btn-default' {{action "clear_sound_work"}}>{{t "Clear Sound" key="clear_sound"}}</button>
     </div>
   {{else if this.sound_preview}}

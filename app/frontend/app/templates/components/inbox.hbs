@@ -1,0 +1,123 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Messages and Alerts" key="messages_and_alerts"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.app_state.referenced_user.request_alert}}
+      {{#if this.app_state.referenced_user.request_alert.user.avatar_url}}
+        <img src={{this.app_state.referenced_user.request_alert.user.avatar_url}} style='float: left; height: 75px; margin-right: 10px;' >
+      {{/if}}
+      {{#if this.app_state.referenced_user.request_alert.model}}
+        <p>
+          <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
+          {{t "wants to pair with you for remote modeling. They will see your button presses, as well as be able to add visual prompts and start a video or audio call with this device. Other supervisors will be able to follow your actions during pairing. Would you like to accept this pairing?" key="confirm_pairing"}}
+        </p>
+      {{else}}
+        <p>
+          <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
+          {{t "wants to follow your activity. If you enable following for this Speak Mode session, other supeervisors will also be able to follow your activity. Would you like to enable followers for this Speak Mode session?" key="confirm_following"}}
+        </p>
+      {{/if}}
+    {{else if this.current}}
+      {{#if this.current.author.image_url}}
+        <img src={{this.current.author.image_url}} style='width: 50px; height: 50px; float: left; margin: -20px 5px 0 0;' class='fit_image' >
+      {{/if}}
+      {{t "from" key="from"}} <strong>{{this.current.author.name}}</strong> <span class='text-muted'>{{t "at" key="at"}} {{date this.current.sent}}</span>
+      <div style='clear: left;'></div>
+      <div id='alert_message' class={{this.current_class}}>
+        {{#if this.current_with_images}}
+          <div style='white-space: normal; margin-top: -50px;'>
+            {{#each this.current_with_images as |part|}}<span style='display: inline-block; text-align: center; margin-bottom: 5px;'>
+              {{#if part.image}}
+                <div style='border: 1px solid #ddd; padding: 5px; border-radius: 10px; min-width: 100px;'>
+                  <span style='height: 40px; display: block; width: 100%;'>
+                    {{#if part.image}}
+                      <img src={{part.image}} class='fit_image' style='height: 40px; 100%; min-width: 40px;'>
+                    {{/if}}
+                  </span>
+                  <span style='white-space: pre;'>{{part.str}}</span>
+                </div>
+              {{else}}
+                <span style='height: 40px; display: block; width: 100%;'>
+                </span>
+                <span style='white-space: pre;'>{{part.str}}</span>
+              {{/if}}
+            </span>{{/each}}
+          </div>
+        {{else}}
+          {{this.current.text}}
+        {{/if}}
+      </div>
+      {{#if this.current.prior}}
+        <div style='white-space: normal; margin-top: 30px;'>
+          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}}{{#if this.current.prior_author}} {{t "message from" key="message_from"}} {{this.current.prior_author}}{{/if}}:</div>
+          <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{this.current.prior}}</div>
+        </div>
+      {{/if}}
+    {{else if this.status.loading}}
+      <p>{{t "Loading messages..." key="loading_messages"}}</p>
+    {{else if this.status.error}}
+      <p>{{t "Error loading messages" key="error_loading_messages"}}</p>
+    {{else if this.alerts}}
+      {{#each this.alerts as |alert|}}
+        {{#unless alert.cleared}}
+          <div class='row alerts' style='margin-bottom: 5px;'>
+            <div class='col-sm-10'>
+              <button class={{if alert.unread "btn btn-default btn-lg unread msg" "btn btn-default btn-lg msg"}} {{action "view" alert}}>
+                {{#if alert.author.image_url}}
+                  <img src={{alert.author.image_url}} style='height: 40px; width: 40px; float: right; margin: -8px;' class='fit_image'>
+                {{/if}}
+                {{alert.text}}
+                <span style='clear: both;'></span>
+              </button>
+            </div>
+            <div class='col-sm-2' style='text-align: left;'>
+              {{#if alert.note}}
+                <button class='btn btn-lg btn-default' {{action "clear" alert}}><span class='glyphicon glyphicon-ok'></span></button>
+              {{/if}}
+            </div>
+          </div>
+        {{/unless}}
+      {{/each}}
+    {{else}}
+      <p>{{t "No messages or alerts to show" key="no_messages_or_alerts_to_show"}}</p>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    {{#if this.app_state.referenced_user.request_alert}}
+      {{#if this.app_state.referenced_user.request_alert.model}}
+        <button class='btn btn-default btn-lg' {{action "accept_pair"}}>{{t "Pair With %{user_name} & Allow Followers" user_name=this.app_state.referenced_user.request_alert.user.user_name key="accept_pairing"}}</button>
+        <button class='btn btn-default btn-lg' {{action "reject_pair"}}>{{t "Cancel Pairing" key="cancel_pairing"}}</button>
+      {{else}}
+        <button class='btn btn-default btn-lg' {{action "accept_pair"}}>{{t "Allow Followers" key="allow_followers"}}</button>
+        <button class='btn btn-default btn-lg' {{action "reject_pair"}}>{{t "Prevent Followers" key="prevent_followers"}}</button>
+      {{/if}}
+    {{else}}
+      {{#unless this.current}}
+        {{#if this.working_vocalization}}
+          <div style='margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>"{{this.working_sentence}}"</div>
+        {{/if}}
+      {{/unless}}
+      {{#if this.current}}
+        <button class='btn btn-default btn-lg' {{action "back"}}>{{t "Back" key="back"}}</button>
+        <button class='btn btn-default btn-lg' {{action "speak"}}><span class='glyphicon glyphicon-volume-up'></span> {{t "Speak" key="speak"}}</button>
+        <button class='btn btn-default btn-lg' {{action "reply"}}><span class='glyphicon glyphicon-envelope'></span> {{t "Reply" key="reply"}}</button>
+      {{else}}
+        {{#if this.working_vocalization}}
+          <button class='btn btn-default btn-lg' {{action "compose"}}>
+            <span class='glyphicon glyphicon-envelope'></span>
+            {{#if this.app_state.reply_note}}
+              {{t "Send Reply" key="send_reply"}}
+            {{else}}
+              {{t "Send Current Message" key="send_current_message"}}
+            {{/if}}
+          </button>
+        {{/if}}
+        <button class='btn btn-default btn-lg' {{action "clear" "all"}}>{{t "Clear All" key="clear_all"}}</button>
+      {{/if}}
+      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

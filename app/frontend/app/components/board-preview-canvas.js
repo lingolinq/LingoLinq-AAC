@@ -162,11 +162,13 @@ export default Component.extend({
                 if(show_links && !button.hidden && button.image_id && board.get('image_urls') && board.get('image_urls')[button.image_id]) {
                   var orig_url = variant_urls[button.image_id];
                   var url = variant_urls[button.image_id + "-" + preferred_symbols] || orig_url;
-                  (function(button, x, y, url, persistenceService) {
+                  (function(button, x, y, url, persistenceService, component) {
                     var draw = function(url) {
+                      if (component.isDestroyed || component.isDestroying) { return; }
                       var img = new Image();
                       var button_ratio = image_width / image_height;
                       img.onload = function() {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         var image_ratio = img.width / img.height;
                         var width = image_width;
                         var height = image_height;
@@ -188,15 +190,19 @@ export default Component.extend({
                       img.src = url;
                     };
                     persistenceService.find_url(url).then(function(uri) {
+                      if (component.isDestroyed || component.isDestroying) { return; }
                       draw(uri);
                     }, function() {
+                      if (component.isDestroyed || component.isDestroying) { return; }
                       persistenceService.find_url(orig_url).then(function(found_url) {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         draw(found_url);
                       }, function() {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         draw(url);
                       });
                     });
-                  })(button, x, y, url, persistence);
+                  })(button, x, y, url, persistence, _this);
                 }
               }
             }

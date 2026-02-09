@@ -1,0 +1,32 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Jump to Eval Section" key="jump_to_eval_section"}}</h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
+      <div class="form-group">
+        <div class="col-sm-2">
+          <button type='button' {{action "move" "back"}} class='btn btn-default btn-lg' style='width: 100%;'><span class='glyphicon glyphicon-chevron-left'></span></button>
+        </div>
+        <div class="col-sm-8">
+          {{bound-select select_class="form-control select-lg" select_id="privacy_level" content=this.sections selection=this.current_section_id action=(action (mut this.current_section_id)) }}
+        </div>
+        <div class="col-sm-2">
+          <button type='button' {{action "move" "forward"}} class='btn btn-default btn-lg' style='width: 100%;'><span class='glyphicon glyphicon-chevron-right'></span></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-8 col-sm-offset-2" style='font-size: 18px; font-style: italic; min-height: 50px;'>
+          {{this.current_description}}
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-primary' {{action "jump"}}>
+      {{t "Jump to Start of Section" key="jump_to_start_of_section"}}
+    </button>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+  </div>
+{{/modal-dialog}}

@@ -1,0 +1,59 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Manage Languages" key="manage_languages"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "Select the lanboards you would like modified, and the languages you would like to keep for those boards. If no matching languages are found, the board will not be changed. Note that any unselect languages will be removed from the board." key="slice_languages_instructions"}}</p>
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
+      <div class="form-group">
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
+        <div class="col-sm-9">
+          {{#if this.hierarchy.loading}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
+          {{else if this.hierarchy.error}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
+          {{else if this.hierarchy}}
+            <div style='margin-top: 5px;'>
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            </div>
+          {{else}}
+            {{t "No linked boards" key="no_linked_boards"}}
+          {{/if}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="languages">
+          {{t "Languages" key="languages"}}
+        </label>
+        <div class="col-sm-9">
+
+          <ul class='list-unstyled' style='margin-top: 10px;'>
+            {{#each this.langs as |lang|}}
+              <li>
+                <div class="checkbox big_checkbox" style='margin: 0;'>
+                <label style={{if lang.keep "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
+                  <Input @type="checkbox" @checked={{lang.keep}} />
+                  {{lang.str}} ({{lang.loc}})
+                </label>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-primary' {{action "confirm"}} disabled={{this.status.loading}}>
+      {{#if this.status.loading}}
+        {{t "Updating Languages..." key="updating_languages"}}
+      {{else if this.status.error}}
+        {{t "Updating Languages Failed" key="updating_languages_failed"}}
+      {{else}}
+        {{t "Update Languages" key="update_languages"}}
+      {{/if}}
+    </button>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+  </div>
+{{/modal-dialog}}

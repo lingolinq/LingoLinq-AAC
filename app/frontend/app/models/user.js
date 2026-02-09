@@ -1133,16 +1133,16 @@ LingoLinq.User = DS.Model.extend({
     // if not possible or errored, check for a local copy in the dataCache
     var try_local = try_online.then(function(res) {
       // persist to dataCache
-      this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
+      _this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
       _this.set('word_activities', res);
       return RSVP.resolve(res);
     }, function() {
-      return this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
+      return _this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
       // look up a local copy
     });
     var promise_result = try_local.then(function(res) {
       res.local_log = [];
-      return this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
+      return _this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
         res.local_log = list;
         return res;
       }, function() { return RSVP.resolve(res); });

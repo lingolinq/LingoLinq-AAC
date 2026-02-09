@@ -1089,6 +1089,9 @@ export default Service.extend({
   },
   assert_source: function() {
     var _this = this;
+    if(!_this.controller || typeof _this.controller.get !== 'function') {
+      return RSVP.reject({error: 'no board controller'});
+    }
     var board = _this.controller.get('board.model');
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
@@ -1133,7 +1136,7 @@ export default Service.extend({
           }
         });
         return;
-      } else if(decision == null && !this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
+      } else if(decision == null && !_this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
         modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
