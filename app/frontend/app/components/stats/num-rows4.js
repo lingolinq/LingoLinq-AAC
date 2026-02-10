@@ -12,4 +12,12 @@ export default Component.extend({
       return htmlSafe('');
     }
   }),
+  utterancesPerMinuteDisplay: computed('displayUtterancesPerMinute', 'usage_stats.utterances_per_minute', function() {
+    var d = this.get('displayUtterancesPerMinute');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.utterances_per_minute');
+  }),
+  buttonsPerMinuteDisplay: computed('displayButtonsPerMinute', 'usage_stats.buttons_per_minute', function() {
+    var d = this.get('displayButtonsPerMinute');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.buttons_per_minute');
+  }),
 });

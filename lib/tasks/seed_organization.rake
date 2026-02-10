@@ -13,4 +13,13 @@ namespace :db do
       eval_count: ENV['EVAL_COUNT']&.to_i || 3
     )
   end
+
+  desc "Seed session logs for a user to test reporting (word cloud, heat map). Default: sampleorganization_user_1"
+  task seed_reporting_logs: :environment do
+    load Rails.root.join('lib', 'seed_reporting_logs.rb')
+    user_name = ENV['USER_NAME'] || 'sampleorganization_user_1'
+    sessions_count = (ENV['SESSIONS'] || '5').to_i
+    puts "Seeding reporting logs for #{user_name} (#{sessions_count} sessions)..."
+    seed_reporting_logs(user_name, sessions_count: sessions_count)
+  end
 end

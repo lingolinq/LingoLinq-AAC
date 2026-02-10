@@ -12,4 +12,12 @@ export default Component.extend({
       return htmlSafe('');
     }
   }),
+  wordsPerUtteranceDisplay: computed('displayWordsPerUtterance', 'usage_stats.words_per_utterance', function() {
+    var d = this.get('displayWordsPerUtterance');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.words_per_utterance');
+  }),
+  wordsPerMinuteDisplay: computed('displayWordsPerMinute', 'usage_stats.words_per_minute', function() {
+    var d = this.get('displayWordsPerMinute');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.words_per_minute');
+  }),
 });
