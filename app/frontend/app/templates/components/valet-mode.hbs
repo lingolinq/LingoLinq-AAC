@@ -1,0 +1,27 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header" style='padding: 10px 20px 0;'>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Valet Mode Login" key="valet_mode_login"}}
+    </h3>
+  </div>
+  <div class="modal-body" style='padding-top: 5px; padding-bottom: 5px;'>
+    <div style='text-align: center;'>
+      <p>{{t "You can copy or download this QR code to add to your support materials for easier access to your valet login. NOTE: After you change your valet password, you will need to re-generate this QR code." key="qr_code_details"}}</p>
+      {{#if this.code.generating}}
+        {{t "Loading QR Code parameters..." key="loading_qr_code"}}
+      {{else if this.code.error}}
+        {{t "Error loading QR Code parameters" key="error_loading_qr_code"}}
+      {{else}}
+        <div id='qr_code' style='width: 400px; margin: 10px auto 20px;'></div>
+      {{/if}}
+      <div>
+        <button class='btn btn-default' {{action "download_code"}}>{{t "Download QR Code" key="download_qr_code"}}</button>
+        <button class='btn btn-default' {{action "copy_code"}}>{{t "Copy QR Code" key="copy_qr_code_clipboard"}}</button>
+        <button class='btn btn-default' {{action "copy_link"}}>{{t "Copy URL" key="copy_link_to_clipboard"}}</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}

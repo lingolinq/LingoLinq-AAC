@@ -1,0 +1,53 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Set Home Board" key="set_home_board"}}</h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.multiple_users}}
+      <p>{{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key="which_user_set_as_home" board_key=this.model.board.key}}</p>
+      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+    {{/if}}
+    {{#if this.owned_by_user}}
+      {{#unless this.multiple_users}}
+        <p style='margin-top: 20px;'>{{t "Would you like to set <b>%{board_key}</b> as your home board?" key="confirm_set_as_home" board_key=this.model.board.key}}</p>
+      {{/unless}}
+    {{else}}
+      <p style='margin-top: 20px;'>{{t "This board is not owned by the user. You will probably want to make a new copy to allow for personalization and edits, but you can also just use the existing board if you don't plan to make changes." key="copy_or_keep"}}</p>
+    {{/if}}
+
+    <label for="symbol_library"><strong>{{t "Preferred Symbols" key="preferred_symbols"}}</strong></label><br>
+    <p class='text-muted'>{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
+    {{bound-select select_class="form-control" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action "updateSymbolLibrary") }}
+
+    {{#if this.model.board.levels}}
+      {{#if this.appState.feature_flags.board_levels}}
+        <label for="board_level"><strong>{{t "Communication Level" key="communication_level"}}</strong></label><br>
+        <p class='text-muted'>{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
+        {{bound-select select_class="form-control" select_id="board_level" content=this.board_levels selection=this.board_level action=(action "updateBoardLevel") }}
+      {{/if}}
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    {{#if this.owned_by_user}}
+      <button {{action "set_as_home"}} disabled={{this.pending}} class='btn btn-primary'>{{t "Set as Home Board" key="set_as_home_board"}}</button>
+    {{else}}
+      <button {{action "copy_as_home"}} disabled={{this.pending}} class='btn btn-primary'>
+        {{#if this.multiple_users}}
+          {{t "Make a New Copy" key="make_a_new_copy"}}
+        {{else}}
+          {{t "Make My Own Copy" key="make_my_own_copy"}}
+        {{/if}}
+      </button>
+      <button {{action "set_as_home"}} disabled={{this.pending_or_copy_only}} class='btn btn-default'>{{t "Use the Existing Board" key="dont_copy_just_set_as_home_board"}}</button>
+    {{/if}}
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    {{#if this.status.errored}}
+      <p class='text-danger'>{{t "Setting home board failed, please try again." key="setting_home_failed"}}</p>
+    {{else if this.status.updating}}
+      <p class='text-info'>{{t "Updating user settings..." key="updating_user_settings"}}</p>
+    {{else if this.status.copying}}
+      <p class='text-info'>{{t "Copying boards..." key="copying_boards"}}</p>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

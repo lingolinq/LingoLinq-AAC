@@ -1,0 +1,86 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Premium Voices" key="premium_voices"}}</h3>
+  </div>
+  <div class="modal-body">
+    <div class="row">
+      <div class="col-sm-12">
+        <p>{{t "%app_name% offers a set of additional voices for paid users on Android and iOS. Listen to the voice samples to find the voice that will work best for you." key="premium_voices_select"}}
+          {{#if this.premium_available}}
+            {{t "You can activate up to %{available} premium voices for use on your devices." available=this.model.user.premium_voices.allowed key="premium_voices_select_2"}}
+          {{/if}}
+        </p>
+
+        {{#unless this.premium_available}}
+          {{#if this.appState.currentUser.currently_premium}}
+            <p class="text-info">{{t "Premium voices are only available on the iOS, Android and Amazon apps. Please install from the app store and try again." key="premium_only_available_mobile"}}</p>
+          {{else}}
+            <p class="text-info">{{t "Premium voices are available to paid users. If you would like to install a premium voice during your free trial, please reach out to us and let us know." key="premium_only_available_paid"}}</p>
+          {{/if}}
+        {{else if this.voice_error}}
+          <p class='text-danger'>{{this.voice_error}}</p>
+        {{/unless}}
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>{{t "Voice" key="voice"}}</th>
+              <th>{{t "Details" key="gender"}}</th>
+              <th colspan="2">{{t "Preview" key="preview"}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each this.voices as |voice|}}
+              <tr class={{if voice.active "voice_pad" "voice_pad text-muted"}}>
+                <td>
+                  {{#if voice.claimed}}
+                    <span class="glyphicon glyphicon-asterisk"></span>&nbsp;
+                  {{/if}}
+                  {{ voice.name }} -
+                  {{locale voice.locale}}
+                </td>
+                <td>
+                  {{#if voice.adult}}
+                    {{t "Adult" key="adult"}}
+                  {{else if voice.teen}}
+                    {{t "Teen" key="teen"}}
+                  {{else if voice.child}}
+                    {{t "Child" key="child"}}
+                  {{/if}}
+                  {{#if voice.male}}
+                    {{t "Male" key="male"}}
+                  {{else if voice.female}}
+                    {{t "Female" key="female"}}
+                  {{/if}}
+                </td>
+                <td>
+                  {{#if voice.voice_sample}}
+                    <a href="#" {{action "play_voice" voice}}><span class="glyphicon glyphicon-play"></span></a>
+                  {{else}}
+                    {{t "None" key="none_upper"}}
+                  {{/if}}
+                </td>
+                <td style="min-width: 80px; text-align: right;">
+                  {{#if voice.active}}
+                    <a href="#" {{action "delete_voice" voice}}><span class="glyphicon glyphicon-trash"></span></a>
+                  {{else if voice.downloading}}
+                    {{t "%{percent}%" percent=voice.download_progress}}
+                    <span class="glyphicon glyphicon-refresh spinning"></span>
+                  {{else}}
+                    {{#if this.premium_available}}
+                      <a href="#" {{action "download_voice" voice}}>{{#if voice.size}}{{t "%{size}Mb" size=voice.size key="megabytes"}} {{/if}}<span class="glyphicon glyphicon-save"></span></a>
+                    {{else}}
+                      {{#if voice.size}}
+                        {{t "%{size}Mb" size=voice.size key="megabytes"}}
+                      {{/if}}
+                    {{/if}}
+                  {{/if}}
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

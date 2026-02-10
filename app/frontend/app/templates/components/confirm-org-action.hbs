@@ -1,0 +1,112 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    {{#if this.set_home_board}}
+      <h3>{{t "Set Home Board?" key="set_home_board_question"}}</h3>
+    {{else}}
+      <h3>{{t "Confirm Remove" key="confirm_remove"}}</h3>
+    {{/if}}
+  </div>
+  <div class="modal-body">
+    <div class="form-horizontal">
+      <div class="form-group">
+        <div class="col-sm-8 col-sm-offset-2">
+          <p class="form-control-static">
+            {{#if this.set_home_board}}
+              {{t "Would you like to set a home board for the user <b>%{user_name}</b>, if they don't already have one set?" user_name=this.model.user_name key="confirm_set_home_board"}}
+            {{else if this.model.user_name}}
+              {{t "Are you sure you want to remove the user <b>%{user_name}</b> from the org?" user_name=this.model.user_name key="confirm_remove_user"}}
+            {{else if this.model.unit_user_name}}
+              {{t "Are you sure you want to remove the user from the room?" user_name=this.model.user_name key="confirm_remove_unit_user"}}
+            {{else if this.model.org_name}}
+              {{t "Are you sure you want to delete the org <b>%{org_name}</b> permanently? This cannot be undone. If so, please type \"confirmed\" in the box below." org_name=this.model.org_name key="confirm_remove_org"}}
+            {{else if this.model.lesson_name}}
+              {{t "Are you sure you want to remove the training <b>%{ln}</b> from this organization?" ln=this.model.lesson_name key="confirm_remove_training"}}
+            {{else}}
+              {{t "Are you sure you want to remove this? If so, please type \"confirmed\" in the box below." key="confirm_remove_other"}}
+            {{/if}}
+          </p>
+        </div>
+      </div>
+      {{#if this.set_home_board}}
+        <div class='form-group'>
+          <label for='home_board' class='col-sm-offset-1 col-sm-3'>
+            {{t "Home Board:" key="home_board_colon"}}
+          </label>
+          <div class='col-sm-6'>
+            {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.home_board_template action=(action (mut this.home_board_template)) }}
+          </div>
+        </div>
+        {{#if this.board_will_copy}}
+          <div class="form-group">
+            <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
+            <div class="col-sm-6">
+              {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.preferred_symbols action=(action (mut this.preferred_symbols)) }}
+              {{#if this.premium_symbol_library}}
+                {{#unless this.add_symbols}}
+                  <div class='text-danger' style='margin-left: 10px;'>
+                    {{t "(will not apply without premium symbols access)" key="wont_apply_without_premium_symbols"}}
+                  </div>
+                {{/unless}}
+              {{/if}}
+            </div>
+          </div>
+          {{#if this.premium_symbol_library}}
+            {{#if this.model.org.extras_available}}
+              <div class="form-group">
+                <label for="extras" class="col-sm-4 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
+                <div class="col-sm-6">
+                  <div class="checkbox big_checkbox">
+                    <label>
+                      <Input @type="checkbox" id="extras" @checked={{this.add_symbols}} />
+                      {{t "Grant premium symbol access if not already granted" key="grand_premium_symbols_if_needed"}}
+                      ({{this.model.org.extras_available_count}} {{t "left" key="left"}})
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{else}}
+        {{#unless this.model.user_name}}
+          {{#unless this.model.unit_user_name}}
+            {{#unless this.model.lesson_name}}
+              <div class="form-group">
+                <div class="col-sm-8 col-sm-offset-2">
+                  <Input @value={{this.confirmed}} class="form-control" placeholder="..." />
+                </div>
+              </div>
+            {{/unless}}
+          {{/unless}}
+        {{/unless}}
+      {{/if}}
+    </div>
+  </div>
+  <div class="modal-header">
+    {{#if this.set_home_board}}
+      <button class='btn btn-primary btn-lg' {{action "confirm"}}>
+        {{t "Continue" key="continue"}}
+      </button>
+      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    {{else}}
+      <button class='btn btn-default btn-lg' {{action "confirm"}}>
+        {{#if this.model.user_name}}
+          {{t "Remove User" key="remove_user"}}
+        {{else if this.model.unit_user_name}}
+          {{t "Remove User" key="remove_user"}}
+        {{else if this.model.lesson_name}}
+          {{t "Remove Training" key="remove_training"}}
+        {{else if this.model.org_name}}
+          {{t "Delete Account" key="delete_account"}}
+        {{else}}
+          {{t "Delete" key="delete"}}
+        {{/if}}
+      </button>
+      <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    {{/if}}
+    {{#if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

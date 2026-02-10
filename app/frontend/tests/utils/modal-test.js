@@ -121,14 +121,15 @@ describe('modal', function() {
         waitsFor(function() { return resolved; });
         runs();
       });
-      it('should disconnect the outlet if defined', function() {
+      it('should resolve and clear state on close (outlet cleared by modal-container for component modals)', function() {
         modal.setup(route);
         var resolved = false;
         modal.open('hat').then(function() { resolved = true; }, function() { });
         modal.close();
         waitsFor(function() { return resolved; });
         runs(function() {
-          expect(route.lastDisconnect).toEqual({'0': {outlet: 'modal', parentView: 'application'}});
+          expect(modal.last_template).toEqual(null);
+          expect(modal.last_promise).toEqual(null);
         });
       });
     });

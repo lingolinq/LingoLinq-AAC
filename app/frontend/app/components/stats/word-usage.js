@@ -74,7 +74,9 @@ export default Component.extend({
           var selection = chart.getSelection()[0];
           if(raw_data && selection && raw_data[selection.row + 1]) {
               var row = raw_data[selection.row + 1];
-              _this.sendAction('show_logs', {start: row[0], end: row[0]});
+              if (_this.show_logs) {
+                _this.show_logs({start: row[0], end: row[0]});
+              }
             }
         });
         chart.draw(data, options);

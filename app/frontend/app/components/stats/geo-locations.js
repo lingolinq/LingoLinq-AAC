@@ -77,7 +77,9 @@ export default Component.extend({
   actions: {
     marker_link_select: function(data) {
       if(data.location_id) {
-        this.sendAction('filter', 'location', data.location_id);
+        if (this.filter) {
+          this.filter('location', data.location_id);
+        }
       }
     }
   }

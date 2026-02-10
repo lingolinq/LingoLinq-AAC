@@ -7,66 +7,68 @@ import { inject as service } from '@ember/service';
 
 export default Component.extend({
   appState: service('app-state'),
-  willInsertElement: function() {
+  willInsertElement: function () {
     this.set('include_canvas', window.outerWidth > 800);
     this.set('app_state', this.appState);
-    this.set('model', {loading: true});
+    this.set('model', { loading: true });
     var _this = this;
-    if(_this.get('key')) {
-      LingoLinq.store.findRecord('board', _this.get('key')).then(function(board) {
-        if(!board.get('permissions')) {
-          board.reload(false).then(function(board) {
+    if (_this.get('key')) {
+      LingoLinq.store.findRecord('board', _this.get('key')).then(function (board) {
+        if (!board.get('permissions')) {
+          board.reload(false).then(function (board) {
             _this.set('model', board);
           });
         } else {
           _this.set('model', board);
         }
-      }, function(err) {
-        _this.set('model', {error: true});
+      }, function (err) {
+        _this.set('model', { error: true });
       });
     }
   },
-  multiple_locales: computed('model.locales', function() {
+  multiple_locales: computed('model.locales', function () {
     return (this.get('model.locales') || []).length > 1;
   }),
-  languages: computed('model.locales', function() {
-    return (this.get('model.locales') || []).map(function(l) { return i18n.readable_language(l); }).join(', ');
+  languages: computed('model.locales', function () {
+    return (this.get('model.locales') || []).map(function (l) { return i18n.readable_language(l); }).join(', ');
   }),
-  language: computed('model.locale', function() {
+  language: computed('model.locale', function () {
     return i18n.readable_language(this.get('model.locale'));
   }),
-  select_option: computed('option', function() {
+  select_option: computed('option', function () {
     return this.get('option') == 'select';
   }),
   actions: {
-    select: function() {
-      this.sendAction();
+    select: function () {
+      if (this.action) {
+        this.action();
+      }
     },
-    close: function() {
+    close: function () {
       modal.close_board_preview();
     },
-    visit: function() {
-      this.appState.set('referenced_board', {id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale')});
+    visit: function () {
+      this.appState.set('referenced_board', { id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale') });
       this.appState.controller.transitionToRoute('board', this.get('model.key'));
     },
     copy: function() {
       var _this = this;
       var oldBoard = _this.get('model');
       modal.close_board_preview();
-      modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
+      modal.open('copy-board', { board: oldBoard, for_editing: false }).then(function (decision) {
         decision = decision || {};
         decision.user = decision.user || _this.appState.get('currentUser');
         decision.action = decision.action || "nothing";
         oldBoard.set('copy_name', decision.board_name);
         oldBoard.set('copy_prefix', decision.board_prefix);
         return modal.open('copying-board', {
-          board: oldBoard, 
-          action: decision.action, 
-          user: decision.user, 
-          shares: decision.shares, 
+          board: oldBoard,
+          action: decision.action,
+          user: decision.user,
+          shares: decision.shares,
           symbol_library: decision.symbol_library,
-          make_public: decision.make_public, 
-          default_locale: decision.default_locale, 
+          make_public: decision.make_public,
+          default_locale: decision.default_locale,
           translate_locale: decision.translate_locale,
           disconnect: decision.disconnect,
           new_owner: decision.new_owner

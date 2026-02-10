@@ -1,0 +1,155 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Share Board" key="share_board"}}</h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.board.public}}
+      <p>{{t "This board is public, and available to share with anyone. Copy the link to this board to share it on other apps/sites.<br><!--TODO: (for better sharing install the  mobile app).-->" key="copy_board_link"}}</p>
+      <div class="row" style="margin: 30px 0 0;">
+        <div class="col-sm-12">
+          <p class="form-control-static" style="line-height: 34px; vertical-align: middle; margin-bottom: 10px;">
+            <img src={{this.board.icon_url_with_fallback}} style="height: 30px; padding-right: 5px;">
+            {{#if this.board.link}}
+              <a href={{this.board.link}} target="_blank" rel="noopener">Link to {{this.board.name}} ({{this.board.key}}) <span class="glyphicon glyphicon-hand-up"></span></a>
+              <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{this.board.link}}</span>
+            {{/if}}
+          </p>
+          {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(action "copy_event")}}
+          {{#if this.copy_result.succeeded}}
+            <p class='text-success'>{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>
+          {{else if this.copy_result.failed}}
+            <p class='text-danger'>{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
+          {{else}}
+            {{#unless this.appState.installed_app}}
+              <p class='text-muted'><a href="#" {{action "show_embed_board"}}>{{t "embed board" key="embed_board"}}</a></p>
+            {{/unless}}
+          {{/if}}
+          {{#if this.show_embed}}
+            <div>
+              <p>{{t "You can embed your %app_name% boards in other web sites like blogs or how-to's so people can try them out more easily. Just copy and paste the code below into your web site:" key="copy_html_embed_code"}}</p>
+              {{focus-input type="text" value=this.board.embed_code class="form-control"}}
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    {{else}}
+      <p>{{t "This board is private, only shared users, supervisors and admins can see it." key="board_is_private_limited_users"}}</p>
+      {{#if this.board.copying_state}}
+        <p>{{t "This board contains protected material, and can't be made public. However, you can share it with other users who have purchased access to the same content." key="protected_material_shareable"}}</p>
+      {{else if this.board.permissions.edit}}
+        {{#if this.error_confirming_public_board}}
+          <p class='text-danger'>{{t "There was an unexpected error while trying to update the board" key="board_update_error"}}</p>
+        {{/if}}
+        {{#if this.confirm_public_board}}
+          <p>{{t "Are you sure you want to make this board public? Anyone will be able to search for and see it. This is not recommended for boards containing any personal information." key="confirm_make_public"}}</p>
+          {{#if this.board.protected_material}}
+            <p class='text-warning'>{{t "NOTE: This board has premium content, any users who access it without the same premium access will see free alternatives instead." key="protected_material_reminder"}}</p>
+          {{/if}}
+          {{#if this.board.downstream_boards}}
+            <div>
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @checked={{this.board.update_visibility_downstream}} @type="checkbox" />
+                  {{t "Make all linked boards public as well" key="make_all_public"}}
+                </label>
+              </div>
+            </div>
+          {{/if}}
+          <button class='btn btn-default' {{action "make_public" "confirm"}}>{{t "Make the Board Public" key="make_it_public"}}</button>
+          <button class='btn btn-default' {{action "make_public" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
+        {{else}}
+          <button class='btn btn-default' {{action "make_public"}}>{{t "Make the Board Public" key="make_it_public"}}</button>
+        {{/if}}
+      {{/if}}
+    {{/if}}
+
+    {{#if this.board.permissions.share}}
+      <div style="margin: 20px 0;">
+        {{#if this.board.shared_users}}
+          <h4>{{t "Shared with" key="shared_with_others"}}</h4>
+          <table class="table table-hover"><tbody>
+            {{#each this.board.shared_users as |user|}}
+              <tr>
+                <td style="width: 60px;">
+                  <img src={{user.avatar_url}} style="height: 50px; width: 50px;">
+                </td>
+                <td>
+                  <div style="font-size: 20px;">
+                    {{user.name}}
+                    {{#if user.pending}}
+                      <span class="text-muted" style="font-size: 12px;"> {{t "(pending approval)" key="pending_approval"}}</span>
+                    {{/if}}
+                  </div>
+                  {{#link-to "user" user.id}}{{user.user_name}}{{/link-to}}
+                  {{#if user.include_downstream}}
+                    <span class="text-muted"> {{t "(includes downstream boards)" key="downstream"}}</span>
+                  {{/if}}
+                  {{#if user.allow_editing}}
+                    <span class="text-muted"> {{t "(editing allowed)" key="editing_allowed"}}</span>
+                  {{/if}}
+                </td>
+                <td style="width: 30px; font-size: 20px; vertical-align: middle;">
+                  <a href='#' {{action "unshare" user.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
+                </td>
+              </tr>
+            {{/each}}
+          </tbody></table>
+        {{/if}}
+        <h4>{{t "Share with other users" key="share_with_others"}}</h4>
+        <form {{action "share_with_user" on="submit"}} class="form-inline">
+          <div class="row">
+            <div class="col-sm-5 col-xs-6" style="margin-top: 5px;">
+              <Input @value={{this.share_user_name}} class="form-control" placeholder="user name to add" />
+            </div>
+            {{#if this.appState.currentUser.known_supervisees}}
+              <div class="col-sm-1" style='margin-left: -80px; margin-top: 5px;'>
+                <div class='btn-group'>
+                  <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {{t "user" key="user_lower"}} <span class="caret"></span>
+                  </button>
+                  <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left;">
+                    {{#each this.appState.currentUser.known_supervisees as |user|}}
+                      <li><a href='#' {{action "set_share_user_name" user.user_name}}>{{user.user_name}}</a></li>
+                    {{/each}}
+                  </ul>
+                </div>
+              </div>
+            {{/if}}
+            <div class="col-sm-6">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.share_include_downstream}} />
+                  {{t "also share any linked boards" key="include_downstream_boards"}}
+                </label>
+              </div>
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.share_allow_editing}} />
+                  {{t "allow editing (and deleting) as well" key="include_editing_downstream_boards"}}
+                </label>
+              </div>
+            </div>
+            <div class="col-sm-12">
+              {{#if this.share_include_downstream}}
+                {{#if this.share_allow_editing}}
+                  <em>{{t "for security reasons, this type of sharing will have to be approved by the user" key="user_approval_sharing_required"}}</em>
+                {{/if}}
+              {{/if}}
+              <div style="margin-top: 5px;">
+                <button type="submit" class="btn btn-default">{{t "Share This Board" key="share_this_board"}}</button>
+                {{#if this.supervisee_share}}
+                  {{#if this.not_copyable}}
+                    <span class='text-muted'>{{t "You are a read-only supervisor for this user" key="read_only_supervisor"}}</span>
+                  {{else}}
+                    <button class='btn btn-default' {{action "copy_board"}} disabled={{this.not_copyable}}>{{t "Make a Copy For %{user_name}" key="make_a_copy_for_user" user_name=this.share_user_name}}</button>
+                  {{/if}}
+                {{/if}}
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

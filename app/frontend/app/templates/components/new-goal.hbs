@@ -1,0 +1,337 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{#if this.goal.id}}
+        {{t "Edit Goal" key="edit_goal"}}
+      {{else}}
+        {{t "Set a New Goal" key="set_a_new_goal"}}
+      {{/if}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.selected_goal}}
+      <form class="form-horizontal">
+        {{#if this.selected_goal.sequence}}
+          <div class="form-group">
+            <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>
+                <strong>{{this.selected_goal.sequence_summary}}</strong><br>
+                {{t "sequence of" key="sequence_of"}}
+                {{t "goal" key="n_goals" count=this.selected_goal.template_stats.goals}}{{#if this.selected_goal.template_stats.total_duration}}{{t " over " key="over"}}
+                  {{seconds_ago this.selected_goal.template_stats.total_duration "long"}}
+                {{/if}}
+                {{#if this.selected_goal.template_stats.loop}}{{t "(repeating sequence)" key="repeating_sequence"}}{{/if}}
+              </p>
+            </div>
+            <div class="col-sm-10 col-sm-offset-2">
+              <div class='form-control-static safe_html'>{{safe this.selected_goal.sequence_description}}</div>
+            </div>
+          </div>
+          <div class="form-group">
+            {{#if this.selected_goal.date_based}}
+              <label class="col-sm-12"><h4>{{t "Current Goal in the Sequence" key="current_goal_details"}}</h4></label>
+            {{else}}
+              <label class="col-sm-12"><h4>{{t "First Goal in the Sequence" key="first_goal_details"}}</h4></label>
+            {{/if}}
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <div class='col-sm-10 col-sm-offset-2'>
+            {{#if this.selected_goal.badge_image_url}}
+              <img src={{this.selected_goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
+            {{else}}
+              <span class='glyphicon glyphicon-flag' style='margin-top: 10px; font-size: 50px; '></span>
+            {{/if}}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
+          <div class="col-sm-10">
+            <p class='form-control-static'>{{this.selected_goal.current_template.summary}}</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+          <div class="col-sm-10">
+            <div class='form-control-static safe_html'>{{safe this.selected_goal.current_template.description}}</div>
+          </div>
+        </div>
+        {{#if this.selected_goal.current_template.duration}}
+          <div class="form-group">
+            <label for="new_goal_duration" class="col-sm-2 control-label">{{t "Duration" key="duration"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{seconds_ago this.selected_goal.current_template.duration "long"}}</p>
+            </div>
+          </div>
+        {{else if this.selected_goal.current_template.advance}}
+          <div class="form-group">
+            <label for="new_goal_changes" class="col-sm-2 control-label">{{t "Changes" key="changes"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{date this.selected_goal.current_template.advance}}</p>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.selected_goal.current_template.stats.badges}}
+          <div class="form-group">
+            <label for="badges_total" class="col-sm-2 control-label">{{t "Badges" key="abdges"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{t "badge" count=this.selected_goal.current_template.stats.badges key="n_badges"}}</p>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <fieldset>
+            <label class="col-sm-2 control-label">{{t "Primary" key="primary"}}</label>
+            <div class="col-sm-10">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.selected_goal.user_primary}} id="primary" />
+                  {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
+                </label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        {{#unless this.selected_goal.sequence}}
+          <div class="form-group">
+            <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
+            <div class="col-sm-7" style='max-width: 300px;'>
+              <Input @type="date" @value={{this.goal.expires}} class="form-control" id="new_goal_concludes" />
+            </div>
+            <div class='col-sm-3'>
+              <button class='btn btn-default' {{action "clear_expires"}}>{{t "clear" key="clear_lower"}}</button>
+            </div>
+          </div>
+        {{/unless}}
+      </form>
+    {{else if this.browse_goals}}
+      {{#if this.goals}}
+        {{#each this.goals as |goal|}}
+          <div class='well goal' {{action "select_goal" goal}} style='cursor: pointer;'>
+            <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
+              {{#if goal.badge_image_url}}
+                <img src={{goal.badge_image_url}} style='widht: 50px; max-height: 50px; opacity: 0.8;' >
+              {{else}}
+                <span class='glyphicon glyphicon-flag' style='margin-top: 0px;'></span>
+              {{/if}}
+            </div>
+            {{goal.high_level_summary}}
+            {{#if goal.sequence}}
+              <div class='details'>
+                {{t "sequence of" key="sequence_of"}}
+                {{t "goal" key="n_goals" count=goal.template_stats.goals}}
+                {{#if goal.template_stats.badges}}{{t "with" key="with"}} {{t "badge" count=goal.template_stats.badges key="n_badges"}}{{/if}}
+                {{#if goal.template_stats.loop}}{{t "(repeating sequence)" key="repeating_sequence"}}{{/if}}
+              </div>
+            {{else if goal.stats.badges}}
+              <div class='details'>
+                {{t "badge" count=goal.stats.badges key="n_badges"}}
+              </div>
+            {{/if}}
+            <div class='description text-muted'>
+              {{safe goal.high_level_description "stripped"}}
+            </div>
+          </div>
+        {{/each}}
+      {{else}}
+        {{#unless this.goals.loading}}
+          {{#unless this.goals.error}}
+            <p>{{t "No goals to show" key="no_goals"}}</p>
+          {{/unless}}
+        {{/unless}}
+      {{/if}}
+      {{#if this.goals.loading}}
+        <p>{{t "Loading goals..." key="loading_goals"}}</p>
+      {{else if this.goals.error}}
+        <p>{{t "There was an error loading goals" key="error_loading_goals_lower"}}</p>
+      {{/if}}
+    {{else}}
+      <form class="form-horizontal">
+        {{#unless this.goal.id}}
+          {{#unless this.model.unit}}
+            <div class="form-group">
+              <div class="col-sm-10 col-sm-offset-2">
+                <a href="#" {{action "browse_goals"}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
+              </div>
+            </div>
+          {{/unless}}
+        {{/unless}}
+        <div class="form-group">
+          <label for="new_goal_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
+          <div class="col-sm-10">
+            {{bound-select select_class="form-control" content=this.simple_types selection=this.goal.simple_type action=(action "updateGoalSimpleType") }}
+          </div>
+        </div>
+        {{#if this.goal_type.strings_list}}
+          <div class="form-group">
+            <label for="new_goal_strings_list" class="col-sm-2 control-label">{{t "Target Words" key="target_words"}}</label>
+            <div class="col-sm-10" style='max-width: 300px;'>
+              {{#if this.goal_type.modeling}}
+                <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)" />
+              {{else}}
+                <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for" />
+              {{/if}}
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.goal_type.instance_count}}
+          <div class="form-group">
+            <label for="new_goal_instance_count" class="col-sm-2 control-label">{{t "Try For" key="try_for"}}</label>
+            <div class="col-sm-2">
+              <Input @value={{this.goal.instance_count}} class="form-control" id="new_goal_instance_count" placeholder="#" />
+            </div>
+            <div class="col-sm-8">
+              <p class='form-control-static'>{{this.goal_simple_action}} {{t "per day" key="per_day_lower"}}</p>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.goal_type}}
+          {{#if this.has_simple_content}}
+            <div class="form-group">
+              <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
+              <div class="col-sm-10" style='max-width: 300px;'>
+                <Input @value={{this.goal.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
+        {{#if this.goal_type.custom}}
+          <div class="form-group">
+            <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+            <div class="col-sm-10">
+              <Textarea @value={{this.goal.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
+            </div>
+          </div>
+          {{#if this.goal.video}}
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
+              <div class="col-sm-10">
+                <div style="margin-top: 10px;">
+                  <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
+                </div>
+                <a href="#" {{action "reset_video"}}>{{t "Remove Video" key="remove_video"}}</a>
+              </div>
+            </div>
+          {{else}}
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
+              <div class="col-sm-10">
+                {{video-recorder user=this.model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
+              </div>
+            </div>
+          {{/if}}
+          <div class="form-group">
+            <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key="auto_assessment"}}</label>
+            <div class="col-sm-10">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.goal.auto_assessment}} id="auto_assessment" />
+                  {{t "Generate a daily progress report for mastery of this goal" key="auto_generate_goal_daily"}}
+                </label>
+              </div>
+            </div>
+          </div>
+          {{#if this.goal.assessment_badge}}
+            {{badge-settings badge=this.goal.assessment_badge assessment=true}}
+          {{/if}}
+
+        {{/if}}
+        {{#if this.goal_type}}
+          {{#if this.model.users}}
+            <div class='form-group'>
+              <label class='col-sm-2 control-label'>{{t "Users" key="users"}}</label>
+              <div class='col-sm-10'>
+                <ul class='list-unstyled' style='margin-top: 10px; margin-left: 30px;'>
+                  {{#each this.model.users as |user|}}
+                    <li>
+                      <label class={{if user.not_premium "not_premium"}} style={{if user.add_goal "font-weight: bold;" "font-weight: normal;"}}>
+                        <Input @type="checkbox" @checked={{user.add_goal}} disabled={{user.not_premium}} />
+                        <img src={{user.avatar_url}} style="height: 30px; max-width: 30px;">
+                        {{user.user_name}}
+                      </label>
+                    </li>
+                  {{/each}}
+                </ul>
+              </div>
+            </div>
+          {{/if}}
+          {{#if this.has_simple_content}}
+            {{#if this.single_user}}
+              <div class="form-group">
+                <label class="col-sm-2 control-label">{{t "Badges" key="badges"}}</label>
+                <div class="col-sm-10">
+                  <div class="checkbox big_checkbox">
+                    <label>
+                      <Input @type="checkbox" @checked={{this.goal.set_badges}} id="set_badges" />
+                      {{t "I want to create earnable badges as part of this goal" key="created_badges"}}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            {{/if}}
+            {{#unless this.model.unit}}
+              <div class="form-group">
+                <fieldset>
+                  <label class="col-sm-2 control-label">{{t "Primary" key="primary"}}</label>
+                  <div class="col-sm-10">
+                    <div class="checkbox big_checkbox">
+                      <label>
+                        <Input @type="checkbox" @checked={{this.goal.primary}} id="primary" />
+                        {{#if this.model.user.user_goal}}
+                          {{t "Set as the User's New Primary Goal" key="set_as_new_primary_user_goal"}}
+                        {{else}}
+                          {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
+                        {{/if}}
+                      </label>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            {{/unless}}
+          {{/if}}
+        {{/if}}
+        {{#if this.goal.simple_type}}
+          <div class="form-group">
+            <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
+            <div class="col-sm-7" style='max-width: 300px;'>
+              <Input @type="date" @value={{this.goal.expires}} class="form-control" id="new_goal_concludes" />
+            </div>
+            <div class='col-sm-3'>
+              <button class='btn btn-default' {{action "clear_expires"}}>{{t "clear" key="clear_lower"}}</button>
+            </div>
+          </div>
+        {{/if}}
+      </form>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <button {{action "save_goal"}} disabled={{this.save_disabled}} class="btn btn-primary">
+      {{#if this.goal.id}}
+        {{#if this.saving}}
+          {{t "Updating Goal" key="updating_goal"}}
+        {{else}}
+          {{t "Update Goal" key="update_goal"}}
+        {{/if}}
+      {{else}}
+        {{#if this.saving}}
+          {{t "Adding Goal" key="adding_goal"}}
+        {{else}}
+          {{t "Add Goal" key="add_goal"}}
+        {{/if}}
+      {{/if}}
+    </button>
+    {{#if this.browse_goals}}
+      {{#if this.selected_goal}}
+        <button {{action "clear_selected_goal"}} class='btn btn-default'>{{t "Back to Goal List" key="back_to_goals"}}</button>
+      {{/if}}
+      <button {{action "browse_goals"}} class='btn btn-default'>{{t "Create My Own Goal" key="create_own_goal"}}</button>
+    {{/if}}
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    {{#if this.error}}
+      <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

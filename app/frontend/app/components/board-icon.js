@@ -126,7 +126,10 @@ export default Component.extend({
         board.preview_locale = this.get('board_record.localized_locale');
       }
       if(_this.get('action_override')) {
-        _this.sendAction('action_override', this.get('board_record.key'));
+        var fn = this.get('action_override');
+        if (typeof fn === 'function') {
+          fn(this.get('board_record.key'));
+        }
       } else {
         modal.board_preview(board, board.preview_locale, this.get('allow_style'), function() {
           _this.send('pick_board', board);
@@ -148,16 +151,25 @@ export default Component.extend({
         return;
       } else if(_this.get('action_override')) {
         var key = board_record.get ? board_record.get('key') : board_record.key;
-        _this.sendAction('action_override', key);
+        var fn = this.get('action_override');
+        if (typeof fn === 'function') {
+          fn(key);
+        }
       } else if(this.get('children')) {
-        _this.sendAction('action', this.get('board'));
+        var fn = this.get('action');
+        if (typeof fn === 'function') {
+          fn(board_record);
+        }
       } else if(this.get('option') == 'select') {
         board_record.preview_option = 'select';
         if(_this.get('localized')) {
           board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
-          _this.sendAction('action', board_record);
+          var fn = _this.get('action');
+          if (typeof fn === 'function') {
+            fn(board_record);
+          }
         });
       } else if(_this.get('allow_style') && _this.get('override_count')) {
         if(_this.get('localized')) {
