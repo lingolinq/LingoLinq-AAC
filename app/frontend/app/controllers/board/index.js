@@ -1128,6 +1128,15 @@ export default Controller.extend({
 //       }, function() { });
     }
   }),
+
+  _extractButtonId: function(id, event) {
+    if (id && typeof id === 'object' && id.target) {
+      event = id;
+      id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
+    }
+    return { id: id, event: event };
+  },
+
   actions: {
     boardDetails: function() {
       modal.open('board-details', {board: this.get('model')});
@@ -1136,11 +1145,9 @@ export default Controller.extend({
       var _this = this;
       var controller = this;
       var board = this.get('model');
-      // When invoked via Ember custom event (buttonselect), first arg is the DOM event
-      if (id && typeof id === 'object' && id.target) {
-        event = id;
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      var extracted = this._extractButtonId(id, event);
+      id = extracted.id;
+      event = extracted.event;
       if(!id) { return; }
       if(_this.appState.get('edit_mode')) {
         if(editManager.finding_target()) {
@@ -1161,9 +1168,7 @@ export default Controller.extend({
       }
     },
     buttonPaint: function(id) {
-      if(id && typeof id === 'object' && id.target) {
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      id = this._extractButtonId(id).id;
       if(id) { editManager.paint_button(id); }
     },
     complete_word: function(word) {
@@ -1192,9 +1197,7 @@ export default Controller.extend({
     },
     symbolSelect: function(id) {
       var _this = this;
-      if(id && typeof id === 'object' && id.target) {
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      id = this._extractButtonId(id).id;
       if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
       if(!button) { return; }
@@ -1203,9 +1206,7 @@ export default Controller.extend({
     },
     actionSelect: function(id) {
       var _this = this;
-      if(id && typeof id === 'object' && id.target) {
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      id = this._extractButtonId(id).id;
       if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
       if(!button) { return; }
@@ -1216,15 +1217,11 @@ export default Controller.extend({
       editManager.switch_buttons(dragId, dropId);
     },
     clear_button: function(id) {
-      if(id && typeof id === 'object' && id.target) {
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      id = this._extractButtonId(id).id;
       if(id) { editManager.clear_button(id); }
     },
     stash_button: function(id) {
-      if(id && typeof id === 'object' && id.target) {
-        id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
-      }
+      id = this._extractButtonId(id).id;
       editManager.stash_button(id || editManager.stashed_button_id);
       modal.success(i18n.t('button_stashed', "Button stashed!"));
       var $stash_hover = $("#stash_hover");

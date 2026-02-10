@@ -43,6 +43,9 @@ export default Route.extend({
     var session = this.get('session');
     if(session && typeof session.restore === 'function') {
       session.restore();
+      // Second restore after 150ms: on first load or after transition, stashes/IndexedDB
+      // or session dependencies may not be ready yet. The delayed call ensures we pick up
+      // persisted auth once storage and services are fully initialized.
       runLater(this, function() {
         var s = this.get('session');
         if(s && typeof s.restore === 'function') {
