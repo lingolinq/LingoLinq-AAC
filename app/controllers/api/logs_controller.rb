@@ -1,7 +1,6 @@
 class Api::LogsController < ApplicationController
   before_action :require_api_token, :except => [:lam, :trends, :trends_slice, :anonymous_logs]
-  before_action :require_api_token_for_cache_user, :only => [:index]
-  
+
   def logging_code_for(user)
     request.headers["HTTP_X_LOGGING_CODE_FOR_#{user.global_id}"] || request.headers["X-Logging-Code-For-#{user.global_id}"]
   end
@@ -9,10 +8,9 @@ class Api::LogsController < ApplicationController
   def index
     # Handle special case where user_id is 'cache' (from boards cache endpoint)
     # Return empty result set since there are no logs for a cache user
-    # Security: require_api_token_for_cache_user already ensures authentication
+    # Security: require_api_token already ensures authentication
     user_id_param = params['user_id'] || params[:user_id]
     if user_id_param.to_s == 'cache'
-      # Security: require_api_token_for_cache_user already ensures authentication
       # Return empty result set since there are no logs for a cache user
       logs = LogSession.none
       json = JsonApi::Log.paginate(params, logs)
@@ -145,7 +143,8 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['id'])
     return unless exists?(log, params['id'])
     user = log && log.user
-    return unless allowed?(user, 'supervise')
+    # Check self first so we don't trigger "Not authorized" from supervise when log owner is in valet mode (they have view_detailed/model but not supervise).
+    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -153,7 +152,7 @@ class Api::LogsController < ApplicationController
     if cutoff && log.started_at < cutoff.hours.ago
       return unless allowed?(user, 'never_allow')
     end
-    render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user, :encryption_allowed => (request.headers["X-SUPPORTS-REMOTE-ENCRYPTION"] == 'true')).to_json
+    render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user, :encryption_allowed => (request.headers["X-SUPPORTS-REMOTE-ENCRYPTION"] == 'true'))
   end
 
   def create
@@ -351,10 +350,5 @@ class Api::LogsController < ApplicationController
   end
   
   protected
-  
-  def require_api_token_for_cache_user
-    # Index is in require_api_token's except list; require auth for all index requests (including user_id=cache)
-    require_api_token
-  end
-  
+
 end

@@ -479,6 +479,7 @@ class Board < ActiveRecord::Base
       self.popularity = 0
       self.home_popularity = 0
     end
+    self.home_popularity = 1 if self.public && self.home_popularity <= 0 && (self.buttons || []).length > 0
     true
   end
 
@@ -938,7 +939,8 @@ class Board < ActiveRecord::Base
       button = {
         'id' => max_id,
         'label' => label,
-        'suggest_symbol' => true
+        'suggest_symbol' => true,
+        'hidden' => false
       }
       buttons << button
       @buttons_changed = 'populated_from_labels'
@@ -1126,10 +1128,13 @@ class Board < ActiveRecord::Base
     suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
     return if suggested_buttons.empty?
 
-    # Get user's preferred library
+    # Get user's preferred library. 'original' means "keep the board's
+    # original symbols" which is meaningless for new boards, so fall back
+    # to 'opensymbols' for actual symbol lookup.
     library = 'opensymbols'
     if self.user
-      library = self.user.settings.dig('preferences', 'preferred_symbols') || 'opensymbols'
+      pref = self.user.settings.dig('preferences', 'preferred_symbols')
+      library = (pref && pref != 'original') ? pref : 'opensymbols'
     end
 
     # Get board locale
@@ -1517,12 +1522,14 @@ class Board < ActiveRecord::Base
     end
 
     if params['intro']
-      self.settings['intro'] = params['intro'] 
+      self.settings['intro'] = params['intro']
       # When a board is copied and buttons change, the intro
       # should be marked unapproved until the user has manually
       # reviewed it.
-      self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.settings['intro'] && self.parent_board_id && params['intro']['unapproved'] != false
-      self.settings['intro'].delete('unapproved') unless self.settings['intro']['unapproved']
+      if self.settings['intro'].is_a?(Hash)
+        self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.parent_board_id && params['intro']['unapproved'] != false
+        self.settings['intro'].delete('unapproved') unless self.settings['intro']['unapproved']
+      end
     end
     self.settings['home_board'] = params['home_board'] if params['home_board'] != nil
     self.settings['categories'] = params['categories'] if params['categories']

@@ -123,11 +123,7 @@ module JsonApi::User
         json['preferences']['eval'] = user.settings['eval_reset']
       end
 
-      if FeatureFlags.user_created_after?(user, 'folder_icons')
-        json['preferences']['folder_icons'] ||= false
-      else
-        json['preferences']['folder_icons'] = true if json['preferences']['folder_icons'] == nil
-      end
+      json['preferences']['folder_icons'] ||= false
       json['preferences']['device']['voice'] ||= {}
       json['preferences']['device']['alternate_voice'] ||= {}
       if json['preferences']['device']['alternate_voice']['enabled']

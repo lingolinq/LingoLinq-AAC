@@ -548,7 +548,7 @@ class SessionController < ApplicationController
     begin
       if @api_user
         params['access_token'] = @token if @token && @tmp_token
-        device = Device.find_by_global_id(@api_device_id) if @api_device_id
+        device = Device.find_by_global_id(@api_device_id)
         valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
         expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
         needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[params['access_token']]
@@ -600,6 +600,7 @@ class SessionController < ApplicationController
             rescue => e
               Rails.logger.warn("Error processing 2FA: #{e.message}")
               json[:valid_2fa] = false
+              json[:scopes] = nil
               json[:error] = '2FA validation failed'
               json[:error_status] = 401
             end
@@ -608,15 +609,17 @@ class SessionController < ApplicationController
             # Previously this would silently ignore the 2FA code, potentially bypassing security
             Rails.logger.error("2FA code provided but device not found for user #{@api_user.global_id}")
             json[:valid_2fa] = false
-            json[:"2fa_error"] = 'Device not found for 2FA validation'
+            json[:scopes] = nil
             json[:error] = 'Device not found for 2FA validation'
             json[:error_status] = 401
           end
         end
-        # Ensure 2FA failure (invalid code or missing device) always returns 401 and is not considered authenticated
+        # Ensure 2FA failure (invalid code or missing device) always returns 401 and is not considered authenticated.
+        # Explicitly set authenticated false and clear scopes so clients don't use token-valid but 2FA-failed state.
         if params['2fa_code'] && json[:valid_2fa] != true
           json[:authenticated] = false
-          json[:error] ||= json[:"2fa_error"] || '2FA validation failed'
+          json[:scopes] = nil
+          json[:error] ||= '2FA validation failed'
           json[:error_status] = 401
         end
         if params['include_token'] && device
@@ -655,13 +658,17 @@ class SessionController < ApplicationController
           global_integrations: global_integrations
         }
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error("Error in token_check: #{e.class.name}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
+      # Use 4xx for client/permission-style errors so clients can distinguish from server errors
+      client_error = e.is_a?(ArgumentError) || e.message.to_s.match?(/not authorized|permission|unauthorized|invalid token|invalid 2fa/i)
+      error_status = client_error ? 401 : 500
+      error_message = client_error ? e.message : "Internal server error"
       json = {
         authenticated: false,
-        error: "Internal server error",
-        error_status: 500,
+        error: error_message,
+        error_status: error_status,
         sale: nil,
         ws_url: ENV['CDWEBSOCKET_URL'],
         global_integrations: []
@@ -677,6 +684,8 @@ class SessionController < ApplicationController
         status_code = (json[:error] == 'Internal server error') ? 500 : 401
       end
       status_code ||= 200
+      # Ensure we never return 200 when an error message is present (safety for any path that set :error but not :error_status)
+      status_code = 500 if json[:error] && status_code == 200
       render json: json, status: status_code
     else
       render json: {authenticated: false, error: "Unknown error"}, status: 500

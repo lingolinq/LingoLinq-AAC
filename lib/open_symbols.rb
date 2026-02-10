@@ -82,59 +82,37 @@ module OpenSymbols
       end
     end
 
-    # Get default symbols for a list of queries
+    # Get default symbols for a list of queries by searching each word
     # @param library [String] the repository key (e.g., 'opensymbols', 'mulberry')
     # @param queries [Array<String>] list of terms to search for
     # @param locale [String] locale code
     # @return [Hash] mapping of query to symbol object
     def defaults(library, queries, locale)
       return {} if queries.blank?
-      
-      token = access_token
-      return {} unless token
-      
-      url = "https://www.opensymbols.org/api/v2/repositories/#{library}/defaults"
-      
-      begin
-        response = Typhoeus.post(
-          url,
-          body: {
-            words: queries,
-            locale: locale
-          },
-          headers: { 'Authorization' => "Bearer #{token}" },
-          ssl_verifypeer: false,
-          timeout: 30
-        )
-        
-        if response.code == 401
-          clear_token_cache
-          token = generate_new_token
-          return {} unless token
-          
-          response = Typhoeus.post(
-            url,
-            body: {
-              words: queries,
-              locale: locale
-            },
-            headers: { 'Authorization' => "Bearer #{token}" },
-            ssl_verifypeer: false,
-            timeout: 30
-          )
-        end
-        
-        if response.success?
-          raw_results = JSON.parse(response.body) rescue {}
-          transform_defaults_results(raw_results)
-        else
-          Rails.logger.error "OpenSymbols Defaults API error: #{response.code} - #{response.body}"
-          {}
-        end
-      rescue => e
-        Rails.logger.error "OpenSymbols Defaults API exception: #{e.message}"
-        {}
+      library = 'opensymbols' if library == 'original'
+
+      # Map library to repo/favor params matching find_images logic
+      repo = nil
+      favor = nil
+      case library
+      when 'opensymbols'
+        # search all repos
+      when 'tawasol'
+        favor = 'tawasol'
+      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
+        repo = library
       end
+
+      results = {}
+      queries.each do |word|
+        next if word.blank?
+        symbols = search(word, locale: locale, repo: repo, favor: favor)
+        if symbols.any?
+          s = symbols.first
+          results[word] = s
+        end
+      end
+      results
     end
     
     # Search for symbols and return in LingoLinq format
@@ -143,9 +121,11 @@ module OpenSymbols
       repo = nil
       favor = nil
       
-      # Map library names to OpenSymbols repo keys
+      # Map library names to OpenSymbols repo keys.
+      # 'original' means "keep the board's original symbols" and isn't a
+      # valid repo, so treat it like 'opensymbols' (search all).
       case library
-      when 'opensymbols'
+      when 'opensymbols', 'original'
         # No specific repo, search all
       when 'tawasol'
         favor = 'tawasol'
