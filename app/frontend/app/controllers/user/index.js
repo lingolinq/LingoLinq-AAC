@@ -16,6 +16,7 @@ import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   store: service('store'),
+  router: service('router'),
   appState: service('app-state'),
   persistence: service('persistence'),
   // Explicit injection for app_state to avoid implicit injection deprecation warning
@@ -499,7 +500,7 @@ export default Controller.extend({
         window.ga('send', 'event', 'Setup', 'start', 'Setup started');
       }
       this.appState.set('auto_setup', false);
-      this.transitionToRoute('setup', {queryParams: {page: null, user_id: this.get('model.id')}});
+      this.router.transitionTo('setup', { queryParams: { page: null, user_id: this.get('model.id') } });
     },
     quick_assessment: function() {
       var _this = this;
@@ -510,7 +511,7 @@ export default Controller.extend({
       }, function() { });
     },
     stats: function() {
-      this.transitionToRoute('user.stats', this.get('model.user_name'));
+      this.router.transitionTo('user.stats', this.get('model.user_name'));
     },
     approve_or_reject_org: function(approve) {
       var user = this.get('model');
@@ -711,7 +712,7 @@ export default Controller.extend({
           }
         }).then(function(res) {
           _this.set('new_user_name', null);
-          _this.transitionToRoute('user.index', res.key);
+          _this.router.transitionTo('user.index', res.key);
           runLater(function() {
             modal.success(i18n.t('user_renamed_to', "User successfully renamed to %{k}. The full renaming process can take a little while to complete.", {k: res.key}));
           }, 200);

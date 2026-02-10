@@ -19,6 +19,7 @@
     {{content-for "head-footer"}}
   </head>
   <body>
+    <!-- Ember mounts here. config has rootElement: '#ember-application-root'. App template renders #within_ember > header + #content (main outlet). Do not add wrappers inside this div or change its id, or app styles (#content, #within_ember, etc.) may not apply. -->
     <div id="ember-application-root">{{content-for "body"}}</div>
 
     <script src="{{rootURL}}assets/vendor.js"></script>

@@ -35,9 +35,22 @@ import i18n from '../utils/i18n';
 // });
 export default Route.extend({
   router: service(),
+  session: service('session'),
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  activate: function() {
+    var session = this.get('session');
+    if(session && typeof session.restore === 'function') {
+      session.restore();
+      runLater(this, function() {
+        var s = this.get('session');
+        if(s && typeof s.restore === 'function') {
+          s.restore();
+        }
+      }, 150);
+    }
+  },
   setupController: function(controller) {
     // Setup utilities with injected services
     speecher.setup(this.appState, this.persistence, this.stashes, ttsVoices);

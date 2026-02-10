@@ -63,7 +63,7 @@ export default Component.extend({
       var controller = this;
       controller.set('browse_audio', null);
       var fn = this.get('audio_selected');
-      if (typeof fn === 'function') { fn(sound); }
+      if (typeof fn === 'function') { fn.call(this, sound); }
     },
     more_browsed_audio: function() {
       var controller = this;

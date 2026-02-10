@@ -634,9 +634,9 @@ var speecher = EmberObject.extend({
       }
       var utterance = new speecher.scope.SpeechSynthesisUtterance();
       utterance.text = text;
-      utterance.rate = opts.rate;
-      utterance.volume = opts.volume;
-      utterance.pitch = opts.pitch;
+      utterance.rate = parseFloat(opts.rate) || 1.0;
+      utterance.volume = parseFloat(opts.volume) != null && !isNaN(parseFloat(opts.volume)) ? parseFloat(opts.volume) : 1.0;
+      utterance.pitch = parseFloat(opts.pitch) || 1.0;
       utterance.voiceURI = opts.voiceURI;
       var voice = null;
       if(opts.voiceURI != 'force_default') {
@@ -655,17 +655,26 @@ var speecher = EmberObject.extend({
       }
       utterance.rate = speecher.adjusted_rate(utterance.rate, (voice && voice.voiceURI) || opts.voiceURI);
 
-      var speak_utterance = function() {
+      var speak_utterance = function(use_fallback_voice) {
         speecher.last_utterance = utterance;
-        if(opts && opts.voiceURI != 'force_default') {
+        if(opts && opts.voiceURI != 'force_default' && voice && !use_fallback_voice) {
           if(capabilities.system == 'iOS' && capabilities.ios_version && capabilities.ios_version < 9) {
           } else {
-            try {
-              utterance.voice = voice;
-            } catch(e) { }  
-            if(voice) {
+            var nativeVoices = speecher.scope.speechSynthesis.getVoices();
+            var isCustomVoice = voice.voiceURI && (voice.voiceURI.match(/^(extra|remote|tts|speak_js):/) || voice.remote_voice);
+            if(!isCustomVoice && nativeVoices && nativeVoices.length) {
+              var nativeVoice = nativeVoices.find(function(v) {
+                return v.voiceURI === voice.voiceURI || (v.name === voice.name && v.lang === voice.lang);
+              });
+              if(nativeVoice) {
+                try {
+                  utterance.voice = nativeVoice;
+                } catch(e) { }
+              }
+            }
+            if(voice && !isCustomVoice) {
               try {
-                utterance.lang = voice.lang;
+                utterance.lang = voice.lang || utterance.lang;
               } catch(e) { }
             }
           }
@@ -681,6 +690,15 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
+            if(!utterance._fallback_retried && utterance.voice) {
+              utterance._fallback_retried = true;
+              utterance.voice = null;
+              utterance.lang = '';
+              try {
+                speecher.scope.speechSynthesis.speak(utterance);
+                return;
+              } catch(e) { }
+            }
             LingoLinq.track_error("error rendering synthesized voice", opts);
             handle_callback();
           });
@@ -708,7 +726,19 @@ var speecher = EmberObject.extend({
           });
         } else {
           utterance.onend = handle_callback;
-          utterance.onerror = handle_callback;
+          utterance.onerror = function() {
+            if(!utterance._fallback_retried && utterance.voice) {
+              utterance._fallback_retried = true;
+              utterance.voice = null;
+              utterance.lang = '';
+              try {
+                speecher.scope.speechSynthesis.speak(utterance);
+                return;
+              } catch(e) { }
+            }
+            LingoLinq.track_error("error rendering synthesized voice", opts);
+            handle_callback();
+          };
           utterance.onpause = handle_callback;
         }
         var extra_delay = 0;

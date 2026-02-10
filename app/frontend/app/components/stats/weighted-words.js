@@ -26,10 +26,16 @@ export default Component.extend({
   }),
   actions: {
     word_cloud: function() {
-      this.sendAction('word_cloud');
+      var fn = this.get('word_cloud');
+      if (typeof fn === 'function') {
+        fn();
+      }
     },
     word_data: function(word) {
-      this.sendAction('word_data', word);
+      var fn = this.get('word_data');
+      if (typeof fn === 'function') {
+        fn(word);
+      }
     },
   }
 });

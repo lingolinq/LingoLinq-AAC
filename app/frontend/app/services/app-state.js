@@ -3111,8 +3111,10 @@ export default Service.extend({
     // speak or make a sound to show the button was selected
     if(obj.label && !skip_sound) {
       var _this = this;
+      var no_user = !this.get('currentUser');
+      var click_buttons = no_user ? (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.click_buttons !== false) : this.get('currentUser.preferences.click_buttons');
       var click_sound = function() {
-        if(_this.get('currentUser.preferences.click_buttons')) {
+        if(click_buttons) {
           if(specialty_button && specialty_button.has_sound) {
           } else {
             speecher.click();
@@ -3122,6 +3124,8 @@ export default Service.extend({
       var vibrate = function() {
         if(_this.get('currentUser.preferences.vibrate_buttons') && _this.get('speak_mode')) {
           capabilities.vibrate();
+        } else if(no_user && _this.get('speak_mode') && (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.vibrate_buttons)) {
+          capabilities.vibrate();
         }
       };
       if(this.get('speak_mode')) {
@@ -3129,7 +3133,8 @@ export default Service.extend({
           obj.for_speaking = true;
         }
 
-        if(this.get('currentUser.preferences.vocalize_buttons') || (!this.get('currentUser') && window.user_preferences.any_user.vocalize_buttons)) {
+        var vocalize = this.get('currentUser.preferences.vocalize_buttons') || (no_user && (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.vocalize_buttons !== false));
+        if(vocalize) {
           if(skip_speaking_by_default && !this.get('currentUser.preferences.vocalize_linked_buttons') && !add_to_voc) {
             // don't say it...
             click_sound();
@@ -3145,8 +3150,38 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
-            utterance.speak_button(button_to_speak);
-            vibrate();
+            var doSpeak = function() {
+              if (typeof console !== 'undefined' && console.log) {
+                console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
+              }
+              utterance.speak_button(button_to_speak);
+              vibrate();
+            };
+            if (button_to_speak && !button_to_speak.sound) {
+              var soundUrl = (button.get && (button.get('local_sound_url') || (button.get('sound') && button.get('sound.best_url')))) || (button.local_sound_url || (button.sound && button.sound.get && button.sound.get('best_url')));
+              if (soundUrl) {
+                button_to_speak.sound = soundUrl;
+                doSpeak();
+                return;
+              }
+              var hasSoundId = (button.get && button.get('sound_id')) || button.sound_id;
+              if (hasSoundId && button.load_sound) {
+                var loadSound = button.load_sound('local');
+                if (loadSound && typeof loadSound.then === 'function') {
+                  loadSound.then(function(sound) {
+                    sound = sound || (button.get && button.get('sound'));
+                    if (sound && button_to_speak) {
+                      button_to_speak.sound = sound.get ? sound.get('best_url') : (sound.best_url || sound.url);
+                    }
+                    doSpeak();
+                  }, function() {
+                    doSpeak();
+                  });
+                  return;
+                }
+              }
+            }
+            doSpeak();
           }
         } else {
           click_sound();
@@ -3614,8 +3649,12 @@ export default Service.extend({
       sendAction: function() {
       },
       trigger: function(event, id, args) {
-        if(_this.get('currentUser.preferences.device.canvas_render')) {
-          if(LingoLinq.customEvents[event]) {
+        var useVirtualDom = _this.get('currentUser.preferences.device.canvas_render') || _this.get('speak_mode');
+        if(useVirtualDom && LingoLinq.customEvents[event]) {
+          var sendAction = _this.get('board_virtual_dom.sendAction');
+          if(typeof sendAction === 'function') {
+            sendAction(LingoLinq.customEvents[event], id, {event: args});
+          } else {
             dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
           }
         }
@@ -3674,10 +3713,11 @@ export default Service.extend({
       },
       button_from_point: function(x, y) {
         var res = null;
-        if(_this.get('currentUser.preferences.device.canvas_render')) {
+        var useVirtualDom = _this.get('currentUser.preferences.device.canvas_render') || _this.get('speak_mode');
+        if(useVirtualDom) {
           dom.each_button(function(b) {
             var pos = b.positioning;
-            if(!b.hidden) {
+            if(pos && !b.hidden) {
               if(x > pos.left - 2 && x < pos.left + pos.width + 2) {
                 if(y > pos.top - 2 && y < pos.top + pos.height + 2) {
                   res = dom.button_result(b);
