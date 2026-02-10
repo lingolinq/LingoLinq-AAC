@@ -19,7 +19,7 @@
       <a class="list-group-item" href="#" style="height: 80px;" {{action "getting_started"}}>
         <span class="glyphicon glyphicon-user"></span>
         <strong>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</strong>
-        <div class="progress" style="margin-bottom: 0;">
+        <div class="progress" style="margin-bottom: 0; width: 75%;">
           <div class="progress-bar" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.blank_slate_percent_style}}>
             <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
           </div>
@@ -299,8 +299,8 @@
 
   </div>
   <div style='padding: 0 10px;' class='collapsible'>
-    <div style="float: right;">
-      <a href="#" {{action "reload"}}>{{t "reload" key="reload"}}</a>
+    <div class="left_reload_holder">
+      <a href="#" class="left_reload_link" {{action "reload"}}><span class="glyphicon glyphicon-refresh"></span></a>
     </div>
     {{#if this.persistence.sync_log}}
       <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
@@ -420,7 +420,7 @@
                 </div>
               </button>
               <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "images/modeling_ideas.svg"}}>
+                <img src={{path "assets/modeling.png"}} class="modeling_ideas_icon">
                 <div style='line-height: 14px;'>
                   {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
                 </div>
@@ -546,7 +546,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_primary' class='btn big_button btn-primary' {{action "homeInSpeakMode"}}>
-              <span class='glyphicon glyphicon-volume-up'></span>
+              <img src={{path "assets/Sound.png"}} class="sound_icon">
               {{t "Speak Mode" key="speak_mode"}}
             </button>
           </div>
@@ -563,7 +563,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_secondary' class='btn big_button btn-default' {{action "stats"}}>
-              <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
+              <img src={{path "assets/chart.png"}}>
               {{t "Reports" key="reports"}}
             </button>
           </div>
@@ -572,7 +572,7 @@
           {{#if this.modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
-                <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
+                <img src={{path "assets/modeling.png"}} class="modeling_ideas_icon">
                 {{t "Modeling<br>Ideas" key="modeling_ideas_two_lines"}}
               </button>
             </div>
@@ -598,7 +598,7 @@
         {{/if}}
         <div class='col-md-3 col-xs-4 big_button_holder'>
           <button id='nav_extras' class='btn big_button btn-default' {{action "toggle_extras"}} style='touch-action: manipulation;'>
-            <img src={{path "images/extras.svg"}}>
+            <img src={{path "assets/Extras.png"}}>
             {{t "Extras" key="extras"}} <span class={{if this.show_main_extras "caret" "caret-right"}}></span>
           </button>
         </div>
