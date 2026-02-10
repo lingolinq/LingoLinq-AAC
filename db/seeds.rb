@@ -40,13 +40,26 @@ else
   else
     puts "✓ Found existing example user"
   end
-  
+  # Ensure example user has a non-expiring subscription (prevents expired trial lockout)
+  user1.settings ||= {}
+  user1.settings['subscription'] ||= {}
+  user1.settings['subscription']['never_expires'] = true
+  user1.settings['subscription']['plan_id'] = 'slp_monthly_granted'
+  user1.settings['subscription']['started'] = 1.year.ago.iso8601
+  user1.save!
+  puts "✓ Ensured example user has lifetime subscription"
+
   org = Organization.find_by(admin: true)
   unless org
     org = Organization.create(:admin => true, :settings => {:name => "Admin Organization"})
     puts "✓ Created admin organization"
   else
     puts "✓ Found existing admin organization"
+  end
+  # Link example user to admin org as full manager
+  unless org.managers.include?(user1)
+    org.add_manager(user1.user_name, true)
+    puts "✓ Linked example user to admin organization as manager"
   end
   # Create images if they don't exist
   image1 = ButtonImage.find_by(url: "http://mcswhispers.files.wordpress.com/2012/08/yellow_happy11.jpg", user_id: user1.id)
@@ -638,6 +651,569 @@ end
 
 # Uncomment the line below to automatically seed an organization when running db:seed
 # seed_organization(org_name: "Demo Organization")
+
+# ============================================================================
+# COMPREHENSIVE DEMO DATA
+# ============================================================================
+# Creates a realistic school district with AAC users, SLPs, classrooms, and
+# 90 days of backdated usage data for demos and development testing.
+# Run with: bundle exec rails db:seed
+# ============================================================================
+
+# Note: Organization settings are encrypted (secure_serialize), so LIKE queries won't work.
+# Use the lingolinq_admin user as the sentinel instead.
+DEMO_ALREADY_SEEDED = User.exists?(user_name: 'lingolinq_admin') && Organization.where(admin: false).exists?
+
+unless DEMO_ALREADY_SEEDED
+  puts "\n" + "=" * 60
+  puts "Seeding Demo School District with 90 days of usage data..."
+  puts "=" * 60
+
+  # ---- 1. Site Admin with lifetime license ----
+  demo_admin = User.find_by(user_name: 'lingolinq_admin')
+  unless demo_admin
+    demo_admin = User.process_new({
+      name: 'LingoLinq Admin',
+      user_name: 'lingolinq_admin',
+      email: 'admin@lingolinq.com',
+      public: false,
+      password: 'admin2025!',
+      description: "LingoLinq site administrator",
+      location: "Portland, OR"
+    }, {
+      is_admin: true
+    })
+    puts "  Created site admin: lingolinq_admin / admin2025!"
+  end
+  # Always ensure password and subscription are set (handles interrupted seed runs)
+  demo_admin.generate_password('admin2025!')
+  demo_admin.settings ||= {}
+  demo_admin.settings['subscription'] ||= {}
+  demo_admin.settings['subscription']['never_expires'] = true
+  demo_admin.settings['subscription']['plan_id'] = 'slp_monthly_granted'
+  demo_admin.settings['subscription']['started'] = 1.year.ago.iso8601
+  demo_admin.save!
+  puts "  Ensured lingolinq_admin password and lifetime subscription"
+
+  # Link lingolinq_admin to admin org as full manager
+  admin_org = Organization.find_by(admin: true)
+  if admin_org && !admin_org.managers.include?(demo_admin)
+    admin_org.add_manager(demo_admin.user_name, true)
+    puts "  Linked lingolinq_admin to admin organization as manager"
+  end
+
+  # ---- 2. Demo School District organization ----
+  # Reuse existing non-admin org if one exists (unique index on admin column)
+  demo_org = Organization.find_by(admin: false) || Organization.new
+  demo_org.settings = {
+    'name' => 'Demo School District',
+    'total_licenses' => 30,
+    'total_eval_licenses' => 5,
+    'total_supervisor_licenses' => 10,
+    'include_extras' => true,
+    'org_access' => true,
+    'public' => false,
+    'support_target' => {
+      'email' => 'support@demoschooldistrict.org',
+      'name' => 'Demo School District'
+    }
+  }
+  demo_org.admin = false
+  demo_org.save!
+  puts "  Created org: Demo School District (ID: #{demo_org.global_id})"
+
+  # ---- 3. Three SLP Supervisor accounts ----
+  slp_profiles = [
+    { name: 'Sarah Chen', user_name: 'sarah_chen_slp', email: 'sarah.chen@demoschooldistrict.org', location: 'Portland, OR' },
+    { name: 'Marcus Williams', user_name: 'marcus_williams_slp', email: 'marcus.williams@demoschooldistrict.org', location: 'Portland, OR' },
+    { name: 'Elena Rodriguez', user_name: 'elena_rodriguez_slp', email: 'elena.rodriguez@demoschooldistrict.org', location: 'Portland, OR' }
+  ]
+
+  supervisors = slp_profiles.map do |profile|
+    slp = User.find_by(user_name: profile[:user_name])
+    unless slp
+      slp = User.process_new({
+        name: profile[:name],
+        user_name: profile[:user_name],
+        email: profile[:email],
+        public: false,
+        password: 'demo2025!',
+        description: "Speech-Language Pathologist at Demo School District",
+        location: profile[:location]
+      }, {
+        is_admin: false
+      })
+    end
+    demo_org.add_supervisor(slp.user_name, false, true) # pending=false, premium=true
+    puts "  Created SLP: #{slp.user_name}"
+    slp
+  end
+
+  # Add first supervisor as a manager too (district admin)
+  demo_org.add_manager(supervisors.first.user_name, true)
+
+  # ---- 4. District-level home board for AAC users ----
+  district_board = Board.find_by(key: 'demo_district_home')
+  unless district_board
+    core_words = [
+      { id: 1,  label: "I",       background_color: "#FFEB3B" },
+      { id: 2,  label: "want",    background_color: "#FF9800" },
+      { id: 3,  label: "need",    background_color: "#FF9800" },
+      { id: 4,  label: "like",    background_color: "#FF9800" },
+      { id: 5,  label: "go",      background_color: "#4CAF50" },
+      { id: 6,  label: "stop",    background_color: "#F44336" },
+      { id: 7,  label: "help",    background_color: "#2196F3" },
+      { id: 8,  label: "more",    background_color: "#9C27B0" },
+      { id: 9,  label: "yes",     background_color: "#4CAF50" },
+      { id: 10, label: "no",      background_color: "#F44336" },
+      { id: 11, label: "eat",     background_color: "#FF9800" },
+      { id: 12, label: "drink",   background_color: "#FF9800" },
+      { id: 13, label: "play",    background_color: "#4CAF50" },
+      { id: 14, label: "happy",   background_color: "#FFEB3B" },
+      { id: 15, label: "sad",     background_color: "#607D8B" },
+      { id: 16, label: "please",  background_color: "#9C27B0" },
+      { id: 17, label: "thank you", background_color: "#9C27B0" },
+      { id: 18, label: "bathroom", background_color: "#795548" },
+      { id: 19, label: "all done", background_color: "#F44336" },
+      { id: 20, label: "my turn", background_color: "#FFEB3B" }
+    ]
+
+    district_board = Board.process_new({
+      name: 'Demo District Core Board',
+      public: false,
+      buttons: core_words,
+      grid: {
+        rows: 4,
+        columns: 5,
+        order: [
+          [1, 2, 3, 4, 5],
+          [6, 7, 8, 9, 10],
+          [11, 12, 13, 14, 15],
+          [16, 17, 18, 19, 20]
+        ]
+      }
+    }, { user: supervisors.first, key: 'demo_district_home' })
+    puts "  Created district core board (20 buttons)"
+  end
+
+  demo_org.settings['default_home_board'] = {
+    'id' => district_board.global_id,
+    'key' => district_board.key
+  }
+  demo_org.save!
+
+  # ---- 5. Twenty student AAC users with varied profiles ----
+  student_profiles = [
+    { name: 'Aiden Parker',      user_name: 'aiden_parker',      age: 6,  skill: :beginner,   freq: :low },
+    { name: 'Bella Martinez',    user_name: 'bella_martinez',    age: 8,  skill: :intermediate, freq: :high },
+    { name: 'Charlie Kim',       user_name: 'charlie_kim',       age: 5,  skill: :beginner,   freq: :medium },
+    { name: 'Daisy Johnson',     user_name: 'daisy_johnson',     age: 7,  skill: :intermediate, freq: :medium },
+    { name: 'Ethan Brown',       user_name: 'ethan_brown',       age: 9,  skill: :advanced,   freq: :high },
+    { name: 'Fiona Davis',       user_name: 'fiona_davis',       age: 6,  skill: :beginner,   freq: :low },
+    { name: 'Gabriel Wilson',    user_name: 'gabriel_wilson',    age: 10, skill: :advanced,   freq: :high },
+    { name: 'Hannah Lee',        user_name: 'hannah_lee',        age: 7,  skill: :intermediate, freq: :medium },
+    { name: 'Isaac Thompson',    user_name: 'isaac_thompson',    age: 5,  skill: :beginner,   freq: :low },
+    { name: 'Jasmine Nguyen',    user_name: 'jasmine_nguyen',    age: 8,  skill: :intermediate, freq: :high },
+    { name: 'Kevin Anderson',    user_name: 'kevin_anderson',    age: 11, skill: :advanced,   freq: :medium },
+    { name: 'Luna Garcia',       user_name: 'luna_garcia',       age: 6,  skill: :beginner,   freq: :medium },
+    { name: 'Mason Clark',       user_name: 'mason_clark',       age: 9,  skill: :intermediate, freq: :low },
+    { name: 'Nora White',        user_name: 'nora_white',        age: 7,  skill: :intermediate, freq: :high },
+    { name: 'Oliver Harris',     user_name: 'oliver_harris',     age: 8,  skill: :advanced,   freq: :high },
+    { name: 'Penelope Scott',    user_name: 'penelope_scott',    age: 5,  skill: :beginner,   freq: :low },
+    { name: 'Quinn Taylor',      user_name: 'quinn_taylor',      age: 10, skill: :advanced,   freq: :medium },
+    { name: 'Ruby Adams',        user_name: 'ruby_adams',        age: 6,  skill: :beginner,   freq: :medium },
+    { name: 'Sam Mitchell',      user_name: 'sam_mitchell',      age: 7,  skill: :intermediate, freq: :low },
+    { name: 'Tessa Campbell',    user_name: 'tessa_campbell',    age: 9,  skill: :advanced,   freq: :high }
+  ]
+
+  students = student_profiles.map do |profile|
+    student = User.find_by(user_name: profile[:user_name])
+    unless student
+      student = User.process_new({
+        name: profile[:name],
+        user_name: profile[:user_name],
+        email: "#{profile[:user_name]}@demoschooldistrict.org",
+        public: false,
+        password: 'demo2025!',
+        description: "AAC user, age #{profile[:age]}",
+        location: "Portland, OR"
+      }, {
+        is_admin: false
+      })
+    end
+    demo_org.add_user(student.user_name, false, true, false) # pending=false, sponsored=true, eval=false
+    puts "  Created student: #{student.user_name} (#{profile[:skill]}, #{profile[:freq]} freq)"
+    { user: student, profile: profile }
+  end
+
+  # ---- 6. Three classrooms (OrganizationUnits) ----
+  classroom_configs = [
+    { name: 'Early Communication (K-1)', supervisor: supervisors[0], student_indices: (0..6) },
+    { name: 'Building Sentences (2nd-3rd)', supervisor: supervisors[1], student_indices: (7..13) },
+    { name: 'Advanced Communication (4th-5th)', supervisor: supervisors[2], student_indices: (14..19) }
+  ]
+
+  classrooms = classroom_configs.map do |config|
+    unit = OrganizationUnit.find_by(organization_id: demo_org.id)
+    # Check by name in settings - need to search properly
+    existing = OrganizationUnit.where(organization_id: demo_org.id).detect { |u|
+      u.settings && u.settings['name'] == config[:name]
+    }
+
+    unit = existing
+    unless unit
+      unit = OrganizationUnit.new
+      unit.organization = demo_org
+      unit.settings = { 'name' => config[:name] }
+      unit.save!
+    end
+
+    unit.add_supervisor(config[:supervisor].user_name, true) # edit_permission=true
+
+    config[:student_indices].each do |i|
+      unit.add_communicator(students[i][:user].user_name)
+    end
+
+    puts "  Created classroom: #{config[:name]} (#{config[:student_indices].size} students)"
+    unit
+  end
+
+  # ---- 7. Generate 90 days of backdated LogSession data ----
+  puts "\n  Generating 90 days of usage data (this may take a few minutes)..."
+
+  # Parts of speech mapping for core words
+  word_pos = {
+    'yes' => 'other', 'no' => 'other', 'more' => 'adjective', 'help' => 'verb',
+    'stop' => 'verb', 'go' => 'verb', 'want' => 'verb', 'eat' => 'verb',
+    'drink' => 'verb', 'please' => 'other', 'I' => 'pronoun', 'need' => 'verb',
+    'like' => 'verb', 'play' => 'verb', 'happy' => 'adjective', 'sad' => 'adjective',
+    'mad' => 'adjective', 'glad' => 'adjective', 'bathroom' => 'noun',
+    'all done' => 'other', 'my turn' => 'other', 'thank you' => 'other',
+    'that' => 'pronoun', 'this' => 'pronoun', 'is' => 'verb', 'not' => 'other',
+    'can' => 'verb', 'do' => 'verb', 'it' => 'pronoun', 'the' => 'other',
+    'and' => 'other', 'big' => 'adjective', 'little' => 'adjective',
+    'good' => 'adjective', 'bad' => 'adjective', 'water' => 'noun',
+    'food' => 'noun', 'home' => 'noun', 'school' => 'noun', 'friend' => 'noun',
+    'book' => 'noun', 'outside' => 'noun', 'music' => 'noun', 'movie' => 'noun'
+  }
+
+  # Core word list (AAC core vocabulary)
+  core_words = %w[I want need like go stop help more yes no eat drink play is not can do it the and that this]
+
+  # Heat map access patterns - simulate different motor abilities
+  heat_map_profiles = {
+    full_access:     { x_range: 0.05..0.95, y_range: 0.05..0.95 },  # Full board
+    left_bias:       { x_range: 0.02..0.55, y_range: 0.05..0.95 },  # Right-hand motor difficulty
+    top_left_quad:   { x_range: 0.02..0.50, y_range: 0.02..0.50 },  # Limited reach
+    bottom_right:    { x_range: 0.45..0.95, y_range: 0.45..0.95 },  # Physical positioning
+    center_cluster:  { x_range: 0.25..0.75, y_range: 0.25..0.75 },  # Center access only
+  }
+
+  # Device/system profiles
+  device_profiles = [
+    { system: 'iOS', browser: 'Safari', name_suffix: 'iPad' },
+    { system: 'iOS', browser: 'Safari', name_suffix: 'iPad' },
+    { system: 'Web', browser: 'Chrome', name_suffix: 'Chromebook' },
+    { system: 'Android', browser: 'Chrome', name_suffix: 'Tablet' },
+    { system: 'Web', browser: 'Chrome', name_suffix: 'Desktop' }
+  ]
+
+  # Access method and grid size by skill level
+  access_configs = {
+    beginner:     { methods: ['touch'], grid_sizes: ['3x3', '4x4'] },
+    intermediate: { methods: ['touch'], grid_sizes: ['4x5', '5x5'] },
+    advanced:     { methods: ['touch', 'keyboard'], grid_sizes: ['5x7', '6x8', '5x9'] }
+  }
+
+  # Core vocabulary used in log events, weighted by frequency
+  core_vocab = {
+    beginner: {
+      words: %w[yes no more help stop go want eat drink please],
+      avg_buttons_per_session: 4,
+      avg_utterance_length: 1.5,
+      sessions_per_day: { low: 1, medium: 2, high: 3 }
+    },
+    intermediate: {
+      words: %w[I want need like go stop help more yes no eat drink play happy sad please bathroom all\ done my\ turn thank\ you],
+      avg_buttons_per_session: 8,
+      avg_utterance_length: 2.5,
+      sessions_per_day: { low: 2, medium: 3, high: 5 }
+    },
+    advanced: {
+      words: %w[I want need like go stop help more yes no eat drink play happy sad mad glad please thank\ you bathroom all\ done my\ turn that this is not can do it the and],
+      avg_buttons_per_session: 14,
+      avg_utterance_length: 4.0,
+      sessions_per_day: { low: 3, medium: 5, high: 8 }
+    }
+  }
+
+  # Simulate realistic growth: students get slightly better over 90 days
+  total_sessions_created = 0
+  lat_base = 45.5231  # Portland, OR
+  long_base = -122.6765
+
+  students.each_with_index do |student_data, student_idx|
+    student = student_data[:user]
+    profile = student_data[:profile]
+    skill = profile[:skill]
+    freq = profile[:freq]
+    vocab_config = core_vocab[skill]
+    base_sessions_per_day = vocab_config[:sessions_per_day][freq]
+
+    # Create device with realistic metadata
+    dev_profile = device_profiles[student_idx % device_profiles.length]
+    device = Device.find_or_create_by(user: student)
+    device.settings ||= {}
+    device.settings['name'] = "#{profile[:name].split.first}'s #{dev_profile[:name_suffix]}"
+    device.settings['ip_address'] = "10.0.#{student_idx}.1"
+    device.settings['system'] = dev_profile[:system]
+    device.settings['browser'] = dev_profile[:browser]
+    device.save!
+
+    # Assign heat map profile based on student (vary motor access patterns)
+    heat_profiles = heat_map_profiles.keys
+    heat_profile = heat_map_profiles[heat_profiles[student_idx % heat_profiles.length]]
+
+    # Assign access method and grid size
+    acc_config = access_configs[skill]
+    access_method = acc_config[:methods].sample
+    grid_size = acc_config[:grid_sizes].sample
+
+    # Set student preferences (home board, logging, access method)
+    student.settings['preferences'] ||= {}
+    student.settings['preferences']['logging'] = true
+    student.settings['preferences']['role'] = 'communicator'
+    student.settings['preferences']['device'] = {
+      'voice' => { 'voice_uri' => 'default' },
+      'alternate_voice' => {},
+      'button_spacing' => 'small',
+      'button_border' => 'medium',
+      'button_text' => 'medium',
+      'button_text_position' => 'bottom',
+      'vocalization_height' => 80
+    }
+    student.settings['preferences']['skin'] = 'default'
+    student.settings['preferences']['auto_home_return'] = true
+    student.settings['preferences']['clear_on_vocalize'] = true
+    # Home board will be assigned by reprocess_imported_boards task
+    student.save!
+
+    # Assign a supervisor as author for log sessions
+    supervisor_idx = student_idx < 7 ? 0 : (student_idx < 14 ? 1 : 2)
+    author = supervisors[supervisor_idx]
+
+    # Modeling rate varies by skill (beginners get more modeling)
+    modeling_rate = case skill
+      when :beginner then 0.20
+      when :intermediate then 0.10
+      when :advanced then 0.05
+    end
+
+    90.downto(1) do |days_ago|
+      day_date = days_ago.days.ago.to_date
+      # Skip weekends (school-based AAC usage)
+      next if day_date.saturday? || day_date.sunday?
+
+      # Simulate growth: more sessions and longer utterances as time progresses
+      growth_factor = 1.0 + (90 - days_ago) * 0.005 # 0-45% improvement over 90 days
+      # Add some day-to-day randomness
+      day_variability = rand(0.5..1.5)
+      sessions_today = [(base_sessions_per_day * day_variability * growth_factor).round, 1].max
+
+      # Occasional absences (roughly 1 in 10 school days)
+      next if rand(10) == 0
+
+      sessions_today.times do |session_num|
+        # Spread sessions across the school day (8am-3pm)
+        session_hour = 8 + rand(7)
+        session_minute = rand(60)
+        session_start = Time.new(day_date.year, day_date.month, day_date.day, session_hour, session_minute, 0, "+00:00")
+        ts = session_start.to_i
+
+        events = []
+        event_id = 1
+
+        # Generate button presses for this session
+        num_buttons = [(vocab_config[:avg_buttons_per_session] * day_variability * growth_factor).round, 1].max
+        current_utterance_words = []
+
+        num_buttons.times do |btn_idx|
+          word = vocab_config[:words].sample
+          current_utterance_words << word
+
+          # Determine button position using heat map profile
+          pct_x = rand(heat_profile[:x_range])
+          pct_y = rand(heat_profile[:y_range])
+
+          # Depth: mostly home board (0), some sub-board navigation
+          depth = (rand < 0.2 && skill != :beginner) ? rand(1..2) : 0
+
+          # Is this a modeling event?
+          is_modeled = rand < modeling_rate
+
+          # Parts of speech
+          pos = word_pos[word] || 'other'
+          is_core = core_words.include?(word)
+
+          # button_id is required by generate_stats (line ~449 in log_session.rb)
+          # to populate all_word_counts and all_button_counts — without it,
+          # words_by_frequency, buttons_by_frequency, and related stats are empty.
+          button_id = (btn_idx + 1).to_s
+
+          button_event = {
+            'type' => 'button',
+            'button' => {
+              'label' => word,
+              'vocalization' => word,
+              'button_id' => button_id,
+              'board' => { 'id' => district_board.global_id, 'key' => district_board.key },
+              'spoken' => true,
+              'for_speaking' => true,
+              'type' => 'speak',
+              'depth' => depth,
+              'percent_x' => pct_x.round(4),
+              'percent_y' => pct_y.round(4),
+              'percent_travel' => (depth > 0 ? rand(0.1..0.5).round(3) : rand(0.01..0.15).round(3)),
+              'access' => access_method
+            },
+            'parts_of_speech' => { 'types' => [pos] },
+            'core_word' => is_core,
+            'system' => dev_profile[:system],
+            'browser' => dev_profile[:browser],
+            'window_width' => 1024,
+            'window_height' => 768,
+            'volume' => rand(0.3..0.9).round(2),
+            'screen_brightness' => rand(0.5..1.0).round(2),
+            'orientation' => { 'alpha' => 0, 'beta' => 0, 'gamma' => 0, 'layout' => 'landscape-primary' },
+            'geo' => [lat_base + rand(-0.01..0.01), long_base + rand(-0.01..0.01)],
+            'timestamp' => ts + (btn_idx * rand(2..8)),
+            'id' => event_id
+          }
+
+          # Add modeling flag
+          if is_modeled
+            button_event['modeling'] = true
+            button_event['session_user_id'] = author.global_id
+          end
+
+          events << button_event
+          event_id += 1
+
+          # Generate utterances at natural breakpoints
+          target_length = (vocab_config[:avg_utterance_length] * growth_factor).round
+          if current_utterance_words.length >= target_length || btn_idx == num_buttons - 1
+            if current_utterance_words.any?
+              events << {
+                'type' => 'utterance',
+                'utterance' => {
+                  'text' => current_utterance_words.join(' '),
+                  'buttons' => current_utterance_words.map { |w| { 'label' => w } }
+                },
+                'geo' => [lat_base, long_base],
+                'timestamp' => ts + (btn_idx * rand(2..8)) + 1,
+                'id' => event_id
+              }
+              event_id += 1
+
+              # Add 'clear' action after utterance (realistic AAC usage)
+              events << {
+                'type' => 'action',
+                'action' => { 'action' => 'clear' },
+                'timestamp' => ts + (btn_idx * rand(2..8)) + 2,
+                'id' => event_id
+              }
+              event_id += 1
+
+              current_utterance_words = []
+            end
+          end
+        end
+
+        # Create the log session
+        begin
+          LogSession.process_new(
+            { 'events' => events },
+            {
+              user: student,
+              author: author,
+              device: device,
+              ip_address: "10.0.#{student_idx}.#{rand(1..254)}"
+            }
+          )
+          total_sessions_created += 1
+        rescue => e
+          # Skip individual session errors, continue seeding
+          puts "    Warning: skipped session for #{student.user_name} on #{day_date}: #{e.message}" if total_sessions_created < 5
+        end
+      end
+    end
+
+    puts "    #{student.user_name}: sessions generated (#{dev_profile[:name_suffix]}, #{heat_profiles[student_idx % heat_profiles.length]})"
+  end
+
+  puts "\n  Total log sessions created: #{total_sessions_created}"
+
+  # ---- Generate WeeklyStatsSummary records from seeded sessions ----
+  # The after_save callback on LogSession only *schedules* background jobs
+  # for WeeklyStatsSummary generation (via RemoteAction/Worker). In dev or
+  # fresh deployments without workers processing the queue, those summaries
+  # never get built. Generate them synchronously here so dashboards, word
+  # clouds, heat maps, and all reports work immediately after seeding.
+  puts "\n  Generating WeeklyStatsSummary records..."
+  total_summaries = 0
+
+  students.each do |student_data|
+    student = student_data[:user]
+
+    # Ensure allow_log_reports is set (needed for aggregate/trends reporting)
+    student.reload
+    student.settings['preferences'] ||= {}
+    unless student.settings['preferences']['allow_log_reports']
+      student.settings['preferences']['allow_log_reports'] = true
+      student.save(touch: false)
+    end
+
+    # Collect unique weekyears from this student's sessions
+    weekyears = LogSession.where(user_id: student.id, log_type: 'session')
+      .where('started_at IS NOT NULL')
+      .pluck(:started_at)
+      .map { |t| WeeklyStatsSummary.date_to_weekyear(t.utc.to_date) }
+      .uniq.sort
+
+    weekyears.each do |weekyear|
+      begin
+        WeeklyStatsSummary.update_now(student.id, weekyear)
+        total_summaries += 1
+      rescue => e
+        puts "    Warning: #{student.user_name} weekyear #{weekyear}: #{e.message}"
+      end
+    end
+    puts "    #{student.user_name}: #{weekyears.length} weekly summaries generated"
+  end
+
+  puts "  Total WeeklyStatsSummary records: #{total_summaries}"
+
+  puts "\n" + "=" * 60
+  puts "Demo School District seeding complete!"
+  puts "=" * 60
+  puts "\nLogin Credentials (all passwords: demo2025!):"
+  puts "  Admin:       lingolinq_admin / admin2025!"
+  puts "  SLP 1:       sarah_chen_slp (manager + supervisor)"
+  puts "  SLP 2:       marcus_williams_slp"
+  puts "  SLP 3:       elena_rodriguez_slp"
+  puts "  Students:    aiden_parker, bella_martinez, ... (20 total)"
+  puts "\nClassrooms:"
+  puts "  Early Communication (K-1):       7 students, Sarah Chen"
+  puts "  Building Sentences (2nd-3rd):    7 students, Marcus Williams"
+  puts "  Advanced Communication (4th-5th): 6 students, Elena Rodriguez"
+  puts "=" * 60
+
+else
+  puts "\n" + "=" * 60
+  puts "Demo School District already seeded - skipping"
+  puts "To re-seed, delete the 'Demo School District' organization first"
+  puts "=" * 60
+end
 
 # ============================================================================
 # LEGACY CODE - COMMENTED OUT
