@@ -79,6 +79,9 @@ Ember.templateHelpers.date_ago = function(date, precision) {
 
 Ember.templateHelpers.delimit = function(num, type) {
   var val = parseFloat(num);
+  if (num === undefined || num === null || Number.isNaN(val) || val < 0) {
+    return '0';
+  }
   var pieces = [];
   var leftover = val;
   while(leftover >= 1000) {
@@ -202,7 +205,11 @@ Ember.templateHelpers.duration = function(duration) {
 };
 
 Ember.templateHelpers.round = function(number) {
-  return Math.round(number * 100) / 100;
+  var val = parseFloat(number);
+  if (number === undefined || number === null || Number.isNaN(val)) {
+    return 0;
+  }
+  return Math.round(val * 100) / 100;
 };
 
 Ember.templateHelpers.t = function(str, options) {

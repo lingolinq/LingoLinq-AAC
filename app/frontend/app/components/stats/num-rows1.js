@@ -12,4 +12,12 @@ export default Component.extend({
       return htmlSafe('');
     }
   }),
+  totalSessionsDisplay: computed('displayTotalSessions', 'usage_stats.total_sessions', function() {
+    var d = this.get('displayTotalSessions');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.total_sessions');
+  }),
+  totalWordsDisplay: computed('displayTotalWords', 'usage_stats.total_words', function() {
+    var d = this.get('displayTotalWords');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.total_words');
+  }),
 });

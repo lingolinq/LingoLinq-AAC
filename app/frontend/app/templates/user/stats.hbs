@@ -23,25 +23,113 @@
         {{stats/load-status status=this.status2 ref_status=this.status side_by_side=true right_side=true}}
       {{/if}}
       {{#if this.some_data}}
-        {{stats/nums-row1 usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
+            <div class="panel-body">{{delimit this.display_total_sessions}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
+            <div class="panel-body">{{delimit this.display_total_words}}</div>
+          </div>
+        </div>
         {{#if this.usage_stats2}}
-          {{stats/nums-row1 usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
+              <div class="panel-body">{{delimit this.display_total_sessions2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
+              <div class="panel-body">{{delimit this.display_total_words2}}</div>
+            </div>
+          </div>
         {{/if}}
-        {{stats/nums-row2 usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
+            <div class="panel-body">{{delimit this.display_total_utterances}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
+            <div class="panel-body">{{delimit this.display_total_buttons}}</div>
+          </div>
+        </div>
         {{#if this.usage_stats2}}
-          {{stats/nums-row2 usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
+              <div class="panel-body">{{delimit this.display_total_utterances2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
+              <div class="panel-body">{{delimit this.display_total_buttons2}}</div>
+            </div>
+          </div>
         {{/if}}
       {{/if}}
     </div>
     {{#if this.some_data}}
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/nums-row3 usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
+            <div class="panel-body">{{round this.display_words_per_utterance}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_words_per_minute}}</div>
+          </div>
+        </div>
         {{#if this.usage_stats2}}
-          {{stats/nums-row3 usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
+              <div class="panel-body">{{round this.display_words_per_utterance2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_words_per_minute2}}</div>
+            </div>
+          </div>
         {{/if}}
-        {{stats/nums-row4 usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_utterances_per_minute}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_buttons_per_minute}}</div>
+          </div>
+        </div>
         {{#if this.usage_stats2}}
-          {{stats/nums-row4 usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_utterances_per_minute2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_buttons_per_minute2}}</div>
+            </div>
+          </div>
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>

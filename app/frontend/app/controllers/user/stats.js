@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater, scheduleOnce } from '@ember/runloop';
+import { later as runLater, scheduleOnce, run } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -51,6 +51,24 @@ export default Controller.extend({
       return !!((this.get('usage_stats.has_data') && !this.get('status')) || (this.get('usage_stats2.has_data') && !this.get('status2')));
     }
   ),
+  // Explicit display values so templates update when usage_stats is replaced (binding fix)
+  display_total_sessions: computed('usage_stats', 'usage_stats.total_sessions', function() { var s = this.get('usage_stats'); return s ? s.get('total_sessions') : undefined; }),
+  display_total_words: computed('usage_stats', 'usage_stats.total_words', function() { var s = this.get('usage_stats'); return s ? s.get('total_words') : undefined; }),
+  display_total_utterances: computed('usage_stats', 'usage_stats.total_utterances', function() { var s = this.get('usage_stats'); return s ? s.get('total_utterances') : undefined; }),
+  display_total_buttons: computed('usage_stats', 'usage_stats.total_buttons', function() { var s = this.get('usage_stats'); return s ? s.get('total_buttons') : undefined; }),
+  display_words_per_utterance: computed('usage_stats', 'usage_stats.words_per_utterance', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_utterance') : undefined; }),
+  display_words_per_minute: computed('usage_stats', 'usage_stats.words_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_minute') : undefined; }),
+  display_utterances_per_minute: computed('usage_stats', 'usage_stats.utterances_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('utterances_per_minute') : undefined; }),
+  display_buttons_per_minute: computed('usage_stats', 'usage_stats.buttons_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('buttons_per_minute') : undefined; }),
+  // Right side (compare) display values
+  display_total_sessions2: computed('usage_stats2', 'usage_stats2.total_sessions', function() { var s = this.get('usage_stats2'); return s ? s.get('total_sessions') : undefined; }),
+  display_total_words2: computed('usage_stats2', 'usage_stats2.total_words', function() { var s = this.get('usage_stats2'); return s ? s.get('total_words') : undefined; }),
+  display_total_utterances2: computed('usage_stats2', 'usage_stats2.total_utterances', function() { var s = this.get('usage_stats2'); return s ? s.get('total_utterances') : undefined; }),
+  display_total_buttons2: computed('usage_stats2', 'usage_stats2.total_buttons', function() { var s = this.get('usage_stats2'); return s ? s.get('total_buttons') : undefined; }),
+  display_words_per_utterance2: computed('usage_stats2', 'usage_stats2.words_per_utterance', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_utterance') : undefined; }),
+  display_words_per_minute2: computed('usage_stats2', 'usage_stats2.words_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_minute') : undefined; }),
+  display_utterances_per_minute2: computed('usage_stats2', 'usage_stats2.utterances_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('utterances_per_minute') : undefined; }),
+  display_buttons_per_minute2: computed('usage_stats2', 'usage_stats2.buttons_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('buttons_per_minute') : undefined; }),
   refresh_left_on_type_change: observer(
     'start',
     'end',
@@ -210,9 +228,15 @@ export default Controller.extend({
         args[key] = controller.get(lookup);
       }
     });
+    if(side == 'left' && !args.start && !args.end) {
+      var tmp_stats = this.get('usage_stats') || Stats.create({});
+      var dates = typeof tmp_stats.date_strings === 'function' ? tmp_stats.date_strings() : { today: window.moment().format('YYYY-MM-DD'), two_months_ago: window.moment().add(-2, 'month').format('YYYY-MM-DD') };
+      args.start = dates.two_months_ago;
+      args.end = dates.today;
+    }
     if(side == 'right' && (!this.get('usage_stats.filter') || this.get('usage_stats.filter') == 'last_2_months') && !args.start && !args.end) {
-      var tmp_stats = this.get('usage_state') || (Stats.create({}));
-      var dates = tmp_stats.date_strings();
+      var tmp_stats = this.get('usage_stats') || Stats.create({});
+      var dates = typeof tmp_stats.date_strings === 'function' ? tmp_stats.date_strings() : { four_months_ago: window.moment().add(-4, 'month').format('YYYY-MM-DD'), two_months_ago: window.moment().add(-2, 'month').format('YYYY-MM-DD') };
       args.start = dates.four_months_ago;
       args.end = dates.two_months_ago;
     }
@@ -222,21 +246,54 @@ export default Controller.extend({
     var stats_key = side == 'left' ? 'usage_stats' : 'usage_stats2';
     controller.set(status_key, status);
     persistence.ajax('/api/v1/users/' + controller.get('model.id') + '/stats/daily', {type: 'GET', data: args}).then(function(data) {
-      if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
-      var stats = Stats.create(data);
-      stats.setProperties({
-        raw: data,
-        device_id: args.device_id,
-        location_id: args.location_id,
-        start: args.start || data.start_at.substring(0, 10),
-        end: args.end || data.end_at.substring(0, 10),
-        snapshot_id: args.snapshot_id
+      run(function() {
+        try {
+          if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
+          // API returns flat JSON; allow wrapped payload if present
+          var payload = data && (data.stats || data.data || data);
+          if(!payload) { payload = {}; }
+          // Create empty Stats then apply payload so all keys are set (create() can miss some in large hashes)
+          var stats = Stats.create();
+          stats.setProperties(payload);
+        var summaryKeys = [
+          'total_sessions', 'total_words', 'total_utterances', 'total_buttons',
+          'words_per_utterance', 'words_per_minute', 'utterances_per_minute', 'buttons_per_minute'
+        ];
+        var defaults = {
+          total_sessions: 0,
+          total_words: 0,
+          total_utterances: 0,
+          total_buttons: 0,
+          words_per_utterance: 0,
+          words_per_minute: 0,
+          utterances_per_minute: 0,
+          buttons_per_minute: 0
+        };
+        summaryKeys.forEach(function(k) {
+          var val = payload[k];
+          if (val !== undefined && val !== null && !Number.isNaN(Number(val))) {
+            stats.set(k, Number(val));
+          } else if (stats.get(k) === undefined || stats.get(k) === null || Number.isNaN(Number(stats.get(k)))) {
+            stats.set(k, defaults[k]);
+          }
+        });
+        stats.setProperties({
+          raw: data,
+          device_id: args.device_id,
+          location_id: args.location_id,
+          start: args.start || (data && data.start_at && data.start_at.substring(0, 10)),
+          end: args.end || (data && data.end_at && data.end_at.substring(0, 10)),
+          snapshot_id: args.snapshot_id
+        });
+        controller.set(status_key, null);
+        if(!stats.get('has_data')) {
+          controller.set(status_key, {no_data: true});
+        }
+        controller.set(stats_key, stats);
+        } catch (e) {
+          console.error('[stats/daily] error in run block', e);
+        }
       });
-      controller.set(status_key, null);
-      if(!stats.get('has_data')) {
-        controller.set(status_key, {no_data: true});
-      }
-      controller.set(stats_key, stats);
     }, function() {
       if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
       controller.set(status_key + '.loading', false);

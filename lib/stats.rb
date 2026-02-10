@@ -59,6 +59,8 @@ module Stats
     
     res = usage_stats(all_stats)
     res[:days] = days
+    sessions = find_sessions(user_id, options)
+    res.merge!(touch_stats(sessions))
     word_development.each do |key, list|
       # if a word is used more than 7 times in the last few weeks, go ahead
       # and call it an emergent word
@@ -351,32 +353,34 @@ module Stats
     stats_list.each do |stats|
       stats = stats.with_indifferent_access
       # TODO: should we be calculating EVERYTHING off of only uttered content?
-      buttons = stats[:all_button_counts].map{|k, v| v['count'] }.sum
-      words = stats[:all_word_counts].map{|k, v| v }.sum
+      current_button_counts = stats[:all_button_counts] || {}
+      current_word_counts = stats[:all_word_counts] || {}
+      buttons = current_button_counts.map { |k, v| (v.is_a?(Hash) ? v['count'] : v) }.compact.sum
+      words = current_word_counts.is_a?(Hash) ? current_word_counts.map { |_k, v| v }.sum : 0
       total_buttons += buttons
       total_words += words
       total_utterance_words += stats[:total_utterance_words] if stats[:total_utterance_words]
       total_utterance_buttons += stats[:total_utterance_buttons] if stats[:total_utterance_buttons]
       total_utterances += stats[:total_utterances] if stats[:total_utterances]
       total_session_seconds += stats[:total_session_seconds] if stats[:total_session_seconds]
-      
-      res[:total_sessions] += stats[:total_sessions]
+
+      res[:total_sessions] += (stats[:total_sessions] || 0)
       if !brief
         (stats[:modeled_session_events] || {}).each do |total, cnt|
           res[:modeled_session_events][total] = (res[:modeled_session_events][total] || 0) + cnt
         end
       end
-      res[:total_utterances] += stats[:total_utterances]
+      res[:total_utterances] += (stats[:total_utterances] || 0)
       res[:total_buttons] += buttons
-      res[:modeled_buttons] += (stats[:modeled_button_counts] || {}).map{|k, v| v['count'] }.sum
-      res[:unique_buttons] += stats[:all_button_counts].keys.length
+      res[:modeled_buttons] += (stats[:modeled_button_counts] || {}).map { |k, v| (v.is_a?(Hash) ? v['count'] : v) }.compact.sum
+      res[:unique_buttons] += current_button_counts.keys.length
       res[:total_words] += words
-      res[:modeled_words] += (stats[:modeled_word_counts] || {}).map{|k, v| v }.sum
-      res[:unique_words] += stats[:all_word_counts].keys.map(&:downcase).length
+      res[:modeled_words] += (stats[:modeled_word_counts] || {}).map { |_k, v| v }.sum
+      res[:unique_words] += (current_word_counts.respond_to?(:keys) ? current_word_counts.keys.map(&:to_s).map(&:downcase) : []).length
       res[:started_at] = [res[:started_at], stats[:started_at]].compact.min
       res[:ended_at] = [res[:ended_at], stats[:ended_at]].compact.max
       if !brief
-        stats[:all_button_counts].each do |ref, button|
+        (stats[:all_button_counts] || {}).each do |ref, button|
           if all_button_counts[ref]
             all_button_counts[ref]['count'] += button['count']
             if button['depth_sum']
@@ -391,9 +395,10 @@ module Stats
             all_button_counts[ref] = button.merge({})
           end
         end
-        stats[:all_word_counts].each do |word, cnt|
-          all_word_counts[word.downcase] ||= 0
-          all_word_counts[word.downcase] += cnt
+        (stats[:all_word_counts] || {}).each do |word, cnt|
+          key = word.respond_to?(:downcase) ? word.downcase : word.to_s.downcase
+          all_word_counts[key] ||= 0
+          all_word_counts[key] += cnt
         end
         (stats[:modeled_button_counts] || {}).each do |ref, button|
           if modeled_button_counts[ref]
