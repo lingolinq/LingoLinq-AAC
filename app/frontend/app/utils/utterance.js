@@ -748,12 +748,18 @@ var utterance = EmberObject.extend({
   speak_button: function(button) {
     var alt_voice = speecher.alternate_voice && speecher.alternate_voice.enabled && speecher.alternate_voice.for_buttons === true;
     if(button.sound) {
+      if(typeof console !== 'undefined' && console.log) {
+        console.log('[speak_button] playing recorded sound for:', button.label || button.vocalization, 'url:', (button.sound && button.sound.substring && button.sound.substring(0, 50)) || button.sound);
+      }
       var collection_id = null;
       if(button.blocking_speech) {
         collection_id = 'hold-' + button.button_id + "-" + (button.board || {}).id + "-" + Math.round((new Date()).getTime() / 30000);
       }
       speecher.speak_audio(button.sound, 'text', collection_id, {alternate_voice: alt_voice, prevent_repeat: true, prevent_any: app_state.get('referenced_user.preferences.prevent_button_interruptions')});
     } else {
+      if(typeof console !== 'undefined' && console.log) {
+        console.log('[speak_button] TTS for:', button.label || button.vocalization, 'text:', (button.vocalization || button.label) || '(none)');
+      }
       if(speecher.ready) {
         if(button.vocalization == ":beep") {
           speecher.beep();

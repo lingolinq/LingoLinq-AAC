@@ -105,7 +105,7 @@
                 {{#each row as |button|}}
                   <!-- NOTE: this is noticeably slow on Chrome, only when debugger is open... -->
                   <!-- TODO: I think this is only used in Edit Mode -->
-                  <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
+                  <a href='#' style={{button.computed_style}} class="button {{button.computed_class}}" data-id={{button.id}} tabindex="0">
                     {{#if button.pending}}
                       <div class="pending">
                         <img src={{path "images/spinner.gif"}} draggable='false' >

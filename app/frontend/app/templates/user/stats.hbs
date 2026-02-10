@@ -49,21 +49,21 @@
         {{#if this.usage_stats2}}
           {{stats/word-usage usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true show_logs="show_logs"}}
         {{/if}}
-        {{stats/common-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud="word_cloud_left" word_data="word_data"}}
+        {{stats/common-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
         {{#if this.usage_stats2}}
-          {{stats/common-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+          {{stats/common-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
         {{/if}}
         {{#if this.usage_stats2}}
           {{#if this.different_dates}}
-            {{stats/lost-or-gained-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=true word_cloud="word_cloud_left" word_data="word_data"}}
-            {{stats/lost-or-gained-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+            {{stats/lost-or-gained-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=true word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
+            {{stats/lost-or-gained-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
           {{/if}}
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud="word_cloud_left" word_data="word_data" edit_permission=this.model.permissions.edit modify_core="modify_core"}}
+        {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data") edit_permission=this.model.permissions.edit modify_core=(action "modify_core")}}
         {{#if this.usage_stats2}}
-          {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data" edit_permission=this.model.permissions.edit modify_core="modify_core"}}
+          {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data") edit_permission=this.model.permissions.edit modify_core=(action "modify_core")}}
         {{/if}}
         {{stats/core-fringe usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
         {{#if this.usage_stats2}}
@@ -79,9 +79,9 @@
         {{#if this.usage_stats2}}
           {{stats/time-of-day usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
-        {{stats/weighted-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud="word_cloud_left" word_data="word_data"}}
+        {{stats/weighted-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
         {{#if this.usage_stats2}}
-          {{stats/weighted-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+          {{stats/weighted-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>

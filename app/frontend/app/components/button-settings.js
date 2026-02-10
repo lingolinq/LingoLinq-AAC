@@ -859,6 +859,7 @@ export default Component.extend({
       }
     },
     move: function(direction) {
+      var _this = this;
       var row = null, col = null;
       var board = this.get('board');
       var new_button_id = null;
@@ -886,11 +887,13 @@ export default Component.extend({
       }
       if(new_button_id) {
         new_button_id = emberGet(new_button_id, 'id') || new_button_id;
-        this.get('modal').close();
+        _this.get('modal').close();
         runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
           var button = editManager.find_button(new_button_id);
-          button.state = event || 'general';
-          this.get('modal').open('button-settings', {button: button, board: board});
+          if(!button) { return; }
+          button.state = 'general';
+          _this.get('modal').open('button-settings', {button: button, board: board});
         }, 100);
           
       }
@@ -1113,15 +1116,16 @@ export default Component.extend({
       contentGrabbers.soundGrabber.select_sound_preview();
     },
     close: function() {
+      var _this = this;
       if(this.get('model.vocalization')) {
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
       contentGrabbers.save_pending().then(function() {
-        this.get('modal').close();
+        if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }
       }, function() {
-        this.get('modal').close();
+        if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }
       });
     },
     find_app: function() {

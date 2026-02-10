@@ -17,6 +17,7 @@ import { alias } from '@ember/object/computed';
 var order = ['intro', 'usage', 'board_category', 'core', 'symbols', 'access', 'voice', 'logging', 'supervisors', 'done'];
 var extra_order = ['extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-supervisors', 'extra-reports', 'extra-logs', 'extra-done'];
 export default Controller.extend({
+  router: service('router'),
   appState: service('app-state'),
   app_state: alias('appState'),
   persistence: service('persistence'),
@@ -453,9 +454,17 @@ export default Controller.extend({
     if(!_this.appState) { return false; }
     return this.get('setup_user') && this.get('setup_user.id') == _this.appState.get('currentUser.id');
   }),
+  _update_on_page_change_last_keys: null,
   update_on_page_change: observer('page', 'user_id', 'appState.currentUser', 'setup_user', function() {
     var _this = this;
     if(!_this.appState || !_this.appState.controller) { return; }
+    var page = _this.get('page');
+    var user_id = _this.get('user_id');
+    var setup_user_id = _this.get('setup_user.id');
+    var keys = page + '|' + user_id + '|' + (setup_user_id || '');
+    var lastKeys = _this.get('_update_on_page_change_last_keys');
+    var pageOrUserChanged = lastKeys !== keys;
+    _this.set('_update_on_page_change_last_keys', keys);
     if(!_this.get('fake_user')) {
       _this.set('fake_user', EmberObject.create({
         preferences:
@@ -467,7 +476,10 @@ export default Controller.extend({
       }));
     }
     if(_this.appState && _this.appState.controller) {
-      _this.appState.controller.set('setup_user_id', _this.get('user_id'));
+      var new_setup_user_id = _this.get('user_id');
+      if(_this.appState.controller.get('setup_user_id') !== new_setup_user_id) {
+        _this.appState.controller.set('setup_user_id', new_setup_user_id);
+      }
     }
     if(_this.get('user_id')) {
       if(_this.get('user_id') != _this.get('setup_user.id')) {
@@ -510,7 +522,10 @@ export default Controller.extend({
       }
     }
     if(_this.appState && _this.appState.controller) {
-      _this.appState.controller.set('setup_page', _this.get('page'));
+      var new_setup_page = _this.get('page');
+      if(_this.appState.controller.get('setup_page') !== new_setup_page) {
+        _this.appState.controller.set('setup_page', new_setup_page);
+      }
     }
     if(_this.get('page') != 'board_category') {
       _this.set('advanced', false);
@@ -522,7 +537,9 @@ export default Controller.extend({
         _this.read_step();
       }, 500);
     }
-    $('html,body').scrollTop(0);
+    if(pageOrUserChanged) {
+      $('html,body').scrollTop(0);
+    }
   }),
   read_step: function() {
     var _this = this;
@@ -613,7 +630,8 @@ export default Controller.extend({
           if(_this.appState && _this.appState.controller) {
             _this.appState.controller.set('footer_status', null);
           }
-          user.reload();
+          // Do not call user.reload() here: the save response already updates the record,
+          // and reload() triggered observer loops (repeated PUT/GET) when opening the wizard.
         }, function(err) {
           if(_this.appState && _this.appState.controller) {
             _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
@@ -677,7 +695,7 @@ export default Controller.extend({
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'skip', 'Extra Setup Pursued');
       }
-      this.transitionToRoute('home-boards');
+      this.router.transitionTo('home-boards');
     },
     done: function() {
       this.appState.return_to_index();

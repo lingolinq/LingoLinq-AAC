@@ -2,7 +2,7 @@ import Ember from 'ember';
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import LingoLinq from '../app';
@@ -400,6 +400,15 @@ export default Controller.extend({
         }
         if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
           capabilities.vibrate();
+        }
+      }
+    },
+    speakMenuSelect: function(event) {
+      var modalService = this.modalService || this.get && this.get('modalService');
+      if (modalService && modalService.get('currentTemplate') === 'speak-menu') {
+        var component = modalService.get('currentComponent');
+        if (component && typeof component.send === 'function') {
+          component.send('button_event', 'speakMenuSelect', event && event.button_id, event);
         }
       }
     },
@@ -1223,10 +1232,10 @@ export default Controller.extend({
     };
     var timeout = runLater(runActivation, 1500);
     p.then(function() {
-      runLater.cancel(timeout);
+      runCancel(timeout);
       runActivation();
     }, function() {
-      runLater.cancel(timeout);
+      runCancel(timeout);
       runActivation();
     });
   },
