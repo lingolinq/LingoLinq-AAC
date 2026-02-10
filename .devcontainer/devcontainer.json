@@ -12,10 +12,11 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "castwide.ruby-lsp",
-        "rebornix.ruby",
-        "bung87.ruby-rubocop",
-        "Anthropic.claude-dev"
+        "shopify.ruby-lsp",
+        "misogi.ruby-rubocop",
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "github.vscode-pull-request-github"
       ]
     }
   },

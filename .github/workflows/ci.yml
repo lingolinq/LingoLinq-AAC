@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/frontend/node_modules
+          key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node20-
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm install
+
+      - name: Build Ember app
+        working-directory: app/frontend
+        run: npx ember build
+
+      - name: Run Ember tests (Chrome Headless)
+        working-directory: app/frontend
+        run: npx ember test

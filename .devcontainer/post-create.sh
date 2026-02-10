@@ -17,23 +17,20 @@ fi
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
-# Install Node 18 alongside Node 20
-echo "Installing Node 18..."
-nvm install 18
-nvm alias node18 18
-
 # Set Node 20 as default
 nvm use 20
 nvm alias default 20
 
 # Install CLIs globally
-echo "Installing Gemini and Claude CLIs..."
+echo "Installing Gemini, Claude Code CLI, and Anthropic SDK..."
 npm install -g @google/generative-ai-cli
+npm install -g @anthropic-ai/claude-code
 npm install -g @anthropic-ai/sdk
 
 # Verify CLI installs
 echo "Gemini CLI version: $(genai version || echo 'Not found')"
-echo "Claude SDK version: $(npm list -g @anthropic-ai/sdk || echo 'Not found')"
+echo "Claude Code CLI version: $(claude --version || echo 'Not found')"
+echo "Anthropic SDK version: $(npm list -g @anthropic-ai/sdk || echo 'Not found')"
 
 # Ruby setup
 echo "Setting up Ruby gems..."
