@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
@@ -17,6 +18,7 @@ import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
 
 export default Controller.extend({
+  router: service('router'),
   setup: function() {
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
@@ -892,7 +894,7 @@ export default Controller.extend({
           app_state.set('currentUser', user);
         }
         if(!skip_redirect) {
-          _this.transitionToRoute('user', user.get('user_name'));
+          _this.router.transitionTo('user', user.get('user_name'));
         }
       }, function() {
         _this.set('status', {error: true});
@@ -903,7 +905,7 @@ export default Controller.extend({
       var user = this.get('model');
       user.rollbackAttributes();
       this.set('skip_save_on_transition', true);
-      this.transitionToRoute('user', user.get('user_name'));
+      this.router.transitionTo('user', user.get('user_name'));
     },
     check_logging_code: function() {
       var _this = this;
