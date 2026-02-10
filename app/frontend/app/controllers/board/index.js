@@ -35,15 +35,12 @@ export default Controller.extend({
   }),
   ordered_buttons: null,
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
-    console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') });
-    if(!this || typeof this.get !== 'function' || !this.appState) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); return; }
-    if(!this.get('model')) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); return; }
+    if(!this || typeof this.get !== 'function' || !this.appState) { return; }
+    if(!this.get('model')) { return; }
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
-    console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying');
     editManager.process_for_displaying(ignore_fast_html);
-    console.log('[BOARD-DEBUG] board/index processButtons() done');
   }),
   check_for_share_approval: observer(
     'model.id',
@@ -196,14 +193,14 @@ export default Controller.extend({
     var needs_refresh = board.get('update_visibility_downstream');
     board.save().then(function(brd) {
       if(update_locale) {
-        this.stashes.persist('label_locale', update_locale);
-        this.appState.set('label_locale', update_locale);
-        this.stashes.persist('vocalization_locale', update_locale);
-        this.appState.set('vocalization_locale', update_locale);
+        _this.stashes.persist('label_locale', update_locale);
+        _this.appState.set('label_locale', update_locale);
+        _this.stashes.persist('vocalization_locale', update_locale);
+        _this.appState.set('vocalization_locale', update_locale);
       }
       board.set('update_visibility_downstream', false);
       if(needs_refresh) {
-        this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+        _this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
       }
       editManager.process_for_displaying();
       if(brd.get('protected_material') && brd.get('visibility') != 'private') {
@@ -994,15 +991,11 @@ export default Controller.extend({
     'model.hide_empty',
     'appState.currentUser.preferences.hidden_buttons',
     'appState.currentUser.hide_symbols',
-    'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
     'appState.currentUser.preferences.high_contrast',
     function() {
-      var res = "board advanced_selection ";
-      if(!this.appState.get('currentUser.preferences.folder_icons')) {
-        res = res + "colored_icons ";
-      }
+      var res = "board advanced_selection colored_icons ";
       if(this.appState.get('currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }

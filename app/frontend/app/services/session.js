@@ -550,7 +550,7 @@ export default Service.extend({
       later(function() {
         _this.set('isAuthenticated', false);
         _this.set('access_token', null);
-        _this.set(' ', null);
+        _this.set('user_name', null);
         _this.set('user_id', null);
         _this.set('as_user_id', null);
         if(full_invalidate) {

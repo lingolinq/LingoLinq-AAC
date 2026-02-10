@@ -548,9 +548,6 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
-    if(transition.to_route === 'board.index' || transition.to_route === 'board') {
-      console.log('[BOARD-DEBUG] app-state global_transition', { to_route: transition.to_route, from_route: transition.from_route });
-    }
     var route = this.get('route');
     var from_url = null;
     if(route && typeof route.get === 'function') {
@@ -730,7 +727,6 @@ export default Service.extend({
     }
   },
   jump_to_board: function(new_state, old_state) {
-    console.log('[BOARD-DEBUG] app-state.jump_to_board entry', { newKey: new_state && new_state.key, source: new_state && new_state.source, oldKey: old_state && old_state.key });
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -783,9 +779,7 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          console.log('[BOARD-DEBUG] app-state calling router.transitionTo', { route: 'board', key: new_state.key });
           router.transitionTo('board', new_state.key);
-          console.log('[BOARD-DEBUG] app-state router.transitionTo returned (async transition started)');
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -800,16 +794,11 @@ export default Service.extend({
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
         var currentKey = _this.get('currentBoardState.key');
-        if(check.attempts <= 3 || check.attempts % 5 === 0 || check.attempts > 18) {
-          console.log('[BOARD-DEBUG] app-state check attempt', check.attempts, { currentKey: currentKey, expectedKey: new_state.key, match: currentKey === new_state.key });
-        }
         if(currentKey == new_state.key) {
-          console.log('[BOARD-DEBUG] app-state currentBoardState matched, resolving');
           buttonTracker.transitioning = false;
           resolve();
         } else {
           if(check.attempts > 20) {
-            console.warn('[BOARD-DEBUG] app-state check timeout after 20 attempts', { currentKey: currentKey, expectedKey: new_state.key });
             buttonTracker.transitioning = false;
             reject({error: 'not loaded'});
           } else {
@@ -1089,6 +1078,9 @@ export default Service.extend({
   },
   assert_source: function() {
     var _this = this;
+    if(!_this.controller || typeof _this.controller.get !== 'function') {
+      return RSVP.reject({error: 'no board controller'});
+    }
     var board = _this.controller.get('board.model');
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
@@ -1133,7 +1125,7 @@ export default Service.extend({
           }
         });
         return;
-      } else if(decision == null && !this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
+      } else if(decision == null && !_this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
         modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
@@ -2324,6 +2316,16 @@ export default Service.extend({
           if(LingoLinq.Board) {
             LingoLinq.Board.clear_fast_html();
           }
+          // Schedule a delayed re-render to catch viewport changes from
+          // async fullscreen exit or other deferred layout updates. The
+          // initial clear_fast_html triggers an immediate re-render, but
+          // dimensions may change once fullscreen has fully exited (async).
+          var _controller = editManager.controller;
+          runLater(function() {
+            if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
+              _controller.processButtons();
+            }
+          }, 600);
         }
       }
       this.refresh_suggestions();

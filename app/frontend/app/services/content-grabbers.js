@@ -66,54 +66,99 @@ var contentGrabbers = Service.extend({
       
       // For images with URLs (not data URLs), check for duplicates before saving
       // This prevents Ember Data ID conflicts when the same image URL is saved multiple times
+      // (e.g. multiple buttons with the same label getting the same suggested image in parallel)
       if(object.constructor.modelName === 'image' && original_url && !original_url.match(/^data:/)) {
         var normalized_url = persistenceService.normalize_url(original_url);
-        var existing_image = LingoLinq.store.peekAll('image').find(function(img) {
+        var pendingMap = _this.get('_pendingImageSavesByUrl');
+        if(!pendingMap) {
+          _this.set('_pendingImageSavesByUrl', {});
+          pendingMap = _this.get('_pendingImageSavesByUrl');
+        }
+
+        var pendingRecordMap = _this.get('_pendingImageRecordByUrl');
+        if(!pendingRecordMap) {
+          _this.set('_pendingImageRecordByUrl', {});
+          pendingRecordMap = _this.get('_pendingImageRecordByUrl');
+        }
+        var existingPending = pendingMap[normalized_url];
+        var weAreFirst = !existingPending;
+        if(!weAreFirst) {
+          if(object.get('isNew') && pendingRecordMap[normalized_url] !== object) {
+            LingoLinq.store.unloadRecord(object);
+          }
+          existingPending.then(function(rec) {
+            resolve(rec);
+          }, function(err) {
+            reject(err);
+          });
+          return;
+        }
+        var deferred = RSVP.defer();
+        pendingMap[normalized_url] = deferred.promise;
+        pendingRecordMap[normalized_url] = object;
+
+        // Already-saved record with same URL: use it (no need to save again)
+        var existing_saved = LingoLinq.store.peekAll('image').find(function(img) {
           var img_url = img.get('url');
-          return img_url && persistenceService.normalize_url(img_url) === normalized_url && 
-                 !img.get('isNew') && !img.get('isDeleted') && 
+          return img_url && persistenceService.normalize_url(img_url) === normalized_url &&
+                 !img.get('isNew') && !img.get('isDeleted') &&
                  img.get('id') !== object.get('id');
         });
-        
-        if(existing_image) {
+
+        if(existing_saved) {
           // If we found an existing image, update it with any new metadata and return it
           var needs_save = false;
-          if(object.get('content_type') && !existing_image.get('content_type')) {
-            existing_image.set('content_type', object.get('content_type'));
+          if (object.get('content_type') && !existing_saved.get('content_type')) {
+            existing_saved.set('content_type', object.get('content_type'));
             needs_save = true;
           }
-          if(object.get('width') && !existing_image.get('width')) {
-            existing_image.set('width', object.get('width'));
+          if (object.get('width') && !existing_saved.get('width')) {
+            existing_saved.set('width', object.get('width'));
             needs_save = true;
           }
-          if(object.get('height') && !existing_image.get('height')) {
-            existing_image.set('height', object.get('height'));
+          if (object.get('height') && !existing_saved.get('height')) {
+            existing_saved.set('height', object.get('height'));
             needs_save = true;
           }
-          if(object.get('license') && !existing_image.get('license')) {
-            existing_image.set('license', object.get('license'));
+          if (object.get('license') && !existing_saved.get('license')) {
+            existing_saved.set('license', object.get('license'));
             needs_save = true;
           }
-          
-          // Unload the duplicate record to prevent ID conflicts
+
           if(object.get('isNew')) {
             LingoLinq.store.unloadRecord(object);
           }
+          delete pendingRecordMap[normalized_url];
           
-          if(needs_save && existing_image.get('hasDirtyAttributes')) {
-            existing_image.save().then(function() {
-              resolve(existing_image);
-            }, function(err) {
+          if (needs_save && existing_saved.get('hasDirtyAttributes')) {
+            existing_saved.save().then(function (saved) {
+              deferred.resolve(saved);
+              resolve(saved);
+            }, function (err) {
+              delete pendingMap[normalized_url];
               reject(err);
             });
-            return; // Don't continue to object.save()
           } else {
-            resolve(existing_image);
-            return; // Don't continue to object.save()
+            deferred.resolve(existing_saved);
+            resolve(existing_saved);
           }
+          return;
         }
+
+        // We're the first for this URL: save and resolve when done
+
+        object.save().then(function(saved) {
+          delete pendingRecordMap[normalized_url];
+          deferred.resolve(saved);
+          resolve(saved);
+        }, function(err) {
+          delete pendingMap[normalized_url];
+          delete pendingRecordMap[normalized_url];
+          reject({error: 'record failed to save', ref: err});
+        });
+        return;
       }
-      
+
       object.save().then(function(object) {
         if(!object.get('url') && object.get('data_url')) {
           object.set('url', object.get('data_url'));
@@ -390,7 +435,6 @@ var contentGrabbers = Service.extend({
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
       var reader = new FileReader();
-      var _this = this;
       reader.onloadend = function(data) {
         run(function() {
           if(type == 'blob') {
@@ -1073,7 +1117,6 @@ var pictureGrabber = EmberObject.extend({
           type: 'private'
         }
       });
-      var _this = this;
       return window.cg.save_record(image);
     });
     return save_image;
@@ -1109,7 +1152,7 @@ var pictureGrabber = EmberObject.extend({
       i.src = preview.save_url || preview.url;
     });
 
-    var button = editManager.find_button(_this.get('model.id'));
+    var button = editManager.find_button(_this.controller.get('model.id'));
     var label = button && button.label;
     var save_image = image_load.then(function(data) {
       var url = preview.save_url || preview.url;
@@ -1121,15 +1164,24 @@ var pictureGrabber = EmberObject.extend({
       }
 
       var normalized_url = persistenceService.normalize_url(url);
-      
-      // Check if an image with this URL already exists in the store
-      // This prevents duplicate records and Ember Data ID conflicts
+
+      // If a save for this URL is already in progress, wait for it (avoids duplicate records)
+      var pendingMap = window.cg && window.cg.get('_pendingImageSavesByUrl');
+      if(pendingMap && pendingMap[normalized_url]) {
+        return pendingMap[normalized_url];
+      }
+
+      // Check if an image with this URL already exists (saved or in-flight)
       var existing_image = LingoLinq.store.peekAll('image').find(function(img) {
-        return img.get('url') === normalized_url && !img.get('isNew') && !img.get('isDeleted');
+        if(img.get('isDeleted')) { return false; }
+        var img_url = img.get('url');
+        return img_url && persistenceService.normalize_url(img_url) === normalized_url;
       });
-      
+
       if(existing_image) {
-        // Update existing image with any new metadata if needed
+        if(existing_image.get('isNew')) {
+          return window.cg.save_record(existing_image);
+        }
         if(preview.content_type && !existing_image.get('content_type')) {
           existing_image.set('content_type', preview.content_type);
         }
@@ -1142,7 +1194,6 @@ var pictureGrabber = EmberObject.extend({
         if(preview.license && !existing_image.get('license')) {
           existing_image.set('license', preview.license);
         }
-        // Save if any changes were made
         if(existing_image.get('hasDirtyAttributes')) {
           return existing_image.save().then(function() {
             return existing_image;
@@ -1527,8 +1578,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(this.controller.get('video_recording.stream'));
+        if(_this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(_this.controller.get('video_recording.stream'));
           return;
         }
 

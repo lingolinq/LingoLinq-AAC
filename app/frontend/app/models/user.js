@@ -534,13 +534,16 @@ LingoLinq.User = DS.Model.extend({
   preferred_symbol_library: function(board) {
     if(board && board.get('user_name')) {
       if(board.get('user_name') == this.get('user_name')) {
-        // On my boards, default to my preferred symbols
-        return this.get('preferences.preferred_symbols') || 'opensymbols';
+        // On my boards, default to my preferred symbols.
+        // 'original' means "keep the board's original symbols" and isn't
+        // a valid OpenSymbols repo, so fall back to 'opensymbols'.
+        var pref = this.get('preferences.preferred_symbols');
+        return (pref && pref !== 'original') ? pref : 'opensymbols';
       } else {
         // On a supervisee's boards, default to their preferred symbols if set
         var sup = this.get('known_supervisees').find(function(s) { return s.user_name == board.get('user_name'); });
         var symbols = sup && (emberGet(sup, 'preferred_symbols') || emberGet(sup, 'preferences.preferred_symbols'));
-        if(symbols) {
+        if(symbols && symbols !== 'original') {
           return symbols;
         }
       }
@@ -1133,16 +1136,16 @@ LingoLinq.User = DS.Model.extend({
     // if not possible or errored, check for a local copy in the dataCache
     var try_local = try_online.then(function(res) {
       // persist to dataCache
-      this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
+      _this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
       _this.set('word_activities', res);
       return RSVP.resolve(res);
     }, function() {
-      return this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
+      return _this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
       // look up a local copy
     });
     var promise_result = try_local.then(function(res) {
       res.local_log = [];
-      return this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
+      return _this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
         res.local_log = list;
         return res;
       }, function() { return RSVP.resolve(res); });

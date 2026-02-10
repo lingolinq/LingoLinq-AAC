@@ -152,7 +152,7 @@ LingoLinq.Board = DS.Model.extend({
   nothing_visible: computed('buttons', 'grid', function() {
     var found_visible = false;
     this.get('used_buttons').forEach(function(button) {
-      if(button && !button.hidden) {
+      if(button && button.hidden !== true) {
         found_visible = true;
       }
     });
@@ -1506,7 +1506,8 @@ LingoLinq.Board = DS.Model.extend({
     };
     var html = "";
 
-    var text_position = "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
+    var devicePrefs = (this.appState && this.appState.get('currentUser.preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
+    var text_position = "text_position_" + (devicePrefs && devicePrefs.button_text_position ? devicePrefs.button_text_position : 'top');
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
     LingoLinq.log.track('computing dimensions');
@@ -1608,8 +1609,24 @@ LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
+      // Reset classes_added so board.add_classes() can re-run with fresh
+      // display_class values on the next speak mode entry
+      b.set('classes_added', false);
     });
-    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
+    // Clear stale ordered_buttons to prevent the template from rendering
+    // old Button objects while new ones are being created asynchronously.
+    // Without this, old buttons from a previous render cycle may display
+    // with stale state (wrong display_class, positioning, etc.)
+    if(editManager.controller) {
+      editManager.controller.set('ordered_buttons', null);
+    }
+    // Trigger a full board reload via board_reload_key. This fires the
+    // processButtons observer which does computeHeight + process_for_displaying
+    // in the correct sequence.
+    var appState = editManager.appState;
+    if(appState && typeof appState.set === 'function') {
+      appState.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
+    } else if(editManager.controller) {
       editManager.process_for_displaying();
     }
   },
