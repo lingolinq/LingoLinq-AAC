@@ -441,7 +441,9 @@ beforeEach(function() {
   persistence.known_missing = null;
   persistence.sync_actions = null;
   stashes.set('online', true);
-  app_state.reset();
+  if (app_state.reset) {
+    app_state.reset();
+  }
   LingoLinq.store = this.owner && this.owner.lookup('service:store');
   LingoLinq.all_wait = false;
 });

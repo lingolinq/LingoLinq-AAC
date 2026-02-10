@@ -19,18 +19,22 @@
     "postinstall": "patch-package"
   },
   "engines": {
-    "node": ">= 18.0.0"
+    "node": ">= 20.0.0"
   },
   "devDependencies": {
     "@ember/jquery": "^1.1.0",
     "@ember/optional-features": "^2.3.0",
+    "@ember/test-helpers": "^2.9.3",
     "babel-eslint": "^10.1.0",
+    "bootstrap": "^3.4.1",
     "broccoli-asset-rev": "^3.0.0",
     "broccoli-replace": "^0.12.0",
+    "davidshimjs-qrcodejs": "^0.0.2",
     "ember-cli": "~3.28.0",
     "ember-cli-app-version": "^7.0.0",
     "ember-cli-babel": "^7.26.6",
     "ember-cli-dependency-checker": "^3.1.0",
+    "ember-cli-deprecation-workflow": "^2.2.0",
     "ember-cli-eslint": "^5.1.0",
     "ember-cli-htmlbars": "^5.7.2",
     "ember-cli-inject-live-reload": "^2.1.0",
@@ -45,19 +49,28 @@
     "ember-qunit": "^5.1.2",
     "ember-resolver": "^5.3.0",
     "ember-source": "~3.28.0",
+    "ember-style-modifier": "^1.0.0",
     "ember-welcome-page": "^4.0.0",
     "eslint": "^5.16.0",
     "eslint-plugin-ember": "^6.2.0",
     "eslint-plugin-lingolinq": "file:./eslint-plugin-lingolinq",
     "eslint-plugin-node": "^9.0.1",
+    "indexeddbshim": "^6.1.0",
     "jquery": "^3.7.1",
+    "jquery-minicolors": "^2.1.10",
     "loader.js": "^4.7.0",
     "lodash": ">=4.17.11",
     "merge": ">=1.2.1",
+    "moment": "^2.29.4",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
-    "qunit-dom": "^0.8.4",
-    "sass": "^1.97.1"
+    "puppeteer": "^24.36.1",
+    "qunit": "^2.19.4",
+    "qunit-dom": "^2.0.0",
+    "recordrtc": "^5.6.2",
+    "sass": "^1.97.1",
+    "tinycolor2": "^1.6.0",
+    "wordcloud2": "^1.0.0"
   },
   "dependencies": {
     "ember-cli-update": "^0.48.2"
