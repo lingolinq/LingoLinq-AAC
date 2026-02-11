@@ -1,20 +1,24 @@
 module RedisInit
   cattr_accessor :cache_token
-  
+
   def self.redis_uri
     redis_url = ENV["REDISCLOUD_URL"] || ENV["OPENREDIS_URL"] || ENV["REDISGREEN_URL"] || ENV["REDISTOGO_URL"] || ENV["REDIS_URL"]
     return nil unless redis_url
     URI.parse(redis_url)
   end
-  
+
   def self.init
     uri = redis_uri
     return if !uri && ENV['SKIP_VALIDATIONS']
     raise "redis URI needed for resque" unless uri
-    ns_suffix = ""
-    if !Rails.env.production?
+    if ENV['REDIS_NAMESPACE_SUFFIX']
+      ns_suffix = ENV['REDIS_NAMESPACE_SUFFIX']
+    elsif !Rails.env.production?
       ns_suffix = "-#{Rails.env}"
+    else
+      ns_suffix = ""
     end
+    @ns_suffix = ns_suffix
     if defined?(Resque)
       Resque.redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
       Resque.redis.namespace = "lingolinq#{ns_suffix}"
@@ -32,7 +36,7 @@ module RedisInit
 
   def self.flush_resque_errors
     redis = @redis_inst
-    key = 'lingolinq:failed'
+    key = "lingolinq#{@ns_suffix}:failed"
     redis.type(key)
     len = redis.llen(key)
     if len > 500
@@ -54,7 +58,7 @@ module RedisInit
   def self.errors
     uri = RedisInit.redis_uri
     redis = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
-    key = 'lingolinq:failed'
+    key = "lingolinq#{@ns_suffix}:failed"
     redis.type(key)
     len = redis.llen(key)
     puts JSON.pretty_generate(redis.lrange(key, 0, len))
