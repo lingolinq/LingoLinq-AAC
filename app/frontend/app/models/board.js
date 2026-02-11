@@ -1466,8 +1466,9 @@ LingoLinq.Board = DS.Model.extend({
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
       var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
+      var anchor_class = (opts.button_class && opts.button_class.toString().indexOf('button') !== -1) ? opts.button_class : ('button ' + (opts.button_class || ''));
 
-      res = res + "<a href='#' style='" + opts.button_style + "' class='" + opts.button_class + "' data-id='" + button.id + "' tabindex='0'>";
+      res = res + "<a href='#' style='" + opts.button_style + "' class='" + anchor_class + "' data-id='" + button.id + "' tabindex='0'>";
       res = res + "<div class='" + opts.action_class + "'>";
       res = res + "<span class='action'>";
       res = res + "<img src='" + opts.action_image + "' draggable='false' alt='" + opts.action_alt + "' />";

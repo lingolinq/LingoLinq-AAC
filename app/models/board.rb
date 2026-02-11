@@ -28,6 +28,7 @@ class Board < ActiveRecord::Base
   before_save :check_inflections
   before_save :check_content_overrides
   before_save :process_suggested_symbols
+  before_save :process_suggested_sounds
   after_save :post_process
   after_save :assert_shallow_mapping
   after_destroy :flush_related_records
@@ -1183,6 +1184,45 @@ class Board < ActiveRecord::Base
     end
   end
 
+  def process_suggested_sounds
+    # Auto-add TTS sounds for buttons when board was populated from labels (same flow as images).
+    return unless @buttons_changed == 'populated_from_labels' || @buttons_changed == 'suggested_symbols_added'
+
+    buttons = self.settings['buttons'] || []
+    suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
+    return if suggested_buttons.empty?
+
+    locale = (self.settings['locale'] || 'en').to_s
+    author = self.user
+
+    suggested_buttons.each do |button|
+      next unless button['label']
+      text = button['vocalization'].presence || button['label']
+      next if text.blank?
+
+      begin
+        audio = Tts.generate_audio(text, locale: locale, mp3: true)
+        next unless audio && audio[:body].present?
+
+        bs = ButtonSound.new(user: author, settings: {})
+        bs.settings['name'] = text
+        bs.settings['content_type'] = audio[:content_type] || 'audio/mp3'
+        bs.settings['license'] = { 'type' => 'private' }
+        bs.settings['suggestion'] = true
+        bs.settings['data_uri'] = "data:#{bs.settings['content_type']};base64,#{Base64.strict_encode64(audio[:body])}"
+        bs.save
+        bs.upload_to_remote('data_uri')
+        next unless bs.url.present?
+
+        button['sound_id'] = bs.global_id
+        @buttons_changed = 'suggested_sounds_added'
+      rescue => e
+        Rails.logger.error "Failed to process suggested sound for '#{text}': #{e.message}"
+        # Continue with other buttons
+      end
+    end
+  end
+
   def restore_urls
     (self.settings['image_urls'] || {}).each do |id, url|
       bi = ButtonImage.find_by_global_id(id)
@@ -1525,9 +1565,9 @@ class Board < ActiveRecord::Base
       self.settings['intro'] = params['intro']
       # When a board is copied and buttons change, the intro
       # should be marked unapproved until the user has manually
-      # reviewed it.
+      # reviewed it. Only mutate hash-shaped intro (intro can be a string in some data).
       if self.settings['intro'].is_a?(Hash)
-        self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.parent_board_id && params['intro']['unapproved'] != false
+        self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.parent_board_id && params['intro'].is_a?(Hash) && params['intro']['unapproved'] != false
         self.settings['intro'].delete('unapproved') unless self.settings['intro']['unapproved']
       end
     end
@@ -1818,6 +1858,9 @@ class Board < ActiveRecord::Base
             'painted_part_of_speech', 'home_lock', 'meta_home', 'blocking_speech', 
             'level_modifications', 'inflections', 'ref_id', 'rules', 'add_vocalization', 'no_skin');
       button.delete('meta_home') if !button['meta_home']
+      # Normalize hidden/link_disabled so string "false" from params is not treated as truthy
+      button['hidden'] = (button['hidden'] == true || button['hidden'].to_s == 'true')
+      button['link_disabled'] = (button['link_disabled'] == true || button['link_disabled'].to_s == 'true')
       button.delete('level_modifications') if button['level_modifications'] && !button['level_modifications'].is_a?(Hash)
       button.delete('ref_id') if button['ref_id'].blank?
       button.delete('rules') if button['rules'].blank?
@@ -1865,7 +1908,8 @@ class Board < ActiveRecord::Base
           self.settings['translations'][button['id'].to_s][loc]['label'] = tran['label'].to_s if tran['label']
           self.settings['translations'][button['id'].to_s][loc]['vocalization'] = tran['vocalization'].to_s if tran['vocalization'] || tran['label']
           self.settings['translations'][button['id'].to_s][loc].delete('vocalization') if self.settings['translations'][button['id'].to_s][loc]['vocalization'] == ""
-          tran['inflections'].to_a.each_with_index do |str, idx|
+          inflections_list = tran['inflections'].is_a?(Array) ? tran['inflections'] : (tran['inflections'].nil? ? [] : [tran['inflections']])
+          inflections_list.each_with_index do |str, idx|
             self.settings['translations'][button['id'].to_s][loc]['inflections'] ||= []
             self.settings['translations'][button['id'].to_s][loc]['inflections'][idx] = str.to_s if str
           end
@@ -1989,14 +2033,12 @@ class Board < ActiveRecord::Base
     # end
   end
 
+  # Derive from button data (grid_buttons) so sound_urls are included whenever any button has sound_id.
+  # Does not rely on BoardButtonSound join table being in sync.
   def known_button_sounds
-    if self.settings && self.settings['images_not_mapped']
-      return @button_sounds if @button_sounds
-      sound_ids = self.buttons.map{|b| b['sound_id'] }.compact.uniq
-      @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
-    else
-      self.button_sounds
-    end
+    return @button_sounds if @button_sounds
+    sound_ids = (self.grid_buttons || []).map { |b| b['sound_id'] }.compact.uniq
+    @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
   end
 
   def import_translation(translated_copy, locale, overwrite=false)

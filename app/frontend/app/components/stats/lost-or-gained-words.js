@@ -89,8 +89,9 @@ export default Component.extend({
   }),
   actions: {
     word_cloud: function() {
-      if (this.word_cloud) {
-        this.word_cloud();
+      var fn = this.get('word_cloud');
+      if (typeof fn === 'function') {
+        fn();
       }
     }
   }

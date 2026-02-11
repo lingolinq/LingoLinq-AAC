@@ -1,4 +1,5 @@
 require 'spec_helper'
+require Rails.root.join('lib', 'converters', 'lingolinq')
 
 describe Converters::LingoLinq do
   describe "to_obf" do

@@ -463,7 +463,20 @@ var buttonTracker = EmberObject.extend({
         if(!buttonTracker.ignored_region(event) && event.type == 'mousedown') {
           event.preventDefault();
         }
+        // In edit mode still set initialTarget so touch_release has a fallback when selectable_wrap is null
         if(buttonTracker.appState.get('edit_mode')) {
+          var button_wrap = buttonTracker.find_selectable_under_event(event);
+          buttonTracker.initialTarget = button_wrap;
+          buttonTracker.initialEvent = event;
+          if(buttonTracker.initialTarget) {
+            buttonTracker.initialTarget.timestamp = (new Date()).getTime();
+            buttonTracker.initialTarget.event = event;
+          }
+          if(button_wrap) {
+            button_wrap.addClass('touched');
+          } else if(buttonTracker.appState.get('board_virtual_dom')) {
+            buttonTracker.appState.get('board_virtual_dom').clear_touched();
+          }
           return;
         }
       }
@@ -947,7 +960,7 @@ var buttonTracker = EmberObject.extend({
       // if it either started or ended on a selectable item then there's a
       // chance we need to trigger a 'click', so pass it along
       buttonTracker.buttonDown = true;
-      buttonTracker.element_release(selectable_wrap, event, 'click'); // trigger_source
+      buttonTracker.element_release(selectable_wrap || buttonTracker.initialTarget, event, 'click'); // trigger_source
     } else {
       var $modal = $(event.target).closest(".modal-content");
       if($modal.length > 0 && buttonTracker.appState.get('speak_mode') && event.type == 'touchend' && buttonTracker.dwell_enabled) {
@@ -1240,7 +1253,11 @@ var buttonTracker = EmberObject.extend({
         }
       }
     } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {
-      if(((elem_wrap && elem_wrap.dom && elem_wrap.dom.className) || "").match(/button/)) {
+      var isButton = (elem_wrap && elem_wrap.dom) && (
+        ((elem_wrap.dom.className || "").match(/button/)) ||
+        ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
+      );
+      if(isButton) {
         buttonTracker.button_release(elem_wrap, event);
       }
     }
@@ -2177,6 +2194,18 @@ var buttonTracker = EmberObject.extend({
         dom.select_callback(event);
       }
     } else if(elem.dom && elem.trigger) {
+      var id = elem.id != null ? elem.id : (dom && $(dom).attr && $(dom).attr('data-id'));
+      // In edit mode or speak mode send directly to board controller so modal/activation works (custom event may not bubble with fast_html)
+      if(id && editManager.controller && typeof editManager.controller.send === 'function') {
+        if(buttonTracker.appState.get('edit_mode')) {
+          editManager.controller.send('buttonSelect', id, null);
+          return;
+        }
+        if(buttonTracker.appState.get('speak_mode')) {
+          editManager.controller.send('buttonSelect', id, args || null);
+          return;
+        }
+      }
       args ? elem.trigger_special('buttonselect', args, source) : elem.trigger('buttonselect', source);
     } else {
       $(elem).trigger('buttonselect');

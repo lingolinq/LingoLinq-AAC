@@ -1800,8 +1800,8 @@ var editManager = EmberObject.extend({
           if(border._ok) {
             newButton.border_color = border.toRgbString();
           }
-          newButton.hidden = currentButton.hidden === true;
-          newButton.link_disabled = !!currentButton.link_disabled;
+          newButton.hidden = (currentButton.get ? currentButton.get('hidden') : currentButton.hidden) === true;
+          newButton.link_disabled = !!(currentButton.get ? currentButton.get('link_disabled') : currentButton.link_disabled);
           if(currentButton.text_only) {
             newButton.text_only = true;
           } else {
@@ -1856,7 +1856,7 @@ var editManager = EmberObject.extend({
               emberSet(currentButton, 'level_modifications', JSON.parse(currentButton.level_json));
             }
           }
-          newButton.level_modifications = currentButton.level_modifications;
+          newButton.level_modifications = currentButton.get ? currentButton.get('level_modifications') : currentButton.level_modifications;
           newButton.home_lock = !!currentButton.home_lock;
           newButton.meta_home = !!(newButton.home_lock && currentButton.meta_home);
           newButton.hide_label = !!currentButton.hide_label;

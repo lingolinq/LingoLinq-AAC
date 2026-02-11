@@ -23,10 +23,6 @@ export default Component.extend({
           var computeHeight = _this.get('computeHeight') || _this.get('compute_height');
           if (computeHeight && typeof computeHeight === 'function') {
             computeHeight(true);
-          } else if (computeHeight && typeof computeHeight === 'string') {
-            _this.sendAction(computeHeight, true);
-          } else {
-            _this.sendAction('compute_height', true);
           }
         }
       }, 100);
@@ -37,10 +33,6 @@ export default Component.extend({
     var computeHeight = _this.get('computeHeight') || _this.get('compute_height');
     if (computeHeight && typeof computeHeight === 'function') {
       computeHeight();
-    } else if (computeHeight && typeof computeHeight === 'string') {
-      _this.sendAction(computeHeight);
-    } else {
-      _this.sendAction('compute_height');
     }
   },
   willDestroyElement: function() {

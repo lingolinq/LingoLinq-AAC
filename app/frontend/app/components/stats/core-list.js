@@ -45,18 +45,21 @@ export default Component.extend({
   ),
   actions: {
     word_cloud: function() {
-      if (this.word_cloud) {
-        this.word_cloud();
+      var fn = this.get('word_cloud');
+      if (typeof fn === 'function') {
+        fn();
       }
     },
     word_data: function(word) {
-      if (this.word_data) {
-        this.word_data(word);
+      var fn = this.get('word_data');
+      if (typeof fn === 'function') {
+        fn(word);
       }
     },
     modify_core: function() {
-      if (this.modify_core) {
-        this.modify_core();
+      var fn = this.get('modify_core');
+      if (typeof fn === 'function') {
+        fn();
       }
     }
   }

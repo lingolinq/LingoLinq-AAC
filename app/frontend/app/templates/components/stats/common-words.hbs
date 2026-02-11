@@ -5,7 +5,7 @@
         <th colspan="2">
           {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
           {{t "Most common words" key="most_common_words"}}
-          <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
+          <button type="button" class="btn-link" style="border: none; background: none; padding: 0; cursor: pointer;" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</button>
         </th>
       </tr>
     </thead>
