@@ -1,5 +1,5 @@
 module Converters::Utils
-  require_relative 'lingolinq'
+  require_relative 'lingo_linq'
 
   def self.find_by_data_url(data_url)
     return nil unless data_url.is_a?(String)
