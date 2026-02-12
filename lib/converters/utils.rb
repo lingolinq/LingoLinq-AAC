@@ -1,5 +1,3 @@
-require_relative 'lingolinq'
-
 module Converters::Utils
   def self.find_by_data_url(data_url)
     return nil unless data_url.is_a?(String)
