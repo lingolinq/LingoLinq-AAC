@@ -288,18 +288,10 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 - PostgreSQL (database)
 - Redis (background jobs, caching)
 - Node.js (managed via nvm):
-  - Default: Node 20 (for newer tools, deployment)
-  - Frontend: Node 18 (for Ember 3.12)
-  - Automatic switching configured via `.nvmrc` files
-- Ruby 3.4.3
-- ImageMagick (`convert`, `identify`, `montage`)
-- Ghostscript (`gs`)
-
-**Node Version Management:**
-- Root `/.nvmrc`: Node 20 (default)
-- `app/frontend/.nvmrc`: Node 18 (Ember requirement)
-- `foreman start` automatically handles version switching in Procfile
-- For manual work: `cd app/frontend && nvm use` to switch to Node 18
+  - Node 20 is the ONLY supported version. Do not switch to Node 18 or any other version.
+- Root `/.nvmrc`: 20
+- `app/frontend/.nvmrc`: 20
+- Never run `nvm use 18`. Ember 3.28 builds and tests correctly on Node 20.
 
 **Environment variables:**
 - Copy `.env.example` to `.env`
