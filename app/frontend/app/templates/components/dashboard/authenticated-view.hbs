@@ -420,7 +420,7 @@
                 </div>
               </button>
               <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "assets/modeling.png"}} class="modeling_ideas_icon">
+                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
                 <div style='line-height: 14px;'>
                   {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
                 </div>
@@ -546,7 +546,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_primary' class='btn big_button btn-primary' {{action "homeInSpeakMode"}}>
-              <img src={{path "assets/Sound.png"}} class="sound_icon">
+              <img src={{path "images/Sound.png"}} class="sound_icon">
               {{t "Speak Mode" key="speak_mode"}}
             </button>
           </div>
@@ -563,7 +563,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_secondary' class='btn big_button btn-default' {{action "stats"}}>
-              <img src={{path "assets/chart.png"}}>
+              <img src={{path "images/chart.png"}}>
               {{t "Reports" key="reports"}}
             </button>
           </div>
@@ -572,7 +572,7 @@
           {{#if this.modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
-                <img src={{path "assets/modeling.png"}} class="modeling_ideas_icon">
+                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
                 {{t "Modeling<br>Ideas" key="modeling_ideas_two_lines"}}
               </button>
             </div>
@@ -598,7 +598,7 @@
         {{/if}}
         <div class='col-md-3 col-xs-4 big_button_holder'>
           <button id='nav_extras' class='btn big_button btn-default' {{action "toggle_extras"}} style='touch-action: manipulation;'>
-            <img src={{path "assets/Extras.png"}}>
+            <img src={{path "images/Extras.png"}}>
             {{t "Extras" key="extras"}} <span class={{if this.show_main_extras "caret" "caret-right"}}></span>
           </button>
         </div>
