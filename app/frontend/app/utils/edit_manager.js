@@ -1237,16 +1237,55 @@ var editManager = EmberObject.extend({
     if(button) {
       if(options.image) {
         emberSet(button, 'local_image_url', null);
-        button.load_image();
+        // Do not call load_image() when we are supplying the image: it would use the
+        // current (old) image_id and later overwrite button.image when its promise
+        // resolves, hiding the new image on the board.
       } else if(options.image === null) {
         emberSet(button, 'local_image_url', null);
       }
       if(options.sound) {
         emberSet(button, 'local_sound_url', null);
-        button.load_sound();
+        // Do not call load_sound() when we are supplying the sound (same race as image).
+      } else if(options.sound === null) {
+        emberSet(button, 'local_sound_url', null);
       }
       for(var key in options) {
         emberSet(button, key, options[key]);
+      }
+      // Sync changes to board.buttons so contextualized_buttons/fast_html see them immediately
+      var board = this.controller && this.controller.get('model');
+      if(board && Object.keys(options).length) {
+        var rawAttrs = Button.attributes || [];
+        var boardButtons = board.get('buttons') || [];
+        var isSerializable = function(v) {
+          if(v === null) { return true; }
+          if(typeof v !== 'object') { return true; }
+          return typeof v.get !== 'function'; // exclude Ember models
+        };
+        for(var bi = 0; bi < boardButtons.length; bi++) {
+          if(boardButtons[bi] && boardButtons[bi].id == id) {
+            for(var key in options) {
+              if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
+                boardButtons[bi][key] = options[key];
+              }
+            }
+            break;
+          }
+        }
+        board.set('last_cb', null);
+        if(board.get('fast_html')) {
+          board.set('fast_html', null);
+        }
+      }
+      if(options.image && button.get('image')) {
+        emberSet(button, 'original_image_url', button.get('image.url'));
+        var best = button.get('image.best_url');
+        if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
+          emberSet(button, 'local_image_url', best);
+        }
+      }
+      if(options.sound && button.get('sound')) {
+        emberSet(button, 'local_sound_url', button.get('sound.best_url'));
       }
       emberSet(button, 'user_modified', true);
       this.check_button(id);
@@ -1991,8 +2030,40 @@ var editManager = EmberObject.extend({
               if(_this.controller.get('model.id') == board_id && button && button.label && (!button.image || force_refresh)) {
                 // Don't set pending directly - it's a computed property based on pending_image/pending_sound
                 button.set('pending_image', false);
+                var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (typeof image.url === 'string' ? image.url : null);
+                if(!imgUrl && image && image.image_url) {
+                  imgUrl = image.image_url;
+                }
+                if(!imgUrl && preview && preview.url) {
+                  imgUrl = editManager.get_persistence().normalize_url(preview.url);
+                }
                 emberSet(button, 'image_id', image.id);
                 emberSet(button, 'image', image);
+                if(imgUrl) {
+                  button.set('image_url', imgUrl);
+                  button.set('local_image_url', imgUrl);
+                  button.set('original_image_url', imgUrl);
+                }
+                var board = _this.controller && _this.controller.get('model');
+                if(board && imgUrl) {
+                  var urls = board.get('image_urls') || {};
+                  urls = Object.assign({}, urls, { [image.id]: imgUrl });
+                  board.set('image_urls', urls);
+                  var modelButtons = board.get('buttons') || [];
+                  for(var b = 0; b < modelButtons.length; b++) {
+                    if(modelButtons[b].id == id) {
+                      modelButtons[b].image_id = image.id;
+                      break;
+                    }
+                  }
+                }
+                runLater(function() {
+                  if(editManager.controller && editManager.controller === _this.controller) {
+                    if(editManager.controller.redraw_if_needed) {
+                      editManager.controller.redraw_if_needed();
+                    }
+                  }
+                }, 50);
               }
             }, function() {
               // Don't set pending directly - it's a computed property based on pending_image/pending_sound

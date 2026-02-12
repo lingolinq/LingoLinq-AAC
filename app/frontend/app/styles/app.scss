@@ -559,6 +559,13 @@ h2 {
   margin-top: 0;
   margin-bottom: 0;
 }
+.create-board-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 .modal-footer {
   text-align: left;
   padding-top: 9px;
@@ -4436,6 +4443,18 @@ video.button_image {
   display: inline-block;
   width: -webkit-calc(100% - 170px);
   width: calc(100% - 170px);
+}
+.picture_search_input_full,
+.picture_search_input_with_locale {
+  display: inline-block;
+  vertical-align: middle;
+}
+.picture_search_input_full {
+  width: 100%;
+}
+.picture_search_input_with_locale {
+  width: -webkit-calc(100% - 60px);
+  width: calc(100% - 60px);
 }
 .board_search_field {
   display: inline-block; 

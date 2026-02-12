@@ -1,4 +1,5 @@
 import EmberObject from '@ember/object';
+import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
@@ -21,6 +22,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
+  contentGrabbers: service('content-grabbers'),
   opening: function() {
     var button = this.get('model.button');
     button.load_image('remote');
@@ -821,6 +823,11 @@ export default modal.ModalController.extend({
     setState: function(state) {
       this.set('state', state);
     },
+    updateHideLabel: function(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.hide_label', !!checked);
+      editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
     clear_button: function() {
       editManager.clear_button(this.get('model.id'));
       modal.close(true);
@@ -1036,12 +1043,13 @@ export default modal.ModalController.extend({
       contentGrabbers.soundGrabber.select_sound_preview();
     },
     close: function() {
+      var _this = this;
       if(this.get('model.vocalization')) {
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
-      contentGrabbers.save_pending().then(function() {
+      _this.get('contentGrabbers').save_pending().then(function() {
         modal.close();
       }, function() {
         modal.close();

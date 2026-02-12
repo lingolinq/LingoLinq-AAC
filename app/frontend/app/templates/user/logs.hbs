@@ -10,23 +10,23 @@
     {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
       <span style='font-size: 12px; padding-left: 5px;'>
-      {{#link-to "user.logs" this.model.user_name (query-params type=this.type highlighted=null start="" end="" device_id="" location_id="")}}
+      <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=this.type highlighted=null start="" end="" device_id="" location_id=""}}>
         {{t "clear filter" key="clear_filter"}}
-      {{/link-to}}
+      </LinkTo>
       </span>
     {{else}}
       <span style='font-size: 12px; padding-left: 5px;'>
         {{#if this.all_logs}}
-          {{#link-to "user.logs" this.model.user_name (query-params type="note" highlighted=null)}}{{t "Show Only Messages" key="show_only_messages"}}{{/link-to}} 
+          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo> 
           {{#if this.model.currently_premium}}
             | 
-            {{#link-to "user.logs" this.model.user_name (query-params type="all" highlighted="1")}}{{t "Show Highlighted" key="show_highlighted"}}{{/link-to}}
+            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted="1"}}>{{t "Show Highlighted" key="show_highlighted"}}</LinkTo>
             {{#if this.model.permissions.delete}}
-              | {{#link-to "user.logs" this.model.user_name (query-params type="journal" highlighted=null)}}{{t "Show Journal" key="show_journal"}}{{/link-to}}
+              | <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="journal" highlighted=null}}>{{t "Show Journal" key="show_journal"}}</LinkTo>
             {{/if}}
           {{/if}}
         {{else}}
-          {{#link-to "user.logs" this.model.user_name (query-params type="all" highlighted=null)}}{{t "Show Full Log" key="show_full_log"}}{{/link-to}}
+          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all" highlighted=null}}>{{t "Show Full Log" key="show_full_log"}}</LinkTo>
         {{/if}}
       </span>
     {{/if}}
@@ -93,19 +93,19 @@
           {{#if this.pending_eval}}
             <tr>
               <td>
-                {{#link-to "user.log" this.user.user_name "last-eval"}}
+                <LinkTo @route="user.log" @models={{array this.user.user_name "last-eval"}}>
                   <span class="glyphicon glyphicon-list-alt"></span>
                   <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
-                {{/link-to}}
+                </LinkTo>
               </td>
               <td style="font-size: 12px; width: 100%;">
                 {{t "Latest Evaluation" key="latest_pending"}}
               </td>
               {{#unless this.messages_only}}
                 <td style="white-space: nowrap;">
-                  {{#link-to "user.log" this.user.user_name "last-eval"}}
+                  <LinkTo @route="user.log" @models={{array this.user.user_name "last-eval"}}>
                     {{t "pending" key="pending"}}
-                  {{/link-to}}
+                  </LinkTo>
                 </td>
                 <td>
                 </td>
@@ -166,7 +166,7 @@
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1g"}}
     {{#if this.app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+      <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

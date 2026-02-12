@@ -602,6 +602,8 @@ var utterance = EmberObject.extend({
           emberSet(b, 'image', image.get('best_url'));
           emberSet(b, 'image_license', image.get('license'));
         }
+      }, function() {
+        // no image lookups (e.g. no_lookups or local-only and not in cache) - leave button image unset
       });
       original_button.load_sound('local').then(function(sound) {
         sound = sound || original_button.get('sound');
@@ -609,6 +611,8 @@ var utterance = EmberObject.extend({
           emberSet(b, 'sound', sound.get('best_url'));
           emberSet(b, 'sound_license', sound.get('license'));
         }
+      }, function() {
+        // no sound lookups (e.g. no_lookups or local-only and not in cache) - leave button sound unset
       });
     }
     if(original_button && original_button.condense_items) {

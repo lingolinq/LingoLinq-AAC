@@ -296,12 +296,13 @@ export default Controller.extend({
   ),
   update_current_board_state: observer(
     'model.id',
+    'model.global_id',
     'model.integration',
     'model.integration_name',
     'model.locale',
     'model.locales',
     function() {
-      if(this.get('model.id') && this.appState.get('currentBoardState.id') == this.get('model.id')) {
+      if(this.get('model.id') && this.appState.get('currentBoardState.id') == (this.get('model.global_id') || this.get('model.id'))) {
         this.appState.setProperties({
           'currentBoardState.integration_name': this.get('model.integration') && this.get('model.integration_name'),
           'currentBoardState.text_direction': i18n.text_direction(this.get('model.locale')),
@@ -916,9 +917,12 @@ export default Controller.extend({
   ),
   base_text_height: computed(
     'appState.currentUser.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text_position',
     function() {
-      var text = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
-      var position = this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var text = (user && user.get && user.get('preferences.device.button_text')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(text == "small") {
         return 14;
       } else if(text == "none" || position == "none") {
@@ -935,9 +939,14 @@ export default Controller.extend({
   text_style: computed(
     'appState.currentUser.preferences.device.button_text',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
-      var size = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
-      if(this.appState.get('currentUser.preferences.device.button_text_position') == 'none') {
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var size = (user && user.get && user.get('preferences.device.button_text')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      if(position == 'none') {
         size = 'none';
       }
       if(size != 'none') {
@@ -953,11 +962,15 @@ export default Controller.extend({
   text_position: computed(
     'model.text_only',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
       if(this.get('model.text_only')) {
         return 'text_position_text_only';
       }
-      return "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position));
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      return "text_position_" + (position || 'top');
     }
   ),
   symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
@@ -995,6 +1008,8 @@ export default Controller.extend({
     'model.hide_empty',
     'appState.currentUser.preferences.hidden_buttons',
     'appState.currentUser.hide_symbols',
+    'appState.referenced_user.hide_symbols',
+    'appState.speak_mode',
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
@@ -1026,7 +1041,8 @@ export default Controller.extend({
           res = res + 'grid_hidden_buttons ';
         }
       }
-      if(this.appState.get('currentUser.hide_symbols')) {
+      var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((displayUser && displayUser.get && displayUser.get('hide_symbols'))) {
         res = res + 'show_labels ';
       }
       if(this.get('paint_mode')) {
@@ -1096,13 +1112,16 @@ export default Controller.extend({
     'model.text_only',
     'appState.currentUser.hide_symbols',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.hide_symbols',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
       var res = "button-label-holder ";
-      if(this.get('appState.currentUser.hide_symbols') || this.get('model.text_only')) {
+      var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((displayUser && displayUser.get && displayUser.get('hide_symbols')) || this.get('model.text_only')) {
         res = res + "no_image ";
       }
-      var currentUser = this.appState.get('currentUser');
-      var devicePrefs = currentUser && currentUser.get && currentUser.get('preferences.device');
+      var devicePrefs = displayUser && displayUser.get && displayUser.get('preferences.device');
       var position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";

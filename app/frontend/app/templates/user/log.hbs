@@ -294,7 +294,7 @@
   {{/if}}
   {{#if this.model.goal.id}}
     <div style='margin: -5px 0 10px; font-size: 16px;'>
-      {{#link-to "user.goal" this.user.user_name this.model.goal.id}}{{t "Goal:" key="goal_colon"}} {{this.model.goal.summary}}{{/link-to}}
+      <LinkTo @route="user.goal" @models={{array this.user.user_name this.model.goal.id}}>{{t "Goal:" key="goal_colon"}} {{this.model.goal.summary}}</LinkTo>
     </div>
   {{/if}}
   <div class="row">
@@ -324,20 +324,20 @@
             {{#if this.model.author.contact}}
               {{this.model.author.contact.name}}
             {{else}}
-              {{#link-to "user" this.model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+              <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
             {{/if}}
           </div>
         {{else if this.model.assessment_type}}
           <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
           <div class="panel-body">
-            {{#link-to "user" this.model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
           </div>
         {{else}}
           <div class="panel-heading">{{t "Device" key="device"}}</div>
           <div class="panel-body">
-            {{#link-to "user.stats" this.user.user_name (query-params highlighted=null start=null end=null location_id=null device_id=this.model.device.id split=null start2=null end2=null device_id2=null location_id2=null)}}
+            <LinkTo @route="user.stats" @model={{this.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=this.model.device.id split=null start2=null end2=null device_id2=null location_id2=null}}>
               {{this.model.device.name}}
-            {{/link-to}}
+            </LinkTo>
           </div>
         {{/if}}
       </div>
@@ -480,9 +480,9 @@
                 </td>
                 <td style='max-width: 100px; overflow: hidden;'>
                   {{#if event.new_board}}
-                    {{#link-to "board" event.new_board.key}}
+                    <LinkTo @route="board" @model={{event.new_board.key}}>
                       {{event.new_board.key}}
-                    {{/link-to}}
+                    </LinkTo>
                   {{else}}
                     {{#if event.board}}
                       <LinkTo @route="board" @model={{event.board.key}} class="text-muted">
@@ -520,9 +520,9 @@
                     Notes:<br>
                     {{#each event.notes as |note|}}
                       <div>
-                        {{#link-to "user" note.author.user_name}}
+                        <LinkTo @route="user" @model={{note.author.user_name}}>
                           {{note.author.user_name}}
-                        {{/link-to}} -
+                        </LinkTo> -
                         {{note.note}}
                       </div>
                     {{/each}}
