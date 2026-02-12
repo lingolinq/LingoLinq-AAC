@@ -894,23 +894,18 @@ export default Component.extend({
       if(new_button_id) {
         new_button_id = emberGet(new_button_id, 'id') || new_button_id;
         var modalService = _this.get('modal');
-        _this.get('contentGrabbers').save_pending().then(function() {
+        var openNextButtonSettings = function() {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
           modalService.close();
           runLater(function() {
+            if (_this.isDestroyed || _this.isDestroying) { return; }
             var button = editManager.find_button(new_button_id);
             if(!button) { return; }
             button.state = 'general';
             modalService.open('button-settings', {button: button, board: board});
           }, 100);
-        }, function() {
-          modalService.close();
-          runLater(function() {
-            var button = editManager.find_button(new_button_id);
-            if(!button) { return; }
-            button.state = 'general';
-            modalService.open('button-settings', {button: button, board: board});
-          }, 100);
-        });
+        };
+        _this.get('contentGrabbers').save_pending().then(openNextButtonSettings, openNextButtonSettings);
       }
     },
     setState: function(state) {
