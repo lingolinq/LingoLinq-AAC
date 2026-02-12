@@ -53,9 +53,9 @@
       {{#if this.app_state.feature_flags.subscriptions}}
         <div style='margin-bottom: 10px;'>
           <span class="glyphicon glyphicon-info-sign" style="font-size: 20px; vertical-align: middle;"></span>
-          {{#link-to "user.subscription" this.model.user_name}}
+          <LinkTo @route="user.subscription" @model={{this.model.user_name}}>
           {{t "This user's free preview has ended. Please purchase a premium account." key="this_user_needs_to_subscribe"}}
-          {{/link-to}}
+          </LinkTo>
         </div>
       {{/if}}
     {{else}}
@@ -272,7 +272,7 @@
           </div>
           <div class="panel-body">
               {{#if this.model.preferences.home_board.key}}
-                {{#link-to "board" this.model.preferences.home_board.key}}{{this.model.preferences.home_board.key}}{{/link-to}}
+                <LinkTo @route="board" @model={{this.model.preferences.home_board.key}}>{{this.model.preferences.home_board.key}}</LinkTo>
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
@@ -401,7 +401,7 @@
                 <span title={{date log.started_at}}>
                   {{date_ago log.started_at}}
                 </span>
-                {{#link-to "user.log" this.model.user_name log.id}}
+                <LinkTo @route="user.log" @models={{array this.model.user_name log.id}}>
                   {{#if log.assessment}}
                     {{t "assessment" key="assessment"}}
                   {{else if log.note}}
@@ -409,7 +409,7 @@
                   {{else}}
                     {{t "button" count=log.button_count key="button_count"}}
                   {{/if}}
-                {{/link-to}}
+                </LinkTo>
                 <br>
                 <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
               </p>
@@ -434,9 +434,9 @@
             {{#each this.model.goals as |goal|}}
               <p>
                 <div style='white-space: nowrap; overflow: hidden;'>
-                  {{#link-to "user.goal" this.model.user_name goal.id}}
+                  <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}}>
                     {{goal.summary}}
-                  {{/link-to}}
+                  </LinkTo>
                 </div>
                 <span style='color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;' >
                   {{goal.description}}&nbsp;
@@ -445,7 +445,7 @@
             {{/each}}
             {{#if this.model.permissions.supervise}}
               <div style='margin-top: 5px;'>
-                {{#link-to "user.goals" this.model.user_name}}{{t "see all user goals" key="see_all_user_goals"}}{{/link-to}}
+                <LinkTo @route="user.goals" @model={{this.model.user_name}}>{{t "see all user goals" key="see_all_user_goals"}}</LinkTo>
               </div>
             {{/if}}
           </div>
@@ -477,9 +477,9 @@
                 {{/if}}
                 <div style='height: 30px; overflow: hidden; line-height: 14px;'>
                   {{#if badge.global}}
-                    {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
+                    <LinkTo @route="goals.goal" @model={{badge.goal_id}}>{{badge.name}}</LinkTo>
                   {{else}}
-                    {{#link-to "user.goal" this.model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+                    <LinkTo @route="user.goal" @models={{array this.model.user_name badge.goal_id}}>{{badge.name}}</LinkTo>
                   {{/if}}
                 </div>
               </div>
@@ -488,7 +488,7 @@
             <div style='clear: left;'></div>
             {{#if this.model.permissions.supervise}}
               <div style='margin-top: 5px;'>
-                {{#link-to "user.badges" this.model.user_name}}{{t "see all user badges" key="see_all_user_badges"}}{{/link-to}}
+                <LinkTo @route="user.badges" @model={{this.model.user_name}}>{{t "see all user badges" key="see_all_user_badges"}}</LinkTo>
               </div>
             {{/if}}
           {{else}}
@@ -573,7 +573,7 @@
               <ul class="list-group" style="max-width: 350px;">
                 {{#each this.board_list.filtered_results as |board|}}
                   <li class="list-group-item">
-                    {{#link-to "board" board.board.key}}{{board.board.key}}{{/link-to}}
+                    <LinkTo @route="board" @model={{board.board.key}}>{{board.board.key}}</LinkTo>
                   </li>
                 {{/each}}
               </ul>

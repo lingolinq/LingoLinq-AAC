@@ -55,12 +55,15 @@ module JsonApi::Image
         libs[il] ||= lib
       end
 
+      main_license = OBF::Utils.parse_license(image.settings['license'])
       libs.each do |lib, alternate|
         if allowed_sources.include?(lib) || !PROTECTED_SOURCES.include?(lib)
+          # Inherit main image license when alternate has none (e.g. rasterized/cached copies)
+          alt_license = alternate['license'].present? ? OBF::Utils.parse_license(alternate['license']) : main_license
           json['alternates'] << {
             'library' => lib,
             'url' => alternate['url'],
-            'license' => alternate['license'],
+            'license' => alt_license,
             'content_type' => alternate['content_type']
           }
         end

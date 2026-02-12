@@ -940,7 +940,8 @@ class Board < ActiveRecord::Base
         'id' => max_id,
         'label' => label,
         'suggest_symbol' => true,
-        'hidden' => false
+        'hidden' => false,
+        'hide_label' => false
       }
       buttons << button
       @buttons_changed = 'populated_from_labels'

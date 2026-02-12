@@ -22,7 +22,7 @@
         </b>
       {{else}}
         {{#if this.errored}}
-          <div class='alert alert-danger'>{{this.status_message}}</div>
+          <div class='alert alert-danger'>{{this.status_message}}{{#if this.error_detail}}<br><br>{{this.error_detail}}{{/if}}</div>
         {{else}}
           {{#if this.progress}}
             {{#if this.pdf_download}}

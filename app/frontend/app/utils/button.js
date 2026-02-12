@@ -474,8 +474,8 @@ var Button = EmberObject.extend({
       var image_urls = this.get('board.image_urls');
       var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
       if(hc) { _this.set('hc_image', true); }
-      if(image_urls && image_urls[_this.image_id] && preference != 'remote') {
-        var url_val = image_urls[_this.image_id];
+      var url_val = (image_urls && image_urls[_this.image_id]) ? image_urls[_this.image_id] : _this.image_url;
+      if(url_val && preference != 'remote') {
         var looks_like_url = (typeof url_val === 'string') && (url_val.match(/^https?:\/\//) || url_val.match(/^data:/));
         if(looks_like_url) {
           var img = LingoLinq.store.peekRecord('image', _this.image_id);
@@ -654,6 +654,10 @@ var Button = EmberObject.extend({
         _this.set('original_image_url', _this.image_url);
         promises.push(RSVP.resolve());
       } else if(_this.image_id) {
+        if(_this.image_url && (_this.image_url.match(/^https?:\/\//) || _this.image_url.match(/^data:/))) {
+          _this.set('local_image_url', _this.image_url);
+          _this.set('original_image_url', _this.image_url);
+        }
         promises.push(_this.load_image('local'));
       }
       if(_this.sound_id && _this.sound_url && persistence.url_cache && persistence.url_cache[_this.sound_url] && (!persistence.url_uncache || !persistence.url_uncache[_this.sound_url])) {

@@ -78,6 +78,12 @@ LingoLinq.Board = DS.Model.extend({
   categories: DS.attr('raw'),
   home_board: DS.attr('boolean'),
   has_fallbacks: DS.attr('boolean'),
+  /** When loaded by key, the API returns global_id as id; we normalize to key and store backend id here. */
+  _actual_id: DS.attr('string'),
+  /** Backend global_id for comparisons (e.g. preferences.home_board.id). Use this when comparing with server ids. */
+  global_id: computed('id', '_actual_id', function() {
+    return this.get('_actual_id') || this.get('id');
+  }),
   valid_id: computed('id', function() {
     return !!(this.get('id') && this.get('id') != 'bad');
   }),
@@ -249,6 +255,7 @@ LingoLinq.Board = DS.Model.extend({
   local_images_with_license: computed('grid', 'buttons', function() {
     var images = LingoLinq.store.peekAll('image');
     var result = [];
+    var seen_ids = {};
     var missing = false;
     var fallbacks = this.get('fallback_images') || [];
     this.get('used_buttons').forEach(function(button) {
@@ -262,34 +269,13 @@ LingoLinq.Board = DS.Model.extend({
             } else {
               LingoLinq.store.findRecord('image', button.image_id).then(function(img) {
                 image.set('license', img.get('license'));
-              });    
+              });
             }
           }
-          result.push(image);
-          var need_reload = [];
-          (image.get('alternates') || []).forEach(function(alternate) {
-            var img = LingoLinq.store.createRecord('image')
-            img.set('url', alternate.url);
-            img.set('library', alternate.library);
-            if(!alternate.license) {
-              need_reload.push(img);
-            }
-            img.set('license', alternate.license);
-            result.push(img);
-          });
-          if(need_reload.length > 0) {
-            if(!image.reloading_promise) {
-              image.reloading_promise = image.reload();
-            }
-            image.reloading_promise.then(function(image) {
-              image.reloading_promise = null;
-              image.get('alternates').forEach(function(alt) {
-                var alternate = need_reload.find(function(a) { return a.get('library') == alt.library; })
-                if(alternate) {
-                  alternate.set('license', alt.license);
-                }
-              });
-            }, function() { });
+          // Only include each unique image once; alternates share the same license
+          if(!seen_ids[image.get('id')]) {
+            seen_ids[image.get('id')] = true;
+            result.push(image);
           }
         } else {
 //          console.log('missing image ' + button.image_id);
@@ -297,7 +283,6 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
     });
-    result = result.uniq();
     result.some_missing = missing;
     return result;
   }),
@@ -1477,7 +1462,8 @@ LingoLinq.Board = DS.Model.extend({
 
       res = res + "<span style='" + opts.image_holder_style + "'>";
       var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
-      if(appState && !appState.get('currentUser.hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
+      var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
+      if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
         res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
@@ -1507,7 +1493,8 @@ LingoLinq.Board = DS.Model.extend({
     };
     var html = "";
 
-    var devicePrefs = (this.appState && this.appState.get('currentUser.preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
+    var displayUser = (this.appState && this.appState.get('speak_mode')) ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+    var devicePrefs = (displayUser && displayUser.get && displayUser.get('preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
     var text_position = "text_position_" + (devicePrefs && devicePrefs.button_text_position ? devicePrefs.button_text_position : 'top');
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 

@@ -115,7 +115,7 @@
     <div class="col-sm-5">
       <p class="form-control-static">
         {{#if this.model.preferences.home_board.key}}
-          {{#link-to "board" this.model.preferences.home_board.key}}{{this.model.preferences.home_board.key}}{{/link-to}}
+          <LinkTo @route="board" @model={{this.model.preferences.home_board.key}}>{{this.model.preferences.home_board.key}}</LinkTo>
         {{else}}
           {{t "None selected. Find the home board you would like and pick it!" key="none_selected_find_one"}}
         {{/if}}

@@ -24,6 +24,7 @@ import { htmlSafe } from '@ember/template';
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
+  contentGrabbers: service('content-grabbers'),
   tagName: '',
 
   init() {
@@ -801,6 +802,11 @@ export default Component.extend({
     }
   ),
   actions: {
+    updateHideLabel(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.hide_label', !!checked);
+      editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },
@@ -887,15 +893,24 @@ export default Component.extend({
       }
       if(new_button_id) {
         new_button_id = emberGet(new_button_id, 'id') || new_button_id;
-        _this.get('modal').close();
-        runLater(function() {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          var button = editManager.find_button(new_button_id);
-          if(!button) { return; }
-          button.state = 'general';
-          _this.get('modal').open('button-settings', {button: button, board: board});
-        }, 100);
-          
+        var modalService = _this.get('modal');
+        _this.get('contentGrabbers').save_pending().then(function() {
+          modalService.close();
+          runLater(function() {
+            var button = editManager.find_button(new_button_id);
+            if(!button) { return; }
+            button.state = 'general';
+            modalService.open('button-settings', {button: button, board: board});
+          }, 100);
+        }, function() {
+          modalService.close();
+          runLater(function() {
+            var button = editManager.find_button(new_button_id);
+            if(!button) { return; }
+            button.state = 'general';
+            modalService.open('button-settings', {button: button, board: board});
+          }, 100);
+        });
       }
     },
     setState: function(state) {
@@ -1122,7 +1137,7 @@ export default Component.extend({
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
-      contentGrabbers.save_pending().then(function() {
+      this.get('contentGrabbers').save_pending().then(function() {
         if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }
       }, function() {
         if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }

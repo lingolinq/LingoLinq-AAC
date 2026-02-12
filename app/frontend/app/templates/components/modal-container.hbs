@@ -136,6 +136,10 @@
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}
     {{new-board}}
+  {{else if (is-equal this.currentTemplate "import-from-html")}}
+    {{import-from-html}}
+  {{else if (is-equal this.currentTemplate "generate-board")}}
+    {{generate-board}}
   {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
     {{confirm-delete-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}

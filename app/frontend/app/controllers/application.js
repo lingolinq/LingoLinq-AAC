@@ -165,13 +165,15 @@ export default Controller.extend({
     'stashes.root_board_state.id',
     'stashes.temporary_root_board_state.id',
     'appState.currentUser.preferences.home_board.id',
+    'board.model.global_id',
     'board.model.intro',
     'board.model.intro.unapproved',
     function() {
       // TODO: also show if checking out the board in the 
       // setup process (except that's really only under 
       // advanced now), or if enabled on the embed
-      var root_board = this.stashes.get('root_board_state.id') == this.get('board.model.id') || this.stashes.get('temporary_root_board_state.id') == this.get('board.model.id');
+      var boardId = this.get('board.model.global_id') || this.get('board.model.id');
+      var root_board = this.stashes.get('root_board_state.id') == boardId || this.stashes.get('temporary_root_board_state.id') == boardId;
       // TODO: option to set board level for board_intro prompt
       // TODO: when entering board intro, set root_board_state to the board's id
       return root_board && this.get('board.model.intro') && !this.get('board.model.intro.unapproved');
@@ -1155,6 +1157,10 @@ export default Controller.extend({
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
     },
     setup_go: function(direction) {
+      var setupController = this.router && this.router.controllerFor && this.router.controllerFor('setup');
+      if(setupController && typeof setupController.flush_pending_save === 'function') {
+        setupController.flush_pending_save();
+      }
       var order = this.get('setup_order');
       var current = this.get('setup_page') || 'intro';
       var current_index = order.indexOf(current) || 0;

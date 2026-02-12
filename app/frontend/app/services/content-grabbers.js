@@ -1124,13 +1124,63 @@ var pictureGrabber = EmberObject.extend({
       i.src = preview.save_url || preview.url;
     });
 
-    var button = editManager.find_button(_this.get('model.id'));
+    var button_id = _this.controller && _this.controller.get('model.id');
+    var button = button_id ? editManager.find_button(button_id) : null;
     var label = button && button.label;
     var save_image = image_load.then(function(data) {
       var url = preview.save_url || preview.url;
 
-      // Validate URL before saving
-      if(!url || !url.match(/^https?:\/\//)) {
+      if(!url) {
+        console.error('Invalid URL in save_image_preview: missing url', preview);
+        return RSVP.reject({error: 'invalid image URL'});
+      }
+
+      // Data URLs (file upload, webcam) - save_record handles these by storing in data_url
+      if(url.match(/^data:/)) {
+        var image = LingoLinq.store.createRecord('image', {
+          url: url,
+          content_type: preview.content_type,
+          width: data.width,
+          height: data.height,
+          hc: preview.hc,
+          button_label: label || preview.suggestion,
+          license: preview.license || {type: 'private'},
+          protected: preview.protected,
+          protected_source: preview.protected_source
+        });
+        return window.cg.save_record(image);
+      }
+
+      // Blob URLs (local file preview via File API) - fetch and convert to data URL before saving
+      if(url.match(/^blob:/)) {
+        return fetch(url).then(function(r) { return r.blob(); }).then(function(blob) {
+          return new RSVP.Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onloadend = function() {
+              var dataUrl = reader.result;
+              var image = LingoLinq.store.createRecord('image', {
+                url: dataUrl,
+                content_type: preview.content_type || blob.type,
+                width: data.width,
+                height: data.height,
+                hc: preview.hc,
+                button_label: label || preview.suggestion,
+                license: preview.license || {type: 'private'},
+                protected: preview.protected,
+                protected_source: preview.protected_source
+              });
+              resolve(window.cg.save_record(image));
+            };
+            reader.onerror = function() { reject({error: 'invalid image URL'}); };
+            reader.readAsDataURL(blob);
+          });
+        }, function() {
+          return RSVP.reject({error: 'invalid image URL'});
+        });
+      }
+
+      // HTTP/HTTPS URLs (symbol search, etc.)
+      if(!url.match(/^https?:\/\//)) {
         console.error('Invalid URL in save_image_preview:', url, preview);
         return RSVP.reject({error: 'invalid image URL'});
       }

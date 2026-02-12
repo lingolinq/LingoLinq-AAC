@@ -1579,7 +1579,7 @@
                 {{#unless this.native_eyegaze_capable}}
                   <p class='form-control-static text-danger'>
                     {{t "Integrated eye trackers will only work in the" key='eyegaze_windows_only_1'}}
-                    {{#link-to 'download'}}{{t "Windows app" key='windows_app'}}{{/link-to}}.
+                    <LinkTo @route="download">{{t "Windows app" key='windows_app'}}</LinkTo>.
                     {{t "If your eye tracker can control the mouse cursor, you can try dwell tracking instead." key='eyegaze_windows_only_2'}}
                   </p>
                 {{/unless}}
