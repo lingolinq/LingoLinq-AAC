@@ -195,8 +195,11 @@ class Progress < ActiveRecord::Base
         progress.finish!
       end
     rescue ProgressError => e
+      Rails.logger.error("[Progress#perform_action] ProgressError in #{progress.settings['class']}.#{progress.settings['method']}: #{e.message}")
       progress.error!(e)
     rescue => e
+      Rails.logger.error("[Progress#perform_action] Error in #{progress.settings['class']}.#{progress.settings['method']}: #{e.class}: #{e.message}")
+      Rails.logger.error("[Progress#perform_action] #{e.backtrace&.first(5)&.join("\n")}")
       progress.error!(e)
       if Rails.env.development?
         raise e
