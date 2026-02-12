@@ -46,8 +46,8 @@ infrastructure changes.
 ### Background Workers
 | Service | ID | Branch | Database | REDIS_NAMESPACE_SUFFIX |
 |---------|-----|--------|----------|----------------------|
-| lingolinq-prod-worker | TBD (create manually) | main | lingolinq-prod-db | -prod |
-| lingolinq-dev-worker | TBD (create manually) | develop | lingolinq-dev-staging-db | -dev |
+| lingolinq-prod-worker | srv-d66jbgogjchc73erhnfg | main | lingolinq-prod-db | -prod |
+| lingolinq-dev-worker | srv-d66jbilum26s73aa7mn0 | develop | lingolinq-dev-staging-db | -dev |
 
 Worker start command:
 ```
