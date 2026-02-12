@@ -940,7 +940,8 @@ class Board < ActiveRecord::Base
         'id' => max_id,
         'label' => label,
         'suggest_symbol' => true,
-        'hidden' => false
+        'hidden' => false,
+        'hide_label' => false
       }
       buttons << button
       @buttons_changed = 'populated_from_labels'
@@ -1857,6 +1858,8 @@ class Board < ActiveRecord::Base
       # Normalize hidden/link_disabled so string "false" from params is not treated as truthy
       button['hidden'] = (button['hidden'] == true || button['hidden'].to_s == 'true')
       button['link_disabled'] = (button['link_disabled'] == true || button['link_disabled'].to_s == 'true')
+      button['hide_label'] = (button['hide_label'] == true || button['hide_label'].to_s == 'true')
+      button['text_only'] = (button['text_only'] == true || button['text_only'].to_s == 'true')
       button.delete('level_modifications') if button['level_modifications'] && !button['level_modifications'].is_a?(Hash)
       button.delete('ref_id') if button['ref_id'].blank?
       button.delete('rules') if button['rules'].blank?

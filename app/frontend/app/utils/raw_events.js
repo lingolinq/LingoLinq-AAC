@@ -869,6 +869,13 @@ var buttonTracker = EmberObject.extend({
       // hitting somewhere else then you should be good
       return;
     }
+    // Suppress synthetic mouseup that follows touchend (prevents double vocalization on touch devices)
+    if(event.type === 'mouseup' && buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type === 'touchend') {
+      var elapsed = event.timeStamp - (buttonTracker.lastReleaseEvent.timeStamp || 0);
+      if(elapsed >= 0 && elapsed < 800) {
+        return;
+      }
+    }
     buttonTracker.lastReleaseEvent = event;
     if(buttonTracker.sidebarScrollStart != null) {
       var scroll_start = buttonTracker.sidebarScrollStart;
@@ -1250,6 +1257,18 @@ var buttonTracker = EmberObject.extend({
             e.pass_through = true;
             $(elem_wrap.dom).trigger(e);
           }
+        }
+      }
+    } else if(buttonTracker.appState.get('edit_mode') && editManager.paint_mode) {
+      var isButton = (elem_wrap && elem_wrap.dom) && (
+        ((elem_wrap.dom.className || "").match(/button/)) ||
+        ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
+      );
+      if(isButton) {
+        event.preventDefault();
+        var id = elem_wrap.id != null ? elem_wrap.id : $(elem_wrap.dom).attr('data-id');
+        if(id && editManager.controller) {
+          editManager.controller.send('buttonPaint', id);
         }
       }
     } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {

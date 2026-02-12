@@ -49,7 +49,7 @@ export default Route.extend({
     }
     console.log('[BOARD-DEBUG] route board/index.setupController() setting currentBoardState');
     _this.appState.set('currentBoardState', {
-      id: model.get('id'),
+      id: model.get('global_id') || model.get('id'),
       key: model.get('key'),
       parent_id: model.get('parent_board_id'),
       name: model.get('name'),

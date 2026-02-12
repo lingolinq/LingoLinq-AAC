@@ -107,8 +107,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('asdf')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])
@@ -127,8 +128,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/symbolstix/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('symbolstix')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])
@@ -147,8 +149,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/symbolstix/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('symbolstix')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])

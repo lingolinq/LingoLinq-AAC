@@ -108,7 +108,9 @@ module Uploader
     end
     object = bucket.objects.find(path) rescue nil
     return false unless object
-    res = object.copy(:key => path, :bucket => bucket) rescue nil
+    copy_opts = { :key => path, :bucket => bucket }
+    copy_opts[:acl] = 'public-read' unless ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+    res = object.copy(copy_opts) rescue nil
     !!res
   end
 
@@ -198,15 +200,19 @@ module Uploader
       }
     }
     
+    conditions = [
+      {'key' => remote_path},
+      ['content-length-range', 1, (CONTENT_LENGTH_RANGE)],
+      {'bucket' => config[:bucket_name]},
+      {'success_action_status' => '200'},
+      {'content-type' => content_type}
+    ]
+    use_acl = !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+    conditions.insert(1, {'acl' => 'public-read'}) if use_acl
+
     policy = {
       'expiration' => (S3_EXPIRATION_TIME).seconds.from_now.utc.iso8601,
-      'conditions' => [
-        {'key' => remote_path},
-        ['content-length-range', 1, (CONTENT_LENGTH_RANGE)],
-        {'bucket' => config[:bucket_name]},
-        {'success_action_status' => '200'},
-        {'content-type' => content_type}
-      ]
+      'conditions' => conditions
     }
     # TODO: for pdfs, policy['conditions'] << {'content-disposition' => 'inline'}
 
@@ -217,13 +223,15 @@ module Uploader
       )
     ).gsub(/\n/, '')
 
-    res[:upload_params].merge!({
+    upload_params = {
        'key' => remote_path,
        'policy' => policy_encoded,
        'signature' => signature,
        'Content-Type' => content_type,
        'success_action_status' => '200'
-    })
+    }
+    upload_params['acl'] = 'public-read' if use_acl
+    res[:upload_params].merge!(upload_params)
     res
   end
   

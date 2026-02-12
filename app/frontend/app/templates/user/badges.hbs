@@ -34,9 +34,9 @@
         <div class='details'>
           <div>
             {{#if badge.global}}
-              {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
+              <LinkTo @route="goals.goal" @model={{badge.goal_id}}>{{badge.name}}</LinkTo>
             {{else}}
-              {{#link-to "user.goal" this.model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+              <LinkTo @route="user.goal" @models={{array this.model.user_name badge.goal_id}}>{{badge.name}}</LinkTo>
             {{/if}}
           </div>
           <div style='margin-bottom: 10px;'>
@@ -80,7 +80,7 @@
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1d"}}
     {{#if this.app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+      <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

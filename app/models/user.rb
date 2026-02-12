@@ -1576,14 +1576,17 @@ class User < ActiveRecord::Base
   end
 
   def enabled_protected_sources(include_supervisees=false)
+    # For local dev: set DEVELOPMENT_EXTRAS_ENABLED=1 to see premium symbols (lessonpix, pcs, symbolstix)
+    if Rails.env.development? && ENV['DEVELOPMENT_EXTRAS_ENABLED'].to_s =~ /^(1|true|yes)$/i
+      return %w[lessonpix pcs symbolstix]
+    end
     cache_key = "protected_sources/#{include_supervisees}"
     res = get_cached(cache_key)
     return res if res
     self.settings ||= {}
     res = []
-    res << 'lessonpix' if self && Uploader.lessonpix_credentials(self)
+    res << 'lessonpix' if self && (Uploader.lessonpix_credentials(self) || self.subscription_hash['extras_enabled'])
     res << 'pcs' if self && self.subscription_hash['extras_enabled']
-    res << 'lessonpix' if self && self.subscription_hash['extras_enabled']
     res << 'symbolstix' if self && self.subscription_hash['extras_enabled']
     if include_supervisees
       self.supervisees.each do |u| 

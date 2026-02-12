@@ -49,6 +49,8 @@ gem 'rack-offline'
 gem 'paper_trail'
 gem 'geokit'
 gem 'obf'
+# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+gem 'rubyzip', '~> 2.3'
 gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'
@@ -67,6 +69,7 @@ gem 'rotp'
 
 gem 'sinatra'
 gem 'sanitize'
+gem 'ruby-openai', '~> 6.0'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.
