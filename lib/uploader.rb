@@ -108,7 +108,7 @@ module Uploader
     end
     object = bucket.objects.find(path) rescue nil
     return false unless object
-    res = object.copy(:key => path, :bucket => bucket, :acl => 'public-read') rescue nil
+    res = object.copy(:key => path, :bucket => bucket) rescue nil
     !!res
   end
 
@@ -202,7 +202,6 @@ module Uploader
       'expiration' => (S3_EXPIRATION_TIME).seconds.from_now.utc.iso8601,
       'conditions' => [
         {'key' => remote_path},
-        {'acl' => 'public-read'},
         ['content-length-range', 1, (CONTENT_LENGTH_RANGE)],
         {'bucket' => config[:bucket_name]},
         {'success_action_status' => '200'},
@@ -220,7 +219,6 @@ module Uploader
 
     res[:upload_params].merge!({
        'key' => remote_path,
-       'acl' => 'public-read',
        'policy' => policy_encoded,
        'signature' => signature,
        'Content-Type' => content_type,
