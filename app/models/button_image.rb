@@ -332,6 +332,7 @@ class ButtonImage < ActiveRecord::Base
   end
 
   def self.skinned_url(url, which_skin)
+    return url unless url
     if url.match(/varianted-skin\.\w+$/)
       which = which_skin.call(url)
       if which != 'default' && SKIN_UNIS[which]
