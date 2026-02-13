@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { observer } from '@ember/object';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
@@ -32,7 +33,42 @@ export default Component.extend({
     this.set('image_url', '');
     this.set('status', null);
     this.set('for_user_id', 'self');
+
+    this.set('previewRows', this.get('rows'));
+    this.set('previewColumns', this.get('columns'));
+    this.updateShowGrid();
   },
+
+  updatePreview: observer('rows', 'columns', function() {
+    this.set('previewRows', this.get('rows'));
+    this.set('previewColumns', this.get('columns'));
+  }),
+
+  updateShowGrid: function() {
+    var grid = [];
+    var maxRows = 6, maxColumns = 12;
+    var previewRows = this.get('previewRows');
+    var previewColumns = this.get('previewColumns');
+    var previewEnabled = previewRows <= maxRows && previewColumns <= maxColumns;
+    for (var idx = 1; idx <= maxRows; idx++) {
+      var row = [];
+      for (var jdx = 1; jdx <= maxColumns; jdx++) {
+        var preview = (previewEnabled && idx <= previewRows && jdx <= previewColumns);
+        row.push({
+          row: idx,
+          column: jdx,
+          preview: preview,
+          preview_class: 'cell ' + (preview ? 'preview' : '')
+        });
+      }
+      grid.push(row);
+    }
+    this.set('showGrid', grid);
+  },
+
+  updateShow: observer('previewRows', 'previewColumns', function() {
+    this.updateShowGrid();
+  }),
 
   labels_non_empty: computed('labels', function() {
     var str = (this.get('labels') || '').trim();
@@ -102,6 +138,21 @@ export default Component.extend({
     },
     setForUserId(userId) {
       this.set('for_user_id', userId);
+    },
+    grid_event(action, row, col) {
+      this.send(action, row, col);
+    },
+    hoverGrid(row, col) {
+      this.set('previewRows', row);
+      this.set('previewColumns', col);
+    },
+    hoverOffGrid() {
+      this.set('previewRows', this.get('rows'));
+      this.set('previewColumns', this.get('columns'));
+    },
+    setGrid(row, col) {
+      this.set('rows', row);
+      this.set('columns', col);
     },
     generateLabels() {
       var _this = this;
