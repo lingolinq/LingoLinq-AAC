@@ -301,7 +301,7 @@ export default modal.ModalController.extend({
       }
       if(this.get('model.visibility') == 'private') {
         var cats = this.get('model.categories') || [];
-        if(cats.indexOf('protected_vocabulary') == -1) {
+        if(cats.indexOf('protected_vocabulary') == -1 && cats.indexOf('unprotected_vocabulary') == -1) {
           cats.push('unprotected_vocabulary');
         }
         this.set('model.categories', cats);

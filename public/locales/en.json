@@ -4997,6 +4997,7 @@
   "add_org": "Add Organization",
   "general_stats": "Communicator & Eval Statistics",
   "error_loading_statistic": "Error Loading Statistics",
+  "no_stats_available": "No statistics available for this organization",
   "access_methods": "Access Methods",
   "communicator_status": "Communicator Status",
   "vocabularies": "Vocabularies",
