@@ -74,7 +74,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @checked={{this.model.hide_label}} @type="checkbox" @change={{action "updateHideLabel" value="target.checked"}} />
+                  <Input @checked={{this.model.hide_label}} @type="checkbox" {{on "change" (action "updateHideLabel" value="target.checked")}} />
                   {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>

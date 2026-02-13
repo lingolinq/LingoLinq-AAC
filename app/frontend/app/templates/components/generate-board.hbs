@@ -44,7 +44,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label title={{this.core_words_tooltip}}>
-              <Input @type="checkbox" @checked={{this.include_core_words}} @change={{action (mut this.include_core_words) value="target.checked"}} id="generate_board_core_words" />
+              <Input @type="checkbox" @checked={{this.include_core_words}} {{on "change" (action (mut this.include_core_words) value="target.checked")}} id="generate_board_core_words" />
               {{t "Core Words" key="core_words"}}
             </label>
           </div>

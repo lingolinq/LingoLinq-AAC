@@ -2019,7 +2019,6 @@ export default Service.extend({
           row.forEach(function(button) {
             var ref = button.get('border_color') + button.get('background_color');
             if(!knowns[ref] && ref) {
-              console.log("FOUND", ref);
               knowns[ref] = true;
               list.push({fill: button.get('background_color'), border: button.get('border_color')});
             }

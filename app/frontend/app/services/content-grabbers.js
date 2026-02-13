@@ -1282,20 +1282,26 @@ var pictureGrabber = EmberObject.extend({
       // TODO: if the image doesn't have a label yet, go ahead and set
       // it to the filename of this image pretty formatted (I guess also
       // strip off any trailing numbers).
-      _this.controller.set('model.image', image);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.image', image);
+      }
       _this.clear();
       var button_image = {url: image.get('url'), id: image.id};
       editManager.change_button(button_id, {
         'image': image,
         'image_id': image.id
       });
-      _this.controller.set('model.pending_image', false);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.pending_image', false);
+      }
     }).then(null, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
       lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
-      _this.controller.set('model.pending_image', false);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.pending_image', false);
+      }
     });
   },
   save_pending: function() {
@@ -1307,17 +1313,25 @@ var pictureGrabber = EmberObject.extend({
       var original = this.controller.get('original_image_license') || {};
       emberSet(license, 'type', license.type || original.type);
       if(license.type != original.type || license.author_name != original.author_name || license.author_url != original.author_url) {
-        this.controller.set('model.pending_image', false);
+        if(this.controller && !this.controller.isDestroyed && !this.controller.isDestroying) {
+          this.controller.set('model.pending_image', false);
+        }
         if(this.controller.get('model.image.permissions.edit')) {
           this.controller.get('model.image').save().then(function() {
-            _this.controller.set('model.pending_image', false);
+            if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+              _this.controller.set('model.pending_image', false);
+            }
           }, function() {
             alert(i18n.t('saving_image_failed', "Saving image settings failed!"));
-            _this.controller.set('model.pending_image', false);
-          });  
+            if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+              _this.controller.set('model.pending_image', false);
+            }
+          });
         } else {
-          console.error("tried to save uneditable image")
-          _this.controller.set('model.pending_image', false);
+          console.error("tried to save uneditable image");
+          if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+            _this.controller.set('model.pending_image', false);
+          }
         }
       }
     }
