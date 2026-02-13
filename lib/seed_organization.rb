@@ -28,6 +28,7 @@ def seed_organization(org_name: "Sample Organization",
     org.settings['total_supervisor_licenses'] = total_supervisor_licenses
     org.settings['include_extras'] = true
     org.settings['org_access'] = true
+    org.settings['premium'] = true
     org.settings['public'] = false
     org.settings['support_target'] = {
       'email' => "support@#{org_name.downcase.gsub(/\s+/, '')}.com",
@@ -43,6 +44,7 @@ def seed_organization(org_name: "Sample Organization",
     org.settings['total_licenses'] = total_licenses if org.settings['total_licenses'].nil?
     org.settings['total_eval_licenses'] = total_eval_licenses if org.settings['total_eval_licenses'].nil?
     org.settings['total_supervisor_licenses'] = total_supervisor_licenses if org.settings['total_supervisor_licenses'].nil?
+    org.settings['premium'] = true
     org.save!
   end
 

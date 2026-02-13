@@ -195,7 +195,7 @@ module Converters
         # set link_disabled so they don't navigate; user can add load_board in edit mode
         h = {
           'id' => btn_id,
-          'label' => label.presence || 'untitled',
+          'label' => label.presence,
           'vocalization' => label.presence,
           'image_id' => image_id,
           'sound_id' => sound_id,
