@@ -29,7 +29,7 @@ namespace :openaac do
 
   desc 'Download OBZ files from openboards.s3.amazonaws.com and import via Converters::LingoLinq.from_obz()'
   task import_vocabularies: :environment do
-    require Rails.root.join('lib', 'converters', 'lingolinq')
+    require Rails.root.join('lib', 'converters', 'lingo_linq')
     user_name = ENV['VOCABULARY_USER_NAME'] || 'example'
     user = User.find_by(user_name: user_name)
     raise "User not found: #{user_name}. Run db:seed or create the user first." unless user
