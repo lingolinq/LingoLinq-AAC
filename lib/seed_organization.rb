@@ -44,7 +44,7 @@ def seed_organization(org_name: "Sample Organization",
     org.settings['total_licenses'] = total_licenses if org.settings['total_licenses'].nil?
     org.settings['total_eval_licenses'] = total_eval_licenses if org.settings['total_eval_licenses'].nil?
     org.settings['total_supervisor_licenses'] = total_supervisor_licenses if org.settings['total_supervisor_licenses'].nil?
-    org.settings['premium'] = true
+    org.settings['premium'] = true if org.settings['premium'].nil?
     org.save!
   end
 
