@@ -546,7 +546,9 @@ class Api::OrganizationsController < ApplicationController
           dn = ext_dev['device_name']
           dn = "Unnamed" if dn.blank?
           devices[dn] = (devices[dn] || 0) + 1
-          vocabs[ext_dev['vocab_name']] = (vocabs[ext_dev['vocab_name']] || 0) + 1
+          vn = ext_dev['vocab_name']
+          vn = 'Unknown' if vn.blank?
+          vocabs[vn] = (vocabs[vn] || 0) + 1
           sizes << ext_dev['size'] if ext_dev['size']
         elsif pref['home_board'] && pref['home_board']['id']
           brd = boards_hash[pref['home_board']['id']]
