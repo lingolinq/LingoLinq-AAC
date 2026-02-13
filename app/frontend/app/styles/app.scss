@@ -3147,6 +3147,7 @@ $nav_extras: #eee;
     background: #eee;
   }
 }
+
 .new_pills {
   font-size: 20px;
   li a {
@@ -3171,6 +3172,11 @@ $nav_extras: #eee;
   right: 90px;
   width: auto;
   text-align: center;
+}
+#new_right .big_buttons > .col-xs-12.new_pills_wrapper {
+  position: absolute;
+  top: -40px;
+  z-index: 1000;
 }
 #new_right .new_pills {
   display: inline-flex;
@@ -5543,7 +5549,6 @@ body:-ms-fullscreen {
       }
     }
   }
-
   #content.index .main_columns .col:first-child {
     margin: -11px -5px 10px;
     .wrapper {
