@@ -368,7 +368,7 @@
       <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
-          {{#if model.load_board.key}}
+          {{#if this.model.load_board.key}}
             <img src={{this.model.icon}} style="height: 20px;">
             <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}

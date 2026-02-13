@@ -1063,7 +1063,11 @@
 {{modal-container}}
 {{outlet "highlight"}}
 {{outlet "highlight-secondary"}}
-{{outlet "board-preview"}}
+{{#if this.modalService.boardPreview}}
+  {{board-preview-overlay}}
+{{else}}
+  {{outlet "board-preview"}}
+{{/if}}
 <FlashOutlet />
 {{outlet "flash-message"}}
 {{#if this.setup_footer}}

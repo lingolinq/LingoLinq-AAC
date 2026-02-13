@@ -218,6 +218,8 @@
     {{program-nfc}}
   {{else if (is-equal this.currentTemplate "modals/push_to_cloud")}}
     {{push-to-cloud}}
+  {{else if (is-equal this.currentTemplate "edit-unit")}}
+    {{edit-unit}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

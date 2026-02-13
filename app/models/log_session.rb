@@ -230,27 +230,33 @@ class LogSession < ActiveRecord::Base
       str += self.data['assessment']['description'] || "Quick assessment"
 
       self.data['assessment']['totals'] ||= {}
-      self.data['assessment']['tallies'] ||= []
+      tallies_raw = self.data['assessment']['tallies']
+      tallies_raw = tallies_raw.values if tallies_raw.is_a?(Hash)
+      self.data['assessment']['tallies'] = Array(tallies_raw || [])
       self.data['assessment']['totals']['correct'] ||= 0
       self.data['assessment']['totals']['incorrect'] ||= 0
-      correct = self.data['assessment']['totals']['correct']
-      incorrect = self.data['assessment']['totals']['incorrect']
+      correct = (self.data['assessment']['totals']['correct'] || 0).to_i
+      incorrect = (self.data['assessment']['totals']['incorrect'] || 0).to_i
       post_str = "(#{correct} correct, #{incorrect} incorrect"
-      total = self.data['assessment']['totals']['correct'] + self.data['assessment']['totals']['incorrect']
+      total = correct + incorrect
       if total > 0
-        pct = (self.data['assessment']['totals']['correct'].to_f / total.to_f * 100).round(1)
+        pct = (correct.to_f / total.to_f * 100).round(1)
         post_str += ", #{pct}%"
       end
       post_str += ")"
       self.data['assessment']['summary'] = post_str
       str += " " + post_str
 
-      self.started_at = DateTime.strptime(self.data['assessment']['start_timestamp'].to_s, '%s') if self.data['assessment']['start_timestamp']
-      self.ended_at = DateTime.strptime(self.data['assessment']['end_timestamp'].to_s, '%s') if self.data['assessment']['end_timestamp']
+      ts_val = self.data['assessment']['start_timestamp']
+      self.started_at = (Time.at(ts_val.to_f).to_datetime rescue nil) if ts_val.present?
+      ts_val = self.data['assessment']['end_timestamp']
+      self.ended_at = (Time.at(ts_val.to_f).to_datetime rescue nil) if ts_val.present?
       last_tally = self.data['assessment']['tallies'].last
       first_tally = self.data['assessment']['tallies'].first
-      self.started_at ||= DateTime.strptime(first_tally['timestamp'].to_s, '%s') if first_tally
-      self.ended_at ||= DateTime.strptime(last_tally['timestamp'].to_s, '%s') if last_tally
+      ts_val = first_tally && first_tally['timestamp']
+      self.started_at ||= (Time.at(ts_val.to_f).to_datetime rescue nil) if ts_val.present?
+      ts_val = last_tally && last_tally['timestamp']
+      self.ended_at ||= (Time.at(ts_val.to_f).to_datetime rescue nil) if ts_val.present?
       self.started_at ||= Time.now
       self.ended_at ||= self.started_at
     elsif self.data['eval']
@@ -569,15 +575,17 @@ class LogSession < ActiveRecord::Base
     if self.data['assessment'] && self.started_at && self.ended_at
       self.data['stats'] = {}
       self.data['stats']['session_seconds'] = (self.ended_at - self.started_at).to_i
-      self.data['stats']['total_correct'] = self.data['assessment']['totals']['correct']
-      self.data['stats']['total_incorrect'] = self.data['assessment']['totals']['incorrect']
+      total_correct = (self.data['assessment']['totals']['correct'] || 0).to_i
+      total_incorrect = (self.data['assessment']['totals']['incorrect'] || 0).to_i
+      self.data['stats']['total_correct'] = total_correct
+      self.data['stats']['total_incorrect'] = total_incorrect
       self.data['stats']['recorded_correct'] = self.data['assessment']['tallies'].select{|t| t['correct'] == true }.length
       self.data['stats']['recorded_incorrect'] = self.data['assessment']['tallies'].select{|t| t['correct'] == false }.length
-      total = self.data['stats']['total_correct'] + self.data['stats']['total_incorrect']
+      total = total_correct + total_incorrect
       recorded_total = self.data['stats']['recorded_correct'] + self.data['stats']['recorded_incorrect']
-      
-      pct_correct = total > 0 ? self.data['stats']['total_correct'].to_f / total.to_f : 0.0
-      pct_incorrect = total > 0 ? self.data['stats']['total_incorrect'].to_f / total.to_f : 0.0
+
+      pct_correct = total > 0 ? total_correct.to_f / total.to_f : 0.0
+      pct_incorrect = total > 0 ? total_incorrect.to_f / total.to_f : 0.0
       self.data['stats']['total_tallies'] = total
       self.data['stats']['total_recorded_tallies'] = recorded_total
       self.data['stats']['percent_correct'] = (pct_correct * 100).round(1)
