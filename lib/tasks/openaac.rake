@@ -43,7 +43,7 @@ namespace :openaac do
       url = "#{OPENBOARDS_BASE}/#{filename}"
       puts "\n[#{filename}] Downloading from #{url}..."
 
-      response = Typhoeus.get(Uploader.sanitize_url(url), timeout: 120, connecttimeout: 30)
+      response = Typhoeus.get(Uploader.sanitize_url(url), timeout: 300, connecttimeout: 30)
       unless response.success?
         puts "  SKIP: HTTP #{response.code} - #{response.return_message}"
         next
@@ -55,8 +55,34 @@ namespace :openaac do
         tmp.close
 
         puts "  Importing with Converters::LingoLinq.from_obz()..."
-        boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => user)
-        puts "  OK: imported #{boards.size} board(s)"
+        # Ensure 'boards' hash is present to prevent nil errors during linking
+        boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => user, 'boards' => {})
+        
+        puts "  OK: imported #{boards.size} board(s). Configuring settings..."
+        
+        boards.each_with_index do |board, idx|
+          if idx == 0
+            # Root board
+            board.public = true
+            board.settings['home_board'] = true
+            board.settings['unlisted'] = false
+          else
+            # Sub-boards
+            board.public = true
+            board.settings['unlisted'] = true
+          end
+          board.generate_stats
+          board.save_without_post_processing
+        end
+
+        # Build button sets for navigation
+        root_board = boards.first
+        if root_board
+          root_board.instance_variable_set(:@buttons_changed, 'import')
+          root_board.instance_variable_set(:@brand_new, true)
+          root_board.save!
+          puts "  Built button set for #{root_board.key}"
+        end
       end
     end
 
