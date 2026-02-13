@@ -113,6 +113,21 @@ export default Controller.extend({
     }
   ),
   saveButtonChanges: function() {
+    var orderedButtons = this.get('ordered_buttons') || [];
+    var pendingImage = false;
+    for(var ri = 0; ri < orderedButtons.length && !pendingImage; ri++) {
+      var row = orderedButtons[ri];
+      for(var ci = 0; ci < row.length && !pendingImage; ci++) {
+        var btn = row[ci];
+        if(btn && btn.get && btn.get('image_id') && btn.get('pending_image')) {
+          pendingImage = true;
+        }
+      }
+    }
+    if(pendingImage) {
+      modal.warning(i18n.t('wait_for_images', "Please wait for all images to finish loading before saving."), true);
+      return;
+    }
 
     var state = editManager.process_for_saving();
 
@@ -194,7 +209,13 @@ export default Controller.extend({
 
     var board = this.get('model');
     var needs_refresh = board.get('update_visibility_downstream');
+    // Preserve image_urls before save - server response can be incomplete for newly-created/edited boards,
+    // causing images to disappear after save. Merge our local URLs back in so display stays correct.
+    var imageUrlsBeforeSave = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
     board.save().then(function(brd) {
+      var fromServer = brd.get('image_urls') || {};
+      var merged = Object.assign({}, imageUrlsBeforeSave, fromServer);
+      brd.set('image_urls', merged);
       if(update_locale) {
         this.stashes.persist('label_locale', update_locale);
         this.appState.set('label_locale', update_locale);
