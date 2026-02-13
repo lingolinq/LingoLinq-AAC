@@ -1595,10 +1595,18 @@ LingoLinq.Board = DS.Model.extend({
 
 LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
+    var hasUnsavedImages = LingoLinq.store.peekAll('image').any(function(img) {
+      return img.get('isNew') || img.get('hasDirtyAttributes');
+    });
+    if (hasUnsavedImages) {
+      console.log('[BOARD] Skipping clear_fast_html because there are unsaved image records');
+      return;
+    }
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
     });
-    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
+    var appState = this.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    if(appState && appState.get && appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
   },

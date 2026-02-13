@@ -68,8 +68,13 @@ bundle exec rspec spec/models/user_spec.rb:42
 ```bash
 cd app/frontend
 npm install
-bower install
 ```
+
+**Environment Standard:**
+- **Node 20** is the ONLY supported version.
+- Never use Node 18 or any other version.
+- Ember 3.28 builds and tests correctly on Node 20.
+- Root and frontend `.nvmrc` files must point to 20.
 
 **Running:**
 ```bash
