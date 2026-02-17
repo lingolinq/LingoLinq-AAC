@@ -6260,26 +6260,35 @@ body:-ms-fullscreen {
 /* Main app shell wrapper - centers content, provides padding.
    Design tokens (--ll-bento-*) defined here for bento components. */
 .ll-bento-app-shell {
-  /* Bento design tokens */
-  --ll-bento-bg: #f6f7fb;
+  /* Bento design tokens - clean, modern color system */
+  --ll-bento-bg: #f4f6f9;
   --ll-bento-ink: #1e2430;
   --ll-bento-muted: rgba(30, 36, 48, 0.62);
-  --ll-bento-card: rgba(255, 255, 255, 0.72);
-  --ll-bento-card-strong: rgba(255, 255, 255, 0.86);
-  --ll-bento-stroke: rgba(20, 24, 36, 0.10);
-  --ll-bento-shadow-lg: 0 18px 50px rgba(19, 29, 56, 0.14);
-  --ll-bento-shadow-md: 0 10px 28px rgba(19, 29, 56, 0.12);
-  --ll-bento-shadow-sm: 0 6px 16px rgba(19, 29, 56, 0.10);
+  --ll-bento-card: rgba(255, 252, 250, 0.88);
+  --ll-bento-card-strong: rgba(255, 255, 255, 0.92);
+  --ll-bento-stroke: rgba(20, 24, 36, 0.08);
+  --ll-bento-shadow-lg: 0 18px 50px rgba(19, 29, 56, 0.12);
+  --ll-bento-shadow-md: 0 10px 28px rgba(19, 29, 56, 0.08);
+  --ll-bento-shadow-sm: 0 6px 16px rgba(19, 29, 56, 0.06);
   --ll-bento-radius-xl: 28px;
   --ll-bento-radius-lg: 22px;
   --ll-bento-radius-md: 18px;
   --ll-bento-radius-sm: 14px;
-  --ll-bento-primary-1: #5fc7ff;
-  --ll-bento-primary-2: #7b8cff;
-  --ll-bento-accent-teal: #43c6c3;
-  --ll-bento-accent-blue: #4b79ff;
-  --ll-bento-accent-peach: #ff8a7a;
-  --ll-bento-accent-lilac: #b79bff;
+  /* Primary: Teal → Blue → Indigo */
+  --ll-bento-primary-1: #4ec5c8;
+  --ll-bento-primary-2: #5fb8ff;
+  --ll-bento-primary-3: #7b8cff;
+  /* Secondary: Soft lavender / violet */
+  --ll-bento-secondary: #b8a8d8;
+  /* Functional: Green (success/speak), Coral (premium/attention) */
+  --ll-bento-functional-green: #5cb88a;
+  --ll-bento-functional-coral: #e88a7a;
+  /* Animation easing */
+  --ll-bento-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ll-bento-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Icon lighting - light direction 135deg (top-left), gloss, rim */
+  --ll-bento-icon-gloss: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  --ll-bento-icon-rim: inset 1px 1px 0 rgba(255, 255, 255, 0.42);
 
   min-height: 100%;
   display: grid;
@@ -6288,9 +6297,9 @@ body:-ms-fullscreen {
   position: relative;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: radial-gradient(1100px 700px at 10% 10%, #eef1ff 0%, transparent 55%),
-              radial-gradient(900px 600px at 90% 30%, #e9fbff 0%, transparent 60%),
-              radial-gradient(900px 700px at 40% 100%, #fff2f0 0%, transparent 55%),
+  background: radial-gradient(1400px 900px at 10% 10%, rgba(230, 238, 255, 0.5) 0%, transparent 50%),
+              radial-gradient(1200px 800px at 90% 30%, rgba(225, 248, 255, 0.4) 0%, transparent 55%),
+              radial-gradient(1200px 800px at 40% 100%, rgba(255, 245, 248, 0.35) 0%, transparent 50%),
               var(--ll-bento-bg);
 }
 
@@ -6312,8 +6321,8 @@ body:-ms-fullscreen {
       height: 420px;
       left: 6%;
       top: 12%;
-      background: radial-gradient(circle at 30% 30%, rgba(95, 199, 255, 0.55), transparent 60%),
-                  radial-gradient(circle at 70% 70%, rgba(123, 140, 255, 0.45), transparent 62%);
+      background: radial-gradient(circle at 30% 30%, rgba(95, 199, 255, 0.38), transparent 58%),
+                  radial-gradient(circle at 70% 70%, rgba(123, 140, 255, 0.32), transparent 60%);
     }
 
     &--b {
@@ -6321,8 +6330,8 @@ body:-ms-fullscreen {
       height: 520px;
       right: 4%;
       top: 18%;
-      background: radial-gradient(circle at 35% 35%, rgba(67, 198, 195, 0.42), transparent 62%),
-                  radial-gradient(circle at 70% 70%, rgba(183, 155, 255, 0.40), transparent 60%);
+      background: radial-gradient(circle at 35% 35%, rgba(67, 198, 195, 0.30), transparent 60%),
+                  radial-gradient(circle at 70% 70%, rgba(183, 155, 255, 0.28), transparent 58%);
     }
 
     &--c {
@@ -6330,8 +6339,8 @@ body:-ms-fullscreen {
       height: 560px;
       left: 20%;
       bottom: 6%;
-      background: radial-gradient(circle at 35% 35%, rgba(255, 138, 122, 0.40), transparent 60%),
-                  radial-gradient(circle at 70% 70%, rgba(95, 199, 255, 0.30), transparent 62%);
+      background: radial-gradient(circle at 35% 35%, rgba(255, 138, 122, 0.28), transparent 58%),
+                  radial-gradient(circle at 70% 70%, rgba(95, 199, 255, 0.22), transparent 60%);
     }
   }
 }
@@ -6348,11 +6357,11 @@ body:-ms-fullscreen {
     max-width: 1200px;
   }
 
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.60) 50%, rgba(255, 255, 255, 0.40) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.52) 0%, rgba(252, 253, 255, 0.45) 100%);
   border: 1px solid rgba(255, 255, 255, 0.45);
   box-shadow: var(--ll-bento-shadow-lg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(13.5px);
+  -webkit-backdrop-filter: blur(13.5px);
   position: relative;
 }
 
@@ -6360,7 +6369,7 @@ body:-ms-fullscreen {
 .ll-bento-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
+  justify-content: flex-start;
   gap: 24px;
   padding: 12px 28px 16px;
   min-height: 60px;
@@ -6368,9 +6377,10 @@ body:-ms-fullscreen {
   margin-left: -16px;
   margin-right: -16px;
   border-radius: 36px 36px 0 0;
-  background: rgba(255, 255, 255, 0.72);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.54) 0%, rgba(248, 250, 253, 0.48) 100%);
   border-bottom: 1px solid rgba(30, 36, 48, 0.06);
-  box-shadow: 0 4px 12px rgba(19, 29, 56, 0.04);
+  box-shadow: 0 4px 12px rgba(19, 29, 56, 0.03),
+              0 8px 24px rgba(19, 29, 56, 0.12);
 }
 
 .ll-bento-topbar__section {
@@ -6384,7 +6394,8 @@ body:-ms-fullscreen {
 .ll-bento-topbar__brand {
   justify-content: flex-start;
   gap: 10px;
-  flex-shrink: 0;
+  flex: 0.75 1 0;
+  min-width: 0;
 }
 
 .ll-bento-brand-link {
@@ -6403,13 +6414,13 @@ body:-ms-fullscreen {
 
 .ll-bento-topbar__welcome {
   justify-content: center;
-  flex: 1.2 0 0;
+  flex: 0.75 1 0;
   min-width: 0;
 }
 
 .ll-bento-topbar__getting-started {
   justify-content: center;
-  flex: 1.2 0 0;
+  flex: 1.5 1 0;
   min-width: 0;
 }
 
@@ -6431,8 +6442,8 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-logo {
-  width: 20%;
-  height: 20%;
+  width: 40%;
+  height: 40%;
   border-radius: 14px;
   object-fit: contain;
   display: block;
@@ -6464,8 +6475,8 @@ body:-ms-fullscreen {
     display: inline-block;
 
     &:hover .ll-bento-welcome__badge {
-      background: rgba(75, 121, 255, 0.18);
-      border-color: rgba(75, 121, 255, 0.35);
+      background: rgba(225, 228, 238, 0.98);
+      border-color: rgba(195, 200, 215, 0.8);
     }
   }
 
@@ -6473,9 +6484,9 @@ body:-ms-fullscreen {
     display: inline-block;
     font-size: 15px;
     font-weight: 600;
-    color: var(--ll-bento-ink);
-    background: rgba(75, 121, 255, 0.10);
-    border: 1px solid rgba(75, 121, 255, 0.2);
+    color: rgba(30, 36, 48, 0.9);
+    background: rgba(235, 238, 245, 0.95);
+    border: 1px solid rgba(210, 214, 224, 0.7);
     padding: 4px 12px;
     border-radius: 999px;
     letter-spacing: 0.01em;
@@ -6490,17 +6501,27 @@ body:-ms-fullscreen {
   gap: 4px;
   padding: 8px 16px;
   border-radius: var(--ll-bento-radius-md);
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid var(--ll-bento-stroke);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(30, 36, 48, 0.18);
+  box-shadow: 0 2px 8px rgba(19, 29, 56, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
   text-decoration: none;
   color: var(--ll-bento-ink);
   min-width: 140px;
   max-width: 240px;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(19, 29, 56, 0.05),
+                inset 0 1px 2px rgba(19, 29, 56, 0.04);
+  }
 
   &:hover {
-    background: rgba(240, 242, 245, 0.9);
-    border-color: rgba(200, 204, 210, 0.6);
+    background: rgba(248, 250, 253, 0.95);
+    border-color: rgba(30, 36, 48, 0.24);
     text-decoration: none;
   }
 
@@ -6530,13 +6551,21 @@ body:-ms-fullscreen {
   box-shadow: var(--ll-bento-shadow-md);
   text-decoration: none;
   color: inherit;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background 0.2s ease, box-shadow 0.25s var(--ll-bento-ease-out), transform 0.25s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
 
   &:hover {
     background: rgba(240, 242, 245, 0.9);
     box-shadow: var(--ll-bento-shadow-lg);
+    transform: translateY(-3px);
     text-decoration: none;
     color: inherit;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: var(--ll-bento-shadow-md);
   }
 
   &__image {
@@ -6570,26 +6599,39 @@ body:-ms-fullscreen {
     flex-shrink: 0;
     padding: 12px 20px;
     border-radius: 999px;
-    background: linear-gradient(135deg, var(--ll-bento-primary-1), var(--ll-bento-primary-2));
-    color: #fff;
+    background: linear-gradient(135deg, rgba(100, 185, 188, 0.96) 0%, rgba(220, 248, 252, 0.85) 50%, rgba(130, 175, 220, 0.92) 100%);
+    color: rgba(15, 20, 30, 0.98);
     font-size: 14px;
     font-weight: 600;
-    box-shadow: 0 6px 16px rgba(75, 121, 255, 0.25);
+    box-shadow: 0 6px 20px rgba(100, 185, 188, 0.28),
+                0 2px 8px rgba(130, 195, 220, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6),
+                inset 0 0 20px rgba(200, 248, 255, 0.25);
+    border: 1px solid rgba(110, 195, 200, 0.5);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+    &:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba(100, 185, 188, 0.2),
+                  inset 0 2px 6px rgba(19, 29, 56, 0.12);
+    }
   }
 }
 
 .ll-bento-progress {
   height: 6px;
   border-radius: 999px;
-  background: rgba(30, 36, 48, 0.08);
+  background: rgba(30, 36, 48, 0.06);
   overflow: hidden;
   position: relative;
 
   &__fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--ll-bento-primary-1), var(--ll-bento-primary-2));
-    transition: width 0.3s ease;
+    background: linear-gradient(90deg, rgba(78, 195, 200, 0.75), rgba(95, 185, 255, 0.7));
+    transition: width 0.5s var(--ll-bento-ease-out);
   }
 }
 
@@ -6599,16 +6641,25 @@ body:-ms-fullscreen {
   gap: 10px;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid var(--ll-bento-stroke);
-  box-shadow: var(--ll-bento-shadow-sm);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(30, 36, 48, 0.18);
+  box-shadow: 0 2px 8px rgba(19, 29, 56, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
   min-width: 180px;
   text-decoration: none;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(19, 29, 56, 0.05),
+                inset 0 1px 2px rgba(19, 29, 56, 0.04);
+  }
 
   &:hover {
-    background: rgba(240, 242, 245, 0.9);
-    border-color: rgba(200, 204, 210, 0.6);
+    background: rgba(248, 250, 253, 0.95);
+    border-color: rgba(30, 36, 48, 0.24);
     text-decoration: none;
   }
 
@@ -6637,17 +6688,25 @@ body:-ms-fullscreen {
   height: 38px;
   border-radius: 999px;
   border: 1px solid var(--ll-bento-stroke);
-  background: rgba(255, 255, 255, 0.70);
-  box-shadow: var(--ll-bento-shadow-sm);
+  background: var(--ll-bento-icon-gloss), rgba(248, 249, 252, 0.9);
+  box-shadow: var(--ll-bento-shadow-sm), var(--ll-bento-icon-rim);
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
   text-decoration: none;
   color: inherit;
 
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(19, 29, 56, 0.06),
+                inset 0 2px 4px rgba(19, 29, 56, 0.04);
+  }
+
   &:hover {
-    background: rgba(240, 242, 245, 0.9);
+    background: var(--ll-bento-icon-gloss), rgba(240, 242, 245, 0.9);
     border-color: rgba(200, 204, 210, 0.6);
     text-decoration: none;
   }
@@ -6682,11 +6741,15 @@ body:-ms-fullscreen {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.35)),
-              linear-gradient(135deg, rgba(255, 138, 122, 0.85), rgba(123, 140, 255, 0.85));
+  background: rgba(228, 231, 238, 0.95);
+  border: 1px solid rgba(210, 214, 224, 0.6);
 }
 
 /* Tabs - pill-style navigation */
+.ll-bento-device-frame > .row {
+  padding-top: 10px;
+}
+
 .ll-bento-tabs {
   display: flex;
   justify-content: center;
@@ -6697,26 +6760,54 @@ body:-ms-fullscreen {
 .ll-bento-tab {
   flex: 1;
   min-width: 0;
-  border: 1px solid var(--ll-bento-stroke);
-  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(195, 205, 218, 0.85);
+  background: linear-gradient(135deg, rgba(235, 240, 248, 0.98) 0%, rgba(222, 232, 240, 0.96) 100%);
   padding: 10px 14px;
   border-radius: 999px;
   font-size: 13px;
-  color: rgba(30, 36, 48, 0.70);
+  color: rgba(30, 36, 48, 0.72);
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(19, 29, 56, 0.08);
+  box-shadow: 0 2px 6px rgba(19, 29, 56, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
   text-align: center;
-  transition: background 0.2s ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background 0.35s var(--ll-bento-ease-in-out),
+              border-color 0.35s var(--ll-bento-ease-in-out),
+              box-shadow 0.35s var(--ll-bento-ease-in-out),
+              transform 0.2s var(--ll-bento-ease-out),
+              outline-color 0.2s var(--ll-bento-ease-out);
 
   &:hover:not(.ll-bento-tab--active) {
-    background: rgba(240, 242, 245, 0.9);
+    background: linear-gradient(135deg, rgba(228, 235, 245, 0.98) 0%, rgba(215, 228, 238, 0.96) 100%);
+    border-color: rgba(185, 198, 212, 0.9);
+    box-shadow: 0 3px 8px rgba(19, 29, 56, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.65);
   }
 
   &--active {
-    background: linear-gradient(135deg, rgba(67, 198, 195, 0.85), rgba(95, 199, 255, 0.75));
-    border-color: rgba(67, 198, 195, 0.35);
-    color: rgba(15, 20, 30, 0.85);
+    background: linear-gradient(135deg, rgba(100, 185, 188, 0.96) 0%, rgba(220, 248, 252, 0.85) 50%, rgba(130, 175, 220, 0.92) 100%);
+    border-color: rgba(110, 195, 200, 0.55);
+    color: rgba(15, 20, 30, 0.98);
     font-weight: 600;
+    box-shadow: 0 8px 28px rgba(100, 185, 188, 0.3),
+                0 4px 12px rgba(130, 195, 220, 0.18),
+                0 2px 6px rgba(19, 29, 56, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6),
+                inset 0 0 28px rgba(255, 255, 255, 0.2),
+                inset 0 0 20px rgba(200, 248, 255, 0.3);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(19, 29, 56, 0.08),
+                inset 0 2px 4px rgba(19, 29, 56, 0.06);
+  }
+
+  &:active.ll-bento-tab--active {
+    box-shadow: 0 4px 16px rgba(100, 185, 188, 0.25),
+                0 2px 8px rgba(130, 195, 220, 0.12),
+                inset 0 2px 6px rgba(19, 29, 56, 0.08);
   }
 }
 
@@ -6724,7 +6815,7 @@ body:-ms-fullscreen {
 .ll-bento-content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   padding: 0 4px 78px; /* space for dock */
 }
 
@@ -6732,7 +6823,7 @@ body:-ms-fullscreen {
 .ll-bento-actions {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .ll-bento-hero-card {
@@ -6742,19 +6833,25 @@ body:-ms-fullscreen {
   gap: 20px;
   padding: 24px 28px;
   min-height: 88px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 252, 250, 0.88);
   border-radius: var(--ll-bento-radius-xl);
   border: 1px solid var(--ll-bento-stroke);
-  box-shadow: var(--ll-bento-shadow-md);
+  box-shadow: var(--ll-bento-shadow-sm);
   text-decoration: none;
   color: inherit;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.25s var(--ll-bento-ease-out), transform 0.25s var(--ll-bento-ease-out);
 
   &:hover {
     background: rgba(240, 242, 245, 0.9);
     box-shadow: var(--ll-bento-shadow-lg);
+    transform: translateY(-3px);
     text-decoration: none;
     color: inherit;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: var(--ll-bento-shadow-md);
   }
 
   &__icon {
@@ -6765,12 +6862,12 @@ body:-ms-fullscreen {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 16px rgba(19, 29, 56, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(19, 29, 56, 0.06), var(--ll-bento-icon-rim);
+    border: 1px solid rgba(210, 214, 224, 0.5);
 
     &--speak {
-      background: radial-gradient(circle at 35% 35%, rgba(200, 255, 185, 0.9), rgba(255, 255, 255, 0.35)),
-                  linear-gradient(135deg, rgba(137, 242, 116, 0.85), rgba(67, 198, 195, 0.85));
+      background: var(--ll-bento-icon-gloss), rgba(225, 242, 235, 0.85);
+      border-color: rgba(195, 225, 215, 0.5);
     }
   }
 
@@ -6805,18 +6902,26 @@ body:-ms-fullscreen {
     padding: 14px 24px;
     font-size: 14px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #e0a595 0%, #eed1c9 50%, #c9bbd6 100%);
-    border: 1px solid rgba(201, 187, 214, 0.5);
-    color: rgba(60, 50, 70, 0.95);
+    background: linear-gradient(135deg, #3db8bc 0%, #4eb5ff 50%, #5f7cff 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.98);
     font-weight: 600;
-    box-shadow: 0 16px 24px rgba(201, 187, 214, 0.35);
+    box-shadow: 0 12px 28px rgba(61, 184, 188, 0.32);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+    &:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 12px rgba(61, 184, 188, 0.25);
+    }
   }
 }
 
 .ll-bento-actions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 /* Extras expanded - full width section with gray gradient */
@@ -6843,7 +6948,7 @@ body:-ms-fullscreen {
 .ll-bento-extras-expanded-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .ll-bento-action-card {
@@ -6852,19 +6957,25 @@ body:-ms-fullscreen {
   gap: 14px;
   padding: 24px 28px;
   min-height: 88px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 252, 250, 0.88);
   border-radius: var(--ll-bento-radius-lg);
   border: 1px solid var(--ll-bento-stroke);
-  box-shadow: var(--ll-bento-shadow-md);
+  box-shadow: var(--ll-bento-shadow-sm);
   text-decoration: none;
   color: inherit;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.25s var(--ll-bento-ease-out), transform 0.25s var(--ll-bento-ease-out);
 
   &:hover {
     background: rgba(240, 242, 245, 0.9);
     box-shadow: var(--ll-bento-shadow-lg);
+    transform: translateY(-3px);
     text-decoration: none;
     color: inherit;
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: var(--ll-bento-shadow-md);
   }
 
   &__icon {
@@ -6875,36 +6986,42 @@ body:-ms-fullscreen {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 16px rgba(19, 29, 56, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(19, 29, 56, 0.06), var(--ll-bento-icon-rim);
+    border: 1px solid rgba(210, 214, 224, 0.5);
 
     &--speak {
-      background: radial-gradient(circle at 35% 35%, rgba(200, 255, 185, 0.9), rgba(255, 255, 255, 0.35)),
-                  linear-gradient(135deg, rgba(137, 242, 116, 0.85), rgba(67, 198, 195, 0.85));
+      background: var(--ll-bento-icon-gloss), rgba(225, 242, 235, 0.85);
+      border-color: rgba(195, 225, 215, 0.5);
     }
 
     &--reports {
-      background: radial-gradient(circle at 30% 30%, rgba(105, 209, 207, 0.95), rgba(127, 210, 255, 0.75));
+      background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.85);
+      border-color: rgba(195, 220, 230, 0.5);
     }
 
     &--ideas {
-      background: linear-gradient(90deg, #7fd2ff, #95a3ff);
+      background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
+      border-color: rgba(205, 218, 240, 0.5);
     }
 
     &--modeling {
-      background: linear-gradient(90deg, #7fd2ff, #95a3ff);
+      background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
+      border-color: rgba(205, 218, 240, 0.5);
     }
 
     &--extras {
-      background: radial-gradient(circle at 30% 30%, rgba(255, 161, 149, 0.95), rgba(197, 175, 255, 0.55));
+      background: var(--ll-bento-icon-gloss), rgba(245, 232, 238, 0.85);
+      border-color: rgba(230, 210, 220, 0.5);
     }
 
     &--green-yellow {
-      background: linear-gradient(135deg, rgba(248, 243, 228, 0.9), rgba(255, 250, 120, 0.9));
+      background: var(--ll-bento-icon-gloss), rgba(245, 242, 228, 0.85);
+      border-color: rgba(230, 225, 205, 0.5);
     }
 
     &--account {
-      background: radial-gradient(circle at 30% 30%, rgba(200, 200, 220, 0.9), rgba(180, 180, 200, 0.7));
+      background: var(--ll-bento-icon-gloss), rgba(235, 235, 245, 0.85);
+      border-color: rgba(215, 215, 230, 0.5);
     }
   }
 
@@ -6916,7 +7033,7 @@ body:-ms-fullscreen {
 
   &__glyph {
     font-size: 22px;
-    color: rgba(255, 255, 255, 0.95);
+    color: rgba(50, 60, 75, 0.75);
   }
 
   &__body {
@@ -6955,45 +7072,25 @@ body:-ms-fullscreen {
     border-radius: 999px;
     font-size: 14px;
     font-weight: 600;
-    box-shadow: 0 8px 16px rgba(19, 29, 56, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: #e8ecf2;
+    color: rgba(30, 36, 48, 0.9);
+    box-shadow: 0 4px 12px rgba(19, 29, 56, 0.12),
+                0 2px 4px rgba(19, 29, 56, 0.08);
+    border: 1px solid #c8d0dc;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
 
-    &--speak {
-      background: radial-gradient(circle at 35% 35%, rgba(200, 255, 185, 0.9), rgba(255, 255, 255, 0.35)),
-                  linear-gradient(135deg, rgba(137, 242, 116, 0.85), rgba(67, 198, 195, 0.85));
-      color: rgba(30, 36, 48, 0.9);
-    }
-
-    &--reports {
-      background: radial-gradient(circle at 30% 30%, rgba(105, 209, 207, 0.95), rgba(127, 210, 255, 0.75));
-      color: rgba(30, 36, 48, 0.9);
-    }
-
-    &--ideas,
-    &--modeling {
-      background: linear-gradient(90deg, #7fd2ff, #95a3ff);
-      color: rgba(30, 36, 48, 0.9);
-    }
-
-    &--extras {
-      background: radial-gradient(circle at 30% 30%, rgba(255, 161, 149, 0.95), rgba(197, 175, 255, 0.55));
-      color: rgba(30, 36, 48, 0.9);
-    }
-
-    &--green-yellow {
-      background: linear-gradient(135deg, rgba(248, 243, 228, 0.9), rgba(255, 250, 120, 0.9));
-      color: rgba(30, 36, 48, 0.9);
-    }
-
-    &--account {
-      background: radial-gradient(circle at 30% 30%, rgba(200, 200, 220, 0.9), rgba(180, 180, 200, 0.7));
-      color: rgba(30, 36, 48, 0.9);
+    &:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(19, 29, 56, 0.1),
+                  inset 0 1px 2px rgba(19, 29, 56, 0.06);
     }
   }
 
   &--emergency {
-    background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.35)),
-                linear-gradient(135deg, rgba(137, 242, 116, 0.85), rgba(67, 198, 195, 0.85));
+    background: rgba(228, 245, 240, 0.9);
+    border-color: rgba(200, 230, 220, 0.6);
   }
 }
 
@@ -7029,7 +7126,7 @@ body:-ms-fullscreen {
 
   &--hero {
     background: linear-gradient(
-        180deg,
+        135deg,
         rgba(255, 255, 255, 0.80),
         rgba(255, 255, 255, 0.62)
       );
@@ -7049,12 +7146,21 @@ body:-ms-fullscreen {
   font-weight: 700;
   font-size: 13px;
   letter-spacing: -0.01em;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
 
   &--primary {
-    color: rgba(255, 255, 255, 0.95);
-    background: linear-gradient(135deg, var(--ll-bento-primary-1), var(--ll-bento-primary-2));
-    box-shadow: 0 14px 26px rgba(75, 121, 255, 0.26);
+    color: rgba(255, 255, 255, 0.98);
+    background: linear-gradient(135deg, #3db8bc 0%, #4eb5ff 50%, #5f7cff 100%);
+    box-shadow: 0 12px 28px rgba(61, 184, 188, 0.35), 0 4px 12px rgba(78, 181, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     min-width: 152px;
+
+    &:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 12px rgba(61, 184, 188, 0.25), 0 2px 6px rgba(78, 181, 255, 0.15);
+    }
   }
 }
 
@@ -7062,7 +7168,7 @@ body:-ms-fullscreen {
 .ll-bento-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .ll-bento-feature {
@@ -7075,23 +7181,23 @@ body:-ms-fullscreen {
     width: 44px;
     height: 44px;
     border-radius: 16px;
-    box-shadow: 0 12px 20px rgba(19, 29, 56, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 4px 12px rgba(19, 29, 56, 0.06), var(--ll-bento-icon-rim);
+    border: 1px solid rgba(210, 214, 224, 0.5);
 
     &--reports {
-      background: radial-gradient(circle at 30% 30%, rgba(105, 209, 207, 0.95), rgba(127, 210, 255, 0.75));
+      background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.85);
     }
 
     &--ideas {
-      background: linear-gradient(90deg, #7fd2ff, #95a3ff);
+      background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
     }
 
     &--modeling {
-      background: linear-gradient(90deg, #7fd2ff, #95a3ff);
+      background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
     }
 
     &--extras {
-      background: radial-gradient(circle at 30% 30%, rgba(255, 161, 149, 0.95), rgba(197, 175, 255, 0.55));
+      background: var(--ll-bento-icon-gloss), rgba(245, 232, 238, 0.85);
     }
   }
 
@@ -7147,10 +7253,13 @@ body:-ms-fullscreen {
   flex: 1 1 0;
   min-width: 0;
   justify-content: center;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s var(--ll-bento-ease-out);
 
   .ll-bento-dock__label {
     font-size: 13px;
-    color: rgba(30, 36, 48, 0.70);
+    color: rgba(30, 36, 48, 0.98);
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -7160,7 +7269,7 @@ body:-ms-fullscreen {
     border: 1px solid rgba(75, 121, 255, 0.16);
 
     .ll-bento-dock__label {
-      color: rgba(30, 36, 48, 0.86);
+      color: rgba(30, 36, 48, 1);
     }
   }
 }
@@ -7185,7 +7294,7 @@ body:-ms-fullscreen {
   .ll-bento-dock__supervisor-label {
     font-size: 12px;
     font-weight: 500;
-    color: var(--ll-bento-muted);
+    color: rgba(30, 36, 48, 0.90);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     flex-shrink: 0;
@@ -7221,6 +7330,9 @@ body:-ms-fullscreen {
   cursor: pointer;
   font: inherit;
   color: inherit;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s var(--ll-bento-ease-out);
 
   &:hover {
     background: rgba(240, 242, 245, 0.9);
@@ -7228,7 +7340,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-dock__logging-sep {
-  color: var(--ll-bento-muted);
+  color: rgba(30, 36, 48, 0.90);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -7239,7 +7351,7 @@ body:-ms-fullscreen {
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(30, 36, 48, 0.70);
+  color: rgba(30, 36, 48, 0.98);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7260,7 +7372,7 @@ body:-ms-fullscreen {
 .ll-bento-dock__logging-last-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--ll-bento-muted);
+  color: rgba(30, 36, 48, 0.90);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -7272,17 +7384,49 @@ body:-ms-fullscreen {
   justify-content: center;
   height: 42px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: radial-gradient(circle at 35% 35%, rgba(200, 255, 185, 0.9), rgba(255, 255, 255, 0.35)),
-              linear-gradient(135deg, rgba(137, 242, 116, 0.85), rgba(67, 198, 195, 0.85));
-  color: rgba(30, 36, 48, 0.9);
+  border: 1px solid rgba(220, 180, 170, 0.5);
+  background: linear-gradient(135deg, rgba(230, 165, 155, 0.95) 0%, rgba(255, 225, 205, 0.95) 100%);
+  color: rgba(50, 40, 45, 0.95);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
   padding: 0 18px;
   cursor: pointer;
-  box-shadow: 0 8px 16px rgba(137, 242, 116, 0.25);
+  box-shadow: 0 6px 16px rgba(210, 160, 150, 0.2);
   flex-shrink: 0;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: transform 0.15s var(--ll-bento-ease-out), box-shadow 0.15s var(--ll-bento-ease-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+  &:hover {
+    outline: none;
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(210, 160, 150, 0.15),
+                inset 0 1px 2px rgba(19, 29, 56, 0.06);
+  }
+}
+
+/* Focus ring - animated ring for keyboard focus (accessibility) */
+.ll-bento-app-shell {
+  .ll-bento-tab:focus-visible,
+  .ll-bento-btn:focus-visible,
+  .ll-bento-icon-btn:focus-visible,
+  .ll-bento-search:focus-visible,
+  .ll-bento-getting-started:focus-visible,
+  .ll-bento-action-card:focus-visible,
+  .ll-bento-hero-card:focus-visible,
+  .ll-bento-home-board-card:focus-visible,
+  .ll-bento-dock__item:focus-visible,
+  .ll-bento-dock__cta:focus-visible,
+  .ll-bento-dock__logging-btn:focus-visible,
+  .ll-bento-action-card__action-btn:focus-visible,
+  .ll-bento-hero-card__btn:focus-visible,
+  .ll-bento-home-board-card__btn:focus-visible {
+    outline-color: rgba(75, 121, 255, 0.6);
+  }
 }
 
 /* Responsiveness for bento layout */
