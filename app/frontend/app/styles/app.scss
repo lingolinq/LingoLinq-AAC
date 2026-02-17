@@ -6811,6 +6811,70 @@ body:-ms-fullscreen {
   }
 }
 
+/* Nav pills (e.g. Boards: Suggested/Mine/Community/Recent) - bento-aligned */
+.ll-bento-app-shell .nav.nav-pills:not(.nav-stacked) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0;
+  margin-bottom: 12px;
+  border: none;
+  padding: 0;
+
+  li {
+    margin: 0;
+
+    a {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(30, 36, 48, 0.72);
+      background: linear-gradient(135deg, rgba(235, 240, 248, 0.98) 0%, rgba(222, 232, 240, 0.96) 100%);
+      border: 1px solid rgba(195, 205, 218, 0.85);
+      box-shadow: 0 2px 6px rgba(19, 29, 56, 0.06),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      transition: background 0.25s var(--ll-bento-ease-in-out),
+                  border-color 0.25s var(--ll-bento-ease-in-out),
+                  box-shadow 0.25s var(--ll-bento-ease-in-out),
+                  transform 0.2s var(--ll-bento-ease-out);
+
+      &:hover {
+        background: linear-gradient(135deg, rgba(228, 235, 245, 0.98) 0%, rgba(215, 228, 238, 0.96) 100%);
+        border-color: rgba(185, 198, 212, 0.9);
+        box-shadow: 0 3px 8px rgba(19, 29, 56, 0.08),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        text-decoration: none;
+        color: rgba(30, 36, 48, 0.85);
+      }
+    }
+
+    &.active a {
+      background: linear-gradient(135deg, rgba(100, 185, 188, 0.96) 0%, rgba(220, 248, 252, 0.85) 50%, rgba(130, 175, 220, 0.92) 100%);
+      border-color: rgba(110, 195, 200, 0.55);
+      color: rgba(15, 20, 30, 0.98);
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(100, 185, 188, 0.25),
+                  0 3px 10px rgba(130, 195, 220, 0.15),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    a:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(19, 29, 56, 0.08),
+                  inset 0 2px 4px rgba(19, 29, 56, 0.06);
+    }
+
+    &.active a:active {
+      box-shadow: 0 4px 16px rgba(100, 185, 188, 0.25),
+                  0 2px 8px rgba(130, 195, 220, 0.12),
+                  inset 0 2px 6px rgba(19, 29, 56, 0.08);
+    }
+  }
+}
+
 /* Main content area */
 .ll-bento-content {
   display: flex;

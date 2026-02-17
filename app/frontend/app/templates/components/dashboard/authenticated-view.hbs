@@ -576,7 +576,7 @@
       {{else}}
         <div class='col-xs-8 col-sm-6'>
           <h4>{{t "Browse Boards" key="browse_boards"}}</h4>
-          <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
+          <ul class="nav nav-pills">
             <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
             <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
             <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
