@@ -553,6 +553,9 @@ export default Component.extend({
     getting_started: function() {
        modal.open('getting-started', {progress: this.appState.get('currentUser.preferences.progress')});
     },
+    support: function() {
+      modal.open('support');
+    },
     record_note: function(user) {
       user = user || this.appState.get('currentUser');
       if(!emberGet(user, 'avatar_url_with_fallback')) {
@@ -614,9 +617,6 @@ export default Component.extend({
     },
     toggle_extras: function() {
       this.set('show_main_extras', !this.get('show_main_extras'));
-    },
-    expand_left_nav: function() {
-      this.set('left_nav_expanded', !this.get('left_nav_expanded'));
     },
     intro_video: function(id) {
       if(window.ga) {

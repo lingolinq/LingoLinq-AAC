@@ -173,9 +173,11 @@
       {{#unless this.app_state.speak_mode}}
         {{#unless this.app_state.edit_mode}}
           {{#unless this.app_state.embedded}}
-            <span style='float: right;' class='not_pretty_skinny'>
-              <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
-            </span>
+            {{#unless this.app_state.index_view}}
+              <span style='float: right;' class='not_pretty_skinny'>
+                <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
+              </span>
+            {{/unless}}
           {{/unless}}
         {{/unless}}
       {{/unless}}
