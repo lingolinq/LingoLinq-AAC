@@ -1,10 +1,12 @@
 import modal from '../utils/modal';
+import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
-import app_state from '../utils/app_state';
 import lingoLinqExtras from '../utils/extras';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   opening: function() {
     var controller = this;
     var board = controller.get('model.board');
@@ -14,13 +16,15 @@ export default modal.ModalController.extend({
     this.set('show_embed', false);
     this.set('error_confirming_public_board', false);
   },
-  supervisee_share: computed('share_user_name', 'app_state.currentUser.known_supervisees', function() {
+  supervisee_share: computed('share_user_name', 'appState.currentUser.known_supervisees', function() {
+    var _this = this;
     var un = this.get('share_user_name');
-    return un && (app_state.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un; });
+    return un && (this.appState.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un; });
   }),
-  not_copyable: computed('share_user_name', 'app_state.currentUser.known_supervisees', function() {
+  not_copyable: computed('share_user_name', 'appState.currentUser.known_supervisees', function() {
+    var _this = this;
     var un = this.get('share_user_name');
-    return !(un && (app_state.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un && s.edit_permission; }));
+    return !(un && (this.appState.get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name == un && s.edit_permission; }));
   }),
   actions: {
     share_with_user: function() {
@@ -66,7 +70,7 @@ export default modal.ModalController.extend({
         board.save().then(function() {
           board.set('update_visibility_downstream', false);
           if(needs_refresh) {
-            app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+            _this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
           }
           _this.set('confirm_public_board', false);
         }, function() {
@@ -89,7 +93,7 @@ export default modal.ModalController.extend({
       }
     },
     copy_board: function() {
-      app_state.controller.copy_board(null, null, this.get('share_user_name'));
+      this.appState.controller.copy_board(null, null, this.get('share_user_name'));
     },
     set_share_user_name: function(user_name) {
       this.set('share_user_name', user_name);

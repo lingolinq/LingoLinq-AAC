@@ -1,24 +1,24 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Manage Start Codes" key="manage_start_codes"}} - {{org_or_user.name}}</h3>
+    <h3>{{t "Manage Start Codes" key="manage_start_codes"}} - {{this.org_or_user.name}}</h3>
   </div>
   <div class="modal-body">
-    {{#if link_code}}
-      <h4>{{t "Registration Link for Start Code - " key="link_for_start_code"}} {{link_code.code}}</h4>
+    {{#if this.link_code}}
+      <h4>{{t "Registration Link for Start Code - " key="link_for_start_code"}} {{this.link_code.code}}</h4>
       <p>{{t "The following link can be shared with new users. You can save the QR code below to embed in additional resources, or copy the registration link directly to your clipboard. When users follow that link, the start code will be automatically generated for them." key="start_code_link_explainer"}}</p>
-      {{qr-code text=link_code.url}}
+      {{qr-code text=this.link_code.url}}
       <button class='btn btn-default btn-lg' {{action "copy_link"}}>{{t "Copy Registration Link" key="copy_registration_link"}}</button>
       <button class='btn btn-default btn-lg' {{action "copy_code"}}>{{t "Copy QR Code" key="copy_qr_code"}}</button>
       <button class='btn btn-default btn-lg' {{action "back"}}>{{t "Back to List" key="back_to_list"}}</button>
     {{else}}
-      {{#if model.user}}
+      {{#if this.model.user}}
         <p>{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically see you added as a supervisor. You can also optionally set some preferences for them, like a default starting board." key="start_codes_user_explainer"}}</p>
       {{else}}
         <p>{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically be added to your organization. You can also optionally set some preferences for them, like a default starting board, and these settings will be set for each user who uses the start code." key="start_codes_org_explainer"}}</p>
       {{/if}}
       <h4>{{t "Existing Codes" key="existing_codes"}}</h4>
-      {{#if org_or_user.start_codes}}
+      {{#if this.org_or_user.start_codes}}
         <table class='table table-striped table-hover'>
           <thead>
             <tr>
@@ -28,7 +28,7 @@
             </tr>
           </thead>
           <tbody>
-            {{#each sorted_start_codes as |code|}}
+            {{#each this.sorted_start_codes as |code|}}
               <tr>
                 <td>
                   {{#if code.disabled}}
@@ -53,9 +53,9 @@
                   {{/if}}
                 </td>
                 <td>
-                  {{#if model.org}}
+                  {{#if this.model.org}}
                     <div><em>{{t "Add to Organization" key="add_to_organization"}}</em></div>
-                  {{else if model.user}}
+                  {{else if this.model.user}}
                     <div><em>{{t "Add me as Supervisor" key="add_me_as_supervisor"}}</em></div>
                   {{/if}}
                   {{#if code.home_board_key}}
@@ -102,23 +102,23 @@
         <p>{{t "None generated" key="none_generated"}}</p>
       {{/if}}
       <div style='margin-top: 30px;'>
-        {{#if new_start_code}}
+        {{#if this.new_start_code}}
           <h4>{{t "Generate a New Start Code" key="generate_new_start_code"}}</h4>
           <form class="form-horizontal" {{action "generate" on="submit"}}>
             <div class="form-group">
               <label for="code" class="col-sm-3 control-label">{{t "Code" key="code"}}</label>
               <div class="col-sm-9">
-                {{input class="form-control" type="text" value=code placeholder="(optional)"}}
-                {{#if invalid_code}}
+                <Input class="form-control" type="text" @value={{this.code}} placeholder="(optional)" />
+                {{#if this.invalid_code}}
                   <em class='text-danger'>{{t "codes must be 7+ characters long and start with a letter" key="codes_must_start_with_letter"}}</em>
                 {{/if}}
               </div>
             </div>
-            {{#if model.org}}
+            {{#if this.model.org}}
               <div class="form-group">
                 <label for="user_type" class="col-sm-3 control-label">{{t "User Type" key="user_type"}}</label>
                 <div class="col-sm-9">
-                  {{bound-select select_class="form-control" select_id="user_type" content=user_types selection=user_type action=(action (mut user_type)) }}
+                  {{bound-select select_class="form-control" select_id="user_type" content=this.user_types selection=this.user_type action=(action (mut this.user_type)) }}
                 </div>
               </div>
               
@@ -127,19 +127,19 @@
                 <div class="col-sm-9">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input id="premium" type="checkbox" checked=premium}}
+                      <Input id="premium" type="checkbox" @checked={{this.premium}} />
                       {{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}
                     </label>
                   </div>
                 </div>
               </div>
-              {{#if premium}}
+              {{#if this.premium}}
                 <div class="form-group">
                   <label for="premium_symbols" class="col-sm-3 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                   <div class="col-sm-9">
                     <div class="checkbox big_checkbox">
                       <label>
-                        {{input id="premium_symbols" type="checkbox" checked=premium_symbols}}
+                        <Input id="premium_symbols" type="checkbox" @checked={{this.premium_symbols}} />
                         {{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}
                       </label>
                     </div>
@@ -150,34 +150,34 @@
             <div class="form-group">
               <label for="locale" class="col-sm-3 control-label">{{t "Language" key="language"}}</label>
               <div class="col-sm-9">
-                {{bound-select select_class="form-control" select_id="locale" content=locales selection=locale action=(action (mut locale)) }}
+                {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
               </div>
             </div>
             <div class="form-group">
               <label for="symbol_library" class="col-sm-3 control-label">{{t "Default Symbols" key="default_symbols"}}</label>
               <div class="col-sm-9">
-                {{bound-select select_class="form-control" select_id="symbol_library" content=symbol_libraries selection=symbol_library action=(action (mut symbol_library)) }}
+                {{bound-select select_class="form-control" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action (mut this.symbol_library)) }}
               </div>
             </div>
-            {{#if model.org}}
+            {{#if this.model.org}}
               <div class="form-group">
                 <label for="supervisor" class="col-sm-3 control-label">{{t "Supervisor" key="supervisor"}}</label>
                 <div class="col-sm-9">
-                  {{input class="form-control" type="text" value=supervisors placeholder="(optional supervisor user names, comma-separated)"}}
+                  <Input class="form-control" type="text" @value={{this.supervisors}} placeholder="(optional supervisor user names, comma-separated)" />
                 </div>
               </div>
             {{/if}}
             <div class="form-group">
               <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
               <div class="col-sm-9">
-                {{input class="form-control" type="text" value=home_board_key placeholder="(optional board key to copy)"}}
+                <Input class="form-control" type="text" @value={{this.home_board_key}} placeholder="(optional board key to copy)" />
                 <!-- TODO: dropdown on org, search option on supervisor -->
               </div>
-              {{#if home_board_key}}
+              {{#if this.home_board_key}}
                 <div class="col-sm-9 col-sm-offset-3">
                   <div class="checkbox big_checkbox">
                     <label>
-                      {{input id="premium" type="checkbox" checked=shallow_clone}}
+                      <Input id="premium" type="checkbox" @checked={{this.shallow_clone}} />
                       {{t "Apply shallow clones" key="apply_shallow_clones"}}
                     </label>
                   </div>
@@ -187,14 +187,14 @@
 
             <div class='form-group'>
               <div class='col-sm-9 col-sm-offset-3'>
-                <button class='btn btn-default' type='submit' disabled={{status.generating}}>
-                  {{#if status.generating}}
+                <button class='btn btn-default' type='submit' disabled={{this.status.generating}}>
+                  {{#if this.status.generating}}
                     {{t "Generating..." key="generating"}}
-                  {{else if status.taken}}
+                  {{else if this.status.taken}}
                     {{t "Code is Not Available" key="code_not_available"}}
-                  {{else if status.invalid_home}}
+                  {{else if this.status.invalid_home}}
                     {{t "Invalid Home Board" key="invalid_home_board"}}
-                  {{else if status.error}}
+                  {{else if this.status.error}}
                     {{t "Error Generating" key="error_generating"}}
                   {{else}}
                     {{t "Generate" key="generate"}}
@@ -202,14 +202,14 @@
                 </button>
               </div>
             </div>
-            {{#if model.board.downstream_boards}}
+            {{#if this.model.board.downstream_boards}}
               <div class="form-group">
                 <label class="col-sm-3 control-label" for="downstream">
                   {{t "Linked Boards" key="linked_boards"}}
                 </label>
                 <div class="col-sm-9">
                   <label id='home'>
-                    {{input type="checkbox" checked=downstream}}
+                    <Input type="checkbox" @checked={{this.downstream}} />
                     {{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}
                   </label>
                 </div>

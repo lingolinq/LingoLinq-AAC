@@ -13,11 +13,10 @@ LingoLinq.Stats = EmberObject.extend({
     return !this.get('no_data');
   }),
   date_strings: function() {
-    var today_date = window.moment();
-    var today = today_date.format('YYYY-MM-DD');
-    var two_months_ago = today_date.add(-2, 'month').format("YYYY-MM-DD");
-    var four_months_ago = today_date.add(-2, 'month').format("YYYY-MM-DD");
-    var six_months_ago = today_date.add(-2, 'month').format("YYYY-MM-DD");
+    var today = window.moment().format('YYYY-MM-DD');
+    var two_months_ago = window.moment().add(-2, 'month').format('YYYY-MM-DD');
+    var four_months_ago = window.moment().add(-4, 'month').format('YYYY-MM-DD');
+    var six_months_ago = window.moment().add(-6, 'month').format('YYYY-MM-DD');
     return {
       today: today,
       two_months_ago: two_months_ago,

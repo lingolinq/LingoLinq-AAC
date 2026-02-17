@@ -3,7 +3,7 @@ import $ from 'jquery';
 import modal from '../../utils/modal';
 import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 

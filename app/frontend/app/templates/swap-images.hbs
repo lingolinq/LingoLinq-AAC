@@ -4,7 +4,7 @@
     <h3>{{t "Swap Board Images" key="swap_board_images"}}</h3>
   </div>
   <div class="modal-body">
-    {{#if model.confirmation}}
+    {{#if this.model.confirmation}}
       <p>{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
     {{else}}
       <p>{{t "Select the boards you would like modified and an image library to use for image replacements. If no results are found in that library, the image will not be changed." key="swap_instructions"}}</p>
@@ -13,13 +13,13 @@
       <div class="form-group">
         <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
         <div class="col-sm-9">
-          {{#if hierarchy.loading}}
+          {{#if this.hierarchy.loading}}
             {{t "Loading linked boards..." key="loading_linked_boards"}}
-          {{else if hierarchy.error}}
+          {{else if this.hierarchy.error}}
             {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
-          {{else if hierarchy}}
+          {{else if this.hierarchy}}
             <div style='margin-top: 5px;'>
-              {{board-hierarchy hierarchy=hierarchy selectable=true}}
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
             </div>
           {{else}}
             {{t "No linked boards" key="no_linked_boards"}}
@@ -31,9 +31,9 @@
           {{t "Library" key="library"}}
         </label>
         <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="libraries" content=libraries selection=library action=(action (mut library)) }}
-          {{#if premium_symbol_library}}
-            {{#if app_state.currentUser.subscription.grace_trial_period}}
+          {{bound-select select_class="form-control" select_id="libraries" content=this.libraries selection=this.library action=(action (mut this.library)) }}
+          {{#if this.premium_symbol_library}}
+            {{#if this.app_state.currentUser.subscription.grace_trial_period}}
               <div class='text-danger'>
                 {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
               </div>
@@ -44,10 +44,10 @@
     </form>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "swap"}} disabled={{status.loading}}>
-      {{#if status.loading}}
+    <button class='btn btn-primary' {{action "swap"}} disabled={{this.status.loading}}>
+      {{#if this.status.loading}}
         {{t "Swapping Images..." key="swapping_images"}}
-      {{else if status.error}}
+      {{else if this.status.error}}
         {{t "Swapping Images Failed" key="swapping_images_failed"}}
       {{else}}
         {{t "Swap Images" key="swap_images"}}

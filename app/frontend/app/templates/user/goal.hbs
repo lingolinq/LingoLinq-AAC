@@ -4,8 +4,8 @@
     <div class="panel panel-default summary smaller">
       <div class="panel-heading">{{t "State" key="state"}}</div>
       <div class="panel-body">
-        {{#if model.active}}
-          {{#if model.primary}}
+        {{#if this.model.active}}
+          {{#if this.model.primary}}
             {{t "Primary Goal" key="primary_goal"}}
           {{else}}
             {{t "Secondary Goal" key="secondary_goal"}}
@@ -16,11 +16,11 @@
 
         <br>
         <span class='text-muted'>
-          {{#if model.unit_name}}
+          {{#if this.model.unit_name}}
             <em>{{t "org-created Goal" key="org_created_goal"}}</em>
           {{else}}
             {{t "author: " key="author_colon"}}
-            {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
           {{/if}}
         </span>
       </div>
@@ -30,31 +30,31 @@
     <div class="panel panel-default summary smaller">
       <div class="panel-heading">{{t "Date" key="date"}}</div>
       <div class="panel-body">
-          {{#if model.active}}
+          {{#if this.model.active}}
             {{t "started" key="started"}}
-          {{else if model.ended}}
+          {{else if this.model.ended}}
             {{t "ended" key="ended"}}
           {{else}}
             {{t "none" key="none_lower"}}
           {{/if}}
-          {{#if model.active}}
-            {{date model.started "short_day"}}
-          {{else if model.ended}}
-            {{date model.ended "short_day"}}
+          {{#if this.model.active}}
+            {{date this.model.started "short_day"}}
+          {{else if this.model.ended}}
+            {{date this.model.ended "short_day"}}
           {{/if}}
           <br>
           <span class='text-muted'>
-            {{#if model.advance}}
+            {{#if this.model.advance}}
               {{t "changes" key="changes_lower"}}
               <!-- TODO: make this a link to the template for the next goal -->
-              {{date model.advance "short_day"}}
-            {{else if model.expires}}
+              {{date this.model.advance "short_day"}}
+            {{else if this.model.expires}}
               {{t "concludes" key="concludes_lower"}}
-              {{date model.expires "short_day"}}
-            {{else if model.duration_diff}}
-              {{date_ago model.duration_diff}}
-            {{else if model.started}}
-              {{date_ago model.started}}
+              {{date this.model.expires "short_day"}}
+            {{else if this.model.duration_diff}}
+              {{date_ago this.model.duration_diff}}
+            {{else if this.model.started}}
+              {{date_ago this.model.started}}
             {{/if}}
             &nbsp;
           </span>
@@ -69,8 +69,8 @@
         {{t "weighted" key="weighted"}}
         <br>
         <span class='text-muted'>
-          {{#if model.stats.weighted_average_status}}
-            <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{weighted_average_status_face_class}}></span></span>
+          {{#if this.model.stats.weighted_average_status}}
+            <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{this.weighted_average_status_face_class}}></span></span>
             {{t "weighted status" key="weighted_status"}}
           {{else}}
             {{t "no statuses recorded" key="no_statuses"}}
@@ -83,46 +83,46 @@
     <div class="panel panel-default summary smaller">
       <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
       <div class="panel-body" style='line-height: 44px;'>
-        {{t "session" key="n_sessions" count=model.stats.sessions}}
+        {{t "session" key="n_sessions" count=this.model.stats.sessions}}
       </div>
     </div>
   </div>
-  {{#if model.stats.sessions}}
-    {{#if model.any_statuses}}
+  {{#if this.model.stats.sessions}}
+    {{#if this.model.any_statuses}}
       <div class="col-sm-6">
-        {{stats/goal-statuses-over-time goal=model}}
+        {{stats/goal-statuses-over-time goal=this.model}}
       </div>
     {{/if}}
     <div class="col-sm-6">
-      {{stats/goal-summary goal=model}}
+      {{stats/goal-summary goal=this.model}}
     </div>
   {{/if}}
 </div>
 
-{{#if editing}}
+{{#if this.editing}}
     <form class="form-horizontal">
       <!-- TODO: form should wrap to include submit button, no? -->
-      {{#unless model.id}}
+      {{#unless this.model.id}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <a href="#" {{action "browse_goals"}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
           </div>
         </div>
       {{/unless}}
-      {{#unless badges_only}}
+      {{#unless this.badges_only}}
         <div class="form-group">
           <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
           <div class="col-sm-10" style='max-width: 300px;'>
-            {{input value=model.summary class="form-control" id="new_goal_summary" placeholder="short goal summary"}}
+            <Input @value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
           </div>
         </div>
         <div class="form-group">
           <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
-            {{textarea value=model.description class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal"}}
+            <Textarea @value={{this.model.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
           </div>
         </div>
-        {{#if model.video}}
+        {{#if this.model.video}}
           <div class="form-group">
             <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
             <div class="col-sm-10">
@@ -136,7 +136,7 @@
           <div class="form-group">
             <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
             <div class="col-sm-10">
-              {{video-recorder user=model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
+              {{video-recorder user=this.model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
             </div>
           </div>
         {{/if}}
@@ -145,14 +145,14 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.auto_assessment id="auto_assessment"}}
+                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
                 {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
           </div>
         </div>
-        {{#if model.assessment_badge}}
-          {{badge-settings badge=model.assessment_badge assessment=true}}
+        {{#if this.model.assessment_badge}}
+          {{badge-settings badge=this.model.assessment_badge assessment=true}}
         {{/if}}
       {{else}}
         <div class='form-group'>
@@ -166,20 +166,20 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=model.badges_enabled id="badges"}}
+              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
         </div>
       </div>
-      {{#if model.badges_enabled}}
+      {{#if this.model.badges_enabled}}
         <div class="form-group">
           <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
-            {{input value=model.badge_name class="form-control" id="badge_name" placeholder=model.summary}}
+            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} />
           </div>
         </div>
-        {{#each model.badges as |badge index|}}
+        {{#each this.model.badges as |badge index|}}
           {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
         {{/each}}
         <div class="form-group" style='border-top: 1px solid #ddd; padding-top: 10px;'>
@@ -190,47 +190,47 @@
       {{/if}}
       <div class='form-group' style='margin-top: 20px;'>
         <div class='col-sm-10 col-sm-offset-2'>
-          <button {{action "save_goal"}} disabled={{save_disabled}} class="btn btn-primary">
-            {{#if saving}}
+          <button {{action "save_goal"}} disabled={{this.save_disabled}} class="btn btn-primary">
+            {{#if this.saving}}
               {{t "Updating Goal" key="updating_goal"}}
             {{else}}
               {{t "Update Goal" key="update_goal"}}
             {{/if}}
           </button>
           <button {{action "cancel_edit"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
-          {{#if error}}
+          {{#if this.error}}
             <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
           {{/if}}
         </div>
       </div>
     </form>
 {{else}}
-  <div class='safe_html' style='margin: 20px 0 50px;'>{{safe model.description}}</div>
-  {{#if model.video}}
+  <div class='safe_html' style='margin: 20px 0 50px;'>{{safe this.model.description}}</div>
+  {{#if this.model.video}}
     <div style="margin-top: 10px;">
       <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
     </div>
   {{/if}}
 
-  {{#if model.assessment_badge}}
+  {{#if this.model.assessment_badge}}
     <h4>{{t "Automated Tracking" key="automated_tracking"}}</h4>
     <div style='margin-bottom: 30px;'>
-      {{#if assessment_badge_description}}
+      {{#if this.assessment_badge_description}}
         <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
-        {{assessment_badge_description}}
+        {{this.assessment_badge_description}}
       {{else}}
         {{t "Assessment not properly configured, data will not be reliable" key="assessment_misconfigured"}}
       {{/if}}
     </div>
   {{/if}}
 
-  {{#if model.badges}}
+  {{#if this.model.badges}}
     <h4>{{t "Badges" key="badges"}}</h4>
-    {{#if model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
+    {{#if this.model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
     <table class='goal_badges'>
       <tbody>
         <tr>
-        {{#each mapped_badges as |badge|}}
+        {{#each this.mapped_badges as |badge|}}
             <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
               <span style='display: inline-block; position: relative;'>
                 <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
@@ -282,10 +282,10 @@
         </tr>
       </thead>
       <tbody>
-        {{#each logs as |log|}}
+        {{#each this.logs as |log|}}
           <LogItem @log={{log}} @user={{this.model.author}} @model={{this.model}} @messagesOnly={{false}} />
         {{/each}}
-        {{#unless logs}}
+        {{#unless this.logs}}
           <tr>
             <td colspan='3'>{{t "No data available" key="no_data_available"}}</td>
           </tr>
@@ -293,13 +293,13 @@
       </tbody>
     </table>
   </div>
-  {{#if more_available}}
+  {{#if this.more_available}}
     <button class='btn btn-default' {{action "more_results"}}>{{t "More" key="more"}}</button>
   {{/if}}
   <button class='btn btn-default' {{action "new_note"}}>{{t "New Note" key="new_note"}}</button>
   <button class='btn btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
-  {{#if model.permissions.edit}}
-    {{#if model.uneditable}}
+  {{#if this.model.permissions.edit}}
+    {{#if this.model.uneditable}}
       <p>{{t "This goal was created by a connected organization and can't be edited" key="uneditable_goal"}}</p>
     {{else}}
       <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>

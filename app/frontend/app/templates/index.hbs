@@ -1,30 +1,41 @@
 {{#opening-observer opening=(action "opening_index") closing=(action "closing_index")}}{{/opening-observer}}
-<div id="index_view" class={{if this.app_state.currentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
-  {{#if this.app_state.currentUser}}
-    <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
-  {{else if app_state.domain_settings.full_domain}}
-    <Dashboard::UnauthenticatedView @user={{this.user}} />
-  {{else if app_state.login_index}}
+{{#if this.app_state}}
+  <div id="index_view" class={{if this.hasCurrentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
+    {{#if this.hasCurrentUser}}
+      <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
+    {{else if this.hasFullDomain}}
+      <Dashboard::UnauthenticatedView @user={{this.user}} />
+    {{else}}
+      {{! Show login form as fallback when no user and not full_domain }}
+      <div style="text-align: center; margin-bottom: 30px;">
+        <img src={{if this.logoUrl this.logoUrl (path "images/logo-big.png")}} style="width: 100px;">
+      </div>
+      {{login-form}}
+    {{/if}}
+  </div>
+  {{#if this.app_state.login_modal}}
+    <div id="login_overlay">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;">
+      </div>
+      {{#unless this.app_state.no_linky}}
+        {{#if this.app_state.domain_settings.full_domain}}
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="col-md-offset-4 col-md-4 col-sm-offset-3 col-sm-6">
+              <a href="#" {{action "hide_login"}} class='btn btn-default' style="width: 100%; margin-top: -10px; margin-bottom: 15px;">{{t "New to %app_name%? Find out more." key="find_out_more"}}</a>
+            </div>
+          </div>
+        {{/if}}
+      {{/unless}}
+      {{login-form set_overflow=true}}
+    </div>
+  {{/if}}
+{{else}}
+  {{! Show login form while app_state is initializing }}
+  <div id="index_view" class="row" style='touch-action: manipulation;'>
     <div style="text-align: center; margin-bottom: 30px;">
-      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;">
+      <img src={{path "images/logo-big.png"}} style="width: 100px;">
     </div>
     {{login-form}}
-  {{/if}}
-</div>
-{{#if app_state.login_modal}}
-  <div id="login_overlay">
-    <div style="text-align: center; margin-bottom: 30px;">
-      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 100px;">
-    </div>
-    {{#unless app_state.no_linky}}
-      {{#if app_state.domain_settings.full_domain}}
-        <div class="row" style="margin-bottom: 10px;">
-          <div class="col-md-offset-4 col-md-4 col-sm-offset-3 col-sm-6">
-            <a href="#" {{action "hide_login"}} class='btn btn-default' style="width: 100%; margin-top: -10px; margin-bottom: 15px;">{{t "New to %app_name%? Find out more." key="find_out_more"}}</a>
-          </div>
-        </div>
-      {{/if}}
-    {{/unless}}
-    {{login-form set_overflow=true}}
   </div>
 {{/if}}

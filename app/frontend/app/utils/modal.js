@@ -5,20 +5,58 @@ import {
   later as runLater,
   cancel as runCancel
 } from '@ember/runloop';
+import { getOwner } from '@ember/application';
 // import $ from 'jquery';
 import scanner from './scanner';
 
 var modal = EmberObject.extend({
+  /**
+   * Get the modal service instance
+   * Uses Ember's getOwner to lookup the service
+   */
+  _getService: function() {
+    // Try to get service from Ember application
+    try {
+      // First try using the route's owner (most reliable)
+      if (this.route) {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var service = owner.lookup('service:modal');
+          if (service) {
+            return service;
+          }
+        }
+      }
+      // Fallback to window.LingoLinq
+      if (typeof window !== 'undefined' && window.LingoLinq) {
+        var owner = getOwner(window.LingoLinq);
+        if (owner) {
+          return owner.lookup('service:modal');
+        }
+      }
+    } catch(e) {
+      // Service not available yet or not initialized
+    }
+    return null;
+  },
+  
   setup: function(route) {
     if(this.last_promise) { this.last_promise.reject('closing due to setup'); }
     this.route = route;
     this.settings_for = {};
     this.controller_for = {};
+    
+    // Initialize service if available
+    var service = this._getService();
+    if (service) {
+      // Service is ready - we can use it for new modals
+    }
   },
   reset: function() {
     this.route = null;
   },
   open: function(template, options) {
+    var service = this._getService();
     var outlet = template;
     var render_template = template;
     if(template != 'highlight' && template != 'highlight-secondary') {
@@ -30,6 +68,82 @@ var modal = EmberObject.extend({
       options.secondary_highlight = true;
       options.clear_overlay = true;
     }
+    
+    // All modals use component-based rendering via the service (no outlet)
+    var useComponentRendering = service && outlet == 'modal';
+    
+    // For modal outlet, handle entirely via service and skip outlet-based rendering
+    // and skip all outlet-based rendering logic
+    if (useComponentRendering) {
+      // Update service state
+      service.set('settingsFor', service.get('settingsFor') || {});
+      service.settingsFor[render_template] = options;
+      service.set('currentTemplate', template);
+      service.set('currentOptions', options);
+      
+      // Handle scanner integration
+      if(template != 'highlight' && template != 'highlight-secondary') {
+        this.resume_scanning = true;
+        scanner.stop();  
+        runLater(function() {
+          var targets = modal.scannable_targets();
+          if(targets.length > 0 && options && options.scannable) {
+            scanner.start(scanner.options);
+          }
+        });
+      }
+      
+      // Replace existing modal: resolve old promise and clear state (service handles DOM via modal-container)
+      if (this.last_template || this._component_based_template) {
+        if (this.last_promise && this.last_promise.resolve) {
+          this.last_promise.resolve({replaced: true});
+        }
+        this.last_promise = null;
+        if (service) {
+          service._resolveCurrentPromise({replaced: true});
+        }
+        this.last_template = null;
+        this._component_based_template = null;
+        this.component = null;
+      }
+      
+      // Update state for tracking (but don't trigger outlet rendering)
+      // IMPORTANT: Don't set last_template for component-based modals to prevent outlet conflicts
+      // Use a separate flag to track component-based modals
+      this.settings_for[render_template] = options;
+      this.last_any_template = template;
+      // DO NOT set this.last_template for component-based modals - it triggers outlet rendering
+      // Instead, we'll track it separately
+      this._component_based_template = template;
+      
+      // Get promise from service and return it
+      var servicePromise = service.open(template, options);
+      
+      // Create promise wrapper for old system compatibility
+      // The service returns a Promise, but we need to track it for the old system
+      var promiseResolve, promiseReject;
+      var wrappedPromise = new RSVP.Promise(function(resolve, reject) {
+        promiseResolve = resolve;
+        promiseReject = reject;
+      });
+      
+      // When service promise resolves/rejects, update our wrapper
+      servicePromise.then(function(result) {
+        promiseResolve(result);
+      }, function(err) {
+        promiseReject(err);
+      });
+      
+      // Store promise wrapper for old system
+      this.last_promise = {
+        resolve: promiseResolve,
+        reject: promiseReject,
+        promise: wrappedPromise
+      };
+      
+      return wrappedPromise;
+    }
+    
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.resume_scanning = true;
       scanner.stop();  
@@ -40,7 +154,9 @@ var modal = EmberObject.extend({
         }
       });
     }
-    if((this.last_promise || this.last_template)) {
+    var _this = this;
+    // If there's an existing overlay (e.g. highlight), close it first
+    if ((this.last_promise || this.last_template || this._component_based_template)) {
       this.close(null, outlet);
     }
     if(!this.route) { throw "must call setup before trying to open a modal"; }
@@ -50,14 +166,19 @@ var modal = EmberObject.extend({
     if(template != 'highlight' && template != 'highlight-secondary') {
       this.last_template = template;
     }
+    // Outlet-based rendering for highlight / highlight-secondary only (modals use service)
     this.route.render(render_template, { into: 'application', outlet: outlet});
-    var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       if(template != 'highlight' && template != 'highlight-secondary') {
         _this.last_promise = {
           resolve: resolve,
           reject: reject
         };
+        if (service) {
+          service.set('currentPromise', { resolve, reject });
+        }
+      } else {
+        resolve();
       }
     });
   },
@@ -67,9 +188,10 @@ var modal = EmberObject.extend({
     } else if(template == 'highlight-secondary') {
       return !!this.highlight2_controller;
     } else if(template) {
-      return this.last_template == template;
+      // Check both outlet-based and component-based modals
+      return this.last_template == template || this._component_based_template == template;
     } else {
-      return !!this.last_template;
+      return !!this.last_template || !!this._component_based_template;
     }
   },
   is_closeable: function() {
@@ -164,13 +286,32 @@ var modal = EmberObject.extend({
   close: function(success, outlet) {
     outlet = outlet || 'modal';
     if(!this.route) { return; }
+    
+    var service = this._getService();
+    
     if(this.last_promise && outlet != 'highlight' && outlet != 'highlight-secondary') {
-      if(success || success === undefined) {
-        this.last_promise.resolve(success);
+      // Treat null, undefined, or any truthy value as success
+      // Only reject if explicitly passed false
+      if(success === false) {
+        if (this.last_promise.reject) {
+          this.last_promise.reject({reason: 'force close'});
+        }
       } else {
-        this.last_promise.reject({reason: 'force close'});
+        if (this.last_promise.resolve) {
+          this.last_promise.resolve(success);
+        }
       }
       this.last_promise = null;
+      
+      // Also resolve service promise if it exists
+      if (service) {
+        service._resolveCurrentPromise(success);
+        service.set('currentTemplate', null);
+        service.set('currentOptions', null);
+        service.set('currentComponent', null);
+        service.set('currentController', null);
+        service.set('currentPromise', null);
+      }
     }
     if(this.highlight_promise && outlet == 'highlight') {
       this.highlight_promise.reject({reason: 'force close'});
@@ -190,14 +331,37 @@ var modal = EmberObject.extend({
       });
     }
     if(outlet != 'highlight' && outlet != 'highlight-secondary') {
+      // Clear outlet-based template
       this.last_template = null;
       this.component = null; // Clear component reference when closing
+      
+      // Clear component-based template flag (prevents outlet system from trying to render)
+      this._component_based_template = null;
+      
+      // Also clear in service (modal-container will unmount component)
+      if (service) {
+        service.set('currentTemplate', null);
+        service.set('currentComponent', null);
+      }
+      
       runLater(function() {
         modal.close(null, 'highlight');
         modal.close(null, 'highlight-secondary');
       });
     }
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
+    // For non-modal outlets (e.g. flash-message, board-preview), clear outlet DOM
+    if (outlet !== 'modal') {
+      var _this = this;
+      runLater(function() {
+        var outletElement = document.querySelector('[data-ember-outlet="' + outlet + '"]') ||
+                           document.querySelector('[id="' + outlet + '"]') ||
+                           document.querySelector('.ember-view[data-outlet-name="' + outlet + '"]') ||
+                           document.querySelector('[data-outlet-name="' + outlet + '"]');
+        if(outletElement) {
+          outletElement.innerHTML = '';
+        }
+      }, 0);
+    }
     // Call closing callbacks if needed
     if(outlet == 'highlight') {
       if(this.highlight_controller && this.highlight_controller.closing) {
@@ -224,21 +388,33 @@ var modal = EmberObject.extend({
   flash: function(text, type, below_header, sticky, opts) {
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
     type = type || 'notice';
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
-    this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: (opts || {}).action};
+    opts = opts || {};
+    this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: opts.action};
     if(below_header) {
       this.settings_for['flash'].below_header = below_header;
     }
-    if(opts && opts.redirect) {
-      var hash = {};
-      hash[opts.redirect] = true;
-      this.settings_for['flash'].redirect = hash;
+    var redirectHash;
+    if(opts.redirect) {
+      redirectHash = {};
+      redirectHash[opts.redirect] = true;
+      this.settings_for['flash'].redirect = redirectHash;
     }
-
+    var service = this._getService();
+    if(service) {
+      var serviceOpts = Object.assign({}, opts, redirectHash ? { redirect: redirectHash } : {});
+      service.flash(text, type, below_header, sticky, serviceOpts);
+      var _this = this;
+      if(!sticky) {
+        runLater(function() {
+          _this.fade_flash();
+        }, below_header ? 500 : (opts.timeout || 1500));
+      }
+      return;
+    }
     var _this = this;
     runLater(function() {
       var timeout = below_header ? 500 : 1500;
-      if(opts && opts.timeout) { timeout = opts.timeout; }
+      if(opts.timeout) { timeout = opts.timeout; }
       modal.route.render('flash-message', { into: 'application', outlet: 'flash-message'});
       if(!sticky) {
         runLater(function() {
@@ -264,7 +440,18 @@ var modal = EmberObject.extend({
     modal.flash(text, 'success', below_header, sticky, opts);
   },
   board_preview: function(board, locale, allow_style, callback) {
-    modal.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+    var service = this._getService();
+    if (service) {
+      service.open('board-preview', {
+        board: board,
+        locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
+        option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+        allow_style: allow_style,
+        callback: callback
+      });
+    } else if (this.route) {
+      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+    }
   },
   cancel_auto_close: function() {
     try {
@@ -273,10 +460,19 @@ var modal = EmberObject.extend({
     if(modal.component) {
       modal.component.set('auto_close', false);      
     }
+    // Also cancel in service if available
+    var service = this._getService();
+    if (service) {
+      service.cancelAutoClose();
+    }
   },
   close_board_preview: function() {
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
-    // The outlet will be automatically cleaned up when the route transitions
+    var service = this._getService();
+    if (service) {
+      service.close(null, 'board-preview');
+    } else {
+      this.close(null, 'board-preview');
+    }
   }
 }).create();
 
@@ -288,7 +484,12 @@ modal.ModalController = Controller.extend({
       var settings = modal.settings_for[template] || {};
       var controller = this;
       if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
-        modal.last_controller = controller;        
+        modal.last_controller = controller;
+        // Set controller in service if available
+        var service = modal._getService();
+        if (service) {
+          service.setController(controller);
+        }
       }
       var tooltip = document.querySelector('body > .tooltip');
       if(tooltip) {
@@ -301,6 +502,13 @@ modal.ModalController = Controller.extend({
       }
       modal.auto_close_callback = null;
       modal.auto_close_timer = null;
+      
+      // Also cancel service auto-close if available
+      var service = modal._getService();
+      if (service) {
+        service.cancelAutoClose();
+      }
+      
       if(settings && settings.inactivity_timeout) {
         modal.auto_close_callback = function() {
           if(modal.auto_close && modal.component && modal.component.element && modal.component.element.querySelectorAll(".modal-content.auto_close").length) {
@@ -318,10 +526,22 @@ modal.ModalController = Controller.extend({
             duration = Math.max(duration, scanner.options.interval * targets * 2);
             if(modal.auto_close) {
               modal.auto_close_timer = runLater(modal.auto_close_callback, duration);
+              // Also set in service
+              if (service) {
+                service.set('autoClose', true);
+                service.set('autoCloseTimer', modal.auto_close_timer);
+                service.set('autoCloseCallback', modal.auto_close_callback);
+              }
             }
           }, 500);
         } else {
           modal.auto_close_timer = runLater(modal.auto_close_callback, duration);
+          // Also set in service
+          if (service) {
+            service.set('autoClose', true);
+            service.set('autoCloseTimer', modal.auto_close_timer);
+            service.set('autoCloseCallback', modal.auto_close_callback);
+          }
         }
       }
       if(controller.opening) {

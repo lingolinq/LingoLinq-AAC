@@ -1,10 +1,10 @@
 import EmberObject from '@ember/object';
+import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
-import contentGrabbers from '../utils/content_grabbers';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
@@ -18,9 +18,10 @@ import Button from '../utils/button';
 import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
+  contentGrabbers: service('content-grabbers'),
   opening: function() {
     var button = this.get('model.button');
     button.load_image('remote');
@@ -32,10 +33,10 @@ export default modal.ModalController.extend({
     this.set('model', button);
     button.set('translations_hash', this.get('board').translations_for_button(button.id));
     this.set('handle_updates', true);
-    contentGrabbers.setup(button, this);
+    this.get('contentGrabbers').setup(button, this);
     var _this = this;
 
-    contentGrabbers.check_for_dropped_file();
+    this.get('contentGrabbers').check_for_dropped_file();
     var state = button.state || 'general';
     if(!app_state.get('currentUser.preferences.disable_button_help')) {
       state = 'help';
@@ -146,7 +147,7 @@ export default modal.ModalController.extend({
   closing: function() {
     stashes.set('last_board_search_type', this.get('board_search_type'));
 //    editManager.done_editing_image();
-    contentGrabbers.clear();
+    this.get('contentGrabbers').clear();
 
     var loc_hash = {nw: 0, n: 1, ne: 2, w: 3, e: 4, sw: 5, s: 6, se: 7};
     if(this.get('inflections_hash')) {
@@ -516,10 +517,10 @@ export default modal.ModalController.extend({
     return htmlSafe(i18n.t('inflection_overrides_examples', "any inflection overrides, such as:\nI want=something\nhe (verb)=:pointer_id\nI [like|hate]=:favorites_link (a pointer id)\nsomething=_text only result (no image)\nsome &words=wordless (remove ampersanded words)\n:shift_id=manual inflection"));
   }),
   webcam_unavailable: computed(function() {
-    return !contentGrabbers.pictureGrabber.webcam_available();
+    return !this.get('contentGrabbers').pictureGrabber.webcam_available();
   }),
   recorder_unavailable: computed(function() {
-    return !contentGrabbers.soundGrabber.recorder_available();
+    return !this.get('contentGrabbers').soundGrabber.recorder_available();
   }),
   notSetPrivateImageLicense: observer(
     'image_preview',
@@ -821,6 +822,11 @@ export default modal.ModalController.extend({
     setState: function(state) {
       this.set('state', state);
     },
+    updateHideLabel: function(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.hide_label', !!checked);
+      editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
     clear_button: function() {
       editManager.clear_button(this.get('model.id'));
       modal.close(true);
@@ -846,19 +852,19 @@ export default modal.ModalController.extend({
       this.set('stashed', true);
     },
     webcamPicture: function() {
-      contentGrabbers.pictureGrabber.start_webcam();
+      this.get('contentGrabbers').pictureGrabber.start_webcam();
     },
     swapStreams: function() {
-      contentGrabbers.pictureGrabber.swap_streams();
+      this.get('contentGrabbers').pictureGrabber.swap_streams();
     },
     webcamToggle: function(takePic) {
-      contentGrabbers.pictureGrabber.toggle_webcam(!takePic);
+      this.get('contentGrabbers').pictureGrabber.toggle_webcam(!takePic);
     },
     find_board: function() {
-      contentGrabbers.boardGrabber.find_board();
+      this.get('contentGrabbers').boardGrabber.find_board();
     },
     build_board: function() {
-      contentGrabbers.boardGrabber.build_board();
+      this.get('contentGrabbers').boardGrabber.build_board();
     },
     plus_minus: function(direction, attribute) {
       var value = parseInt(this.get(attribute), 10);
@@ -871,19 +877,19 @@ export default modal.ModalController.extend({
       this.set(attribute, value);
     },
     cancel_build_board: function() {
-      contentGrabbers.boardGrabber.cancel_build_board();
+      this.get('contentGrabbers').boardGrabber.cancel_build_board();
     },
     shareFoundBoard: function(board) {
-      contentGrabbers.boardGrabber.share_board(board);
+      this.get('contentGrabbers').boardGrabber.share_board(board);
     },
     selectFoundBoard: function(board, force) {
-      contentGrabbers.boardGrabber.pick_board(board, force);
+      this.get('contentGrabbers').boardGrabber.pick_board(board, force);
     },
     copy_found_board: function() {
-      contentGrabbers.boardGrabber.copy_found_board();
+      this.get('contentGrabbers').boardGrabber.copy_found_board();
     },
     create_board: function() {
-      contentGrabbers.boardGrabber.create_board({source_id: this.get('board.id')});
+      this.get('contentGrabbers').boardGrabber.create_board({source_id: this.get('board.id')});
     },
     set_alternate: function() {
       var library = this.get('image_library');
@@ -896,25 +902,25 @@ export default modal.ModalController.extend({
           license: editor.license,
           content_type: editor.content_type
         }
-        contentGrabbers.pictureGrabber.set_alternate(alternate);
-        contentGrabbers.pictureGrabber.clear();  
+        this.get('contentGrabbers').pictureGrabber.set_alternate(alternate);
+        this.get('contentGrabbers').pictureGrabber.clear();  
       }
     },
     clearImageWork: function() {
-      contentGrabbers.pictureGrabber.clear();
+      this.get('contentGrabbers').pictureGrabber.clear();
     },
     clear_image_preview: function() {
-      contentGrabbers.pictureGrabber.clear_image_preview();
+      this.get('contentGrabbers').pictureGrabber.clear_image_preview();
     },
     clear_sound_work: function() {
-      contentGrabbers.soundGrabber.clear_sound_work();
+      this.get('contentGrabbers').soundGrabber.clear_sound_work();
     },
     clear_sound: function() {
       this.set('model.sound', null);
       this.set('model.sound_id', null);
     },
     pick_preview: function(preview) {
-      contentGrabbers.pictureGrabber.pick_preview(preview);
+      this.get('contentGrabbers').pictureGrabber.pick_preview(preview);
     },
     set_locale: function(loc) {
       this.set('search_locale', loc);
@@ -933,7 +939,7 @@ export default modal.ModalController.extend({
         stashes.persist('last_image_library_at', (new Date()).getTime());  
       }
       var locale = this.get('search_locale') || this.get('board.button_locale') || this.get('board.locale') || 'en';
-      contentGrabbers.pictureGrabber.find_picture(text, this.get('board.user_name'), locale);
+      this.get('contentGrabbers').pictureGrabber.find_picture(text, this.get('board.user_name'), locale);
     },
     set_as_button_image: function(url, content_type) {
       var _this = this;
@@ -943,7 +949,7 @@ export default modal.ModalController.extend({
         protected: false
       };
 
-      var save = contentGrabbers.pictureGrabber.save_image_preview(preview);
+      var save = this.get('contentGrabbers').pictureGrabber.save_image_preview(preview);
 
       var id = _this.get('model.id');
       save.then(function(image) {
@@ -958,20 +964,20 @@ export default modal.ModalController.extend({
       });
     },
     edit_image_preview: function() {
-      contentGrabbers.pictureGrabber.edit_image_preview();
+      this.get('contentGrabbers').pictureGrabber.edit_image_preview();
     },
     edit_image: function() {
-      contentGrabbers.pictureGrabber.edit_image();
+      this.get('contentGrabbers').pictureGrabber.edit_image();
     },
     word_art: function() {
       var text = this.get('model.image_field') || this.get('model.vocalization') || this.get('model.label');
-      contentGrabbers.pictureGrabber.word_art(text);
+      this.get('contentGrabbers').pictureGrabber.word_art(text);
     },
     clear_image: function() {
-      contentGrabbers.pictureGrabber.clear_image();
+      this.get('contentGrabbers').pictureGrabber.clear_image();
     },
     select_image_preview: function(url) {
-      contentGrabbers.pictureGrabber.select_image_preview(url);
+      this.get('contentGrabbers').pictureGrabber.select_image_preview(url);
     },
     library_options: function() {
       this.set('show_library_options', !this.get('show_library_options'));
@@ -1027,37 +1033,38 @@ export default modal.ModalController.extend({
       }
     },
     record_sound: function() {
-      contentGrabbers.soundGrabber.record_sound();
+      this.get('contentGrabbers').soundGrabber.record_sound();
     },
     toggle_recording_sound: function(action) {
-      contentGrabbers.soundGrabber.toggle_recording_sound(action);
+      this.get('contentGrabbers').soundGrabber.toggle_recording_sound(action);
     },
     select_sound_preview: function() {
-      contentGrabbers.soundGrabber.select_sound_preview();
+      this.get('contentGrabbers').soundGrabber.select_sound_preview();
     },
     close: function() {
+      var _this = this;
       if(this.get('model.vocalization')) {
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
-      contentGrabbers.save_pending().then(function() {
+      _this.get('contentGrabbers').save_pending().then(function() {
         modal.close();
       }, function() {
         modal.close();
       });
     },
     find_app: function() {
-      contentGrabbers.linkGrabber.find_apps();
+      this.get('contentGrabbers').linkGrabber.find_apps();
     },
     pick_app: function(app) {
-      contentGrabbers.linkGrabber.pick_app(app);
+      this.get('contentGrabbers').linkGrabber.pick_app(app);
     },
     set_app_find_mode: function(mode) {
-      contentGrabbers.linkGrabber.set_app_find_mode(mode);
+      this.get('contentGrabbers').linkGrabber.set_app_find_mode(mode);
     },
     set_custom: function() {
-      contentGrabbers.linkGrabber.set_custom();
+      this.get('contentGrabbers').linkGrabber.set_custom();
     },
     set_time: function(time_attr) {
       if(this.get('player')) {
@@ -1074,12 +1081,12 @@ export default modal.ModalController.extend({
       });
     },
     browse_audio: function() {
-      contentGrabbers.soundGrabber.browse_audio();
+      this.get('contentGrabbers').soundGrabber.browse_audio();
     },
     audio_selected: function(sound) {
       this.set('model.sound', sound);
       this.set('model.sound_id', sound.id);
-      contentGrabbers.soundGrabber.clear_sound_work();
+      this.get('contentGrabbers').soundGrabber.clear_sound_work();
     },
     quick_action: function(action) {
       var _this = this;

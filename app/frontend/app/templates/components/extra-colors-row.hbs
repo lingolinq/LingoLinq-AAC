@@ -1,0 +1,20 @@
+<div class='row'>
+  <div class='col-sm-2'>
+    <div class='fill_preview'>
+      <div class='box' style={{this.box_style}}></div>
+      {{row.label}}  
+    </div>
+  </div>
+  <div class='col-sm-3'>
+    <Input class='form-control' @value={{row.label}} placeholder="label" />
+  </div>
+  <div class='col-sm-3'>
+    <Input class='form-control' @value={{row.border}} placeholder="border color" />
+  </div>
+  <div class='col-sm-3'>
+    <Input class='form-control' @value={{row.fill}} placeholder="fill color" />
+  </div>
+  <div class='col-sm-1'>
+    <button class='btn btn-default' {{action 'remove' row}}><span class='glyphicon glyphicon-remove'></span></button>
+  </div>
+</div>

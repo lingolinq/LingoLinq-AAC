@@ -3,8 +3,8 @@ import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import frame_listener from '../utils/frame_listener';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
-import { htmlSafe } from '@ember/string';
+
+import { htmlSafe } from '@ember/template';
 import EmberObject from  '@ember/object';
 import { computed } from '@ember/object';
 import Button from '../utils/button';

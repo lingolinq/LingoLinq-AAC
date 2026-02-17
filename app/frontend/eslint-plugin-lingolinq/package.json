@@ -1,0 +1,6 @@
+{
+  "name": "eslint-plugin-lingolinq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local ESLint rules for LingoLinq frontend"
+}

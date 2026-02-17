@@ -4,7 +4,6 @@ import {
   debounce as runDebounce
 } from '@ember/runloop';
 import $ from 'jquery';
-import app_state from './app_state';
 import scanner from './scanner';
 import speecher from './speecher';
 import utterance from './utterance';
@@ -12,6 +11,10 @@ import { observer } from '@ember/object';
 
 var raw_listeners = {};
 var frame_listener = EmberObject.extend({
+  setup: function(controller) {
+    this.controller = controller;
+    this.appState = controller.appState || controller.get('appState');
+  },
   handle_action: function(data) {
     data.respond = data.respond || function() { };
     // TODO: event to set dim_header and small_header if desired
@@ -109,17 +112,17 @@ var frame_listener = EmberObject.extend({
       prevent_return: true,
       button_id: null,
       source: 'external',
-      board: {id: app_state.get('currentBoardState.id'), parent_id: app_state.get('currentBoardState.parent_id'), key: app_state.get('currentBoardState.key')},
+      board: {id: this.appState.get('currentBoardState.id'), parent_id: this.appState.get('currentBoardState.parent_id'), key: this.appState.get('currentBoardState.key')},
       type: 'speak'
     };
 
-    app_state.activate_button({}, obj);
+    this.appState.activate_button({}, obj);
 
     data.respond({added: true});
   },
   speak_text: function(data) {
     var vocalized = false;
-    if(app_state.get('speak_mode')) {
+    if(this.get('appState.speak_mode')) {
       vocalized = true;
       var alt_voice = speecher.alternate_voice && speecher.alternate_voice.enabled && speecher.alternate_voice.for_integrations != false;
       speecher.speak_text((data.text || ""), false, {alternate_voice: (alt_voice && data.voice == 'secondary'), interrupt: true});
@@ -201,7 +204,7 @@ var frame_listener = EmberObject.extend({
       }
     }
   },
-  size_targets: observer('app_state.speak_mode', function() {
+  size_targets: observer('appState.speak_mode', function() {
     var overlay = document.getElementById('integration_overlay');
     if(overlay) {
       var rect = overlay.getBoundingClientRect();

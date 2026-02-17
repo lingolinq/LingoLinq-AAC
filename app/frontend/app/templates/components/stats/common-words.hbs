@@ -1,17 +1,17 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <table class="table table-hover table-condensed" style="margin-bottom: 0;">
     <thead>
       <tr>
         <th colspan="2">
-          {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
+          {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
           {{t "Most common words" key="most_common_words"}}
-          <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
+          <button type="button" class="btn-link" style="border: none; background: none; padding: 0; cursor: pointer;" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</button>
         </th>
       </tr>
     </thead>
     <tbody>
-      {{#if usage_stats.popular_words}}
-        {{#each usage_stats.popular_words as |word|}}
+      {{#if this.usage_stats.popular_words}}
+        {{#each this.usage_stats.popular_words as |word|}}
           <tr>
             <td><a href="#" {{action "word_data" word.text}} style='text-decoration: none; color: #000;'>{{word.text}}</a></td>
             <td>{{word.count}}</td>

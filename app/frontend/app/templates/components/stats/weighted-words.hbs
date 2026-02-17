@@ -1,12 +1,12 @@
-<div class={{elem_class}} style={{elem_style}}>
-  <div style={{inner_elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
+  <div style={{this.inner_elem_style}}>
     <strong>
-      {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
+      {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
       {{t "Weighted Words" key="weighted_words"}}
     </strong>
-    <a href="#" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</a>
+    <button type="button" class="btn-link" style="border: none; background: none; padding: 0; cursor: pointer;" {{action "word_cloud"}}>{{t "word cloud" key="word_cloud_lower"}}</button>
     <br>
-    {{#each usage_stats.weighted_words as |word|}}
+    {{#each this.usage_stats.weighted_words as |word|}}
       <a href='#' class={{word.weight_class}} {{action "word_data" word.text}}>{{word.text}}</a>
     {{/each}}
   </div>

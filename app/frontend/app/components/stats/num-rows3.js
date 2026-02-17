@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
@@ -11,5 +11,13 @@ export default Component.extend({
     } else {
       return htmlSafe('');
     }
+  }),
+  wordsPerUtteranceDisplay: computed('displayWordsPerUtterance', 'usage_stats.words_per_utterance', function() {
+    var d = this.get('displayWordsPerUtterance');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.words_per_utterance');
+  }),
+  wordsPerMinuteDisplay: computed('displayWordsPerMinute', 'usage_stats.words_per_minute', function() {
+    var d = this.get('displayWordsPerMinute');
+    return d !== undefined && d !== null ? d : this.get('usage_stats.words_per_minute');
   }),
 });

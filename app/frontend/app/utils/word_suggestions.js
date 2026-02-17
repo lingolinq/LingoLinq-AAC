@@ -112,6 +112,8 @@ var word_suggestions = EmberObject.extend({
       // TODO: concurrent downloads can happen just fine as long as you
       // receive them as text instead of json, and call JSON.parse one
       // at a time.
+      // Skip remote ngrams in development to avoid CORS/404 console noise (file may not exist on S3)
+      var is_dev = typeof window !== 'undefined' && window.location && /localhost|127\.0\.0\.1/.test(window.location.origin || '');
       ['trimmed'].forEach(function(idx) {
         var defer = RSVP.defer();
         promises.push(defer.promise);
@@ -119,7 +121,15 @@ var word_suggestions = EmberObject.extend({
           var store_key = "arpa-." + idx + "." + _this.pieces + ".json";
           // TODO: CDN
           var remote_url = "https://lingolinq.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
-          var find_or_store = persistence.find('settings', store_key).then(null, function() {
+          var persistenceService = word_suggestions.get_persistence();
+          if(!persistenceService || typeof persistenceService.find !== 'function') {
+            runLater(function() { defer.resolve(); });
+            return;
+          }
+          var find_or_store = persistenceService.find('settings', store_key).then(null, function() {
+            if(is_dev) {
+              return { suggestions: {} };
+            }
             return $.ajax({
               url: remote_url,
               type: "GET",
@@ -129,13 +139,18 @@ var word_suggestions = EmberObject.extend({
                 res = JSON.parse(res.text);
               }
               res.storageId = store_key;
-              return persistence.store('settings', {suggestions: res}, store_key);
+              return persistenceService && typeof persistenceService.store === 'function' ? persistenceService.store('settings', {suggestions: res}, store_key) : res;
+            }, function() {
+              // Remote ngrams file missing (404) or CORS - fail gracefully
+              return { suggestions: {} };
             });
           });
           find_or_store.then(function(res) {
-            for(var idx in res.suggestions) {
-              ngrams[idx] = ngrams[idx] || [];
-              ngrams[idx] = ngrams[idx].concat(res.suggestions[idx]);
+            if(res && res.suggestions) {
+              for(var k in res.suggestions) {
+                ngrams[k] = ngrams[k] || [];
+                ngrams[k] = ngrams[k].concat(res.suggestions[k]);
+              }
             }
             runLater(function() {
               defer.resolve();
@@ -250,7 +265,8 @@ var word_suggestions = EmberObject.extend({
 //  find_buttons: function(str, from_board_id, user, include_home_and_sidebar) {
     var _this = this;
     return this.load().then(function() {
-      var last_shift = app_state.get('shift');
+      var appState = word_suggestions.get_app_state();
+      var last_shift = appState.get('shift');
       var last_finished_word = options.last_finished_word;
       if(last_finished_word) { last_finished_word = last_finished_word.replace(/\s+$/, '').toLowerCase(); }
       var second_to_last_word = options.second_to_last_word;
@@ -280,7 +296,7 @@ var word_suggestions = EmberObject.extend({
         }
       }
 
-      var do_cap = app_state.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
+      var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
       if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift) {
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;
@@ -406,7 +422,8 @@ var word_suggestions = EmberObject.extend({
       return RSVP.resolve(this.fallback_url_result);
     } else {
       var _this = this;
-      return persistence.find_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg').then(function(url) {
+      var persistenceService = word_suggestions.get_persistence();
+      return persistenceService.find_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg').then(function(url) {
         _this.fallback_url_result = url;
         return url;
       }, function() { return RSVP.resolve('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg'); });
@@ -462,5 +479,21 @@ var word_suggestions = EmberObject.extend({
     return next_col;
   }
 }).create({pieces: 10, max_results: 5});
+
+// Static service registry for app_state and persistence
+word_suggestions._services = {
+  appState: null,
+  persistence: null
+};
+word_suggestions.register_services = function(appStateService, persistenceService) {
+  if(appStateService) { word_suggestions._services.appState = appStateService; }
+  if(persistenceService) { word_suggestions._services.persistence = persistenceService; }
+};
+word_suggestions.get_app_state = function() {
+  return word_suggestions._services.appState || app_state;
+};
+word_suggestions.get_persistence = function() {
+  return word_suggestions._services.persistence || persistence;
+};
 
 export default word_suggestions;

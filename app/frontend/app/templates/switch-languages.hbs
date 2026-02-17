@@ -15,7 +15,7 @@
       </div>
       <div class="form-group">
         <label class="col-sm-4 control-label" for="vocalization_locale">
-          {{#if same_locale}}
+          {{#if this.same_locale}}
             <span class='glyphicon glyphicon-globe'></span>
             {{t "Language" key="language"}}
           {{else}}
@@ -24,15 +24,15 @@
           {{/if}}
         </label>
         <div class="col-sm-8">
-          {{#if two_languages}}
+          {{#if this.two_languages}}
             <div class='btn-group' style='width: 100%;'>
-              {{#each locales as |locale|}}
+              {{#each this.locales as |locale|}}
                 <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_locale" "vocalization" locale.id}} class={{if locale.vocalization_locale "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
               {{/each}}
             </div>
           {{else}}
             <div class='input-group input-group-lg' style='min-width: 200px;'>
-              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=locales selection=vocalization_locale action=(action (mut vocalization_locale)) }}
+              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(action (mut this.vocalization_locale)) }}
             </div>
           {{/if}}
         </div>
@@ -41,28 +41,28 @@
         <div class='col-sm-8 col-sm-offset-4'>
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=same_locale}}
+              <Input @type="checkbox" @checked={{this.same_locale}} />
               {{t "Use the same language for button labels and speech generation" key="use_same_language"}}
             </label>
           </div>
         </div>
       </div>
-      {{#unless same_locale}}
+      {{#unless this.same_locale}}
         <div class="form-group">
           <label class="col-sm-4 control-label" for="label_locale">
             <span class='glyphicon glyphicon-text-background'></span>
             {{t "Text Language" key="text_language"}}
           </label>
           <div class="col-sm-8">
-            {{#if two_languages}}
+            {{#if this.two_languages}}
               <div class='btn-group' style='width: 100%;'>
-                {{#each locales as |locale|}}
+                {{#each this.locales as |locale|}}
                   <button type='button' style='max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_locale" "label" locale.id}} class={{if locale.label_locale "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>{{locale.name}}</button>
                 {{/each}}
               </div>
             {{else}}
               <div class='input-group input-group-lg' style='min-width: 200px;'>
-                {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=locales selection=label_locale action=(action (mut label_locale)) }}
+                {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.label_locale action=(action (mut this.label_locale)) }}
               </div>
             {{/if}}
           </div>

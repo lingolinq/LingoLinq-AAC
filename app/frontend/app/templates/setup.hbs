@@ -1,15 +1,15 @@
-<div class='row' id="setup_container" style={{if no_scroll "margin-bottom: 0;"}}>
-  {{#if other_user.loading}}
+<div class='row' id="setup_container" style={{if this.no_scroll "margin-bottom: 0;"}}>
+  {{#if this.other_user.loading}}
     <div style='margin: 30px auto; width: 500px;'>
       <p>{{t "Loading User..." key="loading_user"}}</p>
     </div>
-  {{else if other_user.error}}
+  {{else if this.other_user.error}}
     <div style='margin: 30px auto; width: 500px;'>
       <p class='text-danger'>{{t "Error loading user, please make sure you have permission to support this user" key="error_loading_user_check_permission"}}</p>
     </div>
   {{else}}
-    <a class={{if reading "btn btn-lg btn-success throb" "btn btn-lg btn-default"}} {{action "toggle_speaking"}} href="#" style='position: absolute; top: 5px; right: 5px; width: 100px;'>
-      {{#if reading}}
+    <a class={{if this.reading "btn btn-lg btn-success throb" "btn btn-lg btn-default"}} {{action "toggle_speaking"}} href="#" style='position: absolute; top: 5px; right: 5px; width: 100px;'>
+      {{#if this.reading}}
         <span class='glyphicon glyphicon-volume-off'></span>
         <span class='sr-only'>{{t "Stop Reading This Step" key="stop_reading_this_step"}}</span>
       {{else}}
@@ -17,8 +17,7 @@
         <span class='sr-only'>{{t "Read This Step" key="read_this_step"}}</span>
       {{/if}}
     </a>
-    {{! template-lint-disable no-partial }}
-    {{partial partial}}
+    {{component this.setupComponent setup=this}}
   {{/if}}
 </div>
 <div style='white-space: pre-wrap; display: none;'>

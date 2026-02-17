@@ -5,11 +5,11 @@
   </div>
   <div class="modal-body">
     <div style="float: right; margin: -5px 0 5px;">
-      {{t "Page %{page} of" key="page_n_of" page=page}}
-      {{total_pages}}
+      {{t "Page %{page} of" key="page_n_of" page=this.page}}
+      {{this.total_pages}}
     </div>
     <div class="intro_box">
-      {{#if pages.page_1}}
+      {{#if this.pages.page_1}}
         <h4 >{{t "First, A Little About AAC" key="a_little_about_aac"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -20,7 +20,7 @@
             <p>{{t "AAC (Augmentative and Alternative Communication) is a tool to help developing communicators be heard. %app_name% is a type of AAC where you select buttons that represent words or letters and the device speaks whatever the user selects." key="aac_intro_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_2}}
+      {{else if this.pages.page_2}}
         <h4>{{t "First, A Little About AAC" key="a_little_about_aac"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -31,7 +31,7 @@
             <p>{{t "In %app_name% we put words and phrases on buttons that are organized as a collection of \"boards\". There are different board sets for many different users and needs." key="aac_intro_3"}}</p>
           </div>
         </div>
-      {{else if pages.page_3}}
+      {{else if this.pages.page_3}}
         <h4>{{t "Choosing the Right Vocabulary" key="choosing_vocabulary"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -42,7 +42,7 @@
             <p>{{t "Many people think first about needs-based communication (\"I need to go to the bathroom\", \"I am hurting\", \"I am hungry\"), and these are important things to be able to express. However, it's also very valuable to try to include common words that can be used in more than one way. We call these types of words \"core\" words." key="core_words_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_4}}
+      {{else if this.pages.page_4}}
         <h4>{{t "Choosing the Right Vocabulary" key="choosing_vocabulary"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -53,7 +53,7 @@
             <p>{{t "Every user is different, but a combination of core and specialized words and phrases can often help a communicator grow their expression gradually, instead of being stuck only expressing needs and wants." key="core_words_4"}}</p>
           </div>
         </div>
-      {{else if pages.page_5}}
+      {{else if this.pages.page_5}}
         <h4>{{t "Selecting a Home Board" key="selecting_a_home_board"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -64,7 +64,7 @@
             <p>{{t "When you first log in to %app_name%, you'll start on the dashboard. Here you can see notifications, access your profile and preferences, and browse through the available home boards." key="dashboard_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_6}}
+      {{else if this.pages.page_6}}
         <h4>{{t "Selecting a Home Board" key="selecting_a_home_board"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -75,7 +75,7 @@
             <p>{{t "More buttons means more options for expression, but some users are limited in how small a button they can reliably hit (keep in mind you can always hide buttons for now that you want to add later, so a board that looks \"too busy\" may actually be something they can grow into over time)." key="home_board_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_7}}
+      {{else if this.pages.page_7}}
         <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -86,7 +86,7 @@
             <p>{{t "When you're in Speak Mode you can hit buttons to have them spoken, and added to the vocalization box at the top. If you hit the vocalization box it'll speak all the buttons that are located there. The backspace and clear buttons can help keep the sentence window clean." key="speak_mode_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_8}}
+      {{else if this.pages.page_8}}
         <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -96,7 +96,7 @@
             <p>{{t "Buttons that have a little folder icon on them are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key="speak_mode_22"}}</p>
           </div>
         </div>
-      {{else if pages.page_9}}
+      {{else if this.pages.page_9}}
         <h4>{{t "Speak Mode" key="speak_mode"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -106,7 +106,7 @@
             <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's preferences." key="speak_mode_3"}}</p>
           </div>
         </div>
-      {{else if pages.page_10}}
+      {{else if this.pages.page_10}}
         <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -117,7 +117,7 @@
             <p>{{t "In the AAC world many people call this \"modeling\", and it's important that people around AAC users are showing them examples of how to effectively use their device (\"You want a cookie? Let me show you, you could say *want* and then *cookie*\")." key="modeling_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_11}}
+      {{else if this.pages.page_11}}
         <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -128,7 +128,7 @@
             <p>{{t "Supervisors are added to their communicator's account, and can see a communicator's boards on their own devices, so they can get comfortable with a user's vocabulary for better modeling, and can add new buttons and phrases if they have editing permission." key="intro_modeling_4"}}</p>
           </div>
         </div>
-      {{else if pages.page_12}}
+      {{else if this.pages.page_12}}
         <h4>{{t "Logging and Reports" key="logging_and_report"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -138,7 +138,7 @@
             <p>{{t "Supervisors can also review a user's communication history. For privacy reasons logs and reports are disabled by default, but if you enable them then the user's supervisors can see how their communication is progressing over time." key="reports_1"}}</p>
           </div>
         </div>
-      {{else if pages.page_13}}
+      {{else if this.pages.page_13}}
         <h4>{{t "Logging and Reports" key="logging_and_report"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
@@ -148,16 +148,16 @@
             <p>{{t "In addition to reviewing usage history, supervisors can access detailed reports on each communication session, and can make and share notes with the user's team, so everyone knows what the current strategy is and what is or isn't working well." key="reports_2"}}</p>
           </div>
         </div>
-      {{else if pages.page_14}}
+      {{else if this.pages.page_14}}
         <h4>{{t "Where to Learn More" key="where_to_learn_more"}}</h4>
         <div class="row">
           <div class="col-sm-8 pic">
             <div class='list-group'>
               <a class='list-group-item' href="#" {{action "video"}}>{{t "Intro Video: Getting Started with %app_name%" key="getting_started_video"}}</a>
-              {{#if app_state.domain_settings.youtube_url}}
+              {{#if this.app_state.domain_settings.youtube_url}}
                 <a class='list-group-item' href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener">{{t "%app_name% YouTube Channel, with Walkthroughs" key="youtube_channel"}}</a>
               {{/if}}
-              {{#if app_state.domain_settings.support_url}}
+              {{#if this.app_state.domain_settings.support_url}}
                 <a class='list-group-item' href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "%app_name% Support Site, with FAQs" key="support_site"}}</a>
               {{/if}}
             </div>
@@ -177,7 +177,7 @@
       <button class='btn btn-lg btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
     </div>
     <div style='float: right;'>
-      {{#if pages.first_page}}
+      {{#if this.pages.first_page}}
         <button class='btn btn-lg btn-default' {{action "video"}}>
           <span class='glyphicon glyphicon-play'></span>
           {{t "Watch the Video" key="intro_video_instead"}}
@@ -188,7 +188,7 @@
           {{t "Back" key="back"}}
         </button>
       {{/if}}
-      <button class='btn btn-lg btn-default' {{action "next" }} style={{if pages.last_page "visibility: hidden;" ""}}>
+      <button class='btn btn-lg btn-default' {{action "next" }} style={{safe-style (if this.pages.last_page "visibility: hidden;" "")}}>
         {{t "Next" key="next"}}
         <span class='glyphicon glyphicon-chevron-right'></span>
       </button>

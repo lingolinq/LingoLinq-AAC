@@ -1,8 +1,9 @@
 import Route from '@ember/routing/route';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  appState: service('app-state'),
   title: "Search",
   model: function(params) {
     var q = params.q;
@@ -17,6 +18,6 @@ export default Route.extend({
     controller.set('locale', this.get('locale'));
     controller.load_results(this.get('q'));
     controller.set('searchString', this.get('queryString'));
-    app_state.set('hide_search', true);
+    this.appState.set('hide_search', true);
   }
 });

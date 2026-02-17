@@ -9,7 +9,7 @@
     <div class="row" style="margin-bottom: 10px;">
       <div class="col-sm-5" style="text-align: center;">
         <img src={{this.model.button.image.best_url}} style="height: 50px;"><br>
-        {{#if model.button.label}}
+        {{#if this.model.button.label}}
           {{this.model.button.label}}
         {{else}}
           {{t "Unnamed button" key="unnamed_button"}}
@@ -21,7 +21,7 @@
       <div class="col-sm-5" style="text-align: center;">
         <img src={{this.model.folder.image.best_url}} style="height: 50px;">
         <br>
-        {{#if model.folder.label}}
+        {{#if this.model.folder.label}}
           {{this.model.folder.label}}
         {{else}}
           {{t "Unnamed button" key="unnamed_button"}}
@@ -33,11 +33,11 @@
     </div>
     <div class="row">
       <div class="col-sm-12">
-        {{#if status}}
-          {{#if status.error}}
-            <div class="alert alert-danger">{{status.error}}</div>
+        {{#if this.status}}
+          {{#if this.status.error}}
+            <div class="alert alert-danger">{{this.status.error}}</div>
           {{else}}
-            {{#if status.need_decision}}
+            {{#if this.status.need_decision}}
               <div class="alert alert-warning">
                 {{t "You don't have permission to edit the linked board, but you can make a copy of it and move the button if you'd like." key="no_edit_yes_copy"}}
               </div>
@@ -46,7 +46,7 @@
                 <button class='btn btn-default' {{action "close"}} >{{t "Cancel" key="cancel"}}</button>
               </div>
             {{else}}
-              <div class="alert alert-info">{{status.message}}</div>
+              <div class="alert alert-info">{{this.status.message}}</div>
             {{/if}}
           {{/if}}
         {{else}}
@@ -61,7 +61,7 @@
     </div>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "swap_buttons"}} disabled={{pending}}>{{t "Swap Buttons" key="swap_buttons"}}</button>
-    <button class='btn btn-default' {{action "move_button"}} disabled={{pending}}>{{t "Move Button" key="move_button"}}</button>
+    <button class='btn btn-primary' {{action "swap_buttons"}} disabled={{this.pending}}>{{t "Swap Buttons" key="swap_buttons"}}</button>
+    <button class='btn btn-default' {{action "move_button"}} disabled={{this.pending}}>{{t "Move Button" key="move_button"}}</button>
   </div>
 {{/modal-dialog}}

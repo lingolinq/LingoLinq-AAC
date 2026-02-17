@@ -1,6 +1,6 @@
 <h2>{{t "Public Communication Goals" key="public_communication_goals"}}</h2>
-{{#if goals}}
-  {{#each goals as |goal|}}
+{{#if this.goals}}
+  {{#each this.goals as |goal|}}
     <div class='well goal' {{action "select_goal" goal}}>
       <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin: -10px 10px -10px 0; font-size: 40px; text-align: center; line-height: 20px;'>
         {{#if goal.badge_image_url}}
@@ -9,9 +9,9 @@
           <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
         {{/if}}
       </div>
-      {{#link-to "goals.goal" goal.id}}
+      <LinkTo @route="goals.goal" @model={{goal.id}}>
         {{goal.high_level_summary}}
-      {{/link-to}}
+      </LinkTo>
       {{#if goal.sequence}}
         <div class='details'>
           {{#if goal.template_stats.loop}}{{t "repeating" key="repeating"}}{{/if}}
@@ -26,22 +26,22 @@
     </div>
   {{/each}}
 {{else}}
-  {{#unless goals.loading}}
-    {{#unless goals.error}}
+  {{#unless this.goals.loading}}
+    {{#unless this.goals.error}}
       <p>{{t "No goals to show" key="no_goals"}}</p>
     {{/unless}}
   {{/unless}}
 {{/if}}
-{{#if goals.loading}}
+{{#if this.goals.loading}}
   <p>{{t "Loading goals..." key="loading_goals"}}</p>
-{{else if goals.error}}
+{{else if this.goals.error}}
   <p>{{t "There was an error loading goals" key="error_loading_goals_lower"}}</p>
 {{/if}}
 
-{{#if app_state.currentUser.permissions.admin_support_actions}}
+{{#if this.app_state.currentUser.permissions.admin_support_actions}}
   <h2>{{t "Global Goals" key="global_goals"}}</h2>
-  {{#if global_goals}}
-    {{#each global_goals as |goal|}}
+  {{#if this.global_goals}}
+    {{#each this.global_goals as |goal|}}
       <div class='well goal' {{action "select_goal" goal}}>
         <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin: -10px 10px -10px 0; font-size: 40px; text-align: center; line-height: 20px;'>
           {{#if goal.badge_image_url}}
@@ -50,9 +50,9 @@
             <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
           {{/if}}
         </div>
-        {{#link-to "goals.goal" goal.id}}
+        <LinkTo @route="goals.goal" @model={{goal.id}}>
           {{goal.high_level_summary}}
-        {{/link-to}}
+        </LinkTo>
         {{#if goal.sequence}}
           <div class='details'>
             {{#if goal.template_stats.loop}}{{t "repeating" key="repeating"}}{{/if}}
@@ -67,87 +67,87 @@
       </div>
     {{/each}}
   {{else}}
-    {{#unless global_goals.loading}}
-      {{#unless global_goals.error}}
+    {{#unless this.global_goals.loading}}
+      {{#unless this.global_goals.error}}
         <p>{{t "No goals to show" key="no_goals"}}</p>
       {{/unless}}
     {{/unless}}
   {{/if}}
-  {{#if global_goals.loading}}
+  {{#if this.global_goals.loading}}
     <p>{{t "Loading goals..." key="loading_goals"}}</p>
-  {{else if global_goals.error}}
+  {{else if this.global_goals.error}}
     <p>{{t "There was an error loading goals" key="error_loading_goals_lower"}}</p>
   {{/if}}
 {{/if}}
 
-{{#if new_goal}}
+{{#if this.new_goal}}
   <form class="form-horizontal" {{action "save_goal" on="submit"}}>
     <div class="form-group">
       <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
       <div class="col-sm-5">
-        {{input value=new_goal.summary class="form-control" id="summary" placeholder="short goal summary"}}
+        <Input @value={{this.new_goal.summary}} class="form-control" id="summary" placeholder="short goal summary" />
       </div>
     </div>
     <div class="form-group">
       <label for="description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
       <div class="col-sm-5">
-        {{textarea value=new_goal.description class="form-control" id="description" placeholder="longer, detailed description of the goal"}}
+        <Textarea @value={{this.new_goal.description}} class="form-control" id="description" placeholder="longer, detailed description of the goal" />
       </div>
     </div>
-    {{#unless new_goal.sequence}}
+    {{#unless this.new_goal.sequence}}
       <div class="form-group">
         <label for="global" class="col-sm-2 control-label">{{t "Global" key="global"}}</label>
         <div class="col-sm-5">
           <div class='checkbox big_checkbox'>
             <label>
-              {{input type="checkbox" checked=new_goal.global id="global"}}
+              <Input type="checkbox" @checked={{this.new_goal.global}} id="global" />
               {{t "This will be a global goal - all users can automatically earn badges for it" key="make_goal_global"}}
             </label>
           </div>
         </div>
       </div>
     {{/unless}}
-    {{#unless new_goal.global}}
+    {{#unless this.new_goal.global}}
       <div class="form-group">
         <label for="sequence" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=new_goal.sequence id="sequence"}}
+              <Input type="checkbox" @checked={{this.new_goal.sequence}} id="sequence" />
               {{t "This will be a sequence of goals" key="make_goal_sequence"}}
             </label>
           </div>
         </div>
       </div>
     {{/unless}}
-    {{#if new_goal.sequence}}
+    {{#if this.new_goal.sequence}}
       <div class="form-group">
         <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
         <div class="col-sm-5">
-          {{input value=new_goal.sequence_summary class="form-control" id="sequence_summary" placeholder="short sequence summary"}}
+          <Input @value={{this.new_goal.sequence_summary}} class="form-control" id="sequence_summary" placeholder="short sequence summary" />
         </div>
       </div>
       <div class="form-group">
         <label for="sequence_description" class="col-sm-2 control-label">{{t "Details" key="details"}}</label>
         <div class="col-sm-5">
-          {{textarea value=new_goal.sequence_description class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence"}}
+          <Textarea @value={{this.new_goal.sequence_description}} class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence" />
         </div>
       </div>
     {{/if}}
-    {{#unless new_goal.global}}
+    {{#unless this.new_goal.global}}
       <div class="form-group">
         <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key="auto_assessment"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=new_goal.auto_assessment id="auto_assessment"}}
+              <Input type="checkbox" @checked={{this.new_goal.auto_assessment}} id="auto_assessment" />
               {{t "Assess this goal daily based on usage data" key="assess_goal_daily"}}
             </label>
           </div>
         </div>
       </div>
-      {{#if new_goal.assessment_badge}}
-        {{badge-settings badge=new_goal.assessment_badge assessment=true}}
+      {{#if this.new_goal.assessment_badge}}
+        {{badge-settings badge=this.new_goal.assessment_badge assessment=true}}
       {{/if}}
     {{/unless}}
     <div class="form-group">
@@ -155,20 +155,20 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            {{input type="checkbox" checked=new_goal.badges_enabled id="badges"}}
+            <Input type="checkbox" @checked={{this.new_goal.badges_enabled}} id="badges" />
             {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
           </label>
         </div>
       </div>
     </div>
-    {{#if new_goal.badges_enabled}}
+    {{#if this.new_goal.badges_enabled}}
       <div class="form-group">
         <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
         <div class="col-sm-5">
-          {{input value=new_goal.badge_name class="form-control" id="badge_name" placeholder="optional badge name"}}
+          <Input @value={{this.new_goal.badge_name}} class="form-control" id="badge_name" placeholder="optional badge name" />
         </div>
       </div>
-      {{#each new_goal.badges as |badge index|}}
+      {{#each this.new_goal.badges as |badge index|}}
         {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
       {{/each}}
       <div class="form-group">
@@ -179,15 +179,15 @@
     {{/if}}
     <div class="form-group">
       <div class="col-sm-offset-2 col-sm-4">
-        <button type="submit" class="btn btn-primary" disabled={{status.saving}}>
-          {{#if status.saving}}
+        <button type="submit" class="btn btn-primary" disabled={{this.status.saving}}>
+          {{#if this.status.saving}}
             {{t "Creating Goal..." key="creating_goal"}}
           {{else}}
             {{t "Create Goal" key="create_goal"}}
           {{/if}}
         </button>
         <button type="button" class="btn btn-default" {{action "cancel_new"}}>{{t "Cancel" key="cancel"}}</button>
-        {{#if status.error}}
+        {{#if this.status.error}}
           <p class='text-danger'>{{t "There was an unexpected error creating the goal" key="error_creating_goal"}}</p>
         {{/if}}
       </div>
@@ -195,6 +195,6 @@
   </form>
 {{/if}}
 
-{{#if app_state.currentUser.permissions.admin_support_actions}}
+{{#if this.app_state.currentUser.permissions.admin_support_actions}}
   <button class='btn btn-default' {{action "new_goal"}}>{{t "New Public Goal" key="new_public_goal"}}</button>
 {{/if}}

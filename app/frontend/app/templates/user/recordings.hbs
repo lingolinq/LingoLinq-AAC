@@ -1,12 +1,12 @@
-{{#if app_state.currentUser.modeling_only}}
+{{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
-{{else if model.permissions.supervise}}
+{{else if this.model.permissions.supervise}}
   <h2>{{t "User Recordings" key="user_recordings"}}</h2>
-  {{#if recordings.loading}}
+  {{#if this.recordings.loading}}
     <p>{{t "Loading Recordings..." key="loading_recordings"}}</p>
-  {{else if recordings.error}}
+  {{else if this.recordings.error}}
     <p>{{t "Error loading recordings" key="error_loading_recordings"}}</p>
-  {{else if recordings}}
+  {{else if this.recordings}}
     <div class="table-responsive">
       <table class="table table-hover table-bordered">
         <thead>
@@ -20,12 +20,12 @@
           <tr>
             <td colspan="3">
               <div style='max-width: 300px;'>
-                {{input type="text" value=search_string class="form-control" placeholder="find recordings"}}
+                <Input type="text" @value={{this.search_string}} class="form-control" placeholder="find recordings" />
               </div>
             </td>
           </tr>
-          {{#if filtered_recordings}}
-            {{#each filtered_recordings as |sound|}}
+          {{#if this.filtered_recordings}}
+            {{#each this.filtered_recordings as |sound|}}
               {{#if sound.url}}
                 <tr>
                   <td>
@@ -33,7 +33,7 @@
                     <div class='text-muted' style='margin-left: 30px;'>
                       {{#if sound.transcription}}
                         {{sound.transcription}}
-                        {{#if model.permissions.edit}}
+                        {{#if this.model.permissions.edit}}
                           <a href="#" {{action "edit_sound" sound}}>{{t "edit" key="edit_lower"}}</a>
                         {{/if}}
                       {{else if sound.transcription_pending}}
@@ -61,7 +61,7 @@
                   </td>
                   <td style='width: 150px;'>
                     <a href={{sound.url}} class='btn btn-default' title={{t "download" key="download"}}><span class='glyphicon glyphicon-cloud-download'></span></a>
-                    {{#if model.permissions.edit}}
+                    {{#if this.model.permissions.edit}}
                       <button {{action "edit_sound" sound}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
                       <button {{action "delete_sound" sound}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
                     {{/if}}
@@ -84,9 +84,9 @@
     <button class='btn btn-default' {{action "batch_recording"}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default'>
-        {{#if upload_status.uploading}}
+        {{#if this.upload_status.uploading}}
           {{t "Uploading Recording(s)..." key="uploading_recordings"}}
-        {{else if upload_status.errored}}
+        {{else if this.upload_status.errored}}
           {{t "Error Upload Recording(s)" key="error_upload_recordings"}}
         {{else}}
           {{t "Upload Recording(s)" key="upload_recordings"}}
@@ -94,11 +94,11 @@
       </button>
       <input type="file" name="recording_upload" id="recording_upload">
     </span>
-    {{#if recordings.length}}
+    {{#if this.recordings.length}}
       <button class='btn btn-default' {{action "download_recordings"}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
     {{/if}}
   </div>
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key="not_authorized_for_access"}}</p>
 {{else}}
   {{login-form left=true prompt=true return=true}}

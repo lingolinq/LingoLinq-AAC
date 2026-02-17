@@ -1,0 +1,30 @@
+{{#modal-dialog action=(action "close") opening=(action "opening")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Import Board from HTML" key="import_board_from_html"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "Paste HTML from a LingoLinq board (speak or edit view) to create a copy. Right-click on the board area, then 'Inspect' or 'Inspect Element', and copy the outer container HTML." key="import_html_instructions"}}</p>
+    <div class="form-group">
+      <label for="import_html_name">{{t "Board name (optional)" key="board_name_optional"}}</label>
+      <Input @value={{this.name}} class="form-control" id="import_html_name" placeholder="Imported Board" />
+    </div>
+    <div class="form-group">
+      <label for="import_html_textarea">{{t "Board HTML" key="board_html"}}</label>
+      <Textarea @value={{this.html}} class="form-control" id="import_html_textarea" rows="12" placeholder="<div class='board'>...</div>" />
+    </div>
+    {{#if this.status.error}}
+      <div class="alert alert-danger">{{this.status.error}}</div>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <button {{action "importFromHtml"}} class="btn btn-primary" disabled={{this.status.saving}}>
+      {{#if this.status.saving}}
+        {{t "Importing..." key="importing"}}
+      {{else}}
+        {{t "Import" key="import"}}
+      {{/if}}
+    </button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}

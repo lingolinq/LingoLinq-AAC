@@ -3,7 +3,6 @@ import RSVP from 'rsvp';
 import DS from 'ember-data';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
 import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';

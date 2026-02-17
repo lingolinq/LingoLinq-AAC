@@ -1,68 +1,68 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    {{#if model.for_editing}}
+    {{#if this.model.for_editing}}
       <h3>{{t "Edit a Copy of this Board" key="edit_a_copy_of_board"}}</h3>
     {{else}}
       <h3>{{t "Make a Copy of this Board" key="make_a_copy_of_board"}}</h3>
     {{/if}}
   </div>
   <div class="modal-body">
-    <h4>{{t "Copy of " key="copy_of"}} {{ model.board.name }}</h4>
+    <h4>{{t "Copy of " key="copy_of"}} {{ this.model.board.name }}</h4>
     <div>
       <label class='form-control-static' style='display: inline-block;' for='board_name'>{{t "Name:" key="name_colon"}}</label>
       <span style='width: 200px; display: inline-block;'>
-        {{input type="text" class="form-control" id="board_name" value=board_name placeholder="Name for board copy"}}
+        <Input @type="text" class="form-control" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
       </span>
     </div>
     <div>
       <span style='width: 100%; display: inline-block;'>
         <span class='checkbox big_checkbox' style='margin-top: -5px;'>
           <label>
-            {{#if has_supervisees}}
+            {{#if this.has_supervisees}}
               {{t "Set as the User's Home Board (required for offline syncing)" key="set_as_new_home_board_offline"}}
             {{else}}
               {{t "Set as My Home Board (required for offline syncing)" key="set_as_new_home_board"}}
             {{/if}}
-            {{input type="checkbox" checked=set_as_home}}
+            <Input @type="checkbox" @checked={{this.set_as_home}} />
           </label>
         </span>
       </span>
     </div>
-    {{#if has_supervisees}}
+    {{#if this.has_supervisees}}
       <p>{{t "For which user would you like to make a copy of this board? If you are planning to use this board for multiple communicators, you should probably copy it for yourself and manually add it for each communicator." key="which-user"}}</p>
-      {{user-select select_id="currently_selected_id" buttons=true selection=currently_selected_id action=(action (mut currently_selected_id)) }}
+      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action (mut this.currently_selected_id)) }}
     {{/if}}
     <p>
-      {{#if loading}}
+      {{#if this.loading}}
         {{t "Checking user..." key="checking_user"}}
-      {{else if error}}
+      {{else if this.error}}
         {{t "User lookup failed, please try again" key="user_lookup_failed"}}
-      {{else if set_as_home }}
-      {{else if home_board}}
+      {{else if this.set_as_home }}
+      {{else if this.home_board}}
         {{t "This board is currently the user's home board. Do you want to use the new copy as the user's new home board?" key="copy_home_board"}}
-      {{else if in_board_set}}
+      {{else if this.in_board_set}}
         {{t "This board is part of the user's communication set. Do you want to use the new copy in the communication set instead of the original?" key="copy_upstream_board_links"}}
         {{t "This action could make copies of other boards in the communication set as well." key="more_copies_warning"}}
-      {{else if sidebar_board}}
+      {{else if this.sidebar_board}}
         {{t "This board is currently on the user's sidebar. Do you want to update the sidebar with the new copy?" key="copy_sidebar_board"}}
-      {{else if in_sidebar_set}}
+      {{else if this.in_sidebar_set}}
         {{t "This board is part of the user's sidebar set. Do you want to use the new copy in the sidebar instead of the original?" key="copy_upstream_sidebar_links"}}
         {{t "This action could make copies of other boards in the sidebar set as well." key="more_sidebar_copies_warning"}}
-      {{else if linked}}
+      {{else if this.linked}}
         {{t "This board is linked to other boards. Do you want to make a copy of these linked boards as well, or just copy this board without changing any of the links?" key="copy_downstream_board_links"}}
       {{/if}}
     </p>
-    {{#if self_currently_selected}}
-      {{#if model.known_supervisees}}
+    {{#if this.self_currently_selected}}
+      {{#if this.model.known_supervisees}}
         <p>
           {{t "Select any users to share this board and any links with them." key="select_sharing_supervisees"}}
           <ul class='list-unstyled' style='margin-top: 10px; margin-left: 30px;'>
-            {{#each model.known_supervisees as |supervisee|}}
+            {{#each this.model.known_supervisees as |supervisee|}}
               <li>
                 <div class="checkbox big_checkbox" style='margin: 0;'>
                 <label style={{if supervisee.share "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
-                  {{input type="checkbox" checked=supervisee.share}}
+                  <Input @type="checkbox" @checked={{supervisee.share}} />
                   <img src={{supervisee.avatar_url}} style="height: 30px; max-width: 30px;">
                   {{supervisee.user_name}}
                 </label>
@@ -74,27 +74,27 @@
       {{/if}}
     {{/if}}
 
-    {{#if currently_selected_id}}
+    {{#if this.currently_selected_id}}
       <div>
         <label for="symbol_library" style='display: inline-block; padding-right: 5px;' ><strong>{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</strong></label>
         <div style='display: inline-block; width: 250px;'>
-          {{bound-select select_class="form-control" select_id="symbol_library" content=symbol_libraries selection=symbol_library action=(action (mut symbol_library)) }}
+          {{bound-select select_class="form-control" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action (mut this.symbol_library)) }}
         </div>
       </div>
     {{/if}}
 
-    {{#if show_more_options}}
+    {{#if this.show_more_options}}
       <div style='margin-top: 5px;'>
         <label class='form-control-static' style='display: inline-block;' for='board_prefix'>{{t "Prefix:" key="prefix"}}</label>
         <span style='width: 100px; display: inline-block;'>
-          {{input type="text" class="form-control" id="board_prefix" value=board_prefix placeholder="Prefix"}}
+          <Input @type="text" class="form-control" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
         </span>
         <span style='font-style: italic;'>{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</span>
       </div>
       <div class="row">
         <div class='col-sm-12'><div class="checkbox big_checkbox">
           <label style='font-weight: normal;'>
-            {{input type="checkbox" checked=public}}
+            <Input @type="checkbox" @checked={{this.public}} />
             &nbsp;&nbsp;{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}
           </label>
         </div></div>
@@ -102,49 +102,49 @@
       <div class="row">
         <div class='col-sm-12'><div class="checkbox big_checkbox">
           <label style='font-weight: normal;'>
-            {{input type="checkbox" checked=translate}}
+            <Input @type="checkbox" @checked={{this.translate}} />
             &nbsp;&nbsp;{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}
           </label>
         </div></div>
       </div>
-      {{#if allow_new_user}}
-        {{#if model.board.permissions.edit}}
+      {{#if this.allow_new_user}}
+        {{#if this.model.board.permissions.edit}}
           <div class="row">
             <div class='col-sm-12'><div class="checkbox big_checkbox">
               <label style='font-weight: normal; color: #888;'>
-                {{input type="checkbox" checked=new_owner}}
+                <Input @type="checkbox" @checked={{this.new_owner}} />
                 &nbsp;&nbsp;{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}
               </label>
             </div></div>
           </div>
         {{/if}}
       {{/if}}
-      {{#if model.board.permissions.edit}}
+      {{#if this.model.board.permissions.edit}}
         <div class="row">
           <div class='col-sm-12'><div class="checkbox big_checkbox">
             <label style='font-weight: normal; color: #888;'>
-              {{input type="checkbox" checked=disconnect}}
+              <Input @type="checkbox" @checked={{this.disconnect}} />
               &nbsp;&nbsp;{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}
             </label>
           </div></div>
         </div>
       {{/if}}
-      {{#if translate}}
+      {{#if this.translate}}
         <div class="row" style='margin-top: 30px;'>
           <label class="col-sm-4 control-label" for="translate_locale">
             {{t "Language:" key="language_colon"}}
           </label>
           <div class="col-sm-4">
-            {{bound-select select_class="form-control" select_id="translate_locale" content=locales selection=translate_locale action=(action (mut translate_locale)) }}
+            {{bound-select select_class="form-control" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action (mut this.translate_locale)) }}
           </div>
         </div>
-      {{else if model.board.multiple_locales}}
+      {{else if this.model.board.multiple_locales}}
         <div class="row" style='margin-top: 30px;'>
           <label class="col-sm-4 control-label" for="default_locale">
             {{t "Default Language:" key="default_language_colon"}}
           </label>
           <div class="col-sm-4">
-            {{bound-select select_class="form-control" select_id="default_locale" content=model.board.readable_locales selection=default_locale action=(action (mut default_locale)) }}
+            {{bound-select select_class="form-control" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(action (mut this.default_locale)) }}
           </div>
         </div>
       {{/if}}
@@ -155,24 +155,24 @@
         </label>
       </div>
     {{/if}}
-    {{#if model.board.protected_material}}
+    {{#if this.model.board.protected_material}}
       <p class='text-warning'>{{t "NOTE: This board has premium content, any users who access it without the same premium access will see free alternatives instead." key="premium_content_reminder"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    {{#if set_as_home}}
+    {{#if this.set_as_home}}
       <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as Full Board Set" key="copy_linked_boards_as"}}</button>
-    {{else if home_board}}
+    {{else if this.home_board}}
       <div class="btn-group dropup">
         <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as New Home Board" key="copy_linked_boards_as_home"}}</button>
       </div>
       <CopyJustThisBoard @parent={{this}} />
-    {{else if sidebar_board}}
+    {{else if this.sidebar_board}}
       <div class="btn-group dropup">
         <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key="copy_linked_boards_to_sidebar"}}</button>
       </div>
       <CopyJustThisBoard @parent={{this}} />
-    {{else if in_board_set}}
+    {{else if this.in_board_set}}
       <div class="btn-group dropup">
         <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
           {{t "Copy Into the Communication Set" key="use_new_copy"}} <span class="caret"></span>
@@ -183,7 +183,7 @@
         </ul>
       </div>
       <CopyJustThisBoard @parent={{this}} />
-    {{else if in_sidebar_set}}
+    {{else if this.in_sidebar_set}}
       <div class="btn-group dropup">
         <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
           {{t "Copy Into the Sidebar Set" key="use_new_sidebar_copy"}} <span class="caret"></span>
@@ -194,7 +194,7 @@
         </ul>
       </div>
       <CopyJustThisBoard @parent={{this}} />
-    {{else if linked}}
+    {{else if this.linked}}
       <button class='btn btn-primary' {{action "tweakBoard" "links_copy"}}>{{t "Copy the Full Board Set" key="copy_linked_boards"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{else}}

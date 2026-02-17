@@ -2204,25 +2204,54 @@ describe Api::UsersController, :type => :controller do
       assert_not_found('asdf')
     end
     
-    it 'should require admin permission' do
+    it "should allow a user to check their own daily use when a log exists" do
       token_user
-      get 'daily_use', params: {:user_id => @user.global_id}
+      d = Device.create(:user => @user)
+      LogSession.process_as_follow_on({
+        'type' => 'daily_use',
+        'events' => [{'date' => Date.today.iso8601, 'active' => true}]
+      }, {:device => d, :user => @user, :author => @user})
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log']).to_not eq(nil)
+    end
+
+    it "should return error when user has no daily_use log" do
+      token_user
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('No daily_use log found for this user')
+    end
+
+    it "should not allow a supervisor without admin_support_actions to check another user's daily use" do
+      token_user
+      u = User.create
+      User.link_supervisor_to_user(@user, u)
+      get :daily_use, params: {:user_id => u.global_id}
       assert_unauthorized
     end
-    
-    it 'should return nothing if data not available' do
+
+    it "should allow an org admin to check a user's daily use" do
       token_user
       o = Organization.create(:admin => true)
       o.add_manager(@user.user_name, true)
-      get 'daily_use', params: {:user_id => @user.global_id}
-      assert_error('no data available', 400)
+      u = User.create
+      d = Device.create(:user => u)
+      LogSession.process_as_follow_on({
+        'type' => 'daily_use',
+        'events' => [{'date' => Date.today.iso8601, 'active' => true}]
+      }, {:device => d, :user => u, :author => u})
+      get :daily_use, params: {:user_id => u.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log']).to_not eq(nil)
     end
 
     it 'should return data if available' do
       token_user
       d = Device.create(:user => @user)
-      o = Organization.create(:admin => true)
-      o.add_manager(@user.user_name, true)
       log = LogSession.process_as_follow_on({
         'type' => 'daily_use',
         'events' => [
@@ -3356,4 +3385,6 @@ describe Api::UsersController, :type => :controller do
       expect(json[1]['id']).to eq(b2.global_id)
     end
   end
+
+
 end

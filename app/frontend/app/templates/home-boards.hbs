@@ -1,10 +1,10 @@
 <h2>{{t "Finding the Right Home Board" key="finding_a_home_board"}}</h2>
-{{#if advanced}}
+{{#if this.advanced}}
   <p>{{t "When using a communication tool, the home board is your starting point to say some things quickly but also jump off into deeper topics. It's important to have a good starting place, but there's lots of different styles of communication boards out there, and it's not always clear which is the best. Every person is different. Here are some different styles of home boards with some detail about why they might be useful." key="finding_home_board1"}}</p>
   <p>{{t "When you find a home board that makes sense, hit the menu and choose \"Set as Home\" to make it your home board." key="finding_home_board2"}}</p>
   <div class='row'>
     {{board-picker}}
   </div>
 {{else}}
-  {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") select=(action "select_board")}}
+  {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") onSelect=(action "select_board")}}
 {{/if}}

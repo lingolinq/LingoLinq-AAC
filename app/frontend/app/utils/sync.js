@@ -29,6 +29,8 @@ import {
 } from '@ember/runloop';
 
 var sync = EmberObject.extend({
+  // Static service registry for explicit injection
+  // Services can be injected via sync.init_services({app_state, persistence, stashes})
   subscribe: function(opts) {
     if(window.crypto && window.crypto.subtle && !sync.user_token) {
       sync.user_token = Math.round(Math.random() * 10000);
@@ -104,7 +106,7 @@ var sync = EmberObject.extend({
             if(data.type == 'update') {
               sub.last_communicator_access = sub.last_communicator_access || ((new Date()).getTime() / 1000);
             }
-            var sup = app_state.get('sessionUser.known_supervisees').find(function(sup) { return sup.id == sub.user_id; });
+            var sup = sync.get_app_state().get('sessionUser.known_supervisees').find(function(sup) { return sup.id == sub.user_id; });
             LingoLinq.User.ws_accesses = LingoLinq.User.ws_accesses || {};
             if(sup) {
               var cutoff = ((new Date()).getTime() - (10 * 60 * 1000)) / 1000;
@@ -158,10 +160,14 @@ var sync = EmberObject.extend({
     return res;
   },
   connect: function(user) {
-    if(!app_state || !app_state.get || !stashes || !stashes.get || !stashes.get('ws_url')) {
+    var app_state_svc = sync.get_app_state();
+    var stashes_svc = sync.get_stashes();
+    if(!app_state_svc || !app_state_svc.get || !stashes_svc || !stashes_svc.get || !stashes_svc.get('ws_url')) {
       return new Promise(function(res, rej) {
         var check = function() {
-          if(!app_state || !app_state.get || !stashes || !stashes.get || !stashes.get('ws_url')) {
+          var app_state_svc = sync.get_app_state();
+          var stashes_svc = sync.get_stashes();
+          if(!app_state_svc || !app_state_svc.get || !stashes_svc || !stashes_svc.get || !stashes_svc.get('ws_url')) {
             setTimeout(check, 500);
           } else {
             sync.connect(user).then(function(success) {
@@ -176,12 +182,12 @@ var sync = EmberObject.extend({
     }
     var connect_promise = new Promise(function(resolve, reject) {
       if(!window.ActionCable) { return reject({error: 'no ActionCable'}); }
-      if(stashes.get('ws_url') && !sync.con) {
-        sync.con = window.ActionCable.createConsumer(stashes.get('ws_url'));
+      if(sync.get_stashes().get('ws_url') && !sync.con) {
+        sync.con = window.ActionCable.createConsumer(sync.get_stashes().get('ws_url'));
       }
-      user = user || app_state.get('sessionUser');
+      user = user || sync.get_app_state().get('sessionUser');
       if(!user) { return; }
-      var manual_follow = user.get('id') != app_state.get('sessionUser.id');
+      var manual_follow = user.get('id') != sync.get_app_state().get('sessionUser.id');
       var supporter_device = user.get('supporter_view');
       var connected = user.get('sync_connected') || 0;
       var now = (new Date()).getTime();
@@ -192,9 +198,9 @@ var sync = EmberObject.extend({
         if(sync.pending_connect_for[user.get('id')]) { return sync.pending_connect_for[user.get('id')]; }
         sync.pending_connect_for[user.get('id')] = connect_promise;
         console.log("LINGOLINQ: ws connect");
-        persistence.ajax('/api/v1/users/self/ws_settings', {type: 'GET'}).then(function(res) {
+        sync.get_persistence().ajax('/api/v1/users/self/ws_settings', {type: 'GET'}).then(function(res) {
           res.retrieved = (new Date()).getTime();
-          var cached_settings = stashes.get('ws_settings');
+          var cached_settings = sync.get_stashes().get('ws_settings');
           // Reuse cached settings if not too old so
           // we don't lose the existing pairing
           if(cached_settings && cached_settings.user_id == res.user_id && cached_settings.retrieved && cached_settings.retrieved > (res.retrieved - (3 * 60 * 60 * 1000))) {
@@ -202,9 +208,9 @@ var sync = EmberObject.extend({
           }
           res = Object.assign({}, res);
           delete res['meta'];
-          if(user.get('id') == app_state.get('sessionUser.id')) {
+          if(user.get('id') == sync.get_app_state().get('sessionUser.id')) {
             // Store settings for the session user
-            stashes.persist('ws_settings', res);
+            sync.get_stashes().persist('ws_settings', res);
             // ..and retry all manual connections at the same time
             var manuals = sync.con.subscriptions.subscriptions.filter(function(sub) { return sub.manual_user; });
             manuals.forEach(function(sub) {
@@ -268,7 +274,7 @@ var sync = EmberObject.extend({
       if(sync.user_lookups[ws_user_id]) {
         resolve(sync.user_lookups[ws_user_id]);
       } else {
-        persistence.ajax("/api/v1/users/" + encodeURIComponent(ws_user_id) + "/ws_lookup", {type: 'GET'}).then(function(user) {
+        sync.get_persistence().ajax("/api/v1/users/" + encodeURIComponent(ws_user_id) + "/ws_lookup", {type: 'GET'}).then(function(user) {
           sync.user_lookups[ws_user_id] = user;
           resolve(user);
         }, function(err) {
@@ -280,9 +286,9 @@ var sync = EmberObject.extend({
   handle_message: function(data) {
     sync.user_lookup(data.sender_id).then(function(user) {
       var valid_message = false;
-      if(app_state.get('pairing.user.id') == user.user_id) {
+      if(sync.get_app_state().get('pairing.user.id') == user.user_id) {
         valid_message = true;
-      } else if((app_state.get('followers.active') || []).find(function(u) { return u.user_id == user.user_id; })) {
+      } else if((sync.get_app_state().get('followers.active') || []).find(function(u) { return u.user_id == user.user_id; })) {
         valid_message = true;
       }
       if(valid_message) {
@@ -317,22 +323,22 @@ var sync = EmberObject.extend({
       speecher.click('partner_end');
       // Send unpair messages for the next 60 seconds
       var other_user_id = sync.current_pairing.other_user_id;
-      app_state.set('unpaired', other_user_id);
+      sync.get_app_state().set('unpaired', other_user_id);
       setTimeout(function() {
-        if(app_state.get('unpaired') == other_user_id) {
-          app_state.set('unpaired', null);
+        if(sync.get_app_state().get('unpaired') == other_user_id) {
+          sync.get_app_state().set('unpaired', null);
         }
       }, 60000)
 
       // Remove the paired partner from the list of followers
-      var follow_stamps = Object.assign({}, app_state.get('followers') || {});
+      var follow_stamps = Object.assign({}, sync.get_app_state().get('followers') || {});
       delete follow_stamps[other_user_id];
       follow_stamps.active = (follow_stamps.active || []).filter(function(u) { return u.user_id != other_user_id; });
-      app_state.set('followers', follow_stamps);
+      sync.get_app_state().set('followers', follow_stamps);
       sync.current_pairing = null;  
-    } else if(app_state.get('pairing.partner')) {
+    } else if(sync.get_app_state().get('pairing.partner')) {
       speecher.click('partner_end');
-      var user_id = app_state.get('pairing.communicator_id');
+      var user_id = sync.get_app_state().get('pairing.communicator_id');
       var tally = 0;
       var send_unpair = function() {
         tally++;
@@ -343,20 +349,20 @@ var sync = EmberObject.extend({
       };
       send_unpair();
     }
-    app_state.set('pairing', null);
+    sync.get_app_state().set('pairing', null);
   },
   end_follows: function() {
     // Send a couple times to the room that follows are being disabled
-    sync.message(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), 'end_follows');
+    sync.message(sync.get_app_state().get('referenced_user.id') || sync.get_app_state().get('currentUser.id'), 'end_follows');
   },
   pair_as: function(role, user_id, other_ws_user_id, pair_code) {
     if(role == 'none') {
       // if already pairing for the specified user_id, end it
       var pair_to_end = sync.current_pairing && sync.current_pairing.room_user_id == user_id;
-      pair_to_end = pair_to_end || (app_state.get('pairing.user_id') == user_id && pair_code == 'manual_end');
+      pair_to_end = pair_to_end || (sync.get_app_state().get('pairing.user_id') == user_id && pair_code == 'manual_end');
       if(pair_to_end) {
         speecher.click('partner_end');
-        app_state.set('pairing', null);
+        sync.get_app_state().set('pairing', null);
         sync.current_pairing = null;
         sync.check_following(other_ws_user_id, true);
       }
@@ -377,11 +383,11 @@ var sync = EmberObject.extend({
       };
       // set pairing state
       LingoLinq.store.findRecord('user', other_user.user_id).then(function(u) {
-        var communicator_id = role == 'partner' ? u.get('id') : app_state.get('sessionUser.id');
+        var communicator_id = role == 'partner' ? u.get('id') : sync.get_app_state().get('sessionUser.id');
         if(role == 'partner') {
           speecher.click('partner_start');
         }
-        app_state.set('pairing', {partner: role == 'partner', model: true, user_id: u.get('id'), user: u, communicator_id: communicator_id});
+        sync.get_app_state().set('pairing', {partner: role == 'partner', model: true, user_id: u.get('id'), user: u, communicator_id: communicator_id});
       });
     });
   },
@@ -390,7 +396,7 @@ var sync = EmberObject.extend({
     sync.con.subscriptions.subscriptions.forEach(function(sub) {
       var opts = {
         type: 'keepalive', 
-        following: (app_state.get('pairing.user_id') == sub.user_id)
+        following: (sync.get_app_state().get('pairing.user_id') == sub.user_id)
       };
       if(!sub.secured && sync.user_token) {
         opts.token_secret = sync.user_token;
@@ -406,7 +412,7 @@ var sync = EmberObject.extend({
       lookup = sync.user_lookup(partner_id);
     }
     lookup.then(function(user) {
-      var follow_stamps = Object.assign({}, app_state.get('followers') || {});
+      var follow_stamps = Object.assign({}, sync.get_app_state().get('followers') || {});
       if(user) {
         follow_stamps[user.user_id] = {
           user: user,
@@ -421,7 +427,7 @@ var sync = EmberObject.extend({
       // NOTE: There is an assumption here that only authorized 
       // supervisors would be able to join the room in the 
       // first place, so we don't need to check their permissions
-      if(app_state.get('pairing') || app_state.get('sessionUser.preferences.remote_modeling_auto_follow') || follow_stamps.allowed) {
+      if(sync.get_app_state().get('pairing') || sync.get_app_state().get('sessionUser.preferences.remote_modeling_auto_follow') || follow_stamps.allowed) {
         // Already broadcasting
         var prior_active_followers = (follow_stamps.active || []).length;
         follow_stamps.active = [];
@@ -429,7 +435,7 @@ var sync = EmberObject.extend({
           // Add all recently-updated followers to the list
           if(follow_stamps[key] && follow_stamps[key].last_update > (now - (5 * 60 * 1000))) {
             // ..Unless they were just unpaired or are the pairing partner
-            if(follow_stamps[key].user && app_state.get('unpaired') != follow_stamps[key].user.user_id && (sync.current_pairing || {}).other_user_id != follow_stamps[key].user.user_id) {
+            if(follow_stamps[key].user && sync.get_app_state().get('unpaired') != follow_stamps[key].user.user_id && (sync.current_pairing || {}).other_user_id != follow_stamps[key].user.user_id) {
               follow_stamps.active.push(follow_stamps[key].user);
             }
           }
@@ -444,13 +450,13 @@ var sync = EmberObject.extend({
         // If this user hasn't asked to follow before
         // during this session, or it's been five minutes
         // since the last rejection, show a prompt
-        if(user && app_state.get('sessionUser.request_alert.user') != user) {
-          app_state.set('sessionUser.request_alert', {follow: true, user: user});
+        if(user && sync.get_app_state().get('sessionUser.request_alert.user') != user) {
+          sync.get_app_state().set('sessionUser.request_alert', {follow: true, user: user});
         }
 
       }
-      if(app_state.get('speak_mode')) {
-        app_state.set('followers', follow_stamps);
+      if(sync.get_app_state().get('speak_mode')) {
+        sync.get_app_state().set('followers', follow_stamps);
       }
       // sync.confirm_pair(message.data.pair_code, message.data.partner_id);
     }, function(err) { });
@@ -466,18 +472,18 @@ var sync = EmberObject.extend({
     var update = {
       type: 'update',
       update_id: update_id,
-      last_action: app_state.get('last_activation'),
-      speak_mode: app_state.get('speak_mode')
+      last_action: sync.get_app_state().get('last_activation'),
+      speak_mode: sync.get_app_state().get('speak_mode')
     };
-    if(!app_state.get('sessionUser.preferences.remote_modeling') && app_state.get('sessionUser.id') == user_id) {
+    if(!sync.get_app_state().get('sessionUser.preferences.remote_modeling') && sync.get_app_state().get('sessionUser.id') == user_id) {
       // If remote support is completely disabled, 
       // (as the communicator) don't send anything
       return RSVP.reject();
     }
-    if(app_state.get('pairing') || app_state.get('sessionUser.preferences.remote_modeling_auto_follow') || app_state.get('followers.allowed')) {
+    if(sync.get_app_state().get('pairing') || sync.get_app_state().get('sessionUser.preferences.remote_modeling_auto_follow') || sync.get_app_state().get('followers.allowed')) {
       // If paired, or allowing auto-followers, include current state
-      if(app_state.get('speak_mode')) {
-        if(app_state.get('pairing.model') || app_state.get('sessionUser.id') == user_id) {
+      if(sync.get_app_state().get('speak_mode')) {
+        if(sync.get_app_state().get('pairing.model') || sync.get_app_state().get('sessionUser.id') == user_id) {
           // Only send state if modeling or if you're the communicator
           if(extra && extra.button) {
             var button_obj = extra.button
@@ -496,23 +502,23 @@ var sync = EmberObject.extend({
           }
           if(!extra || extra.button) {
             update.board_state = {
-              id: app_state.get('currentBoardState.id'),
-              show_all: !!stashes.get('all_buttons_enabled'),
-              level: app_state.get('currentBoardState.level'),
+              id: sync.get_app_state().get('currentBoardState.id'),
+              show_all: !!sync.get_stashes().get('all_buttons_enabled'),
+              level: sync.get_app_state().get('currentBoardState.level'),
             };
-            if(app_state.get('focus_words.list') && app_state.get('focus_words.user_id') == app_state.get('sessionUser.id')) {
-              update.board_state.focus_words = app_state.get('focus_words.list');
+            if(sync.get_app_state().get('focus_words.list') && sync.get_app_state().get('focus_words.user_id') == sync.get_app_state().get('sessionUser.id')) {
+              update.board_state.focus_words = sync.get_app_state().get('focus_words.list');
             }
           }
         }
-        if(app_state.get('pairing') && sync.current_pairing) {
+        if(sync.get_app_state().get('pairing') && sync.current_pairing) {
           update.paired = true;
         }
-        if(app_state.get('unpaired')) {
+        if(sync.get_app_state().get('unpaired')) {
           // For 60 seconds after manual unpairing,
           // keep sending the unpair message to
           // ensure it gets delivered
-          if(!app_state.get('pairing')) {
+          if(!sync.get_app_state().get('pairing')) {
             delete update.paired;
             update.unpaired = true;
           }
@@ -526,7 +532,7 @@ var sync = EmberObject.extend({
     } else {
 
     }
-    if(update.board_state && !update.current_action && update.board_state.id == sync.last_board_id_assertion && app_state.get('sessionUser.id') != user_id) {
+    if(update.board_state && !update.current_action && update.board_state.id == sync.last_board_id_assertion && sync.get_app_state().get('sessionUser.id') != user_id) {
       alert('bad loop');
       // When someone else navigates you to a board,
       // don't assert that board or you can end up
@@ -588,16 +594,16 @@ var sync = EmberObject.extend({
         if(model_handled) { return; }
         model_handled = true;
         obj.remote_model = true;
-        sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {button: obj});
+        sync.send_update(sync.get_app_state().get('referenced_user.id') || sync.get_app_state().get('currentUser.id'), {button: obj});
       }, 500);
       modal.highlight($button, {clear_overlay: true, highlight_type: 'model', icon: 'send' }).then(function(highlight) {
         var phrase = null;
-        if((button.add_vocalization || button.add_vocalization == null) && app_state.get('currentUser.supporter_view') && (stashes.get('logging_enabled') || app_state.get('currentUser.supervised_units.length'))) {
+        if((button.add_vocalization || button.add_vocalization == null) && sync.get_app_state().get('currentUser.supporter_view') && (sync.get_stashes().get('logging_enabled') || sync.get_app_state().get('currentUser.supervised_units.length'))) {
           // unit supervisors and those with logging enabled 
           // with have their models explicitly tracked for reporting
           phrase = button.vocalization || button.label;
         }
-        stashes.track_daily_event('remote_models', phrase);
+        sync.get_stashes().track_daily_event('remote_models', phrase);
         model_handled = true;
         if(highlight && highlight.pending) {
           highlight.pending();
@@ -611,7 +617,7 @@ var sync = EmberObject.extend({
           confirmed = true;
           modal.close_highlight();
         }, 5000);
-        sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {button: obj}).then(function() {
+        sync.send_update(sync.get_app_state().get('referenced_user.id') || sync.get_app_state().get('currentUser.id'), {button: obj}).then(function() {
           if(confirmed) { return; }
           confirmed = true;
           modal.close_highlight();
@@ -628,17 +634,17 @@ var sync = EmberObject.extend({
 
   },
   allow_followers: function() {
-    var follow_stamps = app_state.get('followers') || {};
+    var follow_stamps = sync.get_app_state().get('followers') || {};
     follow_stamps.allowed = true;
-    app_state.set('followers', follow_stamps);
+    sync.get_app_state().set('followers', follow_stamps);
     setTimeout(function() {
       sync.check_following();
-      sync.send_update(app_state.get('sessionUser.id'));
+      sync.send_update(sync.get_app_state().get('sessionUser.id'));
     }, 500);
   },
   confirm_pair: function(code, partner_id) {
     speecher.click('partner_start');
-    sync.send(app_state.get('sessionUser.id'), {
+    sync.send(sync.get_app_state().get('sessionUser.id'), {
       type: 'accept',
       pair_code: code,
       partner_id: partner_id
@@ -678,7 +684,7 @@ var sync = EmberObject.extend({
             promise.reject('timed out');
             sync.pair_code = null;
           } else {
-            var driving = (user_id == app_state.get('sessionUser.id') && app_state.get('sessionUser.supporter_view'));
+            var driving = (user_id == sync.get_app_state().get('sessionUser.id') && sync.get_app_state().get('sessionUser.supporter_view'));
             sync.send(user_id, {
               type: 'request',
               driving: driving,
@@ -694,21 +700,21 @@ var sync = EmberObject.extend({
   default_listen: function() {
     sync.listen('default_listeners', function(message) {
       var matched = false;
-      if(message.user_id == app_state.get('sessionUser.id')) {
+      if(message.user_id == sync.get_app_state().get('sessionUser.id')) {
         matched = true;
-        var auto_accept = app_state.get('sessionUser.preferences.remote_modeling_auto_accept');
+        var auto_accept = sync.get_app_state().get('sessionUser.preferences.remote_modeling_auto_accept');
         if(message.data.sender_id && message.data.sender_id.match(/^me\$/)) {
           auto_accept = true;
         }
         // Message in my room!
         if(message.type == 'pair_request') {
-          app_state.set('unpaired', null);
-          if(app_state.get('speak_mode')) {
+          sync.get_app_state().set('unpaired', null);
+          if(sync.get_app_state().get('speak_mode')) {
             // Someone sent a pair request
             // TODO: if requesting with yourself, auto-accept (driver mode)
-            if(!app_state.get('sessionUser.preferences.remote_modeling')) {
+            if(!sync.get_app_state().get('sessionUser.preferences.remote_modeling')) {
               // Reject if pairing is disabled
-              sync.send(app_state.get('sessionUser.id'), {
+              sync.send(sync.get_app_state().get('sessionUser.id'), {
                 type: 'reject',
                 pair_code: message.data.pair_code,
                 partner_id: message.data.partner_id
@@ -727,32 +733,32 @@ var sync = EmberObject.extend({
                 sync.handled_pair_codes = sync.handled_pair_codes.slice(-5);
                 sync.user_lookup(message.data.partner_id).then(function(user) {
                   // Note the pair request, wait for user response
-                  app_state.set('sessionUser.request_alert', {model: true, user: user, pair: message.data});
+                  sync.get_app_state().set('sessionUser.request_alert', {model: true, user: user, pair: message.data});
                   // sync.confirm_pair(message.data.pair_code, message.data.partner_id);
                 });
               }
             }
           } else {
-            sync.send(app_state.get('sessionUser.id'), {
+            sync.send(sync.get_app_state().get('sessionUser.id'), {
               type: 'reject',
               pair_code: message.data.pair_code,
               partner_id: message.data.partner_id
             });
           }
         } else if(message.type == 'query') {
-          if(auto_accept && !app_state.get('followers.allowed')) {
+          if(auto_accept && !sync.get_app_state().get('followers.allowed')) {
             sync.allow_followers();
           }
           // Someone asked for an update
           sync.send_update(message.user_id);
           sync.check_following(message.data.sender_id);
-          app_state.sync_send_utterance();
+          sync.get_app_state().sync_send_utterance();
         } else if(message.type == 'following') {
           sync.check_following(message.data.sender_id);
         } else if(message.type == 'confirm') {
           sync.check_following(message.data.sender_id);
         } else if(message.type == 'pair_confirm') {
-          app_state.sync_send_utterance();          
+          sync.get_app_state().sync_send_utterance();          
         } else if(message.type == 'unfollow') {
           // You are not paired with this user but they are 
           // done with you, so remove them from followers list
@@ -768,9 +774,9 @@ var sync = EmberObject.extend({
         }
       } else {
         // Check if it's for one of my supervisees
-        var sup = (app_state.get('sessionUser.all_supervisees') || app_state.get('sessionUser.supervisees')).find(function(s) { return s.id == message.user_id });
-        if(app_state.get('focused_user.id') == message.user_id) {
-          sup = app_state.get('focused_user');
+        var sup = (sync.get_app_state().get('sessionUser.all_supervisees') || sync.get_app_state().get('sessionUser.supervisees')).find(function(s) { return s.id == message.user_id });
+        if(sync.get_app_state().get('focused_user.id') == message.user_id) {
+          sup = sync.get_app_state().get('focused_user');
         }
         if(sup) {
           matched = true;
@@ -849,35 +855,35 @@ var sync = EmberObject.extend({
           var full_following = false, any_following = false;
           if(!modal.is_open()) {
             // Don't navigate when a modal is open
-            if(app_state.get('pairing.communicator_id') == message.user_id) {
+            if(sync.get_app_state().get('pairing.communicator_id') == message.user_id) {
               any_following = true;
               // Only update when it's for the room you're following/paired in
-              if(app_state.get('pairing.model')) {
+              if(sync.get_app_state().get('pairing.model')) {
                 // When modeling, we follow both directions
                 full_following = true;
-              } else if(app_state.get('pairing.user_id') == message.user_id) {
+              } else if(sync.get_app_state().get('pairing.user_id') == message.user_id) {
                 // Otherwise only the non-communicator should update
                 full_following = true;
               }
-            } else if((app_state.get('followers.active') || []).find(function(f) { return f.user_id == message.user_id; })) {
+            } else if((sync.get_app_state().get('followers.active') || []).find(function(f) { return f.user_id == message.user_id; })) {
               any_following = true;
             }
           }
 
           // TODO: warn if getting data from multiple devices at once
           // TODO: if paired, only listen to updates from the paired device
-          if(app_state.get('speak_mode') && any_following) {
+          if(sync.get_app_state().get('speak_mode') && any_following) {
             if(message.data.utterance && full_following) {
               var prefix = message.data.utterance.substring(0, 10);
               if(sync.get('last_utterance_prefix') != prefix) {
                 sync.set('last_utterance_prefix', prefix);
-                persistence.ajax('/api/v1/users/' + message.user_id + '/ws_decrypt', {
+                sync.get_persistence().ajax('/api/v1/users/' + message.user_id + '/ws_decrypt', {
                   type: 'POST',
                   data: {text: message.data.utterance}
                 }).then(function(res) {
                   try {
                     var voc = JSON.parse(res.decoded);
-                    stashes.set('working_vocalization', voc);
+                    sync.get_stashes().set('working_vocalization', voc);
                     utterance.set('rawButtonList', voc);
                     utterance.set_button_list();
                   } catch(e) { }
@@ -892,24 +898,24 @@ var sync = EmberObject.extend({
                   console.log("OTHER PERSON HIT A BUTTON", message.data);
                   sync.handle_action(message.data.current_action);
                 }
-                if(app_state.get('pairing.partner')) {
+                if(sync.get_app_state().get('pairing.partner')) {
                   if(message.data.board_state.level) {
-                    stashes.persist('board_level', message.data.board_state.level);
+                    sync.get_stashes().persist('board_level', message.data.board_state.level);
                     editManager.controller.set('preview_level', message.data.board_state.level);
                     editManager.controller.set('model.display_level', message.data.board_state.level);
                     update_render = true;
                   }
                   if(message.data.board_state.show_all != null) {
-                    stashes.persist('all_buttons_enabled', (message.data.board_state.show_all ? true : null));  
+                    sync.get_stashes().persist('all_buttons_enabled', (message.data.board_state.show_all ? true : null));  
                     update_render = true;
                   }
                   if(message.data.board_state.focus_words) {
                     if(message.data.board_state.focus_words.length > 0) {
-                      app_state.set('focus_words', {list: message.data.board_state.focus_words, focus_id: Math.random()});
+                      sync.get_app_state().set('focus_words', {list: message.data.board_state.focus_words, focus_id: Math.random()});
                       editManager.controller.model.set('focus_id', 'force_refresh');
                       update_render = true;
                     } else {
-                      app_state.set('focus_words', null);
+                      sync.get_app_state().set('focus_words', null);
                       editManager.controller.model.set('focus_id', 'blank');
                     }
                   } 
@@ -917,19 +923,19 @@ var sync = EmberObject.extend({
               });
             }
             // allow passive followers to send assertions (select focus words)
-            if(app_state.get('pairing') || app_state.get('followers')) {
+            if(sync.get_app_state().get('pairing') || sync.get_app_state().get('followers')) {
               // communicator should handle force settings when paired
               if(message.data.assertion) {
                 if(message.data.assertion.show_all != null) {
-                  stashes.persist('all_buttons_enabled', (message.data.assertion.show_all ? true : null));
+                  sync.get_stashes().persist('all_buttons_enabled', (message.data.assertion.show_all ? true : null));
                   update_render = true;
                 } else if(message.data.assertion.focus_words != null) {
                   if(message.data.assertion.focus_words.length > 0) {
-                    app_state.set('focus_words', {list: message.data.assertion.focus_words, focus_id: Math.random()});
+                    sync.get_app_state().set('focus_words', {list: message.data.assertion.focus_words, focus_id: Math.random()});
                     editManager.controller.model.set('focus_id', 'force_refresh');
                     update_render = true;
                   } else {
-                    app_state.set('focus_words', null);
+                    sync.get_app_state().set('focus_words', null);
                     editManager.controller.model.set('focus_id', 'blank');
                   }  
                 }
@@ -956,7 +962,7 @@ var sync = EmberObject.extend({
     if(action) {
       if(action.type == 'board_assertion') {
         var did_change = false;
-        if(app_state.get('currentBoardState.id') != action.board.get('id')) {
+        if(sync.get_app_state().get('currentBoardState.id') != action.board.get('id')) {
           did_change = true;
           speecher.click('click');
           sync.last_board_id_assertion = action.board.get('id');
@@ -971,19 +977,19 @@ var sync = EmberObject.extend({
         }, did_change ? 500 : 50);
       } else if(action.type == 'button') {
         console.log("BUTTON?")
-        if(app_state.get('currentBoardState.id') == action.board_id) {
+        if(sync.get_app_state().get('currentBoardState.id') == action.board_id) {
           var close_on_next = false;
           console.log("ACTION", action);
           var $button = document.querySelector(".button[data-id='" + action.id + "']");
           var hit_button = function() {
-            if(app_state.get('currentBoardState.id') == action.board_id) {
+            if(sync.get_app_state().get('currentBoardState.id') == action.board_id) {
               var btn = editManager.find_button(action.id);
               var obj = {
                 label: btn.label,
                 vocalization: btn.vocalization,
                 button_id: btn.id,
                 source: 'prompt',
-                board: {id: app_state.get('currentBoardState.id'), parent_id: app_state.get('currentBoardState.parent_id'), key: app_state.get('currentBoardState.key')},
+                board: {id: sync.get_app_state().get('currentBoardState.id'), parent_id: sync.get_app_state().get('currentBoardState.parent_id'), key: sync.get_app_state().get('currentBoardState.key')},
                 type: 'speak'        
               }
               app_state.activate_button(btn, obj);
@@ -1077,6 +1083,31 @@ var sync = EmberObject.extend({
     return true;
   }
 }).create({ });
+
+// Static service registry for explicit injection
+sync._services = {};
+
+// Getter methods for services with fallback to globals
+sync.get_app_state = function() {
+  return sync._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+};
+
+sync.get_persistence = function() {
+  return sync._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+};
+
+sync.get_stashes = function() {
+  return sync._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+};
+
+// Method to initialize services (called from app_state or other services)
+sync.init_services = function(services) {
+  if (services) {
+    if (services.app_state) { sync._services.app_state = services.app_state; }
+    if (services.persistence) { sync._services.persistence = services.persistence; }
+    if (services.stashes) { sync._services.stashes = services.stashes; }
+  }
+};
 
 window.sync = sync;
 export default sync;

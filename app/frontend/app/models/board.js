@@ -8,26 +8,28 @@ import $ from 'jquery';
 import DS from 'ember-data';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
 import Button from '../utils/button';
 import editManager from '../utils/edit_manager';
 import speecher from '../utils/speecher';
-import stashes from '../utils/_stashes';
 import capabilities from '../utils/capabilities';
 import boundClasses from '../utils/bound_classes';
 import word_suggestions from '../utils/word_suggestions';
 import ButtonSet from '../models/buttonset';
 import Utils from '../utils/misc';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
 import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
+import { inject as service } from '@ember/service';
 
 LingoLinq.Board = DS.Model.extend({
+  persistence: service('persistence'),
+  appState: service('app-state'),
+  stashes: service('stashes'),
+  
   init() {
     this._super(...arguments);
     this.check_for_copy();
@@ -76,6 +78,12 @@ LingoLinq.Board = DS.Model.extend({
   categories: DS.attr('raw'),
   home_board: DS.attr('boolean'),
   has_fallbacks: DS.attr('boolean'),
+  /** When loaded by key, the API returns global_id as id; we normalize to key and store backend id here. */
+  _actual_id: DS.attr('string'),
+  /** Backend global_id for comparisons (e.g. preferences.home_board.id). Use this when comparing with server ids. */
+  global_id: computed('id', '_actual_id', function() {
+    return this.get('_actual_id') || this.get('id');
+  }),
   valid_id: computed('id', function() {
     return !!(this.get('id') && this.get('id') != 'bad');
   }),
@@ -98,7 +106,10 @@ LingoLinq.Board = DS.Model.extend({
   }),
   icon_url_with_fallback: computed('image_url', function() {
     // TODO: way to fall back to something other than a broken image when disconnected
-    if(persistence.get('online')) {
+    if(!this || !this.persistence || typeof this.persistence.get !== 'function') {
+      return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
+    }
+    if(this.persistence.get('online')) {
       return this.get('image_data_uri') || this.get('image_url') || this.fallback_image_url;
     } else {
       return this.get('image_data_uri') || this.fallback_image_url;
@@ -111,7 +122,7 @@ LingoLinq.Board = DS.Model.extend({
     var result = [];
     var grid = this.get('grid');
     var buttons = this.get('buttons');
-    if(!grid || !buttons) { return []; }
+    if(!grid || !buttons || !grid.order || !Array.isArray(grid.order) || !grid.order.length || !grid.order[0] || !Array.isArray(grid.order[0])) { return []; }
     for(var idx = 0; idx < grid.order[0].length; idx++) {
       for(var jdx = 0; jdx < grid.order.length; jdx++) {
         var id = grid.order[jdx][idx];
@@ -154,6 +165,9 @@ LingoLinq.Board = DS.Model.extend({
     return !found_visible;
   }),
   variant_image_urls: function(skin) {
+    if(!this || !this.persistence) {
+      return this ? (this.get('image_urls') || {}) : {};
+    }
     var local_map = this.get('image_urls') || {};
     var unskins = {};
     this.get('buttons').forEach(function(btn) {
@@ -170,13 +184,13 @@ LingoLinq.Board = DS.Model.extend({
       if(key && local_map[key]) {
         var url = LingoLinq.Board.skinned_url(local_map[key], which_skin);
         // Use the un-skinned address if it's all that's in the cache
-        if(!persistence.url_cache[url] && persistence.url_cache[local_map[key]] && (!persistence.url_uncache || !persistence.url_uncache[local_map[key]])) {
+        if(!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
           url = local_map[key];
         }
         res[key] = url;
         if(unskins[key]) {
           url = LingoLinq.Board.skinned_url(local_map[key], which_skin, true);
-          if(!persistence.url_cache[url] && persistence.url_cache[local_map[key]] && (!persistence.url_uncache || !persistence.url_uncache[local_map[key]])) {
+          if(!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
             url = local_map[key];
           }
           res['ns_' + key] = url;
@@ -241,6 +255,7 @@ LingoLinq.Board = DS.Model.extend({
   local_images_with_license: computed('grid', 'buttons', function() {
     var images = LingoLinq.store.peekAll('image');
     var result = [];
+    var seen_ids = {};
     var missing = false;
     var fallbacks = this.get('fallback_images') || [];
     this.get('used_buttons').forEach(function(button) {
@@ -254,34 +269,13 @@ LingoLinq.Board = DS.Model.extend({
             } else {
               LingoLinq.store.findRecord('image', button.image_id).then(function(img) {
                 image.set('license', img.get('license'));
-              });    
+              });
             }
           }
-          result.push(image);
-          var need_reload = [];
-          (image.get('alternates') || []).forEach(function(alternate) {
-            var img = LingoLinq.store.createRecord('image')
-            img.set('url', alternate.url);
-            img.set('library', alternate.library);
-            if(!alternate.license) {
-              need_reload.push(img);
-            }
-            img.set('license', alternate.license);
-            result.push(img);
-          });
-          if(need_reload.length > 0) {
-            if(!image.reloading_promise) {
-              image.reloading_promise = image.reload();
-            }
-            image.reloading_promise.then(function(image) {
-              image.reloading_promise = null;
-              image.get('alternates').forEach(function(alt) {
-                var alternate = need_reload.find(function(a) { return a.get('library') == alt.library; })
-                if(alternate) {
-                  alternate.set('license', alt.license);
-                }
-              });
-            }, function() { });
+          // Only include each unique image once; alternates share the same license
+          if(!seen_ids[image.get('id')]) {
+            seen_ids[image.get('id')] = true;
+            result.push(image);
           }
         } else {
 //          console.log('missing image ' + button.image_id);
@@ -289,7 +283,6 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
     });
-    result = result.uniq();
     result.some_missing = missing;
     return result;
   }),
@@ -459,7 +452,7 @@ LingoLinq.Board = DS.Model.extend({
   contextualized_buttons: function(label_locale, vocalization_locale, history, capitalize, inflection_shift) {
     var t = (this.get('updated') || (new Date()))
     if(t.getTime) { t = t.getTime(); }
-    var state = JSON.stringify({hh: this.get('update_hash'), u: t, ll: label_locale, vl: vocalization_locale, h: history, c: capitalize, is: inflection_shift, sp: app_state.get('speak_mode'), fw: app_state.get('focus_words'), fid: this.get('focus_id'), uid: app_state.get('sessionUser.id'), ai: app_state.get('referenced_user.preferences.auto_inflections'), sk: app_state.get('referenced_user.preferences.skin'), r: this.get('current_revision')});
+    var state = JSON.stringify({hh: this.get('update_hash'), u: t, ll: label_locale, vl: vocalization_locale, h: history, c: capitalize, is: inflection_shift, sp: this.appState.get('speak_mode'), fw: this.appState.get('focus_words'), fid: this.get('focus_id'), uid: this.appState.get('sessionUser.id'), ai: this.appState.get('referenced_user.preferences.auto_inflections'), sk: this.appState.get('referenced_user.preferences.skin'), r: this.get('current_revision')});
     if(this.get('last_cb.state') == state) {
       return this.get('last_cb.results');
     }
@@ -478,26 +471,26 @@ LingoLinq.Board = DS.Model.extend({
       delete b['dim']; 
       if(b.hidden) { _this.set('hidden_buttons', true) }
     });
-    if(app_state.get('speak_mode')) {
+    if(this.appState.get('speak_mode')) {
       if((label_locale || '').split(/-|_/)[0] == (vocalization_locale || '').split(/-|_/)[0]) {
-        if(app_state.get('focus_words')) {
-          var ids = app_state.get('focus_words.board_ids') || {};
-          if(app_state.get('focus_words.user_id') == app_state.get('sessionUser.id') && ids[_this.get('id')]) {
+        if(this.appState.get('focus_words')) {
+          var ids = this.appState.get('focus_words.board_ids') || {};
+          if(this.appState.get('focus_words.user_id') == this.appState.get('sessionUser.id') && ids[_this.get('id')]) {
             var active_button_ids = {};
             ids[_this.get('id')].forEach(function(btn) { active_button_ids[btn.id.toString()] = true; });
             res.forEach(function(button) {
               button.dim = !active_button_ids[button.id.toString()];
             });
           } else {
-            if(!app_state.get('focus_words.pending')) {
-              app_state.set('focus_words.pending', true);
+            if(!this.appState.get('focus_words.pending')) {
+              this.appState.set('focus_words.pending', true);
               _this.load_button_set().then(function(set) {
-                set.find_routes(app_state.get('focus_words.list'), label_locale, _this.get('id'), app_state.get('sessionUser')).then(function(hash) {
-                  var board_ids = app_state.get('focus_words.board_ids');
-                  if(app_state.get('focus_words.user_id') != app_state.get('sessionUser.id')) {
+                set.find_routes(this.appState.get('focus_words.list'), label_locale, _this.get('id'), this.appState.get('sessionUser')).then(function(hash) {
+                  var board_ids = this.appState.get('focus_words.board_ids');
+                  if(this.appState.get('focus_words.user_id') != this.appState.get('sessionUser.id')) {
                     board_ids = {};
-                    if(app_state.get('focus_words')) {
-                      app_state.set('focus_words.user_id', app_state.get('sessionUser.id'));
+                    if(this.appState.get('focus_words')) {
+                      this.appState.set('focus_words.user_id', this.appState.get('sessionUser.id'));
                     }
                   }
                   for(var id in hash) {
@@ -505,9 +498,9 @@ LingoLinq.Board = DS.Model.extend({
                       board_ids[id] = hash[id];
                     }
                   }
-                  if(app_state.get('focus_words')) {
-                    app_state.set('focus_words.pending', false);
-                    app_state.set('focus_words.board_ids', board_ids);
+                  if(this.appState.get('focus_words')) {
+                    this.appState.set('focus_words.pending', false);
+                    this.appState.set('focus_words.board_ids', board_ids);
                     // force re-render
                     if(board_ids[_this.get('id')]) {
                       runLater(function() {
@@ -516,19 +509,19 @@ LingoLinq.Board = DS.Model.extend({
                     }
                   }
                 }, function() {
-                  if(app_state.get('focus_words')) {
-                    app_state.set('focus_words.pending', false);
+                  if(this.appState.get('focus_words')) {
+                    this.appState.set('focus_words.pending', false);
                   }
                 });
               }, function() {
-                if(app_state.get('focus_words')) {
-                  app_state.set('focus_words.pending', false);
+                if(this.appState.get('focus_words')) {
+                  this.appState.set('focus_words.pending', false);
                 }
               });  
             }
           }
         }
-        if(app_state.get('referenced_user.preferences.auto_inflections') || inflection_shift) {
+        if(this.appState.get('referenced_user.preferences.auto_inflections') || inflection_shift) {
           var inflection_types = editManager.inflection_for_types(history || [], label_locale, inflection_shift);
 
           res.forEach(function(button) {
@@ -546,14 +539,16 @@ LingoLinq.Board = DS.Model.extend({
                     var buttons = _this.get('button_set').redepth(_this.get('id'));
                     var match = buttons.find(function(b) { return b.ref_id == ref_id; });
                     if(match) {
-                      var urls = _this.variant_image_urls(app_state.get('referenced_user.preferences.skin')) || {};
+                      var urls = _this.variant_image_urls(_this.appState.get('referenced_user.preferences.skin')) || {};
                       // try to find cache of image
                       if(!urls[match.image_id]) {
                         // urls[match.image_id] = match.image;
-                        persistence.find_url(match.image, 'image').then(function(data_uri) {
-                          emberSet(match, 'image', data_uri);
-                          // urls[match.image_id] = data_uri;
-                        });  
+                        var p = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+                        if(p) {
+                          p.find_url(match.image, 'image').then(function(data_uri) {
+                            emberSet(match, 'image', data_uri);
+                          });
+                        }
                       }
                       inflection_types["btn" + button.id] = {
                         label: match.label,
@@ -628,8 +623,8 @@ LingoLinq.Board = DS.Model.extend({
         sound_ids.push(btn.sound_id);
       }
     });
-    promises.push(persistence.push_records('image', image_ids));
-    promises.push(persistence.push_records('sound', sound_ids));
+    promises.push(this.persistence.push_records('image', image_ids));
+    promises.push(this.persistence.push_records('sound', sound_ids));
 
     fetch_promise = RSVP.all_wait(promises).then(function() {
       _this.set('fetched', true);
@@ -657,11 +652,14 @@ LingoLinq.Board = DS.Model.extend({
     }
   ),
   prefetch_linked_boards: function() {
+    var _this = this;
     var boards = this.get('linked_boards');
+    var p = _this.persistence || (typeof window !== 'undefined' && window.persistence);
     runLater(function() {
+      if(!p) { return; }
       var board_ids = [];
       boards.forEach(function(b) { if(b.id) { board_ids.push(b.id); } });
-      persistence.push_records('board', board_ids).then(function(boards_hash) {
+      p.push_records('board', board_ids).then(function(boards_hash) {
         for(var idx in boards_hash) {
           if(idx && boards_hash[idx]) {
 //            boards_hash[idx].find_content_locally();
@@ -775,7 +773,7 @@ LingoLinq.Board = DS.Model.extend({
   non_author_starred: DS.attr('boolean'),
   star_or_unstar: function(star) {
     var _this = this;
-    persistence.ajax('/api/v1/boards/' + this.get('id') + '/stars', {
+    this.persistence.ajax('/api/v1/boards/' + this.get('id') + '/stars', {
       type: 'POST',
       data: {
         '_method': (star ? 'POST' : 'DELETE')
@@ -936,7 +934,7 @@ LingoLinq.Board = DS.Model.extend({
     // so if any of them are in-memory or in indexeddb, then we need to
     // reload or fetch them remotely to get the latest, updated version,
     // which will include the "my copy" information.
-    var do_reloads = app_state.get('board_reloads') || {};
+    var do_reloads = this.appState.get('board_reloads') || {};
     LingoLinq.store.peekAll('board').map(function(i) { return i; }).forEach(function(brd) {
       if(brd && affected_board_ids && affected_board_ids.indexOf(brd.get('id')) != -1) {
         if(!brd.get('isLoading') && !brd.get('isNew') && !brd.get('isDeleted')) {
@@ -947,13 +945,13 @@ LingoLinq.Board = DS.Model.extend({
     });
     affected_board_ids.forEach(function(id) {
       if(found_board_ids.indexOf(id) == -1) {
-        persistence.find('board', id).then(function() {
+        this.persistence.find('board', id).then(function() {
           // Mark as needing to be reloaded if ever retrieved
           do_reloads[id] = true;
         }, function() { });
       }
     });
-    app_state.set('board_reloads', do_reloads);
+    this.appState.set('board_reloads', do_reloads);
   },
   button_visible: function(button_id) {
     var grid = this.get('grid');
@@ -970,28 +968,31 @@ LingoLinq.Board = DS.Model.extend({
     return false;
   },
   checkForDataURL: function() {
+    if(!this || !this.persistence) {
+      return RSVP.reject({ error: 'board or persistence not ready' });
+    }
     this.set('checked_for_data_url', true);
     var url = this.get('icon_url_with_fallback');
     var _this = this;
     if(!this.get('image_data_uri') && LingoLinq.remote_url(url)) {
-      return persistence.find_url(url, 'image').then(function(data_uri) {
-        _this.set('image_data_uri', data_uri);
+      return this.persistence.find_url(url, 'image').then(function(data_uri) {
+        if(_this) { _this.set('image_data_uri', data_uri); }
         return _this;
       });
     } else if(url && url.match(/^data/)) {
       return RSVP.resolve(this);
     }
     var url = this.get('background.image');
-    if(!this.get('background_image_data_uri') && LingoLinq.remote_url(url)) {
-      persistence.find_url(url, 'image').then(function(data_uri) {
-        _this.set('background_image_data_uri', data_uri);
+    if(!this.get('background_image_data_uri') && LingoLinq.remote_url(url) && this.persistence) {
+      this.persistence.find_url(url, 'image').then(function(data_uri) {
+        if(_this) { _this.set('background_image_data_uri', data_uri); }
         return _this;
       });
     }
     var url = this.get('background.prompt.sound');
-    if(!this.get('background_sound_data_uri') && LingoLinq.remote_url(url)) {
-      persistence.find_url(url, 'sound').then(function(data_uri) {
-        _this.set('background_sound_data_uri', data_uri);
+    if(!this.get('background_sound_data_uri') && LingoLinq.remote_url(url) && this.persistence) {
+      this.persistence.find_url(url, 'sound').then(function(data_uri) {
+        if(_this) { _this.set('background_sound_data_uri', data_uri); }
         return _this;
       });
     }
@@ -1011,7 +1012,7 @@ LingoLinq.Board = DS.Model.extend({
   }),
   prompt: function(action) {
     var _this = this;
-    if(action == 'clear' || !app_state.get('speak_mode')) {
+    if(action == 'clear' || !this.appState.get('speak_mode')) {
       if(_this.get('reprompt_wait')) {
         runCancel(_this.get('reprompt_wait'));
         _this.set('reprompt_wait', null);
@@ -1109,13 +1110,22 @@ LingoLinq.Board = DS.Model.extend({
   }),
   load_button_set: function(force) {
     var _this = this;
+    var sync_buttons_from_set = function(button_set) {
+      var buttons = button_set && button_set.redepth(_this.get('id'));
+      var current_buttons = _this.get('buttons');
+      if(buttons && buttons.length && (!current_buttons || !current_buttons.length)) {
+        _this.set('buttons', buttons);
+        _this.get('appState').incrementProperty('board_reload_key');
+      }
+      return button_set;
+    };
     if(this.get('button_set_needs_reload')) {
       force = true;
       this.set('button_set_needs_reload', null);
     }
     if(this.get('button_set') && !force) {
       if(this.get('button_set.buttons') || this.get('button_set.root_url')) {
-        return this.get('button_set').load_buttons();
+        return this.get('button_set').load_buttons().then(sync_buttons_from_set);
       }
     }
     if(this.get('local_only')) { 
@@ -1127,7 +1137,7 @@ LingoLinq.Board = DS.Model.extend({
     var button_set = LingoLinq.store.peekRecord('buttonset', this.get('id'));
     if(button_set && !force && (button_set.get('buttons') || button_set.get('root_url'))) {
       this.set('button_set', button_set);
-      return button_set.load_buttons();
+      return button_set.load_buttons().then(sync_buttons_from_set);
     } else {
       var valid_button_set = null;
       // first check if there's a satisfactory higher-level buttonset that can be used instead
@@ -1143,7 +1153,7 @@ LingoLinq.Board = DS.Model.extend({
       if(valid_button_set && !force) {
         if(!_this.get('fresh') || valid_button_set.get('fresh')) {
           _this.set('button_set', valid_button_set);
-          return valid_button_set.load_buttons();  
+          return valid_button_set.load_buttons().then(sync_buttons_from_set);
         } else{
         }
       }
@@ -1155,7 +1165,7 @@ LingoLinq.Board = DS.Model.extend({
           return button_set.load_buttons(force);
         }
       });
-      res.then(null, function() { });
+      res.then(sync_buttons_from_set, function() { });
       return res;
     }
   },
@@ -1178,18 +1188,18 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_real_time_inflections: function() {
-    var history = stashes.get('working_vocalization') || [];
+    var history = this.stashes.get('working_vocalization') || [];
     // TODO: update inflections for linked buttons as well
     // for load_board settings add a new option to support inflections
-    var buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), history, false, app_state.get('inflection_shift'));
+    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), history, false, this.appState.get('inflection_shift'));
     var _this = this;
     var trans = this.get('translations') || {};
-    var loc = app_state.get('label_locale') == app_state.get('vocalization_locale') ? app_state.get('label_locale') : null;
+    var loc = this.appState.get('label_locale') == this.appState.get('vocalization_locale') ? this.appState.get('label_locale') : null;
     buttons.forEach(function(button) {
-      var cap = app_state.get('shift');
+      var cap = this.appState.get('shift');
       if((button.vocalization || '').match(/^:/)) {
       } else if(button.tweaked) {
-        var revert = (history.length == 0 && !app_state.get('inflection_shift'));
+        var revert = (history.length == 0 && !this.appState.get('inflection_shift'));
         var str = revert ? button.original_label : button.label;
         if(cap) {
           str = utterance.capitalize(str);
@@ -1207,7 +1217,7 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_word_suggestions: function(board_ids) {
-    var working = [].concat(stashes.get('working_vocalization') || []);
+    var working = [].concat(this.stashes.get('working_vocalization') || []);
     var in_progress = null;
     if(working.length > 0 && working[working.length - 1].in_progress) {
       in_progress = working.pop().label;
@@ -1220,8 +1230,8 @@ LingoLinq.Board = DS.Model.extend({
     var buttons = {};
     var inflection_buttons = {};
     var skip_labels = {};
-    var history = stashes.get('working_vocalization') || [];
-    var known_buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), history, false, null) || [];
+    var history = this.stashes.get('working_vocalization') || [];
+    var known_buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), history, false, null) || [];
     var inflections = [];
     LingoLinq.special_actions.forEach(function(act) {
       if(act.types) {
@@ -1266,7 +1276,7 @@ LingoLinq.Board = DS.Model.extend({
       if(last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
         var res = {};
         act.alter(null, last_button.label, last_button.label, res);
-        if(app_state.get('shift')) {
+        if(this.appState.get('shift')) {
           res.label = utterance.capitalize(res.label);
         }
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
@@ -1284,13 +1294,15 @@ LingoLinq.Board = DS.Model.extend({
       (result || []).forEach(function(sugg, idx) {
         if(suggested_buttons[idx]) {
           var suggestion_button = suggested_buttons[idx];
-          if(sugg.word && app_state.get('shift')) {
+          if(sugg.word && this.appState.get('shift')) {
             sugg = $.extend({}, sugg);
             sugg.word = utterance.capitalize(sugg.word);
           }
           _this.update_suggestion_button(suggestion_button, sugg);
+          var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
           sugg.image_update = function() {
-            persistence.find_url(sugg.image, 'image').then(function(data_uri) {
+            if(!persistenceForSugg) { return; }
+            persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
               sugg.data_image = data_uri;
               _this.update_suggestion_button(suggestion_button, sugg);
             }, function() {
@@ -1305,7 +1317,7 @@ LingoLinq.Board = DS.Model.extend({
     var _this = this;
     var lookups = _this.get('suggestion_lookups') || {};
     var brds = document.getElementsByClassName('board');
-    var font_family = Button.style(app_state.get('currentUser.preferences.device.button_style')).font_family;
+    var font_family = Button.style(this.appState.get('currentUser.preferences.device.button_style')).font_family;
     for(var idx = 0; idx < brds.length; idx++) {
       var brd = brds[idx];
       if(brd && brd.getAttribute('data-id') == _this.get('id')) {
@@ -1318,8 +1330,8 @@ LingoLinq.Board = DS.Model.extend({
             if(!suggestion.temporary) {
               lookups[button.id.toString()] = suggestion;
               url = suggestion.data_image || suggestion.image;
-              if(persistence.url_cache[url]) {
-                url = persistence.url_cache[url];
+              if(this.persistence.url_cache[url]) {
+                url = this.persistence.url_cache[url];
               }
             }
             var lbl = btn.getElementsByClassName('button-label')[0];
@@ -1329,7 +1341,7 @@ LingoLinq.Board = DS.Model.extend({
                 lbl.setAttribute('original-text', button.original_label || lbl.innerText);
               }
               lbl.classList.add('tweaked_label');
-              lbl.innerText = app_state.get('speak_mode') ? suggestion.word : button.label;
+              lbl.innerText = this.appState.get('speak_mode') ? suggestion.word : button.label;
               if(button.text_only) {
                 var width = parseInt(btn.style.width, 10);
                 var height = parseInt(btn.style.height, 10);
@@ -1348,7 +1360,7 @@ LingoLinq.Board = DS.Model.extend({
               if(!img.getAttribute('original-src')) {
                 img.setAttribute('original-src', img.src);
               }
-              img.src = app_state.get('speak_mode') ? url : (img.getAttribute('original-src') || url);
+              img.src = this.appState.get('speak_mode') ? url : (img.getAttribute('original-src') || url);
             }
           }
         }
@@ -1382,7 +1394,7 @@ LingoLinq.Board = DS.Model.extend({
   render_fast_html: function(size) {
     LingoLinq.log.track('redrawing');
 
-    var buttons = this.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
+    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), this.stashes.get('working_vocalization'), false, this.appState.get('inflection_shift'));
     var grid = this.get('grid');
     var ob = [];
     for(var idx = 0; idx < grid.rows; idx++) {
@@ -1424,7 +1436,7 @@ LingoLinq.Board = DS.Model.extend({
     }
 
     var _this = this;
-    var preferred_symbols = size.symbols || app_state.get('referenced_user.preferences.preferred_symbols') || (app_state.get('speak_mode') && stashes.get('session_preferred_symbols')) || 'original';
+    var preferred_symbols = size.symbols || this.appState.get('referenced_user.preferences.preferred_symbols') || (this.appState.get('speak_mode') && this.stashes.get('session_preferred_symbols')) || 'original';
 
     var button_html = function(button, pos) {
       var res = "";
@@ -1433,12 +1445,15 @@ LingoLinq.Board = DS.Model.extend({
       var original_image_url = vars[button.image_id];
       var pref_original_image_url = vars[button.image_id + '-' + preferred_symbols];
       var unvarianted_image_url = original_image_url && original_image_url.replace(/\.variant-.+\.(png|svg)$/, '');
-      var local_image_url = persistence.url_cache[pref_original_image_url || 'none'] || persistence.url_cache[original_image_url || 'none'] || persistence.url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      var persistence = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+      var url_cache = persistence && persistence.url_cache ? persistence.url_cache : {};
+      var local_image_url = url_cache[pref_original_image_url || 'none'] || url_cache[original_image_url || 'none'] || url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
-      var local_sound_url = persistence.url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none';
+      var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
+      var anchor_class = (opts.button_class && opts.button_class.toString().indexOf('button') !== -1) ? opts.button_class : ('button ' + (opts.button_class || ''));
 
-      res = res + "<a href='#' style='" + opts.button_style + "' class='" + opts.button_class + "' data-id='" + button.id + "' tabindex='0'>";
+      res = res + "<a href='#' style='" + opts.button_style + "' class='" + anchor_class + "' data-id='" + button.id + "' tabindex='0'>";
       res = res + "<div class='" + opts.action_class + "'>";
       res = res + "<span class='action'>";
       res = res + "<img src='" + opts.action_image + "' draggable='false' alt='" + opts.action_alt + "' />";
@@ -1446,7 +1461,9 @@ LingoLinq.Board = DS.Model.extend({
       res = res + "</div>";
 
       res = res + "<span style='" + opts.image_holder_style + "'>";
-      if(!app_state.get('currentUser.hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
+      var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
+      var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
+      if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
         res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
@@ -1476,7 +1493,9 @@ LingoLinq.Board = DS.Model.extend({
     };
     var html = "";
 
-    var text_position = "text_position_" + (app_state.get('currentUser.preferences.device.button_text_position') || window.user_preferences.device.button_text_position);
+    var displayUser = (this.appState && this.appState.get('speak_mode')) ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+    var devicePrefs = (displayUser && displayUser.get && displayUser.get('preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
+    var text_position = "text_position_" + (devicePrefs && devicePrefs.button_text_position ? devicePrefs.button_text_position : 'top');
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
     LingoLinq.log.track('computing dimensions');
@@ -1562,9 +1581,9 @@ LingoLinq.Board = DS.Model.extend({
     return {
       width: size.width,
       height: size.height,
-      inflection_prefix: app_state.get('inflection_prefix'),
-      inflection_shift: app_state.get('inflection_shift'),
-      skin: app_state.get('referenced_user.preferences.skin'),
+      inflection_prefix: this.appState.get('inflection_prefix'),
+      inflection_shift: this.appState.get('inflection_shift'),
+      skin: this.appState.get('referenced_user.preferences.skin'),
       symbols: preferred_symbols,
       label_locale: size.label_locale,
       display_level: size.display_level,
@@ -1579,7 +1598,7 @@ LingoLinq.Board.reopenClass({
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
     });
-    if(app_state.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
+    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
   },

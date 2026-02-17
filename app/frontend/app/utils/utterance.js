@@ -19,24 +19,37 @@ var punctuation_with_space = /^\s*[\.\?\,\!]\s*$/;
 var punctuation_at_end = /[\.\?\,\!]\s*$/;
 var punctuation_ending_sentence = /[\.\?\!]/;
 var utterance = EmberObject.extend({
-  setup: function(controller) {
+  setup: function(controller, appStateService, persistenceService, stashesService) {
     this.controller = controller;
-    this.set('rawButtonList', stashes.get('working_vocalization'));
-    this.set('app_state', app_state);
-    app_state.addObserver('currentUser', this, this.update_voice);
-    app_state.addObserver('currentUser.preferences.device.voice', this, this.update_voice);
-    app_state.addObserver('currentUser.preferences.device.voice.volume', this, this.update_voice);
-    app_state.addObserver('currentUser.preferences.device.voice.pitch', this, this.update_voice);
-    app_state.addObserver('currentUser.preferences.device.voice.voiceURI', this, this.update_voice);
-    app_state.addObserver('currentUser.preferences.clear_on_vocalize', this, this.update_voice);
+    
+    // Accept services as parameters for explicit injection
+    // Fall back to imported utilities for backward compatibility
+    this.appState = appStateService || app_state;
+    this.persistence = persistenceService || persistence;
+    this.stashes = stashesService || stashes;
+    
+    // Also register services statically for use in static methods
+    if(appStateService || persistenceService || stashesService) {
+      utterance.register_services(appStateService, persistenceService, stashesService);
+    }
+    
+    this.set('rawButtonList', this.stashes.get('working_vocalization'));
+    this.set('app_state', this.appState);
+    this.appState.addObserver('currentUser', this, this.update_voice);
+    this.appState.addObserver('currentUser.preferences.device.voice', this, this.update_voice);
+    this.appState.addObserver('currentUser.preferences.device.voice.volume', this, this.update_voice);
+    this.appState.addObserver('currentUser.preferences.device.voice.pitch', this, this.update_voice);
+    this.appState.addObserver('currentUser.preferences.device.voice.voiceURI', this, this.update_voice);
+    this.appState.addObserver('currentUser.preferences.clear_on_vocalize', this, this.update_voice);
 //     this.set('clear_on_vocalize', window.user_preferences.any_user.clear_on_vocalize);
 //     speecher.set_voice(window.user_preferences.device.voice);
-    if(stashes.get('ghost_utterance')) {
+    if(this.stashes.get('ghost_utterance')) {
       this.set('list_vocalized', true);
     }
   },
   update_voice: function() {
-    var user = app_state.get('currentUser');
+    var appState = this.appState || app_state;
+    var user = appState.get('currentUser');
     if(user && user.get) {
       if(user.get && user.get('preferences.device.voice')) {
         user.update_voice_uri();
@@ -57,13 +70,16 @@ var utterance = EmberObject.extend({
     function() {
       var buttonList = [];
       var _this = this;
+      var appState = this.appState || app_state;
+      var persistenceService = this.persistence || persistence;
+      var stashesService = this.stashes || stashes;
       var rawList = _this.get('rawButtonList');
-      if(!rawList) { app_state.set('button_list', []); return; }
+      if(!rawList) { appState.set('button_list', []); return; }
       var last_append = null;
       
       // check user.preferences.substitutions
       if(rawList.length > 0 && rawList[rawList.length - 1].auto_substitute !== false) {
-        var rule = utterance.first_rules((app_state.get('sessionUser.preferences.substitutions') || []), rawList, true)[0];
+        var rule = utterance.first_rules((appState.get('sessionUser.preferences.substitutions') || []), rawList, true)[0];
         if(rule && rule.lookback.length > 1) {
           var str = rule.label;
           var original = rawList.slice(0 - rule.lookback.length);
@@ -81,9 +97,9 @@ var utterance = EmberObject.extend({
           _this.set('rawButtonList', rawList);
         }
 
-        if(app_state.get('sessionUser.preferences.substitute_contractions')) {
+        if(appState.get('sessionUser.preferences.substitute_contractions')) {
           var rules = [];
-          var lang = (app_state.get('speak_mode') && app_state.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
+          var lang = (appState.get('speak_mode') && appState.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
           var lang_fallback = lang.split(/-|_/)[0];
           var contractions = (i18n.lang_overrides[lang] || i18n.lang_overrides[lang_fallback] || {}).default_contractions || i18n.substitutions.default_contractions;
           for(var cont in contractions) {
@@ -227,12 +243,12 @@ var utterance = EmberObject.extend({
         // Use cached images/sounds if available
         if(button.image && button.image.match(/^http/)) {
           visualButton.set('original_image', button.image);
-          persistence.find_url(button.image, 'image').then(function(data_uri) {
+          persistenceService.find_url(button.image, 'image').then(function(data_uri) {
             visualButton.set('image', data_uri);
           }, function() { 
             if(button.image.match(/\.variant/)) {
               var unskin = button.image.replace(/\.variant-.+\.(png|svg)$/, '');
-              persistence.find_url(unskin, 'image').then(function(data_uri) {
+              persistenceService.find_url(unskin, 'image').then(function(data_uri) {
                 visualButton.set('image', data_uri);
               }, function() {
 
@@ -242,7 +258,7 @@ var utterance = EmberObject.extend({
         }
         if(button.sound && button.sound.match(/^http/)) {
           visualButton.set('original_sound', button.sound);
-          persistence.find_url(button.sound, 'sound').then(function(data_uri) {
+          persistenceService.find_url(button.sound, 'sound').then(function(data_uri) {
             visualButton.set('sound', data_uri);
           }, function() { });
         }
@@ -250,13 +266,13 @@ var utterance = EmberObject.extend({
         if(visualButton.get('vocalization')) {
           visualButton.set('vocalization', visualButton.get('vocalization').replace(/\s$/g, ''));
         }
-        if(app_state.get('insertion.index') == idx) {
+        if(appState.get('insertion.index') == idx) {
           visualButton.set('insert_after', true);
           if(hint) {
             visualButtonList.push(hint);
             hint = null;
           }
-        } else if(app_state.get('insertion.index') == -1 && idx == 0) {
+        } else if(appState.get('insertion.index') == -1 && idx == 0) {
           visualButton.set('insert_before', true);
           if(hint) {
             visualButtonList.unshift(hint);
@@ -264,7 +280,7 @@ var utterance = EmberObject.extend({
           }
         }
       });
-      var idx = Math.min(Math.max(app_state.get('insertion.index') || visualButtonList.length - 1, 0), visualButtonList.length - 1);
+      var idx = Math.min(Math.max(appState.get('insertion.index') || visualButtonList.length - 1, 0), visualButtonList.length - 1);
       var last_spoken_button = visualButtonList[idx];
       var last_spoken_text = last_spoken_button && (last_spoken_button.vocalization || last_spoken_button.label || "");
       if(last_spoken_text && last_spoken_text.match(/\s/) && !last_append) {
@@ -284,9 +300,9 @@ var utterance = EmberObject.extend({
       if(hint) {
         visualButtonList.push(hint);
       }
-      app_state.set('button_list', visualButtonList);
+      appState.set('button_list', visualButtonList);
       utterance.set('last_spoken_button', last_spoken_button);
-      stashes.persist('working_vocalization', buttonList);
+      stashesService.persist('working_vocalization', buttonList);
       if(!utterance.suggestion_refresh_scheduled) {
         utterance.suggestion_refresh_scheduled = true;
         runLater(function() {
@@ -586,6 +602,8 @@ var utterance = EmberObject.extend({
           emberSet(b, 'image', image.get('best_url'));
           emberSet(b, 'image_license', image.get('license'));
         }
+      }, function() {
+        // no image lookups (e.g. no_lookups or local-only and not in cache) - leave button image unset
       });
       original_button.load_sound('local').then(function(sound) {
         sound = sound || original_button.get('sound');
@@ -593,6 +611,8 @@ var utterance = EmberObject.extend({
           emberSet(b, 'sound', sound.get('best_url'));
           emberSet(b, 'sound_license', sound.get('license'));
         }
+      }, function() {
+        // no sound lookups (e.g. no_lookups or local-only and not in cache) - leave button sound unset
       });
     }
     if(original_button && original_button.condense_items) {
@@ -600,8 +620,9 @@ var utterance = EmberObject.extend({
     }
     // add button to the raw button list
     var list = this.get('rawButtonList');
-    var rendered_list = app_state.get('button_list');
-    var idx = app_state.get('insertion.index');
+    var appState = this.appState || app_state;
+    var rendered_list = appState.get('button_list');
+    var idx = appState.get('insertion.index');
     var possibly_capitalize = function(b, prior) {
       var prior = prior || {};
       var prior_text = prior.vocalization || prior.label || "";
@@ -610,7 +631,7 @@ var utterance = EmberObject.extend({
       var do_capitalize = false;
       if(!prior_text) {
         do_capitalize = true;
-      } else if(app_state.get('shift')) {
+      } else if(appState.get('shift')) {
         do_capitalize = 'force';
       } else if(b.vocalization == ':complete' && utterance.capitalize(prior_text) == prior_text) {
         do_capitalize = 'force';
@@ -627,7 +648,7 @@ var utterance = EmberObject.extend({
           });
         }
       }
-      if(do_capitalize == 'force' || (do_capitalize && app_state.get('shift') !== false && app_state.get('sessionUser.preference.auto_capitalize') !== false)) {
+      if(do_capitalize == 'force' || (do_capitalize && appState.get('shift') !== false && appState.get('sessionUser.preference.auto_capitalize') !== false)) {
         if(b.vocalization) {
           b.vocalization = utterance.capitalize(b.vocalization);
         }
@@ -644,8 +665,8 @@ var utterance = EmberObject.extend({
       }
       return do_capitalize;
     }
-    app_state.set('inflection_shift', null);
-    if(app_state.get('insertion') && isFinite(idx)) {
+    appState.set('inflection_shift', null);
+    if(appState.get('insertion') && isFinite(idx)) {
       // insertion.index is for the visual list, which has 
       // different items than the raw list
       var button = app_state.get('button_list')[idx];
@@ -658,13 +679,13 @@ var utterance = EmberObject.extend({
         list.insertAt(raw_index + 1, b);
       }
       if(!b.specialty_with_modifiers) {
-        app_state.set('insertion.index', Math.min(list.length - 1, idx + 1));
+        appState.set('insertion.index', Math.min(list.length - 1, idx + 1));
       }
     } else {
       possibly_capitalize(b, list[list.length - 1]);
       list.pushObject(b);
     }
-    app_state.set('shift', null);
+    appState.set('shift', null);
     this.set('list_vocalized', false);
     // retrieve the correct result from the now-updated button list
     // should return whatever it is the vocalization is supposed to say
@@ -731,12 +752,18 @@ var utterance = EmberObject.extend({
   speak_button: function(button) {
     var alt_voice = speecher.alternate_voice && speecher.alternate_voice.enabled && speecher.alternate_voice.for_buttons === true;
     if(button.sound) {
+      if(typeof console !== 'undefined' && console.log) {
+        console.log('[speak_button] playing recorded sound for:', button.label || button.vocalization, 'url:', (button.sound && button.sound.substring && button.sound.substring(0, 50)) || button.sound);
+      }
       var collection_id = null;
       if(button.blocking_speech) {
         collection_id = 'hold-' + button.button_id + "-" + (button.board || {}).id + "-" + Math.round((new Date()).getTime() / 30000);
       }
       speecher.speak_audio(button.sound, 'text', collection_id, {alternate_voice: alt_voice, prevent_repeat: true, prevent_any: app_state.get('referenced_user.preferences.prevent_button_interruptions')});
     } else {
+      if(typeof console !== 'undefined' && console.log) {
+        console.log('[speak_button] TTS for:', button.label || button.vocalization, 'text:', (button.vocalization || button.label) || '(none)');
+      }
       if(speecher.ready) {
         if(button.vocalization == ":beep") {
           speecher.beep();
@@ -829,12 +856,13 @@ var utterance = EmberObject.extend({
   },
   clear: function(opts) {
     opts = opts || {}
-    app_state.set('shift', null);
-    app_state.set('inflection_shift', null);
-    if(app_state.get('reply_note') && this.get('rawButtonList.length') == 0) {
-      app_state.set('reply_note', null);
+    var appState = this.appState || app_state;
+    appState.set('shift', null);
+    appState.set('inflection_shift', null);
+    if(appState.get('reply_note') && this.get('rawButtonList.length') == 0) {
+      appState.set('reply_note', null);
     }
-    app_state.set('insertion', null);
+    appState.set('insertion', null);
     var prior_list = this.get('rawButtonList') || [];
     this.set('rawButtonList', []);
     var audio = [];
@@ -860,12 +888,13 @@ var utterance = EmberObject.extend({
   },
   backspace: function(opts) {
     opts = opts || {};
-    app_state.set('shift', null);
+    var appState = this.appState || app_state;
+    appState.set('shift', null);
     var skip_remove = false;
-    if(app_state.get('inflection_shift')) {
+    if(appState.get('inflection_shift')) {
       skip_remove = true;
     }
-    app_state.set('inflection_shift', null);
+    appState.set('inflection_shift', null);
     var list = this.get('rawButtonList');
     // if buttons are about to be cleared, un-clear them
     if(app_state.get('clearable_history') > 0) {
@@ -891,7 +920,7 @@ var utterance = EmberObject.extend({
             list.removeAt(raw_index);
           }
           if(move_index) {
-            app_state.set('insertion.index', Math.max(-1, idx - 1));
+            appState.set('insertion.index', Math.max(-1, idx - 1));
           }
         } else {
           var popped = list.popObject();
@@ -937,10 +966,11 @@ var utterance = EmberObject.extend({
     }
   },
   check_vocalization_history: function(allow_clear) {
+    var appState = this.appState || app_state;
     var cutoff_count = 0, cutoff_ts = 0;
-    if(app_state.get('currentUser.preferences.clear_vocalization_history')) {
-      cutoff_count = app_state.get('currentUser.preferences.clear_vocalization_history_count') || 0;
-      cutoff_ts = app_state.get('currentUser.preferences.clear_vocalization_history_minutes') || 0;
+    if(appState.get('currentUser.preferences.clear_vocalization_history')) {
+      cutoff_count = appState.get('currentUser.preferences.clear_vocalization_history_count') || 0;
+      cutoff_ts = appState.get('currentUser.preferences.clear_vocalization_history_minutes') || 0;
     }
     var prior_list = this.get('rawButtonList') || [];
     var now = (new Date()).getTime();
@@ -976,9 +1006,9 @@ var utterance = EmberObject.extend({
       }
     });
     if(!allow_clear && old_count > 0) {
-      app_state.set('clearable_history', old_count);      
+      appState.set('clearable_history', old_count);      
     } else {
-      app_state.set('clearable_history', 0);
+      appState.set('clearable_history', 0);
     }
     if((do_update || new_list.length != prior_list.length) && allow_clear) {
       new_list = [].concat(new_list);
@@ -1030,7 +1060,8 @@ var utterance = EmberObject.extend({
       button_triggered: opts.button_triggered,
       buttons: stashes.get('working_vocalization')
     });
-    app_state.set('insertion', null);
+    var appState = this.appState || app_state;
+    appState.set('insertion', null);
     var collection_id = 'utterance-' + Math.round(Math.random() * 99999) + '-' + (new Date()).getTime();
     speecher.speak_collection(items, collection_id, {override_volume: volume});
     $("#hidden_input").val("");
@@ -1057,6 +1088,28 @@ var utterance = EmberObject.extend({
     });
   }
 }).create({scope: (window.polyspeech || window)});
+
+// Static service registry for use in static methods
+utterance._services = {
+  appState: null,
+  persistence: null,
+  stashes: null
+};
+utterance.register_services = function(appStateService, persistenceService, stashesService) {
+  if(appStateService) { utterance._services.appState = appStateService; }
+  if(persistenceService) { utterance._services.persistence = persistenceService; }
+  if(stashesService) { utterance._services.stashes = stashesService; }
+};
+utterance.get_app_state = function() {
+  return utterance._services.appState || app_state;
+};
+utterance.get_persistence = function() {
+  return utterance._services.persistence || persistence;
+};
+utterance.get_stashes = function() {
+  return utterance._services.stashes || stashes;
+};
+
 window.utterance = utterance;
 
 export default utterance;

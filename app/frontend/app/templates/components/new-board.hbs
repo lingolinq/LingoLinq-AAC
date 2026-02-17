@@ -1,0 +1,251 @@
+{{#grid-listener gridEvent=(action "grid_event")}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="board_drop">
+    <div class="modal-header">
+      <button type="button" class="close" {{action "close"}}>&times;</button>
+      <h3>{{t "Create a New Board" key="create_a_new_board"}}</h3>
+      <div class="create-board-actions">
+        <span class="file_select_holder">
+          <button type="button" class="btn btn-default">
+            {{t "Import Board(s)" key="import_boards"}}
+          </button>
+          <input type="file" name="board_upload" id="board_upload">
+        </span>
+        <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
+          {{t "Paste HTML" key="paste_html"}}
+        </button>
+        {{#if this.ai_board_generation_enabled}}
+          <button type="button" class="btn btn-default" {{action "generateWithAi"}}>
+            {{t "Generate with AI" key="generate_with_ai"}}
+          </button>
+        {{/if}}
+      </div>
+    </div>
+    <div class="modal-body">
+      <form class="form-horizontal" {{action "saveBoard" on="submit"}}>
+      <!-- TODO: form should wrap to include submit button, no? -->
+      <div class="form-group">
+        <label for="new_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
+        <div class="col-sm-10">
+          <Input @value={{this.model.name}} class="form-control" id="new_board_name" placeholder="My Board" />
+        </div>
+      </div>
+      {{#if this.has_supervisees}}
+        <div class="form-group">
+          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
+          <div class="col-sm-10">
+            {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "setForUserId") }}
+          </div>
+        </div>
+      {{/if}}
+      <div class="form-group">
+        <label for="new_board_rows" class="col-sm-2 control-label">{{t "Rows" key="rows"}}</label>
+        <div class="col-sm-3">
+          <div class="input-group">
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.rows"}}>-</button>
+            </span>
+            <Input @type="number" @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.rows"}}>+</button>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="new_board_columns" class="col-sm-2 control-label">{{t "Columns" key="columns"}}</label>
+        <div class="col-sm-3" style="height: 100px;">
+          <div class="input-group">
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.columns"}}>-</button>
+            </span>
+            <Input @type="number" @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.columns"}}>+</button>
+            </span>
+          </div>
+        </div>
+        <div class="col-sm-7" id="grid_selection">
+          <div class="row">
+            {{#each this.showGrid as |row|}}
+              {{#each row as |cell|}}
+                <div style="width: 8.33%; float: left;" class={{cell.preview_class}} data-row={{cell.row}} data-col={{cell.column}}>
+                  <div title="{{cell.row}} x {{cell.column}}">
+                    &nbsp;
+                  </div>
+                </div>
+              {{/each}}
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label">{{t "Visibility" key="visibility"}}</label>
+        <div class="col-sm-10">
+          {{bound-select select_class="form-control" select_id="license" content=this.public_options selection=this.model.visibility action=(action (mut this.model.visibility)) }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="image_url" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
+        <div class="col-sm-10">
+          {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
+        </div>
+      </div>
+      {{#unless this.more_options}}
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <a href="#" {{action "more_options"}}>more options</a>
+          </div>
+        </div>
+      {{else}}
+        <div class="form-group">
+          <label for="new_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
+          <div class="col-sm-6">
+            <Input @value={{this.model.key}} class="form-control" id="new_board_key" placeholder={{this.key_placeholder}} />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
+          <div class="col-sm-10">
+            {{bound-select select_class="form-control" select_id="license" content=this.license_options selection=this.model.license.type action=(action (mut this.model.license.type)) }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
+          <div class="col-sm-10">
+            {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.locale action=(action (mut this.model.locale)) }}
+          </div>
+        </div>
+        {{#if this.attributable_license_type}}
+          <div class="form-group">
+            <label for="author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
+            <div class="col-sm-4">
+              <Input @value={{this.model.license.author_name}} class="form-control" id="author" placeholder="Name" />
+            </div>
+            <div class="col-sm-6">
+              <Input @value={{this.model.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" />
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+          <div class="col-sm-10">
+            <Textarea @value={{this.model.description}} class="form-control" id="new_board_description" placeholder="brief description of the board" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="home_board" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
+          <div class="col-sm-10">
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
+                {{t "This board can be used as a home board" key="is_home_board"}}
+              </label>
+            </div>
+          </div>
+        </div>
+        {{#if this.model.home_board}}
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            {{t "Select any categories that this home board may fit well into." key="select_categories"}}
+              {{#each this.board_categories as |category|}}
+                <div><div class="checkbox big_checkbox">
+                  <label>
+                    <Input @type="checkbox" @checked={{category.selected}} />
+                    {{category.name}}
+                  </label><br>
+                </div></div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
+        <div class="form-group">
+          <label for="word_suggestions" class="col-sm-2 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
+          <div class="col-sm-10">
+            <div class="checkbox big_checkbox">
+              <label>
+<Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
+              {{t "Show word completion suggestions" key="show_word_suggestions"}}
+              </label>
+            </div><br>
+            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
+          <div class="col-sm-10">
+            <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
+            {{bound-select select_class="form-control" select_id="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action (mut this.model.grid.labels_order)) }}
+            <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
+            <span class={{this.labels_class}}>
+              {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
+            </span>
+            <a href="#" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</a>
+            {{#if this.speech}}
+               |
+              <a href="#" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</a>
+            {{/if}}
+            <a style="display: none;" href="#" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</a>
+          </div>
+        </div>
+        {{#if this.core_lists}}
+          <div class="form-group">
+            <div class="col-sm-10 col-sm-offset-2">
+            <ul class="nav nav-pills">
+              {{#each this.core_words as |core_word|}}
+                <li class={{if core_word.active "active"}}>
+                  <a href="#" {{action "enable_word" core_word.id}}>{{ core_word.label }}</a>
+                </li>
+              {{/each}}
+            </ul>
+            </div>
+          </div>
+        {{else}}
+          {{#if this.speech.ready}}
+            <div class="form-group">
+              <div class="col-sm-10 col-sm-offset-2">
+              <div style="margin-bottom: 5px;">
+                {{t "Listening..." key="listening"}}
+                <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+                {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+              </div>
+              <ul class="nav nav-pills">
+                {{#each this.speech.words as |word|}}
+                  <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
+                    <a href="#" {{action "remove_word" word.id}}>
+                      {{word.label}}
+                      <span class="glyphicon glyphicon-remove" title="remove"></span>
+                    </a>
+                  </li>
+                {{/each}}
+              </ul>
+              </div>
+            </div>
+          {{else}}
+            {{#if this.speech.almost_recording}}
+              <div class="form-group">
+                <div class="col-sm-10 col-sm-offset-2">
+                  <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
+                </div>
+              </div>
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{/unless}}
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button {{action "saveBoard"}} class="btn btn-primary" disabled={{this.status.saving}}>
+        {{#if this.status.saving}}
+          {{t "Creating Board..." key="creating_board"}}
+        {{else if this.status.error}}
+          {{t "Error Creating Board" key="error_creating_board"}}
+        {{else}}
+          {{t "Create Board" key="create_board"}}
+        {{/if}}
+      </button>
+      <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    </div>
+  </div>
+{{/modal-dialog}}
+{{/grid-listener}}

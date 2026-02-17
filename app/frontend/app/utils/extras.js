@@ -31,12 +31,17 @@ import app_state from './app_state';
     if(ready.types.init && ready.types.extras && ready.types.device && ready.types.lang && !ready.done) {
       ready.done = true;
       ready('all');
-      session.restore();
+      // session.restore() is now handled in instance-initializers/session.js to ensure service is ready
       runLater(function() {
-        session.get('isAuthenticated'); // this prevents a flash of unauthenticated content on ios
         $('html,body').scrollTop(0);
         console.log("LINGOLINQ: ready to start");
-        LingoLinq.app.advanceReadiness();
+        // Only advance readiness once to prevent "same root element" / "descendant of existing app" errors
+        if(!window.LingoLinq || !window.LingoLinq.readinessAdvanced) {
+          if(window.LingoLinq && window.LingoLinq.app) {
+            window.LingoLinq.app.advanceReadiness();
+            window.LingoLinq.readinessAdvanced = true;
+          }
+        }
         LingoLinq.ready();
       });
     }
@@ -55,9 +60,6 @@ import app_state from './app_state';
   var extras = EmberObject.extend({
     setup: function(application) {
       application.register('lingolinq:extras', extras, { instantiate: false, singleton: true });
-      $.each(['model', 'controller', 'view', 'route'], function(i, component) {
-        application.inject(component, 'extras', 'lingolinq:extras');
-      });
     },
     advance: ready,
     enable: function() {
@@ -125,14 +127,14 @@ import app_state from './app_state';
     }
   }).create();
   capabilities.device_id = function() {
-    var device_id = stashes.get_raw('coughDropDeviceId');
+    var device_id = extras.get_stashes().get_raw('coughDropDeviceId');
     if(!device_id) {
       // http://cordova.apache.org/docs/en/6.x/reference/cordova-plugin-device/index.html#deviceuuid
       device_id = (window.device && window.device.uuid) || ((new Date()).getTime() + Math.random()).toString();
       var readable = capabilities.readable_device_name;
       device_id = device_id + " " + readable;
     }
-    stashes.persist_raw('coughDropDeviceId', device_id);
+    extras.get_stashes().persist_raw('coughDropDeviceId', device_id);
     return device_id;
   };
 
@@ -209,12 +211,35 @@ import app_state from './app_state';
         }
         options.headers = options.headers || {};
         options.headers['X-INSTALLED-COUGHDROP'] = (!!capabilities.installed_app).toString();
-        if(capabilities.access_token) {
+        
+        // Add Authorization header with defensive checks for token validity
+        // This ensures tokens are properly sent to the backend for authentication
+        if(capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') {
+          var token_preview = capabilities.access_token.substring(0, 10) + '...';
           options.headers['Authorization'] = "Bearer " + capabilities.access_token;
           options.headers['X-Device-Id'] = capabilities.device_id();
           options.headers['X-LingoLinq-Version'] = window.LingoLinq.VERSION;
+          
+          // Log token usage for debugging (only in development or when explicitly enabled)
+          if(window.LingoLinq && (window.LingoLinq.DEBUG || localStorage.getItem('debug_tokens') === 'true')) {
+            console.log('[extras.ajax] Adding Authorization header', {
+              url: options.url,
+              token_preview: token_preview,
+              has_device_id: !!capabilities.device_id()
+            });
+          }
+        } else {
+          // Log when token is missing for debugging authentication issues
+          if(window.LingoLinq && (window.LingoLinq.DEBUG || localStorage.getItem('debug_tokens') === 'true')) {
+            console.warn('[extras.ajax] No valid access_token available for request', {
+              url: options.url,
+              has_capabilities: !!capabilities,
+              access_token_value: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
+              auth_settings: extras.get_stashes().get_object('auth_settings', true) ? 'exists' : 'missing'
+            });
+          }
         }
-        if(LingoLinq.protected_user || stashes.get('protected_user')) {
+        if(LingoLinq.protected_user || extras.get_stashes().get('protected_user')) {
           options.headers['X-SILENCE-LOGGER'] = 'true';
         }
         options.headers['X-SUPPORTS-REMOTE-BUTTONSET'] = 'true';
@@ -255,7 +280,7 @@ import app_state from './app_state';
           data = {text: data};
         }
         if(data && data.error && data.status && !data.ok) {
-          if(data.invalid_token && !app_state.get('speak_mode')) {
+          if(data.invalid_token && !extras.get_app_state().get('speak_mode')) {
             // force a login prompt for invalid tokens
             session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
           } else {
@@ -451,6 +476,23 @@ import app_state from './app_state';
 window.time_log = function(str) {
   var stamp = Math.round((((new Date()).getTime() / 1000) % 100) * 100) / 100;
   console.log(str + "  :" + stamp);
+};
+
+// Static service registry for app_state and stashes
+var extras = window.lingoLinqExtras;
+extras._services = {
+  appState: null,
+  stashes: null
+};
+extras.register_services = function(appStateService, stashesService) {
+  if(appStateService) { extras._services.appState = appStateService; }
+  if(stashesService) { extras._services.stashes = stashesService; }
+};
+extras.get_app_state = function() {
+  return extras._services.appState || app_state;
+};
+extras.get_stashes = function() {
+  return extras._services.stashes || stashes;
 };
 
 export default window.lingoLinqExtras;

@@ -1,6 +1,6 @@
 import modal from '../../utils/modal';
 import obf from '../../utils/obf';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({

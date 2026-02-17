@@ -3,7 +3,7 @@ import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
   opening: function() {

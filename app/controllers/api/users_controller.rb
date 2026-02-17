@@ -3,6 +3,10 @@ class Api::UsersController < ApplicationController
 
   before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
   def show
+    # If requesting 'self' but no authenticated user, return 401 instead of 404
+    if params['id'] == 'self' && !@api_user
+      return api_error 401, {error: "Authentication required to access current user", unauthorized: true}
+    end
     user = User.find_by_path(params['id'])
     user_device = (user && @api_user && @api_user.global_id == user.global_id) && Device.find_by_global_id(@api_device_id)
     allowed = false
@@ -20,7 +24,7 @@ class Api::UsersController < ApplicationController
       json = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user, :device => user_device, :include_subscription => @include_subscription)
     end
     
-    render json: json.to_json
+    render json: json
   end
   
   def sync_stamp
@@ -203,9 +207,9 @@ class Api::UsersController < ApplicationController
       if start_code_progress
         json['user']['start_progress'] = JsonApi::Progress.as_json(start_code_progress)
       end
-      render json: json.to_json
+      render json: json
     else
-      api_error 400, {error: 'update failed', errors: user.processing_errors}
+      return api_error 400, {error: 'update failed', errors: user.processing_errors}
     end
   end
   
@@ -240,7 +244,7 @@ class Api::UsersController < ApplicationController
     res = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user || user)
     res['user']['start_progress'] = JsonApi::Progress.as_json(start_progress) if start_progress
     res['meta'] = JsonApi::Token.as_json(user, d)
-    render json: res.to_json
+    render json: res
   end
   
   def claim_voice
@@ -254,7 +258,7 @@ class Api::UsersController < ApplicationController
         res[:download_language_url] = Uploader.signed_download_url(params['language_url']) if params['language_url']
         res[:download_binary_url] = Uploader.signed_download_url(params['binary_url']) if params['binary_url']
       end
-      render json: res.to_json
+      render json: res
     else
       api_error(400, {error: "no more voices available"})
     end
@@ -321,7 +325,7 @@ class Api::UsersController < ApplicationController
     return if params['new_key'].blank? && !allowed?(user, 'never_allow')
     if params['new_key'] && params['old_key'] && params['old_key'].downcase == user.user_name && user.rename_to(params['new_key'])
       key = User.clean_path(params['new_key'])
-      render json: {rename: true, key: key}.to_json
+      render json: {rename: true, key: key}
     else
       api_error(400, {error: "user rename failed", key: params['key'], invalid_name: user.invalid_name_error?, collision: user.collision_error?})
     end
@@ -543,7 +547,7 @@ class Api::UsersController < ApplicationController
       res[brd.global_id] = brd.current_revision
       res[brd.key] = brd.current_revision
     end
-    render json: res.to_json
+    render json: res
   end
 
   def boards
@@ -569,14 +573,14 @@ class Api::UsersController < ApplicationController
         sent = true
         UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       end
-      render json: {sent: sent}.to_json
+      render json: {sent: sent}
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
         confirmed = true
         user.update_setting('pending', false)
       end
-      render json: {:confirmed => confirmed}.to_json
+      render json: {:confirmed => confirmed}
     end
   end
   
@@ -593,10 +597,10 @@ class Api::UsersController < ApplicationController
       if reset_users.length > 0
         UserMailer.schedule_delivery(:forgot_password, reset_users.map(&:global_id))
         if reset_users.length == users.length
-          render json: {email_sent: true, users: users.length}.to_json
+          render json: {email_sent: true, users: users.length}
         else
           message = "One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again."
-          render json: {email_sent: true, users: users.length, message: message}.to_json
+          render json: {email_sent: true, users: users.length, message: message}
         end
       else
         message = "All users matching that name or email have had too many password resets. Please wait at least three hours and try again."
@@ -607,7 +611,7 @@ class Api::UsersController < ApplicationController
     else
       if params['key'] && params['key'].match(/@/)
         UserMailer.schedule_delivery(:login_no_user, params['key'])
-        render json: {email_sent: true, users: 0}.to_json
+        render json: {email_sent: true, users: 0}
       else
         message = "No users found with that name or email."
         api_error 400, {email_sent: false, users: 0, error: message, message: message}
@@ -618,7 +622,7 @@ class Api::UsersController < ApplicationController
   def password_reset
     user = User.find_by_path(params['user_id'])
     if user && reset_token = user.reset_token_for_code(params['code'])
-      render json: {valid: true, reset_token: reset_token}.to_json
+      render json: {valid: true, reset_token: reset_token}
     else
       api_error 400, {valid: false}
     end
@@ -672,14 +676,18 @@ class Api::UsersController < ApplicationController
   end
   
   def daily_use
+    # Authentication is enforced by require_api_token before_action (daily_use is not in :except).
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'admin_support_actions')
+    # Restrict to own data or admin_support_actions (not supervise) to avoid privilege escalation
+    if user.global_id != @api_user.global_id
+      return unless allowed?(user, 'admin_support_actions')
+    end
     log = LogSession.find_by(:user_id => user.id, :log_type => 'daily_use')
     if log
-      render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      api_error 400, {error: 'no data available'}
+      return api_error 400, { error: 'No daily_use log found for this user' }
     end
   end
   
@@ -762,7 +770,7 @@ class Api::UsersController < ApplicationController
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'delete')
     res = WordData.translate_batch(params['words'].map{|w| {:text => w } }, params['source_lang'], params['destination_lang'])
-    render json: res.to_json
+    render json: res
   end
   
   def word_map
@@ -770,7 +778,7 @@ class Api::UsersController < ApplicationController
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'view_word_map')
     res = BoardDownstreamButtonSet.word_map_for(user)
-    render json: res.to_json
+    render json: res
   end
 
   def transfer_eval

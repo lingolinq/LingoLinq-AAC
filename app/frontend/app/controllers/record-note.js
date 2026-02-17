@@ -4,7 +4,7 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 import app_state from '../utils/app_state';
 
@@ -165,8 +165,9 @@ export default modal.ModalController.extend({
           goal_id: _this.get('goal_id'),
           goal_status: _this.get('goal_status'),
           notify: notify
-        }, this.get('model.id'));
+        }, _this.get('model.id'));
         stashes.push_log(true);
+        modal.close(true);
       };
       if(persistence.get('online')) {
         var log = _this.store.createRecord('log', {

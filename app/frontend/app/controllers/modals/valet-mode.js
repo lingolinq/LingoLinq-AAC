@@ -4,7 +4,7 @@ import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import speecher from '../../utils/speecher';
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 

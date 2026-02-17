@@ -1,0 +1,59 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-body">
+    {{#if this.button_stashes}}
+      <p>
+      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
+      </p>
+      {{#each this.button_stashes as |button|}}
+          <span class="stash_button_container" {{action "pickButton" button}}>
+            <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
+              {{#if button.pending}}
+                <div class="pending">
+                  <img src={{path "images/spinner.gif"}} draggable='false' >
+                </div>
+              {{/if}}
+              <div class={{button.action_class}}>
+                <span class="action">
+                  <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
+                </span>
+              </div>
+              <span class='img_holder' style={{button.image_holder_style}}>
+                {{#unless this.appState.currentUser.hide_symbols}}
+                  {{#unless button.board.text_only}}
+                    {{#unless button.text_only}}
+                      <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
+                    {{/unless}}
+                  {{/unless}}
+                {{/unless}}
+              </span>
+              <div class={{if button.text_only this.text_only_button_symbol_class this.button_symbol_class}}>
+                {{#if this.editModeNormalText}}
+                  {{#if button.sound}}
+                    <div class="sound_container">
+                      <span class="glyphicon glyphicon-volume-up"></span>
+                    </div>
+                  {{/if}}
+                  {{label-field value=button.label class="button-label" placeholder="enter label"}}
+                  {{#if button.levels_list}}
+                    <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
+                  {{/if}}
+                {{else}}
+                  {{#unless button.hide_label}}
+                    <span class="button-label">{{button.label}}</span>
+                  {{/unless}}
+                {{/if}}
+              </div>
+            </a>
+          </span>
+        {{/each}}
+      <div style="clear: left;"></div>
+    {{else}}
+      <p>
+      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
+      </p>
+    {{/if}}
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
+{{/modal-dialog}}

@@ -3,7 +3,7 @@
     <h2>{{t "Give %app_name% as a Gift" key="give_as_a_gift"}}</h2>
     <span class="glyphicon glyphicon-gift" style="font-size: 50px; float: left; margin: 5px 10px 5px 0;"></span>
     <p>{{t "%app_name% can be a powerful tool for developing communicators. If you know someone who could benefit from access to %app_name%, you can purchase a membership on their behalf. When you do you will receive an email with a gift code that can be used to redeem your gift for a %app_name% user." key="gift_explainer"}}</p>
-    {{#if subscription.purchase_complete}}
+    {{#if this.subscription.purchase_complete}}
       <div style="margin: 50px 0;">
         <h4>
           <span class="glyphicon glyphicon-ok"></span>
@@ -11,27 +11,27 @@
         </h4>
         <p>{{t "You should receive an email with the gift code associated with this purchase. You can forward the email to the intended recipient, or come up with a more creative way to get the code to them (I hear trumpets make things exciting). Make sure to check your spam box if you're not seeing the email come through within a few minutes." key="gift_code_in_email"}}</p>
       </div>
-    {{else if subscription.finalizing_purchase}}
+    {{else if this.subscription.finalizing_purchase}}
       <div style="margin: 50px 0;">
         <h4>
           <span class="glyphicon glyphicon-refresh spinning"></span>
           {{t "Confirming purchase..." key="finalizing_subscription"}}
         </h4>
       </div>
-    {{else if subscription.no_purchasing}}
+    {{else if this.subscription.no_purchasing}}
       <p style="margin: 50px 0; font-size: 18px;">
         {{t "To purchase as a gift, please <b>visiting lingolinq.com</b> in your web browser." key="gift_go_to_web_site"}}
       </p>
-    {{else if subscription.app_pricing_override}}
+    {{else if this.subscription.app_pricing_override}}
       <p style="margin: 50px 0; font-size: 18px;">
         {{t "To purchase as a gift, please <b>visiting lingolinq.com</b> in your web browser." key="gift_go_to_web_site"}}
       </p>
     {{else}}
       <form {{action "purchase" on="submit"}}>
-        {{#if purchase_error}}
+        {{#if this.purchase_error}}
           <div class="form-group">
             <div class="col-sm-9" style="padding-top: 30px;">
-              <p class='text-danger'>{{purchase_error}}</p>
+              <p class='text-danger'>{{this.purchase_error}}</p>
             </div>
           </div>
         {{/if}}
@@ -39,7 +39,7 @@
           <div class="col-sm-9" style="padding-top: 30px;">
             <label>{{t "Your Name" key="your_name"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              {{input type="text" value=subscription.name class="form-control input-lg" placeholder="Purchaser's Name"}}
+              <Input @type="text" @value={{this.subscription.name}} class="form-control input-lg" placeholder="Purchaser's Name" />
             </span>
           </div>
         </div>
@@ -47,7 +47,7 @@
           <div class="col-sm-9" style="padding-top: 30px;">
             <label>{{t "Your Email" key="your_email"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              {{input type="text" value=subscription.email class="form-control input-lg" placeholder="email@example.com"}}
+              <Input @type="text" @value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" />
             </span>
           </div>
         </div>
@@ -63,12 +63,12 @@
           <div class="col-sm-12" style="overflow-x: auto; margin-top: 20px; margin-bottom: 20px;">
             <div class="btn-group btn-group-lg money two-line" role="group" aria-label="subscription plan" style="min-width: 500px; overflow: auto;">
               <button type="button" class='btn btn-default'>
-                {{#if subscription.much_cheaper_offer}}
+                {{#if this.subscription.much_cheaper_offer}}
                   <div style="position: absolute; width: 100%; width: calc(100% + 3px); color: #000; border: 1px solid #ccc; z-index: 3; top: -1px; left: -1px; background: #afa; padding: 3px 0; text-shadow: 1px 1px 2px #aaa; font-size: 16px;">
                     {{t "sale! 50% off" key="save_50_percent"}}
                   </div>
                 {{/if}}
-                {{#if subscription.much_cheaper_offer}}
+                {{#if this.subscription.much_cheaper_offer}}
                   <span style='text-decoration: line-through; display: block; margin-top: -25px; margin-bottom: 4px; color: #888; font-size: 16px;'>&nbsp;$295&nbsp;</span>
                   $145
                 {{else}}
@@ -79,30 +79,30 @@
             </div>
             <div>
               <label style='margin-top: 15px; font-size: 20px;'>
-                {{input type="checkbox" checked=subscription.extras}}
+                <Input @type="checkbox" @checked={{this.subscription.extras}} />
                 <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" >
                 {{t "Add LessonPix, SymbolStix & PCS (BoardMaker) by Tobii Dynavox ($25)" key="include_extras"}}
               </label>
               <label style='margin-top: 15px; font-size: 20px;'>
-                {{input type="checkbox" checked=subscription.donate}}
+                <Input @type="checkbox" @checked={{this.subscription.donate}} />
                 {{t "Help sponsor a license for people with financial need ($50)" key="donate_license"}}
               </label>
             </div>
             <div style="margin-top: 5px; display: none;">
               <div style="float: left; margin-right: 5px;">
-                <a href="#" class={{long_term_custom_class}} {{action "set_subscription" "long_term_custom"}}>{{t "Custom Gift Amount" key="custom_gift_amount"}}</a>
+                <a href="#" class={{this.long_term_custom_class}} {{action "set_subscription" "long_term_custom"}}>{{t "Custom Gift Amount" key="custom_gift_amount"}}</a>
               </div>
-              {{#if subscription.long_term_custom}}
+              {{#if this.subscription.long_term_custom}}
                 <div style="float: left; width: 250px;">
                   <div class="input-group input-group-lg">
                     <span class="input-group-addon">$</span>
-                   {{input type="text" value=subscription.subscription_custom_amount class="form-control small-placeholder" placeholder="multiple of $50 at least $150"}}
+                   <Input @type="text" @value={{this.subscription.subscription_custom_amount}} class="form-control small-placeholder" placeholder="multiple of $50 at least $150" />
                   </div>
                 </div>
               {{/if}}
               <div style="clear: left;">
               </div>
-              {{#if custom_amount_error}}
+              {{#if this.custom_amount_error}}
                 <div>
                   <p class='text-danger'>{{t "Please enter a valid custom amount, a multiple of $50, at least $150 in total." key="invalid_gift_amount"}}</p>
                 </div>
@@ -114,7 +114,7 @@
           <div class="col-sm-9">
             <button type="submit" class="btn btn-lg btn-primary">
               {{t "Purchase Now" key="buy_now"}}
-              (${{subscription.amount_in_dollars}})
+              (${{this.subscription.amount_in_dollars}})
             </button>
           </div>
         </div>

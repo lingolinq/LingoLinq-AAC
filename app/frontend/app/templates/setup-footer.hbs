@@ -1,13 +1,13 @@
 <div id='setup_footer'>
   <span style='display: inline-block; font-size: 18px; margin-top: 10px;'>
-    {{#if setup_for_other}}
-      <img src={{setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'>
+    {{#if this.setup_for_other}}
+      <img src={{this.setup_for_other.avatar_url_with_fallback}} style='width: 50px; height: 50px; object-fit: contain; object-fit: contain; margin: -10px 0;'>
     {{/if}}
-    {{#if footer_status.error}}
-      <span class='text-danger'>{{footer_status.error}}</span>
-    {{else if footer_status.message}}
-      {{footer_status.message}}
-    {{else if app_state.currentBoardState.id}}
+    {{#if this.footer_status.error}}
+      <span class='text-danger'>{{this.footer_status.error}}</span>
+    {{else if this.footer_status.message}}
+      {{this.footer_status.message}}
+    {{else if this.app_state.currentBoardState.id}}
       <span style='font-size: 14px;'>
         <a href='#' {{action "back_to_from_route"}}>{{t "Back to Board List" key="back_to_board_list"}}</a>
       </span>
@@ -16,10 +16,10 @@
         {{#link-to "index"}}{{t "Back to the Dashboard" key="back_to_dashboard"}}{{/link-to}}
       </span>
     {{/if}}
-    {{#if app_state.currentBoardState}}
-      {{#if app_state.currentBoardState.id}}
-        {{#if app_state.currentUser}}
-          {{#if app_state.root_board_is_home}}
+    {{#if this.app_state.currentBoardState}}
+      {{#if this.app_state.currentBoardState.id}}
+        {{#if this.app_state.currentUser}}
+          {{#if this.app_state.root_board_is_home}}
           {{else}}
             <a class="btn btn-primary" href="#" {{action "setAsHome" "starting"}} style='margin-left: 20px;'>
               <span class="wide">{{t "Make This my Home Board" key="make_home_board"}}</span>
@@ -31,10 +31,10 @@
   </span>
   <div style='float: right;'>
     <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
-      {{t "step" key="step"}} {{setup_index}} {{t "of" key="of"}} {{setup_order.length}}
+      {{t "step" key="step"}} {{this.setup_index}} {{t "of" key="of"}} {{this.setup_order.length}}
     </span>
-    <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless setup_previous "visibility: hidden;"}} >Previous</button>
-    <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless setup_next "visibility: hidden;"}} >Next</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{safe-style (unless this.setup_previous "visibility: hidden;" "")}} >Previous</button>
+    <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{safe-style (unless this.setup_next "visibility: hidden;" "")}} >Next</button>
   </div>
   <div class='clear'></div>
 </div>

@@ -1,10 +1,10 @@
-<div class="col-sm-3 col-xs-6" style={{elem_style}}>
+<div class="col-sm-3 col-xs-6" style={{this.elem_style}}>
   <div class="panel panel-default summary">
     <div class="panel-heading">
       {{t "Words per utterance" key="words_per_utterance"}}
     </div>
     <div class="panel-body">
-      {{round usage_stats.words_per_utterance}}
+      {{round this.wordsPerUtteranceDisplay}}
     </div>
   </div>
 </div>
@@ -14,7 +14,7 @@
       {{t "Words per minute" key="words_per_minute"}}
     </div>
     <div class="panel-body">
-      {{round usage_stats.words_per_minute}}
+      {{round this.wordsPerMinuteDisplay}}
     </div>
   </div>
 </div>

@@ -14,6 +14,47 @@ import LingoLinq from '../app';
 var memory_stash = {};
 var daily_event_types = ['models', 'modeled', 'remote_models', 'focus_words', 'eval', 'modeling_ideas', 'notes', 'quick_assessments', 'goals'];
 var stash_capabilities = null;
+
+// CRITICAL: Set window.stashes EARLY at module load time
+// This ensures any code that runs before the service initializes has a safe placeholder
+if(!window.stashes || typeof window.stashes.get !== 'function') {
+  console.log('[STASHES MODULE] Setting early window.stashes placeholder');
+  window.stashes = {
+    // Safe placeholder properties
+    memory_stash: memory_stash,
+    prefix: 'cdStash-',
+    auth_settings: null,
+    enabled: false,
+    online: navigator.onLine !== false,
+    history_enabled: false,
+    logging_enabled: false,
+    geo: null,
+    // Safe get method
+    get: function(key) {
+      // Return property if it exists on placeholder
+      if(this.hasOwnProperty(key)) return this[key];
+      if(memory_stash.hasOwnProperty(key)) return memory_stash[key];
+      return null;
+    },
+    // Safe set method
+    set: function(key, value) {
+      this[key] = value;
+      memory_stash[key] = value;
+      return value;
+    },
+    // Placeholder methods
+    addObserver: function() {},
+    removeObserver: function() {},
+    persist: function() {},
+    persist_object: function() { return RSVP.resolve(); },
+    persist_raw: function() {},
+    flush: function() { return RSVP.resolve(); },
+    log: function() {},
+    log_event: function() { return null; },
+    push_log: function() {}
+  };
+}
+
 var stashes = EmberObject.extend({
   connect: function(application) {
     application.register('lingolinq:stashes', stashes, { instantiate: false, singleton: true });
@@ -634,7 +675,7 @@ var stashes = EmberObject.extend({
         modeling = true;
       }
       var phrase = null;
-      if((obj.add_vocalization || obj.add_vocalization == null) && window.app_state && window.app_state.get('currentUser.supporter_role') && (stashes.get('logging_enabled') || window.app_state.get('currentUser.supervised_units.length'))) {
+      if((obj.add_vocalization || obj.add_vocalization == null) && window.appState && window.appState.get('currentUser.supporter_role') && (stashes.get('logging_enabled') || window.appState.get('currentUser.supervised_units.length'))) {
         // unit supervisors and those with logging enabled 
         // with have their models explicitly tracked for reporting
         phrase = obj.vocalization || obj.label;
@@ -643,7 +684,7 @@ var stashes = EmberObject.extend({
     }
     if(!stashes.get('history_enabled')) { return null; }
     if(!stashes.get('logging_enabled')) { return null; }
-    if(window.app_state && window.app_state.get('eval_mode')) { return null; }
+    if(window.appState && window.appState.get('eval_mode')) { return null; }
     if(stashes.get('logging_paused_at')) {
       var last_event = stashes.get('last_event');
       var pause = stashes.get('logging_paused_at');
@@ -739,6 +780,61 @@ var stashes = EmberObject.extend({
 stashes.setup();
 stashes.geolocation = navigator.geolocation;
 
-window.stashes = stashes;
-
-export default stashes;
+// Only set window.stashes if it's not already set to a service instance
+// The instance initializer sets window.stashes to the service instance
+// We don't want to overwrite that with the class
+if(!window.stashes || typeof window.stashes.get !== 'function' || typeof window.stashes.set !== 'function') {
+  window.stashes = stashes;
+}
+// During migration: Create a proxy that forwards to the service instance when available
+// This allows old imports to work with the new service-based architecture
+// The instance initializer sets window.stashes to the service instance
+var stashes_export = new Proxy(stashes, {
+  get: function(target, prop) {
+    // Always check window.stashes first (set by instance initializer)
+    var instance = window.stashes;
+    // Check if it's a service instance (has get/set methods) and is not the class itself
+    if(instance && typeof instance.get === 'function' && typeof instance.set === 'function' && instance !== stashes) {
+      // It's the service instance, return the property
+      if(typeof instance[prop] !== 'undefined') {
+        var value = instance[prop];
+        // If it's a function, bind it to the instance so 'this' works correctly
+        if(typeof value === 'function') {
+          return value.bind(instance);
+        }
+        return value;
+      }
+    }
+    // Fallback to class methods/properties
+    if(typeof target[prop] !== 'undefined') {
+      var value = target[prop];
+      // If it's a function, handle 'this' context correctly
+      if(typeof value === 'function') {
+        // For class methods, bind to instance if available, otherwise to class
+        return function(...args) {
+          var instance = window.stashes;
+          if(instance && typeof instance.get === 'function' && typeof instance.set === 'function' && instance !== stashes) {
+            // Try to call on instance first
+            if(typeof instance[prop] === 'function') {
+              return instance[prop].apply(instance, args);
+            }
+          }
+          // Fallback to class method
+          return value.apply(target, args);
+        };
+      }
+      return value;
+    }
+    return undefined;
+  },
+  has: function(target, prop) {
+    var instance = window.stashes;
+    if(instance && typeof instance.get === 'function' && typeof instance.set === 'function' && instance !== stashes) {
+      if(prop in instance) {
+        return true;
+      }
+    }
+    return prop in target;
+  }
+});
+export default stashes_export;

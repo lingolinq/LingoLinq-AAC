@@ -2,43 +2,43 @@
   <div class="col-sm-12">
     <form class="form-inline">
       <div class="form-group">
-      {{input type="text" value=searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+      <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
       </div>
       <div class="form-group thin_select" style='width: 80px;'>
-        {{bound-select select_class="form-control" content=locales selection=locale action=(action (mut locale)) }}
+        {{bound-select select_class="form-control" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
       </div>
       <div class="form-group">
         <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
       </div>
       <div class="form-group" style="padding-left: 20px;">
-        {{#if app_state.currentUser}}
+        {{#if this.app_state.currentUser}}
           <button class="btn btn-default" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
-          {{#link-to "home-boards" class="btn btn-default"}}
+          <LinkTo @route="home-boards" class="btn btn-default">
               {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-          {{/link-to}}
+          </LinkTo>
         {{/if}}
       </div>
     </form>
   </div>
 </div>
 <div class="row" style="margin-top: 15px;">
-  <div class={{if app_state.currentUser "col-sm-8" "col-sm-12"}}>
+  <div class={{if this.app_state.currentUser "col-sm-8" "col-sm-12"}}>
     <h2>{{t "Online Results" key="online_results"}}</h2>
-    {{#if online_results}}
-      {{#if online_results.loading}}
+    {{#if this.online_results}}
+      {{#if this.online_results.loading}}
         <p>{{t "Loading..." key="loading"}}</p>
-      {{else if online_results.results}}
+      {{else if this.online_results.results}}
         <div class="row">
-          {{#each online_results.results as |board|}}
+          {{#each this.online_results.results as |board|}}
             {{#if board.key}}
-              <div class={{if app_state.currentUser "col-md-3 col-sm-4 col-xs-4 simple_board_holder" "col-sm-2 col-xs-4 simple_board_holder"}}>
+              <div class={{if this.app_state.currentUser "col-md-3 col-sm-4 col-xs-4 simple_board_holder" "col-sm-2 col-xs-4 simple_board_holder"}}>
                 {{board-icon board=board localized=true flag_home=true}}
               </div>
             {{/if}}
           {{/each}}
         </div>
       {{else}}
-        {{#if persistence.online}}
+        {{#if (persistence-online)}}
           <p>{{t "None found" key="none_found"}}</p>
         {{else}}
           <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
@@ -46,16 +46,16 @@
       {{/if}}
     {{/if}}
   </div>
-  {{#if app_state.currentUser}}
+  {{#if this.app_state.currentUser}}
     <div class="col-sm-4">
-      {{#if persistence.online}}
+      {{#if (persistence-online)}}
         <h2>{{t "My Boards" key="my_boards"}}</h2>
-        {{#if personal_results}}
-          {{#if personal_results.loading}}
+        {{#if this.personal_results}}
+          {{#if this.personal_results.loading}}
             <p>{{t "Loading..." key="loading"}}</p>
-          {{else if personal_results.results}}
+          {{else if this.personal_results.results}}
             <div class="row">
-              {{#each personal_results.results as |board|}}
+              {{#each this.personal_results.results as |board|}}
                 {{#if board.key}}
                   <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
                     {{board-icon board=board localized=true flag_home=true}}
@@ -63,25 +63,25 @@
                 {{/if}}
               {{/each}}
             </div>
-            {{#link-to "user.index" app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
+            {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
           {{else}}
-            {{#if persistence.online}}
+            {{#if (persistence-online)}}
               <p>{{t "None found" key="none_found"}}</p>
-              {{#link-to "user.index" app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
+              {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
             {{else}}
               <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
             {{/if}}
           {{/if}}
         {{/if}}
       {{else}}
-        {{#unless local_results.impossible}}
+        {{#unless this.local_results.impossible}}
           <h2>{{t "Local Results" key="local_results"}}</h2>
-          {{#if local_results}}
-            {{#if local_results.loading}}
+          {{#if this.local_results}}
+            {{#if this.local_results.loading}}
               <p>{{t "Loading..." key="loading"}}</p>
-            {{else if local_results.results}}
+            {{else if this.local_results.results}}
               <div class="row">
-                {{#each local_results.results as |board|}}
+                {{#each this.local_results.results as |board|}}
                   {{#if board.key}}
                     <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
                       {{board-icon board=board}}

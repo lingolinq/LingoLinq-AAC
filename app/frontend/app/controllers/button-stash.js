@@ -3,7 +3,7 @@ import editManager from '../utils/edit_manager';
 import modal from '../utils/modal';
 import stashes from '../utils/_stashes';
 import Button from '../utils/button';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({

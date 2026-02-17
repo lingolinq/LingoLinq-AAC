@@ -1,11 +1,10 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
 import LingoLinq from '../app';
-import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import speecher from '../utils/speecher';
 import utterance from '../utils/utterance';
@@ -13,10 +12,15 @@ import Utils from '../utils/misc';
 import Stats from '../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 
 var order = ['intro', 'usage', 'board_category', 'core', 'symbols', 'access', 'voice', 'logging', 'supervisors', 'done'];
 var extra_order = ['extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-supervisors', 'extra-reports', 'extra-logs', 'extra-done'];
 export default Controller.extend({
+  router: service('router'),
+  appState: service('app-state'),
+  app_state: alias('appState'),
+  persistence: service('persistence'),
   speecher: speecher,
   title: computed(function() {
     return i18n.t('account_setup', "Account Setup");
@@ -24,16 +28,16 @@ export default Controller.extend({
   queryParams: ['page', 'finish', 'user_id'],
   order: order,
   extra_order: extra_order,
-  partial: computed('page', function() {
+  setupComponent: computed('page', function() {
     var page = this.get('page');
     var pages = order.concat(extra_order);
-    if(page && page.match(/^extra/)) {
-      app_state.controller.set('setup_order', order.concat(extra_order));
+    if(page && page.match(/^extra/) && this.appState && this.appState.controller) {
+      this.appState.controller.set('setup_order', order.concat(extra_order));
     }
     if(pages.indexOf(page) != -1) {
-      return "setup/" + page;
+      return 'setup/' + page;
     } else {
-      return "setup/intro";
+      return 'setup/intro';
     }
   }),
   utterance_layout: computed(
@@ -292,10 +296,10 @@ export default Controller.extend({
   no_scroll: computed(
     'advanced',
     'page',
-    'app_state.feature_flags.board_levels',
+    'appState.feature_flags.board_levels',
     'scroll_disableable',
     function() {
-      if(app_state.get('feature_flags.board_levels') && this.get('scroll_disableable')) {
+      if(this.appState.get('feature_flags.board_levels') && this.get('scroll_disableable')) {
         return !this.get('advanced') && this.get('page') == 'board_category'; 
       } else {
         return false;
@@ -336,7 +340,7 @@ export default Controller.extend({
     'fake_user.cell_phone',
     'setup_user.cell_phone',
     function(o, change) {
-      if(!app_state.controller.get('setup_footer')) { return; }
+      if(!this.appState || !this.appState.controller || !this.appState.controller.get('setup_footer')) { return; }
       var user = this.get('setup_user') || this.get('fake_user');
       if(!this.get('cell') && user.get('cell_phone')) {
         this.set('cell', user.get('cell_phone'));
@@ -355,7 +359,7 @@ export default Controller.extend({
     'fake_user.preferences.speak_mode_pin',
     'setup_user.preferences.speak_mode_pin',
     function(o, change) {
-      if(!app_state.controller.get('setup_footer')) { return; }
+      if(!this.appState || !this.appState.controller || !this.appState.controller.get('setup_footer')) { return; }
       var user = this.get('setup_user') || this.get('fake_user');
       if(!this.get('pin') && user.get('preferences.speak_mode_pin') && user.get('preferences.require_speak_mode_pin')) {
         this.set('pin', user.get('preferences.speak_mode_pin') || "");
@@ -389,7 +393,7 @@ export default Controller.extend({
     'setup_user.preferences.auto_home_return',
     'auto_home_return',
     function(a, b, c) {
-      if(!app_state.controller.get('setup_footer')) { return; }
+      if(!this.appState || !this.appState.controller || !this.appState.controller.get('setup_footer')) { return; }
       var do_update = false;
       var _this = this;
       if(_this.get('ignore_update')) { return; }
@@ -445,11 +449,22 @@ export default Controller.extend({
       return result;
     }
   ),
-  for_self: computed('app_state.currentUser.id', 'setup_user.id', function() {
-    return this.get('setup_user') && this.get('setup_user.id') == app_state.get('currentUser.id');
-  }),
-  update_on_page_change: observer('page', 'user_id', 'app_state.currentUser', 'setup_user', function() {
+  for_self: computed('appState.currentUser.id', 'setup_user.id', function() {
     var _this = this;
+    if(!_this.appState) { return false; }
+    return this.get('setup_user') && this.get('setup_user.id') == _this.appState.get('currentUser.id');
+  }),
+  _update_on_page_change_last_keys: null,
+  update_on_page_change: observer('page', 'user_id', 'appState.currentUser', 'setup_user', function() {
+    var _this = this;
+    if(!_this.appState || !_this.appState.controller) { return; }
+    var page = _this.get('page');
+    var user_id = _this.get('user_id');
+    var setup_user_id = _this.get('setup_user.id');
+    var keys = page + '|' + user_id + '|' + (setup_user_id || '');
+    var lastKeys = _this.get('_update_on_page_change_last_keys');
+    var pageOrUserChanged = lastKeys !== keys;
+    _this.set('_update_on_page_change_last_keys', keys);
     if(!_this.get('fake_user')) {
       _this.set('fake_user', EmberObject.create({
         preferences:
@@ -460,48 +475,61 @@ export default Controller.extend({
         }
       }));
     }
-    app_state.controller.set('setup_user_id', _this.get('user_id'));
+    if(_this.appState && _this.appState.controller) {
+      var new_setup_user_id = _this.get('user_id');
+      if(_this.appState.controller.get('setup_user_id') !== new_setup_user_id) {
+        _this.appState.controller.set('setup_user_id', new_setup_user_id);
+      }
+    }
     if(_this.get('user_id')) {
       if(_this.get('user_id') != _this.get('setup_user.id')) {
         _this.set('other_user', {loading: true});
         _this.set('setup_user', null);
-        app_state.set('setup_user', null);
+        _this.appState.set('setup_user', null);
         LingoLinq.store.findRecord('user', _this.get('user_id')).then(function(user) {
           if(user.get('permissions.edit')) {
             _this.set('other_user', null);
             _this.set('setup_user', user);  
-            app_state.set('setup_user', user);
+            _this.appState.set('setup_user', user);
           } else {
-            app_state.controller.set('setup_user_id', null);
+            if(_this.appState && _this.appState.controller) {
+              _this.appState.controller.set('setup_user_id', null);
+            }
             _this.set('other_user', {error: true, user_id: _this.get('user_id')});  
           }
         }, function(err) {
-          app_state.controller.set('setup_user_id', null);
+          if(_this.appState && _this.appState.controller) {
+            _this.appState.controller.set('setup_user_id', null);
+          }
           _this.set('other_user', {error: true, user_id: _this.get('user_id')});
         });  
       }
     } else {
       _this.set('other_user', null);
-      _this.set('setup_user', app_state.get('currentUser') || _this.get('fake_user'));
-      app_state.set('setup_user', app_state.get('currentUser'));
+      _this.set('setup_user', _this.appState.get('currentUser') || _this.get('fake_user'));
+      _this.appState.set('setup_user', _this.appState.get('currentUser'));
     }
-    if(this.get('setup_user')) {
-      this.set('cell', this.get('setup_user.cell_phone'));
+    if(_this.get('setup_user')) {
+      _this.set('cell', _this.get('setup_user.cell_phone'));
       ['vocalize_buttons', 'vocalize_linked_buttons', 'auto_home_return'].forEach(function(pref) {
         _this.set(pref, _this.get('setup_user.preferences.' + pref));
       });
 
-      if(this.get('page') == 'symbols' && this.get('setup_user').find_integration) {
-        this.get('setup_user').find_integration('lessonpix').then(function(res) {
+      if(_this.get('page') == 'symbols' && _this.get('setup_user').find_integration) {
+        _this.get('setup_user').find_integration('lessonpix').then(function(res) {
           _this.set('lessonpix_enabled', true);
         }, function(err) { });
       }
     }
-    app_state.controller.set('setup_page', this.get('page'));
-    if(this.get('page') != 'board_category') {
-      this.set('advanced', false);
+    if(_this.appState && _this.appState.controller) {
+      var new_setup_page = _this.get('page');
+      if(_this.appState.controller.get('setup_page') !== new_setup_page) {
+        _this.appState.controller.set('setup_page', new_setup_page);
+      }
     }
-    var _this = this;
+    if(_this.get('page') != 'board_category') {
+      _this.set('advanced', false);
+    }
     speecher.stop('all');
     _this.set('reading', false);
     if(_this.get('reading_enabled')) {
@@ -509,7 +537,9 @@ export default Controller.extend({
         _this.read_step();
       }, 500);
     }
-    $('html,body').scrollTop(0);
+    if(pageOrUserChanged) {
+      $('html,body').scrollTop(0);
+    }
   }),
   read_step: function() {
     var _this = this;
@@ -542,6 +572,44 @@ export default Controller.extend({
   already_have_board: computed('setup_user.preferences.home_board', 'do_find_board', function() {
     return this.get('setup_user.preferences.home_board') && !this.get('do_find_board');
   }),
+  _save_user_timer: null,
+  _schedule_user_save: function(user) {
+    var _this = this;
+    if(this._save_user_timer) {
+      runCancel(this._save_user_timer);
+    }
+    this._save_user_timer = runLater(function() {
+      _this._save_user_timer = null;
+      _this._do_user_save(user);
+    }, 400);
+  },
+  _do_user_save: function(user) {
+    var _this = this;
+    if(!user || !user.save) { return; }
+    if(this.appState && this.appState.controller) {
+      this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
+    }
+    user.save().then(function() {
+      if(_this.appState && _this.appState.controller) {
+        _this.appState.controller.set('footer_status', null);
+      }
+    }, function(err) {
+      if(_this.appState && _this.appState.controller) {
+        _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
+      }
+    });
+  },
+  flush_pending_save: function() {
+    var user = this.get('setup_user') || this.get('fake_user');
+    if(this._save_user_timer && user && user.save) {
+      runCancel(this._save_user_timer);
+      this._save_user_timer = null;
+      this._do_user_save(user);
+    } else if(this._save_user_timer) {
+      runCancel(this._save_user_timer);
+      this._save_user_timer = null;
+    }
+  },
   actions: {
     noop: function() {
 
@@ -576,7 +644,7 @@ export default Controller.extend({
         }
         user.set('preferences.' + preference, value);
         user.set('preferred_symbols_changed', user.get('preferred_symbols') != user.get('original_preferred_symbols'));
-        app_state.set('setup_user', user);
+        this.appState.set('setup_user', user);
       } else if(preference == 'device.symbol_background') {
         if(value == 'black_with_high_contrast') {
           user.set('preferences.device.symbol_background', 'black');
@@ -593,13 +661,8 @@ export default Controller.extend({
         modal.open('enable-logging', {save: true, user: _this.get('setup_user')});
       }
       if(user.save) {
-        app_state.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
-        user.save().then(function() {
-          app_state.controller.set('footer_status', null);
-          user.reload();
-        }, function(err) {
-          app_state.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
-        });
+        // Debounce saves to avoid excessive PUT/GET when clicking through options
+        _this._schedule_user_save(user);
       }
     },
     update_scroll: function(val) {
@@ -616,7 +679,7 @@ export default Controller.extend({
       }
     },
     home: function(plus_video) {
-      app_state.return_to_index();
+      this.appState.return_to_index();
       if(plus_video) {
         modal.open('inline-video', {video: {type: 'youtube', id: "TSlGz7g9LIs"}, hide_overlay: true});
         if(window.ga) {
@@ -641,22 +704,27 @@ export default Controller.extend({
       modal.open('premium-voices', {user: this.get('setup_user')});
     },
     extra: function() {
-      app_state.controller.set('setup_order', order.concat(extra_order));
+      var _this = this;
+      if(this.appState && this.appState.controller) {
+        this.appState.controller.set('setup_order', order.concat(extra_order));
+      }
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'extra', 'Extra Setup Pursued');
       }
       runLater(function() {
-        app_state.controller.send('setup_go', 'forward');
+        if(_this.appState && _this.appState.controller) {
+          _this.appState.controller.send('setup_go', 'forward');
+        }
       });
     },
     choose_board: function() {
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'skip', 'Extra Setup Pursued');
       }
-      this.transitionToRoute('home-boards');
+      this.router.transitionTo('home-boards');
     },
     done: function() {
-      app_state.return_to_index();
+      this.appState.return_to_index();
     },
     show_advanced: function() {
       this.set('advanced_mine', false);
@@ -667,7 +735,9 @@ export default Controller.extend({
       this.set('advanced', true);
     },
     select_board: function(board) {
-      app_state.controller.send('setup_go', 'forward');
+      if(this.appState && this.appState.controller) {
+        this.appState.controller.send('setup_go', 'forward');
+      }
     },
     show_more_symbols: function() {
       this.set('showing_more_symbols', true);

@@ -8,9 +8,9 @@ import $ from 'jquery';
 import editManager from './edit_manager';
 import modal from './modal';
 import capabilities from './capabilities';
-import app_state from './app_state';
+// import app_state from './app_state';
 import scanner from './scanner';
-import stashes from './_stashes';
+// import stashes from './_stashes';
 import utterance from './utterance';
 import frame_listener from './frame_listener';
 // TODO: change scanning options to allow multiple buttons
@@ -48,7 +48,8 @@ var $board_canvas = null;
 var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
-  var eatable = app_state.get('speak_mode') || (!app_state.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
+  if(!buttonTracker.appState) { return; }
+  var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
   }
@@ -86,7 +87,7 @@ $(document).on('mousedown touchstart', function(event) {
     event.target = document.elementFromPoint(event.clientX, event.clientY);
   }
   buttonTracker.touch_start(event);
-  if(capabilities.mobile && event.type == 'touchstart' && app_state.get('speak_mode') && scanner.scanning) {
+  if(capabilities.mobile && event.type == 'touchstart' && buttonTracker.appState && buttonTracker.appState.get('speak_mode') && scanner.scanning) {
     scanner.listen_for_input();
   }
 }).on('gazelinger mousemove touchmove mousedown touchstart', function(event) {
@@ -126,7 +127,7 @@ $(document).on('mousedown touchstart', function(event) {
   }
 }).on('keyup', '.button', function(event) {
   // basic keyboard navigation
-  // if(app_state.get('edit_mode')) { return; }
+  // if(buttonTracker.appState && buttonTracker.appState.get('edit_mode')) { return; }
   if(event.keyCode == 13 || event.keyCode == 32 || event.code == 'Enter' || event.code == 'Space') {
     if(event.target.tagName != 'INPUT') {
       buttonTracker.button_select(this, null, 'keyboard'); // trigger_source
@@ -157,15 +158,17 @@ $(document).on('mousedown touchstart', function(event) {
       return;
     }
     buttonTracker.last_key = event.key;
-    app_state.activate_button({}, {
-      label: event.key,
-      vocalization: key,
-      prevent_return: true,
-      button_id: null,
-      source: 'keyboard',
-      board: {id: 'external_keyboard', key: 'core/external_keyboard'},
-      type: 'speak'
-    });
+    if(buttonTracker.appState) {
+      buttonTracker.appState.activate_button({}, {
+        label: event.key,
+        vocalization: key,
+        prevent_return: true,
+        button_id: null,
+        source: 'keyboard',
+        board: {id: 'external_keyboard', key: 'core/external_keyboard'},
+        type: 'speak'
+      });
+    }
   }
 }).on('keydown', function(event) {
   if(event.keyCode == 9 || event.code == 'Tab') { // tab
@@ -195,15 +198,17 @@ $(document).on('mousedown touchstart', function(event) {
       modal.close();
     } else if(buttonTracker.check('keyboard_listen') && !modal.is_open()) {
       $("#hidden_input").val("");
-      app_state.activate_button({vocalization: ':clear'}, {
-        label: 'escape',
-        vocalization: ':clear',
-        prevent_return: true,
-        button_id: null,
-        source: 'keyboard',
-        board: {id: 'external_keyboard', key: 'core/external_keyboard'},
-        type: 'speak'
-      });
+      if(buttonTracker.appState) {
+        buttonTracker.appState.activate_button({vocalization: ':clear'}, {
+          label: 'escape',
+          vocalization: ':clear',
+          prevent_return: true,
+          button_id: null,
+          source: 'keyboard',
+          board: {id: 'external_keyboard', key: 'core/external_keyboard'},
+          type: 'speak'
+        });
+      }
     }
   } else if(event.keyCode == 8 || event.code == 'Backspace') { // backspace
     if(buttonTracker.check('keyboard_listen') && !modal.is_open()) {
@@ -211,15 +216,17 @@ $(document).on('mousedown touchstart', function(event) {
       if($input.val()) {
         $input.val($input.val().slice(0, -1));
       }
-      app_state.activate_button({vocalization: ':backspace'}, {
-        label: 'backspace',
-        vocalization: ':backspace',
-        prevent_return: true,
-        button_id: null,
-        source: 'keyboard',
-        board: {id: 'external_keyboard', key: 'core/external_keyboard'},
-        type: 'speak'
-      });
+      if(buttonTracker.appState) {
+        buttonTracker.appState.activate_button({vocalization: ':backspace'}, {
+          label: 'backspace',
+          vocalization: ':backspace',
+          prevent_return: true,
+          button_id: null,
+          source: 'keyboard',
+          board: {id: 'external_keyboard', key: 'core/external_keyboard'},
+          type: 'speak'
+        });
+      }
     }
   } else if([37, 38, 39, 40].indexOf(event.keyCode) != -1 || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(event.code) != -1) {
     if(buttonTracker.gamepadupdate) {
@@ -227,7 +234,9 @@ $(document).on('mousedown touchstart', function(event) {
     }
   } else if((event.keyCode == 77 || event.code == 'KeyM') && (event.altKey || event.ctrlKey)) {
     console.log("Keyboard shortcut for toggle modeling");
-    app_state.toggle_modeling_if_possible();
+    if(buttonTracker.appState) {
+      buttonTracker.appState.toggle_modeling_if_possible();
+    }
     event.preventDefault();
   }
 }).on('keydown', function(event) {
@@ -305,12 +314,12 @@ $(document).on('mousedown touchstart', function(event) {
   event.preventDefault();
   $('.button.drop_target,.board_drop.drop_target').removeClass('drop_target');
 }).on('dragstart', '.button', function(event) {
-  if(app_state.get('edit_mode')) {
+  if(buttonTracker.appState && buttonTracker.appState.get('edit_mode')) {
     event.preventDefault();
   }
 }).on('dragover', '.button', function(event) {
   event.preventDefault();
-  if(app_state.get('edit_mode')) {
+  if(buttonTracker.appState && buttonTracker.appState.get('edit_mode')) {
     $(this).addClass('drop_target');
   }
 }).on('dragover', '.board_drop', function(event) {
@@ -335,7 +344,42 @@ $(window).on('blur', function(event) {
 });
 
 var buttonTracker = EmberObject.extend({
-  setup: function() {
+  _services: {
+    appState: null,
+    persistence: null,
+    stashes: null
+  },
+  
+  get appState() {
+    return this._services.appState || (window.LingoLinq && window.LingoLinq.appState) || window.appState;
+  },
+
+  set appState(val) {
+    this._services.appState = val;
+  },
+  
+  get persistence() {
+    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  },
+
+  set persistence(val) {
+    this._services.persistence = val;
+  },
+
+  get stashes() {
+    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  },
+
+  set stashes(val) {
+    this._services.stashes = val;
+  },
+
+  setup: function(appState, persistence, stashes) {
+    this._services.appState = appState;
+    this._services.persistence = persistence;
+    if (stashes) {
+      this._services.stashes = stashes;
+    }
     // cheap trick to get us ahead of the line in front of ember
     $("#within_ember").on('click mousedown mouseup', function(event) {
       // on iOS (probably just UIWebView) this phantom
@@ -358,6 +402,11 @@ var buttonTracker = EmberObject.extend({
       // so we don't want any unintentional double-triggers
       if(event.pass_through) { return; }
 
+      // allow dropdown menu item clicks to propagate so Ember actions run
+      if($(event.target).closest('.dropdown-menu').length > 0) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       // if no recent mouseup or touchend, then we can assume
@@ -375,13 +424,14 @@ var buttonTracker = EmberObject.extend({
     });
   },
   check: function(attr) {
-    if(app_state.get('speak_mode')) {
+    if(buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
       return buttonTracker[attr];
     } else {
       return null;
     }
   },
   touch_start: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TSTART", event); }
     if(event.target && event.target.closest('#sidebar')) {
       buttonTracker.sidebarScrollStart = (document.getElementById('sidebar') || {}).scrollTop || 0;
@@ -409,11 +459,24 @@ var buttonTracker = EmberObject.extend({
       // doesn't need to be here, but since buttons are always using advanced_selection it's probably ok
       $(".touched").removeClass('touched');
       // this is to prevent ugly selected boxes that happen with dragging
-      if(app_state.get('edit_mode') || app_state.get('speak_mode')) {
+      if(buttonTracker.appState.get('edit_mode') || buttonTracker.appState.get('speak_mode')) {
         if(!buttonTracker.ignored_region(event) && event.type == 'mousedown') {
           event.preventDefault();
         }
-        if(app_state.get('edit_mode')) {
+        // In edit mode still set initialTarget so touch_release has a fallback when selectable_wrap is null
+        if(buttonTracker.appState.get('edit_mode')) {
+          var button_wrap = buttonTracker.find_selectable_under_event(event);
+          buttonTracker.initialTarget = button_wrap;
+          buttonTracker.initialEvent = event;
+          if(buttonTracker.initialTarget) {
+            buttonTracker.initialTarget.timestamp = (new Date()).getTime();
+            buttonTracker.initialTarget.event = event;
+          }
+          if(button_wrap) {
+            button_wrap.addClass('touched');
+          } else if(buttonTracker.appState.get('board_virtual_dom')) {
+            buttonTracker.appState.get('board_virtual_dom').clear_touched();
+          }
           return;
         }
       }
@@ -432,7 +495,7 @@ var buttonTracker = EmberObject.extend({
       if(button_wrap) {
         button_wrap.addClass('touched');
       } else {
-        app_state.get('board_virtual_dom').clear_touched();
+        buttonTracker.appState.get('board_virtual_dom').clear_touched();
       }
     } else {
       buttonTracker.triggerEvent = event;
@@ -450,6 +513,7 @@ var buttonTracker = EmberObject.extend({
   },
   // used for handling dragging, scanning selection
   touch_continue: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TCONT", event); }
     var $hover_button = $(event.target).closest('.hover_button');
     if((event.type == 'touchstart' || event.type == 'mousedown') && $hover_button.length) {
@@ -482,7 +546,7 @@ var buttonTracker = EmberObject.extend({
 
     // not the best approach, but I was getting tired of all the selected text blue things when
     // testing dragging so I threw this in.
-    if(buttonTracker.buttonDown && app_state.get('edit_mode') && (buttonTracker.drag || !buttonTracker.ignored_region(event))) {
+    if(buttonTracker.buttonDown && buttonTracker.appState.get('edit_mode') && (buttonTracker.drag || !buttonTracker.ignored_region(event))) {
       // TODO: this lookup should be a method instead of being hard-coded, like ignored_region
       if($(event.target).closest("#sidebar,.modal").length === 0) {
         event.preventDefault();
@@ -521,13 +585,16 @@ var buttonTracker = EmberObject.extend({
         window.screenInnerOffsetX = 0;
       }
       if(priors[0] != window.screenInnerOffsetX || priors[1] != window.screenInnerOffsetY) {
-        stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
-        stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
+        var stashes = (this && this.stashes) || window.stashes;
+        if (stashes && typeof stashes.persist === 'function') {
+          stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
+          stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
+        }
       }
     }
     if(event.type == 'touchstart' || event.type == 'mousedown' || event.type == 'touchmove') {
       buttonTracker.buttonDown = true;
-      if(app_state.get('sidebar_toggled')) {
+      if(buttonTracker.appState.get('sidebar_toggled')) {
         buttonTracker.buttonDown = false;
       }
     } else if(event.type == 'gazelinger' && buttonTracker.check('dwell_enabled')) {
@@ -540,7 +607,7 @@ var buttonTracker = EmberObject.extend({
     } else if(['mousedown', 'touchstart'].indexOf(event.type) != -1) {
       buttonTracker.frame_event(event, 'start');
     }
-    if(!buttonTracker.buttonDown && !app_state.get('edit_mode')) {
+    if(!buttonTracker.buttonDown && !buttonTracker.appState.get('edit_mode')) {
       var button_wrap = buttonTracker.find_selectable_under_event(event);
       if(button_wrap) {
         // button_wrap.addClass('hover');
@@ -548,7 +615,7 @@ var buttonTracker = EmberObject.extend({
         // TODO: this is not terribly performant, but I guess it doesn't matter
         // since it won't trigger much on mobile
         $("#board_canvas").css('cursor', 'pointer');
-        if(app_state.get('default_mode') && button_wrap.dom) {
+        if(buttonTracker.appState.get('default_mode') && button_wrap.dom) {
           var $stash_hover = $("#stash_hover");
           if($stash_hover.data('button_id') != button_wrap.id) {
             var offset = $(button_wrap.dom).offset();
@@ -581,7 +648,7 @@ var buttonTracker = EmberObject.extend({
         if($(event.target).closest("#stash_hover").length === 0) {
           $("#stash_hover").removeClass('on_button').data('button_id', null);
         }
-        app_state.get('board_virtual_dom').clear_hover();
+        buttonTracker.appState.get('board_virtual_dom').clear_hover();
         $("#board_canvas").css('cursor', '');
       }
       return;
@@ -649,7 +716,7 @@ var buttonTracker = EmberObject.extend({
     } else if(buttonTracker.buttonDown) {
       var elem_wrap = buttonTracker.track_drag(event);
       if(event.type == 'touchstart' || event.type == 'mousedown') {
-        if(app_state.get('speak_mode')) {
+        if(buttonTracker.appState.get('speak_mode')) {
           event.long_press_target = event.target;
           if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
             // TODO: I think this is only required as long as we use UIWekView
@@ -676,7 +743,7 @@ var buttonTracker = EmberObject.extend({
                 runCancel(buttonTracker.track_short_press.later);
                 buttonTracker.track_short_press.later = null;
               }
-              if(buttonTracker.check('long_press_delay') || app_state.get('default_mode')) {
+              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode')) {
                 buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
               }
               if(buttonTracker.check('short_press_delay')) {
@@ -689,7 +756,7 @@ var buttonTracker = EmberObject.extend({
         if(event.type == 'touchend' || event.type == 'mouseup' || !buttonTracker.longPressEvent || event.target != buttonTracker.longPressEvent.long_press_target) {
           buttonTracker.longPressEvent = null;
           buttonTracker.shortPressEvent = null;
-        } else if(!app_state.get('currentBoardState.id') || $(event.target).closest('.board .button').length == 0) {
+        } else if(!buttonTracker.appState.get('currentBoardState.id') || $(event.target).closest('.board .button').length == 0) {
           buttonTracker.longPressEvent = null;
           buttonTracker.shortPressEvent = null;
         }
@@ -730,7 +797,7 @@ var buttonTracker = EmberObject.extend({
         }
       }
 
-      if(!elem_wrap || !app_state.get('edit_mode')) {
+      if(!elem_wrap || !buttonTracker.appState.get('edit_mode')) {
       } else {
         // this is expensive, only do when the drop target has changed
         if(elem_wrap.dom && elem_wrap.dom != buttonTracker.drag.data('over')) {
@@ -785,6 +852,7 @@ var buttonTracker = EmberObject.extend({
     }
   },
   touch_release: function(event) {
+    if(!buttonTracker.appState) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TREL", event); }
     $(event.target).closest('.hover_button').remove();
     $("#identity_button:focus").blur();
@@ -800,6 +868,13 @@ var buttonTracker = EmberObject.extend({
       // select after 100ms and you can hit blank spaces without it
       // hitting somewhere else then you should be good
       return;
+    }
+    // Suppress synthetic mouseup that follows touchend (prevents double vocalization on touch devices)
+    if(event.type === 'mouseup' && buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type === 'touchend') {
+      var elapsed = event.timeStamp - (buttonTracker.lastReleaseEvent.timeStamp || 0);
+      if(elapsed >= 0 && elapsed < 800) {
+        return;
+      }
     }
     buttonTracker.lastReleaseEvent = event;
     if(buttonTracker.sidebarScrollStart != null) {
@@ -855,7 +930,7 @@ var buttonTracker = EmberObject.extend({
     var selectable_wrap = buttonTracker.find_selectable_under_event(event);
     // if dragging a button, behavior is very different than otherwise
     if(swipe_page) {
-      app_state.jump_to_next(swipe_page == 'e' || swipe_page == 's');
+      buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
       
     } else if(buttonTracker.drag) {
       // hide the dragged button for a second to find what's underneath it
@@ -892,10 +967,10 @@ var buttonTracker = EmberObject.extend({
       // if it either started or ended on a selectable item then there's a
       // chance we need to trigger a 'click', so pass it along
       buttonTracker.buttonDown = true;
-      buttonTracker.element_release(selectable_wrap, event, 'click'); // trigger_source
+      buttonTracker.element_release(selectable_wrap || buttonTracker.initialTarget, event, 'click'); // trigger_source
     } else {
       var $modal = $(event.target).closest(".modal-content");
-      if($modal.length > 0 && app_state.get('speak_mode') && event.type == 'touchend' && buttonTracker.dwell_enabled) {
+      if($modal.length > 0 && buttonTracker.appState.get('speak_mode') && event.type == 'touchend' && buttonTracker.dwell_enabled) {
         event.preventDefault();
         event.stopPropagation();
         $(event.target).trigger('click');
@@ -911,7 +986,7 @@ var buttonTracker = EmberObject.extend({
     buttonTracker.stop_dragging();
     buttonTracker.initialTarget = null;
     buttonTracker.initialEvent = null;
-    app_state.get('board_virtual_dom').clear_touched();
+    buttonTracker.appState.get('board_virtual_dom').clear_touched();
     $('.touched').removeClass('touched');
   },
   element_release: function(elem_wrap, event, event_source) {
@@ -932,7 +1007,7 @@ var buttonTracker = EmberObject.extend({
       modeling_sequence = true;
     }
     if(modeling_sequence) {
-      app_state.toggle_modeling_if_possible();
+      buttonTracker.appState.toggle_modeling_if_possible();
       event.preventDefault();
       buttonTracker.ignoreUp = true;
       return;
@@ -950,7 +1025,7 @@ var buttonTracker = EmberObject.extend({
       // TODO: clear finding_target when selecting anywhere else, leaving edit mode, etc.
     } else if(buttonTracker.ignored_region(event) || buttonTracker.ignored_region(buttonTracker.startEvent)) {
       // if it's an ignored region, do nothing
-    } else if(!app_state.get('edit_mode')) {
+    } else if(!buttonTracker.appState.get('edit_mode')) {
       // when not editing, use user's preferred selection logic for identifying and
       // selecting a button
       event.preventDefault();
@@ -996,7 +1071,7 @@ var buttonTracker = EmberObject.extend({
       }
       if(swipe_direction == 'clear' && buttonTracker.clear_on_wiggle) {
         event.preventDefault();
-        app_state.controller.send('clear');
+        buttonTracker.appState.controller.send('clear');
         return;
       }
       buttonTracker.frame_event(frame_event, 'select');
@@ -1066,7 +1141,7 @@ var buttonTracker = EmberObject.extend({
               utterance.add_button({label: ",", vocalization: "+,"});
             } else if(swipe_direction == 'e' || swipe_direction == 'n') {
               // question
-              app_state.activate_button({vocalization: '+?'}, {
+              buttonTracker.appState.activate_button({vocalization: '+?'}, {
                 label: '?',
                 vocalization: '+?',
                 prevent_return: true,
@@ -1077,7 +1152,7 @@ var buttonTracker = EmberObject.extend({
               });
             } else if(swipe_direction == 's') {
               // period
-              app_state.activate_button({vocalization: '+.'}, {
+              buttonTracker.appState.activate_button({vocalization: '+.'}, {
                 label: '.',
                 vocalization: '+.',
                 prevent_return: true,
@@ -1132,7 +1207,12 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+            var hiddenAt = this.stashes.get && this.stashes.get('sidebar_hidden_at');
+            if(hiddenAt && (Date.now() - hiddenAt) < 400) {
+              this.stashes.set('sidebar_hidden_at', null);
+            } else {
+              this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+            }
             buttonTracker.ignoreUp = true;
             buttonTracker.buttonDown = false;
           } else {
@@ -1179,8 +1259,24 @@ var buttonTracker = EmberObject.extend({
           }
         }
       }
-    } else if(app_state.get('edit_mode') && !editManager.paint_mode) {
-      if(((elem_wrap && elem_wrap.dom && elem_wrap.dom.className) || "").match(/button/)) {
+    } else if(buttonTracker.appState.get('edit_mode') && editManager.paint_mode) {
+      var isButton = (elem_wrap && elem_wrap.dom) && (
+        ((elem_wrap.dom.className || "").match(/button/)) ||
+        ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
+      );
+      if(isButton) {
+        event.preventDefault();
+        var id = elem_wrap.id != null ? elem_wrap.id : $(elem_wrap.dom).attr('data-id');
+        if(id && editManager.controller) {
+          editManager.controller.send('buttonPaint', id);
+        }
+      }
+    } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {
+      var isButton = (elem_wrap && elem_wrap.dom) && (
+        ((elem_wrap.dom.className || "").match(/button/)) ||
+        ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
+      );
+      if(isButton) {
         buttonTracker.button_release(elem_wrap, event);
       }
     }
@@ -1197,9 +1293,9 @@ var buttonTracker = EmberObject.extend({
     var $target = $(event.target);
     if(editManager.finding_target()) {
       buttonTracker.button_select(elem_wrap, null, source);
-    } else if(!app_state.get('edit_mode')) {
+    } else if(!buttonTracker.appState.get('edit_mode')) {
       buttonTracker.button_select(elem_wrap, {clientX: event.clientX, clientY: event.clientY, swipe_direction: event.swipe_direction}, source);
-    } else if(app_state.get('edit_mode') && !editManager.paint_mode) {
+    } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {
       event.preventDefault();
       if($target.closest('.action').length > 0) {
         elem_wrap.trigger('actionselect');
@@ -2018,14 +2114,14 @@ var buttonTracker = EmberObject.extend({
     }
     if($target.length > 0) {
       return buttonTracker.element_wrap($target[0]);
-    } else if(app_state.get('speak_mode')) {
+    } else if(buttonTracker.appState.get('speak_mode')) {
       // used for finding via the virtual dom
       var $board = $(".board");
       if($board.length === 0) { return null; }
       var offset = $board.offset() || {};
       var top = offset.top;
       if(top) {
-        var button = app_state.get('board_virtual_dom').button_from_point(x, y - top - 3);
+        var button = buttonTracker.appState.get('board_virtual_dom').button_from_point(x, y - top - 3);
         return buttonTracker.element_wrap(button);
       }
     }
@@ -2044,13 +2140,13 @@ var buttonTracker = EmberObject.extend({
         index: elem.index,
         virtual_button: true,
         addClass: function(str) {
-          app_state.get('board_virtual_dom').add_state(str, elem.id);
+          buttonTracker.appState.get('board_virtual_dom').add_state(str, elem.id);
         },
         trigger: function(event, source) {
-          app_state.get('board_virtual_dom').trigger(event, elem.id);
+          buttonTracker.appState.get('board_virtual_dom').trigger(event, elem.id);
         },
         trigger_special: function(event, args, source) {
-          app_state.get('board_virtual_dom').trigger(event, elem.id, args);
+          buttonTracker.appState.get('board_virtual_dom').trigger(event, elem.id, args);
         },
         loose_bounds: function() {
           return {
@@ -2117,6 +2213,18 @@ var buttonTracker = EmberObject.extend({
         dom.select_callback(event);
       }
     } else if(elem.dom && elem.trigger) {
+      var id = elem.id != null ? elem.id : (dom && $(dom).attr && $(dom).attr('data-id'));
+      // In edit mode or speak mode send directly to board controller so modal/activation works (custom event may not bubble with fast_html)
+      if(id && editManager.controller && typeof editManager.controller.send === 'function') {
+        if(buttonTracker.appState.get('edit_mode')) {
+          editManager.controller.send('buttonSelect', id, null);
+          return;
+        }
+        if(buttonTracker.appState.get('speak_mode')) {
+          editManager.controller.send('buttonSelect', id, args || null);
+          return;
+        }
+      }
       args ? elem.trigger_special('buttonselect', args, source) : elem.trigger('buttonselect', source);
     } else {
       $(elem).trigger('buttonselect');
@@ -2154,7 +2262,7 @@ var buttonTracker = EmberObject.extend({
         x = offset.left + ($button.outerWidth() / 2);
         y = offset.top + ($button.outerHeight() / 2);
       } else {
-        var button = app_state.get('board_virtual_dom').button_from_id(id);
+        var button = buttonTracker.appState.get('board_virtual_dom').button_from_id(id);
         if(button) {
           x = button.left + (button.width / 2);
           y = button.top + (button.height / 2);
@@ -2214,7 +2322,7 @@ var buttonTracker = EmberObject.extend({
     }
     if(!buttonTracker.drag) {
       elem_wrap = this.find_button_under_event(this.startEvent);
-      if(elem_wrap && elem_wrap.dom && app_state.get('edit_mode')) {
+      if(elem_wrap && elem_wrap.dom && buttonTracker.appState.get('edit_mode')) {
         var $elem = $(elem_wrap.dom);
         this.start_dragging($elem, this.startEvent);
         $elem.css('opacity', 0.0);
@@ -2393,7 +2501,7 @@ var buttonTracker = EmberObject.extend({
     } else if((ls.selection_type == 'touch' || ls.selection_type == 'mouse') && buttonTracker.check('scan_modeling')) {
       ls.modeling = true;
     }
-    stashes.last_selection = ls;
+    this.stashes.last_selection = ls;
     buttonTracker.last_selection = ls;
     return { proceed: true };
   },
@@ -2419,7 +2527,7 @@ var buttonTracker = EmberObject.extend({
   },
   focus_tab: function(from_start) {
     if(!buttonTracker.focus_wrap) {
-      var b = app_state.get('board_virtual_dom').button_from_index(from_start ? 0 : -2);
+      var b = buttonTracker.appState.get('board_virtual_dom').button_from_index(from_start ? 0 : -2);
       buttonTracker.focus_wrap = buttonTracker.element_wrap(b);
     }
     buttonTracker.focus_wrap.addClass('touched');
@@ -2435,7 +2543,7 @@ var buttonTracker = EmberObject.extend({
     // return true if there is an adjacent button, if not then
     // clear the tab and return false
     if(buttonTracker.focus_wrap) {
-      var b = app_state.get('board_virtual_dom').button_from_index(buttonTracker.focus_wrap.index + (forward ? 1 : -1));
+      var b = buttonTracker.appState.get('board_virtual_dom').button_from_index(buttonTracker.focus_wrap.index + (forward ? 1 : -1));
       buttonTracker.focus_wrap = buttonTracker.element_wrap(b);
     }
     if(buttonTracker.focus_wrap) {
@@ -2446,7 +2554,7 @@ var buttonTracker = EmberObject.extend({
     return !!buttonTracker.focus_wrap;
   },
   clear_tab: function() {
-    app_state.get('board_virtual_dom').clear_touched();
+    buttonTracker.appState.get('board_virtual_dom').clear_touched();
     buttonTracker.focus_wrap = null;
     // remove the current button state
   },
@@ -2484,7 +2592,7 @@ window.addEventListener('gamepaddisconnected', function(e) {
 if (!('ongamepadconnected' in window)) {
   // No gamepad events available, poll instead.
   buttonTracker.gamepad_check_interval = setInterval(function() {
-    if(app_state.get('speak_mode') && buttonTracker.check('dwell_type')) {
+    if(buttonTracker.appState.get('speak_mode') && buttonTracker.check('dwell_type')) {
       buttonTracker.update_gamepads();
       if(Object.keys(buttonTracker.gamepads).length > 0) {
         buttonTracker.direction_event('gamepads');
@@ -2495,7 +2603,7 @@ if (!('ongamepadconnected' in window)) {
 
 document.addEventListener('selectionchange', function(event) {
   // clear errant selections when they happen while in speak mode
-  if(app_state.get('speak_mode')) {
+  if(buttonTracker.appState && buttonTracker.appState.get('speak_mode')) {
     var sel = window.getSelection();
     if(sel && sel.type == 'Range' && sel.empty) {
       if(sel.anchorNode && sel.anchorNode.tagName == 'INPUT') {

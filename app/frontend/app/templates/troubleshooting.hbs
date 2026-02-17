@@ -4,7 +4,7 @@
     <p>
       {{t "This tool can help test for functionality that is expected or required in order for %app_name% to function correctly. Some tests will run automatically, while others may require manual testing. If you come across anything unexpected please hit the 'Support' link at the bottom of the page and report the problem." key="troubleshooting_intro"}}
     </p>
-    {{#if testing}}
+    {{#if this.testing}}
       <table class="table table-striped table-hover">
         <thead>
           <tr>
@@ -14,7 +14,7 @@
           </tr>
         </thead>
         <tbody>
-          {{#each tests as |test|}}
+          {{#each this.tests as |test|}}
             <tr>
               <td>{{test.name}}</td>
               <td>{{test.description}}</td>
@@ -74,7 +74,7 @@
       <h4 style="margin-top: 50px;">{{t "App Details" key="app_details"}}</h4>
       <table class='table table-striped table-hover' style='max-width: 500px'>
         <tbody>
-          {{#if should_reload}}
+          {{#if this.should_reload}}
             <tr>
               <td colspan='3' class='text-danger'>
                 {{t "After clearing, you should really reload" key="should_reload"}}<br>
@@ -82,14 +82,14 @@
               </td>
             </tr>
           {{/if}}
-          {{#if storage}}
+          {{#if this.storage}}
             <tr>
               <td style='vertical-align: middle;'>{{t "File Storage" key="file_storage"}}</td>
               <td style='vertical-align: middle;'>
-                {{#if storage.pending}}
+                {{#if this.storage.pending}}
                   {{t "Checking..." key="checking"}}
                 {{else}}
-                  {{t "%{size}Mb" size=storage.size key="megabytes"}}
+                  {{t "%{size}Mb" size=this.storage.size key="megabytes"}}
                 {{/if}}
               </td>
               <td style='vertical-align: middle;'>
@@ -100,16 +100,16 @@
           <tr>
             <td style='vertical-align: middle;'>{{t "Databases" key="databases"}}</td>
             <td style='vertical-align: middle;'>
-              {{#if db.pending}}
+              {{#if this.db.pending}}
                 {{t "Checking..." key="checking"}}
-              {{else if db}}
-                {{db.type}}
+              {{else if this.db}}
+                {{this.db.type}}
               {{else}}
                 {{t "None" key="none_upper"}}
               {{/if}}
             </td>
             <td style='vertical-align: middle;'>
-              {{#if db}}
+              {{#if this.db}}
                 <button class='btn btn-default' {{action "clear_databases"}} style='width: 150px;'>{{t "Clear" key="clear"}}</button>
               {{/if}}
             </td>
@@ -117,14 +117,14 @@
           <tr>
             <td style='vertical-align: middle;'>{{t "Local Storage" key="local_storage_name"}}</td>
             <td style='vertical-align: middle;'>
-              {{#if local_storage}}
+              {{#if this.local_storage}}
                 {{t "available" key="available"}}
               {{else}}
                 {{t "not available" key="not_available_lower"}}
               {{/if}}
             </td>
             <td style='vertical-align: middle;'>
-              {{#if local_storage}}
+              {{#if this.local_storage}}
                 <button class='btn btn-default' {{action "clear_local_storage"}} style='width: 150px;'>{{t "Clear" key="clear"}}</button>
               {{/if}}
             </td>
@@ -137,7 +137,7 @@
             <td>{{t "Recognized Device" key="recognized_device"}}</td>
             <td colspan='2'>{{this.app_state.device_name}}</td>
           </tr>
-          {{#if has_debugging}}
+          {{#if this.has_debugging}}
             <tr class='text-muted'>
               <td>{{t "Debugging" key="debugging"}}</td>
               <td colspan='2'><a href="#" {{action "show_debugging"}}>{{t "Available" key="available_cap"}}</a></td>
@@ -146,15 +146,15 @@
           <tr>
             <td style='vertical-align: middle;'>{{t "Local Boards" key="local_boards"}}</td>
             <td style='vertical-align: middle;'>
-              {{#if local_boards}}
-                {{local_boards}}
+              {{#if this.local_boards}}
+                {{this.local_boards}}
               {{else}}
                 {{t "not available" key="not_available_lower"}}
               {{/if}}
             </td>
             <td style='vertical-align: middle;'>
-              {{#if local_boards}}
-                {{#if persistence.online}}
+              {{#if this.local_boards}}
+                {{#if (persistence-online)}}
                   <button class='btn btn-default' {{action "push_to_cloud"}} style='width: 150px;'>{{t "Push to Cloud" key="push_to_cloud"}}</button>
                 {{/if}}
               {{/if}}
@@ -162,7 +162,7 @@
           </tr>
         </tbody>
       </table>
-    {{else if errors}}
+    {{else if this.errors}}
       <table class="table table-striped table-hover">
         <thead>
           <tr>
@@ -172,7 +172,7 @@
           </tr>
         </thead>
         <tbody>
-          {{#each errors as |error|}}
+          {{#each this.errors as |error|}}
             <tr>
               <td style='width: 210px;'><div style='max-width: 200px; overflow: auto; max-height: 100px; white-space: pre-line;'>{{error.message}}</div></td>
               <td>{{date error.date}}</td>
@@ -187,8 +187,8 @@
     {{else}}
       <div style="margin: 50px; text-align: center;">
         <button class='btn btn-lg btn-primary' {{action "run_default_tests"}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
-        {{#if error_count}}
-          <button class='btn btn-lg btn-default' {{action "show_errors"}}>{{t "Error" count=error_count key="n_errors"}}</button>
+        {{#if this.error_count}}
+          <button class='btn btn-lg btn-default' {{action "show_errors"}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
         {{/if}}
       </div>
     {{/if}}

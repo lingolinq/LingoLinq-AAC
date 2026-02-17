@@ -1,6 +1,6 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <h3>{{t "Activation Heat Map" key="heat_map"}}</h3>
-  {{#if usage_stats.max_touches}}
+  {{#if this.usage_stats.max_touches}}
     <canvas class="touch_locations" width="400" height="200" style="width: 100%; height: 300px; border: 1px solid #ccc; background: #eee !important;"></canvas>
   {{else}}
     <p>{{t "There are no recorded activations or touch events for the current report." key="no_touch_locations"}}</p>

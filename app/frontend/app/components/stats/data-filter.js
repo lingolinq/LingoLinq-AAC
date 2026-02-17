@@ -1,7 +1,7 @@
 import Component from '@ember/component';
-import app_state from '../../utils/app_state';
+
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
@@ -48,13 +48,16 @@ export default Component.extend({
   ),
   actions: {
     compare_to: function() {
-      this.sendAction('compare_to');
+      var fn = this.get('compare_to');
+      if (typeof fn === 'function') { fn(); }
     },
     clear_side: function() {
-      this.sendAction('clear_side');
+      var fn = this.get('clear_side');
+      if (typeof fn === 'function') { fn(); }
     },
     update_filter: function(type) {
-      this.sendAction('update_filter', type);
+      var fn = this.get('update_filter');
+      if (typeof fn === 'function') { fn(type); }
     }
   }
 });

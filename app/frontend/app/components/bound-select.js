@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { reads } from '@ember/object/computed';
 import $ from 'jquery';
 import { computed, observer } from '@ember/object';

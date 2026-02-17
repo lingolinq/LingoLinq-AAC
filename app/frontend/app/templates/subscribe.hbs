@@ -1,39 +1,39 @@
 {{#modal-dialog opening=(action "opening") closing=(action "closing") desired_width=645 uncloseable="true"}}
   <div class="modal-header">
     <button class='btn btn-default btn-sm' {{action "really_subscription_skip"}} style='float: right;'>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
-    {{#if model.user.really_expired}}
+    {{#if this.model.user.really_expired}}
       <h3>{{t "Purchase Update" key="subscription_update"}}</h3>
     {{else}}
       <h3>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</h3>
     {{/if}}
   </div>
   <div class="modal-body" id="button_settings">
-    {{#if model.user.really_expired}}
+    {{#if this.model.user.really_expired}}
       <p>
         {{t "Your %app_name% trial period has expired. Please update your billing settings to continue using LingoLinq." key="welcome_fill_out_subscription"}}
       </p>
     {{else}}
-      <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} style='float: left; height: 50px; margin: 0 10px 5px 0;'>
+      <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} style='float: left; height: 50px; margin: 0 10px 5px 0;'>
       <p>
         {{t "We're excited you're here! Every user account starts with 2 months of free access to our cloud extras so you can try %app_name% out and see if it's going to work before making a commitment, or you're welcome to sign up for one of our purchase plans right away." key="welcome_fill_out_subscription2"}}
       </p>
-      {{#if model.subscription.discount_period}}
+      {{#if this.model.subscription.discount_period}}
         <p>
           {{t "<strong>Discount available!</strong> If you purchase within the first 24 hours after signing up you're eligible for a <strong>25% discount</strong> on your account. You'll still get your 2-month trial included as well." key="welcome_fill_out_subscription_free_trial"}}
         </p>
-      {{else if model.subscription.sale}}
+      {{else if this.model.subscription.sale}}
         <p>
           {{t "<strong>%app_name% is on sale!</strong> Sign up now to receive a discount, the sale ends" key="welcome_fill_out_subscription_sale"}}
-          {{date model.subscription.sale_ends "day"}}{{t "." key="period"}}
+          {{date this.model.subscription.sale_ends "day"}}{{t "." key="period"}}
         </p>
       {{/if}}
     {{/if}}
-    {{#if model.subscription.finalizing_purchase}}
+    {{#if this.model.subscription.finalizing_purchase}}
       <h4>{{t "Confirming purchase..." key="finalizing_subscription"}}</h4>
-    {{else if error}}
-      <h4 class='text-danger'>{{error}}</h4>
+    {{else if this.error}}
+      <h4 class='text-danger'>{{this.error}}</h4>
     {{else}}
-      {{subscription-form user=model.user subscription=model.subscription trial_option=true subscription_skip="subscription_skip" subscription_error="subscription_error" subscription_success="subscription_success"}}
+      {{subscription-form user=this.model.user subscription=this.model.subscription trial_option=true subscription_skip="subscription_skip" subscription_error="subscription_error" subscription_success="subscription_success"}}
     {{/if}}
   </div>
 {{/modal-dialog}}

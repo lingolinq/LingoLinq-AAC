@@ -2,17 +2,14 @@ import Ember from 'ember';
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import LingoLinq from '../app';
 import LingoLinqImage from '../models/image';
-import app_state from '../utils/app_state';
-import stashes from '../utils/_stashes';
 import utterance from '../utils/utterance';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
 import editManager from '../utils/edit_manager';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -20,21 +17,48 @@ import speecher from '../utils/speecher';
 import session from '../utils/session';
 import obf from '../utils/obf';
 import Button from '../utils/button';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { inject } from '@ember/controller';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { getOwner } from '@ember/application';
 import sync from '../utils/sync';
+import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
+  router: service('router'),
+  modalService: service('modal'),
+  appState: service('app-state'),
+  stashes: service('stashes'),
+  persistence: service('persistence'),
+  app_state: alias('appState'),
   board: inject('board.index'),
-  // Explicit injection for app_state to avoid implicit injection deprecation warning
-  // Uses the 'lingolinq:app_state' registration name (renamed from 'cough_drop:app_state')
-  app_state: computed(function() {
+  session: session,
+  
+  init() {
+    this._super(...arguments);
+    // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
     var owner = getOwner(this);
-    return owner.lookup('lingolinq:app_state');
-  }),
+    var sessionService = owner.lookup('lingolinq:session');
+    if(sessionService) {
+      // Use defineProperty to set it without triggering read-only error
+      Object.defineProperty(this, 'session', {
+        value: sessionService,
+        writable: false,
+        configurable: true
+      });
+    }
+    // Explicit lookup of extras (fixing implicit injection deprecation)
+    var extras = owner.lookup('lingolinq:extras');
+    if(extras) {
+      Object.defineProperty(this, 'extras', {
+        value: extras,
+        writable: false,
+        configurable: true
+      });
+    }
+  },
   updateTitle: function(str) {
     if(!Ember.testing) {
       if(str) {
@@ -45,8 +69,11 @@ export default Controller.extend({
     }
   },
   copy_board: function(decision, for_editing, selected_user_name) {
+    if(!this || !this.get('persistence')) {
+      return RSVP.reject();
+    }
     var oldBoard = this.get('board').get('model');
-    if(!persistence.get('online')) {
+    if(!this.get('persistence').get('online')) {
       modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
       return RSVP.reject();
     }
@@ -70,8 +97,8 @@ export default Controller.extend({
     }
     var _this = this;
     needs_decision = needs_decision || !!oldBoard.get('multiple_locales');
-    needs_decision = needs_decision || (app_state.get('currentUser.supervisees') || []).length > 0;
-    needs_decision = needs_decision || (app_state.get('currentUser.stats.board_set_ids') || []).indexOf(oldBoard.get('id')) >= 0;
+    needs_decision = needs_decision || (this.appState.get('currentUser.supervisees') || []).length > 0;
+    needs_decision = needs_decision || (this.appState.get('currentUser.stats.board_set_ids') || []).indexOf(oldBoard.get('id')) >= 0;
     needs_decision = true;
 
     if(!decision && needs_decision) {
@@ -80,7 +107,7 @@ export default Controller.extend({
       });
     }
     decision = decision || {};
-    decision.user = decision.user || app_state.get('currentUser');
+    decision.user = decision.user || this.appState.get('currentUser');
     decision.action = decision.action || "nothing";
     oldBoard.set('copy_name', decision.board_name);
     oldBoard.set('copy_prefix', decision.board_prefix);
@@ -106,9 +133,9 @@ export default Controller.extend({
     if(desc) { desc = htmlSafe(desc.replace(/-/, '<br/>')); }
     return null; //desc;
   }),
-  update_level_buttons: observer('board.current_level', 'board.model.button_set.id', 'app_state.speak_mode', function() {
+  update_level_buttons: observer('board.current_level', 'board.model.button_set.id', 'appState.speak_mode', function() {
     var _this = this;
-    if(this.get('board.model') && !app_state.get('speak_mode')) {
+    if(this.get('board.model') && !this.appState.get('speak_mode')) {
       this.get('board.model').load_button_set().then(function(bs) {
         _this.set('level_buttons', bs.buttons_for_level(_this.get('board.model.id'), _this.get('board.current_level')));
       }, function() { });
@@ -116,16 +143,16 @@ export default Controller.extend({
   }),
   show_board_intro: computed(
     'has_board_intro',
-    'app_state.feature_flags.find_multiple_buttons',
-    'app_state.currentUser.preferences.progress.board_intros',
-    'app_state.pairing',
+    'appState.feature_flags.find_multiple_buttons',
+    'appState.currentUser.preferences.progress.board_intros',
+    'appState.pairing',
     'board.model.id',
     function() {
       // true if has_board_intro AND board intro hasn't been viewed yet
-      if(this.get('has_board_intro') && app_state.get('feature_flags.find_multiple_buttons') && !app_state.get('pairing')) {
+      if(this.get('has_board_intro') && this.appState.get('feature_flags.find_multiple_buttons') && !this.appState.get('pairing')) {
         var found = false;
         var board_id = this.get('board.model.id');
-        var intros = app_state.get('currentUser.preferences.progress.board_intros') || [];
+        var intros = this.appState.get('currentUser.preferences.progress.board_intros') || [];
         if(intros.find(function(i) { return i == board_id; })) {
           found = true;
         }
@@ -137,24 +164,26 @@ export default Controller.extend({
   has_board_intro: computed(
     'stashes.root_board_state.id',
     'stashes.temporary_root_board_state.id',
-    'app_state.currentUser.preferences.home_board.id',
+    'appState.currentUser.preferences.home_board.id',
+    'board.model.global_id',
     'board.model.intro',
     'board.model.intro.unapproved',
     function() {
       // TODO: also show if checking out the board in the 
       // setup process (except that's really only under 
       // advanced now), or if enabled on the embed
-      var root_board = stashes.get('root_board_state.id') == this.get('board.model.id') || stashes.get('temporary_root_board_state.id') == this.get('board.model.id');
+      var boardId = this.get('board.model.global_id') || this.get('board.model.id');
+      var root_board = this.stashes.get('root_board_state.id') == boardId || this.stashes.get('temporary_root_board_state.id') == boardId;
       // TODO: option to set board level for board_intro prompt
       // TODO: when entering board intro, set root_board_state to the board's id
       return root_board && this.get('board.model.intro') && !this.get('board.model.intro.unapproved');
     }
   ),
-  speak_mode_needing_hammer_js: computed('app_state.speak_mode', function() {
+  speak_mode_needing_hammer_js: computed('appState.speak_mode', function() {
     // iOS needs hammer.js because it's an older version of safari,
     // this causes problems when in speak mode and with dropdowns
     // since we get double-hit events
-    return app_state.get('speak_mode') && capabilities.installed_app && capabilities.system == 'iOS';
+    return this.appState.get('speak_mode') && capabilities.installed_app && capabilities.system == 'iOS';
   }),
   highlight_button: function(buttons, button_set, options) {
     options = options || {};
@@ -175,11 +204,12 @@ export default Controller.extend({
     var _this = this;
     var defer = _this.get('highlight_button_defer') || RSVP.defer();
     runLater(function() {
+      if(!_this || _this.isDestroyed) { return; }
       var will_render = false;
       if(defer.revert_board_level == undefined && buttons != 'resume') {
-        defer.revert_board_level = stashes.get('board_level') || 'none';
-        var was = stashes.get('board_level');
-        var level_changed = stashes.get('board_level') && stashes.get('board_level') != 10;
+        defer.revert_board_level = _this.stashes.get('board_level') || 'none';
+        var was = _this.stashes.get('board_level');
+        var level_changed = _this.stashes.get('board_level') && _this.stashes.get('board_level') != 10;
         if(level_changed) {
           _this.send('set_level', 10);
           will_render = true;
@@ -199,9 +229,10 @@ export default Controller.extend({
         }
         defer.promise.then(null, function(err) { 
           console.error("highlight sequence failed", err);
-          _this.set('button_highlights', null);
+          if(_this && !_this.isDestroyed) { _this.set('button_highlights', null); }
           return RSVP.resolve(); 
         }).then(function() {
+          if(!_this || _this.isDestroyed) { return; }
           if(_this.get('highlight_button_defer') == defer) {
             _this.set('highlight_button_defer', null);
             _this.set('last_highlight_selection', null);
@@ -215,8 +246,8 @@ export default Controller.extend({
               } else {
                 new_level = defer.revert_board_level;
               }
-              var level_changed = stashes.get('board_level') != new_level;
-              var was = stashes.get('board_level');
+              var level_changed = _this.stashes.get('board_level') != new_level;
+              var was = _this.stashes.get('board_level');
               if(level_changed) {
                 _this.send('set_level', new_level);
               }
@@ -261,21 +292,21 @@ export default Controller.extend({
     return defer.promise;
   },
   allow_search: computed(
-    'app_state.domain_settings.full_domain',
+    'appState.domain_settings.full_domain',
     'session.isAuthenticated',
     function() {
-      return app_state.get('domain_settings.full_domain') || session.get('isAuthenticated');
+      return this.appState.get('domain_settings.full_domain') || session.get('isAuthenticated');
     }
   ),
-  setup_for_other: computed('app_state.currentUser.id', 'setup_user_id', function() {
-    if(this.get('setup_user_id') && this.get('setup_user_id') != app_state.get('currentUser.id')) {
+  setup_for_other: computed('appState.currentUser.id', 'setup_user_id', function() {
+    if(this.get('setup_user_id') && this.get('setup_user_id') != this.appState.get('currentUser.id')) {
       return LingoLinq.store.peekRecord('user', this.get('setup_user_id'));
     } else {
       return null;
     }
   }),
-  can_edit_from_speak_mode: computed('app_state.sessionUser', 'app_state.sessionUser.modeling_only', 'app_state.referenced_user.preferences.speak_mode_edit', 'board.model.permissions.edit', 'board.model.uncopyable', 'board.model.for_sale', function() {
-    if(app_state.get('sessionUser') && !app_state.get('sessionUser.modeling_only') && app_state.get('referenced_user.preferences.speak_mode_edit')) {
+  can_edit_from_speak_mode: computed('appState.sessionUser', 'appState.sessionUser.modeling_only', 'appState.referenced_user.preferences.speak_mode_edit', 'board.model.permissions.edit', 'board.model.uncopyable', 'board.model.for_sale', function() {
+    if(this.appState.get('sessionUser') && !this.appState.get('sessionUser.modeling_only') && this.appState.get('referenced_user.preferences.speak_mode_edit')) {
       if(this.get('board.model.permissions.edit')) {
         return true;
       } else if(!this.get('board.model.for_sale') && !this.get('board.model.uncopyable')) {
@@ -285,8 +316,12 @@ export default Controller.extend({
     return false;
   }),
   no_hidden_buttons: computed('stashes.all_buttons_enabled', 'board.model.hidden_buttons', function() {
-    if(stashes.get('all_buttons_enabled')) { return false; }
+    if(this.stashes.get('all_buttons_enabled')) { return false; }
     return !this.get('board.model.hidden_buttons');
+  }),
+  no_hidden_buttons_link_style: computed('session.isAuthenticated', function() {
+    var s = this.get('session.isAuthenticated') ? 'margin-top: -10px; font-size: 14px;' : 'font-size: 14px;';
+    return htmlSafe(s);
   }),
   actions: {
     invalidateSession: function() {
@@ -294,19 +329,22 @@ export default Controller.extend({
     },
     authenticateSession: function() {
       if(location.hostname == '127.0.0.1') {
-        this.transitionToRoute('login');
+        this.router.transitionTo('login');
         // location.href = "//localhost:" + location.port + "/login";
       } else if(location.hostname == 'www.mylingolinq.com') {
         location.href = "//app.mylingolinq.com/login";
       } else {
-        this.transitionToRoute('login');
+        this.router.transitionTo('login');
       }
     },
     cancel_sync: function() {
-      persistence.cancel_sync();
+      var p = this && (this.get && this.get('persistence')) || (typeof window !== 'undefined' && window.persistence);
+      if (p && typeof p.cancel_sync === 'function') {
+        p.cancel_sync();
+      }
     },
     index: function() {
-      app_state.return_to_index();
+      this.appState.return_to_index();
     },
     support: function() {
       modal.open('support');
@@ -315,73 +353,89 @@ export default Controller.extend({
       modal.open('modals/choose-locale');
     },
     stickSidebar: function() {
-      var user = app_state.get('currentUser');
-      user.set('preferences.quick_sidebar', !user.get('preferences.quick_sidebar'));
-      stashes.persist('sidebarEnabled', false);
-      user.save().then(null, function() { });
+      var user = this.appState.get('currentUser');
+      var wantQuickSidebar = !user.get('preferences.quick_sidebar');
+      user.set('preferences.quick_sidebar', wantQuickSidebar);
+      this.stashes.persist('sidebarEnabled', false);
+      if(!wantQuickSidebar) {
+        this.stashes.set('sidebar_hidden_at', Date.now());
+      }
+      var _this = this;
+      user.save().then(function() {
+        user.set('preferences.quick_sidebar', wantQuickSidebar);
+      }, function() { });
     },
     toggleSidebar: function() {
-      stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+      this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
     },
     hide_temporary_sidebar: function() {
-      if(stashes.get('sidebarEnabled') && !app_state.get('currentUser.preferences.quick_sidebar')) {
+      if(this.stashes.get('sidebarEnabled') && !this.appState.get('currentUser.preferences.quick_sidebar')) {
         this.send('toggleSidebar');
       }
     },
     searchBoards: function() {
       if(this.get('searchString') == 'home') {
-        this.transitionToRoute('home-boards');
+        this.router.transitionTo('home-boards');
       } else {
-        this.transitionToRoute('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
+        this.router.transitionTo('search', 'any', encodeURIComponent(this.get('searchString') || '_'));
       }
     },
     backspace: function(opts) {
-      app_state.set('last_activation', (new Date()).getTime());
+      this.appState.set('last_activation', (new Date()).getTime());
       utterance.backspace(opts);
       if(!opts || !opts.skip_click) {
-        if(app_state.get('currentUser.preferences.click_buttons') && app_state.get('speak_mode')) {
+        if(this.appState.get('currentUser.preferences.click_buttons') && this.appState.get('speak_mode')) {
           speecher.click();
         }
-        if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+        if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
           capabilities.vibrate();
         }
       }
     },
     clear: function(opts) {
-      app_state.set('last_activation', (new Date()).getTime());
-      app_state.toggle_modeling(false);
+      this.appState.set('last_activation', (new Date()).getTime());
+      this.appState.toggle_modeling(false);
       utterance.clear(opts);
       if(!opts || !opts.skip_click) {
-        if(app_state.get('currentUser.preferences.click_buttons') && app_state.get('speak_mode')) {
+        if(this.appState.get('currentUser.preferences.click_buttons') && this.appState.get('speak_mode')) {
           speecher.click();
         }
-        if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+        if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
           capabilities.vibrate();
         }
       }
     },
+    speakMenuSelect: function(event) {
+      var modalService = this.modalService || this.get && this.get('modalService');
+      if (modalService && modalService.get('currentTemplate') === 'speak-menu') {
+        var component = modalService.get('currentComponent');
+        if (component && typeof component.send === 'function') {
+          component.send('button_event', 'speakMenuSelect', event && event.button_id, event);
+        }
+      }
+    },
     toggle_home_lock: function() {
-      app_state.toggle_home_lock();
+      this.appState.toggle_home_lock();
     },
     toggle_all_buttons: function() {
-      var state = stashes.get('all_buttons_enabled');
+      var state = this.stashes.get('all_buttons_enabled');
       if(state) {
-        stashes.persist('all_buttons_enabled', null);
-        sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {assertion: {show_all: false}});
+        this.stashes.persist('all_buttons_enabled', null);
+        sync.send_update(this.appState.get('referenced_user.id') || this.appState.get('currentUser.id'), {assertion: {show_all: false}});
       } else {
-        stashes.persist('all_buttons_enabled', true);
-        sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {assertion: {show_all: true}});
+        this.stashes.persist('all_buttons_enabled', true);
+        sync.send_update(this.appState.get('referenced_user.id') || this.appState.get('currentUser.id'), {assertion: {show_all: true}});
       }
     },
     toggle_focus: function() {
-      if(app_state.get('focus_words')) {
-        app_state.set('focus_words', null);
+      if(this.appState.get('focus_words')) {
+        this.appState.set('focus_words', null);
         editManager.controller.model.set('focus_id', 'blank');
-        if(app_state.get('pairing') || app_state.get('followers.allowed')) {
-          sync.send_update(app_state.get('referenced_user.id') || app_state.get('currentUser.id'), {assertion: {focus_words: []}});
+        if(this.appState.get('pairing') || this.appState.get('followers.allowed')) {
+          sync.send_update(this.appState.get('referenced_user.id') || this.appState.get('currentUser.id'), {assertion: {focus_words: []}});
         }
       } else {
-        modal.open('modals/focus-words', {user: app_state.get('sessionUser'), root_board_id: stashes.get('root_board_state.id'), inactivity_timeout: true});
+        modal.open('modals/focus-words', {user: this.appState.get('sessionUser'), root_board_id: this.stashes.get('root_board_state.id'), inactivity_timeout: true});
       }
     },
     end_evaluation: function() {
@@ -403,23 +457,23 @@ export default Controller.extend({
       }, 100);
     },
     home: function(opts) {
-      app_state.set('last_activation', (new Date()).getTime());
+      this.appState.set('last_activation', (new Date()).getTime());
       opts = opts || {};
-      if(app_state.get('eval_mode') && app_state.get('speak_mode')) {
+      if(this.appState.get('eval_mode') && this.appState.get('speak_mode')) {
         modal.notice(i18n.t('eval_mode_home_disabled', "Home is disabled during an evaluation, you can end the evaluation using the menu icon"), true);
         return;
       }
-      var state = stashes.get('temporary_root_board_state') || stashes.get('root_board_state');
-      var current = app_state.get('currentBoardState');
+      var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
+      var current = this.appState.get('currentBoardState');
       this.set('last_highlight_explore_action', (new Date()).getTime());
       // if you're on a temporary home board and you hit home, it should take you to the real home
-      if(state && current && state.key == current.key && stashes.get('temporary_root_board_state')) {
-        stashes.persist('temporary_root_board_state', null);
-        state = stashes.get('root_board_state');
+      if(state && current && state.key == current.key && this.stashes.get('temporary_root_board_state')) {
+        this.stashes.persist('temporary_root_board_state', null);
+        state = this.stashes.get('root_board_state');
       }
       if(state && current && state.key == current.key) {
         editManager.clear_history();
-        if(state == stashes.get('temporary_root_board_state')) {
+        if(state == this.stashes.get('temporary_root_board_state')) {
           modal.notice(i18n.t('already_temporary_home', "This board was set as the home board temporarily. To cancel hit the icon in the top right corner and select 'Release Home Lock'."), true);
         } else {
           if(state.meta_home) {
@@ -430,61 +484,63 @@ export default Controller.extend({
           this.highlight_button('resume');
         }
       } else {
-        if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+        if(this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
         } else {
-          app_state.track_depth('home');
+          this.appState.track_depth('home');
           this.rootBoard({index_as_fallback: true, button_triggered: opts.button_triggered});
-          if(app_state.get('currentUser.preferences.click_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.click_buttons') && this.appState.get('speak_mode')) {
             speecher.click();
           }
-          if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
             capabilities.vibrate();
           }
         }
       }
     },
     jump: function(path, source, board) {
-      if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+      console.log('[BOARD-DEBUG] application.jump', { path: path, source: source, boardId: board && board.id, boardKey: board && board.key });
+      if(this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
         this.jumpToBoard({
           key: path,
           source: source,
-          level: board.level,
-          locale: board.locale,
-          home_lock: board.home_lock,
-          meta_home: board.meta_home
+          level: board && board.level,
+          locale: board && board.locale,
+          home_lock: board && board.home_lock,
+          meta_home: board && board.meta_home
         });
       }
     },
     setAsHome: function(option, user) {
       var _this = this;
-      user = user || app_state.get('currentUser');
-      if(option == 'starting' && app_state.controller.get('setup_user_id') && app_state.controller.get('setup_user_id') != 'self' && user != 'skip_lookup') {
-        LingoLinq.store.findRecord('user', app_state.controller.get('setup_user_id')).then(function(u) {
+      user = user || this.appState.get('currentUser');
+      var controller = this.appState && this.appState.controller;
+      if(option == 'starting' && controller && controller.get('setup_user_id') && controller.get('setup_user_id') != 'self' && user != 'skip_lookup') {
+        LingoLinq.store.findRecord('user', controller.get('setup_user_id')).then(function(u) {
           _this.send('setAsHome', option, u);
         }, function(err) {
           _this.send('setAsHome', option, 'skip_lookup');
         });
         return;
       }
-      app_state.check_for_needing_purchase().then(function() {
-        app_state.assert_source().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
+        _this.appState.assert_source().then(function() {
           var board = _this.get('board.model');
           if(option == 'starting') {
-            board = stashes.get('root_board_state') || _this.get('board').get('model');
+            board = _this.stashes.get('root_board_state') || _this.get('board').get('model');
           }
           var board_user_name = emberGet(board, 'key').split(/\//)[1];
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
-            if(sync && persistence.get('online') && persistence.get('auto_sync')) {
+            if(sync && _this && _this.get && _this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
               _this.set('simple_board_header', false);
               runLater(function() {
-                if(persistence.get('auto_sync')) {
+                if(_this && _this.get && _this.get('persistence') && _this.get('persistence').get('auto_sync')) {
                   console.debug('syncing because home board changes');
-                  persistence.sync('self', null, null, 'home_board_changed').then(null, function() { });
+                  _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
                 }
               }, 1000);
               if(_this.get('setup_footer')) {
@@ -514,8 +570,8 @@ export default Controller.extend({
               } else {
                 user.set('preferences.home_board', {
                   id: emberGet(board, 'id'),
-                  level: stashes.get('board_level'),
-                  locale: app_state.get('label_locale'), // optional locale, otherwise server will assign board's locale
+                  level: _this.stashes.get('board_level'),
+                  locale: _this.appState.get('label_locale'), // optional locale, otherwise server will assign board's locale
                   key: emberGet(board, 'key')
                 });
                 user.save().then(function() {
@@ -531,8 +587,8 @@ export default Controller.extend({
     },
     add_to_sidebar: function() {
       var _this = this;
-      app_state.check_for_needing_purchase().then(function() {
-        app_state.assert_source().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
+        _this.appState.assert_source().then(function() {
           var board = _this.get('board').get('model');
           modal.open('add-to-sidebar', {board: {
             name: board.get('name'),
@@ -564,7 +620,7 @@ export default Controller.extend({
       }, 500);
     },
     set_level: function(level) {
-      stashes.persist('board_level', level);
+      this.stashes.persist('board_level', level);
       this.set('board.preview_level', level);
       this.set('board.model.display_level', level);
       editManager.process_for_displaying();
@@ -593,17 +649,17 @@ export default Controller.extend({
       // full screen browser mode? Prolly needs a localstorage component as well,
       // since if I reload and then click the browser back button it's all kinds
       // of backward.
-      app_state.set('last_activation', (new Date()).getTime());
-      if(stashes.get('sticky_board') && app_state.get('speak_mode')) {
+      this.appState.set('last_activation', (new Date()).getTime());
+      if(this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
-        app_state.track_depth('back');
+        this.appState.track_depth('back');
         this.backOneBoard(opts);
         if(!opts || !opts.skip_click) {
-          if(app_state.get('currentUser.preferences.click_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.click_buttons') && this.appState.get('speak_mode')) {
             speecher.click();
           }
-          if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+          if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
             capabilities.vibrate();
           }
         }
@@ -614,12 +670,12 @@ export default Controller.extend({
       modal.open('modals/board-intro', {board: this.get('board.model'), step: 0});
     },
     vocalize: function(opts) {
-      app_state.set('last_activation', (new Date()).getTime());
+      this.appState.set('last_activation', (new Date()).getTime());
       this.vocalize(null, opts);
     },
     remote_modeling: function() {
-      if(app_state.get('pairing.user_id')) {
-        modal.open('modals/remote-model', {communicator: !app_state.get('pairing.partner'), user_id: app_state.get('pairing.user_id')});
+      if(this.appState.get('pairing.user_id')) {
+        modal.open('modals/remote-model', {communicator: !this.appState.get('pairing.partner'), user_id: this.appState.get('pairing.user_id')});
       } else {
         modal.error(i18n.t('remote_modeling_error', "Error loading remote modeling"));
       }
@@ -645,63 +701,64 @@ export default Controller.extend({
           prevent_return: true,
           button_id: null,
           source: 'click',
-          board: {id: app_state.get('currentBoardState.id'), parent_id: app_state.get('currentBoardState.parent_id'), key: app_state.get('currentBoardState.key')},
+          board: {id: this.appState.get('currentBoardState.id'), parent_id: this.appState.get('currentBoardState.parent_id'), key: this.appState.get('currentBoardState.key')},
           type: 'speak'
         };
-        app_state.activate_button(obj, obj);
+        this.appState.activate_button(obj, obj);
       }
     },
     setSpeakModeUser: function(id, type) {
-      app_state.set_speak_mode_user(id, false, type == 'modeling');
+      this.appState.set_speak_mode_user(id, false, type == 'modeling');
     },
     pickSpeakModeUser: function(type) {
       var prompt = i18n.t('speak_as_which_user', "Select User to Speak As");
       if(type == 'modeling') {
         prompt = i18n.t('model_for_which_user', "Select User to Model For");
       }
-      app_state.set('referenced_speak_mode_user', null);
+      this.appState.set('referenced_speak_mode_user', null);
       this.send('switch_communicators', {modeling: (type == 'modeling'), stay: true, header: prompt});
     },
     toggleSpeakMode: function(decision) {
-      app_state.toggle_speak_mode(decision);
+      this.appState.toggle_speak_mode(decision);
     },
     startRecording: function() {
       // currently-speaking user must have active paid subscription to do video recording
-      app_state.check_for_currently_premium(app_state.get('speakModeUser'), 'record_session').then(function() {
+      this.appState.check_for_currently_premium(this.appState.get('speakModeUser'), 'record_session').then(function() {
         alert("not yet implemented");
       }, function() { });
     },
     toggleEditMode: function(decision) {
-      if(!app_state.get('edit_mode')) {
-        if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-          modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
+      if(!this.appState.get('edit_mode')) {
+        if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
+          modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
         } else {
-          app_state.toggle_edit_mode(decision);
+          this.appState.toggle_edit_mode(decision);
         }
       } else {
-        app_state.check_for_needing_purchase().then(function() {
-          app_state.toggle_edit_mode(decision);
+        var _this = this;
+        this.appState.check_for_needing_purchase().then(function() {
+          _this.appState.toggle_edit_mode(decision);
         }, function() { });
       }
     },
     editBoardDetails: function() {
-      if(!app_state.get('edit_mode')) { return; }
+      if(!this.appState.get('edit_mode')) { return; }
       modal.open('edit-board-details', {board: this.get('board.model')});
     },
     toggle_sticky_board: function() {
-      stashes.persist('sticky_board', !stashes.get('sticky_board'));
+      this.stashes.persist('sticky_board', !this.stashes.get('sticky_board'));
     },
     toggle_pause_logging: function() {
       var ts = (new Date()).getTime();
-      if(stashes.get('logging_paused_at')) {
+      if(this.stashes.get('logging_paused_at')) {
         ts = null;
       }
-      stashes.persist('logging_paused_at', ts);
+      this.stashes.persist('logging_paused_at', ts);
     },
     switch_communicators: function(opts) {
       var ready = RSVP.resolve({correct_pin: true});
-      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
+      if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
       }
       ready.then(function(res) {
         if(res && res.correct_pin) {
@@ -710,30 +767,30 @@ export default Controller.extend({
       }, function() { });
     },
     find_button: function() {
-      var include_other_boards = app_state.get('speak_mode') && ((stashes.get('root_board_state') || {}).key) == app_state.get('currentUser.preferences.home_board.key');
+      var include_other_boards = this.appState.get('speak_mode') && ((this.stashes.get('root_board_state') || {}).key) == this.appState.get('currentUser.preferences.home_board.key');
       modal.open('find-button', {
-        inactivity_timeout: app_state.get('speak_mode'),
+        inactivity_timeout: this.appState.get('speak_mode'),
         board: this.get('board').get('model'),
         include_other_boards: include_other_boards
       });
     },
     shareBoard: function() {
       var _this = this;
-      app_state.assert_source().then(function() {
+      this.appState.assert_source().then(function() {
         modal.open('share-board', {board: _this.get('board.model')});
       }, function() { }); 
     },
     copy_and_edit_board: function() {
       var _this = this;
-      app_state.check_for_needing_purchase().then(function() {
+      this.appState.check_for_needing_purchase().then(function() {
         _this.copy_board(null, true).then(function(board) {
           if(board) {
-            app_state.jump_to_board({
+            _this.appState.jump_to_board({
               id: board.id,
               key: board.key
             });
             runLater(function() {
-              app_state.toggle_edit_mode();
+              if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
             });
           }
         }, function() { });
@@ -746,22 +803,22 @@ export default Controller.extend({
         update_locale = decision.update_locale;
         decision = null;
       }
-      app_state.check_for_needing_purchase().then(function() {
-        app_state.assert_source().then(function() {
-          if(app_state.get('edit_mode')) {
-            app_state.toggle_mode('edit');
+      this.appState.check_for_needing_purchase().then(function() {
+        _this.appState.assert_source().then(function() {
+          if(_this.appState.get('edit_mode')) {
+            _this.appState.toggle_mode('edit');
           }
           _this.copy_board(decision).then(function(board) {
             if(board) {
-              stashes.persist('label_locale', update_locale);
-              stashes.persist('vocalization_locale', update_locale);
-              stashes.persist('override_label_locale', update_locale);
-              stashes.persist('override_vocalization_locale', update_locale);
+              _this.stashes.persist('label_locale', update_locale);
+              _this.stashes.persist('vocalization_locale', update_locale);
+              _this.stashes.persist('override_label_locale', update_locale);
+              _this.stashes.persist('override_vocalization_locale', update_locale);
               if(update_locale) {
-                app_state.set('label_locale', update_locale);
-                app_state.set('vocalization_locale', update_locale);  
+                _this.appState.set('label_locale', update_locale);
+                _this.appState.set('vocalization_locale', update_locale);  
               }
-              app_state.jump_to_board({
+              _this.appState.jump_to_board({
                 id: board.id,
                 key: board.key
               });
@@ -772,14 +829,14 @@ export default Controller.extend({
     },
     downloadBoard: function() {
       var _this = this;
-      app_state.assert_source().then(function() {
+      this.appState.assert_source().then(function() {
         var has_links = _this.get('board').get('model').get('linked_boards').length > 0;
         modal.open('download-board', {type: 'obf', has_links: has_links, id: _this.get('board.model.id')});
       }, function() { });
     },
     printBoard: function() {
       var _this = this;
-      app_state.assert_source().then(function() {
+      this.appState.assert_source().then(function() {
         var has_links = _this.get('board').get('model').get('linked_boards').length > 0;
         modal.open('download-board', {type: 'pdf', has_links: has_links, id: _this.get('board.model.id')});
       }, function() { });
@@ -788,9 +845,17 @@ export default Controller.extend({
       this.get('board').saveButtonChanges();
     },
     resetBoard: function() {
+      if(!this || !this.get) { return; }
       this.toggleMode('edit');
-      this.get('board').get('model').rollbackAttributes();
-      this.get('board').processButtons();
+      var board = this.get('board');
+      if(!board) { return; }
+      var model = board.get('model');
+      if(model && typeof model.rollbackAttributes === 'function') {
+        model.rollbackAttributes();
+      }
+      if(typeof board.processButtons === 'function') {
+        board.processButtons();
+      }
     },
     undoEdit: function() {
       editManager.undo();
@@ -819,7 +884,7 @@ export default Controller.extend({
     },
     star: function() {
       var _this = this;
-      app_state.assert_source().then(function() {
+      this.appState.assert_source().then(function() {
         var board = _this.get('board').get('model');
         if(board.get('starred')) {
           board.unstar();
@@ -829,27 +894,30 @@ export default Controller.extend({
       }, function() { });
     },
     check_scanning: function() {
-      app_state.check_scanning();
+      if(!this) { return; }
+      if(this.appState && typeof this.appState.check_scanning === 'function') {
+        this.appState.check_scanning();
+      }
     },
     boardDetails: function() {
       modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {
-      app_state.set('label_locale', loc);
-      app_state.set('vocalization_locale', loc);
-      stashes.persist('label_locale', loc);
-      stashes.persist('vocalization_locale', loc);
-      stashes.persist('override_label_locale', loc);
-      stashes.persist('override_vocalization_locale', loc);
+      this.appState.set('label_locale', loc);
+      this.appState.set('vocalization_locale', loc);
+      this.stashes.persist('label_locale', loc);
+      this.stashes.persist('vocalization_locale', loc);
+      this.stashes.persist('override_label_locale', loc);
+      this.stashes.persist('override_vocalization_locale', loc);
       editManager.process_for_displaying();    
     },
     openButtonStash: function() {
-      if(!app_state.get('edit_mode')) { return; }
+      if(!this.appState.get('edit_mode')) { return; }
       editManager.clear_paint_mode();
       modal.open('button-stash');
     },
     preview_levels: function() {
-      if(!app_state.get('edit_mode')) { return; }
+      if(!this.appState.get('edit_mode')) { return; }
       editManager.preview_levels();
     },
     shift_level: function(direction) {
@@ -885,6 +953,7 @@ export default Controller.extend({
       modal.open('modals/board-actions', {board: this.get('board.model')})
     },
     highlight_button: function(options) {
+      if(!this || this.isDestroyed) { return; }
       options = options || {};
       // TODO: this and activateButton belong somewhere more testable
       var buttons = this.get('button_highlights');
@@ -918,8 +987,8 @@ export default Controller.extend({
             defer.not_first_action = true;
 
             if(button.pre == 'true_home' || button.pre == 'home') {
-              var has_temporary_home = !!stashes.get('temporary_root_board_state');
-              var already_on_temporary_home = stashes.get('temporary_root_board_state.id') == app_state.get('currentBoardState.id');
+              var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
+              var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');
               if(!has_temporary_home || already_on_temporary_home) {
                 buttons.shift();
               }
@@ -1018,8 +1087,8 @@ export default Controller.extend({
             // try to find the sequence to get from here to there
             var bs = _this.get('button_highlights_button_set');
             var current = _this.get('board.model.id');
-            var home = stashes.get('root_board_state.id');
-            var tmp_home = stashes.get('temporary_root_board_state.id');
+            var home = this.stashes.get('root_board_state.id');
+            var tmp_home = this.stashes.get('temporary_root_board_state.id');
             var map = bs.board_map([bs]).map;
             var sequence = bs.button_steps(current, button.board_id, map, home, tmp_home);
             var new_buttons = [];
@@ -1054,20 +1123,20 @@ export default Controller.extend({
       });
     },
     launch_board: function() {
-      if(app_state.get('board_url')) {
-        capabilities.window_open(app_state.get('board_url'), '_blank');
+      if(this.appState.get('board_url')) {
+        capabilities.window_open(this.appState.get('board_url'), '_blank');
       }
     },
     confirm_update: function() {
       modal.open('confirm-update-app');
     },
     toggle_modeling: function() {
-      app_state.toggle_modeling_if_possible(true);
+      this.appState.toggle_modeling_if_possible(true);
     },
     meta_home_click: function() {
     },
     meta_home: function() {
-      app_state.meta_home_if_possible();
+      this.appState.meta_home_if_possible();
     },
     switch_languages: function() {
       modal.open('switch-languages', {board: this.get('board.model')}).then(function(res) {
@@ -1077,26 +1146,31 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      if(app_state.get('from_route')) {
-        this.transitionToRoute.apply(this, app_state.get('from_route'));
+      var from = this.appState.get('from_route');
+      if(from && from.length && this.router) {
+        this.router.transitionTo.apply(this.router, from);
       } else {
-        app_state.return_to_index();
+        this.appState.return_to_index();
       }
     },
     suggestions: function() {
-      modal.open('button-suggestions', {board: this.get('board.model'), user: app_state.get('currentUser')});
+      modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
     },
     setup_go: function(direction) {
+      var setupController = this.router && this.router.controllerFor && this.router.controllerFor('setup');
+      if(setupController && typeof setupController.flush_pending_save === 'function') {
+        setupController.flush_pending_save();
+      }
       var order = this.get('setup_order');
       var current = this.get('setup_page') || 'intro';
       var current_index = order.indexOf(current) || 0;
       var wait = RSVP.resolve();
       if(direction == 'forward') {
-        var u = app_state.get('setup_user') || app_state.get('currentUser');
+        var u = this.appState.get('setup_user') || this.appState.get('currentUser');
         if(order[current_index + 1] == 'board_category') {
           // Skip board selection if a home board is already
           // set and this was an auto-launch
-          if(app_state.get('auto_setup') && u &&u.get('preferences.home_board')) {
+          if(this.appState.get('auto_setup') && u &&u.get('preferences.home_board')) {
             current_index++;
           }
         }
@@ -1123,16 +1197,16 @@ export default Controller.extend({
         if(user_id) {
           params.user_id = user_id;
         }
-        _this.transitionToRoute('setup', {queryParams: params});
+        _this.router.transitionTo('setup', {queryParams: params});
       }, function() { });
     },
     speak_mode_notification: function() {
-      if(app_state.get('speak_mode_modeling_ideas.enabled')) {
-        modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [app_state.get('referenced_user')]});
-      } else if(app_state.get('user_badge')) {
-        modal.open('badge-awarded', {inactivity_timeout: true, speak_mode: true, badge: {id: app_state.get('user_badge.id')}});
-      } else if(app_state.get('speak_mode_modeling_ideas.timeout')) {
-        modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [app_state.get('referenced_user')]});
+      if(this.appState.get('speak_mode_modeling_ideas.enabled')) {
+        modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
+      } else if(this.appState.get('user_badge')) {
+        modal.open('badge-awarded', {inactivity_timeout: true, speak_mode: true, badge: {id: this.appState.get('user_badge.id')}});
+      } else if(this.appState.get('speak_mode_modeling_ideas.timeout')) {
+        modal.open('modals/modeling-ideas', {inactivity_timeout: true, speak_mode: true, users: [this.appState.get('referenced_user')]});
       }
     }
   },
@@ -1153,103 +1227,119 @@ export default Controller.extend({
   }),
   activateButton: function(button, options) {
     var _this = this;
-    button.findContentLocally().then(function() {
-      options = options || {};
-      var image = options.image || button.get('image');
-      var sound = options.sound || button.get('sound');
-      var board = options.board;
+    speecher.unlock_speech();
+    var contentPromise = (button.findContentLocally && typeof button.findContentLocally === 'function') ? button.findContentLocally() : null;
+    var p = (contentPromise && typeof contentPromise.then === 'function') ? contentPromise : RSVP.resolve();
+    var done = false;
+    var runActivation = function() {
+      if(done) { return; }
+      done = true;
+      _this._activateButtonWithOptions(button, options);
+    };
+    var timeout = runLater(runActivation, 1500);
+    p.then(function() {
+      runCancel(timeout);
+      runActivation();
+    }, function() {
+      runCancel(timeout);
+      runActivation();
+    });
+  },
+  _activateButtonWithOptions: function(button, options) {
+    var _this = this;
+    options = options || {};
+    var image = options.image || button.get('image');
+    var sound = options.sound || button.get('sound');
+    var board = options.board;
+    if(!board || typeof board.get !== 'function') {
+      return;
+    }
+    var oldState = {
+      id: board.get('id'),
+      key: board.get('key'),
+      parent_id: board.get('parent_board_id')
+    };
+    var image_url = button.image;
+    if(image && image.get('personalized_url') && !button.no_skin) {
+      image_url = image.get('personalized_url');
+    } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
+      image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin);
+    }
+    var obj = {
+      label: button.label,
+      vocalization: button.vocalization,
+      image: image_url,
+      button_id: button.id,
+      part_of_speech: button.part_of_speech,
+      sound: (sound && sound.get && sound.get('url')) || button.get('original_sound_url'),
+      board: oldState,
+      completion: button.completion,
+      source: options.trigger_source,
+      blocking_speech: button.blocking_speech,
+      type: 'speak'
+    };
+    if(options.overlay_location) {
+      obj.overlay_location = options.overlay_location;
+    } else if(options.event && options.event.swipe_direction && options.swipe_direction != 'clear') {
+      obj.swipe_location = options.event.swipe_direction;
+      var grid = editManager.grid_for(button.id);
+      var inflection = (grid || []).find(function(i) { return i.location == options.event.swipe_direction; });
+      if(inflection) {
+        options.overlay_label = inflection.label;
+        options.overlay_vocalization = inflection.vocalization;
+      }
+      button = editManager.overlay_button_from(button);
+    }
 
-      var oldState = {
-        id: board.get('id'),
-        key: board.get('key'),
-        parent_id: board.get('parent_board_id')
-      };
-      var image_url = button.image;
-      if(image && image.get('personalized_url') && !button.no_skin) {
-        image_url = image.get('personalized_url');
-      } else if(button.get('original_image_url') && LingoLinqImage.personalize_url) {
-        image_url = LingoLinqImage.personalize_url(button.get('original_image_url'), app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+    obj.label = options.overlay_label || obj.label;
+    obj.vocalization = options.overlay_vocalization || obj.vocalization;
+    if(options.event && options.event.overlay_target) { obj.overlay = options.event.overlay_target; }
+    if(options.event && options.event.trigger_source) { obj.source = options.event.trigger_source; }
+    var location = buttonTracker.locate_button_on_board(button.id, options.event);
+    if(location) {
+      obj.percent_x = location.percent_x;
+      obj.percent_y = location.percent_y;
+      obj.prior_percent_x = location.prior_percent_x;
+      obj.prior_percent_y = location.prior_percent_y;
+      obj.percent_travel = location.percent_travel;
+    }
+    _this.set('last_highlight_explore_action', (new Date()).getTime());
+
+    var highlight_buttons = _this.get('button_highlights') || [];
+    var next_actual_button = highlight_buttons.find(function(b) { return b.actual_button; });
+    utterance.set('hint_button', null);
+    if(!options.skip_highlight_check && next_actual_button && (!button.load_board || button.link_disabled) && (next_actual_button.vocalization || next_actual_button.label) == (button.vocalization || button.label)) {
+      var btn = null;
+      while(btn != next_actual_button) {
+        btn = highlight_buttons.shift();
       }
-      var obj = {
-        label: button.label,
-        vocalization: button.vocalization,
-        image: image_url,
-        button_id: button.id,
-        part_of_speech: button.part_of_speech,
-        sound: (sound && sound.get('url')) || button.get('original_sound_url'),
-        board: oldState,
-        completion: button.completion,
-        source: options.trigger_source,
-        blocking_speech: button.blocking_speech,
-        type: 'speak'
-      };
-      if(options.overlay_location) {
-        obj.overlay_location = options.overlay_location;
-      } else if(options.event && options.event.swipe_direction && options.swipe_direction != 'clear') {
-        obj.swipe_location = options.event.swipe_direction;
-        var grid = editManager.grid_for(button.id);
-        var inflection = (grid || []).find(function(i) { return i.location == options.event.swipe_direction; });
-        if(inflection) {
-          options.overlay_label = inflection.label;
-          options.overlay_vocalization = inflection.vocalization;
-        }
-        button = editManager.overlay_button_from(button);
+      _this.set('highlight_buttons', highlight_buttons);
+      var defer = _this.get('highlight_button_defer');
+      if(defer) {
+        defer.already_waited = false;
+        defer.did_wait = false;
+        defer.not_first_action = true;
       }
-  
-      obj.label = options.overlay_label || obj.label;
-      obj.vocalization = options.overlay_vocalization || obj.vocalization;
-      if(options.event && options.event.overlay_target) { obj.overlay = options.event.overlay_target; }
-      if(options.event && options.event.trigger_source) { obj.source = options.event.trigger_source; }
-      var location = buttonTracker.locate_button_on_board(button.id, options.event);
-      if(location) {
-        obj.percent_x = location.percent_x;
-        obj.percent_y = location.percent_y;
-        obj.prior_percent_x = location.prior_percent_x;
-        obj.prior_percent_y = location.prior_percent_y;
-        obj.percent_travel = location.percent_travel;
-      }
-      _this.set('last_highlight_explore_action', (new Date()).getTime());
-      
-      // if this is the next actual_button in the highlight
-      // queue then shift off everything up to and including that button
-      var highlight_buttons = _this.get('button_highlights') || [];
-      var next_actual_button = highlight_buttons.find(function(b) { return b.actual_button; })
-      utterance.set('hint_button', null);
-      if(!options.skip_highlight_check && next_actual_button && (!button.load_board || button.link_disabled) && (next_actual_button.vocalization || next_actual_button.label) == (button.vocalization || button.label)) {
-        // If we hit a button that works without being prompted, 
-        // move on to the next actual button and wait again
-        var btn = null;
-        while(btn != next_actual_button) {
-          btn = highlight_buttons.shift();
-        }
-        _this.set('highlight_buttons', highlight_buttons);
-        var defer = _this.get('highlight_button_defer');
-        if(defer) {
-          defer.already_waited = false;
-          defer.did_wait = false;
-          defer.not_first_action = true;
-        }
-      }
-      app_state.activate_button(button, obj);
-    }, function() { });
+    }
+    _this.appState.activate_button(button, obj);
   },
   background_class: computed(
-    'app_state.speak_mode',
-    'app_state.currentUser.preferences.board_background',
-    'app_state.currentUser.preferences.dim_header',
+    'this.appState.speak_mode',
+    'this.appState.currentUser.preferences.board_background',
+    'this.appState.currentUser.preferences.dim_header',
     'board.model.dim_header',
     function() {
       var res = "";
-      if(app_state.get('speak_mode')) {
-        var color = app_state.get('currentUser.preferences.board_background');
+      if(this.appState.get('speak_mode')) {
+        var color = this.appState.get('currentUser.preferences.board_background');
         if(color) {
           if(color == '#000') { color = 'black'; }
           res = res + "color_" + color;
         }
-        if(app_state.get('currentUser.preferences.dim_level')) {
-          res = res + " " + app_state.get('currentUser.preferences.dim_level');
+        if(this.appState.get('currentUser.preferences.dim_level')) {
+          res = res + " " + this.appState.get('currentUser.preferences.dim_level');
         }
-        if(app_state.get('currentUser.preferences.dim_header') || this.get('board.model.dim_header')) {
+        if(this.appState.get('currentUser.preferences.dim_header') || this.get('board.model.dim_header')) {
           res = res + " dim_sides";
         }
       }
@@ -1260,14 +1350,14 @@ export default Controller.extend({
     utterance.set_and_say_buttons(buttons);
   },
   few_supervisees: computed(
-    'app_state.currentUser.supervisees',
-    'app_state.currentBoardState.key',
+    'this.appState.currentUser.supervisees',
+    'this.appState.currentBoardState.key',
     function() {
       var max_to_show = 2;
-      var sups = app_state.get('currentUser.supervisees') || [];
+      var sups = this.appState.get('currentUser.supervisees') || [];
       var list = sups;
       var more = [];
-      var current_board_user_name = (app_state.get('currentBoardState.key') || '').split(/\//)[0];
+      var current_board_user_name = (this.appState.get('currentBoardState.key') || '').split(/\//)[0];
       if(current_board_user_name) {
         var new_list = [];
         var new_more = [];
@@ -1295,30 +1385,31 @@ export default Controller.extend({
     this.vocalize(pct || 3.0);
   },
   vocalize: function(volume, opts) {
-    if(app_state.get('eval_mode')) {
+    if(this.appState.get('eval_mode')) {
       if(this.get('board.model')) {
         this.get('board.model').prompt();
       }
-    } else if(app_state.get('currentUser.preferences.repair_on_vocalize')) {
+    } else if(this.appState.get('currentUser.preferences.repair_on_vocalize')) {
       modal.open('modals/repairs', {inactivity_timeout: true, speak_on_done: true});
     } else {
       utterance.vocalize_list(volume, opts);
-      if(app_state.get('currentUser.preferences.vibrate_buttons') && app_state.get('speak_mode')) {
+      if(this.appState.get('currentUser.preferences.vibrate_buttons') && this.appState.get('speak_mode')) {
         capabilities.vibrate();
       }
     }
   },
   jumpToBoard: function(new_state, old_state) {
-    app_state.jump_to_board(new_state, old_state);
+    console.log('[BOARD-DEBUG] application.jumpToBoard', { key: new_state && new_state.key, oldKey: old_state && old_state.key });
+    this.appState.jump_to_board(new_state, old_state);
   },
   backOneBoard: function(opts) {
-    app_state.back_one_board(opts);
+    this.appState.back_one_board(opts);
   },
   rootBoard: function(options) {
-    app_state.jump_to_root_board(options);
+    this.appState.jump_to_root_board(options);
   },
   toggleMode: function(mode, opts) {
-    app_state.toggle_mode(mode, opts);
+    this.appState.toggle_mode(mode, opts);
   },
   swatch_style: computed('swatches', function() {
     var swatches = this.get('swatches');
@@ -1326,9 +1417,9 @@ export default Controller.extend({
     var width = 285 + (extra_rows * 60);
     return htmlSafe('width: ' + width + 'px;');
   }),
-  swatches: computed('app_state.colored_keys', 'app_state.extra_colored_keys', function() {
+  swatches: computed('appState.colored_keys', 'appState.extra_colored_keys', function() {
     var res = [].concat(LingoLinq.keyed_colors);
-    var extras = app_state.get('extra_colored_keys') || [];
+    var extras = this.appState.get('extra_colored_keys') || [];
     var extras_per_row = Math.ceil(extras.length / (res.length / 2))
     res.forEach(function(swatch, idx) {
       if(idx % 2 == 1) {
@@ -1350,20 +1441,20 @@ export default Controller.extend({
     return res;
   }),
   show_back: computed(
-    'app_state.empty_board_history',
-    'app_state.currentUser.preferences.device.always_show_back',
-    'app_state.eval_mode',
-    'app_state.currentBoardState.extra_back',
+    'appState.empty_board_history',
+    'appState.currentUser.preferences.device.always_show_back',
+    'appState.eval_mode',
+    'appState.currentBoardState.extra_back',
     function() {
-      return (!this.get('app_state.empty_board_history') || this.get('app_state.currentUser.preferences.device.always_show_back') || this.get('eval_mode') || app_state.get('currentBoardState.extra_back'));
+      return (!this.appState.get('empty_board_history') || this.appState.get('currentUser.preferences.device.always_show_back') || this.get('eval_mode') || this.appState.get('currentBoardState.extra_back'));
     }
   ),
   on_home: computed(
     'stashes.root_board_state.id',
-    'app_state.currentBoardState.id',
-    'app_state.eval_mode',
+    'appState.currentBoardState.id',
+    'appState.eval_mode',
     function() {
-      return !!((app_state.get('currentBoardState.id') && app_state.get('currentBoardState.id') == stashes.get('root_board_state.id')) || app_state.get('eval_mode'));
+      return !!((this.appState.get('currentBoardState.id') && this.appState.get('currentBoardState.id') == this.stashes.get('root_board_state.id')) || this.appState.get('eval_mode'));
     }
   ),
   button_list_class: computed(
@@ -1372,23 +1463,23 @@ export default Controller.extend({
     'stashes.root_board_state.text_direction',
     'extras.eye_gaze_state',
     'show_back',
-    'app_state.pairing',
-    'app_state.currentUser.preferences.device.button_text_position',
-    'app_state.currentUser.preferences.device.utterance_text_only',
-    'app_state.currentUser.preferences.high_contrast',
+    'appState.pairing',
+    'appState.currentUser.preferences.device.button_text_position',
+    'appState.currentUser.preferences.device.utterance_text_only',
+    'appState.currentUser.preferences.high_contrast',
     'board.text_style',
     'board.button_style',
-    'app_state.header_size',
-    'app_state.flipped',
-    'app_state.currentUser.preferences.device.flipped_override',
+    'appState.header_size',
+    'appState.flipped',
+    'appState.currentUser.preferences.device.flipped_override',
     function() {
       var res = "button_list ";
-      var flipped = app_state.get('flipped');
+      var flipped = this.appState.get('flipped');
       if(flipped) {
         res = res + "flipped ";
         // always show text-only when flipping
       }
-      if(stashes.get('ghost_utterance') && !flipped) {
+      if(this.stashes.get('ghost_utterance') && !flipped) {
         res = res + "ghost_utterance ";
       }
       if(this.get('extras.eye_gaze_state')) {
@@ -1397,17 +1488,17 @@ export default Controller.extend({
       if(this.get('show_back')) {
         res = res + "with_back ";
       }
-      if(speecher.text_direction() == 'rtl' || stashes.get('root_board_state.text_direction') == 'rtl') {
+      if(speecher.text_direction() == 'rtl' || this.stashes.get('root_board_state.text_direction') == 'rtl') {
         res = res + "rtl ";
       }
-      if(app_state.get('pairing')) {
+      if(this.appState.get('pairing')) {
         res = res + "paired ";
       }
-      var currentUser = app_state.get('currentUser');
+      var currentUser = this.appState.get('currentUser');
       var userPrefs = currentUser && currentUser.get ? currentUser.get('preferences') : null;
       var devicePrefs = userPrefs && userPrefs.device ? userPrefs.device : null;
       var text_position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
-      var show_always = (devicePrefs && devicePrefs.utterance_text_only) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.utterance_text_only) || app_state.get('pairing.partner');
+      var show_always = (devicePrefs && devicePrefs.utterance_text_only) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.utterance_text_only) || this.appState.get('pairing.partner');
       if(text_position == 'text_only' || show_always || flipped) {
         res = res + "text_only ";
       }
@@ -1415,12 +1506,12 @@ export default Controller.extend({
         res = res + 'high_contrast ';
       }
 
-      if(app_state.get('flipped') && devicePrefs && devicePrefs.flipped_override && devicePrefs.flipped_text) {
+      if(this.appState.get('flipped') && devicePrefs && devicePrefs.flipped_override && devicePrefs.flipped_text) {
         res = res + 'text_' + devicePrefs.flipped_text + ' ';
       } else {
         if(this.get('board.text_style')) {
           var style = this.get('board.text_style') || ' ';
-          var big_header = this.get('app_state.header_size') == 'large' || this.get('app_state.header_size') == 'huge';
+          var big_header = this.appState.get('header_size') == 'large' || this.appState.get('header_size') == 'huge';
           if(flipped && big_header && (style == ' ' || style == 'text_small' || style == 'text_medium')) {
             style = 'text_large';
           }
@@ -1438,7 +1529,7 @@ export default Controller.extend({
           res = res + style.font_class + " ";
         }
       }
-      if(stashes.get('working_vocalization.length')) {
+      if(this.stashes.get('working_vocalization.length')) {
         res = res + "has_content ";
       }
 
@@ -1478,26 +1569,26 @@ export default Controller.extend({
     return res;
   }),
   content_class: computed(
-    'app_state.sidebar_visible',
-    'app_state.index_view',
+    'this.appState.sidebar_visible',
+    'this.appState.index_view',
     'session.isAuthenticated',
-    'app_state.currentUser.preferences.new_index',
+    'this.appState.currentUser.preferences.new_index',
     function() {
       var res = "";
-      if(this.get('app_state.sidebar_visible')) {
+      if(this.appState.get('sidebar_visible')) {
         res = res + "with_sidebar ";
       }
-      if(this.get('app_state.index_view')) {
+      if(this.appState.get('index_view')) {
         res = res + "index ";
       }
       if(this.get('session.isAuthenticated')) {
         res = res + "with_user ";
-      } else if(app_state.get('domain_settings.full_domain')) {
+      } else if(this.appState.get('domain_settings.full_domain')) {
         res = res + "no_user ";
       } else {
         res = res + "blank_user ";
       }
-      if(app_state.get('browser') == 'Safari' || app_state.get('system') == 'iOS' || capabilities.system == 'iOS') {
+      if(this.appState.get('browser') == 'Safari' || this.appState.get('system') == 'iOS' || capabilities.system == 'iOS') {
         res = res + "low_for_high_contrast ";
       }
       res = res + "new_index ";
@@ -1505,16 +1596,16 @@ export default Controller.extend({
     }
   ),
   header_class: computed(
-    'app_state.header_size',
-    'app_state.speak_mode',
-    'app_state.currentUser.preferences.new_index',
+    'appState.header_size',
+    'appState.speak_mode',
+    'appState.currentUser.preferences.new_index',
     function() {
       var res = "row ";
       res = res + 'new_index ';
-      if(this.get('app_state.header_size')) {
-        res = res + this.get('app_state.header_size') + ' ';
+      if(this.appState.get('header_size')) {
+        res = res + this.appState.get('header_size') + ' ';
       }
-      if(this.get('app_state.speak_mode')) {
+      if(this.appState.get('speak_mode')) {
         res = res + 'speaking advanced_selection';
       }
       return res;

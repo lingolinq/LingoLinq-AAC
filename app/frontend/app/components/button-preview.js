@@ -2,9 +2,9 @@ import Component from '@ember/component';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import buttonTracker from '../utils/raw_events';
-import app_state from '../utils/app_state';
+
 import editManager from '../utils/edit_manager';
 import capabilities from '../utils/capabilities';
 import { observer } from '@ember/object';

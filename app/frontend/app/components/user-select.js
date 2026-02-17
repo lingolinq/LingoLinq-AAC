@@ -47,12 +47,9 @@ export default Component.extend({
         });
       }
       if(!this.get('buttons') && !this.get('selection')) {
-        var action = this.get('action');
-        if (action && typeof action === 'function') {
-          action('self');
-        } else if (action && typeof action === 'string') {
-          // Fallback for string-based actions (legacy support)
-          this.sendAction('action', 'self');
+        var actionFn = this.get('action');
+        if (actionFn && typeof actionFn === 'function') {
+          actionFn('self');
         }
       }
     }
@@ -61,12 +58,9 @@ export default Component.extend({
     }
     if(!app_state.get('sessionUser.supervisees') || supervisees.length === 0) {
       if(!app_state.get('sessionUser.communicator_in_supporter_view')) {
-        var action = this.get('action');
-        if (action && typeof action === 'function') {
-          action('self');
-        } else if (action && typeof action === 'string') {
-          // Fallback for string-based actions (legacy support)
-          this.sendAction('action', 'self');
+        var actionFn = this.get('action');
+        if (actionFn && typeof actionFn === 'function') {
+          actionFn('self');
         }
       }
     }
@@ -149,8 +143,10 @@ export default Component.extend({
         }
       });
       if(found) {
-        // NOTE: user-select needs to handle when set id is from the extras list
-        this.sendAction('action', id);
+        var actionFn = this.get('action');
+        if (actionFn && typeof actionFn === 'function') {
+          actionFn(id);
+        }
       }
     },
     set_extra_user: function(user) {
@@ -163,12 +159,9 @@ export default Component.extend({
       us[user.id] = user;
       app_state.set('quick_users', us);
       this.set('extra_user', user);
-      var action = this.get('action');
-      if (action && typeof action === 'function') {
-        action(user.id);
-      } else if (action && typeof action === 'string') {
-        // Fallback for string-based actions (legacy support)
-        this.sendAction('action', user.id);
+      var actionFn = this.get('action');
+      if (actionFn && typeof actionFn === 'function') {
+        actionFn(user.id);
       }
     }
   }

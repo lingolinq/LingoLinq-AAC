@@ -1,18 +1,18 @@
-{{#if browse_audio.loading}}
+{{#if this.browse_audio.loading}}
   <p>{{t "Loading stored audio..." key="loading_stored_audio"}}</p>
-{{else if browse_audio.error}}
-  {{#if persistence.online}}
+{{else if this.browse_audio.error}}
+  {{#if (persistence-online)}}
     <p>{{t "Error loading stored audio" key="error_loading_stored_audio"}}</p>
   {{else}}
     <p>{{t "Stored audio files not available offline" key="audio_not_available_offline"}}</p>
   {{/if}}
 {{else}}
   <div style='margin-bottom: 5px;'>
-    {{input type="text" class="form-control" value=browse_audio.filter_string placeholder="filter results"}}
+    <Input type="text" class="form-control" @value={{this.browse_audio.filter_string}} placeholder="filter results" />
   </div>
-  {{# if browse_audio.results}}
+  {{# if this.browse_audio.results}}
     <div style='max-height: 200px; overflow: auto;'>
-      {{#each browse_audio.results as |sound|}}
+      {{#each this.browse_audio.results as |sound|}}
         {{#if sound.url}}
           <div class='sound-hover'>
             <div style='float: right;'>
@@ -47,6 +47,6 @@
     <p>{{t "No audio found" key="no_audio_found"}}</p>
   {{/if}}
 {{/if}}
-{{#if more_audio_results}}
+{{#if this.more_audio_results}}
   <button class='btn btn-default' {{action "more_browsed_audio"}}>{{t "More" key="more"}}</button>
 {{/if}}

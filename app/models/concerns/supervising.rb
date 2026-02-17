@@ -103,7 +103,9 @@ module Supervising
   end
   
   def process_supervisor_key(key)
+    return false unless key && key.is_a?(String) && key.length > 0
     action, key = key.split(/-/, 2)
+    return false unless action && action.length > 0
     action_parts = action.split(/_/)
     if action_parts[0] == 'add'
       return false unless self.any_premium_or_grace_period? && self.id

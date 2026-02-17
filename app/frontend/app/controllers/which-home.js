@@ -1,10 +1,12 @@
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
+  
   actions: {
     toggleSpeakMode: function(decision) {
-      app_state.toggle_speak_mode(decision);
+      this.appState.toggle_speak_mode(decision);
     }
   }  
 });

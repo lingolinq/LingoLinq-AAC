@@ -1,17 +1,17 @@
 <form class="form-horizontal">
-<div class={{if actionState "active" "hidden"}}>
+<div class={{if this.actionState "active" "hidden"}}>
   <div class="form-group">
     <label for="action" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
     <div class="col-sm-10">
-      {{bound-select select_class="form-control" select_id="action" content=buttonActions selection=model.buttonAction action=(action (mut model.buttonAction)) }}
+      {{bound-select select_class="form-control" select_id="action" content=this.buttonActions selection=this.model.buttonAction action=(action (mut this.model.buttonAction)) }}
     </div>
   </div>
-  {{#if model.folderAction}}
+  {{#if this.model.folderAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
-          {{#if model.load_board.key}}
+          {{#if this.model.load_board.key}}
             <img src={{this.model.icon}} style="height: 20px;">
             <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
@@ -27,35 +27,35 @@
         <button class="btn btn-default" {{action "find_board"}} style='display: none; margin-right: 20px;'>{{t "Find" key="find"}}</button>
         <button class="btn btn-default" {{action "build_board"}} style='margin-right: 20px;'>{{t "New" key="new"}}</button>
         <span class="board_search_field">
-          {{input value=linkedBoardName class="form-control" id="change_to" placeholder="Board name or key" enter=(action "find_board")}}
+          <Input @value={{this.linkedBoardName}} class="form-control" id="change_to" placeholder="Board name or key" @enter={{action "find_board"}} />
         </span>
         <button class="btn btn-default" {{action "find_board"}}>{{t "Find" key="find"}}</button>
-        {{#unless pending_board}}
+        {{#unless this.pending_board}}
           <div class="row" style="margin-top: 5px;">
             <div class="col-sm-12">
-              {{bound-select select_class="form-control" select_id="board_search_type" content=board_search_options selection=board_search_type action=(action (mut board_search_type)) }}
+              {{bound-select select_class="form-control" select_id="board_search_type" content=this.board_search_options selection=this.board_search_type action=(action (mut this.board_search_type)) }}
             </div>
           </div>
-          {{#if confirm_found_board}}
+          {{#if this.confirm_found_board}}
             <div class="row" style="margin-top: 10px;">
-              {{#if confirm_found_board.copy_status.copying}}
+              {{#if this.confirm_found_board.copy_status.copying}}
                 <div class="col-sm-12">
-                  <p>{{t "Copying board %{board_key}..." board_key=confirm_found_board.key key="copying_board_key"}}</p>
+                  <p>{{t "Copying board %{board_key}..." board_key=this.confirm_found_board.key key="copying_board_key"}}</p>
                 </div>
-              {{else if confirm_found_board.copy_status.error}}
+              {{else if this.confirm_found_board.copy_status.error}}
                 <div class="col-sm-12">
                   <p>{{t "There was an error copying the board" key="error_copying_board"}}</p>
                 </div>
-              {{else if confirm_found_board.share_status.sharing}}
+              {{else if this.confirm_found_board.share_status.sharing}}
                 <div class="col-sm-12">
-                  <p>{{t "Sharing board %{board_key}..." board_key=confirm_found_board.key key="sharing_board_key"}}</p>
+                  <p>{{t "Sharing board %{board_key}..." board_key=this.confirm_found_board.key key="sharing_board_key"}}</p>
                 </div>
-              {{else if confirm_found_board.share_status.error}}
+              {{else if this.confirm_found_board.share_status.error}}
                 <div class="col-sm-12">
                   <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
-                {{#with confirm_found_board as |board|}}
+                {{#with this.confirm_found_board as |board|}}
                   <div class="col-sm-4">
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
@@ -124,28 +124,28 @@
               {{/if}}
             </div>
           {{else}}
-            {{#if foundBoards.ready}}
-              {{#if foundBoards.results}}
+            {{#if this.foundBoards.ready}}
+              {{#if this.foundBoards.results}}
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
-                  {{#each foundBoards.results as |board|}}
+                  {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=this.foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>
               {{else}}
                 <div style="margin-top: 10px;">
-                  {{#if foundBoards.term}}
-                    {{t "No results found for \"%{term}\"" key="no_results_for" term=foundBoards.term}}
+                  {{#if this.foundBoards.term}}
+                    {{t "No results found for \"%{term}\"" key="no_results_for" term=this.foundBoards.term}}
                   {{else}}
                     {{t "No results found" key="no_results_found"}}
                   {{/if}}
                 </div>
               {{/if}}
             {{else}}
-              {{#if foundBoards.term}}
+              {{#if this.foundBoards.term}}
                 <div style="margin-top: 10px;">
-                  {{t "Searching for \"%{term}\"..." key="searching_for" term=foundBoards.term}}
+                  {{t "Searching for \"%{term}\"..." key="searching_for" term=this.foundBoards.term}}
                 </div>
               {{/if}}
             {{/if}}
@@ -153,25 +153,25 @@
         {{/unless}}
       </div>
     </div>
-    {{#if pending_board}}
-      {{#if has_supervisees}}
+    {{#if this.pending_board}}
+      {{#if this.has_supervisees}}
         <div class="form-group">
           <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
           <div class="col-sm-10">
-            {{user-select select_id="for_user_id" selection=pending_board.for_user_id action=(action (mut pending_board.for_user_id)) }}
+            {{user-select select_id="for_user_id" selection=this.pending_board.for_user_id action=(action (mut this.pending_board.for_user_id)) }}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="pending_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
-          {{input value=pending_board.name id="pending_board_name" class="form-control" placeholder="Board name"}}
+          <Input @value={{this.pending_board.name}} id="pending_board_name" class="form-control" placeholder="Board name" />
         </div>
       </div>
       <div class="form-group">
         <label for="pending_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
         <div class="col-sm-10">
-          {{input value=pending_board.key id="pending_board_key" class="form-control" placeholder=pending_board.key_placeholder}}
+          <Input @value={{this.pending_board.key}} id="pending_board_key" class="form-control" placeholder={{this.pending_board.key_placeholder}} />
         </div>
       </div>
       <div class="form-group">
@@ -181,7 +181,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.rows"}}>-</button>
             </span>
-            {{input value=pending_board.grid.rows class="form-control" id="pending_board_rows" placeholder="##" title="rows"}}
+            <Input @value={{pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.rows"}}>+</button>
             </span>
@@ -194,7 +194,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "pending_board.grid.columns"}}>-</button>
             </span>
-            {{input value=pending_board.grid.columns class="form-control" id="pending_board_columns" placeholder="##" title="columns"}}
+            <Input @value={{pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "pending_board.grid.columns"}}>+</button>
             </span>
@@ -206,7 +206,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=pending_board.copy_access type="checkbox"}}
+              <Input @checked={{pending_board.copy_access}} @type="checkbox" />
               {{t "Use same license and access settings as are set for this board" key="use_same_license"}}
             </label>
           </div>
@@ -219,25 +219,25 @@
         </div>
       </div>
     {{/if}}
-  {{else if model.integrationOrWebhookAction}}
-    {{#if has_supervisees}}
+  {{else if this.model.integrationOrWebhookAction}}
+    {{#if this.has_supervisees}}
       <div class="form-group">
         <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
         <div class="col-sm-10">
-          {{user-select select_id="for_user_id" selection=model.integration_user_id action=(action (mut model.integration_user_id)) }}
+          {{user-select select_id="for_user_id" selection=this.model.integration_user_id action=(action (mut this.model.integration_user_id)) }}
         </div>
       </div>
     {{/if}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Tool" key="tool"}}</label>
       <div class="col-sm-10">
-        {{#if user_integrations.loading}}
+        {{#if this.user_integrations.loading}}
           <p class='form-control-static'>{{t "Loading tools..." key="loading_tools"}}</p>
-        {{else if user_integrations.error}}
+        {{else if this.user_integrations.error}}
           <p class='form-control-static'>{{t "Error loading tools" key="error_loading_tools"}}</p>
-        {{else if user_integrations}}
+        {{else if this.user_integrations}}
           <p class='form-control-static'>
-            {{bound-select select_class="form-control" select_id="tools" content=tool_types selection=integration_id action=(action (mut integration_id)) }}
+            {{bound-select select_class="form-control" select_id="tools" content=this.tool_types selection=this.integration_id action=(action (mut this.integration_id)) }}
           </p>
         {{else}}
           <p class="form-control-static">
@@ -246,15 +246,15 @@
         {{/if}}
       </div>
     </div>
-    {{#if model.integration}}
+    {{#if this.model.integration}}
       <div class="form-group">
         <label for="tool_action_type" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
         <div class='col-sm-10'>
-          {{#if selected_integration.has_multiple_actions}}
-            {{bound-select select_class="form-control" select_id="tool_action_type" content=tool_action_types selection=model.integration.action_type action=(action (mut model.integration.action_type)) }}
-          {{else if selected_integration.webhook}}
+          {{#if this.selected_integration.has_multiple_actions}}
+            {{bound-select select_class="form-control" select_id="tool_action_type" content=this.tool_action_types selection=this.model.integration.action_type action=(action (mut this.model.integration.action_type)) }}
+          {{else if this.selected_integration.webhook}}
             <p class='form-control-static'>{{t "Hitting the button triggers an external action via the tool" key="webhook_action"}}</p>
-          {{else if selected_integration.render}}
+          {{else if this.selected_integration.render}}
             <p class='form-control-static'>{{t "Hitting the button loads a custom-rendered page for the tool" key="render_action"}}</p>
           {{/if}}
         </div>
@@ -262,15 +262,15 @@
       <div class="form-group">
         <label for="tool_action" class="col-sm-2 control-label">{{t "Code" key="code"}}</label>
         <div class="col-sm-10">
-          {{input value=model.integration.action id="tool_action" class="form-control" placeholder="Action code provided by tool"}}
+          <Input @value={{this.model.integration.action}} id="tool_action" class="form-control" placeholder="Action code provided by tool" />
         </div>
       </div>
     {{/if}}
   {{else}}
-    {{#if model.linkAction}}
+    {{#if this.model.linkAction}}
       <div class="form-group">
         <label for="link_to" class="col-sm-2 control-label">
-          {{#if model.video.popup}}
+          {{#if this.model.video.popup}}
             <img src={{path "images/video.svg"}} style="height: 20px; margin-left: -10px;">
           {{else}}
             <img src={{path "images/link.png"}} style="height: 20px; margin-left: -10px;">
@@ -278,19 +278,19 @@
            {{t "URL" key="url"}}
         </label>
         <div class="col-sm-10 options">
-          {{input value=model.url class="form-control" id="link_to" placeholder="https://"}}
+          <Input @value={{this.model.url}} class="form-control" id="link_to" placeholder="https://" />
           <div style='font-size: 11px;' class='text-muted'>
             <em>{{t "%app_name% works great with YouTube and TarHeel Reader links!" key="youtube_and_tarheel_reader_compatible"}}</em>
           </div>
         </div>
       </div>
       <!-- TODO: https://www.youtube.com/embed/PxSCo8rKsbY?rel=0&start=100&end=120&autoplay=0&controls=0&rel=0&showinfo=0 -->
-      {{#if model.video.type}}
+      {{#if this.model.video.type}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.video.popup}}
+                <Input @type="checkbox" @checked={{this.model.video.popup}} />
                 {{t "Show video in a popup" key="show_video_popup"}}
               </label>
             </div>
@@ -299,13 +299,13 @@
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="video_box">
-              <iframe src={{video_test_url}} id="link_video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
+              <iframe src={{this.video_test_url}} id="link_video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title="Video preview"></iframe>
             </div>
-            {{#unless image_matches_video_thumbnail}}
-              <a href="#" {{action "set_as_button_image" model.video.thumbnail_url model.video.thumbnail_content_type}}>{{t "set thumbnail as button image" key="set_thumbnail_as_button_image"}}</a>
+            {{#unless this.image_matches_video_thumbnail}}
+              <a href="#" {{action "set_as_button_image" this.model.video.thumbnail_url this.model.video.thumbnail_content_type}}>{{t "set thumbnail as button image" key="set_thumbnail_as_button_image"}}</a>
             {{/unless}}
 
-            {{#if player}}
+            {{#if this.player}}
               <div style="margin-top: 5px;">
                 <button class="btn btn-default" {{action "set_time" "start"}}>{{t "Set Start" key="set_start"}}</button>
                 <button class="btn btn-default" {{action "set_time" "end"}}>{{t "Set End" key="set_end"}}</button>
@@ -314,11 +314,11 @@
             {{/if}}
           </div>
         </div>
-        {{#if model.video.popup}}
+        {{#if this.model.video.popup}}
           <div class="form-group">
             <label for="youtube_start" class="col-sm-2 control-label">{{t "Start" key="start_at"}}</label>
             <div class="col-sm-3">
-              {{input value=model.video.start class="form-control" id="youtube_start" placeholder="0"}}
+              <Input @value={{this.model.video.start}} class="form-control" id="youtube_start" placeholder="0" />
             </div>
             <div class="col-sm-3">
               <p class="form-control-static">
@@ -329,7 +329,7 @@
           <div class="form-group">
             <label for="youtube_end" class="col-sm-2 control-label">{{t "End" key="end_at"}}</label>
             <div class="col-sm-3">
-              {{input value=model.video.end class="form-control" id="youtube_end" placeholder="ending"}}
+              <Input @value={{this.model.video.end}} class="form-control" id="youtube_end" placeholder="ending" />
             </div>
             <div class="col-sm-3">
               <p class="form-control-static">
@@ -338,12 +338,12 @@
             </div>
           </div>
         {{/if}}
-      {{else if model.book.type}}
+      {{else if this.model.book.type}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                {{input type="checkbox" checked=model.book.popup}}
+                <Input @type="checkbox" @checked={{this.model.book.popup}} />
                 {{t "Show book in a popup" key="show_book_popup"}}
               </label>
             </div>
@@ -352,16 +352,16 @@
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="book_box" style='max-height: 200px; overflow: hidden;'>
-              {{#if book_status.loading}}
+              {{#if this.book_status.loading}}
                 {{t "Loading book details..." key="loading_book"}}
-              {{else if book_status.error}}
+              {{else if this.book_status.error}}
                 {{t "Error loading book details" key="error_loading_book"}}
-              {{else if book_status}}
-                <strong>{{book_status.title}}</strong><br>
-                {{#if book_status.image}}
-                  <img src={{book_status.image}} style='max-width: 200px; max-height: 160px;' >
-                  {{#unless image_matches_book}}
-                    <br><a href="#" {{action "set_as_button_image" book_status.image book_status.content_type}}>{{t "set as button image" key="set_as_button_image"}}</a>
+              {{else if this.book_status}}
+                <strong>{{this.book_status.title}}</strong><br>
+                {{#if this.book_status.image}}
+                  <img src={{this.book_status.image}} style='max-width: 200px; max-height: 160px;' >
+                  {{#unless this.image_matches_book}}
+                    <br><a href="#" {{action "set_as_button_image" this.book_status.image this.book_status.content_type}}>{{t "set as button image" key="set_as_button_image"}}</a>
                   {{/unless}}
                 {{/if}}
               {{else}}
@@ -370,12 +370,12 @@
             </div>
           </div>
         </div>
-        {{#if model.book.popup}}
+        {{#if this.model.book.popup}}
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
               <div class='checkbox'>
                 <label>
-                  {{input type="checkbox" checked=model.book.speech}}
+                  <Input @type="checkbox" @checked={{this.model.book.speech}} />
                   {{t "Automatically read pages aloud" key="read_pages_aloud"}}
                 </label>
               </div>
@@ -385,7 +385,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class='checkbox'>
                 <label>
-                  {{input type="checkbox" checked=model.book.utterance}}
+                  <Input @type="checkbox" @checked={{this.model.book.utterance}} />
                   {{t "Add spoken pages to the vocalization box" key="utterance_pages"}}
                 </label>
               </div>
@@ -393,25 +393,25 @@
           </div>
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
-              {{bound-select select_class="form-control" select_id="book_links" content=book_link_options selection=model.book.links action=(action (mut model.book.links)) }}
+              {{bound-select select_class="form-control" select_id="book_links" content=this.book_link_options selection=this.model.book.links action=(action (mut this.model.book.links)) }}
             </div>
           </div>
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
-              {{bound-select select_class="form-control" select_id="book_position" content=book_text_positioning_options selection=model.book.position action=(action (mut model.book.position)) }}
+              {{bound-select select_class="form-control" select_id="book_position" content=this.book_text_positioning_options selection=this.model.book.position action=(action (mut this.model.book.position)) }}
             </div>
           </div>
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
-              {{bound-select select_class="form-control" select_id="book_backgrounds" content=book_background_options selection=model.book.background action=(action (mut model.book.background)) }}
+              {{bound-select select_class="form-control" select_id="book_backgrounds" content=this.book_background_options selection=this.model.book.background action=(action (mut this.model.book.background)) }}
             </div>
           </div>
         {{/if}}
       {{else}}
-        {{#if model.url}}
+        {{#if this.model.url}}
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
-              {{#if non_https}}
+              {{#if this.non_https}}
                 <p class='form-control-static text-danger'>
                   {{t "Keep in mind, this URL is http, not https, so it will not load as a popup when using %app_name% in a web browser" key="http_not_allowed_in_browser"}}
                 </p>
@@ -424,17 +424,17 @@
         {{/if}}
       {{/if}}
     {{else}}
-      {{#if model.appAction}}
+      {{#if this.model.appAction}}
         <div class="form-group">
           <div class="col-sm-10">
             <p class="form-control-static">
-              <a href="#" {{action "set_app_find_mode" "ios"}} class={{if ios_search "really_bold"}}><span class={{ios_status_class}}></span> {{t "iOS" key="ios"}}</a> &nbsp;&nbsp;&nbsp;&nbsp;
-              <a href="#" {{action "set_app_find_mode" "android"}} class={{if android_search "really_bold"}}><span class={{android_status_class}}></span> {{t "Android" key="android"}}</a> &nbsp;&nbsp;&nbsp;&nbsp;
-              <a href="#" {{action "set_app_find_mode" "web"}} class={{if web_search "really_bold"}}><span class={{web_status_class}}></span> {{t "Web/Other" key="web_other"}}</a>
+              <a href="#" {{action "set_app_find_mode" "ios"}} class={{if this.ios_search "really_bold"}}><span class={{this.ios_status_class}}></span> {{t "iOS" key="ios"}}</a> &nbsp;&nbsp;&nbsp;&nbsp;
+              <a href="#" {{action "set_app_find_mode" "android"}} class={{if this.android_search "really_bold"}}><span class={{this.android_status_class}}></span> {{t "Android" key="android"}}</a> &nbsp;&nbsp;&nbsp;&nbsp;
+              <a href="#" {{action "set_app_find_mode" "web"}} class={{if this.web_search "really_bold"}}><span class={{this.web_status_class}}></span> {{t "Web/Other" key="web_other"}}</a>
             </p>
           </div>
         </div>
-        {{#if ios_search}}
+        {{#if this.ios_search}}
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
               <strong>{{t "App to launch on iPhones/iPads/etc." key="launch_ios_app"}}</strong>
@@ -443,18 +443,18 @@
           <div class="form-group">
             <label for="app_name" class="col-sm-2 control-label">{{t "App" key="app"}}</label>
             <div class="col-sm-10">
-              {{#if model.apps.ios}}
+              {{#if this.model.apps.ios}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
                     <strong>{{this.model.apps.ios.name}}</strong><br>
                     <span class="text-muted">{{this.model.apps.ios.author_name}}</span>
                   </span>
                   <br>
-                  {{#if model.apps.ios.custom}}
+                  {{#if this.model.apps.ios.custom}}
                     {{t "Custom mobile launch URL/scheme:" key="custom_launch"}}
-                    {{input value=model.apps.ios.launch_url class="form-control" placeholder="i.e. fb://feed"}}
+                    <Input @value={{this.model.apps.ios.launch_url}} class="form-control" placeholder="i.e. fb://feed" />
                   {{else}}
-                    {{#if model.apps.ios.launch_url}}
+                    {{#if this.model.apps.ios.launch_url}}
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
                     {{else}}
                       <em class="text-danger">{{t "This app won't be launched by %app_name%" key="app_cant_be_launched"}}</em>
@@ -471,13 +471,13 @@
             <label for="app_search" class="col-sm-2 control-label">{{t "Find" key="find"}}</label>
             <div class="col-sm-10 options">
               <span class="board_search_field">
-                {{input value=ios_app_name class="form-control" id="app_search" placeholder="App name"}}
+                <Input @value={{this.ios_app_name}} class="form-control" id="app_search" placeholder="App name" />
               </span>
               <button class="btn btn-default" {{action "find_app"}}>{{t "Find" key="find"}}</button>
-              {{#if foundApps.ready}}
-                {{#if foundApps.results}}
+              {{#if this.foundApps.ready}}
+                {{#if this.foundApps.results}}
                   <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
-                    {{#each foundApps.results as |result|}}
+                    {{#each this.foundApps.results as |result|}}
                       <div class="col-sm-12" {{action "pick_app" result}}>
                         <div class="well well-sm" style="cursor: pointer; margin-bottom: 5px; line-height: 16px; white-space: nowrap; overflow: hidden;">
                           <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;">
@@ -499,20 +499,20 @@
                   </div>
                 {{else}}
                   <div style="margin-top: 10px;">
-                    {{t "No results found for \"%{term}\"" key="no_results_for" term=foundApps.term}}
+                    {{t "No results found for \"%{term}\"" key="no_results_for" term=this.foundApps.term}}
                   </div>
                 {{/if}}
               {{else}}
-                {{#if foundApps.term}}
+                {{#if this.foundApps.term}}
                   <div style="margin-top: 10px;">
-                    {{t "Searching for \"%{term}\"..." key="searching_for" term=foundApps.term}}
+                    {{t "Searching for \"%{term}\"..." key="searching_for" term=this.foundApps.term}}
                   </div>
                 {{/if}}
               {{/if}}
             </div>
           </div>
         {{/if}}
-        {{#if android_search}}
+        {{#if this.android_search}}
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
               <strong>{{t "App to launch on Android devices" key="launch_android_app"}}</strong>
@@ -521,18 +521,18 @@
           <div class="form-group">
             <label for="app_name" class="col-sm-2 control-label">{{t "App" key="app"}}</label>
             <div class="col-sm-10">
-              {{#if model.apps.android}}
+              {{#if this.model.apps.android}}
                 <div style="margin-bottom: 10px;">
                   <span style="white-space: nowrap; overflow: hidden;">
                     <strong>{{this.model.apps.android.name}}</strong><br>
                     <span class="text-muted">{{this.model.apps.android.author_name}}</span>
                   </span>
                   <br>
-                  {{#if model.apps.android.custom}}
+                  {{#if this.model.apps.android.custom}}
                     {{t "App-registered URL/scheme:" key="app_launch"}}
-                    {{input value=model.apps.android.launch_url class="form-control" placeholder="i.e. https://www.twitter.com/"}}
+                    <Input @value={{this.model.apps.android.launch_url}} class="form-control" placeholder="i.e. https://www.twitter.com/" />
                   {{else}}
-                    {{#if model.apps.android.launch_url}}
+                    {{#if this.model.apps.android.launch_url}}
                       <em class="text-muted">{{t "This app will be launched by %app_name%" key="app_can_be_launched"}}</em>
                     {{else}}
                       <em class="text-danger">{{t "This app won't be launched by %app_name%" key="app_cant_be_launched"}}</em>
@@ -549,13 +549,13 @@
             <label for="app_search" class="col-sm-2 control-label">{{t "Find" key="find"}}</label>
             <div class="col-sm-10 options">
               <span class="board_search_field">
-                {{input value=android_app_name class="form-control" id="app_search" placeholder="App name"}}
+                <Input @value={{this.android_app_name}} class="form-control" id="app_search" placeholder="App name" />
               </span>
               <button class="btn btn-default" {{action "find_app"}}>{{t "Find" key="find"}}</button>
-              {{#if foundApps.ready}}
-                {{#if foundApps.results}}
+              {{#if this.foundApps.ready}}
+                {{#if this.foundApps.results}}
                   <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
-                    {{#each foundApps.results as |result|}}
+                    {{#each this.foundApps.results as |result|}}
                       <div class="col-sm-12" {{action "pick_app" result}}>
                         <div class="well well-sm" style="cursor: pointer; margin-bottom: 5px; line-height: 16px; white-space: nowrap; overflow: hidden;">
                           <img src={{result.image_url}} alt="" style="width: 50px; height: 50px; margin-right: 5px; float: left;">
@@ -577,20 +577,20 @@
                   </div>
                 {{else}}
                   <div style="margin-top: 10px;">
-                    {{t "No results found for \"%{term}\"" key="no_results_for" term=foundApps.term}}
+                    {{t "No results found for \"%{term}\"" key="no_results_for" term=this.foundApps.term}}
                   </div>
                 {{/if}}
               {{else}}
-                {{#if foundApps.term}}
+                {{#if this.foundApps.term}}
                   <div style="margin-top: 10px;">
-                    {{t "Searching for \"%{term}\"..." key="searching_for" term=foundApps.term}}
+                    {{t "Searching for \"%{term}\"..." key="searching_for" term=this.foundApps.term}}
                   </div>
                 {{/if}}
               {{/if}}
             </div>
           </div>
         {{/if}}
-        {{#if web_search}}
+        {{#if this.web_search}}
           <div class="form-group">
             <div class="col-sm-10 col-sm-offset-2">
               <strong>{{t "App to launch everywhere else" key="launch_web_app"}}</strong>
@@ -599,14 +599,14 @@
           <div class="form-group">
             <label for="app_url" class="col-sm-2 control-label">{{t "URL" key="url"}}</label>
             <div class="col-sm-10">
-              {{input value=model.apps.web.launch_url class="form-control" id="app_url" placeholder="https://"}}
+              <Input @value={{this.model.apps.web.launch_url}} class="form-control" id="app_url" placeholder="https://" />
             </div>
           </div>
-          {{#if model.apps.web.launch_url}}
+          {{#if this.model.apps.web.launch_url}}
             <div class="form-group">
               <div class="col-sm-10 col-sm-offset-2">
                 <p class="form-control-static">
-                  <a target="_blank" href={{fixed_app_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
+                  <a target="_blank" href={{this.fixed_app_url}} rel="noopener">{{t "open in a browser tab" key="open_in_browser_lower"}}</a>
                 </p>
               </div>
             </div>
@@ -618,38 +618,38 @@
       {{/if}}
     {{/if}}
   {{/if}}
-  {{#if model.talkAction}}
-    <div class={{if pending_board "form-group dim" "form-group"}}>
+  {{#if this.model.talkAction}}
+    <div class={{if this.pending_board "form-group dim" "form-group"}}>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=model.prevent_adding_to_vocalization type="checkbox"}}
+            <Input @checked={{this.model.prevent_adding_to_vocalization}} @type="checkbox" />
             {{t "Do not add this button to the vocalization box" key="prevent_adding_to_vocalization"}}
           </label>
         </div>
       </div>
     </div>
   {{else}}
-    <div class={{if pending_board "form-group dim" "form-group"}}>
+    <div class={{if this.pending_board "form-group dim" "form-group"}}>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=model.force_add_to_vocalization type="checkbox"}}
+            <Input @checked={{this.model.force_add_to_vocalization}} @type="checkbox" />
             {{t "Also speak & add to the vocalization box" key="add_to_vocalization"}}
           </label>
         </div>
-        {{#if model.folderAction}}
+        {{#if this.model.folderAction}}
           <div class="checkbox big_checkbox">
             <label>
-              {{input checked=model.home_lock type="checkbox"}}
+              <Input @checked={{this.model.home_lock}} @type="checkbox" />
               {{t "Set as temporary home when loaded" key="set_home_lock"}}
             </label>
           </div>
-          {{#if model.home_lock}}
+          {{#if this.model.home_lock}}
             <div style='margin-left: 30px;'>
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input checked=model.meta_home type="checkbox"}}
+                  <Input @checked={{this.model.meta_home}} @type="checkbox" />
                   {{t "Require menu action to return from link" key="set_meta_home"}}
                 </label>
               </div>
@@ -658,7 +658,7 @@
         {{/if}}
         <div class="checkbox big_checkbox">
           <label>
-            {{input checked=model.link_disabled type="checkbox"}}
+            <Input @checked={{this.model.link_disabled}} @type="checkbox" />
             {{t "Disable this link action for now" key="disable_link_action"}}
           </label>
         </div>

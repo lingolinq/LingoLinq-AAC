@@ -29,6 +29,7 @@ module LingoLinq
     # The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
     # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
     # config.i18n.default_locale = :de
+    config.api_only = false
     
     # Zeitwerk is the default autoloader in Rails 7.0
     # config.autoloader = :zeitwerk  # This is the default, no need to set explicitly

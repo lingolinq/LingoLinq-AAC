@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
@@ -19,6 +20,9 @@ import { computed } from '@ember/object';
 var button_set_cache = {};
 
 LingoLinq.Buttonset = DS.Model.extend({
+  persistence: service('persistence'),
+  stashes: service('stashes'),
+  appState: service('app-state'),
   key: DS.attr('string'),
   root_url: DS.attr('string'),
   buttons: DS.attr('raw'),
@@ -86,7 +90,7 @@ LingoLinq.Buttonset = DS.Model.extend({
       if(hash_mismatch) { force = true; }
       if(bs.get('root_url') && (!bs.get('buttons_loaded') || hash_mismatch || (force && !bs.get('buttons_force_loaded')))) {
         var regenerate = function(missing) {
-          return persistence.ajax('/api/v1/buttonsets/' + bs.get('id') + '/generate', {
+          return bs.persistence.ajax('/api/v1/buttonsets/' + bs.get('id') + '/generate', {
             type: 'POST',
             data: (missing ? { missing: true } : {})
           }).then(function(data) {
@@ -127,7 +131,7 @@ LingoLinq.Buttonset = DS.Model.extend({
           resolve(bs);
         };
         var store_anyway = function(already_tried_local) {
-          persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
+          bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
             process_buttons(res);
           }, function(err) {
             var fallback = function() {
@@ -136,7 +140,7 @@ LingoLinq.Buttonset = DS.Model.extend({
               } else {
                 // Something local is better than nothing,
                 // even if we suspect it is out of date
-                persistence.find_json(bs.get('root_url')).then(function(buttons) {
+                bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
                   process_buttons(buttons);
                 }, function() {
                   reject(err);
@@ -146,7 +150,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             // Try re-generating before giving up
             regenerate(true).then(function(url) {
               bs.set('root_url', url)
-              persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+              bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
                 process_buttons(res);
               }, function(err) {
                 fallback();
@@ -159,7 +163,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         if(force) {
           store_anyway(false);          
         } else {
-          persistence.find_json(bs.get('root_url')).then(function(buttons) {
+          bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
             process_buttons(buttons);
           }, function() {
             store_anyway(true);
@@ -308,10 +312,10 @@ LingoLinq.Buttonset = DS.Model.extend({
     var query_start = query.split(/[^\w]/)[0];
     var query_pre = new RegExp(query_start.replace(/(.)/g, "($1)?"), 'i');
     var _this = this;
-    from_board_id = from_board_id || app_state.get('currentBoardState.id');
+    from_board_id = from_board_id || _this.appState.get('currentBoardState.id');
     var button_sets = [_this];
     var lookups = [RSVP.resolve()];
-    var home_board_id = (app_state.get('speak_mode') && stashes.get('root_board_state.id')) || (user && user.get('preferences.home_board.id'));
+    var home_board_id = (_this.appState.get('speak_mode') && _this.stashes.get('root_board_state.id')) || (user && user.get('preferences.home_board.id'));
     //    var buttons = this.get('buttons') || [];
 
     if(include_home_and_sidebar) {
@@ -444,7 +448,7 @@ LingoLinq.Buttonset = DS.Model.extend({
       steps: [], 
       total_edit_distance: 0, 
       extra_steps: 0,
-      current_sticky_board_id: stashes.get('temporary_root_board_state.id') || home_board_id
+      current_sticky_board_id: _this.stashes.get('temporary_root_board_state.id') || home_board_id
     }];
     var build_combos = sort_results.then(function() {
       // Check all permutations, score for shortest access distance
@@ -577,7 +581,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             }
             emberSet(button, 'image', emberGet(button, 'image') || Ember.templateHelpers.path('images/blank.gif'));
             if(emberGet(button, 'image') && LingoLinqImage.personalize_url) {
-              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin));
+              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
             }
             emberSet(button, 'on_same_board', emberGet(button, 'steps') === 0);
   
@@ -586,7 +590,7 @@ LingoLinq.Buttonset = DS.Model.extend({
               word_suggestions.fallback_url().then(function(url) {
                 emberSet(button, 'fallback_image', url);
               });
-              var promise = persistence.find_url(button.image, 'image').then(function(data_uri) {
+              var promise = _this.persistence.find_url(button.image, 'image').then(function(data_uri) {
                 emberSet(button, 'image', data_uri);
               }, function() { });
               image_lookup_promises.push(promise);
@@ -603,9 +607,9 @@ LingoLinq.Buttonset = DS.Model.extend({
     return image_lookups;
   },
   find_routes: function(words, locale, from_board_id, user) {
-    var allow_inflections = !!(user && user.get('preferences.inflections_overlay'));
-    var all_buttons_enabled = stashes.get('all_buttons_enabled');
     var _this = this;
+    var allow_inflections = !!(user && user.get('preferences.inflections_overlay'));
+    var all_buttons_enabled = _this.stashes.get('all_buttons_enabled');
 
     var res = _this.board_map([_this]);
     var buttons = res.all_buttons || [];
@@ -769,7 +773,7 @@ LingoLinq.Buttonset = DS.Model.extend({
           [best].concat(best.sequence.buttons).forEach(function(btn) {
             emberSet(btn, 'focus_image', btn.image);
             if(btn.image) {
-              persistence.find_url(btn.image, 'image').then(function(data_uri) {
+              _this.persistence.find_url(btn.image, 'image').then(function(data_uri) {
                 emberSet(btn, 'focus_image', data_uri);
               }, function() { });
             }
@@ -802,7 +806,7 @@ LingoLinq.Buttonset = DS.Model.extend({
 
     var traverse_buttons = new RSVP.Promise(function(traverse_resolve, traverse_reject) {
       var re = new RegExp("\\b" + str, 'i');
-      var all_buttons_enabled = stashes.get('all_buttons_enabled');
+      var all_buttons_enabled = _this.stashes.get('all_buttons_enabled');
       var buttons = _this.get('buttons') || [];
       if(from_board_id && from_board_id != _this.get('id')) {
         // re-depthify all the buttons based on the starting board
@@ -873,7 +877,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     var other_find_buttons = [];
     // TODO: include additional buttons if they are accessible from "home" or
     // the "sidebar" button sets.
-    var home_board_id = stashes.get('temporary_root_board_state.id') || stashes.get('root_board_state.id') || (user && user.get('preferences.home_board.id'));
+    var home_board_id = _this.stashes.get('temporary_root_board_state.id') || _this.stashes.get('root_board_state.id') || (user && user.get('preferences.home_board.id'));
 
     if(include_home_and_sidebar && home_board_id) {
       other_lookups = new RSVP.Promise(function(lookup_resolve, lookup_reject) {
@@ -898,7 +902,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         if(home_board_id) {
           lookup(home_board_id);
         }
-        (app_state.get('sidebar_boards') || []).forEach(function(brd) {
+        (_this.appState.get('sidebar_boards') || []).forEach(function(brd) {
           lookup(brd.id, brd.home_lock);
         });
         console.log("waiting on", root_button_set_lookups.length);
@@ -1109,8 +1113,29 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     if(err.error && err.error.error) {
       err = err.error;
     }
-    if(err.error == 'Record not found' && err.id && err.id.match(/^\d/)) {
-      return generate(id);
+    // Check for 404/Record not found errors in various formats
+    var isNotFound = false;
+    var errorId = id; // Use the requested id as fallback
+    
+    // Check different error formats
+    if(err.error == 'Record not found' || err.result == 'Record not found') {
+      isNotFound = true;
+      errorId = err.id || id;
+    } else if(err.fakeXHR && err.fakeXHR.status === 404) {
+      isNotFound = true;
+      if(err.fakeXHR.responseJSON && err.fakeXHR.responseJSON.id) {
+        errorId = err.fakeXHR.responseJSON.id;
+      }
+    } else if(err.errors && err.errors[0] && err.errors[0].status === 404) {
+      isNotFound = true;
+      if(err.errors[0].id) {
+        errorId = err.errors[0].id;
+      }
+    }
+    
+    // If it's a 404 and the id is a global_id (starts with digits), try to generate
+    if(isNotFound && errorId && errorId.match(/^\d/)) {
+      return generate(errorId);
     } else if(found) {
       found.load_buttons(force); 
       return RSVP.resolve(found); 

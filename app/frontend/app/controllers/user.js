@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
-import { observer } from '@ember/object';
-import sync from '../utils/sync';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  app_state: service('app-state'),
 });

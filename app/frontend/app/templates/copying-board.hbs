@@ -6,16 +6,16 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if error}}
-      <p class="text-danger">{{error}}</p>
-    {{else if loading}}
+    {{#if this.error}}
+      <p class="text-danger">{{this.error}}</p>
+    {{else if this.loading}}
       <p>{{t "Loading..." key="loading"}}</p>
-    {{else if hierarchy}}
+    {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
-      {{board-hierarchy selectable=true hierarchy=hierarchy}}
-      <button class='btn btn-primary' {{action "start_copying"}} disabled={{hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
+      {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
+      <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
     {{else}}
-      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=model.board.key}} </p>
+      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}} </p>
     {{/if}}
   </div>
   <div class="modal-footer">

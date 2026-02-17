@@ -1,5 +1,5 @@
-<div class={{elem_class}} style={{elem_style}}>
-  <div style={{inner_elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
+  <div style={{this.inner_elem_style}}>
     <table class="table table-hover table-condensed">
       <thead>
         <tr>
@@ -9,8 +9,8 @@
         </tr>
       </thead>
       <tbody>
-        {{#if usage_stats.devices}}
-          {{#each usage_stats.devices as |device|}}
+        {{#if this.usage_stats.devices}}
+          {{#each this.usage_stats.devices as |device|}}
             <tr>
               <td>
                 <strong>

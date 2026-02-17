@@ -172,11 +172,15 @@ class ButtonImage < ActiveRecord::Base
     self.settings ||= {}
     if params['alternates']
       alt_hash = {}
-      params['alternates'].each do |alt|
-        lib = alt['library']
-        next if lib == 'original'
-        alt.delete('library')
-        alt_hash[lib] = alt
+      # Client may send alternates as array of hashes (each with 'library') or as hash (library => data)
+      alts = params['alternates']
+      alts = alts.map { |lib, data| (data || {}).merge('library' => lib.to_s) } if alts.is_a?(Hash)
+      (alts || []).each do |alt|
+        lib = alt.is_a?(Hash) ? alt['library'] : nil
+        next if lib == 'original' || lib.blank?
+        alt = alt.dup if alt.is_a?(Hash)
+        alt.delete('library') if alt.is_a?(Hash)
+        alt_hash[lib] = alt if alt.is_a?(Hash)
       end
       self.settings['library_alternates'] = alt_hash
     end
@@ -332,6 +336,7 @@ class ButtonImage < ActiveRecord::Base
   end
 
   def self.skinned_url(url, which_skin)
+    return url unless url
     if url.match(/varianted-skin\.\w+$/)
       which = which_skin.call(url)
       if which != 'default' && SKIN_UNIS[which]

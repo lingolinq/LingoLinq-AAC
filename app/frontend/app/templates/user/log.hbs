@@ -1,28 +1,28 @@
 {{#opening-observer done_opening=(action "draw_charts")}}
-{{#if model.note_type}}
+{{#if this.model.note_type}}
   <h2>{{t "Message Details" key="message_summary"}}</h2>
-{{else if model.assessment_type}}
+{{else if this.model.assessment_type}}
   <h2>{{t "Assessment Details" key="assessment_details"}}</h2>
-{{else if model.journal_type}}
+{{else if this.model.journal_type}}
   <h2>{{t "Journal Entry" key="journal_entry"}}</h2>
-{{else if model.profile_type}}
+{{else if this.model.profile_type}}
   <h2>{{t "Communication Profile" key="communication_profile"}}</h2>
-{{else if processed_assessment}}
+{{else if this.processed_assessment}}
   <h2>{{t "Assessment Results" key="assessment_results"}}
-    {{#if processed_assessment.label}} - {{processed_assessment.label}}{{/if}}
+    {{#if this.processed_assessment.label}} - {{this.processed_assessment.label}}{{/if}}
   </h2>
 {{else}}
   <h2>{{t "Log Entry Details" key="log_entry_details"}}</h2>
 {{/if}}
-<div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{user.name}} - {{user.user_name}}</div>
-{{#if processed_assessment}}
-  {{#if processed_assessment.date}}
+<div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{this.user.name}} - {{this.user.user_name}}</div>
+{{#if this.processed_assessment}}
+  {{#if this.processed_assessment.date}}
     <div class="row" style='page-break-inside: avoid;'>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Date" key="date"}}</div>
           <div class="panel-body">
-            {{date processed_assessment.date "abbrev"}}
+            {{date this.processed_assessment.date "abbrev"}}
           </div>
         </div>
       </div>
@@ -30,10 +30,10 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Duration" key="duration"}}</div>
           <div class="panel-body">
-            {{#if processed_assessment.multiple_sessions}}
-              {{duration processed_assessment.duration}}, {{t "session" key="n_sessions" count=processed_assessment.sessions}}
+            {{#if this.processed_assessment.multiple_sessions}}
+              {{duration this.processed_assessment.duration}}, {{t "session" key="n_sessions" count=this.processed_assessment.sessions}}
             {{else}}
-              {{seconds_ago processed_assessment.duration}}
+              {{seconds_ago this.processed_assessment.duration}}
             {{/if}}
           </div>
         </div>
@@ -42,8 +42,8 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Accuracy" key="accuracy"}}</div>
           <div class="panel-body">
-            {{t "hit" count=processed_assessment.hits key="n_hits"}},
-            {{processed_assessment.avg_accuracy}}%
+            {{t "hit" count=this.processed_assessment.hits key="n_hits"}},
+            {{this.processed_assessment.avg_accuracy}}%
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Avg. Response" key="response_time"}}</div>
           <div class="panel-body">
-            {{seconds_ago processed_assessment.avg_response_time}}
+            {{seconds_ago this.processed_assessment.avg_response_time}}
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Access Method" key="access_method"}}</div>
           <div class="panel-body">
-            {{processed_assessment.access_method}}
+            {{this.processed_assessment.access_method}}
           </div>
         </div>
       </div>
@@ -68,8 +68,8 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Mastered Grid" key="mastered_grid"}}</div>
           <div class="panel-body">
-            {{#if processed_assessment.grid_width}}
-              {{processed_assessment.grid_height}} x {{processed_assessment.grid_width}}
+            {{#if this.processed_assessment.grid_width}}
+              {{this.processed_assessment.grid_height}} x {{this.processed_assessment.grid_width}}
             {{else}}
               {{t "N/A" key="n/a"}}
             {{/if}}
@@ -80,9 +80,9 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Mastered Buttons" key="mastered_buttons"}}</div>
           <div class="panel-body">
-            {{#if processed_assessment.button_width}}
+            {{#if this.processed_assessment.button_width}}
               <a href="#" {{action "mastery_preview"}}>
-                {{#if processed_assessment.approximate}}~{{/if}}{{processed_assessment.button_width}}" x {{processed_assessment.button_height}}"
+                {{#if this.processed_assessment.approximate}}~{{/if}}{{this.processed_assessment.button_width}}" x {{this.processed_assessment.button_height}}"
               </a>
             {{else}}
               {{t "N/A" key="n/a"}}
@@ -94,9 +94,9 @@
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Mastered Field" key="mastered_field"}}</div>
           <div class="panel-body">
-            {{#if processed_assessment.field}}
+            {{#if this.processed_assessment.field}}
               {{t "field of" key="field_of"}}
-              {{processed_assessment.field}}
+              {{this.processed_assessment.field}}
             {{else}}
               {{t "N/A" key="n/a"}}
             {{/if}}
@@ -104,18 +104,18 @@
         </div>
       </div>
     </div>
-    {{#if mastery_preview}}
-      {{stats/mastery-preview assessment=processed_assessment}}
+    {{#if this.mastery_preview}}
+      {{stats/mastery-preview assessment=this.processed_assessment}}
     {{/if}}
     <div style='page-break-inside: avoid;'>
-      {{#if processed_assessment.accommodations}}
+      {{#if this.processed_assessment.accommodations}}
         <div style='margin-bottom: 10px;'>
-          <span style='white-space: pre-line;'>{{processed_assessment.accommodations}}</span>
+          <span style='white-space: pre-line;'>{{this.processed_assessment.accommodations}}</span>
         </div>
       {{/if}}
-      {{#if processed_assessment.notes}}
+      {{#if this.processed_assessment.notes}}
         <div style='margin-bottom: 10px;'>
-          <em style='white-space: pre-line;'>{{processed_assessment.notes}}</em>
+          <em style='white-space: pre-line;'>{{this.processed_assessment.notes}}</em>
         </div>
       {{/if}}
     </div>
@@ -123,7 +123,7 @@
       <h3>{{t "Grid Activations" key="activation_map"}}</h3>
       <div class='row'>
         <div class='col-xs-8'>
-          {{stats/eval-hits hits=processed_assessment.hit_locations}}
+          {{stats/eval-hits hits=this.processed_assessment.hit_locations}}
         </div>
         <div class='col-xs-4'>
           <div style='line-height: 30px; margin-bottom: 10px;'>
@@ -137,28 +137,28 @@
       </div>
     </div>
 
-    {{#if processed_assessment.button_sizes}}
+    {{#if this.processed_assessment.button_sizes}}
       <div style='page-break-inside: avoid;'>
         <h3>{{t "Grid Sizes for basic target-finding" key="grid_sizes_for_targeting"}}
-          {{#if processed_assessment.approximate}}
+          {{#if this.processed_assessment.approximate}}
             <div style='margin-left: 5px; font-size: 15px; color: #888; font-style: italic;'>
               {{t "button sizes may not be accurate because of the device used" key="button_sizes_may_not_be_accurate"}}
             </div>
           {{/if}}
         </h3>
-        {{stats/trial-bar sizes=processed_assessment.button_sizes}}
+        {{stats/trial-bar sizes=this.processed_assessment.button_sizes}}
       </div>
     {{/if}}
-    {{#if processed_assessment.field_sizes}}
+    {{#if this.processed_assessment.field_sizes}}
       <div  style='page-break-inside: avoid;'>
         <h3>{{t "Field Sizes for basic target-finding" key="field_sizes"}}</h3>
-        {{stats/trial-bar sizes=processed_assessment.field_sizes}}
+        {{stats/trial-bar sizes=this.processed_assessment.field_sizes}}
       </div>
     {{/if}}
-    {{#if processed_assessment.access_settings}}
+    {{#if this.processed_assessment.access_settings}}
       <div  style='page-break-inside: avoid;'>
         <h3>{{t "Evaluation Settings" key="evaluation_settings"}}</h3>
-        {{#each processed_assessment.access_settings as |setting|}}
+        {{#each this.processed_assessment.access_settings as |setting|}}
           {{#if setting.val}}
             <span class='label label-default'>
               {{setting.key}}:
@@ -192,7 +192,7 @@
           </tr>
         </thead>
         <tbody>
-          {{#each processed_assessment.assessments as |result|}}
+          {{#each this.processed_assessment.assessments as |result|}}
             {{#if result.category}}
               <tr>
                 <td colspan="5"><strong>{{result.category}}</strong></td>
@@ -215,7 +215,7 @@
         </tbody>
       </table>
     </div>
-    {{#if processed_assessment.symbol_libraries}}
+    {{#if this.processed_assessment.symbol_libraries}}
       <div style='page-break-inside: avoid;'>
         <h3>{{t "Symbol Libraries Assessed" key="symbol_libraries"}}
             <div style='margin-left: 5px; font-size: 15px; color: #888; font-style: italic;'>
@@ -223,11 +223,11 @@
             </div>
 
         </h3>
-        {{stats/trial-bar sizes=processed_assessment.symbol_libraries}}
+        {{stats/trial-bar sizes=this.processed_assessment.symbol_libraries}}
       </div>
     {{/if}}
 
-    {{#if processed_assessment.open_ended_sections}}
+    {{#if this.processed_assessment.open_ended_sections}}
       <div  style='page-break-inside: avoid;'>
         <h3>{{t "Open-Ended Prompts" key="open_ended_prompts"}}</h3>
         <table class="table table-hover table-bordered table-striped">
@@ -240,7 +240,7 @@
             </tr>          
           </thead>
           <tbody>
-            {{#each processed_assessment.open_ended_sections as |section|}}
+            {{#each this.processed_assessment.open_ended_sections as |section|}}
               <tr>
                 <td>{{section.prompt}}</td>
                 <td>{{section.step}}</td>
@@ -254,7 +254,7 @@
       </div>
     {{/if}}
 
-    {{#if processed_assessment.literacy_responses}}
+    {{#if this.processed_assessment.literacy_responses}}
       <div style='page-break-inside: avoid;'>
         <h3>{{t "Literacy Responses" key="literacy_responses"}}</h3>
         <table class="table table-hover table-bordered table-striped">
@@ -267,7 +267,7 @@
             </tr>          
           </thead>
           <tbody>
-            {{#each processed_assessment.literacy_responses as |response|}}
+            {{#each this.processed_assessment.literacy_responses as |response|}}
               <tr class={{if response.correct "accuracy_mastered" "accuracy_non_mastered"}}>
                 <td>{{response.prompt}}</td>
                 <td>{{response.correct_answer}}</td>
@@ -281,20 +281,20 @@
         <!-- list of literacy words, including prompt and distractors -->
       </div>
     {{/if}}
-  {{else if model.eval_in_memory}}
+  {{else if this.model.eval_in_memory}}
     <p>{{t "We could not find the latest evaluation results for this user" key="no_eval_in_memory"}}</p>
   {{else}}
     <p>{{t "No data found for this evaluation" key="no_data_for_evaluation"}}</p>
   {{/if}}
-{{else if model.profile_type}}
+{{else if this.model.profile_type}}
   <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{action "repeat_profile"}} />
 {{else}}
-  {{#if model.imported}}
+  {{#if this.model.imported}}
     {{t "NOTE: This log entry was imported from an outside source" key="data_imported"}}
   {{/if}}
-  {{#if model.goal.id}}
+  {{#if this.model.goal.id}}
     <div style='margin: -5px 0 10px; font-size: 16px;'>
-      {{#link-to "user.goal" user.user_name model.goal.id}}{{t "Goal:" key="goal_colon"}} {{this.model.goal.summary}}{{/link-to}}
+      <LinkTo @route="user.goal" @models={{array this.user.user_name this.model.goal.id}}>{{t "Goal:" key="goal_colon"}} {{this.model.goal.summary}}</LinkTo>
     </div>
   {{/if}}
   <div class="row">
@@ -302,71 +302,71 @@
       <div class="panel panel-default summary smaller">
         <div class="panel-heading">{{t "Date" key="date"}}</div>
         <div class="panel-body">
-          {{date model.started_at}}
+          {{date this.model.started_at}}
         </div>
       </div>
     </div>
-    {{#unless model.note_type}}
+    {{#unless this.model.note_type}}
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
           <div class="panel-heading">{{t "Duration" key="duration"}}</div>
           <div class="panel-body">
-            {{t "minute" key="minute" count=model.minutes}}
+            {{t "minute" key="minute" count=this.model.minutes}}
           </div>
         </div>
       </div>
     {{/unless}}
     <div class="col-sm-4">
       <div class="panel panel-default summary smaller">
-        {{#if model.note_type}}
+        {{#if this.model.note_type}}
           <div class="panel-heading">{{t "Author" key="author"}}</div>
           <div class="panel-body">
-            {{#if model.author.contact}}
+            {{#if this.model.author.contact}}
               {{this.model.author.contact.name}}
             {{else}}
-              {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+              <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
             {{/if}}
           </div>
-        {{else if model.assessment_type}}
+        {{else if this.model.assessment_type}}
           <div class="panel-heading">{{t "Assessor" key="assessor"}}</div>
           <div class="panel-body">
-            {{#link-to "user" model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
           </div>
         {{else}}
           <div class="panel-heading">{{t "Device" key="device"}}</div>
           <div class="panel-body">
-            {{#link-to "user.stats" user.user_name (query-params highlighted=null start=null end=null location_id=null device_id=model.device.id split=null start2=null end2=null device_id2=null location_id2=null)}}
+            <LinkTo @route="user.stats" @model={{this.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=this.model.device.id split=null start2=null end2=null device_id2=null location_id2=null}}>
               {{this.model.device.name}}
-            {{/link-to}}
+            </LinkTo>
           </div>
         {{/if}}
       </div>
     </div>
   </div>
-  {{#if model.note_type}}
+  {{#if this.model.note_type}}
     <div class="panel" style="white-space: pre-line; margin-bottom: 50px;">
-      {{#if model.goal}}
-        <span class='face_icon'><span class={{this.model.goal_status_class}}></span></span>{{#if model.goal.summary}} - {{this.model.goal.summary}}{{/if}}
+      {{#if this.model.goal}}
+        <span class='face_icon'><span class={{this.model.goal_status_class}}></span></span>{{#if this.model.goal.summary}} - {{this.model.goal.summary}}{{/if}}
       {{/if}}
 
       {{this.model.note.text}}
-      {{#if model.video}}
+      {{#if this.model.video}}
         <div style="margin-top: 10px;">
           <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
         </div>
       {{/if}}
-      {{#if model.note.prior}}
+      {{#if this.model.note.prior}}
         <div style='white-space: normal; margin-top: 30px;'>
-          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}} {{#if model.note.prior_contact}}{{t "message from" key="message_from"}} {{this.model.note.prior_contact.name}}{{/if}}:</div>
+          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}} {{#if this.model.note.prior_contact}}{{t "message from" key="message_from"}} {{this.model.note.prior_contact.name}}{{/if}}:</div>
           <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{this.model.note.prior}}</div>
         </div>
       {{/if}}
     </div>
-  {{else if model.journal_type}}
+  {{else if this.model.journal_type}}
     <div class="panel" style="white-space: pre-line; margin-bottom: 50px;">
       {{this.model.journal.sentence}}
     </div>
-  {{else if model.assessment_type}}
+  {{else if this.model.assessment_type}}
     <div class="row">
       <div class="col-sm-4">
         <div class="panel panel-default summary smaller">
@@ -404,7 +404,7 @@
           </tr>
         </thead>
         <tbody>
-          {{#each model.processed_tallies as |tally|}}
+          {{#each this.model.processed_tallies as |tally|}}
             <tr>
               <td>
                 {{#if tally.correct}}
@@ -442,12 +442,12 @@
           </tr>
         </thead>
         <tbody>
-          {{#if model.events_state.checking}}
+          {{#if this.model.events_state.checking}}
             <tr><td colspan='5'>{{t "Loading..." key="loading"}}</td></tr>
-          {{else if model.events_state.error}}
+          {{else if this.model.events_state.error}}
             <tr><td colspan='5'>{{t "Error loading data" key="error_loading_data"}}</td></tr>
           {{else}}
-            {{#each model.processed_events as |event|}}
+            {{#each this.model.processed_events as |event|}}
               <tr class={{if event.long_delay "long_delay"}}>
                 <td style={{if event.highlighted "white-space: nowrap; background: #ffc;" "white-space: nowrap;"}}>
                   <span class={{event.type_class}} title={{event.type}}>
@@ -480,14 +480,14 @@
                 </td>
                 <td style='max-width: 100px; overflow: hidden;'>
                   {{#if event.new_board}}
-                    {{#link-to "board" event.new_board.key}}
+                    <LinkTo @route="board" @model={{event.new_board.key}}>
                       {{event.new_board.key}}
-                    {{/link-to}}
+                    </LinkTo>
                   {{else}}
                     {{#if event.board}}
-                      {{#link-to "board" event.board.key class="text-muted"}}
+                      <LinkTo @route="board" @model={{event.board.key}} class="text-muted">
                         {{event.board.key}}
-                      {{/link-to}}
+                      </LinkTo>
                     {{/if}}
                   {{/if}}
                 </td>
@@ -520,9 +520,9 @@
                     Notes:<br>
                     {{#each event.notes as |note|}}
                       <div>
-                        {{#link-to "user" note.author.user_name}}
+                        <LinkTo @route="user" @model={{note.author.user_name}}>
                           {{note.author.user_name}}
-                        {{/link-to}} -
+                        </LinkTo> -
                         {{note.note}}
                       </div>
                     {{/each}}
@@ -545,7 +545,7 @@
   {{/if}}
 
   <div class="row" style="margin-bottom: 20px;">
-    {{#if model.geo}}
+    {{#if this.model.geo}}
       <div class="col-sm-8">
         {{map-with-markers action="marker_link_select"}}
       </div>
@@ -554,36 +554,36 @@
       <dl>
         <dt>{{t "Location" key="location"}}</dt>
           <dd>
-          {{#if model.geo}}
+          {{#if this.model.geo}}
             {{t "See map" key="see_map"}}
           {{else}}
             {{t "Not Available" key="not_available_upper"}}
           {{/if}}
-          {{#if model.geo_cluster_id}}
+          {{#if this.model.geo_cluster_id}}
             <br>
-            {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.geo_cluster_id device_id="" type="session") class="btn btn-default"}}
+            <LinkTo @route="user.logs" @model={{this.model.user.user_name}} @query={{hash highlighted=null start="" end="" location_id=this.model.geo_cluster_id device_id="" type="session"}} class="btn btn-default">
               {{t "more entries" key="see_more"}}
-            {{/link-to}}
+            </LinkTo>
 
-            {{#link-to "user.stats" model.user.user_name (query-params highlighted=null start=null end=null location_id=model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+            <LinkTo @route="user.stats" @model={{this.model.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=this.model.geo_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session"}} class="btn btn-default">
               {{t "filtered report" key="see_stats"}}
-            {{/link-to}}
+            </LinkTo>
           {{/if}}
           </dd>
         <dt style="margin-top: 15px;">{{t "IP Address" key="ip_address"}}</dt>
           <dd>
-            {{#if model.readable_ip_address}}
+            {{#if this.model.readable_ip_address}}
               {{this.model.readable_ip_address}}
             {{/if}}
-            {{#if model.ip_cluster_id}}
+            {{#if this.model.ip_cluster_id}}
               <br>
-              {{#link-to "user.logs" model.user.user_name (query-params highlighted=null start="" end="" location_id=model.ip_cluster_id device_id="" type="session") class="btn btn-default"}}
+              <LinkTo @route="user.logs" @model={{this.model.user.user_name}} @query={{hash highlighted=null start="" end="" location_id=this.model.ip_cluster_id device_id="" type="session"}} class="btn btn-default">
                 {{t "more entries" key="see_more"}}
-              {{/link-to}}
+              </LinkTo>
 
-              {{#link-to "user.stats" model.user.user_name (query-params highlighted=null start=null end=null location_id=model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session") class="btn btn-default"}}
+              <LinkTo @route="user.stats" @model={{this.model.user.user_name}} @query={{hash highlighted=null start=null end=null location_id=this.model.ip_cluster_id device_id=null split=null start2=null end2=null device_id2=null location_id2=null type="session"}} class="btn btn-default">
                 {{t "filtered report" key="see_stats"}}
-              {{/link-to}}
+              </LinkTo>
             {{/if}}
           </dd>
       </dl>
@@ -592,32 +592,32 @@
 
 {{/if}}
 <div class='hide_print'>
-  {{#if model.session_type}}
+  {{#if this.model.session_type}}
     <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
     <button type="button" {{action "lam_export"}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
   {{/if}}
-  {{#if processed_assessment.resumable}}
-    {{#if same_author}}
+  {{#if this.processed_assessment.resumable}}
+    {{#if this.same_author}}
       <button type='button' {{action "resume"}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
     {{/if}}
   {{/if}}
   <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
-  {{#if model.previous_log_id}}
-    {{#link-to "user.log" user.user_name model.previous_log_id class="btn btn-default"}}
+  {{#if this.model.previous_log_id}}
+    <LinkTo @route="user.log" @models={{array this.user.user_name this.model.previous_log_id}} class="btn btn-default">
       <span class="glyphicon glyphicon-arrow-left"></span>
       {{t "Previous Entry" key="previous_entry"}}
-    {{/link-to}}
+    </LinkTo>
   {{/if}}
-  {{#if model.note_type}}
-    {{#if user.permissions.supervise}}
+  {{#if this.model.note_type}}
+    {{#if this.user.permissions.supervise}}
       <button class='btn btn-default' {{action "reply" "text"}}>{{t "Reply" key="reply"}}</button>
     {{/if}}
   {{/if}}
-  {{#if model.next_log_id}}
-    {{#link-to "user.log" user.user_name model.next_log_id class="btn btn-default"}}
+  {{#if this.model.next_log_id}}
+    <LinkTo @route="user.log" @models={{array this.user.user_name this.model.next_log_id}} class="btn btn-default">
       {{t "Next Entry" key="next_entry"}}
       <span class="glyphicon glyphicon-arrow-right"></span>
-    {{/link-to}}
+    </LinkTo>
   {{/if}}
 </div>
 {{/opening-observer}}

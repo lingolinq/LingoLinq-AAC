@@ -1,10 +1,10 @@
-{{#if model.permissions.supervise}}
-  <h2>{{t "Edit History for %{user_name}" key="edit_history_for" user_name=model.user_name}}</h2>
-  {{#if history.loading}}
+{{#if this.model.permissions.supervise}}
+  <h2>{{t "Edit History for %{user_name}" key="edit_history_for" user_name=this.model.user_name}}</h2>
+  {{#if this.history.loading}}
     {{t "Loading history..." key="loading_history"}}
-  {{else if history.error}}
+  {{else if this.history.error}}
     {{t "There was an error loading the user's history" key="error_loading_user_history"}}
-  {{else if history}}
+  {{else if this.history}}
     <table class='table table-striped table-hover'>
       <thead>
         <tr>
@@ -14,7 +14,7 @@
         </tr>
       </thead>
       <tbody>
-        {{#each history as |version|}}
+        {{#each this.history as |version|}}
           <tr>
             <td>
               {{#if version.recent}}
@@ -34,7 +34,7 @@
         {{/each}}
       </tbody>
     </table>
-    {{#if maybe_more}}
+    {{#if this.maybe_more}}
       <p>{{t "NOTE: there may be more results not shown" key="maybe_more"}}</p>
     {{else}}
       <p>{{t "All results shown" key="all_results_shown"}}</p>
@@ -42,7 +42,7 @@
   {{else}}
     {{t "No data available" key="no_data_available"}}
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <p>{{t "It appears you don't have permission to access this information" key="not_allowed_long"}}</p>
 {{else}}
   {{login-form left=true prompt=true return=true}}

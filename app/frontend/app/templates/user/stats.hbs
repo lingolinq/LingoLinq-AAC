@@ -1,124 +1,212 @@
 {{#opening-observer done_opening=(action "draw_charts")}}
-{{#if app_state.currentUser.modeling_only}}
+{{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
-{{else if model.currently_premium}}
-  {{#if model.preferences.logging}}
+{{else if this.model.currently_premium}}
+  {{#if this.model.preferences.logging}}
     <h2>
-      {{t "Usage Reports for %{un}" key="usage_reports_for" un=model.user_name}}
-      {{#if app_state.currentUser.supervisees.length}}
+      {{t "Usage Reports for %{un}" key="usage_reports_for" un=this.model.user_name}}
+      {{#if this.app_state.currentUser.supervisees.length}}
         <button class='btn btn-default' style='margin-left: 10px;' {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </h2>
-    {{#if usage_stats}}
+    {{#if this.usage_stats}}
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/data-filter usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 app_state=app_state snapshots=snapshots compare_to="compare_to" clear_side="clear_left_side" update_filter="update_left_filter"}}
-        {{#if usage_stats2}}
-          {{stats/data-filter usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true snapshots=snapshots right_side=true clear_side="clear_right_side" update_filter="update_right_filter"}}
+        {{stats/data-filter usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 app_state=this.app_state snapshots=this.snapshots compare_to=(action "compare_to") clear_side=(action "clear_left_side") update_filter=(action "update_left_filter")}}
+        {{#if this.usage_stats2}}
+          {{stats/data-filter usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true snapshots=this.snapshots right_side=true clear_side=(action "clear_right_side") update_filter=(action "update_right_filter")}}
         {{/if}}
       </div>
     {{/if}}
     <div class="row" style='page-break-inside: avoid;'>
-      {{stats/load-status status=status ref_status=status2 side_by_side=usage_stats2}}
-      {{#if usage_stats2}}
-        {{stats/load-status status=status2 ref_status=status side_by_side=true right_side=true}}
+      {{stats/load-status status=this.status ref_status=this.status2 side_by_side=this.usage_stats2}}
+      {{#if this.usage_stats2}}
+        {{stats/load-status status=this.status2 ref_status=this.status side_by_side=true right_side=true}}
       {{/if}}
-      {{#if some_data}}
-        {{stats/nums-row1 usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/nums-row1 usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+      {{#if this.some_data}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
+            <div class="panel-body">{{delimit this.display_total_sessions}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
+            <div class="panel-body">{{delimit this.display_total_words}}</div>
+          </div>
+        </div>
+        {{#if this.usage_stats2}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
+              <div class="panel-body">{{delimit this.display_total_sessions2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
+              <div class="panel-body">{{delimit this.display_total_words2}}</div>
+            </div>
+          </div>
         {{/if}}
-        {{stats/nums-row2 usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/nums-row2 usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
+            <div class="panel-body">{{delimit this.display_total_utterances}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
+            <div class="panel-body">{{delimit this.display_total_buttons}}</div>
+          </div>
+        </div>
+        {{#if this.usage_stats2}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
+              <div class="panel-body">{{delimit this.display_total_utterances2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
+              <div class="panel-body">{{delimit this.display_total_buttons2}}</div>
+            </div>
+          </div>
         {{/if}}
       {{/if}}
     </div>
-    {{#if some_data}}
+    {{#if this.some_data}}
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/nums-row3 usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/nums-row3 usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
+            <div class="panel-body">{{round this.display_words_per_utterance}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_words_per_minute}}</div>
+          </div>
+        </div>
+        {{#if this.usage_stats2}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
+              <div class="panel-body">{{round this.display_words_per_utterance2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_words_per_minute2}}</div>
+            </div>
+          </div>
         {{/if}}
-        {{stats/nums-row4 usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/nums-row4 usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_utterances_per_minute}}</div>
+          </div>
+        </div>
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary">
+            <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
+            <div class="panel-body">{{round this.display_buttons_per_minute}}</div>
+          </div>
+        </div>
+        {{#if this.usage_stats2}}
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_utterances_per_minute2}}</div>
+            </div>
+          </div>
+          <div class="col-sm-3 col-xs-6">
+            <div class="panel panel-default summary">
+              <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
+              <div class="panel-body">{{round this.display_buttons_per_minute2}}</div>
+            </div>
+          </div>
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/word-usage usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 show_logs="show_logs"}}
-        {{#if usage_stats2}}
-          {{stats/word-usage usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true show_logs="show_logs"}}
+        {{stats/word-usage usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 show_logs="show_logs"}}
+        {{#if this.usage_stats2}}
+          {{stats/word-usage usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true show_logs="show_logs"}}
         {{/if}}
-        {{stats/common-words usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 word_cloud="word_cloud_left" word_data="word_data"}}
-        {{#if usage_stats2}}
-          {{stats/common-words usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+        {{stats/common-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
+        {{#if this.usage_stats2}}
+          {{stats/common-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
         {{/if}}
-        {{#if usage_stats2}}
-          {{#if different_dates}}
-            {{stats/lost-or-gained-words usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=true word_cloud="word_cloud_left" word_data="word_data"}}
-            {{stats/lost-or-gained-words usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+        {{#if this.usage_stats2}}
+          {{#if this.different_dates}}
+            {{stats/lost-or-gained-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=true word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
+            {{stats/lost-or-gained-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
           {{/if}}
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/core-list core=model.core_lists usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 word_cloud="word_cloud_left" word_data="word_data" edit_permission=model.permissions.edit modify_core="modify_core"}}
-        {{#if usage_stats2}}
-          {{stats/core-list core=model.core_lists usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data" edit_permission=model.permissions.edit modify_core="modify_core"}}
+        {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data") edit_permission=this.model.permissions.edit modify_core=(action "modify_core")}}
+        {{#if this.usage_stats2}}
+          {{stats/core-list core=this.model.core_lists usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data") edit_permission=this.model.permissions.edit modify_core=(action "modify_core")}}
         {{/if}}
-        {{stats/core-fringe usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/core-fringe usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+        {{stats/core-fringe usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/core-fringe usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
-        {{stats/parts-of-speech-pie usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/parts-of-speech-pie usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
-        {{/if}}
-      </div>
-      <div class="row" style='page-break-inside: avoid;'>
-        {{stats/time-of-day usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/time-of-day usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
-        {{/if}}
-        {{stats/weighted-words usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 word_cloud="word_cloud_left" word_data="word_data"}}
-        {{#if usage_stats2}}
-          {{stats/weighted-words usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true word_cloud="word_cloud_right" word_data="word_data"}}
+        {{stats/parts-of-speech-pie usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/parts-of-speech-pie usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>
-        {{#if model.preferences.geo_logging }}
-          {{stats/geo-locations usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 filter="update_left_filter" snapshots=filter_list}}
-          {{#if usage_stats2}}
-            {{stats/geo-locations usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+        {{stats/time-of-day usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/time-of-day usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+        {{/if}}
+        {{stats/weighted-words usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 word_cloud=(action "word_cloud_left") word_data=(action "word_data")}}
+        {{#if this.usage_stats2}}
+          {{stats/weighted-words usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true word_cloud=(action "word_cloud_right") word_data=(action "word_data")}}
+        {{/if}}
+      </div>
+      <div class="row" style='page-break-inside: avoid;'>
+        {{#if this.model.preferences.geo_logging }}
+          {{stats/geo-locations usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter" snapshots=this.filter_list}}
+          {{#if this.usage_stats2}}
+            {{stats/geo-locations usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
           {{/if}}
-          {{stats/ip-addresses usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 filter="update_left_filter"}}
-          {{#if usage_stats2}}
-            {{stats/ip-addresses usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+          {{stats/ip-addresses usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter"}}
+          {{#if this.usage_stats2}}
+            {{stats/ip-addresses usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
           {{/if}}
         {{else}}
-          {{stats/geo-disabled side_by_side=usage_stats2}}
-          {{#if usage_stats2}}
+          {{stats/geo-disabled side_by_side=this.usage_stats2}}
+          {{#if this.usage_stats2}}
             {{stats/geo-disabled side_by_side=true right_side=true}}
           {{/if}}
         {{/if}}
       </div>
       <div class="row" style='page-break-inside: avoid;'>
-        {{stats/heat-map usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2}}
-        {{#if usage_stats2}}
-          {{stats/heat-map usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true}}
+        {{stats/heat-map usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/heat-map usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
-        {{stats/user-devices usage_stats=usage_stats ref_stats=usage_stats2 side_by_side=usage_stats2 filter="update_left_filter"}}
-        {{#if usage_stats2}}
-          {{stats/user-devices usage_stats=usage_stats2 ref_stats=usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+        {{stats/user-devices usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter"}}
+        {{#if this.usage_stats2}}
+          {{stats/user-devices usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
         {{/if}}
       </div>
-      {{#unless usage_stats2}}
+      {{#unless this.usage_stats2}}
         <div class="row hide_print" style="margin-top: 10px;">
           <div class="col-sm-12">
-            {{#link-to "user.logs" model.user_name (query-params start=usage_stats.start_date_field end=usage_stats.end_date_field location_id=controller.location_id device_id=controller.device_id highlighted=null type="session") class="btn btn-default"}}
+            <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash start=this.usage_stats.start_date_field end=this.usage_stats.end_date_field location_id=this.controller.location_id device_id=this.controller.device_id highlighted=null type="session"}} class="btn btn-default">
               {{t "Log Entries for this Report" key="log_entries_for_report"}}
-            {{/link-to}}
-            {{#if model.permissions.edit}}
-              {{#unless snapshot_id}}
+            </LinkTo>
+            {{#if this.model.permissions.edit}}
+              {{#unless this.snapshot_id}}
                 <a href="#" {{action "save_snapshot"}} class='btn btn-default'>{{t "Create Snapshot" key="create_snapshot"}}</a>
               {{/unless}}
             {{/if}}
@@ -126,7 +214,7 @@
         </div>
       {{/unless}}
     {{/if}}
-  {{else if model.permissions.edit}}
+  {{else if this.model.permissions.edit}}
     <h2>{{t "Usage Reports" key="usage_reports"}}</h2>
     <p>{{t "%app_name% can generate insightful reports on word frequency, usage by time of day or location, etc., but only if logging is enabled. Right now it's turned off, but you can enable it in your preferences." key="logging_disabled"}}</p>
     <button {{action "enable_logging"}} type="button" class='btn btn-default'>{{t "Enable Communication Logging & Reports" key="enable_logging_and_reports"}}</button>
@@ -134,15 +222,15 @@
     <h2>{{t "Usage Reports" key="usage_reports"}}</h2>
     <p>{{t "Looks like this user has logging turned off, and you don't have permission to enable it for the user." key="unauthorized_reports"}}</p>
   {{/if}}
-{{else if session.isAuthenticated}}
+{{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
-  {{#if app_state.currentUser.supervisees.length}}
+  {{#if this.app_state.currentUser.supervisees.length}}
     <button class='btn btn-default' style='margin-left: 10px;' {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
   {{/if}}
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1h"}}
-    {{#if app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+    {{#if this.app_state.feature_flags.subscriptions}}
+      <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

@@ -15,7 +15,7 @@ import capabilities from './capabilities';
 import i18n from './i18n';
 import stashes from './_stashes';
 import progress_tracker from './progress_tracker';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -41,6 +41,18 @@ var Button = EmberObject.extend({
     this.set_video_url();
     this.findContentLocally();
     this.set('stashes', stashes);
+  },
+  init_services: function(appStateService, persistenceService, stashesService) {
+    // Accept services as parameters for explicit injection
+    // Fall back to imported utilities for backward compatibility
+    this.appState = appStateService || app_state;
+    this.persistence = persistenceService || persistence;
+    this.stashes = stashesService || stashes;
+    
+    // Also register services statically for use in static methods
+    if(appStateService || persistenceService || stashesService) {
+      Button.register_services(appStateService, persistenceService, stashesService);
+    }
   },
   buttonAction: 'talk',
   updateAction: observer(
@@ -348,15 +360,16 @@ var Button = EmberObject.extend({
       res = res + "</span>";
       res = res + "</div>";
 
+      var appState = this.appState || app_state;
       res = res + "<span style='" + this.get('image_holder_style') + "'>";
-      if(!app_state.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
+      if(!appState.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
         res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(this.get('sound')) {
         res = res + "<audio style='display: none;' preload='auto' src=\"" + clean_url(this.get('local_sound_url')) + "\" rel=\"" + clean_url(this.get('sound.url')) + "\"></audio>";
       }
-      var button_class = this.get('text_only') ? app_state.get('text_only_button_symbol_class') : app_state.get('button_symbol_class');
+      var button_class = this.get('text_only') ? appState.get('text_only_button_symbol_class') : appState.get('button_symbol_class');
       var txt = clean_text(this.get('label'));
       var text_style = '';
       var holder_style = '';
@@ -443,11 +456,17 @@ var Button = EmberObject.extend({
     _this.set('image', image);
     if(image && image.get('hc')) { _this.set('hc_image', true); }
     var check_image = function(image) {
-      _this.set('local_image_url', image.get('best_url'));
+      var best = image.get('best_url');
+      if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
+        _this.set('local_image_url', best);
+      }
       _this.set('original_image_url', image.get('url'));
       if(image.get('hc')) { _this.set('hc_image', true); }
       return image.checkForDataURL().then(function() {
-        _this.set('local_image_url', image.get('best_url'));
+        var url = image.get('best_url');
+        if(url && (url.match(/^https?:\/\//) || url.match(/^data:/) || url.match(/^blob:/))) {
+          _this.set('local_image_url', url);
+        }
         return image;
       }, function() { return RSVP.resolve(image); });
     };
@@ -455,29 +474,36 @@ var Button = EmberObject.extend({
       var image_urls = this.get('board.image_urls');
       var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
       if(hc) { _this.set('hc_image', true); }
-      if(image_urls && image_urls[_this.image_id] && preference != 'remote') {
-        var img = LingoLinq.store.createRecord('image', {
-          url: image_urls[_this.image_id]
-        })
-        img.set('id', _this.image_id);
-        img.set('incomplete', true);
-        var alts = null;
-        for(var key in image_urls) {
-          if(key.match(_this.image_id + '-')) {
-            var lib = key.split(/-/).pop();
-            alts = alts || [];
-            alts.push({library: lib, url: image_urls[key]});
+      var url_val = (image_urls && image_urls[_this.image_id]) ? image_urls[_this.image_id] : _this.image_url;
+      if(url_val && preference != 'remote') {
+        var looks_like_url = (typeof url_val === 'string') && (url_val.match(/^https?:\/\//) || url_val.match(/^data:/));
+        if(looks_like_url) {
+          var img = LingoLinq.store.peekRecord('image', _this.image_id);
+          if(!img) {
+            img = LingoLinq.store.createRecord('image', {
+              url: url_val
+            });
+            img.set('id', _this.image_id);
+            img.set('incomplete', true);
+            var alts = null;
+            for(var key in image_urls) {
+              if(key.match(_this.image_id + '-')) {
+                var lib = key.split(/-/).pop();
+                alts = alts || [];
+                alts.push({library: lib, url: image_urls[key]});
+              }
+            }
+            if(alts) { img.set('alternates', alts); }
           }
+          _this.set('image', img);
+          return check_image(img);
         }
-        if(alts) { img.set('alternates', alts); }
-        _this.set('image', img);
-        return check_image(img);
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
       } else {
         if(!(_this.image_id || '').match(/^tmp/) && preference != 'remote') {
-          console.error("had to revert to image record lookup");
+          console.warn("had to revert to image record lookup");
         }
         var find = LingoLinq.store.findRecord('image', _this.image_id).then(function(image) {
           _this.set('image', image);
@@ -502,8 +528,9 @@ var Button = EmberObject.extend({
     }
   },
   update_local_image_url: observer('image.best_url', function() {
-    if(this.get('image.best_url')) {
-      this.set('local_image_url', this.get('image.best_url'));
+    var best = this.get('image.best_url');
+    if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
+      this.set('local_image_url', best);
     }
   }),
   load_sound: function(preference) {
@@ -553,8 +580,9 @@ var Button = EmberObject.extend({
     }
   }),
   update_translations: observer('translations_hash', 'label', 'vocalization', function() {
-    var label_locale = app_state.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
-    var vocalization_locale = app_state.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
+    var appState = this.appState || app_state;
+    var label_locale = appState.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
+    var vocalization_locale = appState.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
     var _this = this;
     var res = _this.get('translations') || [];
     var hash = _this.get('translations_hash') || {};
@@ -591,8 +619,9 @@ var Button = EmberObject.extend({
     'translations.@each.label',
     'translations.@each.vocalization',
     function() {
-      var label_locale = app_state.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
-      var vocalization_locale = app_state.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
+      var appState = this.appState || app_state;
+      var label_locale = appState.get('label_locale') || this.get('board.translations.current_label') || this.get('board.locale') || 'en';
+      var vocalization_locale = appState.get('vocalization_locale') || this.get('board.translations.current_vocalization') || this.get('board.locale') || 'en';
       var _this = this;
       (this.get('translations') || []).forEach(function(locale) {
         if(locale.code == label_locale && locale.label) {
@@ -625,6 +654,10 @@ var Button = EmberObject.extend({
         _this.set('original_image_url', _this.image_url);
         promises.push(RSVP.resolve());
       } else if(_this.image_id) {
+        if(_this.image_url && (_this.image_url.match(/^https?:\/\//) || _this.image_url.match(/^data:/))) {
+          _this.set('local_image_url', _this.image_url);
+          _this.set('original_image_url', _this.image_url);
+        }
         promises.push(_this.load_image('local'));
       }
       if(_this.sound_id && _this.sound_url && persistence.url_cache && persistence.url_cache[_this.sound_url] && (!persistence.url_uncache || !persistence.url_uncache[_this.sound_url])) {
@@ -652,10 +685,12 @@ var Button = EmberObject.extend({
     });
   }),
   check_for_parts_of_speech: function() {
-    if(app_state.get('edit_mode') && !this.get('empty') && this.get('label')) {
+    var appState = this.appState || app_state;
+    var persistenceService = this.persistence || persistence;
+    if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
       var text = this.get('vocalization') || this.get('label');
       var _this = this;
-      persistence.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
           var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
@@ -702,6 +737,27 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Static service registry for use in static methods
+Button._services = {
+  appState: null,
+  persistence: null,
+  stashes: null
+};
+Button.register_services = function(appStateService, persistenceService, stashesService) {
+  if(appStateService) { Button._services.appState = appStateService; }
+  if(persistenceService) { Button._services.persistence = persistenceService; }
+  if(stashesService) { Button._services.stashes = stashesService; }
+};
+Button.get_app_state = function() {
+  return Button._services.appState || app_state;
+};
+Button.get_persistence = function() {
+  return Button._services.persistence || persistence;
+};
+Button.get_stashes = function() {
+  return Button._services.stashes || stashes;
+};
 
 Button.style = function(style) {
   var res = {};
@@ -1122,7 +1178,7 @@ Button.extra_actions = function(button) {
       update_state({pending: true});
       var url = button.integration.local_url || "https://www.example.com";
       url = url.replace(/\{code\}/g, encodeURIComponent(button.integration.action));
-      persistence.ajax(url, {
+      Button.get_persistence().ajax(url, {
         type: 'POST',
         data: {
           action: button.integration.action
@@ -1179,7 +1235,7 @@ Button.extra_actions = function(button) {
           update_state(null);
           update_state({pending: true});
           runLater(function() {
-            persistence.ajax('/api/v1/users/' + user_id + '/activate_button', {
+            Button.get_persistence().ajax('/api/v1/users/' + user_id + '/activate_button', {
               type: 'POST',
               data: {
                 board_id: board_id,
@@ -1429,8 +1485,8 @@ Button.load_actions = function() {
       action: ':shift',
       description: i18n.t('toggle_shift', "Toggle Shift State (capitalization)"),
       trigger: function() {
-        app_state.set('shift', !app_state.get('shift'));
-        app_state.set('suggestion_id', null);
+        Button.get_app_state().set('shift', !Button.get_app_state().get('shift'));
+        Button.get_app_state().set('suggestion_id', null);
         app_state.refresh_suggestions();
       }
     },
@@ -1811,11 +1867,11 @@ Button.load_actions = function() {
         var rule = match && match[1];
 
         if(app_state.get('inflection_shift') == rule) {
-          app_state.set('inflection_shift', false);
+          Button.get_app_state().set('inflection_shift', false);
         } else {
-          app_state.set('inflection_shift', rule);
+          Button.get_app_state().set('inflection_shift', rule);
         }
-        app_state.set('suggestion_id', null);
+        Button.get_app_state().set('suggestion_id', null);
         app_state.refresh_suggestions();
       }
     },

@@ -1,0 +1,93 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Remote Modeling" key="remote_modeling"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>
+      {{#if this.model.user.avatar_url_with_fallback}}
+        <img src={{this.model.user.avatar_url_with_fallback}} style='float: left; width: 50px; margin: 0 10px 5px 0;'>
+      {{else}}
+        <span class='glyphicon glyphicon-search' style='float: left; font-size: 50px; margin: 0 10px 5px 0;'></span>
+      {{/if}}
+      {{#if this.model.communicator}}
+        {{t "Remote modeling allows supporters to follow a communicator's actions, and even help prompt them to hit target buttons. Communicators can terminate an active modeling session at any time." key="remote_modeling_communicator_explanation"}}
+      {{else}}
+        {{#if this.app_state.pairing}}
+          {{#if this.paired_with_current_user}}
+            {{t "You are currently paired with %{name}." name=this.app_state.pairing.user.user_name key="already_paired"}}
+          {{else}}
+            {{t "You are paired with a different user (%{name}). Pairing with a different user will end the current pairing." name=this.app_state.pairing.user.user_name key="already_paired_other"}}
+          {{/if}}
+        {{else}}
+          {{t "Remote modeling allows supporters to follow a communicator's actions, and even help prompt them to hit target buttons. Communicators will need to authorize the connection before you can model for them." key="remote_modeling_explanation"}}
+        {{/if}}
+      {{/if}}
+    </p>
+    {{#if this.model.user.user_name}}
+      {{#if this.model.communicator}}
+        <p>{{t "You are currently in an active remote modeling session with %{user_name}. You can stop this remote connection at any time." user_name=this.model.user.user_name key="cancel_remote_model_with_user"}}</p>
+        <div style='clear: left; margin-botom: 10px;'></div>
+      {{else}}
+        {{#if this.paired_with_current_user}}
+          <p style='margin-bottom: 0;'>{{t "Send a Reaction to the Communicator" key="send_reaction_to_communicator"}}</p>
+          <div style='clear: left;'></div>
+          <div class='reactions'>
+            {{#each this.reactions as |reaction|}}
+              <img class={{if reaction.sending "sending" ""}} src={{reaction.url}} alt={{reaction.text}} {{action "send_reaction" reaction}} >
+            {{/each}}
+          </div>
+          <div style='display: none;'>
+            <Textarea @value={{this.model_message}} class="form-control" placeholder="Enter message to send to communicator" />
+            <div style='text-align: right; margin-top: 5px; margin-bottom: 50px;'>
+              <button class='btn btn-primary' {{action "send_message"}}>{{t "Send Message to %{un}" un=this.app_state.pairing.user.user_name key="send_message_to_user"}}</button>
+            </div>
+          </div>
+        {{else}}
+          <div style='clear: left; margin-botom: 10px;'></div>
+          <div class='btn-group' style='width: 100%; margin: 20px 0; display: flex; flex-direction: row;'>
+            <button type='button' style='flex: 1; white-space: normal; max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_modeling" "follow"}} class={{if this.following_mode "btn btn-primary btn-lg" "btn btn-default btn-lg"}}>
+              <span class='glyphicon glyphicon-search'></span>
+              {{t "Follow activity<br>for %{user_name}" key="follow_user" user_name=this.model.user.user_name}}
+            </button>
+            <button type='button' style='flex: 1; white-space: normal; max-width: 50%; overflow: hidden; text-overflow: ellipsis;' {{action "set_modeling" "model"}} class={{if this.following_mode "btn btn-default btn-lg" "btn btn-primary btn-lg"}}>
+              <span class='glyphicon glyphicon-road'></span>
+              {{t "Follow and model activity<br>for %{user_name}" key="model_for_user" user_name=this.model.user.user_name}}
+            </button>
+          </div>
+        {{/if}}
+      {{/if}}
+      <div style='margin-top: 30px;'>
+        {{#unless this.model.communicator}}
+          {{#unless this.paired_with_current_user}}
+            <button class='btn btn-primary btn-lg' {{action "request"}} disabled={{this.connect_pending}}>
+              {{#if this.model.status.connecting}}
+                {{t "Requesting Connection..." key="requesting_connection"}}
+              {{else if this.model.status.pair_timeout}}
+                {{t "Request Timed Out" key="request_timed_out"}}
+              {{else if this.model.status.pair_reject}}
+                {{t "Request Not Accepted" key="request_rejected"}}
+              {{else if this.model.status.error_connecting}}
+                {{t "Requesting Failed Unexpectedly" key="request_failed"}}
+              {{else}}
+                {{t "Request Connection" key="request_connection"}}
+              {{/if}}
+            </button>
+          {{/unless}}
+        {{/unless}}
+        {{#if this.app_state.pairing}}
+          <button class='btn btn-default btn-lg' {{action "end"}}>{{t "End Connection" key="end_connection"}}</button>
+        {{/if}}
+        <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
+      </div>
+    {{else}}
+      <div style='margin: 20px 0;'>
+        {{#if this.model.user_error}}
+          <h2>{{t "Error Loading User" key="error_loading_user"}}</h2>
+        {{else}}
+          <h2>{{t "Loading User..." key="loading_user"}}</h2>
+        {{/if}}
+      </div>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

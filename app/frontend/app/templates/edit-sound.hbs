@@ -8,7 +8,7 @@
       <div class="form-group">
         <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-7">
-          {{input value=model.sound.name class="form-control" id="name" placeholder="Recording Name"}}
+          <Input @value={{this.model.sound.name}} class="form-control" id="name" placeholder="Recording Name" />
         </div>
       </div>
       <div class="form-group">
@@ -22,20 +22,20 @@
       <div class="form-group">
         <label for="transcription" class="col-sm-3 control-label">{{t "Transcription" key="transcription"}}</label>
         <div class="col-sm-7">
-          {{input value=model.sound.transcription class="form-control" id="transcription" placeholder="text transcription"}}
+          <Input @value={{this.model.sound.transcription}} class="form-control" id="transcription" placeholder="text transcription" />
         </div>
       </div>
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          <button class='btn btn-primary' type='submit' disabled={{status.saving}}>
-            {{#if status.saving}}
+          <button class='btn btn-primary' type='submit' disabled={{this.status.saving}}>
+            {{#if this.status.saving}}
               {{t "Updating Recording..." key="updating_sound"}}
             {{else}}
               {{t "Update Recording" key="update_sound"}}
             {{/if}}
           </button>
           <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-          {{#if error}}
+          {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected error while updating the recording" key="error_updating_sound"}}</p>
           {{/if}}
         </div>

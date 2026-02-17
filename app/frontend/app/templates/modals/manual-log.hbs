@@ -16,13 +16,13 @@
       </div>
       <div class='col-sm-2'><p class='form-control-static'>{{t "Date:" key="date_colon"}}</p></div>
       <div class='col-sm-4'>
-        {{input type="date" value=date class="form-control"}}
+        <Input type="date" @value={{this.date}} class="form-control" />
       </div>
       <div class='col-sm-4'>
-        {{input type="time" value=time class="form-control"}}
+        <Input type="time" @value={{this.time}} class="form-control" />
       </div>
       <div class='col-sm-12' style='margin-top: 20px; margin-bottom: 20px;'>
-        {{textarea class="form-control" value=words placeholder="one word/button per line" rows=10}}
+        <Textarea @value={{this.words}} class="form-control" placeholder="one word/button per line" rows={{10}} />
       </div>
     </div>
   </div>

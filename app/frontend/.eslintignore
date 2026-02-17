@@ -10,6 +10,9 @@
 /bower_components/
 /node_modules/
 
+# local eslint plugin (Node context, not app)
+/eslint-plugin-lingolinq/
+
 # misc
 /coverage/
 !.*

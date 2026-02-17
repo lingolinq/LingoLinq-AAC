@@ -4,21 +4,21 @@
     <h3>{{t "Share Text" key="share_text"}}</h3>
   </div>
   <div class="modal-body">
-    <p>"<span style='font-size: 20px; display: inline-block; max-width: 90%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap;'>{{sentence}}</span>"</p>
-    <div style='position: absolute; left: -1000px;'>{{input type="text" value=sentence id="utterance_sentence"}}</div>
+    <p>"<span style='font-size: 20px; display: inline-block; max-width: 90%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap;'>{{this.sentence}}</span>"</p>
+    <div style='position: absolute; left: -1000px;'><Input @type="text" @value={{this.sentence}} id="utterance_sentence" /></div>
     <div class="row share_buttons modal_targets advanced_selection" style="margin: 10px 0;">
-      {{#if app_state.sessionUser.any_limited_supervisor}}
+      {{#if this.app_state.sessionUser.any_limited_supervisor}}
         <p class='text-muted'>
           {{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}
-          {{#if app_state.sessionUser.modeling_only}}
+          {{#if this.app_state.sessionUser.modeling_only}}
               {{t "Please consider purchasing %app_name% to gain access to this feature when working with paid communicators." key="consider_buying_for_contacts"}}
           {{else}}
               {{t "This feature is limited to those working with paid communicator accounts." key="consider_communicator_buying_for_contacts"}}
           {{/if}}
         </p>
-      {{else if app_state.referenced_user.currently_premium}}
-        {{#if contacts}}
-          {{#each contacts as |sup|}}
+      {{else if this.app_state.referenced_user.currently_premium}}
+        {{#if this.contacts}}
+          {{#each this.contacts as |sup|}}
             <div class='col-sm-2 col-xs-4'>
               <button class='btn btn-default' {{action "message" sup}}>
                 {{#if sup.reply}}
@@ -39,9 +39,9 @@
         </p>
       {{/if}}
       <div style='clear: both; border-top: 2px solid #ccc; margin: 10px 0;'></div>
-      {{#if shares.clipboard}}
+      {{#if this.shares.clipboard}}
       <div class='col-md-2 col-sm-3 col-xs-4'>
-        <button class={{clipboard_class}} {{action "share_via" "clipboard"}}>
+        <button class={{this.clipboard_class}} {{action "share_via" "clipboard"}}>
           <span class="glyphicon glyphicon-copy"></span>
           {{t "Copy" key="copy"}}
         </button>
@@ -53,7 +53,7 @@
           {{t "Button" key="button"}}
         </button>
       </div>
-      {{#if shares.email}}
+      {{#if this.shares.email}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "email"}}>
             <span class="glyphicon glyphicon-envelope"></span>
@@ -61,7 +61,7 @@
           </button>
         </div>
       {{/if}}
-      {{#if utterance_record.link}}
+      {{#if this.utterance_record.link}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <a href="#" class='btn btn-default' {{action "share_via" "link"}} target="_blank" rel="noopener">
             <span class="glyphicon glyphicon-hand-up"></span>
@@ -69,7 +69,7 @@
           </a>
         </div>
       {{/if}}
-      {{#if shares.facebook}}
+      {{#if this.shares.facebook}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "facebook"}}>
             <img src={{path "images/logos/facebook.png"}} alt={{t "Share via Facebook" key="share_via_facebook"}} style='filter: grayscale(0.8);'>
@@ -77,7 +77,7 @@
           </button>
         </div>
       {{/if}}
-      {{#if shares.twitter}}
+      {{#if this.shares.twitter}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "twitter"}}>
             <img src={{path "images/logos/twitter.png"}} alt={{t "Share via Twitter" key="share_via_twitter"}} style='filter: grayscale(0.8);' >
@@ -85,7 +85,7 @@
           </button>
         </div>
       {{/if}}
-      {{#if shares.instagram}}
+      {{#if this.shares.instagram}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "instagram"}}>
             <img src={{path "images/logos/instagram.png"}} alt={{t "Share via Instagram" key="share_via_instagram"}} style='filter: grayscale(0.8);' >
@@ -93,7 +93,7 @@
           </button>
         </div>
       {{/if}}
-      {{#if shares.generic}}
+      {{#if this.shares.generic}}
         <div class='col-md-2 col-sm-3 col-xs-4'>
           <button class='btn btn-default' {{action "share_via" "generic"}}>
             <span class="glyphicon glyphicon-share"></span>
@@ -105,14 +105,14 @@
     <div style='margin-left: 15px;'>
       <div class="checkbox big_checkbox">
         <label>
-          {{input checked=text_only type="checkbox"}}
+          <Input @checked={{this.text_only}} @type="checkbox" />
           {{t "Share only text, with no images or explanations, for generic shares" key="share_only_text"}}
         </label>
       </div>
     </div>
-    {{#if copy_result.succeeded}}
+    {{#if this.copy_result.succeeded}}
       <p class='text-success'>{{t "Text copied to the clipboard!" key="copied_to_clipboard"}}</p>
-    {{else if copy_result.failed}}
+    {{else if this.copy_result.failed}}
       <p class='text-danger'>{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
     {{/if}}
   </div>

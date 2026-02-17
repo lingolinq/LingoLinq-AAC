@@ -10,11 +10,11 @@ import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import capabilities from './capabilities';
-import persistence from './persistence';
-import tts_voices from './tts_voices';
-import app_state from './app_state';
+// import persistence from './persistence';
+// import tts_voices from './tts_voices';
+// import app_state from './app_state';
 import i18n from './i18n';
-import stashes from './_stashes';
+// import stashes from './_stashes';
 import Utils from './misc';
 import LingoLinq from '../app';
 import { computed } from '@ember/object';
@@ -48,6 +48,12 @@ var speecher = EmberObject.extend({
   partner_end_url: "https://d18vdu4p71yql0.cloudfront.net/partner-end.mp3",
   follower_url: "https://d18vdu4p71yql0.cloudfront.net/follower.mp3",
   voices: [],
+  setup: function(appState, persistence, stashes, tts_voices) {
+    this.appState = appState;
+    this.persistence = persistence;
+    this.stashes = stashes;
+    this.tts_voices = tts_voices;
+  },
   text_direction: function() {
     var voice = speecher.get('voices').find(function(v) { return v.voiceURI == speecher.voiceURI; });
     var locale = (voice && voice.lang) || navigator.language || 'en-US';
@@ -118,9 +124,10 @@ var speecher = EmberObject.extend({
     capabilities.tts.available_voices().then(function(voices) {
       var orig_voices = _this.get('voices');
       var more_voices = [];
+      var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
       voices.forEach(function(voice) {
         if(voice.active) {
-          var ref_voice = tts_voices.find_voice(voice.voice_id);
+          var ref_voice = (ttsService && ttsService.find_voice && ttsService.find_voice(voice.voice_id)) || null;
           if(ref_voice) {
             voice.name = ref_voice.name;
             voice.locale = ref_voice.locale;
@@ -222,14 +229,16 @@ var speecher = EmberObject.extend({
     return list;
   },
   check_for_upgrades: function() {
-    var latest_version = tts_voices.get('versions.' + capabilities.system);
+    var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
+    if(!ttsService || typeof ttsService.get !== 'function') { return; }
+    var latest_version = ttsService.get('versions.' + capabilities.system);
     if(capabilities.system == 'Windows' && !this.get('checked_for_voice_upgrades')) {
       this.set('checked_for_voice_upgrades', true);
       if(window.file_storage) {
         window.file_storage.voice_content(function(data) {
           var version = parseFloat(data.version.replace(/_/, '.'));
           if(version < latest_version) {
-            window.file_storage.upgrade_voices(latest_version, tts_voices.find_voice);
+            window.file_storage.upgrade_voices(latest_version, speecher.tts_voices.find_voice);
           }
         })
       }
@@ -315,6 +324,20 @@ var speecher = EmberObject.extend({
 //       runLater(ios, 1000);
     }
 //     this.ready = !!(!speecher.scope.speechSynthesis.voiceList || speecher.scope.speechSynthesis.voiceList.length > 0);
+  },
+  // Unlock speech/audio in the same synchronous turn as a user gesture so that
+  // later async speech (e.g. after findContentLocally().then()) is not blocked by browser autoplay policy.
+  unlock_speech: function() {
+    if(speecher._speech_unlocked) { return; }
+    if(speecher.scope && speecher.scope.speechSynthesis) {
+      try {
+        var u = new speecher.scope.SpeechSynthesisUtterance('\u200B');
+        u.volume = 0;
+        speecher.scope.speechSynthesis.speak(u);
+        speecher.scope.speechSynthesis.cancel();
+      } catch(e) { }
+    }
+    speecher._speech_unlocked = true;
   },
   set_voice: function(voice, alternate_voice) {
     this.pitch = voice.pitch;
@@ -409,9 +432,34 @@ var speecher = EmberObject.extend({
   speak_id: 0,
   speak_text: function(text, collection_id, opts) {
     opts = opts || {};
+    if(!text) { return; }
+    text = text.toString();
+    text = text.replace(/…/, '...');
+    // iOS TTS quirk (normalize before dedupe so we match across variants)
+    if(text.replace(/\s+/g, '') == "I") { text = "eye"; }
+    if(text.replace(/\s+/g, '') == "went") { text = "wend"; }
+    // Prevent double vocalization FIRST (before stop()): same text in quick succession
+    // from two paths (e.g. main + scanner with different voice = woman then man).
+    // Must run before stop() or the second call would cancel the first utterance.
+    // Normalize for comparison (scanner may pass label, main path vocalization; trim/lower to match)
+    var norm = text.replace(/\s+/g, ' ').trim().toLowerCase();
+    var lastNorm = (this.last_spoken_text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    var now = Date.now();
+    var lastTime = this.last_spoken_text_time || 0;
+    var pendingNorm = (this.speak_pending_text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    var pendingTime = this.speak_pending_time || 0;
+    // Same text recently (1s): skip duplicate from second path (e.g. scanner) or slow repeat
+    if(lastNorm && norm === lastNorm && (now - lastTime) < 1000) {
+      return;
+    }
+    // Same text in pending (150ms): concurrent call for this text (e.g. touch + mouse on quick second tap) - skip
+    if(pendingNorm && norm === pendingNorm && (now - pendingTime) < 150) {
+      return;
+    }
+    this.speak_pending_text = text;
+    this.speak_pending_time = now;
     var already_in_collection = collection_id && this.speaking_from_collection == collection_id;
     if(this.speaking_from_collection && !collection_id) {
-      // lets the user start building their next sentence without interrupting the current one
       return;
     } else if(this.speaking && opts.interrupt === false) {
       return;
@@ -420,18 +468,14 @@ var speecher = EmberObject.extend({
     } else if(this.speaking_from_collection && opts.prevent_repeat && opts.prevent_any) {
       return;
     }
+    this.last_spoken_text = text;
+    this.last_spoken_text_time = Date.now();
     var interrupted = false;
     if(already_in_collection) {
     } else {
       interrupted = this.speaking;
       this.stop('text');
     }
-    if(!text) { return; }
-    text = text.toString();
-    text = text.replace(/…/, '...');
-    // iOS TTS quirk
-    if(text.replace(/\s+/g, '') == "I") { text = "eye"; }
-    if(text.replace(/\s+/g, '') == "went") { text = "wend"; }
     var _this = this;
     var speak_id = this.speak_id++;
     this.last_speak_id = speak_id;
@@ -535,14 +579,15 @@ var speecher = EmberObject.extend({
       voice = voice || uri_match();
       // Then look for the first default voice
       voice = voice || local_voices.find(function(v) { return v['default']; });
-      // Finally use a remote voice if it's all there is
-      if(persistence.get('online')) {
+      // Finally use a remote voice if it's all there is (use module-level get_persistence - this.speecher can be undefined in runLater callbacks)
+      var persistenceService = speecher.get_persistence && speecher.get_persistence();
+      if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
         voice = voice || voices.find(function(v) { return locale && locale.match(/-|_/) && v.lang && (v.lang.toLowerCase().replace(/_/, '-') == locale || v.lang.toLowerCase().replace(/-/, '_') == locale); });
         voice = voice || voices.find(function(v) { return language && v.lang && [language, mapped_lang].indexOf(v.lang.toLowerCase().split(/[-_]/)[0]) != -1; });
         voice = voice || voices.find(function(v) { return v['default']; });
       }
       // If none found, return a temporary voice from the cloud_locales list
-      if(!voice && persistence.get('online')) {
+      if(!voice && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
         var remote = cloud_locales.find(function(loc) { return loc.toLowerCase().replace(/-/, '_') == locale; });
         remote = remote || cloud_locales.find(function(loc) { return loc.split(/-|_/)[0] == mapped_lang; });
         if(remote) {
@@ -571,16 +616,16 @@ var speecher = EmberObject.extend({
     }
     // Replace fancy quote marks with normal ones, or some TTS engines get confused
     text = text.replace(/‘|’/g, "'").replace(/“|”/g, '"');
-    var current_locale = app_state.get('vocalization_locale');
+    var current_locale = this.appState.get('vocalization_locale');
     if(opts.default_prompt && opts.voiceURI) { current_locale = 'any'; }
     if(opts.alternate_voice) {
       opts.volume = this.alternate_volume || ((opts.volume || 1.0) * 0.75);
       opts.pitch = this.alternate_pitch;
       opts.rate = this.alternate_rate;
       opts.voiceURI = this.alternate_voiceURI;
-      if(app_state.get('vocalization_locale')) {
+      if(speecher.appState.get('vocalization_locale')) {
         // If the alternate voice doesn't match the expected locale, use a different voice
-        var set_locale = app_state.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
         var voice_locale = (_this.alternate_voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.alternate_voiceURI, current_locale, true) || {}).voiceURI || _this.alternate_voiceURI;
@@ -591,9 +636,9 @@ var speecher = EmberObject.extend({
     opts.pitch = opts.pitch || this.pitch || 1.0;
     if(!opts.voiceURI) {
       opts.voiceURI = this.voiceURI;
-      if(app_state.get('vocalization_locale')) {
+      if(speecher.appState.get('vocalization_locale')) {
         // If the voice doesn't match the expected locale, use a different voice
-        var set_locale = app_state.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
         var voice_locale = (this.voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.voiceURI, current_locale, true) || {}).voiceURI || _this.voiceURI;
@@ -610,17 +655,18 @@ var speecher = EmberObject.extend({
       }
       var utterance = new speecher.scope.SpeechSynthesisUtterance();
       utterance.text = text;
-      utterance.rate = opts.rate;
-      utterance.volume = opts.volume;
-      utterance.pitch = opts.pitch;
+      utterance.rate = parseFloat(opts.rate) || 1.0;
+      utterance.volume = parseFloat(opts.volume) != null && !isNaN(parseFloat(opts.volume)) ? parseFloat(opts.volume) : 1.0;
+      utterance.pitch = parseFloat(opts.pitch) || 1.0;
       utterance.voiceURI = opts.voiceURI;
       var voice = null;
       if(opts.voiceURI != 'force_default') {
         voice = speecher.find_voice_by_uri(opts.voiceURI, current_locale, true);
       }
-      // Try to render default prompts in the locale's language
+      // Try to render default prompts in the locale's language (use module-level get_tts_voices - speecher.speecher can be undefined)
       if(opts.default_prompt) {
-        var prompts = tts_voices.get('prompts') || {};
+        var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
+        var prompts = (ttsService && ttsService.get && ttsService.get('prompts')) || {};
         var lang = ((voice && voice.lang) || navigator.language).toLowerCase().split(/-|_/)[0];
         var prompt = prompts[lang] || prompts[i18n.lang_map[lang]];
         if(prompt) {
@@ -630,17 +676,26 @@ var speecher = EmberObject.extend({
       }
       utterance.rate = speecher.adjusted_rate(utterance.rate, (voice && voice.voiceURI) || opts.voiceURI);
 
-      var speak_utterance = function() {
+      var speak_utterance = function(use_fallback_voice) {
         speecher.last_utterance = utterance;
-        if(opts && opts.voiceURI != 'force_default') {
+        if(opts && opts.voiceURI != 'force_default' && voice && !use_fallback_voice) {
           if(capabilities.system == 'iOS' && capabilities.ios_version && capabilities.ios_version < 9) {
           } else {
-            try {
-              utterance.voice = voice;
-            } catch(e) { }  
-            if(voice) {
+            var nativeVoices = speecher.scope.speechSynthesis.getVoices();
+            var isCustomVoice = voice.voiceURI && (voice.voiceURI.match(/^(extra|remote|tts|speak_js):/) || voice.remote_voice);
+            if(!isCustomVoice && nativeVoices && nativeVoices.length) {
+              var nativeVoice = nativeVoices.find(function(v) {
+                return v.voiceURI === voice.voiceURI || (v.name === voice.name && v.lang === voice.lang);
+              });
+              if(nativeVoice) {
+                try {
+                  utterance.voice = nativeVoice;
+                } catch(e) { }
+              }
+            }
+            if(voice && !isCustomVoice) {
               try {
-                utterance.lang = voice.lang;
+                utterance.lang = voice.lang || utterance.lang;
               } catch(e) { }
             }
           }
@@ -656,6 +711,15 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
+            if(!utterance._fallback_retried && utterance.voice) {
+              utterance._fallback_retried = true;
+              utterance.voice = null;
+              utterance.lang = '';
+              try {
+                speecher.scope.speechSynthesis.speak(utterance);
+                return;
+              } catch(e) { }
+            }
             LingoLinq.track_error("error rendering synthesized voice", opts);
             handle_callback();
           });
@@ -683,7 +747,19 @@ var speecher = EmberObject.extend({
           });
         } else {
           utterance.onend = handle_callback;
-          utterance.onerror = handle_callback;
+          utterance.onerror = function() {
+            if(!utterance._fallback_retried && utterance.voice) {
+              utterance._fallback_retried = true;
+              utterance.voice = null;
+              utterance.lang = '';
+              try {
+                speecher.scope.speechSynthesis.speak(utterance);
+                return;
+              } catch(e) { }
+            }
+            LingoLinq.track_error("error rendering synthesized voice", opts);
+            handle_callback();
+          };
           utterance.onpause = handle_callback;
         }
         var extra_delay = 0;
@@ -883,18 +959,18 @@ var speecher = EmberObject.extend({
     if(speecher[attr]) {
       if(speecher[attr].match(/^data:/)) { return RSVP.resolve(true); }
       else if(!LingoLinq.remote_url(speecher[attr])) { return RSVP.resolve(true); }
-      var find = persistence.find_url(speecher[attr], 'sound').then(function(data_uri) {
+      var find = speecher.get_persistence().find_url(speecher[attr], 'sound').then(function(data_uri) {
         if(data_uri) {
           speecher[attr] = data_uri;
           return true;
         } else {
-          return persistence.store_url_now(speecher[attr], 'sound').then(function(data) {
+          return speecher.get_persistence().store_url_now(speecher[attr], 'sound').then(function(data) {
             speecher[attr] = data.local_url || data.data_uri;
             return true;
           });
         }
       }, function() {
-        return persistence.store_url_now(speecher[attr], 'sound').then(function(data) {
+        return speecher.get_persistence().store_url_now(speecher[attr], 'sound').then(function(data) {
           speecher[attr] = data.local_url || data.data_uri;
           return true;
         });
@@ -908,8 +984,8 @@ var speecher = EmberObject.extend({
     }
   },
   oops: function() {
-    var oopses = tts_voices.get('oops');
-    var loc = (app_state.get('vocalization_locale') || 'en').split(/-|_/)[0];
+    var oopses = speecher.get_tts_voices().get('oops');
+    var loc = (speecher.get_app_state().get('vocalization_locale') || 'en').split(/-|_/)[0];
     var str = oopses[loc] || oopses['en'] || "Oops";
     speecher.speak_text(str, 'oops', {});
   },
@@ -1113,7 +1189,7 @@ var speecher = EmberObject.extend({
     var beep = speecher.assert_audio(speecher.beep_url, true);
     if(beep) {
       this.play_audio(beep);
-      stashes.log({
+      speecher.get_stashes().log({
         action: 'beep',
         button_triggered: opts.button_triggered
       });
@@ -1183,7 +1259,7 @@ var speecher = EmberObject.extend({
       $res = $("audio[rel='" + url + "']");
     }
     if($res.length === 0 && url) {
-      var new_url = persistence.url_cache[url] || url;
+      var new_url = speecher.get_persistence().url_cache[url] || url;
       $res = $("<audio>", {preload: 'auto', src: new_url, rel: url}).appendTo($("#button_list,#button_settings"));
     } else if($res.closest("#button_list").length == 0) {
       $("#button_list").append($res[0]);
@@ -1261,10 +1337,39 @@ var speecher = EmberObject.extend({
     }
   },
   prompt: function(voice_id) {
-    return tts_voices.render_prompt(voice_id);
+    return speecher.get_tts_voices().render_prompt(voice_id);
   }
 }).create({scope: (window.polyspeech || window)});
 speecher.check_readiness();
+
+// Static service registry for explicit injection
+speecher._services = {};
+
+// Getter methods for services with fallback to globals
+speecher.get_app_state = function() {
+  return speecher._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+};
+
+speecher.get_persistence = function() {
+  return speecher._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+};
+
+speecher.get_stashes = function() {
+  return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+};
+
+speecher.get_tts_voices = function() {
+  return speecher._services.tts_voices || window.tts_voices;
+};
+
+// Service registration method
+speecher.register_services = function(appStateService, persistenceService, stashesService, ttsVoicesService) {
+  if(appStateService) { speecher._services.app_state = appStateService; }
+  if(persistenceService) { speecher._services.persistence = persistenceService; }
+  if(stashesService) { speecher._services.stashes = stashesService; }
+  if(ttsVoicesService) { speecher._services.tts_voices = ttsVoicesService; }
+};
+
 window.speecher = speecher;
 
 export default speecher;

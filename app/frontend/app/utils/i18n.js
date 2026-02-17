@@ -8,7 +8,7 @@ import Ember from 'ember';
 import EmberObject from '@ember/object';
 import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { assign as emberAssign } from '@ember/polyfills';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
@@ -79,6 +79,9 @@ Ember.templateHelpers.date_ago = function(date, precision) {
 
 Ember.templateHelpers.delimit = function(num, type) {
   var val = parseFloat(num);
+  if (num === undefined || num === null || Number.isNaN(val) || val < 0) {
+    return '0';
+  }
   var pieces = [];
   var leftover = val;
   while(leftover >= 1000) {
@@ -202,7 +205,11 @@ Ember.templateHelpers.duration = function(duration) {
 };
 
 Ember.templateHelpers.round = function(number) {
-  return Math.round(number * 100) / 100;
+  var val = parseFloat(number);
+  if (number === undefined || number === null || Number.isNaN(val)) {
+    return 0;
+  }
+  return Math.round(val * 100) / 100;
 };
 
 Ember.templateHelpers.t = function(str, options) {
@@ -427,7 +434,7 @@ var i18n = EmberObject.extend({
 
     if(res) {
       // Re-capitalize if we started that way
-      if(window.utterance && str == window.utterance.capitalize(str)) {
+      if(typeof window !== 'undefined' && window.utterance && typeof window.utterance.capitalize === 'function' && str == window.utterance.capitalize(str)) {
         res = window.utterance.capitalize(res);
       }
     } else if(options.infinitive) {
@@ -667,14 +674,20 @@ var i18n = EmberObject.extend({
     }
     return res;
   },
-  load_lang_override: function(lang, store_result) {
+  load_lang_override: function(lang, store_result, persistence) {
     i18n.lang_overrides = i18n.lang_overrides || {}
     if(i18n.lang_overrides[lang] || (i18n.lang_overrides[lang] === false && !store_result)) {
       return;
     }
-    if(window.persistence) {
+    // Accept persistence as parameter or fall back to window.persistence for backward compatibility
+    persistence = persistence || (typeof window !== 'undefined' && window.persistence);
+    if(persistence) {
       var path = "/api/v1/lang/" + encodeURIComponent(lang);
       var handle_result = function(res) {
+        if(!res) {
+          i18n.lang_overrides[lang] = false;
+          return;
+        }
         var loc = res._locale || lang;
         i18n.lang_overrides[loc] = {
           rules: res.rules,
@@ -683,7 +696,7 @@ var i18n = EmberObject.extend({
         }
       };
       var remote_lookup = function() {
-        window.persistence.store_json(path).then(function(res) {
+        persistence.store_json(path).then(function(res) {
           handle_result(res);
         }, function(err) {
           i18n.lang_overrides[lang] = false;
@@ -692,7 +705,7 @@ var i18n = EmberObject.extend({
       if(store_result) {
         remote_lookup();
       } else {
-        window.persistence.find_json(path).then(function(res) {
+        persistence.find_json(path).then(function(res) {
           handle_result(res);
         }, function(err) {
           remote_lookup();

@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
@@ -45,13 +45,22 @@ export default Component.extend({
   ),
   actions: {
     word_cloud: function() {
-      this.sendAction('word_cloud');
+      var fn = this.get('word_cloud');
+      if (typeof fn === 'function') {
+        fn();
+      }
     },
     word_data: function(word) {
-      this.sendAction('word_data', word);
+      var fn = this.get('word_data');
+      if (typeof fn === 'function') {
+        fn(word);
+      }
     },
     modify_core: function() {
-      this.sendAction('modify_core');
+      var fn = this.get('modify_core');
+      if (typeof fn === 'function') {
+        fn();
+      }
     }
   }
 });

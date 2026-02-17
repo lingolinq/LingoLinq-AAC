@@ -1,15 +1,16 @@
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
-import persistence from '../utils/persistence';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
+  persistence: service('persistence'),
   didInsertElement: function() {
     this.render_canvas();
   },
@@ -30,10 +31,12 @@ export default Component.extend({
     } else {
       this.element.style.height = 'calc(100% - 55px)';
     }
+    var _this = this; // Capture _this for closure access
+    var persistence = _this.persistence;
     var board = this.get('board');
     var level = this.get('current_level') || this.get('base_level') || 10;
     var show_links = this.get('show_links');
-    var preferred_symbols = this.get('preferred_symbols') || app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+    var preferred_symbols = this.get('preferred_symbols') || (this.appState && this.appState.get('referenced_user.preferences.preferred_symbols')) || 'original';
 
     if(board && this.get('board.id')) {
       var canvas = this.element.getElementsByTagName('canvas')[0];
@@ -74,7 +77,7 @@ export default Component.extend({
         var image_width = button_width - pad - pad - border_size - border_size;
         context.font = text_height + "px Arial";
         context.textAlign = 'center';
-        var variant_urls = board.variant_image_urls(app_state.get('currentUser.preferences.skin'));
+        var variant_urls = board.variant_image_urls(this.appState.get('currentUser.preferences.skin'));
         var handle_button = function(button_id) {
             var button = $.extend({}, buttons[button_id] || {});
             if(!button_id || !buttons[button_id]) {
@@ -159,11 +162,13 @@ export default Component.extend({
                 if(show_links && !button.hidden && button.image_id && board.get('image_urls') && board.get('image_urls')[button.image_id]) {
                   var orig_url = variant_urls[button.image_id];
                   var url = variant_urls[button.image_id + "-" + preferred_symbols] || orig_url;
-                  (function(button, x, y, url) {
+                  (function(button, x, y, url, persistenceService, component) {
                     var draw = function(url) {
+                      if (component.isDestroyed || component.isDestroying) { return; }
                       var img = new Image();
                       var button_ratio = image_width / image_height;
                       img.onload = function() {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         var image_ratio = img.width / img.height;
                         var width = image_width;
                         var height = image_height;
@@ -184,16 +189,20 @@ export default Component.extend({
                       };
                       img.src = url;
                     };
-                    persistence.find_url(url).then(function(uri) {
+                    persistenceService.find_url(url).then(function(uri) {
+                      if (component.isDestroyed || component.isDestroying) { return; }
                       draw(uri);
                     }, function() {
-                      persistence.find_url(orig_url).then(function(found_url) {
+                      if (component.isDestroyed || component.isDestroying) { return; }
+                      persistenceService.find_url(orig_url).then(function(found_url) {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         draw(found_url);
                       }, function() {
+                        if (component.isDestroyed || component.isDestroying) { return; }
                         draw(url);
                       });
                     });
-                  })(button, x, y, url);
+                  })(button, x, y, url, persistence, _this);
                 }
               }
             }

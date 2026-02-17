@@ -2,7 +2,7 @@ import DS from 'ember-data';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import speecher from '../utils/speecher';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 LingoLinq.Badge = DS.Model.extend({

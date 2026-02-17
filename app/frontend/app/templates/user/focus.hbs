@@ -1,25 +1,25 @@
 <h2>
-  {{#if focus.title}}
-    {{focus.title}}
+  {{#if this.focus.title}}
+    {{this.focus.title}}
   {{else}}
     {{t "Focus Words" key="focus_words"}}
   {{/if}}
-  {{#if focus.user}}
+  {{#if this.focus.user}}
     - 
-    <img src={{focus.user.avatar_url_with_fallback}} style='width: 50px;'>
-    {{focus.user.user_name}}
+    <img src={{this.focus.user.avatar_url_with_fallback}} style='width: 50px;'>
+    {{this.focus.user.user_name}}
   {{/if}}
 </h2>
-{{#if focus.words}}
-  <div class='text-muted' style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{focus.words}}</div>
+{{#if this.focus.words}}
+  <div class='text-muted' style='white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-style: italic;'>{{this.focus.words}}</div>
 {{/if}}
 
-{{#if focus.analysis}}
+{{#if this.focus.analysis}}
   <div class='col-sm-12'>
-    <h4>{{t "Found Words (%{cnt})" cnt=focus.analysis.found.length key="found_words"}}</h4>
-    {{#if focus.analysis.found}}
+    <h4>{{t "Found Words (%{cnt})" cnt=this.focus.analysis.found.length key="found_words"}}</h4>
+    {{#if this.focus.analysis.found}}
       <table><tbody>
-      {{#each analysis_subset as |btn|}}
+      {{#each this.analysis_subset as |btn|}}
         {{#unless btn.collapsed}}
           <tr>
             <td style='min-width: 70px;'>
@@ -61,10 +61,10 @@
         {{/unless}}
       {{/each}}
       </tbody></table>
-      {{#if analysis_extras}}
+      {{#if this.analysis_extras}}
         <p>
-          <em>{{t "Plus %{n} more:" n=analysis_extras.length key="plus_n_more"}}</em>
-          {{#each analysis_extras as |btn|}}
+          <em>{{t "Plus %{n} more:" n=this.analysis_extras.length key="plus_n_more"}}</em>
+          {{#each this.analysis_extras as |btn|}}
             <span class='analysis_extra' style={{btn.mini_style}} {{action "toggle" btn}}>
               <div style={{btn.print_style}}></div>
               <div style='position: absolute; top: 0; right: 0; left: 0; bottom: 0;'>
@@ -80,9 +80,9 @@
     {{else}}
       <p>{{t "No words found" key="no_words_found"}}</p>
     {{/if}}
-    {{#if focus.analysis.missing}}
-      <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=focus.analysis.missing.length key="missing_words"}}</h4>
-      {{#each focus.analysis.missing as |word|}}
+    {{#if this.focus.analysis.missing}}
+      <h4 style='margin-top: 30px;'>{{t "Missing Words (%{cnt})" cnt=this.focus.analysis.missing.length key="missing_words"}}</h4>
+      {{#each this.focus.analysis.missing as |word|}}
         {{word}}
       {{/each}}
     {{/if}}

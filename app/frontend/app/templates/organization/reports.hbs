@@ -1,67 +1,67 @@
-{{#if model.permissions.edit}}
-  {{#if available_reports}}
+{{#if this.model.permissions.edit}}
+  {{#if this.available_reports}}
     <form class="form-horizontal">
       <div class="form-group">
         <label for="report_type" class="col-sm-1 control-label">{{t "Report:" key="report_colon"}}</label>
         <div class="col-sm-6">
-          {{bound-select select_class="form-control" select_id="report_type" content=available_reports selection=current_report action=(action (mut current_report)) }}
-          {{#if custom_report}}
-            <em>{{custom_report}}</em>
+          {{bound-select select_class="form-control" select_id="report_type" content=this.available_reports selection=this.current_report action=(action (mut this.current_report)) }}
+          {{#if this.custom_report}}
+            <em>{{this.custom_report}}</em>
           {{/if}}
         </div>
       </div>
     </form>
-    {{#if results.loading}}
+    {{#if this.results.loading}}
       <h2>
         <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;&nbsp;
         {{t "Loading..." key="loading"}}
       </h2>
-    {{else if results}}
-      {{#if results.error}}
-        <p class='text-danger'>{{results.error}}</p>
+    {{else if this.results}}
+      {{#if this.results.error}}
+        <p class='text-danger'>{{this.results.error}}</p>
       {{/if}}
       <div class="row">
         <div class="col-sm-8">
           <h2>
-            {{#if results.more}}
+            {{#if this.results.more}}
               <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;
             {{else}}
               <span class="glyphicon glyphicon-th-list"></span>&nbsp;
             {{/if}}
-            {{t "result" key="x_results" count=results.count}}
+            {{t "result" key="x_results" count=this.results.count}}
           </h2>
           <div class='list-group'>
-            {{#each results.list as |item|}}
+            {{#each this.results.list as |item|}}
               {{#if item.started_at}}
                 <span class='list-group-item'>
                   <span title={{date item.started_at}}>
                     {{date_ago item.started_at}}
                   </span>
-                  {{#link-to "user.log" item.user.user_name log.id}}
+                  <LinkTo @route="user.log" @models={{array item.user.user_name this.log.id}}>
                     {{t "button" count=item.button_count key="button_count"}}
-                  {{/link-to}}
+                  </LinkTo>
                   <span> -
-                    {{#link-to "user" item.user.user_name}}
+                    <LinkTo @route="user" @model={{item.user.user_name}}>
                       {{item.user.user_name}}
-                    {{/link-to}}
+                    </LinkTo>
                   </span>
                   <br>
                   <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{item.summary}}</span>
                 </span>
               {{else}}
-                {{#if removable_report}}
+                {{#if this.removable_report}}
                   <a href="#" {{action "remove_report_user" item}} style="position: absolute; z-index: 2; right: 20px; padding: 10px;">
                     <span class="glyphicon glyphicon-remove"></span>
                   </a>
                 {{/if}}
-                {{#if model.premium}}
+                {{#if this.model.premium}}
                   {{#if item.org_status_class}}
                     <button {{action "set_status" item}} class='btn btn-default' style="position: absolute; z-index: 2; right: 60px; margin-top: 5px;">
                       <span class={{item.org_status_class}} style='font-size: 20px;'></span>
                     </button>
                   {{/if}}
                 {{/if}}
-                {{#link-to "user" item.user_name class="list-group-item"}}
+                <LinkTo @route="user" @model={{item.user_name}} class="list-group-item">
                   <img src={{item.avatar_url}} style='height: 40px; width: 40px; object-fit: contain; margin-right: 5px; margin-top: -5px; float: left;'>
                   <span style="font-size: 16px;">
                     {{item.user_name}}
@@ -70,7 +70,7 @@
                     ({{item.email}})
                   {{/if}}
                   <span style='font-size: 10px; display: block; margin-top: -3px;' class="comma_item_list">
-                    {{#if custom_report_all}}
+                    {{#if this.custom_report_all}}
                       {{#if item.vocab_name}}
                         <span class="comma_item">{{item.vocab_name}}</span>
                       {{/if}}
@@ -93,16 +93,16 @@
                     &nbsp;
                   </span>
                   <span style='clear: both;'></span>
-                {{/link-to}}
+                </LinkTo>
               {{/if}}
             {{/each}}
-            {{#each results.stats as |stat|}}
+            {{#each this.results.stats as |stat|}}
               <a href="#" class='list-group-item' style='font-size: 18px;'>
                 <span style='display: inline-block; width: 90%;'>{{stat.key}}</span> <span class={{stat.label_class}}>{{stat.value}}</span>
               </a>
             {{/each}}
           </div>
-          {{#if user_report}}
+          {{#if this.user_report}}
             <a href="#" {{action "download_list"}}>{{t "Download list as a csv" key="download_as_csv"}}</a>
           {{/if}}
         </div>

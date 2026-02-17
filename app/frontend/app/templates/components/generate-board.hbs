@@ -1,0 +1,137 @@
+{{#grid-listener gridEvent=(action "grid_event")}}
+{{#modal-dialog action=(action "close") opening=(action "opening")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Generate Board with AI" key="generate_board_with_ai"}}</h3>
+  </div>
+  <div class="modal-body">
+    <p>{{t "Describe the board you want. AI will generate word labels for an AAC communication board." key="generate_board_prompt_instructions"}}</p>
+    <form class="form-horizontal" {{action "createBoard" on="submit"}}>
+      <div class="form-group">
+        <label for="generate_board_prompt" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+        <div class="col-sm-10">
+          <Textarea @value={{this.prompt}} class="form-control" id="generate_board_prompt" rows="3" placeholder={{this.prompt_placeholder}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_rows" class="col-sm-2 control-label">{{t "Rows" key="rows"}}</label>
+        <div class="col-sm-3">
+          <div class="input-group">
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "rows"}}>-</button>
+            </span>
+            <Input @type="number" @value={{this.rows}} class="form-control" id="generate_board_rows" placeholder="2" />
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "rows"}}>+</button>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_columns" class="col-sm-2 control-label">{{t "Columns" key="columns"}}</label>
+        <div class="col-sm-3" style="height: 100px;">
+          <div class="input-group">
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "columns"}}>-</button>
+            </span>
+            <Input @type="number" @value={{this.columns}} class="form-control" id="generate_board_columns" placeholder="4" />
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "columns"}}>+</button>
+            </span>
+          </div>
+        </div>
+        <div class="col-sm-7" id="grid_selection">
+          <div class="row">
+            {{#each this.showGrid as |row|}}
+              {{#each row as |cell|}}
+                <div style="width: 8.33%; float: left;" class={{cell.preview_class}} data-row={{cell.row}} data-col={{cell.column}}>
+                  <div title="{{cell.row}} x {{cell.column}}">
+                    &nbsp;
+                  </div>
+                </div>
+              {{/each}}
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-10 col-sm-offset-2">
+          <div class="checkbox big_checkbox">
+            <label title={{this.core_words_tooltip}}>
+              <Input @type="checkbox" @checked={{this.include_core_words}} {{on "change" (action (mut this.include_core_words) value="target.checked")}} id="generate_board_core_words" />
+              {{t "Core Words" key="core_words"}}
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
+        <div class="col-sm-10">
+          {{bound-select select_class="form-control" select_id="generate_board_locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_icon" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
+        <div class="col-sm-10">
+          {{icon-select selection=this.image_url action=(action (mut this.image_url)) }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
+        <div class="col-sm-10">
+          <div style="margin-bottom: 8px;">
+            <button type="button" class="btn btn-default" {{action "generateLabels"}} disabled={{this.status.generatingLabels}}>
+              {{#if this.status.generatingLabels}}
+                {{t "Generating..." key="generating"}}
+              {{else}}
+                {{t "Generate with AI" key="generate_with_ai"}}
+              {{/if}}
+            </button>
+          </div>
+          <Textarea @value={{this.labels}} class="form-control" id="generate_board_labels" rows="4" placeholder={{this.labels_placeholder}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_name" class="col-sm-2 control-label">{{t "Board name" key="board_name"}}</label>
+        <div class="col-sm-10">
+          <Input @value={{this.name}} class="form-control" id="generate_board_name" placeholder="AI Generated Board" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="generate_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+        <div class="col-sm-10">
+          <Textarea @value={{this.description}} class="form-control" id="generate_board_description" rows="2" placeholder={{this.description_placeholder}} />
+        </div>
+      </div>
+      {{#if this.has_supervisees}}
+        <div class="form-group">
+          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
+          <div class="col-sm-10">
+            {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "setForUserId") }}
+          </div>
+        </div>
+      {{/if}}
+      
+      <div class="form-group">
+        <label for="generate_board_labels_order" class="col-sm-2 control-label">{{t "Label order" key="labels_order"}}</label>
+        <div class="col-sm-10">
+          {{bound-select select_class="form-control" select_id="generate_board_labels_order" content=this.labels_order_list selection=this.labels_order action=(action (mut this.labels_order)) }}
+        </div>
+      </div>
+      {{#if this.status.error}}
+        <div class="alert alert-danger">{{this.status.error}}</div>
+      {{/if}}
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button {{action "createBoard"}} class="btn btn-primary" disabled={{this.create_board_disabled}}>
+      {{#if this.status.saving}}
+        {{t "Creating Board..." key="creating_board"}}
+      {{else}}
+        {{t "Create Board" key="create_board"}}
+      {{/if}}
+    </button>
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}
+{{/grid-listener}}

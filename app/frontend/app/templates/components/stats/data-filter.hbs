@@ -1,66 +1,66 @@
-<div class={{elem_class}} style={{elem_style}}>
-  {{#if usage_stats}}
-    <form class="form-inline" style={{inner_elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
+  {{#if this.usage_stats}}
+    <form class="form-inline" style={{this.inner_elem_style}}>
       <div class="form-group">
-        {{bound-select select_class="form-control" select_id="filter" content=filter_list selection=usage_stats.filter action=(action (mut usage_stats.filter)) }}
+        {{bound-select select_class="form-control" select_id="filter" content=this.filter_list selection=this.usage_stats.filter action=(action (mut this.usage_stats.filter)) }}
       </div>
-      {{#if usage_stats.custom_filter}}
-        {{#if usage_stats.device_id}}
+      {{#if this.usage_stats.custom_filter}}
+        {{#if this.usage_stats.device_id}}
           <div class="form-group">
             <a href="#" {{action "update_filter" "device"}} class='btn btn-default'>
-              {{usage_stats.device_name}}
+              {{this.usage_stats.device_name}}
               <span class="glyphicon glyphicon-remove"></span>
             </a>
           </div>
         {{/if}}
-        {{#if usage_stats.location_id}}
+        {{#if this.usage_stats.location_id}}
           <div class="form-group">
             <a href="#" {{action "update_filter" "location"}} class='btn btn-default'>
-              {{usage_stats.location_name}}
+              {{this.usage_stats.location_name}}
               <span class="glyphicon glyphicon-remove"></span>
             </a>
           </div>
         {{/if}}
         <span style="white-space: nowrap;">
         <div class="form-group">
-          {{input type="date" value=usage_stats.start_date_field class="form-control"}}
+          <Input @type="date" @value={{this.usage_stats.start_date_field}} class="form-control" />
         </div>
           &nbsp;{{t "to" key="to"}}&nbsp;
         <div class="form-group">
-          {{input type="date" value=usage_stats.end_date_field class="form-control"}}
+          <Input @type="date" @value={{this.usage_stats.end_date_field}} class="form-control" />
         </div>
         </span>
-      {{else if usage_stats.show_filtered_snapshot}}
+      {{else if this.usage_stats.show_filtered_snapshot}}
         <span class='text-muted'>
-          {{#if usage_stats.device_id}}
+          {{#if this.usage_stats.device_id}}
             <div class="form-group well" style='padding: 0 10px;'>
-              {{usage_stats.device_name}}
+              {{this.usage_stats.device_name}}
             </div>
           {{/if}}
-          {{#if usage_stats.location_id}}
+          {{#if this.usage_stats.location_id}}
             <div class="form-group well" style='padding: 0 10px;'>
-              {{usage_stats.location_name}}
+              {{this.usage_stats.location_name}}
             </div>
           {{/if}}
           <span style="white-space: nowrap;">
           <div class="form-group well" style='padding: 0 10px;'>
-            {{usage_stats.start_date_field}}
+            {{this.usage_stats.start_date_field}}
           </div>
             &nbsp;{{t "to" key="to"}}&nbsp;
           <div class="form-group well" style='padding: 0 10px;'>
-            {{usage_stats.end_date_field}}
+            {{this.usage_stats.end_date_field}}
           </div>
           </span>
         </span>
       {{/if}}
       <button type="button" {{action "update_filter" "date"}} class="btn btn-default">{{t "Go" key="go"}}</button>
-      {{#unless side_by_side}}
+      {{#unless this.side_by_side}}
         <span style="margin-left: 10px;" class="hidden-xs">
           <a href="#" {{action "compare_to"}}>{{t "compare to..." key="compare_to_ellipsis"}}</a>
         </span>
       {{/unless}}
     </form>
-    {{#if side_by_side}}
+    {{#if this.side_by_side}}
       <a href="#" {{action "clear_side"}}>{{t "hide this side" key="hide_this_side"}}</a>
     {{/if}}
   {{/if}}

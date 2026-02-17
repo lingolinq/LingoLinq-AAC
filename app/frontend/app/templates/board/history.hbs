@@ -1,7 +1,7 @@
-{{#if possible_upstream_boards}}
+{{#if this.possible_upstream_boards}}
   {{t "Boards that may link here:" key="possible_upstream_boards"}}
   <ul class='list-unstyled' style='margin-left: 30px;'>
-    {{#each possible_upstream_boards as |board|}}
+    {{#each this.possible_upstream_boards as |board|}}
       <li>
         {{#link-to "board" board.key}}
           {{board.key}}
@@ -11,14 +11,14 @@
   </ul>
 {{/if}}
 <p>{{t "Here's a listing of all the times this board has changed, and who made the change:" key="versions_explanation"}}</p>
-{{#if app_state.sessionUser.permissions.admin_support_actions}}
+{{#if this.app_state.sessionUser.permissions.admin_support_actions}}
   <p>
     {{t "Roll back newest version before (limited to last 6 months):" key="rollback_to_version_before"}}
-    <span style='display: inline-block;'>{{input type="date" class="form-control" value=rollback_date}}</span>
-    <button class='btn btn-default' disabled={{rollback_status.saving}} {{action "rollback"}}>
-      {{#if rollback_status.saving}}
+    <span style='display: inline-block;'><Input type="date" class="form-control" @value={{this.rollback_date}} /></span>
+    <button class='btn btn-default' disabled={{this.rollback_status.saving}} {{action "rollback"}}>
+      {{#if this.rollback_status.saving}}
         {{t "Rolling back..." key="rolling_back"}}
-      {{else if rollback_status.error}}
+      {{else if this.rollback_status.error}}
         {{t "Error rolling back" key="error_rolling_back"}}
       {{else}}
         {{t "Rollback" key="rollback"}}
@@ -26,9 +26,9 @@
     </button>
   </p>
 {{/if}}
-{{#if loading}}
+{{#if this.loading}}
   <p>{{t "Loading history..." key="loading_history"}}</p>
-{{else if error}}
+{{else if this.error}}
   <p>{{t "Error loading history" key="error_loading_history"}}</p>
 {{else}}
   <table class='table table-striped table-hover' style="max-width: 800px;">
@@ -41,7 +41,7 @@
       </tr>
     </thead>
     <tbody>
-      {{#each versions as |version|}}
+      {{#each this.versions as |version|}}
         <tr>
           <td>
             {{#if version.recent}}
@@ -67,7 +67,7 @@
       {{/each}}
     </tbody>
   </table>
-  {{#if maybe_more}}
+  {{#if this.maybe_more}}
     <p>{{t "NOTE: there may be more results not shown" key="maybe_more"}}</p>
   {{/if}}
 {{/if}}

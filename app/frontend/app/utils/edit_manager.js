@@ -5,11 +5,12 @@ import $ from 'jquery';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
 import Button from './button';
-import stashes from './_stashes';
-import app_state from './app_state';
+
+// import stashes from './_stashes';
+// import app_state from './app_state';
 import contentGrabbers from './content_grabbers';
 import modal from './modal';
-import persistence from './persistence';
+// import persistence from './persistence';
 import progress_tracker from './progress_tracker';
 import word_suggestions from './word_suggestions';
 import i18n from './i18n';
@@ -17,54 +18,81 @@ import { observer } from '@ember/object';
 import utterance from './utterance';
 
 var editManager = EmberObject.extend({
-  setup: function(board) {
+  _services: {},
+  get appState() {
+    return this._services.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+  },
+  set appState(val) {
+    this._services.appState = val;
+  },
+  get persistence() {
+    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  },
+  set persistence(val) {
+    this._services.persistence = val;
+  },
+  get stashes() {
+    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  },
+  set stashes(val) {
+    this._services.stashes = val;
+  },
+
+  setup: function(board, appState, persistence, stashes) {
     editManager.Button = Button;
     this.controller = board;
-    this.set('app_state', app_state);
-    if(app_state.controller) {
-      app_state.controller.addObserver('dragMode', function() {
-        if(editManager.controller == board) {
-          var newMode = app_state.controller.get('dragMode');
-          if(newMode != editManager.dragMode) {
-            editManager.set('dragMode', newMode);
-          }
+    this.appState = appState;
+    this.persistence = persistence;
+    this.stashes = stashes;
+    if (appState) {
+        this.set('app_state', appState); // Keeping this for now if referenced by property
+        if(appState.controller) {
+        appState.controller.addObserver('dragMode', function() {
+            if(editManager.controller == board) {
+            var newMode = appState.controller.get('dragMode');
+            if(newMode != editManager.dragMode) {
+                editManager.set('dragMode', newMode);
+            }
+            }
+        });
         }
-      });
     }
+    
     this.set('dragMode', false);
-    var edit = stashes.get('current_mode') == 'edit';
+    var edit = editManager.get_stashes().get('current_mode') == 'edit';
     if(this.auto_edit.edits && this.auto_edit.edits[board.get('model.id')]) {
       edit = true;
       this.auto_edit.edits[board.get('model.id')] = false;
-      stashes.persist('current_mode', 'edit');
+      editManager.get_stashes().persist('current_mode', 'edit');
     }
     this.swapId = null;
     this.stashedButtonToApply = null;
     this.clear_history();
   },
   set_drag_mode: function(enable) {
-    if(app_state.controller) {
-      app_state.controller.set('dragMode', enable);
+    if(this.appState && this.appState.controller) {
+      this.appState.controller.set('dragMode', enable);
     }
   },
   edit_mode_triggers: observer('app_state.edit_mode', function() {
-    if(this.controller && this.lucky_symbol.pendingSymbols && app_state.get('edit_mode')) {
+    if(this.controller && this.lucky_symbol.pendingSymbols && this.appState && this.appState.get('edit_mode')) {
       this.lucky_symbols(this.lucky_symbol.pendingSymbols);
       this.lucky_symbol.pendingSymbols = [];
     }
 
   }),
   long_press_mode: function(opts) {
-    var app = app_state.controller;
-    if(!app_state.get('edit_mode')) {
-      if(opts.button_id && app_state.get('speak_mode') && app_state.get('currentUser.preferences.long_press_edit_disabled')) {
-        if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-          modal.open('speak-mode-pin', {actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')});
-        } else if(app_state.get('currentUser.preferences.long_press_edit')) {
+    if(!this.appState) { return; }
+    var app = this.appState.controller;
+    if(!this.appState.get('edit_mode')) {
+      if(opts.button_id && this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.long_press_edit_disabled')) {
+        if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
+          modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
+        } else if(this.appState.get('currentUser.preferences.long_press_edit')) {
           app.toggleMode('edit');
         }
         return true;
-      } else if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.inflections_overlay')) {
+      } else if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.inflections_overlay')) {
         if(opts.button_id) {
           // TODO: scanning will require a reset, and looking for this
           // new mini-grid, but scanning can wait because how do you
@@ -84,10 +112,10 @@ var editManager = EmberObject.extend({
           //   {...} location 's', 'c', 'e', 'nw', etc.
           // ]
         }
-      } else if(app_state.get('default_mode') && opts.button_id) {
+      } else if(this.appState.get('default_mode') && opts.button_id) {
         var button = editManager.find_button(opts.button_id);
         if(button && (button.label || button.vocalization)) {
-          modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: app_state.get('currentUser')});
+          modal.open('word-data', {word: (button.label || button.vocalization), button: button, usage_stats: null, user: this.appState.get('currentUser')});
         }
         return true;
       }
@@ -168,7 +196,7 @@ var editManager = EmberObject.extend({
     var inflections = {};
 
     // Greedy algorithm stops at the first match
-    var lang = (app_state.get('speak_mode') && app_state.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
+    var lang = (this.appState.get('speak_mode') && this.appState.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
     var lang_fallback = lang.split(/-|_/)[0];
     var rules = (i18n.lang_overrides[lang] || i18n.lang_overrides[lang_fallback] || {}).rules;
     if(!rules && lang.match(/^en/)) {
@@ -545,7 +573,7 @@ var editManager = EmberObject.extend({
     if(!button || !button.id) {
       button = editManager.find_button(button_id);
     }
-    if(!this.controller || !app_state.controller) { return; }
+    if(!this.controller || !this.appState.controller) { return; }
     var expected_inflections_version = 2;
     var board = this.controller.get('model');
     var res = [];
@@ -553,7 +581,7 @@ var editManager = EmberObject.extend({
     var select_button = function(label, vocalization, event) {
       var overlay_button = editManager.overlay_button_from(button, board);
   
-      app_state.controller.activateButton(overlay_button, {
+      editManager.appState.controller.activateButton(overlay_button, {
         board: editManager.controller.get('model'),
         overlay_label: label,
         overlay_vocalization: vocalization,
@@ -562,10 +590,10 @@ var editManager = EmberObject.extend({
         overlay_location: event.overlay_location
       });
     };
-    var voc_locale = app_state.get('vocalization_locale') || navigator.language;
-    var lab_locale = app_state.get('label_locale') || navigator.language;
+    var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
+    var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (app_state.controller.get('board.model.translations') || {})[button_id];
+    var trans = (this.appState.controller.get('board.model.translations') || {})[button_id];
     var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
     var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
@@ -581,7 +609,7 @@ var editManager = EmberObject.extend({
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
-      var for_current_locale = !voc_locale || !app_state.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == app_state.controller.get('model.board.locale'));
+      var for_current_locale = !voc_locale || !this.appState.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == this.appState.controller.get('model.board.locale'));
       for(var idx = 0; idx < 8; idx++) {
         var trans_voc = voc && (voc.inflections || [])[idx];
         if(!ignore_defaults && !trans_voc && voc) {
@@ -864,11 +892,11 @@ var editManager = EmberObject.extend({
       var lbl_height = Math.max(lbl.getBoundingClientRect().height);
       inner.style.display = '';
       var text_position = 'top';
-      if(app_state.get('referenced_user.preferences.device.button_text_position') == 'bottom') {
+      if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'bottom') {
         text_position = 'bottom';
-      } else if(app_state.get('referenced_user.preferences.device.button_text_position') == 'text_only') {
+      } else if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'text_only') {
         text_position = 'no_image';
-      } else if(app_state.get('referenced_user.preferences.device.button_text_position') == 'none') {
+      } else if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'none') {
         text_position = 'bottom';
       }
       var formatted_button = function(label, image_url, opposite) {
@@ -1009,7 +1037,7 @@ var editManager = EmberObject.extend({
     this.update_color_key_id();
   },
   update_color_key_id: function() {
-    app_state.set('color_key_id', Math.random() + "." + (new Date()).getTime());
+    editManager.get_app_state().set('color_key_id', Math.random() + "." + (new Date()).getTime());
   },
   update_history: observer('history', 'history.[]', 'future', 'future.[]', function() {
     if(this.controller) {
@@ -1159,7 +1187,7 @@ var editManager = EmberObject.extend({
       }
     }
     var board = this.controller.get('model');
-    var buttons = board.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
+    var buttons = board.contextualized_buttons(editManager.get_app_state().get('label_locale'), editManager.get_app_state().get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, editManager.get_app_state().get('inflection_shift'));
     if(res) {
       var trans_button = buttons.find(function(b) { return b.id == id; });
       // If contextualized button exists, we should
@@ -1209,16 +1237,55 @@ var editManager = EmberObject.extend({
     if(button) {
       if(options.image) {
         emberSet(button, 'local_image_url', null);
-        button.load_image();
+        // Do not call load_image() when we are supplying the image: it would use the
+        // current (old) image_id and later overwrite button.image when its promise
+        // resolves, hiding the new image on the board.
       } else if(options.image === null) {
         emberSet(button, 'local_image_url', null);
       }
       if(options.sound) {
         emberSet(button, 'local_sound_url', null);
-        button.load_sound();
+        // Do not call load_sound() when we are supplying the sound (same race as image).
+      } else if(options.sound === null) {
+        emberSet(button, 'local_sound_url', null);
       }
       for(var key in options) {
         emberSet(button, key, options[key]);
+      }
+      // Sync changes to board.buttons so contextualized_buttons/fast_html see them immediately
+      var board = this.controller && this.controller.get('model');
+      if(board && Object.keys(options).length) {
+        var rawAttrs = Button.attributes || [];
+        var boardButtons = board.get('buttons') || [];
+        var isSerializable = function(v) {
+          if(v === null) { return true; }
+          if(typeof v !== 'object') { return true; }
+          return typeof v.get !== 'function'; // exclude Ember models
+        };
+        for(var bi = 0; bi < boardButtons.length; bi++) {
+          if(boardButtons[bi] && boardButtons[bi].id == id) {
+            for(var key in options) {
+              if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
+                boardButtons[bi][key] = options[key];
+              }
+            }
+            break;
+          }
+        }
+        board.set('last_cb', null);
+        if(board.get('fast_html')) {
+          board.set('fast_html', null);
+        }
+      }
+      if(options.image && button.get('image')) {
+        emberSet(button, 'original_image_url', button.get('image.url'));
+        var best = button.get('image.best_url');
+        if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
+          emberSet(button, 'local_image_url', best);
+        }
+      }
+      if(options.sound && button.get('sound')) {
+        emberSet(button, 'local_sound_url', button.get('sound.best_url'));
       }
       emberSet(button, 'user_modified', true);
       this.check_button(id);
@@ -1233,7 +1300,7 @@ var editManager = EmberObject.extend({
     emberSet(button, 'empty', !!empty);
   },
   stash_button: function(id) {
-    var list = stashes.get_object('stashed_buttons', true) || [];
+    var list = editManager.get_stashes().get_object('stashed_buttons', true) || [];
     var button = null;
     if(id && id.raw) {
       button = id.raw();
@@ -1248,7 +1315,7 @@ var editManager = EmberObject.extend({
     if(button && list[list.length - 1] != button) {
       list.pushObject(button);
     }
-    stashes.persist('stashed_buttons', list);
+    editManager.get_stashes().persist('stashed_buttons', list);
   },
   get_ready_to_apply_stashed_button: function(button) {
     if(!button || !button.raw) {
@@ -1504,19 +1571,31 @@ var editManager = EmberObject.extend({
     this.check_button(id);
   },
   process_for_displaying: function(ignore_fast_html) {
+    if(!this) { return; }
+    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying start', { hasController: !!this.controller, hasBoard: !!(this.controller && this.controller.get('model')) });
     LingoLinq.log.track('processing for displaying');
     var controller = this.controller;
-    if(!controller) { return; }
-    if(app_state.get('edit_mode') && controller.get('ordered_buttons')) {
+    if(!controller) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); return; }
+    var appState = this.appState || (typeof window !== 'undefined' && window.appState) || (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState);
+    if(!appState || (typeof appState.get !== 'function')) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); return; }
+    var stashes = this.stashes;
+    if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
       // return;
     }
     var board = controller.get('model');
-    var board_level = controller.get('current_level') || stashes.get('board_level') || 10;
+    if(!board) {
+      console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no board)');
+      if (this.controller === controller) { this.controller = null; }
+      return;
+    }
+    var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
-    var buttons = board.contextualized_buttons(app_state.get('label_locale'), app_state.get('vocalization_locale'), stashes.get('working_vocalization'), false, app_state.get('inflection_shift'));
-    var preferred_symbols = app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons');
+    var buttons = board.contextualized_buttons(appState.get('label_locale'), appState.get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, appState.get('inflection_shift'));
+    var preferred_symbols = appState.get('referenced_user.preferences.preferred_symbols') || 'original';
     var grid = board.get('grid');
+    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying got buttons and grid', { buttonsLength: buttons && buttons.length, hasGrid: !!grid });
     if(!grid) { return; }
     var allButtonsReady = true;
     var _this = this;
@@ -1546,18 +1625,23 @@ var editManager = EmberObject.extend({
     // - do NOT make remote requests for the individual records???
 
     var resume_scanning = function() {
+      if(!appState || (appState.isDestroyed !== undefined && appState.isDestroyed)) { return; }
       resume_scanning.attempts = (resume_scanning.attempts || 0) + 1;
       if($(".board[data-id='" + board.get('id') + "']").length > 0) {
         runLater(function() {
-          if(app_state.controller) {
-            app_state.controller.highlight_button('resume');
+          var ctrl = appState && appState.controller;
+          if(ctrl && !ctrl.isDestroyed && typeof ctrl.highlight_button === 'function') {
+            ctrl.highlight_button('resume');
           }
         });
-        if(app_state.controller) {
-          app_state.controller.send('check_scanning');
+        var ctrl = appState.controller;
+        if(ctrl && !ctrl.isDestroyed && typeof ctrl.send === 'function') {
+          ctrl.send('check_scanning');
         }
         // also check for word suggestions
-        app_state.refresh_suggestions();
+        if(appState && typeof appState.refresh_suggestions === 'function') {
+          appState.refresh_suggestions();
+        }
       } else if(resume_scanning.attempts < 10) {
         runLater(resume_scanning, resume_scanning.attempts * 100);
       } else {
@@ -1565,33 +1649,37 @@ var editManager = EmberObject.extend({
       }
     };
 
-    var need_everything_local = app_state.get('speak_mode') || !persistence.get('online');
-    if(app_state.get('speak_mode')) {
+    var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
+    var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
+    if(appState.get('speak_mode')) {
+      console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') });
       controller.update_button_symbol_class();
       if(!ignore_fast_html && board.get('fast_html') 
             && board.get('fast_html.width') == controller.get('width') 
             && board.get('fast_html.height') == controller.get('height') 
             && board.get('current_revision') == board.get('fast_html.revision') 
-            && board.get('fast_html.label_locale') == app_state.get('label_locale') 
+            && board.get('fast_html.label_locale') == appState.get('label_locale') 
             && board.get('fast_html.display_level') == board_level 
-            && board.get('fast_html.inflection_prefix') == app_state.get('inflection_prefix') 
-            && board.get('fast_html.inflection_shift') == app_state.get('inflection_shift') 
-            && board.get('fast_html.skin') == app_state.get('referenced_user.preferences.skin') 
-            && board.get('fast_html.symbols') == app_state.get('referenced_user.preferences.preferred_symbols') 
+            && board.get('fast_html.inflection_prefix') == appState.get('inflection_prefix') 
+            && board.get('fast_html.inflection_shift') == appState.get('inflection_shift') 
+            && board.get('fast_html.skin') == appState.get('referenced_user.preferences.skin') 
+            && board.get('fast_html.symbols') == appState.get('referenced_user.preferences.preferred_symbols') 
             && board.get('focus_id') == board.get('fast_html.focus_id')) {
         LingoLinq.log.track('already have fast render');
+        console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)');
         resume_scanning();
         return;
       } else {
         board.set('fast_html', null);
         board.add_classes();
         LingoLinq.log.track('trying fast render');
+        console.log('[BOARD-DEBUG] edit_manager.process_for_displaying calling render_fast_html');
         var fast = board.render_fast_html({
-          label_locale: app_state.get('label_locale'),
+          label_locale: appState.get('label_locale'),
           height: controller.get('height'),
           width: controller.get('width'),
-          skin: app_state.get('referenced_user.preferences.skin'),
-          symbols: app_state.get('referenced_user.preferences.preferred_symbols'),
+          skin: appState.get('referenced_user.preferences.skin'),
+          symbols: appState.get('referenced_user.preferences.preferred_symbols'),
           extra_pad: controller.get('extra_pad'),
           inner_pad: controller.get('inner_pad'),
           display_level: board_level,
@@ -1607,6 +1695,7 @@ var editManager = EmberObject.extend({
             board.set_fast_html(fast);
           // }
           // TODO: this repeats too many times
+          console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)');
           resume_scanning();
           return;
         }
@@ -1615,10 +1704,12 @@ var editManager = EmberObject.extend({
 
     // build the ordered grid
     // TODO: work without ordered grid (i.e. scene displays)
+    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying building grid (before find_content_locally)');
     LingoLinq.log.track('finding content locally');
     var prefetch = board.find_content_locally().then(null, function(err) {
       return RSVP.resolve();
     });
+    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying sync path done (prefetch.then scheduled)');
 
     buttons.forEach(function(btn) {
       if(btn.no_skin && btn.image_id) {
@@ -1626,11 +1717,11 @@ var editManager = EmberObject.extend({
         LingoLinq.Image.unskins[btn.image_id] = true
       }
     });
-    var image_urls = board.variant_image_urls(app_state.get('referenced_user.preferences.skin'));
+    var image_urls = board.variant_image_urls(editManager.get_app_state().get('referenced_user.preferences.skin'));
     var sound_urls = board.get('sound_urls');
     prefetch.then(function() {
       LingoLinq.log.track('creating buttons');
-      preferred_symbols = app_state.get('referenced_user.preferences.preferred_symbols') || 'original';
+      preferred_symbols = editManager.get_app_state().get('referenced_user.preferences.preferred_symbols') || 'original';
       for(var idx = 0; idx < grid.rows; idx++) {
         var row = [];
         for(var jdx = 0; jdx < grid.columns; jdx++) {
@@ -1707,8 +1798,8 @@ var editManager = EmberObject.extend({
     });
   },
   process_for_saving: function() {
-    var orderedButtons = this.controller.get('ordered_buttons');
-    var priorButtons = this.controller.get('model.buttons');
+    var orderedButtons = this.controller.get('ordered_buttons') || [];
+    var priorButtons = this.controller.get('model.buttons') || [];
     this.controller.set('model.update_hash', Math.random());
     this.controller.set('model.updated', new Date());
     var gridOrder = [];
@@ -1748,8 +1839,8 @@ var editManager = EmberObject.extend({
           if(border._ok) {
             newButton.border_color = border.toRgbString();
           }
-          newButton.hidden = !!currentButton.hidden;
-          newButton.link_disabled = !!currentButton.link_disabled;
+          newButton.hidden = (currentButton.get ? currentButton.get('hidden') : currentButton.hidden) === true;
+          newButton.link_disabled = !!(currentButton.get ? currentButton.get('link_disabled') : currentButton.link_disabled);
           if(currentButton.text_only) {
             newButton.text_only = true;
           } else {
@@ -1804,7 +1895,7 @@ var editManager = EmberObject.extend({
               emberSet(currentButton, 'level_modifications', JSON.parse(currentButton.level_json));
             }
           }
-          newButton.level_modifications = currentButton.level_modifications;
+          newButton.level_modifications = currentButton.get ? currentButton.get('level_modifications') : currentButton.level_modifications;
           newButton.home_lock = !!currentButton.home_lock;
           newButton.meta_home = !!(newButton.home_lock && currentButton.meta_home);
           newButton.hide_label = !!currentButton.hide_label;
@@ -1882,7 +1973,7 @@ var editManager = EmberObject.extend({
     return {
       grid: {
         rows: gridOrder.length,
-        columns: gridOrder[0].length,
+        columns: (gridOrder[0] && gridOrder[0].length) || 0,
         order: gridOrder
       },
       buttons: newButtons
@@ -1891,11 +1982,11 @@ var editManager = EmberObject.extend({
   lucky_symbols: function(ids) {
     var _this = this;
     var board = _this.controller.get('model');
-    var library = (app_state.get('currentUser') && app_state.get('currentUser').preferred_symbol_library(board)) || 'opensymbols';
+    var library = (editManager.get_app_state().get('currentUser') && editManager.get_app_state().get('currentUser').preferred_symbol_library(board)) || 'opensymbols';
     var now = (new Date()).getTime();
-    var lookup = parseInt(stashes.get('last_image_library_at') || 0, 10);
-    if(lookup > (now - (15 * 60 * 1000) && !(stashes.get('last_image_library') || "").match(/required/))) {
-      library = stashes.get('last_image_library');
+    var lookup = parseInt(editManager.get_stashes().get('last_image_library_at') || 0, 10);
+    if(lookup > (now - (15 * 60 * 1000) && !(editManager.get_stashes().get('last_image_library') || "").match(/required/))) {
+      library = editManager.get_stashes().get('last_image_library');
     }
     ids.forEach(function(id) {
       var board_id = _this.controller.get('model.id');
@@ -1922,7 +2013,7 @@ var editManager = EmberObject.extend({
               uneditable: true
             };
             var preview = {
-              url: persistence.normalize_url(image.image_url),
+              url: editManager.get_persistence().normalize_url(image.image_url),
               content_type: image.content_type,
               suggestion: button.label,
               protected: image.protected,
@@ -1939,8 +2030,40 @@ var editManager = EmberObject.extend({
               if(_this.controller.get('model.id') == board_id && button && button.label && (!button.image || force_refresh)) {
                 // Don't set pending directly - it's a computed property based on pending_image/pending_sound
                 button.set('pending_image', false);
+                var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (typeof image.url === 'string' ? image.url : null);
+                if(!imgUrl && image && image.image_url) {
+                  imgUrl = image.image_url;
+                }
+                if(!imgUrl && preview && preview.url) {
+                  imgUrl = editManager.get_persistence().normalize_url(preview.url);
+                }
                 emberSet(button, 'image_id', image.id);
                 emberSet(button, 'image', image);
+                if(imgUrl) {
+                  button.set('image_url', imgUrl);
+                  button.set('local_image_url', imgUrl);
+                  button.set('original_image_url', imgUrl);
+                }
+                var board = _this.controller && _this.controller.get('model');
+                if(board && imgUrl) {
+                  var urls = board.get('image_urls') || {};
+                  urls = Object.assign({}, urls, { [image.id]: imgUrl });
+                  board.set('image_urls', urls);
+                  var modelButtons = board.get('buttons') || [];
+                  for(var b = 0; b < modelButtons.length; b++) {
+                    if(modelButtons[b].id == id) {
+                      modelButtons[b].image_id = image.id;
+                      break;
+                    }
+                  }
+                }
+                runLater(function() {
+                  if(editManager.controller && editManager.controller === _this.controller) {
+                    if(editManager.controller.redraw_if_needed) {
+                      editManager.controller.redraw_if_needed();
+                    }
+                  }
+                }, 50);
               }
             }, function() {
               // Don't set pending directly - it's a computed property based on pending_image/pending_sound
@@ -1959,7 +2082,7 @@ var editManager = EmberObject.extend({
     });
   },
   lucky_symbol: function(id) {
-    if(!this.controller || !app_state.get('edit_mode')) {
+    if(!this.controller || !editManager.get_app_state().get('edit_mode')) {
       this.lucky_symbol.pendingSymbols = this.lucky_symbol.pendingSymbols || [];
       this.lucky_symbol.pendingSymbols.push(id);
     } else {
@@ -2091,7 +2214,7 @@ var editManager = EmberObject.extend({
           } else {
             finalize(true, board);
           }
-          stashes.persist('last_index_browse', 'personal');
+          editManager.get_stashes().persist('last_index_browse', 'personal');
           old_board.reload_including_all_downstream(affected_board_ids);
         };
         var endpoint = null;
@@ -2105,7 +2228,7 @@ var editManager = EmberObject.extend({
           endpoint = '/api/v1/users/' + user.get('id') + '/copy_board_links';
         }
         if(endpoint) {
-          persistence.ajax(endpoint, {
+          editManager.get_persistence().ajax(endpoint, {
             type: 'POST',
             data: {
               old_board_id: old_board.get('id'),
@@ -2125,7 +2248,7 @@ var editManager = EmberObject.extend({
               if(event.status == 'finished') {
                 runLater(function() {
                   user.reload();
-                  app_state.refresh_session_user();
+                  editManager.get_app_state().refresh_session_user();
                 }, 100);
                 done_callback(event.result);
               } else if(event.status == 'errored') {
@@ -2140,7 +2263,7 @@ var editManager = EmberObject.extend({
             reject(i18n.t('re_linking_failed', "Board re-linking failed unexpectedly"));
           });
         } else if((decision == 'remove_links' || decision == 'keep_links') && swap_library && swap_library != 'original') {
-          persistence.ajax('/api/v1/boards/' + board.get('id') + '/swap_images', {
+          editManager.get_persistence().ajax('/api/v1/boards/' + board.get('id') + '/swap_images', {
             type: 'POST',
             data: {
               library: swap_library,
@@ -2152,7 +2275,7 @@ var editManager = EmberObject.extend({
                 reject(i18n.t('swap_imaged_failed2', "Swapping images for new board failed unexpectedly"));
               } else if(event.status == 'finished') {
                 board.reload(true).then(function() {
-                  app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+                  editManager.get_app_state().set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
                   done_callback();
                 }, function() {
                   done_callback();
@@ -2241,4 +2364,28 @@ $(window).bind('message', function(event) {
   }
 });
 window.editManager = editManager;
+
+// Static service registry for explicit injection
+editManager._services = {};
+
+// Getter methods for services with fallback to globals
+editManager.get_app_state = function() {
+  return editManager._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+};
+
+editManager.get_persistence = function() {
+  return editManager._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+};
+
+editManager.get_stashes = function() {
+  return editManager._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+};
+
+// Service registration method
+editManager.register_services = function(appStateService, persistenceService, stashesService) {
+  if(appStateService) { editManager._services.app_state = appStateService; }
+  if(persistenceService) { editManager._services.persistence = persistenceService; }
+  if(stashesService) { editManager._services.stashes = stashesService; }
+};
+
 export default editManager;

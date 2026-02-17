@@ -12,19 +12,19 @@
     <div style='margin-top: 20px; margin-bottom: 30px;'>
       <div class='checkbox big_checkbox'>
         <label style='font-size: 16px;'>
-          {{input type="checkbox" checked=research}}
+          <Input @type="checkbox" @checked={{this.research}} />
           <span style='padding-left: 5px;'>{{t "Share anonymized usage data with researchers and in community summary reports" key="allow_research"}}</span>
         </label>
       </div>
-      {{#if research}}
+      {{#if this.research}}
         <div style='margin-left: 30px;'>
-          {{#if sessionUser.global_integrations}}
+          {{#if this.sessionUser.global_integrations}}
             <h4>{{t "Optional Research Details" key="optional_research_details"}}</h4>
             <p>{{t "If you and the communicator are comfortable, you may provide additional information about the AAC user's specific situation. This information will be passed to third-party research groups through OpenAAC.org, and NOT stored on %app_name% servers or as part of the user's %app_name% profile." key="optional_resarch_details"}}</p>
             <div class='row'>
               <div class='col-sm-6'><b>{{t "Primary Reason for Using AAC" key="primary_reason_for_aac_user"}}</b></div>
               <div class='col-sm-5'>
-                {{input value=research_use class="form-control" id="research_primary_use" placeholder=""}}
+                <Input @value={{this.research_use}} class="form-control" id="research_primary_use" placeholder="" />
               </div>
               <div class="col-sm-1" style='margin-left: -35px;'>
                 <div class='btn-group dropup'>
@@ -32,7 +32,7 @@
                     <span class="caret"></span>
                   </button>
                   <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
-                    {{#each research_uses as |option|}}
+                    {{#each this.research_uses as |option|}}
                       {{#if option.header}}
                         <li><a href='#' {{action "set_research_use" option}}><b>{{option.name}}</b></a></li>
                       {{else}}
@@ -45,18 +45,18 @@
               <div style='clear: both; padding-top: 5px;'></div>
               <div class='col-sm-6'><b>{{t "Current Age of the AAC User" key="current_age_of_aac_user"}}</b></div>
                 <div class='col-sm-5'>
-                  {{bound-select select_class="form-control" select_id="research_age" content=research_ages selection=research_age action=(action (mut research_age)) }}
+                  {{bound-select select_class="form-control" select_id="research_age" content=this.research_ages selection=this.research_age action=(action (mut this.research_age)) }}
                 </div>
               <div style='clear: both; padding-top: 5px;'></div>
               <div class='col-sm-6'><b>{{t "Existng Experience with AAC" key="existing_experience_with_aac"}}</b></div>
               <div class='col-sm-5'>
-                {{bound-select select_class="form-control" select_id="research_experience" content=research_experiences selection=research_experience action=(action (mut research_experience)) }}
+                {{bound-select select_class="form-control" select_id="research_experience" content=this.research_experiences selection=this.research_experience action=(action (mut this.research_experience)) }}
               </div>
             </div>
           {{/if}}
           <div class='checkbox big_checkbox'>
             <label style='font-size: 16px;'>
-              {{input type="checkbox" checked=publishing}}
+              <Input @type="checkbox" @checked={{this.publishing}} />
               <span style='padding-left: 5px;'>{{t "Allow anonymized logs to be included in public data sets for automated research and analysis" key="allow_publishing"}}</span>
             </label>
           </div>
@@ -67,7 +67,7 @@
     <div style='margin-top: 20px;'>
       <div class='checkbox big_checkbox'>
         <label style='font-size: 16px;'>
-          {{input type="checkbox" checked=model.user.preferences.geo_logging}}
+          <Input @type="checkbox" @checked={{this.model.user.preferences.geo_logging}} />
           <span style='padding-left: 5px;'>{{t "Include geolocation in logs" key="include_geolocation"}}</span>
         </label>
       </div>

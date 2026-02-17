@@ -6,18 +6,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 **/
 
 import Ember from 'ember';
-import app_state from './app_state';
-import speecher from './speecher';
-import persistence from './persistence';
 import { later as runLater } from '@ember/runloop';
-import utterance from './utterance';
-import obf from './obf';
-import modal from './modal';
-import i18n from './i18n';
 import $ from 'jquery';
-import { htmlSafe } from '@ember/string';
-import stashes from './_stashes';
-import capabilities from './capabilities';
+import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
 
 // select language when starting assessment
@@ -25,6 +16,27 @@ import { set as emberSet, observer } from '@ember/object';
 var pixels_per_inch = 96;
 window.ppi = window.ppi || 96;
 var evaluation = {
+  _services: {},
+  setup: function(appState, persistence, stashes, speecher, utterance, obf, modal, i18n, capabilities) {
+    this._services.appState = appState;
+    this._services.persistence = persistence;
+    this._services.stashes = stashes;
+    this._services.speecher = speecher;
+    this._services.utterance = utterance;
+    this._services.obf = obf;
+    this._services.modal = modal;
+    this._services.i18n = i18n;
+    this._services.capabilities = capabilities;
+  },
+  get appState() { return this._services.appState; },
+  get persistence() { return this._services.persistence; },
+  get stashes() { return this._services.stashes; },
+  get speecher() { return this._services.speecher; },
+  get utterance() { return this._services.utterance; },
+  get obf() { return this._services.obf; },
+  get modal() { return this._services.modal; },
+  get i18n() { return this._services.i18n; },
+  get capabilities() { return this._services.capabilities; },
   register: function(obf) {
     obf.register("eval", evaluation.callback);
     obf.eval = evaluation;
@@ -50,15 +62,15 @@ var evaluation = {
     assmnt.saved = true;
     assessment = assmnt;
     working = assmnt.working_stash;
-    app_state.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
-    app_state.set_history([]);
+    evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+    evaluation.appState.set_history([]);
   },
   clear: function() {
     assessment = {};
     working = {};
   },
   conclude: function() {
-    modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
+    evaluation.modal.open('modals/assessment-settings', {assessment: assessment, action: 'results'});
   },
   update: function(settings, reload) {
     assessment.name = settings.name;
@@ -71,14 +83,14 @@ var evaluation = {
     assessment.chimes = settings.chimes;
     if(settings.for_user && !assessment.saved) {
       if(settings.for_user.user_id == 'self') {
-        emberSet(settings.for_user, 'user_id', app_state.get('currentUser.id'));
+        emberSet(settings.for_user, 'user_id', evaluation.appState.get('currentUser.id'));
       }
       assessment.user_id = settings.for_user.user_id;
       assessment.user_name = settings.for_user.user_name;
     }
     if(reload) {
-      app_state.jump_to_board({key: 'obf/eval-' + (new Date()).getTime()});
-      app_state.set_history([]);
+      evaluation.appState.jump_to_board({key: 'obf/eval-' + (new Date()).getTime()});
+      evaluation.appState.set_history([]);
     }
   },
   persist: function() {
@@ -87,30 +99,30 @@ var evaluation = {
     assessment.ref_id = assessment.ref_id || "tmp." + (new Date()).getTime() + "." + (Math.random());
     delete assessment.working_stash['ref'];
     // save the evaluation
-    app_state.set('last_assessment_for_' + assessment.user_id, assessment);
-    stashes.log_event(assessment, assessment.user_id, app_state.get('sessionUser.id'));
-    if(persistence.get('online')) {
-      stashes.push_log();
+    evaluation.appState.set('last_assessment_for_' + assessment.user_id, assessment);
+    evaluation.stashes.log_event(assessment, assessment.user_id, evaluation.appState.get('sessionUser.id'));
+    if(evaluation.persistence.get('online')) {
+      evaluation.stashes.push_log();
     }
     // navigate to the results page (should work even if offline and haven't been able to push yet)
-    app_state.controller.transitionToRoute('user.log', assessment.user_name, 'last-eval');
+    evaluation.appState.controller.transitionToRoute('user.log', assessment.user_name, 'last-eval');
     assessment = {};
     working = {};
   },
   settings: function() {
-    modal.open('modals/assessment-settings', {assessment: assessment});
+    evaluation.modal.open('modals/assessment-settings', {assessment: assessment});
   },
   sections: function() {
     var res = [];
-    res.push({id: 'intro', name: i18n.t('introduction', 'Introduction'), description: i18n.t('brief_introduction', "A short introduction, including instructions, for the evaluation tool")});
-    res.push({id: 'find_target', name: i18n.t('find_targets', 'Find Targets'), description: i18n.t('find_target_level', "Find a target in a grid of empty buttons")});
-    res.push({id: 'diff_target', name: i18n.t('differentiate_targets', 'Differentiate Targets'), description: i18n.t('diff_target_level', "Find a target in a grid of populated buttons")});
-    res.push({id: 'symbols', name: i18n.t('alternate_symbols', 'Alternate Symbol Libraries'), description: i18n.t('symbols_level', "Find targets using different symbol libraries")});
-    res.push({id: 'find_shown', name: i18n.t('named_targets', 'Find Targets by Name'), description: i18n.t('find_shown_level', "Find named targets from different parts of speech")});
-    res.push({id: 'open_ended', name: i18n.t('open_ended', 'Open-Ended Comments'), description: i18n.t('open_ended_level', "Comment on open-ended image prompts")});
-    res.push({id: 'categories', name: i18n.t('categorization', 'Categorization'), description: i18n.t('categories_level', "Find targets by category or grouping")});
-    res.push({id: 'inclusion_exclusion_association', name: i18n.t('inclusion_exclusion_association', 'Inclusion/Exclusion/Association'), description: i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association")});
-    res.push({id: 'literacy', name: i18n.t('literacy', 'Literacy'), description: i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images")});
+    res.push({id: 'intro', name: evaluation.i18n.t('introduction', 'Introduction'), description: evaluation.i18n.t('brief_introduction', "A short introduction, including instructions, for the evaluation tool")});
+    res.push({id: 'find_target', name: evaluation.i18n.t('find_targets', 'Find Targets'), description: evaluation.i18n.t('find_target_level', "Find a target in a grid of empty buttons")});
+    res.push({id: 'diff_target', name: evaluation.i18n.t('differentiate_targets', 'Differentiate Targets'), description: evaluation.i18n.t('diff_target_level', "Find a target in a grid of populated buttons")});
+    res.push({id: 'symbols', name: evaluation.i18n.t('alternate_symbols', 'Alternate Symbol Libraries'), description: evaluation.i18n.t('symbols_level', "Find targets using different symbol libraries")});
+    res.push({id: 'find_shown', name: evaluation.i18n.t('named_targets', 'Find Targets by Name'), description: evaluation.i18n.t('find_shown_level', "Find named targets from different parts of speech")});
+    res.push({id: 'open_ended', name: evaluation.i18n.t('open_ended', 'Open-Ended Comments'), description: evaluation.i18n.t('open_ended_level', "Comment on open-ended image prompts")});
+    res.push({id: 'categories', name: evaluation.i18n.t('categorization', 'Categorization'), description: evaluation.i18n.t('categories_level', "Find targets by category or grouping")});
+    res.push({id: 'inclusion_exclusion_association', name: evaluation.i18n.t('inclusion_exclusion_association', 'Inclusion/Exclusion/Association'), description: evaluation.i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association")});
+    res.push({id: 'literacy', name: evaluation.i18n.t('literacy', 'Literacy'), description: evaluation.i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images")});
     return res;
   },
   jump_to: function(section_id) {
@@ -123,12 +135,12 @@ var evaluation = {
       working.correct = 0;
       working.fails = 0;
       working.ref.session_events = [];
-      app_state.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
-      app_state.set_history([]);
+      evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+      evaluation.appState.set_history([]);
     } else {
       var section_id = working.level_id;
       if(section_id.match(/^intro/)) { section_id = 'intro'; }
-      modal.open('modals/eval-jump', {section_id: section_id});
+      evaluation.modal.open('modals/eval-jump', {section_id: section_id});
     }
   },
   move: function(direction) {
@@ -152,8 +164,8 @@ var evaluation = {
     working.correct = 0;
     working.fails = 0;
     working.ref.session_events = [];
-    app_state.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
-    app_state.set_history([]);
+    evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+    evaluation.appState.set_history([]);
   },
   analyze: function(assessment) {
     if(!assessment || !assessment.mastery_cutoff) {
@@ -211,14 +223,14 @@ var evaluation = {
         });
         if(!step || idx == 0) { //(idx == 0 && !(step[0] || {}).time)) { 
           var level_name = key || 'no-key';
-          if(key == 'find_target') { level_name = i18n.t('find_target_level', "Find a target in a grid of empty buttons"); }
-          else if(key == 'diff_target') { level_name = i18n.t('diff_target_level', "Find a target in a grid of populated buttons"); }
-          else if(key == 'symbols') { level_name = i18n.t('symbols_level', "Find targets using different symbol libraries"); }
-          else if(key == 'find_shown') { level_name = i18n.t('find_shown_level', "Find named targets from different parts of speech"); }
-          else if(key == 'open_ended') { level_name = i18n.t('open_ended_level', "Comment on open-ended image prompts"); }
-          else if(key == 'categories') { level_name = i18n.t('categories_level', "Find targets by category or grouping"); }
-          else if(key == 'inclusion_exclusion_association') { level_name = i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association"); }
-          else if(key == 'literacy') { level_name = i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images"); }
+          if(key == 'find_target') { level_name = evaluation.i18n.t('find_target_level', "Find a target in a grid of empty buttons"); }
+          else if(key == 'diff_target') { level_name = evaluation.i18n.t('diff_target_level', "Find a target in a grid of populated buttons"); }
+          else if(key == 'symbols') { level_name = evaluation.i18n.t('symbols_level', "Find targets using different symbol libraries"); }
+          else if(key == 'find_shown') { level_name = evaluation.i18n.t('find_shown_level', "Find named targets from different parts of speech"); }
+          else if(key == 'open_ended') { level_name = evaluation.i18n.t('open_ended_level', "Comment on open-ended image prompts"); }
+          else if(key == 'categories') { level_name = evaluation.i18n.t('categories_level', "Find targets by category or grouping"); }
+          else if(key == 'inclusion_exclusion_association') { level_name = evaluation.i18n.t('inclusion_exclusion_association_level', "Find targets by inclusion, exclusion or association"); }
+          else if(key == 'literacy') { level_name = evaluation.i18n.t('literacy_level', "Find the words (no pictures) that identify or describe images"); }
           if(!already_done[key]) {
             already_done[key] = true;
             res.assessments.push({category: level_name});
@@ -444,66 +456,66 @@ var evaluation = {
     });
 
     //       <!-- list of literacy words, including prompt and distractors -->
-    res.access_method = i18n.t('touch', "Touch");
+    res.access_method = evaluation.i18n.t('touch', "Touch");
     if(assessment.access_method == 'scanning') {
-      res.access_method = i18n.t('scanning', "Scanning");
+      res.access_method = evaluation.i18n.t('scanning', "Scanning");
     } else if(assessment.access_method == 'axis_scanning') {
-      res.access_method = i18n.t('axis_scanning', "Axis Scanning");
+      res.access_method = evaluation.i18n.t('axis_scanning', "Axis Scanning");
     } else if(assessment.access_method == 'dwell') {
-      res.access_method = i18n.t('dwell', "Dwell/Eye Gaze");
+      res.access_method = evaluation.i18n.t('dwell', "Dwell/Eye Gaze");
     } else if(assessment.access_meethod == 'arrow_dwell') {
-      res.access_method = i18n.t('arrow_dwell', "Cursor-Guided Dwell");
+      res.access_method = evaluation.i18n.t('arrow_dwell', "Cursor-Guided Dwell");
     } else if(assessment.access_meethod == 'head') {
-      res.access_method = i18n.t('head_tracking', "Head Tracking");
+      res.access_method = evaluation.i18n.t('head_tracking', "Head Tracking");
     }
     res.access_settings = []; //assessment;
-    res.access_settings.push({key: i18n.t('mastery', "mastery"), val: assessment.mastery_cutoff * 100, percent: true});
-    res.access_settings.push({key: i18n.t('non-mastery', "non-mastery"), val: assessment.non_mastery_cutoff * 100, percent: true});
-    res.access_settings.push({key: i18n.t('library_lower', "library"), val: assessment.default_library});
-    res.access_settings.push({key: i18n.t('access_lower', "access"), val: res.access_method.toLowerCase().replace(/\s+/g, '-')});
-    res.access_settings.push({key: i18n.t('background_lower', "background"), val: assessment.board_background});
-    res.access_settings.push({key: i18n.t('button-spacing', "button-spacing"), val: assessment.button_spacing});
-    res.access_settings.push({key: i18n.t('button-border', "button-border"), val: assessment.button_border});
-    res.access_settings.push({key: i18n.t('button-text', "button-text"), val: assessment.button_text});
-    res.access_settings.push({key: i18n.t('text-position', "text-position"), val: assessment.text_position});
-    res.access_settings.push({key: i18n.t('font', "font"), val: assessment.text_font});
-    res.access_settings.push({key: i18n.t('prompts', "prompts"), val: (!!assessment.prompts).toString()});
-    res.access_settings.push({key: i18n.t('chimes', "chimes"), val: (!!assessment.chimes).toString()});
+    res.access_settings.push({key: evaluation.i18n.t('mastery', "mastery"), val: assessment.mastery_cutoff * 100, percent: true});
+    res.access_settings.push({key: evaluation.i18n.t('non-mastery', "non-mastery"), val: assessment.non_mastery_cutoff * 100, percent: true});
+    res.access_settings.push({key: evaluation.i18n.t('library_lower', "library"), val: assessment.default_library});
+    res.access_settings.push({key: evaluation.i18n.t('access_lower', "access"), val: res.access_method.toLowerCase().replace(/\s+/g, '-')});
+    res.access_settings.push({key: evaluation.i18n.t('background_lower', "background"), val: assessment.board_background});
+    res.access_settings.push({key: evaluation.i18n.t('button-spacing', "button-spacing"), val: assessment.button_spacing});
+    res.access_settings.push({key: evaluation.i18n.t('button-border', "button-border"), val: assessment.button_border});
+    res.access_settings.push({key: evaluation.i18n.t('button-text', "button-text"), val: assessment.button_text});
+    res.access_settings.push({key: evaluation.i18n.t('text-position', "text-position"), val: assessment.text_position});
+    res.access_settings.push({key: evaluation.i18n.t('font', "font"), val: assessment.text_font});
+    res.access_settings.push({key: evaluation.i18n.t('prompts', "prompts"), val: (!!assessment.prompts).toString()});
+    res.access_settings.push({key: evaluation.i18n.t('chimes', "chimes"), val: (!!assessment.chimes).toString()});
     if(assessment.high_contrast) {
-      res.access_settings.push({key: i18n.t('high-contrast', "high-contrast"), val: "true"});
+      res.access_settings.push({key: evaluation.i18n.t('high-contrast', "high-contrast"), val: "true"});
     }
-    res.access_settings.push({key: i18n.t('', ""), val: assessment.val});
+    res.access_settings.push({key: evaluation.i18n.t('', ""), val: assessment.val});
 
     if(assessment.access_method == 'touch') {
-      res.access_settings.push({key: i18n.t('hold-time', "hold-time"), val: assessment.activation_cutoff / 1000, ms: true});
-      res.access_settings.push({key: i18n.t('hold-min', "hold-min"), val: assessment.activation_minimum / 1000, ms: true});
-      res.access_settings.push({key: i18n.t('debounce', "debounce"), val: assessment.debounce / 1000, ms: true});
+      res.access_settings.push({key: evaluation.i18n.t('hold-time', "hold-time"), val: assessment.activation_cutoff / 1000, ms: true});
+      res.access_settings.push({key: evaluation.i18n.t('hold-min', "hold-min"), val: assessment.activation_minimum / 1000, ms: true});
+      res.access_settings.push({key: evaluation.i18n.t('debounce', "debounce"), val: assessment.debounce / 1000, ms: true});
     } else if(assessment.access_method == 'scanning' || assessment.access_method == 'axis_scanning') {
       if(assessment.access_method == 'axis_scanning') {
-        res.access_settings.push({key: i18n.t('sweep', "sweep"), val: assessment.scanninng_sweep_speed / 1000, ms: true});
+        res.access_settings.push({key: evaluation.i18n.t('sweep', "sweep"), val: assessment.scanninng_sweep_speed / 1000, ms: true});
       } else {
-        res.access_settings.push({key: i18n.t('scan-step', "scan-step"), val: assessment.scanning_interval / 1000, ms: true});
+        res.access_settings.push({key: evaluation.i18n.t('scan-step', "scan-step"), val: assessment.scanning_interval / 1000, ms: true});
       }
       if(assessment.scanning_wait) {
-        res.access_settings.push({key: i18n.t('scan-wait', "scan-wait"), val: assessment.scanning_wait});
+        res.access_settings.push({key: evaluation.i18n.t('scan-wait', "scan-wait"), val: assessment.scanning_wait});
       }
-      res.access_settings.push({key: i18n.t('scan-prompt', "scan-prompt"), val: assessment.scanning_prompts});
-      res.access_settings.push({key: i18n.t('scan-auto-select', "scan-auto-select"), val: assessment.scanning_auto_select});
-      res.access_settings.push({key: i18n.t('scan-keys', "scan-keys"), val: assessment.scanning_keys.join(',').replace(/,+$/, '')});
+      res.access_settings.push({key: evaluation.i18n.t('scan-prompt', "scan-prompt"), val: assessment.scanning_prompts});
+      res.access_settings.push({key: evaluation.i18n.t('scan-auto-select', "scan-auto-select"), val: assessment.scanning_auto_select});
+      res.access_settings.push({key: evaluation.i18n.t('scan-keys', "scan-keys"), val: assessment.scanning_keys.join(',').replace(/,+$/, '')});
     } else if(assessment.access_method == 'dwell' || assessment.access_method == 'arrow_dwell' || assessment.access_method == 'head') {
-      res.access_settings.push({key: i18n.t('dwell-type', "dwell-type"), val: assessment.dwell_type});
+      res.access_settings.push({key: evaluation.i18n.t('dwell-type', "dwell-type"), val: assessment.dwell_type});
       if(assessment.access_method == 'arrow-dwell') {
-        res.access_settings.push({key: i18n.t('dwell-speed', "dwell-speed"), val: assessment.dwell_arrow_speed});
+        res.access_settings.push({key: evaluation.i18n.t('dwell-speed', "dwell-speed"), val: assessment.dwell_arrow_speed});
       }
-      res.access_settings.push({key: i18n.t('dwell-select', "dwell-select"), val: assessment.dwell_selection});
+      res.access_settings.push({key: evaluation.i18n.t('dwell-select', "dwell-select"), val: assessment.dwell_selection});
       if(assessment.dwell_selection == 'button') {
-        res.access_settings.push({key: i18n.t('dwell-key', "dwell-key"), val: assessment.dwell_selection_code});
+        res.access_settings.push({key: evaluation.i18n.t('dwell-key', "dwell-key"), val: assessment.dwell_selection_code});
       } else {
-        res.access_settings.push({key: i18n.t('dwell-time', "dwell-time"), val: assessment.dwell_time / 1000, ms: true});
+        res.access_settings.push({key: evaluation.i18n.t('dwell-time', "dwell-time"), val: assessment.dwell_time / 1000, ms: true});
       }
-      res.access_settings.push({key: i18n.t('dwell-delay', "dwell-delay"), val: assessment.dwell_delay / 1000, ms: true});
-      res.access_settings.push({key: i18n.t('dwell-release', "dwell-release"), val: assessment.dwell_release});
-      res.access_settings.push({key: i18n.t('dwell-style', "dwell-style"), val: assessment.dwell_style});
+      res.access_settings.push({key: evaluation.i18n.t('dwell-delay', "dwell-delay"), val: assessment.dwell_delay / 1000, ms: true});
+      res.access_settings.push({key: evaluation.i18n.t('dwell-release', "dwell-release"), val: assessment.dwell_release});
+      res.access_settings.push({key: evaluation.i18n.t('dwell-style', "dwell-style"), val: assessment.dwell_style});
           
     }
 
@@ -522,7 +534,7 @@ var evaluation = {
     return res;
   }, 
   intro_board: function(level, step, user_id) {
-    var board = obf.shell(3, 6);
+    var board = evaluation.obf.shell(3, 6);
     board.key = 'obf/eval';
     if(step.continue_on_non_mastery) {
       level.continue_on_non_mastery = true;
@@ -591,8 +603,8 @@ var evaluation = {
       }
     }
     var handler = function(button) {
-      if(app_state.get('speak_mode')) {
-        speecher.click();
+      if(evaluation.appState.get('speak_mode')) {
+        evaluation.speecher.click();
         if(button.id == 'button_start') {
           if(step.intro == 'find_target') {
             var start_step = level.find(function(s) { return s.id == "find-4"; });
@@ -618,20 +630,20 @@ var evaluation = {
             working.level++;
             working.step = 0;
           }
-          app_state.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
-          app_state.set_history([]);
+          evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+          evaluation.appState.set_history([]);
         } else if(button.id == 'button_settings') {
           evaluation.settings();
         } else if(button.id == 'button_skip') {
           working.step = 0;
           working.level++;          
-          app_state.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
-          app_state.set_history([]);
+          evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+          evaluation.appState.set_history([]);
         } else if(button.id == 'button_save') {
           evaluation.conclude();
         }
       } else {
-        modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+        evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
       }
       return {ignore: true, highlight: false, auto_return: false};
     };
@@ -773,7 +785,7 @@ function shuffle(array) {
   }
   return array;
 }
-//obf.words = words;
+//evaluation.obf.words = words;
 
 var libraries = ['default', 'photos', 'lessonpix', 'pcs_hc', 'pcs', 'symbolstix', 'words_only'];
 evaluation.libraries = libraries;
@@ -781,12 +793,12 @@ var shuffled_libraries = shuffle(libraries.filter(function(w) { return w != 'wor
 shuffled_libraries.push('words_only');
 var core_prompts = {};
 evaluation.callback = function(key) {
-  if(!app_state.get('currentUser.currently_premium_or_premium_supporter')) { 
-    board = obf.shell(1, 1);
+  if(!evaluation.appState.get('currentUser.currently_premium_or_premium_supporter')) { 
+    board = evaluation.obf.shell(1, 1);
       var bg_word = words.find(function(w) { return w.label == 'backgrounds'; });
-    var msg = i18n.t('eval_login_required', "Evaluations require you to be logged in first");
-    if(app_state.get('currentUser')) {
-      msg = i18n.t('eval_subscription_required', "Evaluations require an active paid account");
+    var msg = evaluation.i18n.t('eval_login_required', "Evaluations require you to be logged in first");
+    if(evaluation.appState.get('currentUser')) {
+      msg = evaluation.i18n.t('eval_subscription_required', "Evaluations require an active paid account");
     }
     board.background = {
       image: (bg_word && bg_word.urls['intro2']) || "https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f49b.svg",
@@ -795,7 +807,7 @@ evaluation.callback = function(key) {
     }
     return {json: board.to_json()};
   }
-  obf.offline_urls = obf.offline_urls || [];
+  evaluation.obf.offline_urls = evaluation.obf.offline_urls || [];
   if(!words.prefetched) {
     var all_words = [];
     var next_word = function() {
@@ -804,9 +816,9 @@ evaluation.callback = function(key) {
         for(var key in w.urls) {
           (function(key) {
             if(w.urls[key] && w.urls[key].match(/^http/)) {
-              // TODO: sync should store obf.offline_urls as another step
-              obf.offline_urls.push(w.urls[key]);
-              persistence.find_url(w.urls[key], 'image').then(function(data_uri) {
+              // TODO: sync should store evaluation.obf.offline_urls as another step
+              evaluation.obf.offline_urls.push(w.urls[key]);
+              evaluation.persistence.find_url(w.urls[key], 'image').then(function(data_uri) {
                 w.urls[key] = data_uri;
               }, function(err) {
                 var img = new Image();
@@ -828,19 +840,19 @@ evaluation.callback = function(key) {
     words.prefetched = true;
   }
   evaluation.checks_for = evaluation.checks_for || {};
-  var user_id = app_state.get('sessionUser.id');
+  var user_id = evaluation.appState.get('sessionUser.id');
   assessment.uid = assessment.uid || (user_id + "x" + Math.random() + (new Date()).getTime());
   if(!evaluation.checks_for[user_id]) {
     evaluation.checks_for[user_id] = {};
-    if(app_state.get('currentUser')) {
-      app_state.get('currentUser').find_integration('lessonpix').then(function(res) {
+    if(evaluation.appState.get('currentUser')) {
+      evaluation.appState.get('currentUser').find_integration('lessonpix').then(function(res) {
         evaluation.checks_for[user_id].lessonpix = true;
       }, function(err) { });
     }
-    if(app_state.get('currentUser.subscription.lessonpix')) {
+    if(evaluation.appState.get('currentUser.subscription.lessonpix')) {
       evaluation.checks_for[user_id].lessonpix = true;
     }
-    if(app_state.get('currentUser.subscription.extras_enabled')) {
+    if(evaluation.appState.get('currentUser.subscription.extras_enabled')) {
       evaluation.checks_for[user_id].pcs = true;
       evaluation.checks_for[user_id].pcs_hc = true;
       evaluation.checks_for[user_id].symbolstix = true;
@@ -891,10 +903,10 @@ evaluation.callback = function(key) {
     };
     working = {step: 0};
   } else if(!working || working.step == undefined) {
-    board = obf.shell(1, 1);
+    board = evaluation.obf.shell(1, 1);
     runLater(function() {
-      app_state.jump_to_board({key: 'obf/eval-start'});
-      app_state.set_history([]);
+      evaluation.appState.jump_to_board({key: 'obf/eval-start'});
+      evaluation.appState.set_history([]);
     })
     res.json = board.to_json();
     return res;
@@ -1013,7 +1025,7 @@ evaluation.callback = function(key) {
         working.ref.core_prompts = shuffle(working.ref.core_prompts);
       }
     }
-    board = obf.shell(step_rows, step_cols);
+    board = evaluation.obf.shell(step_rows, step_cols);
     board.key = 'obf/eval-' + Math.round(Math.random() * 9999) + "-" + (new Date()).getTime();
     board.name = "Evaluation Board";
     board.locale = 'en';
@@ -1407,20 +1419,20 @@ evaluation.callback = function(key) {
     } else {
       board.background.position = "stretch";
       // board.background.text = "Find the " + prompt.label;
-      var bg_prompt = i18n.t('find_the', "Find the %{item}", {item: prompt.label});
+      var bg_prompt = evaluation.i18n.t('find_the', "Find the %{item}", {item: prompt.label});
       board.background.delay_prompts = [
-        i18n.t('can_you_find_the_item', "Can you find the %{item}?", {item: prompt.label}),
-        i18n.t('see_if_you_can_find_the_item', "See if you can find the %{item}", {item: prompt.label})
+        evaluation.i18n.t('can_you_find_the_item', "Can you find the %{item}?", {item: prompt.label}),
+        evaluation.i18n.t('see_if_you_can_find_the_item', "See if you can find the %{item}", {item: prompt.label})
       ];
       // after a period of inactivity, go ahead and re-prompt (unless using slow access like scanning)
-      if(assessment.reprompt !== 0 && !(app_state.get('currentUser.access_method')).match(/scanning/)) {
+      if(assessment.reprompt !== 0 && !(evaluation.appState.get('currentUser.access_method')).match(/scanning/)) {
         board.background.delay_prompt_timeout = (assessment.reprompt || (board.background.delay_prompts ? 20 : 40)) * 1000;
       }
       if(level.current_library == 'words_only') {
-        bg_prompt = i18n.t('find_item', "Find %{item}", {item: prompt.label});
+        bg_prompt = evaluation.i18n.t('find_item', "Find %{item}", {item: prompt.label});
         board.background.delay_prompts = [
-          i18n.t('can_you_find_item', "Can you find, %{item}?", {item: prompt.label}),
-          i18n.t('see_if_you_can_find_item', "See if you can find, %{item}", {item: prompt.label})
+          evaluation.i18n.t('can_you_find_item', "Can you find, %{item}?", {item: prompt.label}),
+          evaluation.i18n.t('see_if_you_can_find_item', "See if you can find, %{item}", {item: prompt.label})
         ];
       }
       board.background.prompt = {
@@ -1663,16 +1675,16 @@ evaluation.callback = function(key) {
     var handling = false;
     var original_board = board;
     res.handler = function(button, obj) {
-      assessment.access_method = assessment.access_method || app_state.get('currentUser.access_method');
+      assessment.access_method = assessment.access_method || evaluation.appState.get('currentUser.access_method');
       obj = obj || {};
       var r = -1, c = -1;
       var cr = -1, cc = -1;
       var skip_event = false;
       if(button.id == 'button_repeat') {
-        speecher.speak_text(button.vocalization, false, {alternate_voice: speecher.alternate_voice});
+        evaluation.speecher.speak_text(button.vocalization, false, {alternate_voice: evaluation.speecher.alternate_voice});
         skip_event = true;
         runLater(function() {
-          utterance.clear({skip_logging: true});
+          evaluation.utterance.clear({skip_logging: true});
         });
         return {ignore: true, highlight: false, sound: false};
       } else if(button.id == 'button_next') {
@@ -1719,20 +1731,20 @@ evaluation.callback = function(key) {
         }
       }
       typical_time_to_select = typ_sum / typ_tally;
-      if(app_state.get('speak_mode')) {
+      if(evaluation.appState.get('speak_mode')) {
         if(handling) { return {highlight: false}; }
         handling = true;
         // ding, wait, then jump!
         if(!step.prompts) {
           if(assessment.chimes === false) {
-            speecher.click();          
+            evaluation.speecher.click();          
           } else {
-            speecher.click(button.id == 'button_correct' ? 'ding' : null);
+            evaluation.speecher.click(button.id == 'button_correct' ? 'ding' : null);
           }
           working.attempts = (working.attempts || 0) + 1;
           working.correct = (working.correct || 0);
         } else if(button.id == 'button_done') {
-          speecher.click();          
+          evaluation.speecher.click();          
         }
         
         // Record event datas
@@ -1906,14 +1918,14 @@ evaluation.callback = function(key) {
         }
         if(!step.prompts || next_step) {
           runLater(function() {
-            app_state.jump_to_board({key: 'obf/eval-' + working.level + "-" + working.step + "-" + working.attempts});
-            app_state.set_history([]);  
-            utterance.clear();
+            evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + "-" + working.step + "-" + working.attempts});
+            evaluation.appState.set_history([]);  
+            evaluation.utterance.clear();
           }, button.id == 'button_done' ? 200 : 1000);
           return {ignore: true, highlight: false, sound: false};
         }
       } else {
-        modal.notice(i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+        evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
       }
       handling = false;
       return {auto_return: false};
@@ -2005,12 +2017,12 @@ evaluation.core_list = function(step, step_rows, step_cols) {
 }
 
 evaluation.populate_assessment = function(assessment) {
-  var prefs = app_state.get('currentUser.preferences');
+  var prefs = evaluation.appState.get('currentUser.preferences');
   if(prefs) {
     assessment.populated = true;
     Object.assign(assessment, {
-      initiator_user_id: app_state.get('sessionUser.id'),
-      initiator_user_name: app_state.get('sessionUser.user_name'),
+      initiator_user_id: evaluation.appState.get('sessionUser.id'),
+      initiator_user_name: evaluation.appState.get('sessionUser.user_name'),
       board_background: prefs.board_background,
       button_spacing: prefs.device.button_spacing,
       button_border: prefs.device.button_border,
@@ -2588,86 +2600,86 @@ evaluation.words = words;
 evaluation.level_prompt = function(step) {
   var res = "blank";
   if(step.intro == 'intro') {
-    res = i18n.t('eval_intro', "Welcome to the Eval Tool! This tool helps evaluate a communicator's ability to access and understand buttons, symbols and concepts.");
+    res = evaluation.i18n.t('eval_intro', "Welcome to the Eval Tool! This tool helps evaluate a communicator's ability to access and understand buttons, symbols and concepts.");
   } else if(step.intro == 'intro2') {
-    res = i18n.t('eval_intro_2', "You can use the top right menu to end or configure the evaluation any time. You can also add notes once the evaluation has completed.");
+    res = evaluation.i18n.t('eval_intro_2', "You can use the top right menu to end or configure the evaluation any time. You can also add notes once the evaluation has completed.");
   } else if(step.intro == 'find_target') {
-    res = i18n.t('find_target_intro', "This section shows a single target at different locations and sizes to help assess ability to identify and access targets.");
+    res = evaluation.i18n.t('find_target_intro', "This section shows a single target at different locations and sizes to help assess ability to identify and access targets.");
   } else if(step.intro == 'diff_target') {
-    res = i18n.t('diff_target_intro', "This section shows multiple targets at different sizes and layouts to determine ability to differentiate.");
+    res = evaluation.i18n.t('diff_target_intro', "This section shows multiple targets at different sizes and layouts to determine ability to differentiate.");
   } else if(step.intro == 'symbols') {
-    res = i18n.t('symbols_intro', "This section shows different styles of pictures to see if the user has more success with one style over another");
+    res = evaluation.i18n.t('symbols_intro', "This section shows different styles of pictures to see if the user has more success with one style over another");
   } else if(step.intro == 'find_shown') {
-    res = i18n.t('find_show_intro', "This section shows a photograph or concept and prompts the user to find the corresponding symbol below");
+    res = evaluation.i18n.t('find_show_intro', "This section shows a photograph or concept and prompts the user to find the corresponding symbol below");
   } else if(step.intro == 'open_ended') {
-    res = i18n.t('open_ended_intro', "This section shows simple scenes. Encourage the user to make observations or discuss the scene using the buttons/keys provided");
+    res = evaluation.i18n.t('open_ended_intro', "This section shows simple scenes. Encourage the user to make observations or discuss the scene using the buttons/keys provided");
   } else if(step.intro == 'categories') {
-    res = i18n.t('categories_intro', "This section shows photographs and prompts the user to classify them based on their category");
+    res = evaluation.i18n.t('categories_intro', "This section shows photographs and prompts the user to classify them based on their category");
   } else if(step.intro == 'inclusion_exclusion_association') {
-    res = i18n.t('inclusion_exclusion_association_intro', "This section shows photographs and prompts the user to identify related or unrelated items");
+    res = evaluation.i18n.t('inclusion_exclusion_association_intro', "This section shows photographs and prompts the user to identify related or unrelated items");
   } else if(step.intro == 'literacy') {
-    res = i18n.t('literacy_intro', "This section shows an image and a list of possible words (without images) to check for reading skills");
+    res = evaluation.i18n.t('literacy_intro', "This section shows an image and a list of possible words (without images) to check for reading skills");
   } else if(step.intro == 'done') {
-    res = i18n.t('done_eval', "Done! Hit the final button to save the evaluation and see the results!");
+    res = evaluation.i18n.t('done_eval', "Done! Hit the final button to save the evaluation and see the results!");
   }
   return res;
 };
 
 evaluation.step_description = function(id, library) {
   var long_name = null;
-  if(id == 'find-2') { long_name = i18n.t('find-2-name', "Find in a field of 2"); }
-  else if(id == 'find-3') { long_name = i18n.t('find-3-name', "Find in a field of 3"); }
-  else if(id == 'find-4') { long_name = i18n.t('find-4-name', "Find in a field of 4"); }
-  else if(id == 'find-8') { long_name = i18n.t('find-8-name', "Find in a field of 8"); }
-  else if(id == 'find-15') { long_name = i18n.t('find-15-name', "Find in a field of 15"); }
-  else if(id == 'find-6-24') { long_name = i18n.t('find-6-24-name', "Find in a 24-button grid with a visible field of 6"); }
-  else if(id == 'find-24') { long_name = i18n.t('find-24-name', "Find in a field of 24"); }
-  else if(id == 'find-6-60') { long_name = i18n.t('find-6-60-name', "Find in a 60-button grid with a visible field of 6"); }
-  else if(id == 'find-15-60') { long_name = i18n.t('find-15-60-name', "Find in a 60-button grid with a visible field of 15"); }
-  else if(id == 'find-30-60') { long_name = i18n.t('find-30-60-name', "Find in a 60-button grid with a visible field of 30"); }
-  else if(id == 'find-60') { long_name = i18n.t('find-60-name', "Find in a field of 60"); }
-  else if(id == 'find-6-112') { long_name = i18n.t('find-6-112-name', "Find in a 112-button grid with a visible field of 6"); }
-  else if(id == 'find-28-112') { long_name = i18n.t('find-28-112-name', "Find in a 112-button grid with a visible field of 28"); }
-  else if(id == 'find-56-112') { long_name = i18n.t('find-56-112-name', "Find in a 112-button grid with a visible field of 56"); }
-  else if(id == 'find-112') { long_name = i18n.t('find-112-name', "Find in a field of 112"); }
-  else if(id == 'diff-2') { long_name = i18n.t('diff-2-name', "Discriminate in a field of 2"); }
-  else if(id == 'diff-3') { long_name = i18n.t('diff-3-name', "Discriminate in a field of 3"); }
-  else if(id == 'diff-4') { long_name = i18n.t('diff-4-name', "Discriminate in a field of 4"); }
-  else if(id == 'diff-8') { long_name = i18n.t('diff-8-name', "Discriminate in a field of 8"); }
-  else if(id == 'diff-15') { long_name = i18n.t('diff-15-name', "Discriminate in a field of 15"); }
-  else if(id == 'diff-6-24') { long_name = i18n.t('diff-6-24-name', "Discriminate in a 24-button grid with a visible field of 6"); }
-  else if(id == 'diff-24') { long_name = i18n.t('diff-24-name', "Discriminate in a field of 24"); }
-  else if(id == 'diff-24-shuffle') { long_name = i18n.t('diff-24-shuffle-name', "Discriminate in a field of 24 (shuffled targets)"); }
-  else if(id == 'diff-6-60') { long_name = i18n.t('diff-6-60-name', "Discriminate in a 60-button grid with a visible field of 6"); }
-  else if(id == 'diff-15-60') { long_name = i18n.t('diff-15-60-name', "Discriminate in a 60-button grid with a visible field of 15"); }
-  else if(id == 'diff-30-60') { long_name = i18n.t('diff-30-60-name', "Discriminate in a 60-button grid with a visible field of 30"); }
-  else if(id == 'diff-60') { long_name = i18n.t('diff-60-name', "Discriminate in a field of 60"); }
-  else if(id == 'diff-60-shuffle') { long_name = i18n.t('diff-60-shuffle-name', "Discriminate in a field of 60 (shuffled targets)"); }
-  else if(id == 'diff-6-112') { long_name = i18n.t('diff-6-112-name', "Discriminate in a 112-button grid with a visible field of 6"); }
-  else if(id == 'diff-28-112') { long_name = i18n.t('diff-28-112-name', "Discriminate in a 112-button grid with a visible field of 28"); }
-  else if(id == 'diff-56-112') { long_name = i18n.t('diff-56-112-name', "Discriminate in a 112-button grid with a visible field of 56"); }
-  else if(id == 'diff-112') { long_name = i18n.t('diff-112-name', "Discriminate in a field of 112"); }
-  else if(id == 'diff-112-shuffle') { long_name = i18n.t('diff-112-shuffle-name', "Discriminate in a field of 112 (shuffled targets)"); }
-  else if(id == 'symbols-below') { long_name = '(' + library.key + ') ' + i18n.t('symbols-below-name', "Find symbol at a simpler-than-mastered grid size"); }
-  else if(id == 'symbols-at') { long_name = '(' + library.key + ') ' + i18n.t('symbols-at-name', "Find symbol at a mastered grid size"); }
-  else if(id == 'symbols-above') { long_name = '(' + library.key + ') ' + i18n.t('symbols-above-name', "Find symbol at a more difficult mastered grid size"); }
-  else if(id == 'noun-find') { long_name = i18n.t('noun-find-name', "Find nouns by name"); }
-  else if(id == 'adjective-find') { long_name = i18n.t('adjective-find-name', "Find adjectives by name"); }
-  else if(id == 'verb-find') { long_name = i18n.t('verb-find-name', "Find verbs by name"); }
-  else if(id == 'core-find') { long_name = i18n.t('core-find-name', "Find core words by name"); }
-  else if(id == 'core-find+') { long_name = i18n.t('core-find+-name', "Find core words by name on a larger grid size"); }
-  else if(id == 'open-core') { long_name = i18n.t('open-core-name', "Make observations about picture prompts using core words"); }
-  else if(id == 'open-keyboard') { long_name = i18n.t('open-keyboard-name', "Make observations about picture prompts using a keyboard"); }
-  else if(id == 'functional') { long_name = i18n.t('functional-name', "Find based on a prompt of functional usage"); }
-  else if(id == 'functional-association') { long_name = i18n.t('functional-association-name', "Find action for the named object"); }
-  else if(id == 'find-the-group') { long_name = i18n.t('find-the-group-name', "Find group for the named object or concept"); }
-  else if(id == 'what-kind') { long_name = i18n.t('what-kind-name', "Find object based on a photograph and group-based prompt"); }
-  else if(id == 'inclusion') { long_name = i18n.t('inclusion-name', "Find which belongs in the named category"); }
-  else if(id == 'exclusion') { long_name = i18n.t('exclusion-name', "Find which does not belong in the named category"); }
-  else if(id == 'association') { long_name = i18n.t('association-name', "Find which is associated with the named object"); }
-  else if(id == 'word-description') { long_name = i18n.t('word-description-name', "Find the word that matches the picture's name"); }
-  else if(id == 'word-category') { long_name = i18n.t('word-category-name', "Find the word that is a category the picture belongs to"); }
-  else if(id == 'word-descriptor') { long_name = i18n.t('word-descriptor-name', "Find the word that describes the picture"); }
+  if(id == 'find-2') { long_name = evaluation.i18n.t('find-2-name', "Find in a field of 2"); }
+  else if(id == 'find-3') { long_name = evaluation.i18n.t('find-3-name', "Find in a field of 3"); }
+  else if(id == 'find-4') { long_name = evaluation.i18n.t('find-4-name', "Find in a field of 4"); }
+  else if(id == 'find-8') { long_name = evaluation.i18n.t('find-8-name', "Find in a field of 8"); }
+  else if(id == 'find-15') { long_name = evaluation.i18n.t('find-15-name', "Find in a field of 15"); }
+  else if(id == 'find-6-24') { long_name = evaluation.i18n.t('find-6-24-name', "Find in a 24-button grid with a visible field of 6"); }
+  else if(id == 'find-24') { long_name = evaluation.i18n.t('find-24-name', "Find in a field of 24"); }
+  else if(id == 'find-6-60') { long_name = evaluation.i18n.t('find-6-60-name', "Find in a 60-button grid with a visible field of 6"); }
+  else if(id == 'find-15-60') { long_name = evaluation.i18n.t('find-15-60-name', "Find in a 60-button grid with a visible field of 15"); }
+  else if(id == 'find-30-60') { long_name = evaluation.i18n.t('find-30-60-name', "Find in a 60-button grid with a visible field of 30"); }
+  else if(id == 'find-60') { long_name = evaluation.i18n.t('find-60-name', "Find in a field of 60"); }
+  else if(id == 'find-6-112') { long_name = evaluation.i18n.t('find-6-112-name', "Find in a 112-button grid with a visible field of 6"); }
+  else if(id == 'find-28-112') { long_name = evaluation.i18n.t('find-28-112-name', "Find in a 112-button grid with a visible field of 28"); }
+  else if(id == 'find-56-112') { long_name = evaluation.i18n.t('find-56-112-name', "Find in a 112-button grid with a visible field of 56"); }
+  else if(id == 'find-112') { long_name = evaluation.i18n.t('find-112-name', "Find in a field of 112"); }
+  else if(id == 'diff-2') { long_name = evaluation.i18n.t('diff-2-name', "Discriminate in a field of 2"); }
+  else if(id == 'diff-3') { long_name = evaluation.i18n.t('diff-3-name', "Discriminate in a field of 3"); }
+  else if(id == 'diff-4') { long_name = evaluation.i18n.t('diff-4-name', "Discriminate in a field of 4"); }
+  else if(id == 'diff-8') { long_name = evaluation.i18n.t('diff-8-name', "Discriminate in a field of 8"); }
+  else if(id == 'diff-15') { long_name = evaluation.i18n.t('diff-15-name', "Discriminate in a field of 15"); }
+  else if(id == 'diff-6-24') { long_name = evaluation.i18n.t('diff-6-24-name', "Discriminate in a 24-button grid with a visible field of 6"); }
+  else if(id == 'diff-24') { long_name = evaluation.i18n.t('diff-24-name', "Discriminate in a field of 24"); }
+  else if(id == 'diff-24-shuffle') { long_name = evaluation.i18n.t('diff-24-shuffle-name', "Discriminate in a field of 24 (shuffled targets)"); }
+  else if(id == 'diff-6-60') { long_name = evaluation.i18n.t('diff-6-60-name', "Discriminate in a 60-button grid with a visible field of 6"); }
+  else if(id == 'diff-15-60') { long_name = evaluation.i18n.t('diff-15-60-name', "Discriminate in a 60-button grid with a visible field of 15"); }
+  else if(id == 'diff-30-60') { long_name = evaluation.i18n.t('diff-30-60-name', "Discriminate in a 60-button grid with a visible field of 30"); }
+  else if(id == 'diff-60') { long_name = evaluation.i18n.t('diff-60-name', "Discriminate in a field of 60"); }
+  else if(id == 'diff-60-shuffle') { long_name = evaluation.i18n.t('diff-60-shuffle-name', "Discriminate in a field of 60 (shuffled targets)"); }
+  else if(id == 'diff-6-112') { long_name = evaluation.i18n.t('diff-6-112-name', "Discriminate in a 112-button grid with a visible field of 6"); }
+  else if(id == 'diff-28-112') { long_name = evaluation.i18n.t('diff-28-112-name', "Discriminate in a 112-button grid with a visible field of 28"); }
+  else if(id == 'diff-56-112') { long_name = evaluation.i18n.t('diff-56-112-name', "Discriminate in a 112-button grid with a visible field of 56"); }
+  else if(id == 'diff-112') { long_name = evaluation.i18n.t('diff-112-name', "Discriminate in a field of 112"); }
+  else if(id == 'diff-112-shuffle') { long_name = evaluation.i18n.t('diff-112-shuffle-name', "Discriminate in a field of 112 (shuffled targets)"); }
+  else if(id == 'symbols-below') { long_name = '(' + library.key + ') ' + evaluation.i18n.t('symbols-below-name', "Find symbol at a simpler-than-mastered grid size"); }
+  else if(id == 'symbols-at') { long_name = '(' + library.key + ') ' + evaluation.i18n.t('symbols-at-name', "Find symbol at a mastered grid size"); }
+  else if(id == 'symbols-above') { long_name = '(' + library.key + ') ' + evaluation.i18n.t('symbols-above-name', "Find symbol at a more difficult mastered grid size"); }
+  else if(id == 'noun-find') { long_name = evaluation.i18n.t('noun-find-name', "Find nouns by name"); }
+  else if(id == 'adjective-find') { long_name = evaluation.i18n.t('adjective-find-name', "Find adjectives by name"); }
+  else if(id == 'verb-find') { long_name = evaluation.i18n.t('verb-find-name', "Find verbs by name"); }
+  else if(id == 'core-find') { long_name = evaluation.i18n.t('core-find-name', "Find core words by name"); }
+  else if(id == 'core-find+') { long_name = evaluation.i18n.t('core-find+-name', "Find core words by name on a larger grid size"); }
+  else if(id == 'open-core') { long_name = evaluation.i18n.t('open-core-name', "Make observations about picture prompts using core words"); }
+  else if(id == 'open-keyboard') { long_name = evaluation.i18n.t('open-keyboard-name', "Make observations about picture prompts using a keyboard"); }
+  else if(id == 'functional') { long_name = evaluation.i18n.t('functional-name', "Find based on a prompt of functional usage"); }
+  else if(id == 'functional-association') { long_name = evaluation.i18n.t('functional-association-name', "Find action for the named object"); }
+  else if(id == 'find-the-group') { long_name = evaluation.i18n.t('find-the-group-name', "Find group for the named object or concept"); }
+  else if(id == 'what-kind') { long_name = evaluation.i18n.t('what-kind-name', "Find object based on a photograph and group-based prompt"); }
+  else if(id == 'inclusion') { long_name = evaluation.i18n.t('inclusion-name', "Find which belongs in the named category"); }
+  else if(id == 'exclusion') { long_name = evaluation.i18n.t('exclusion-name', "Find which does not belong in the named category"); }
+  else if(id == 'association') { long_name = evaluation.i18n.t('association-name', "Find which is associated with the named object"); }
+  else if(id == 'word-description') { long_name = evaluation.i18n.t('word-description-name', "Find the word that matches the picture's name"); }
+  else if(id == 'word-category') { long_name = evaluation.i18n.t('word-category-name', "Find the word that is a category the picture belongs to"); }
+  else if(id == 'word-descriptor') { long_name = evaluation.i18n.t('word-descriptor-name', "Find the word that describes the picture"); }
   return long_name;
 };
 

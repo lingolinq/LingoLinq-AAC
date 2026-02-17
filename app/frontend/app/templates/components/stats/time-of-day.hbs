@@ -1,6 +1,6 @@
-<div class={{elem_class}} style={{elem_style}}>
+<div class={{this.elem_class}} style={{this.elem_style}}>
   <h3>
-    {{#if usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
+    {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
     {{t "Time of Day" key="time_of_day"}}
   </h3>
   <div class="time_block_rows">
@@ -31,7 +31,7 @@
       <div class="time_block_top">12</div>
       <div style="clear: left;"></div>
     </div>
-    {{#each usage_stats.local_time_blocks as |wday|}}
+    {{#each this.usage_stats.local_time_blocks as |wday|}}
       <div class="time_block_row">
         <div class="time_block_left">
           {{wday.day}}

@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({

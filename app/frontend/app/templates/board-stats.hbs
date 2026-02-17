@@ -7,33 +7,33 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if stats}}
-      {{# if stats.error}}
+    {{#if this.stats}}
+      {{# if this.stats.error}}
         {{t "Stats failed to load" key="stats_failed_to_load"}}
       {{else}}
         <dl class="dl-horizontal">
           <dt>{{t "Uses" key="people_using_this_board"}}</dt>
-          <dd>{{t "%{num} people use this board" num=stats.uses key="n_people_use_this_board"}}</dd>
+          <dd>{{t "%{num} people use this board" num=this.stats.uses key="n_people_use_this_board"}}</dd>
 
-          {{#if model.using_user_names}}
+          {{#if this.model.using_user_names}}
             <dt>{{t "Known Users" key="known_users"}}</dt>
-            <dd><div style='max-height: 50px; overflow: auto;'>{{using_user_names}}</div></dd>
+            <dd><div style='max-height: 50px; overflow: auto;'>{{this.using_user_names}}</div></dd>
           {{/if}}
 
           <dt>{{t "Home Uses" key="people_using_this_home_board"}}</dt>
-          <dd>{{t "%{num} people use this as their home board" num=stats.home_uses key="n_people_use_this_home_board"}}</dd>
+          <dd>{{t "%{num} people use this as their home board" num=this.stats.home_uses key="n_people_use_this_home_board"}}</dd>
 
           <dt>{{t "Likes" key="stars"}}</dt>
-          <dd>{{ stats.stars }}</dd>
+          <dd>{{ this.stats.stars }}</dd>
 
           <dt>{{t "Copies" key="forks"}}</dt>
-          <dd>{{ stats.forks }}</dd>
+          <dd>{{ this.stats.forks }}</dd>
 
           <dt>{{t "Popular Copies" key="popular_forks"}}</dt>
           <dd>
-            {{#if stats.popular_forks}}
+            {{#if this.stats.popular_forks}}
               <ul>
-              {{#each stats.popular_forks as |fork|}}
+              {{#each this.stats.popular_forks as |fork|}}
                 <li>
                   {{#link-to "board" fork.key}}
                     {{fork.key}}
@@ -61,8 +61,8 @@
         </dl>
       {{/if}}
     {{else}}
-      {{#if persistence.online}}
-        {{#if app_state.currentUser}}
+      {{#if (persistence-online)}}
+        {{#if this.app_state.currentUser}}
           {{t "Loading..." key="loading"}}
         {{else}}
           <p class="text-danger">{{t "Must be logged in to see board stats" key="must_be_logged_for_board_state"}}</p>

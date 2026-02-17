@@ -1,6 +1,6 @@
 <div>
   <span style='width: calc(100% - 50px); display: inline-block; margin-bottom: 5px;'>
-    {{input value=geos class="form-control" placeholder="latitude,longitude"}}
+    <Input @value={{this.geos}} class="form-control" placeholder="latitude,longitude" />
   </span>
   <button class='btn btn-default' {{action "mark_center"}}><span class='glyphicon glyphicon-screenshot'></span></button>
 </div>

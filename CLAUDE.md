@@ -1,3 +1,13 @@
+---
+description: 
+alwaysApply: true
+---
+
+---
+description: 
+alwaysApply: true
+---
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -13,7 +23,15 @@ Key characteristics:
 - Uses Open Board Format (OBF) for board import/export
 - Deployed on Heroku with background job processing via Resque
 
-## Development Commands
+## Development considerations
+LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
+in templates or modals and alerts, you will need to use the internationalization libraries
+in order to support locales. Do net ever add raw text strings to any user-facing 
+resources, always use the i18n helpers. You can find examples of the helpers 
+throughout the code, using
+commands such as `i18n.t('key', "string")` or `{{t "this is some test" key='key'}}`. Instructions for generating and processing string files is located in `/i18n_generator.rb`.
+NOTE: as a standardized convention for the codebase, all user-facing strings should use
+double-quotes and all other strings should use single quotes.
 
 ### Backend (Rails)
 
@@ -227,6 +245,10 @@ rake extras:desktop
 ## Development Conventions
 
 ### Code Style
+
+**Callback and plain-object context:**
+- When a computed property or function returns a **plain object** whose methods are later called (e.g. `appState.get('board_virtual_dom').button_from_point(x,y)`), inside those methods `this` is the plain object, not the Ember service/controller. Use a closure: `var _this = this;` at the top of the computed/function, then use `_this.get()` / `_this.set()` inside the returned object's methods. Same for callbacks passed to `new RSVP.Promise()`, `.then()`, or `forEach`: capture the outer `this` as `_this` and use `_this` in the callback so "this.get is not a function" does not occur.
+- **ESLint:** The custom rule `lingolinq/no-this-in-promise-executor` flags `this.get` / `this.set` inside the executor function of `new RSVP.Promise(function(resolve, reject) { ... })`. In that callback, `this` is not the service/controller, so using `_this` avoids runtime errors. The rule only checks Promise executors (not every `.then()` or plain object), to limit false positives while catching a common mistake.
 
 **String Quoting Convention:**
 - **User-facing strings:** ALWAYS use double quotes `"string"`

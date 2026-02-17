@@ -1,20 +1,20 @@
-<div id="within_ember" class={{background_class}}>
-<header class={{header_class}}>
+<div id="within_ember" class={{this.background_class}}>
+<header class={{this.header_class}}>
   <div id="inner_header">
-  {{#if app_state.speak_mode}}
+  {{#if this.app_state.speak_mode}}
     <span id="speak">
       <button class="btn btn-default access" {{action "home"}}>
         <span class="sr-only">{{t "Home" key="home"}}</span>
         <span class="glyphicon glyphicon-home button_icon"></span>
       </button>
-      {{#unless app_state.empty_board_history}}
+      {{#unless this.app_state.empty_board_history}}
         <button class="btn btn-default access skinnier" {{action "back"}}>
           <span class="sr-only">{{t "Back" key="back"}}</span>
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/unless}}
-      <a href='#' tabindex="0" id="button_list" class={{button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-        {{#with app_state.button_list as |button_list|}}
+      <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+        {{#with this.app_state.button_list as |button_list|}}
           {{button-list buttonList=button_list}}
         {{/with}}
       </a>
@@ -30,45 +30,45 @@
     </span>
   {{else}}
     <span id="nav_header">
-    <h1 class={{if app_state.currentBoardState "with_board"}}>
+    <h1 class={{if this.app_state.currentBoardState "with_board"}}>
       <a href="#" {{action "index"}}>
-        <img src={{if app_state.domain_settings.logo_url app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
+        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
         <span class="label label-primary">{{t "BETA" key="beta"}}</span>
       </a>
     </h1>
-    {{#if app_state.currentBoardState.id}}
-      {{#unless app_state.edit_mode}}
+    {{#if this.app_state.currentBoardState.id}}
+      {{#unless this.app_state.edit_mode}}
         <span style="font-size: 14px; position: absolute; left: 60px; top: 47px; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-          {{#if app_state.current_board_is_home}}
+          {{#if this.app_state.current_board_is_home}}
             <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 16px; width: 16px; vertical-align: top;">
           {{else}}
-            {{#if board.model.image_url}}
-              <img src={{board.model.image_url}} style="width: 16px; height: 16px;">
+            {{#if this.board.model.image_url}}
+              <img src={{this.board.model.image_url}} style="width: 16px; height: 16px;">
             {{/if}}
 
           {{/if}}
 
-          {{#link-to "user" app_state.current_board_user_name}}{{this.app_state.current_board_user_name}}{{/link-to}} /
+          {{#link-to "user" this.app_state.current_board_user_name}}{{this.app_state.current_board_user_name}}{{/link-to}} /
           {{this.app_state.current_board_name}}
         </span>
       {{/unless}}
     {{/if}}
-    {{#if app_state.empty_header}}
-      {{#if persistence.online}}
+    {{#if this.app_state.empty_header}}
+      {{#if (persistence-online)}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          {{input type="text" value=searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+          <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
           </div>
           <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
         </form>
       {{/if}}
     {{/if}}
-    {{#if app_state.edit_mode}}
-      {{#if dragMode}}
+    {{#if this.app_state.edit_mode}}
+      {{#if this.dragMode}}
         <button class="btn btn-default drag_button" id="edit_clear_button" style="position: relative; width: 300px;">
           {{t "Clear Button" key="clear_button"}}
         </button>
@@ -76,16 +76,16 @@
           {{t "Copy Button to Stash" key="copy_button_to_stash"}}
         </button>
       {{else}}
-        <button class={{no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
+        <button class={{this.no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
         <span class="dropdown" style="display: inline-block;">
-          <button class={{paint_mode_class}} data-toggle="dropdown">
+          <button class={{this.paint_mode_class}} data-toggle="dropdown">
             <span class="wide">{{t "Paint" key="paint"}}</span><span class="skinny glyphicon glyphicon-tint"></span>
-            {{#if board.paint_mode}}
-              {{board.paintColor}}
+            {{#if this.board.paint_mode}}
+              {{this.board.paintColor}}
             {{/if}}
           </button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-            {{#each swatches as |swatch|}}
+            {{#each this.swatches as |swatch|}}
               <li role="presentation">
                 <a role="menuitem" href="#" tabindex="-1" {{action "paint" swatch.fill swatch.border}}>
                   <span class="swatch" style={{swatch.style}}></span>
@@ -109,8 +109,8 @@
           </ul>
         </span>
         <span style="padding-right: 10px;"></span>
-        <button class="btn btn-default wide" {{action "undoEdit"}} disabled={{board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
-        <button class="btn btn-default wide" {{action "redoEdit"}} disabled={{board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
+        <button class="btn btn-default wide" {{action "undoEdit"}} disabled={{this.board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
+        <button class="btn btn-default wide" {{action "redoEdit"}} disabled={{this.board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
         <span class="dropdown" style="display: inline-block;">
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
@@ -131,10 +131,10 @@
         <span class="dropdown" style="display: inline-block;">
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-            <li role="presentation" class={{undo_class}}>
+            <li role="presentation" class={{this.undo_class}}>
               <a role="menuitem" href="#" tabindex="-1" {{action "undoEdit"}}>{{t "Undo" key="undo"}}</a>
             </li>
-            <li role="presentation" class={{redo_class}}>
+            <li role="presentation" class={{this.redo_class}}>
               <a role="menuitem" href="#" tabindex="-1" {{action "redoEdit"}} disabled="true">{{t "Redo" key="redo"}}</a>
             </li>
             <li role="presentation">
@@ -149,17 +149,17 @@
         <button class="btn btn-default" {{action "resetBoard"}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
       {{/if}}
     {{else}}
-      {{#if app_state.currentBoardState}}
+      {{#if this.app_state.currentBoardState}}
         <span id="normal_mode">
-          {{#unless app_state.empty_board_history}}
+          {{#unless this.app_state.empty_board_history}}
             <a class="btn btn-default" href="#" {{action "back"}}>
               <span class="glyphicon glyphicon-arrow-left"></span>
               <span class="hidden">{{t "back" key="back_lower"}}</span>
             </a>
           {{/unless}}
-          {{#if app_state.currentBoardState.id}}
-            {{#if app_state.speak_mode_possible}}
-              {{#if app_state.currentUser.supervisees}}
+          {{#if this.app_state.currentBoardState.id}}
+            {{#if this.app_state.speak_mode_possible}}
+              {{#if this.app_state.currentUser.supervisees}}
                 <div class="btn-group">
                   <a class="btn btn-primary dropdown-toggle" data-toggle="dropdown" href="#" id="speak_mode" data-placement="bottom" data-trigger="manual">
                     <span class="wide">{{t "Speak Mode" key="speak_mode"}}</span><span class="skinny real_skinny glyphicon glyphicon-volume-up"></span>
@@ -167,7 +167,7 @@
                   </a>
                   <ul class="dropdown-menu" role="menu">
                     <li><a href="#" {{action "setSpeakModeUser" "self"}}>{{t "speak as" key="speak_as_lower"}} me</a></li>
-                    {{#each app_state.currentUser.known_supervisees as |supervisee|}}
+                    {{#each this.app_state.currentUser.known_supervisees as |supervisee|}}
                       <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</a></li>
                     {{/each}}
                   </ul>
@@ -178,17 +178,17 @@
                 </a>
               {{/if}}
             {{/if}}
-            {{#if app_state.currentUser}}
-              {{#if board.model.copy.key}}
+            {{#if this.app_state.currentUser}}
+              {{#if this.board.model.copy.key}}
                 <!-- TODO: no idea why this is necessary -->
                 <span style="margin-right: -1px;">
-                {{#link-to "board" board.model.copy.key class="btn btn-info"}}
+                <LinkTo @route="board" @model={{this.board.model.copy.key}} class="btn btn-info">
                   <span class="wide">{{t "My Copy" key="my_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
-                {{/link-to}}
+                </LinkTo>
                 </span>
               {{/if}}
 
-              {{#if board.model.permissions.edit}}
+              {{#if this.board.model.permissions.edit}}
                 <a class='btn btn-default' href="#" {{action "toggleEditMode"}}>
                   <span class="wide">{{t "Edit Board" key="edit_board"}}</span><span class="skinny real_skinny glyphicon glyphicon-pencil"></span>
                 </a>
@@ -197,26 +197,26 @@
                   <span class="wide">{{t "Make a Copy" key="make_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                 </a>
               {{/if}}
-              {{#unless app_state.current_board_is_home}}
-                {{#unless app_state.currentUser.preferences.home_board}}
+              {{#unless this.app_state.current_board_is_home}}
+                {{#unless this.app_state.currentUser.preferences.home_board}}
                   <a class="btn btn-default" href="#" {{action "setAsHome"}}>
                     <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                   </a>
                 {{/unless}}
               {{/unless}}
             {{/if}}
-            {{#if app_state.currentUser}}
+            {{#if this.app_state.currentUser}}
               <a class='btn btn-default' href="#" {{action "star"}}>
-                <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;">
-                <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{board.stars}}</span>
+                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
+                <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </a>
             {{else}}
               <span class='btn btn-default' href="#">
-                <img src={{board.starImage}} alt={{board.starAlt}} style="margin-top: -5px; width: 20px;">
-                <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{board.stars}}</span>
+                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
+                <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </span>
             {{/if}}
-            {{#if board.model.shareable}}
+            {{#if this.board.model.shareable}}
               <a class='btn btn-default' href="#" {{action "shareBoard"}}>
                 <span class="wide">{{t "Share" key="share"}}</span><span class="skinny real_skinny glyphicon glyphicon-share"></span>
               </a>
@@ -229,11 +229,11 @@
                 <li role="presentation">
                   <a role="menuitem" tabindex="-1" href="#" {{action "boardDetails"}}>{{t "Board Details" key="board_details"}}</a>
                 </li>
-                {{#if app_state.currentUser}}
+                {{#if this.app_state.currentUser}}
                 <li role="presentation">
                   <a role="menuitem" tabindex="-1" href="#" {{action "tweakBoard"}}>{{t "Make a Copy" key="make_copy"}}</a>
                 </li>
-                {{#unless app_state.current_board_is_home}}
+                {{#unless this.app_state.current_board_is_home}}
                   <li role="presentation">
                     <a role="menuitem" tabindex="-1" href="#" {{action "setAsHome"}}>{{t "Set as Home Board" key="set_as_home_board"}}</a>
                   </li>
@@ -245,7 +245,7 @@
                 <li role="presentation">
                   <a role="menuitem" tabindex="-1" href="#" {{action "printBoard"}}>{{t "Print Board" key="print_board"}}</a>
                 </li>
-                {{#if board.model.permissions.edit}}
+                {{#if this.board.model.permissions.edit}}
                   <li role="presentation">
                     <a role="menuitem" tabindex="-1" href="#" {{action "renameBoard"}}>{{t "Rename Board" key="rename_board"}}</a>
                   </li>
@@ -261,18 +261,18 @@
     {{/if}}
     </span>
   {{/if}}
-    <span id="identity" class={{if app_state.speak_mode "advanced_selection"}}>
+    <span id="identity" class={{if this.app_state.speak_mode "advanced_selection"}}>
       <span class="dropdown" style="display: inline-block;">
         <a class='btn btn-default' href="#" data-toggle="dropdown">
-          {{#if app_state.currentUser}}
+          {{#if this.app_state.currentUser}}
             <img src={{this.app_state.currentUser.avatar_url_with_fallback}} >
-            {{#if app_state.currentUser.unread_messages}}
+            {{#if this.app_state.currentUser.unread_messages}}
               <span class="label label-danger unread">{{this.app_state.currentUser.unread_messages}}</span>
             {{/if}}
           {{else}}
             <img src={{path "images/settings.png"}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;">
           {{/if}}
-          {{#if session.isAuthenticated}}
+          {{#if this.session.isAuthenticated}}
             <span class="user_name">
             {{this.app_state.currentUser.user_name}}
             </span>
@@ -284,49 +284,49 @@
           <span class="caret"></span>
         </a>
         <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: inherit; text-align: left;">
-          {{#if app_state.speak_mode}}
+          {{#if this.app_state.speak_mode}}
             <li role="presentation" style="font-size: 20px;">
               <a href="#" {{action "toggleSpeakMode"}}>{{t "Exit Speak Mode" key="exit_speak_mode"}}</a>
             </li>
-            {{#unless app_state.currentUser.preferences.require_speak_mode_pin}}
-              {{#if session.isAuthenticated}}
+            {{#unless this.app_state.currentUser.preferences.require_speak_mode_pin}}
+              {{#if this.session.isAuthenticated}}
                 <li class="divider"></li>
               {{/if}}
             {{/unless}}
           {{/if}}
-          {{#unless app_state.limited_speak_mode_options}}
-            {{#if session.isAuthenticated}}
+          {{#unless this.app_state.limited_speak_mode_options}}
+            {{#if this.session.isAuthenticated}}
               <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
-              {{#unless app_state.index_view}}
+              {{#unless this.app_state.index_view}}
                 <li role="presentation">
                   {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
               <li role="presentation">
-                {{#link-to "user" app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
+                {{#link-to "user" this.app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
               </li>
             {{else}}
-              {{#unless app_state.index_view}}
+              {{#unless this.app_state.index_view}}
                 <li role="presentation">
                   {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
             {{/if}}
           {{/unless}}
-          {{#unless superProtectedSpeakMode}}
-            {{#if app_state.currentBoardState}}
+          {{#unless this.superProtectedSpeakMode}}
+            {{#if this.app_state.currentBoardState}}
               <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key="find_a_button"}}</a></li>
             {{/if}}
-            {{#if session.isAuthenticated}}
-              {{#if app_state.currentBoardState}}
-                {{#if app_state.speak_mode}}
-                  {{#if stashes.sticky_board}}
+            {{#if this.session.isAuthenticated}}
+              {{#if this.app_state.currentBoardState}}
+                {{#if this.app_state.speak_mode}}
+                  {{#if this.stashes.sticky_board}}
                     <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
                   {{else}}
                     <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
                   {{/if}}
-                  {{#if app_state.currentUser.preferences.logging}}
-                    {{#if app_state.logging_paused}}
+                  {{#if this.app_state.currentUser.preferences.logging}}
+                    {{#if this.app_state.logging_paused}}
                       <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Resume Logging" key="resume_logging"}}</a></li>
                     {{else}}
                       <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Pause Logging" key="pause_logging"}}</a></li>
@@ -336,30 +336,30 @@
               {{/if}}
             {{/if}}
           {{/unless}}
-          {{#unless app_state.limited_speak_mode_options}}
-            {{#if session.isAuthenticated}}
-              {{#unless app_state.speak_mode}}
+          {{#unless this.app_state.limited_speak_mode_options}}
+            {{#if this.session.isAuthenticated}}
+              {{#unless this.app_state.speak_mode}}
                 <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key="find_board"}}{{/link-to}}</li>
                 <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
               {{/unless}}
-              <li>{{#link-to "user.preferences" app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
-              <li>{{#link-to "user.logs" app_state.currentUser.user_name (query-params type="note")}}
-                {{#if app_state.currentUser.unread_messages}}
+              <li>{{#link-to "user.preferences" this.app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
+              <li>{{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
+                {{#if this.app_state.currentUser.unread_messages}}
                   <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
                 {{/if}}
                 {{t "Messages" key="messages"}}
               {{/link-to}}</li>
-              {{#if session.as_user_id}}
+              {{#if this.session.as_user_id}}
                 <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
-              {{#unless app_state.speak_mode}}
+              {{#unless this.app_state.speak_mode}}
                 <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
               <li role="presentation">
-                <a href="#" {{action "authenticateSession"}}>{{t "Sign In" key="login"}}</a>
+                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
               </li>
-              {{#if app_state.domain_settings.full_domain}}
+              {{#if this.app_state.domain_settings.full_domain}}
                 <li role="presentation">
                   {{#link-to "register"}}{{t "Register" key="register"}}{{/link-to}}
                 </li>
@@ -371,14 +371,14 @@
     </span>
   </div>
 </header>
-<div id="content" class={{content_class}}>
+<div id="content" class={{this.content_class}}>
   {{ outlet }}
 </div>
-{{#if app_state.sidebar_visible}}
-  <div id="sidebar" style={{sidebar_style}} class="advanced_selection">
-    {{#unless app_state.currentUser.preferences.quick_sidebar}}
+{{#if this.app_state.sidebar_visible}}
+  <div id="sidebar" style={{this.sidebar_style}} class="advanced_selection">
+    {{#unless this.app_state.currentUser.preferences.quick_sidebar}}
       <span style="margin: 5px; text-align: right;">
-        {{#if app_state.currentUser}}
+        {{#if this.app_state.currentUser}}
           <button class='btn btn-default' style="width: 52px;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
           <button class='btn btn-default' {{action "toggleSidebar"}}>&times;</button>
         {{else}}
@@ -386,21 +386,21 @@
         {{/if}}
       </span>
     {{/unless}}
-    {{#each app_state.currentUser.sidebar_boards_with_fallbacks as |board|}}
+    {{#each this.app_state.currentUser.sidebar_boards_with_fallbacks as |board|}}
       {{#if board.alert}}
         <a href="#" {{action "alert" "sidebar"}}>
           {{board.name}}
           <img src={{board.image}} style="width: 50px;" alt="">
         </a>
       {{else}}
-        <a href={{board.key}} {{action "jump" board.key "sidebar"}}>
+        <a href='#' {{action "jump" board.key "sidebar" board}}>
           {{board.name}}
           <img src={{board.image}} style="width: 50px;" alt="">
         </a>
       {{/if}}
     {{/each}}
-    {{#if app_state.currentUser.preferences.quick_sidebar}}
-      {{#unless app_state.currentUser.preferences.lock_quick_sidebar}}
+    {{#if this.app_state.currentUser.preferences.quick_sidebar}}
+      {{#unless this.app_state.currentUser.preferences.lock_quick_sidebar}}
         <span style="margin: 5px; text-align: right;">
           <button class='btn btn-default' style="width: 90px; margin-bottom: 5px; " {{action "stickSidebar"}}>Hide</button>
         </span>
@@ -408,8 +408,8 @@
     {{/if}}
   </div>
 {{else}}
-  {{#if app_state.speak_mode}}
-    {{#unless app_state.currentUser.preferences.disable_quick_sidebar}}
+  {{#if this.app_state.speak_mode}}
+    {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       <div id="sidebar_tease" class="advanced_selection" {{action "toggleSidebar"}}>
         {{t "sidebar" key="sidebar"}}
       </div>
@@ -417,50 +417,49 @@
   {{/if}}
 {{/if}}
 
-{{outlet "modal"}}
 {{outlet "flash-message"}}
   <footer>
     <div class="wide_links">
       <div class="row">
         <div class='col-sm-4'>
           <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key="app_name"}}</span>
-          {{#if app_state.installed_app}}
+          {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
           {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}} <span class='text-muted'>|</span>
-          {{#unless app_state.installed_app}}
-            {{#if app_state.feature_flags.subscriptions}}
-              {{#if app_state.domain_settings.full_domain}}
+          {{#unless this.app_state.installed_app}}
+            {{#if this.app_state.feature_flags.subscriptions}}
+              {{#if this.app_state.domain_settings.full_domain}}
                 {{#link-to "pricing"}}{{t "Pricing" key="pricing"}}{{/link-to}} <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
-          {{#if app_state.domain_settings.support_url}}
+          {{#if this.app_state.domain_settings.support_url}}
             <a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "Support" key="support"}}</a>
           {{/if}}
-          {{#unless app_state.installed_app}}
+          {{#unless this.app_state.installed_app}}
             <span class='text-muted'>|</span>
             {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
           {{/unless}}
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
-          {{#unless app_state.installed_app}}
+          {{#unless this.app_state.installed_app}}
             <a href="https://github.com/LingoLinq" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
           {{/unless}}
           {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
           {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
         </div>
-        {{#if persistence.online}}
+        {{#if (persistence-online)}}
           <div class='col-sm-2'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons">
-              {{#if app_state.domain_settings.blog_url}}
+              {{#if this.app_state.domain_settings.blog_url}}
                 <a href={{this.app_state.domain_settings.blog_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}></a>
               {{/if}}
-              {{#if app_state.domain_settings.twitter_url}}
+              {{#if this.app_state.domain_settings.twitter_url}}
                 <a href={{this.app_state.domain_settings.twitter_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}></a>
               {{/if}}
-              {{#if app_state.domain_settings.facebook_url}}
+              {{#if this.app_state.domain_settings.facebook_url}}
                 <a href={{this.app_state.domain_settings.facebook_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}></a>
               {{/if}}
             </span>
@@ -479,7 +478,7 @@
           <li>
             {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}}
           </li>
-          {{#if app_state.domain_settings.support_url}}
+          {{#if this.app_state.domain_settings.support_url}}
             <li>
               <a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener">{{t "Support" key="support"}}</a>
             </li>
@@ -490,17 +489,17 @@
           <li>
             {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
           </li>
-        {{#if persistence.online}}
+        {{#if (persistence-online)}}
           <li>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons" style="padding-left: 17px;">
-              {{#if app_state.domain_settings.blog_url}}
+              {{#if this.app_state.domain_settings.blog_url}}
                 <a href={{this.app_state.domain_settings.blog_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACXklEQVRIS7WVTUhWQRSGtTKoNloR0Q9oYRJBBWJKixZKJBhFi4xQsRDMEAURFTIpopBAXFhoYVCLggraVIukXIkVJUFkSm0qiKiwRRYZhdbzfsyVYZzvXq/gwMO9c+45887fOTc1ZZ5b6jyPnxIlsIAJ7ID9sAVWwRR8hedwF16FTTJMYBeBnZAbscqHfG9MJuQTWGgGro+xfZP4tsJ5N8YncAWnqhiD264n6LTbBlegwcx+juMnzueAOZvEGLbAOvpvYYk1egXvfZAJe+EwZEeof+R7DvxyBXow1DjB1fR7Ldsi3o+abVgRItTEtw5bQAf7GVZ6giawPYM7Ruw3z41wDzYnERnCnmcL5NN56nG+he0TFMI2eAdl8ARWg3JBW+u2fxiUM2PBGRykc9vjqDO4buy7eV6CtVAKSjJN7DEoId2m/HkRCByn0+1xuo/tEWgl2sLl8AC0NcrwUbgGlZ7YYmx9gcAhOjc9ToHpJy+6ADdgDYzAIJTAJnjjidUZDAUCO02A6/cDg26RtqIA9kA/tMEZyIL3MAyqVXbTGX0JBNLoqIClO06qMapHy+AbqLBpZsoF5YxWdRl0Nses2Je8b1ffTrSr9I84AjqXWtCevzbfMniOgxLpAjRDsKIg/CQv51yBDRh0aIsdEc1UV3GpsWsVf2ArfIcPoCu53nzXTmiFmsSM/8FpbKccgbjdcgJ0GRLNLXa6z7rfuh1zaRcJqrMDfeVa9eYstMRQ+Iuv6k8XKIunW9gfbR9eKlhR1VPlQmVeeTGjRf2TdeBFEPZPHnBnPdsVxNih5K7/AWkxbhmNkzfzAAAAAElFTkSuQmCC" alt={{t "Blog" key="blog"}}></a>
               {{/if}}
-              {{#if app_state.domain_settings.twitter_url}}
+              {{#if this.app_state.domain_settings.twitter_url}}
                 <a href={{this.app_state.domain_settings.twitter_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACPUlEQVRIS7WVTUhVURDH3+tbsGghEiElQrSohSAZuHBjkhBUmxApKDFIwYpEEylQorDEIip0I2mLQNoEuVEDNxIEStg3tAuCMhTNpIgw+/3lnjiNx/v0gQM/7pk5c2bumfOVTKyyJFc5fiJVgjX8QCEcgT2QDX/gK4zAE3gd95NxCYoZeAsKUszyKf118CbkF0qwNgp8bgXlm8P3EtywY0IJunCqWkFw37UJ5bpvsAkuRH+fZvyF9TkKfS6AnyAH4wfIWGb0WfwyA76fsO2GH+rzE3SiV3sDhmgXwSYTZAz9OLyDndAAn+EKaNdJ6uGmn0AL+wWyvGCHaP+CHtDsnOyl8dYkPYh+H7ZH9lG++/wE+1Gem0HaRXdhM5yBk5Ab6cY1MYih1DPO09aZmXAlOobyyIx6gF4LqrWTjTQ0Kysq0TZj1Pl54RLUoHQYh0b0tkAwa1JZx8HV3/WX0RhwCcpRes3IafQK6E+RpJJ+1d+K1mDUJdBueRZwuojtHvxcIskG7K9A29KKSjbuEqxH0QW21Xh9Qz+tqcL3QJDb2M4H7C+x5cvun4Nu9FPGeQpd02+FSa9P2/oaaJ1Ccjnq/y9BHsb3oGnryD8GHR6VwIlO+QFQAF3jIVEldsGMOu1d1IKt2Yz6iD4BW2AHaKvGyQk6HzoHm0BbTY+ITnE6og1x1h8Yuq7X4XAVlqpvKPFvjLqT7oBO8T+Je9EO49UOqmec6OnUNR/a5infZC14CcS9ycP2r5c7g3TWYNGYv08nYRkr0ZSYAAAAAElFTkSuQmCC" alt={{t "Twitter" key="twitter"}}></a>
               {{/if}}
-              {{#if app_state.domain_settings.facebook_url}}
+              {{#if this.app_state.domain_settings.facebook_url}}
                 <a href={{this.app_state.domain_settings.facebook_url}} target="_blank" rel="noopener"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB5klEQVRIS7WVTShEURTHZ5CPspAkycdCspAVEWFjoxQWZGGjbNgIEUIsEIUFxUbZSbJiJWUjHyUkFrJCipHssJCP35ne05uZe+94NXPrV++ec+7533Pf/fB6oty8Uc7vCScQwwRKoQEKIR2+4RlOYAsuTZM0CVQzcB6Kw1S5i78XrlRxKoFYK3GXi+X7InYYZoLHqARWCGp3kdwZOkRn2mkIFuixZq/K/4lxFDbhFbLhIihQ/k8jbNt2p0AWxhtI0sx+yloG253Lx60i9gFbAbyLzymwTL/DsDQ1+PYgAdZAdlSlJr4P+5xTII6OD1INAhX4jiAH7gxx4joD/+6zKyjj+1gz6AN7FVzDG8RDEWSCnANV+7EqfLEFmjFsaIIlabLCV47t0FBJCb5TW6CTzpImWHaPHDjx30MKDEIeNBkEavHt2AItdNYNweJy8w8kPqACGXwQYYEM8vnsCuR6eII0g4ibCkJ2keRdhbYICYyQZ1JyOQ+anEzZiokakf9W8Mj4fJDdF/IejGMb0wjIjjkH2f/7hkpb8clJ97fgy04eGDk8dYYEJtcizoBrXnVdy7UxAQMuROSs9MMCyCn+a6YXrZ6oWZD1NDV5OrtBearDvcly78gtanqT5X8EzPq/FbhYIX3oL7fkWhnudl6LAAAAAElFTkSuQmCC" alt={{t "Facebook" key="facebook"}}></a>
               {{/if}}
             </span>
@@ -511,7 +510,7 @@
       </span>
     </div>
   </footer>
-{{#unless app_state.testing}}
+{{#unless this.app_state.testing}}
   <iframe style="visibility: hidden; height: 0;" src="/cache" title="Cache iframe"></iframe>
 {{/unless}}
 </div>

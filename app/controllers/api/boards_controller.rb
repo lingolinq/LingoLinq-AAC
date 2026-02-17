@@ -1,8 +1,10 @@
 class Api::BoardsController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
-  before_action :require_api_token, :except => [:index, :user_index, :show, :simple_obf, :download, :cache]
+  before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
+  # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
   def cache
+    # Security: require_api_token ensures authentication for this action
     render json: { user: { id: 'cache' } }
   end
 
@@ -23,10 +25,12 @@ class Api::BoardsController < ApplicationController
       params['sort'] = 'home_popularity'
     end
     if cache_key
-      json = RedisInit.default.get(cache_key)      
-      if json && json != {}.to_json
-        return render(json: json) 
+      cached = RedisInit.default.get(cache_key)
+      if cached.present?
+        # Return cached value (real data or empty placeholder for stampede protection); render as body to avoid double-encoding
+        return render(body: cached, content_type: 'application/json')
       else
+        # Set empty placeholder so concurrent requests return it instead of all running the heavy query
         RedisInit.default.setex(cache_key, 5.minutes.to_i, {}.to_json)
       end
     end
@@ -48,29 +52,16 @@ class Api::BoardsController < ApplicationController
     
     Rails.logger.warn('filtering by user')
     self.class.trace_execution_scoped(['boards/user_filter']) do
-      if params['user_id'] || params[:user_id]
-        # Handle special case where user_id is 'cache' (from boards cache endpoint)
-        # Return public boards only since there are no user-specific boards for cache
-        user_id_param = params['user_id'] || params[:user_id]
+      user_id_param = params['user_id'] || params[:user_id]
+      if user_id_param.present?
+        # Special pseudo-user IDs for index: not a real user lookup; no permission check.
         if user_id_param.to_s == 'cache'
           params['public'] = true
-          # For cache case, we don't need a user object, so skip user-specific filtering
-          # The rest of the method will handle public boards correctly
         else
-          # Handle user_id='self' or normal user lookup
-          if user_id_param.to_s == 'self'
-            # user_id=self requires authentication
-            if !@api_user
-              # Log for debugging
-              Rails.logger.warn("user_id=self requested but @api_user is nil. Token: #{@token ? 'present' : 'missing'}, Path: #{request.path}")
-              return api_error(400, {error: "Authentication required when user_id=self. Please provide a valid access_token.", token_present: !!@token})
-            end
-            user = @api_user
-          else
-            user = User.find_by_path(user_id_param)
-            return unless user
-          end
-          return unless allowed?(user, 'view_detailed')
+          # Real user lookup: resolve user and enforce existence + view_detailed permission.
+          user = User.find_by_path(user_id_param)
+          return unless exists?(user, user_id_param)
+          return unless user && allowed?(user, 'view_detailed')
           unless params['starred'] || params['tag']
             if params['shared']
               Rails.logger.warn('looking up shared board ids')
@@ -312,11 +303,18 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('start paginated result')
     self.class.trace_execution_scoped(['boards/json_paginate']) do
       json = JsonApi::Board.paginate(params, boards, {locale: params['locale'], extra_results: other_boards})
+      json[:meta] ||= {}
       json[:meta]['progress'] = JsonApi::Progress.as_json(progress) if progress
     end
+    # Always set meta for consistent structure; uncached = true only for this fresh response
+    json[:meta] ||= {}
+    json[:meta]['uncached'] = true
     if cache_key
-      RedisInit.default.setex(cache_key, 12.hours.to_i, json.to_json)
-      json['uncached'] = true
+      # Cache a copy without uncached so cached responses don't incorrectly claim to be uncached
+      json_for_cache = json.deep_dup
+      json_for_cache[:meta] = (json_for_cache[:meta] || {}).dup
+      json_for_cache[:meta].delete('uncached')
+      RedisInit.default.setex(cache_key, 12.hours.to_i, json_for_cache.to_json)
     end
 
     if (Time.now.to_i - start) > 5
@@ -371,6 +369,67 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('done with controller')
   end
   
+  def from_html
+    html = params['html'].to_s
+    return api_error(400, { error: 'html required' }) if html.blank?
+
+    board_opts = {
+      name: params['name'].presence || 'Imported Board',
+      key: params['key'].presence,
+      locale: params['locale'].presence || 'en'
+    }.compact
+
+    board = Converters::HtmlBoard.create_from_html(html, @api_user, board_opts)
+    if board && !board.errored?
+      render json: JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user)
+    else
+      api_error(400, {
+        error: 'board creation failed',
+        errors: board&.processing_errors
+      })
+    end
+  end
+
+  def generate_labels
+    unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
+      return api_error(403, { error: 'Feature not available' })
+    end
+    processed_params = request.content_type == 'application/json' ? JSON.parse(request.body.read) : params
+    prompt = (processed_params['prompt'] || '').to_s.strip
+    return api_error(400, { error: 'prompt required' }) if prompt.blank?
+
+    rows = (processed_params['rows'] || 2).to_i
+    columns = (processed_params['columns'] || 4).to_i
+    rows = [[1, rows].max, 20].min
+    columns = [[1, columns].max, 20].min
+
+    cell_count = rows * columns
+    locale_param = processed_params['locale'].presence || 'en'
+    include_core_words = processed_params['include_core_words'] != false && processed_params['include_core_words'] != 'false'
+    result = AiBoardGenerator.generate_words(
+      prompt: prompt,
+      rows: rows,
+      columns: columns,
+      locale: locale_param,
+      include_core_words: include_core_words
+    )
+    if result[:error]
+      return api_error(503, { error: result[:error] })
+    end
+    words = result[:words]
+    return api_error(400, { error: 'Could not generate words' }) if words.blank?
+    labels_str = words.first(cell_count).join(', ')
+    response = { labels: labels_str }
+    ai_name = result[:name].to_s.strip
+    response[:name] = if ai_name.present? && !name_looks_truncated?(ai_name)
+      ai_name
+    else
+      fallback_board_name(prompt)
+    end
+    response[:description] = result[:description].presence || prompt
+    render json: response
+  end
+
   def create
     @board_user = @api_user
     processed_params = params
@@ -379,27 +438,37 @@ class Api::BoardsController < ApplicationController
     if request.content_type == 'application/json'
       processed_params = JSON.parse(request.body.read)
     end
-    if processed_params['board'] && processed_params['board']['for_user_id'] && processed_params['board']['for_user_id'] != 'self'
-      user = User.find_by_path(processed_params['board']['for_user_id'])
-      return unless allowed?(user, 'edit')
-      @board_user = user
+    # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
+    board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
+    if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
+      user = User.find_by_path(board_params['for_user_id'])
+      if !user
+        # User doesn't exist (might be deleted) - return error instead of silently defaulting
+        # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
+        return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
+      elsif !allowed?(user, 'edit')
+        # User exists but current user lacks edit permission for that user
+        return api_error(400, {error: "Not authorized", unauthorized: true})
+      else
+        @board_user = user
+      end
     end
-    opts = {:user => @board_user, :author => @api_user, :key => params['board']['key']}
-    if processed_params['board'] && processed_params['board']['parent_board_id']
-      pb = Board.find_by_path(processed_params['board']['parent_board_id'])
+    opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
+    if board_params['parent_board_id']
+      pb = Board.find_by_path(board_params['parent_board_id'])
       if pb && pb.copyable_if_authorized?(@api_user)
         opts[:allow_copying_protected_boards] = true
       end
     end
     begin
-      board = Board.process_new(processed_params['board'], opts)
+      board = Board.process_new(board_params, opts)
     rescue ActiveRecord::RecordNotUnique
       return api_error(400, {error: 'board key already in use'})
     end
     if board.errored?
       api_error(400, {error: "board creation failed", errors: board && board.processing_errors})
     else
-      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end
   end
 
@@ -622,7 +691,7 @@ class Api::BoardsController < ApplicationController
   end
   
   def download
-    board = Board.find_by_path(params['board_id'])
+    board = Board.find_by_path(params['id'] || params['board_id'])
     return unless exists?(board)
     return unless allowed?(board, 'view')
     progress = Progress.schedule(board, :generate_download, (@api_user && @api_user.global_id), params['type'], {
@@ -696,6 +765,7 @@ class Api::BoardsController < ApplicationController
   end
 
   protected
+  
   def star_or_unstar(star)
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])
@@ -704,5 +774,22 @@ class Api::BoardsController < ApplicationController
     board.star!(@api_user, star)
     render json: {starred: board.starred_by?(@api_user), user_id: @api_user.global_id, stars: board.stars}.to_json
   end
-  
+
+  TRUNCATED_NAME_ENDINGS = %w[the a an to for with and or of in on].freeze
+
+  def name_looks_truncated?(name)
+    return true if name.blank?
+    return true if name.split(/\s+/).size > 6
+    last_word = name.split(/\s+/).last&.downcase
+    TRUNCATED_NAME_ENDINGS.include?(last_word)
+  end
+
+  def fallback_board_name(prompt)
+    return 'AI Generated Board' if prompt.blank?
+    words = prompt.split(/\s+/).reject(&:blank?).first(6)
+    name = words.join(' ')
+    name = name[0, 50] + '…' if name.length > 50
+    name.presence || 'AI Generated Board'
+  end
+
 end

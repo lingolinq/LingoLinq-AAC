@@ -5,10 +5,10 @@
   </div>
   <div class="modal-body">
     <h3 style='margin-top: 0;'>{{t "My Supervisors" key="my_supervisors"}}</h3>
-    {{#if model.supervisors_or_managing_org}}
+    {{#if this.model.supervisors_or_managing_org}}
       <table class="table table-hover">
         <tbody>
-        {{#each model.managing_orgs as |org|}}
+        {{#each this.model.managing_orgs as |org|}}
           <tr>
             <td style="text-align: center; vertical-align: middle; font-size: 40px;">
               <span class="glyphicon glyphicon-paperclip"></span>
@@ -22,7 +22,7 @@
             </td>
           </tr>
         {{/each}}
-        {{#each model.managing_supervision_orgs as |org|}}
+        {{#each this.model.managing_supervision_orgs as |org|}}
           <tr>
             <td style="width: 60px; text-align: center; vertical-align: middle; font-size: 40px;">
               <span class="glyphicon glyphicon-paperclip"></span>
@@ -36,7 +36,7 @@
             </td>
           </tr>
         {{/each}}
-        {{#each model.supervisors as |supervisor|}}
+        {{#each this.model.supervisors as |supervisor|}}
           <tr>
             <td style="width: 60px;">
               <img src={{supervisor.avatar_url}} style="height: 50px; width: 50px;">
@@ -54,7 +54,7 @@
               {{/if}}
             </td>
             <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-              {{#if model.permissions.manage_supervision}}
+              {{#if this.model.permissions.manage_supervision}}
                 <a href='#' {{action "remove_supervisor" supervisor.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
               {{/if}}
             </td>
@@ -65,20 +65,20 @@
     {{else}}
       <p>{{t "None found" key="none_found"}}</p>
     {{/if}}
-    {{#if model.permissions.manage_supervision}}
-      {{#if model.permissions.delete}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make Me someone else's Supervisor" uname=model.user_name key="add_supervisee"}}</button>
+    {{#if this.model.permissions.manage_supervision}}
+      {{#if this.model.permissions.delete}}
+        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
+        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make Me someone else's Supervisor" uname=this.model.user_name key="add_supervisee"}}</button>
       {{else}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make %{uname} someone else's Supervisor" uname=model.user_name key="add_other_supervisee"}}</button>
+        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
+        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make %{uname} someone else's Supervisor" uname=this.model.user_name key="add_other_supervisee"}}</button>
       {{/if}}
-      {{#if add_supervisee_hit}}
+      {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>
       {{/if}}
     {{/if}}
     {{#if aliasable_orgs}}
-      {{#if model.permissions.link_auth}}
+      {{#if this.model.permissions.link_auth}}
         <h3>{{t "Externally-Authenticated Orgs" key="external_auth_orgs"}}</h3>
         <table class='table table-hover'>
           <tbody>
@@ -93,7 +93,7 @@
                     {{t "Alias" key="alias"}}
                     {{#if org.aliasable}}
                       <div style='display: inline-block; width: 200px;'>
-                        {{input type="text" class="form-control" value=org.external_auth_alias placeholder="external login id or email"}}
+                        <Input @type="text" class="form-control" @value={{org.external_auth_alias}} placeholder="external login id or email" />
                       </div>
                       <button type='submit' disabled={{org.alias_state.updating}} class='btn btn-default'>
                         {{#if org.alias_state.updating}}
@@ -132,10 +132,10 @@
     {{/if}}
     {{#if show_supervisees}}
       <h3>{{t "People I Supervise" key="my_supervisees"}}</h3>
-      {{#if model.known_supervisees}}
+      {{#if this.model.known_supervisees}}
         <table class="table table-hover">
           <tbody>
-          {{#each model.known_supervisees as |supervisee|}}
+          {{#each this.model.known_supervisees as |supervisee|}}
             <tr>
               <td style="width: 60px;">
                 <img src={{supervisee.avatar_url}} style="height: 50px; width: 50px;">
@@ -150,7 +150,7 @@
                 {{/if}}
               </td>
               <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-                {{#if model.permissions.manage_supervision}}
+                {{#if this.model.permissions.manage_supervision}}
                   <a href='#' {{action "remove_supervisee" supervisee.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
                 {{/if}}
               </td>
@@ -161,14 +161,14 @@
       {{else}}
         <p>{{t "None found" key="none_found"}}</p>
       {{/if}}
-      {{#if model.all_connections.loading}}
+      {{#if this.model.all_connections.loading}}
         <p>{{t "Loading more..." key="loading_more"}}</p>
-      {{else if model.all_connections.error}}
+      {{else if this.model.all_connections.error}}
         <p class='text-danger'>{{t "There was an error loading supervision users" key="error_loading_connections"}}</p>
       {{/if}}
     {{/if}}
-    {{#if model.supporter_role}}
-      {{#if model.permissions.edit}}
+    {{#if this.model.supporter_role}}
+      {{#if this.model.permissions.edit}}
         <button class='btn btn-default' {{action "start_codes"}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
       {{/if}}
     {{/if}}    

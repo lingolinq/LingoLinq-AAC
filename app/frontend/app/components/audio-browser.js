@@ -1,17 +1,18 @@
 import Component from '@ember/component';
 import contentGrabbers from '../utils/content_grabbers';
-import app_state from '../utils/app_state';
 import word_suggestions from '../utils/word_suggestions';
 import Utils from '../utils/misc';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   tagName: 'span',
   willInsertElement: function() {
     var controller = this;
     controller.set('browse_audio', {loading: true});
-    var user_id = app_state.get('currentUser.id');
+    var user_id = this.appState.get('currentUser.id');
     // TODO: allow browsing for supervisees too
     Utils.all_pages('sound', {user_id: user_id}, function(res) {
       controller.set('browse_audio', {results: res.slice(0, 10), full_results: res, filtered_results: res});
@@ -61,7 +62,8 @@ export default Component.extend({
     select_audio: function(sound) {
       var controller = this;
       controller.set('browse_audio', null);
-      this.sendAction('audio_selected', sound);
+      var fn = this.get('audio_selected');
+      if (typeof fn === 'function') { fn.call(this, sound); }
     },
     more_browsed_audio: function() {
       var controller = this;

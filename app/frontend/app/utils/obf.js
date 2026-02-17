@@ -158,7 +158,7 @@ obf.register("stars", function(key) {
   var parts = key.replace(/^stars-?/, '').split(/-/);
   var user_id = parts[0];
   var board_id = parts[1];
-  var user = app_state.get('sessionUser');
+  var user = obf.get_app_state().get('sessionUser');
   if(user_id && user_id != 'self') {
     user = LingoLinq.store.peekRecord('user', user_id);
     if(!user || !user.get('permissions.supervise')) {
@@ -234,6 +234,17 @@ obf.register("stars", function(key) {
   return {json: res.to_json()};
 });
 obf.id_index = 0;
+
+// Static service registry for app_state
+obf._services = {
+  appState: null
+};
+obf.register_services = function(appStateService) {
+  if(appStateService) { obf._services.appState = appStateService; }
+};
+obf.get_app_state = function() {
+  return obf._services.appState || app_state;
+};
 
 window.obf = obf;
 

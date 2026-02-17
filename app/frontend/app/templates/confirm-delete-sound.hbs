@@ -8,22 +8,22 @@
       {{t "Are you sure you want to delete this recording? Any buttons using it will no longe work." key="confirm_delete_recording"}}
     </p>
 
-    {{this.model.sound.name}} {{t "created" key="created_lower"}} {{date model.sound.created "short_day"}}
+    {{this.model.sound.name}} {{t "created" key="created_lower"}} {{date this.model.sound.created "short_day"}}
     <div class='text-muted' style='margin-left: 30px;'>
-      {{#if model.sound.transcription}}
+      {{#if this.model.sound.transcription}}
         {{this.model.sound.transcription}}
       {{else}}
         {{t "no transcription" key="no_transcription"}}
       {{/if}}
     </div>
 
-    {{#if status.error}}
+    {{#if this.status.error}}
       <p class='text-danger'>{{t "There was an error trying to delete the recording" key="error_deleting_sound"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default' {{action "delete_sound"}} disabled={{status.deleting}}>
-      {{#if status.deleting}}
+    <button class='btn btn-default' {{action "delete_sound"}} disabled={{this.status.deleting}}>
+      {{#if this.status.deleting}}
         {{t "Deleting Recording" key="deleting_sound"}}
       {{else}}
         {{t "Delete Recording" key="delete_sound"}}

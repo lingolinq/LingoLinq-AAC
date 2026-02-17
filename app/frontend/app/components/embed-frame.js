@@ -3,15 +3,17 @@ import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import frame_listener from '../utils/frame_listener';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
-import { htmlSafe } from '@ember/string';
+import { inject as service } from '@ember/service';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
   tagName: 'div',
   classNames: ['integration_container'],
+  persistence: service('persistence'),
   didInsertElement: function() {
     var elem = this.element;
+    var _this = this;
     this.element.addEventListener('mousemove', function(event) {
       if(elem) {
         var session_id = elem.childNodes[0].getAttribute('data-session_id');
@@ -41,7 +43,7 @@ export default Component.extend({
     }, 750);
     runLater(function() {
       if($(elem).find("#integration_overlay.pending").length > 0) {
-        if(!persistence.get('online')) {
+        if(!_this.persistence || !_this.persistence.get('online')) {
           $(elem).find("#integration_overlay .status").text(i18n.t('loading_integration_failed_offline', "Integrations cannot load when offline"));
         } else {
           $(elem).find("#integration_overlay .status").text(i18n.t('loading_integration_failed', "Integration hasn't loaded, please check your settings and Internet Connection"));

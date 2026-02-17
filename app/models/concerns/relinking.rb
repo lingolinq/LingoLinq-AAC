@@ -117,7 +117,7 @@ module Relinking
     board.settings['word_suggestions'] = original.settings['word_suggestions']
     board.settings['categories'] = original.settings['categories']
     board.settings['license'] = original.settings['license']
-    board.settings['intro']['unapproved'] = true if board.settings['intro']
+    board.settings['intro']['unapproved'] = true if board.settings['intro'].is_a?(Hash)
     board.settings['never_edited'] = true
     board.public = true if make_public
     board.settings.delete('unlisted') if make_public

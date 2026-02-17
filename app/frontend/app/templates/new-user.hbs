@@ -8,45 +8,45 @@
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
         <div class="col-sm-6">
-          {{input value=model.user.name class="form-control" id="name" placeholder="Full name"}}
+          <Input @value={{this.model.user.name}} class="form-control" id="name" placeholder="Full name" />
         </div>
       </div>
       <div class="form-group">
         <label for="user_name" class="col-sm-4 control-label">{{t "User Name" key="uesr_name"}}</label>
         <div class="col-sm-6">
-          {{input value=model.user.user_name class="form-control" placeholder="User name"}}
-          {{#if model.user.user_name_check.checking}}
-          {{else if model.user.user_name_check.exists}}
-            <span class='text-danger'>{{t "%{user_name} already exists" user_name=model.user.user_name}}</span>
+          <Input @value={{this.model.user.user_name}} class="form-control" placeholder="User name" />
+          {{#if this.model.user.user_name_check.checking}}
+          {{else if this.model.user.user_name_check.exists}}
+            <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.model.user.user_name}}</span>
           {{/if}}
         </div>
       </div>
       <div class="form-group">
         <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-6">
-          {{input value=model.user.email class="form-control" placeholder="Email address"}}
+          <Input @value={{this.model.user.email}} class="form-control" placeholder="Email address" />
         </div>
       </div>
       <div class="form-group">
         <label for="name" class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-6">
-          {{input type="password" value=model.user.password class="form-control" placeholder="Password"}}
+          <Input @type="password" @value={{this.model.user.password}} class="form-control" placeholder="Password" />
         </div>
       </div>
       <div class="form-group">
         <label for="user_type" class="col-sm-4 control-label">{{t "User Type" key="user_type"}}</label>
         <div class="col-sm-6">
-          {{bound-select select_class="form-control" select_id="user_type" content=user_types selection=model.user.org_management_action action=(action (mut model.user.org_management_action)) }}
+          {{bound-select select_class="form-control" select_id="user_type" content=this.user_types selection=this.model.user.org_management_action action=(action (mut this.model.user.org_management_action)) }}
         </div>
       </div>
-      {{#if boarded_new_user}}
-        {{#if model.org.extras_available}}
+      {{#if this.boarded_new_user}}
+        {{#if this.model.org.extras_available}}
           <div class="form-group">
             <label for="extras" class="col-sm-4 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
             <div class="col-sm-6">
               <div class="checkbox big_checkbox">
                 <label>
-                  {{input type="checkbox" id="extras" checked=model.user.add_symbols}}
+                  <Input @type="checkbox" id="extras" @checked={{this.model.user.add_symbols}} />
                   {{t "Grant user premium symbol access" key="grand_premium_symbols"}}
                   <br>({{this.model.org.extras_available_count}} {{t "left" key="left"}})
                 </label>
@@ -54,20 +54,20 @@
             </div>
           </div>
         {{/if}}
-        {{#if board_options}}
+        {{#if this.board_options}}
           <div class="form-group">
             <label for="home_board" class="col-sm-4 control-label">{{t "Home Board" key="home_board"}}</label>
             <div class="col-sm-6">
-              {{bound-select select_class="form-control" select_id="home_board" content=board_options selection=model.user.home_board_template action=(action (mut model.user.home_board_template)) }}
+              {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.model.user.home_board_template action=(action (mut this.model.user.home_board_template)) }}
             </div>
           </div>
-          {{#if board_will_copy}}
+          {{#if this.board_will_copy}}
             <div class="form-group">
               <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
               <div class="col-sm-6">
-                {{bound-select select_class="form-control" select_id="preferred_symbols" content=symbols_list selection=model.user.preferences.preferred_symbols action=(action (mut model.user.preferences.preferred_symbols)) }}
-                {{#if premium_symbol_library}}
-                  {{#unless model.user.add_symbols}}
+                {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.model.user.preferences.preferred_symbols action=(action (mut this.model.user.preferences.preferred_symbols)) }}
+                {{#if this.premium_symbol_library}}
+                  {{#unless this.model.user.add_symbols}}
                     <div class='text-danger' style='margin-left: 10px;'>
                       {{t "(will not apply without premium symbols access)" key="wont_apply_without_premium_symbols"}}            
                     </div>
@@ -77,17 +77,17 @@
             </div>
           {{/if}}
         {{/if}}
-      {{else if third_party_new_user}}
+      {{else if this.third_party_new_user}}
         <div class="form-group">
           <label for="locale" class="col-sm-4 control-label">{{t "Preferred Language" key="preferred_language"}}</label>
           <div class="col-sm-6">
-            {{bound-select select_class="form-control" select_id="locale" content=locale_list selection=model.user.preferences.locale action=(action (mut model.user.preferences.locale)) }}
+            {{bound-select select_class="form-control" select_id="locale" content=this.locale_list selection=this.model.user.preferences.locale action=(action (mut this.model.user.preferences.locale)) }}
           </div>
         </div>
         <div class="form-group">
           <label for="device_type" class="col-sm-4 control-label">{{t "App/Device" key="app_device"}}</label>
           <div class="col-sm-6">
-            {{input value=external_device class="form-control" id="device_type" placeholder="third-party app or device name"}}
+            <Input @value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" />
           </div>
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group dropup'>
@@ -95,18 +95,18 @@
                 {{t "Device" key="device"}} <span class="caret"></span>
               </button>
               <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
-                {{#each device_options as |option|}}
+                {{#each this.device_options as |option|}}
                   <li><a href='#' {{action "set_device" option}}>{{option.name}}</a></li>
                 {{/each}}
               </ul>
             </div>
           </div>
         </div>
-        {{#if external_device}}
+        {{#if this.external_device}}
           <div class="form-group">
             <label for="vocabulary_type" class="col-sm-4 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
             <div class="col-sm-6">
-              {{input value=external_vocab class="form-control" id="vocabulary_type" placeholder="vocabulary used"}}
+              <Input @value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" />
             </div>
             <div class="col-sm-1" style='margin-left: -35px;'>
               <div class='btn-group dropup' style='max-height: 183px;'>
@@ -114,7 +114,7 @@
                   {{t "Vocab" key="vocab"}} <span class="caret"></span>
                 </button>
                 <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
-                  {{#each vocab_options as |option|}}
+                  {{#each this.vocab_options as |option|}}
                     <li><a href='#' {{action "set_vocab" option}}>{{option.name}}</a></li>
                   {{/each}}
                 </ul>
@@ -124,7 +124,7 @@
           <div class="form-group">
             <label for="vocab_size" class="col-sm-4 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
             <div class="col-sm-2">
-              {{input type="number" value=external_vocab_size class="form-control" id="vocab_size" placeholder="typical buttons per board"}}
+              <Input @type="number" @value={{this.external_vocab_size}} class="form-control" id="vocab_size" placeholder="typical buttons per board" />
             </div>
             <div class='col-sm-4'>
               <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>
@@ -134,17 +134,17 @@
         <div class="form-group">
           <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
           <div class="col-sm-6">
-            {{bound-select select_class="form-control" select_id="external_access_method" content=access_methods selection=external_access_method action=(action (mut external_access_method)) }}
+            {{bound-select select_class="form-control" select_id="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          <button type="submit" class='btn btn-primary' disabled={{linking_or_exists}}>
-            {{#if linking}}
+          <button type="submit" class='btn btn-primary' disabled={{this.linking_or_exists}}>
+            {{#if this.linking}}
               {{t "Creating User..." key="adding_user"}}
             {{else}}
-              {{#if error}}
+              {{#if this.error}}
                 {{t "Creating User Failed" key="adding_user_failed"}}
               {{else}}
                 {{t "Create User" key="add_user"}}
@@ -152,8 +152,8 @@
             {{/if}}
           </button>
           <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
-          {{#if error}}
-            <p class="text-danger">{{error}}</p>
+          {{#if this.error}}
+            <p class="text-danger">{{this.error}}</p>
           {{/if}}
         </div>
       </div>

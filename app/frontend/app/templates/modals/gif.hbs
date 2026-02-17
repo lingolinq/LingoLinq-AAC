@@ -7,7 +7,7 @@
   </div>
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div style='display: none;'>
-      {{input type="text" value=search class="input"}}
+      <Input type="text" @value={{search}} class="input" />
       <button type='button' class="btn btn-default" {{action "search"}}>{{t "Search" key="search"}}</button>
     </div>
 
@@ -18,7 +18,7 @@
         {{#if results.loading}}
           {{t "Loading results..." key="loading_results"}}
         {{else if results.error}}
-          {{#if persistence.online}}
+          {{#if (persistence-online)}}
             {{t "Error loading results" key="error_loading_results"}}
           {{else}}
             {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}

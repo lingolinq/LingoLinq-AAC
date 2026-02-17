@@ -254,7 +254,6 @@ describe Uploader do
       expect(res[:upload_params]).not_to eq(nil)
       expect(res[:upload_params]['AWSAccessKeyId']).not_to eq(nil)
       expect(res[:upload_params]['Content-Type']).to eq('image/png')
-      expect(res[:upload_params]['acl']).to eq('public-read')
       expect(res[:upload_params]['key']).to eq('downloads/file.png')
       expect(res[:upload_params]['policy']).not_to eq(nil)
       expect(res[:upload_params]['signature']).not_to eq(nil)
@@ -442,7 +441,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:acl=>"public-read", :key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -459,7 +458,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:acl=>"public-read", :key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_raise("bacon")
+      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_raise("bacon")
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -492,7 +491,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:acl=>"public-read", :key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({

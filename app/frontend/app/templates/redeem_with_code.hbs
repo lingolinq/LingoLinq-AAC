@@ -2,30 +2,30 @@
   <div class="col-sm-6 col-sm-offset-3">
     <h2>{{t "Redeem a Gift Code" key="redeem_gift_code"}}</h2>
     <span class="glyphicon glyphicon-gift" style="font-size: 30px; float: left; margin: 5px 10px 10px 0;"></span>
-    {{#if model.invalid}}
-      {{#if persistence.online}}
-        <p>{{t "No available gift was found for the code <b>%{code}</b>. It's possible the code has already been redeemed, or the code was entered incorrectly. Please contact the giver and confirm the details." key="invalid_code" code=model.code}}</p>
+    {{#if this.model.invalid}}
+      {{#if (persistence-online)}}
+        <p>{{t "No available gift was found for the code <b>%{code}</b>. It's possible the code has already been redeemed, or the code was entered incorrectly. Please contact the giver and confirm the details." key="invalid_code" code=this.model.code}}</p>
       {{else}}
         <p>{{t "No gift could be found. Please check your Internet connection." key="invalid_code_check_internet"}}</p>
       {{/if}}
-    {{else if model}}
+    {{else if this.model}}
       <p>
-        {{t "Someone has shared a premium membership to %app_name% as a gift to you! This gift will give you free premium access to %app_name% for <b>%{duration}</b>." duration=model.duration key="gift_details"}}
-        {{#if app_state.currentUser}}
+        {{t "Someone has shared a premium membership to %app_name% as a gift to you! This gift will give you free premium access to %app_name% for <b>%{duration}</b>." duration=this.model.duration key="gift_details"}}
+        {{#if this.app_state.currentUser}}
           {{t "To redeem it, just hit the button below." key="or_hit_button"}}
         {{else}}
           {{t "To redeem it, you'll need to be logged in, then activate it from the billing page in your profile or visit this page again." key="login_for_redemption"}}
         {{/if}}
       </p>
-      {{#if app_state.currentUser}}
-        {{#link-to "user.subscription" app_state.currentUser.user_name (query-params code=code) class="btn btn-primary btn-lg"}}
+      {{#if this.app_state.currentUser}}
+        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} @query={{hash code=this.code}} class="btn btn-primary btn-lg">
           {{t "Redeem This Gift" key="redeem_gift"}}
-        {{/link-to}}
+        </LinkTo>
       {{else}}
         <p>
           {{t "Before you can redeem this code you'll need to " key="before_redeem"}}
-          <a href="#" {{action "authenticateSession"}}>{{t "sign in" key="sign_in"}}</a>
-          {{#if app_state.domain_settings.full_domain}}
+          <LinkTo @route="login">{{t "sign in" key="sign_in"}}</LinkTo>
+          {{#if this.app_state.domain_settings.full_domain}}
             {{t "or" key="or"}}
             {{#link-to "register"}}{{t "create a new account" key="create_a_new_account"}}{{/link-to}}.
           {{/if}}

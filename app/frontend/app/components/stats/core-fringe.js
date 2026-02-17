@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 

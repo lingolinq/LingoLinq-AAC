@@ -78,8 +78,8 @@ Utils.all_pages = function(type, initial_opts, partial_callback) {
     delete initial_opts['result_type'];
     var find_next = function(type, opts) {
       if(type.match(/\/api\//)) {
-
-        persistence.ajax(type, opts).then(function(list) {
+        var persistenceService = Utils.get_persistence();
+        persistenceService.ajax(type, opts).then(function(list) {
           if(result_type) {
             all_results = all_results.concat(list[result_type]);
           } else {
@@ -98,7 +98,8 @@ Utils.all_pages = function(type, initial_opts, partial_callback) {
         });
       } else {
         var args = $.extend({}, opts);
-        var meta_check = persistence.meta;
+        var persistenceService = Utils.get_persistence();
+        var meta_check = persistenceService.meta;
         LingoLinq.store.query(type, opts).then(function(list) {
           var meta = meta_check(type, list);
           all_results = all_results.concat(list.map(function(i) { return i; }));
@@ -206,6 +207,17 @@ RSVP.all_wait = function(promises) {
 //   callback(defer.resolve, defer.reject, progress);
 //   return defer.promise;
 // };
+
+// Static service registry for persistence
+Utils._services = {
+  persistence: null
+};
+Utils.register_services = function(persistenceService) {
+  if(persistenceService) { Utils._services.persistence = persistenceService; }
+};
+Utils.get_persistence = function() {
+  return Utils._services.persistence || persistence;
+};
 
 // TODO: code smell
 export default Utils;

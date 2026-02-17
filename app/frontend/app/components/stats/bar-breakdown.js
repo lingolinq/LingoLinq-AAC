@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 import LingoLinq from '../../app';
 import image from '../../models/image';

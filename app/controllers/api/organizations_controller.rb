@@ -525,10 +525,11 @@ class Api::OrganizationsController < ApplicationController
       statuses = {}
       sizes = []
       board_ids = []
-      links = UserLink.links_for(org).select{|l| l['type'] == 'org_user' && l['state']['status'] }
+      links = UserLink.links_for(org).select{|l| l['type'] == 'org_user' && (l['state'] || {})['status'] }
       approved_users.each do |user|
-        if user.settings['preferences']['home_board']
-          board_ids.push(user.settings['preferences']['home_board']['id'])
+        pref = (user.settings || {})['preferences'] || {}
+        if pref['home_board'] && pref['home_board']['id']
+          board_ids.push(pref['home_board']['id'])
         end
         link = links.detect{|l| l['user_id'] == user.global_id }
         state = link && link['state'] && link['state']['status'] && link['state']['status']['state']
@@ -539,14 +540,18 @@ class Api::OrganizationsController < ApplicationController
       Board.find_batches_by_global_id(board_ids.uniq){|b| boards_hash[b.global_id] = b }
       approved_users.each do |user|
         user.access_methods.each{|m| methods[m] = (methods[m] || 0) + 1 }
-        if user.settings['external_device']
-          dn = user.settings['external_device']['device_name']
+        ext_dev = (user.settings || {})['external_device']
+        pref = (user.settings || {})['preferences'] || {}
+        if ext_dev
+          dn = ext_dev['device_name']
           dn = "Unnamed" if dn.blank?
           devices[dn] = (devices[dn] || 0) + 1
-          vocabs[user.settings['external_device']['vocab_name']] = (vocabs[user.settings['external_device']['vocab_name']] || 0) + 1
-          sizes << user.settings['external_device']['size']
-        elsif user.settings['preferences']['home_board']
-          brd = boards_hash[user.settings['preferences']['home_board']['id']]
+          vn = ext_dev['vocab_name']
+          vn = 'Unknown' if vn.blank?
+          vocabs[vn] = (vocabs[vn] || 0) + 1
+          sizes << ext_dev['size'] if ext_dev['size']
+        elsif pref['home_board'] && pref['home_board']['id']
+          brd = boards_hash[pref['home_board']['id']]
           if brd
             grid = BoardContent.load_content(brd, 'grid')
             devices['LingoLinq'] = (devices['LingoLinq'] || 0) + 1
@@ -565,7 +570,7 @@ class Api::OrganizationsController < ApplicationController
         clumped_vocabs = {}
         vocabs.each do |voc, cnt|
           if cnt <= (vocabs.keys.length / 6) && voc.instance_variable_get('@board_key')
-            clumped_vocabs['Other'] = (clumbed_vocabs['Other'] || 0) + 1
+            clumped_vocabs['Other'] = (clumped_vocabs['Other'] || 0) + 1
           else
             clumped_vocabs[voc] = cnt
           end

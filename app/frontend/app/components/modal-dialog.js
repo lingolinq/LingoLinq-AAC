@@ -7,20 +7,25 @@ import { observer } from '@ember/object';
 
 export default Component.extend({
   didRender: function() {
+    if(!this || typeof this.get !== 'function') { return; }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
+      // Access closure action via get() - direct property access bypasses Ember's property system
       var opening = this.get('opening');
       if (opening && typeof opening === 'function') {
         opening();
-      } else if (opening && typeof opening === 'string') {
-        // Fallback for string-based actions (legacy support)
-        this.sendAction('opening');
       }
+      // Note: Removed sendAction fallback as it's deprecated and broken in Ember 3.28
     }
     this.set('auto_close', !!modal.auto_close);
     if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
       modal.component = this;
+      // Also set component in service if available
+      var service = modal._getService();
+      if (service) {
+        service.setComponent(this);
+      }
     }
     var height = $(window).height() - 50;
     $(this.get('element')).find(".modal-content").css('maxHeight', height).css('overflow', 'auto');
@@ -29,6 +34,7 @@ export default Component.extend({
     this.set('already_opened', false);
   },
   stretch: observer('stretch_ratio', 'desired_width', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     if(this.get('stretch_ratio')) {
       var height = $(window).height() - 50;
       var width = $(window).width();
@@ -57,13 +63,12 @@ export default Component.extend({
     if(!this.get('already_closed')) {
       this.set('already_closed', true);
       try {
+        // Access closure action via get() - direct property access bypasses Ember's property system
         var closing = this.get('closing');
         if (closing && typeof closing === 'function') {
           closing();
-        } else if (closing && typeof closing === 'string') {
-          // Fallback for string-based actions (legacy support)
-          this.sendAction('closing');
         }
+        // Note: Removed sendAction fallback as it's deprecated and broken in Ember 3.28
       } catch(e) { }
     }
     // Clear modal component reference when component is destroyed to prevent null reference errors
@@ -105,24 +110,39 @@ export default Component.extend({
   },
   actions: {
     close: function(event) {
-      if(!$(event.target).hasClass('modal')) {
-        return;
-      } else {
+      if(!this || typeof this.get !== 'function') { return; }
+      // Close on backdrop clicks (event.target has 'modal' class) or explicit button calls
+      // The mouseUp/touchEnd handlers only call this for backdrop clicks (they filter first)
+      // Buttons with {{action "close"}} explicitly call this, so we allow those too
+      var isBackdropClick = event && event.target && $(event.target).hasClass('modal');
+      // Explicit calls from buttons will have event.type === 'click' and target won't be modal
+      var isExplicitButtonCall = event && event.type === 'click' && !isBackdropClick;
+      
+      if(isBackdropClick) {
         try {
           event.preventDefault();
         } catch(e) { }
-        console.log("close from event");
+        console.log('close from backdrop click');
         buttonTracker.ignoreUp = true;
+      }
+      
+      // Close for backdrop clicks or explicit button calls
+      if(isBackdropClick || isExplicitButtonCall) {
+        // Access closure action via get() - direct property access bypasses Ember's property system
         var action = this.get('action');
         if (action && typeof action === 'function') {
-          return action();
-        } else if (action && typeof action === 'string') {
-          // Fallback for string-based actions (legacy support)
-          return this.sendAction();
+          action();
+        } else {
+          // Fallback: directly call modal.close() since all controllers use it
+          // This is more reliable than sendAction() which is deprecated
+          modal.close();
         }
       }
+      // If called from mouseUp/touchEnd but not a backdrop click, do nothing
+      // This prevents accidental closes when clicking inside modal content
     },
     any_select: function(e) {
+      if(!this) { return; }
       if(e && e.type == 'select' && e.target && e.target.closest('.auto_focus') != null) {
         // auto-focus should not disable inactivity_timeout
       } else {

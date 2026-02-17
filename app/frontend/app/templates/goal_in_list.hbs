@@ -1,5 +1,5 @@
 <div class='well goal sparkle_list_item'>
-  {{#if badges_loaded}}
+  {{#if this.badges_loaded}}
     <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
       {{#if goal.current_badge}}
         {{# if goal.current_badge.earned}}
@@ -24,13 +24,13 @@
       {{/if}}
     </div>
   {{/if}}
-  {{#link-to "user.goal" model.user_name goal.id class="summary"}}
+  <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
     {{goal.summary}}
-  {{/link-to}}
+  </LinkTo>
   {{#if goal.template}}
     {{t "(template)" key="template_paren"}}
   {{/if}}
-  {{#if model.permissions.edit}}
+  {{#if this.model.permissions.edit}}
     <div style='float: right;'>
       {{#if goal.active}}
         <span style='margin-right: 15px;'>

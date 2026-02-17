@@ -2,21 +2,26 @@ import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
-import { inject as service } from '@ember/service';
-import persistence from '../../utils/persistence';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
-import app_state from '../../utils/app_state';
 import i18n from '../../utils/i18n';
 import progress_tracker from '../../utils/progress_tracker';
 import Subscription from '../../utils/subscription';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { htmlSafe } from '@ember/string';
+import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
+import { getOwner } from '@ember/application';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
-  store: service(),
+  store: service('store'),
+  router: service('router'),
+  appState: service('app-state'),
+  persistence: service('persistence'),
+  // Explicit injection for app_state to avoid implicit injection deprecation warning
+
+  // Explicit injection for persistence to avoid implicit injection deprecation warning
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
@@ -25,7 +30,12 @@ export default Controller.extend({
   }),
   needs_sync: computed('persistence.last_sync_at', function() {
     var now = (new Date()).getTime();
-    return (now - persistence.get('last_sync_at')) > (7 * 24 * 60 * 60 * 1000);
+    var persistenceService = this.get('persistence') || this.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function') {
+      return false;
+    }
+    var lastSync = persistenceService.get('last_sync_at') || 0;
+    return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.permissions.admin_support_actions', function() {
     var current_user_name = this.get('daily_use.user_name');
@@ -37,13 +47,17 @@ export default Controller.extend({
     if((user_name && current_user_name != user_name && this.get('model.permissions.admin_support_actions')) || !this.get('daily_use')) {
       var _this = this;
       _this.set('daily_use', {loading: true});
-      persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
-        var log = LingoLinq.store.push({ data: {
-          id: data.log.id,
-          type: 'log',
-          attributes: data.log
-        }});
-        _this.set('daily_use', log);
+      _this.persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
+        if(data && data.log) {
+          var log = LingoLinq.store.push({ data: {
+            id: data.log.id,
+            type: 'log',
+            attributes: data.log
+          }});
+          _this.set('daily_use', log);
+        } else {
+          _this.set('daily_use', null);
+        }
       }, function(err) {
         if(err && err.result && err.result.error == 'no data available') {
           _this.set('daily_use', null);
@@ -276,8 +290,10 @@ export default Controller.extend({
     this.set('show_all_boards', true);
   },
   reload_logs: observer('persistence.online', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
-    if(!persistence.get('online')) { return; }
+    var persistenceService = this.get('persistence') || this.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var model_id = this.get('model.id');
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     if(model_id && (model_id == 'cache' || model_id.toString().match(/^cache:/))) {
@@ -359,7 +375,7 @@ export default Controller.extend({
 //        var result = prior.concat(boards.map(function(i) { return i; }));
         prior.user_id = _this.get('model.id');
         _this.set(list_name, prior);
-        var meta = persistence.meta('board', boards); //_this.store.metadataFor('board');
+        var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
@@ -426,11 +442,13 @@ export default Controller.extend({
     }
   }),
   update_selected: observer('selected', 'persistence.online', 'current_tag', function() {
+    if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var list_id = Math.random().toString();
     this.set('list_id', list_id);
     var model = this.get('model');
-    if(!persistence.get('online')) { return; }
+    var persistenceService = this.get('persistence') || this.persistence;
+    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
     var default_key = null;
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
@@ -465,7 +483,7 @@ export default Controller.extend({
 
     if(model && model.get('permissions.edit')) {
       if(!model.get('preferences.home_board.key')) {
-        _this.generate_or_append_to_list({user_id: app_state.get('currentUser.id') || 'self', starred: true, public: true}, 'model.starting_boards', list_id);
+        _this.generate_or_append_to_list({user_id: this.appState.get('currentUser.id') || 'self', starred: true, public: true}, 'model.starting_boards', list_id);
       }
     }
   }),
@@ -475,25 +493,25 @@ export default Controller.extend({
   actions: {
     sync: function() {
       console.debug('syncing because manually triggered');
-      persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
+      this.persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
     },
     setup: function() {
       if(window.ga) {
         window.ga('send', 'event', 'Setup', 'start', 'Setup started');
       }
-      app_state.set('auto_setup', false);
-      this.transitionToRoute('setup', {queryParams: {page: null, user_id: this.get('model.id')}});
+      this.appState.set('auto_setup', false);
+      this.router.transitionTo('setup', { queryParams: { page: null, user_id: this.get('model.id') } });
     },
     quick_assessment: function() {
       var _this = this;
-      app_state.check_for_currently_premium(_this.get('model', 'quick_assessment')).then(function() {
+      _this.appState.check_for_currently_premium(_this.get('model', 'quick_assessment')).then(function() {
         modal.open('quick-assessment', {user: _this.get('model')}).then(function() {
           _this.reload_logs();
         });
       }, function() { });
     },
     stats: function() {
-      this.transitionToRoute('user.stats', this.get('model.user_name'));
+      this.router.transitionTo('user.stats', this.get('model.user_name'));
     },
     approve_or_reject_org: function(approve) {
       var user = this.get('model');
@@ -515,7 +533,7 @@ export default Controller.extend({
     },
     add_supervisor: function() {
       var _this = this;
-      app_state.check_for_currently_premium(this.get('model'), 'add_supervisor', true).then(function() {
+      _this.appState.check_for_currently_premium(this.get('model'), 'add_supervisor', true).then(function() {
         modal.open('add-supervisor', {user: _this.get('model')});
       }, function() { });
     },
@@ -530,13 +548,13 @@ export default Controller.extend({
     },
     run_eval: function() {
       var _this = this;
-      app_state.check_for_currently_premium(_this.get('model'), 'eval', false, true).then(function() {
-        app_state.set_speak_mode_user(_this.get('model.id'), false, false, 'obf/eval');
+      _this.appState.check_for_currently_premium(_this.get('model'), 'eval', false, true).then(function() {
+        _this.appState.set_speak_mode_user(_this.get('model.id'), false, false, 'obf/eval');
       });
     },
     remote_model: function(user) {
       var _this = this;
-      app_state.check_for_currently_premium(_this.get('model'), 'eval', false, true).then(function() {
+      _this.appState.check_for_currently_premium(_this.get('model'), 'eval', false, true).then(function() {
         modal.open('modals/remote-model', {user_id: _this.get('model.id')});
       });
     },
@@ -601,7 +619,7 @@ export default Controller.extend({
       }
     },
     resendConfirmation: function() {
-      persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/confirm_registration', {
+      this.persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/confirm_registration', {
         type: 'POST',
         data: {
           resend: true
@@ -618,7 +636,7 @@ export default Controller.extend({
       } else if(action == 'confirm' && this.get('subscription_settings')) {
         this.set('subscription_settings.loading', true);
         var _this = this;
-        persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/subscription', {
+        _this.persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/subscription', {
           type: 'POST',
           data: {
             type: this.get('subscription_settings.action')
@@ -686,7 +704,7 @@ export default Controller.extend({
         if(old_key != _this.get('model.user_name')) { return; }
 
         _this.set('new_user_name', {renaming: true});
-        persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/rename', {
+        this.persistence.ajax('/api/v1/users/' + this.get('model.user_name') + '/rename', {
           type: 'POST',
           data: {
             old_key: _this.get('model.user_name'),
@@ -694,7 +712,7 @@ export default Controller.extend({
           }
         }).then(function(res) {
           _this.set('new_user_name', null);
-          _this.transitionToRoute('user.index', res.key);
+          _this.router.transitionTo('user.index', res.key);
           runLater(function() {
             modal.success(i18n.t('user_renamed_to', "User successfully renamed to %{k}. The full renaming process can take a little while to complete.", {k: res.key}));
           }, 200);
@@ -723,7 +741,7 @@ export default Controller.extend({
         this.set('password.loading', true);
         var _this = this;
 
-        persistence.ajax('/api/v1/users/' + this.get('model.user_name'), {
+        this.persistence.ajax('/api/v1/users/' + this.get('model.user_name'), {
           type: 'POST',
           data: {
             '_method': 'PUT',
@@ -741,7 +759,7 @@ export default Controller.extend({
     },
     load_starred: function() {
       var opts = {force_board_state: {key: 'obf/stars-' + this.get('model.id')}};
-      app_state.home_in_speak_mode(opts);
+      this.appState.home_in_speak_mode(opts);
     },
     external_device: function() {
       if(this.get('model.permissions.edit')) {

@@ -1,14 +1,15 @@
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
-import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Component.extend({
+  appState: service('app-state'),
   willInsertElement: function() {
     this.set('include_canvas', window.outerWidth > 800);
-    this.set('app_state', app_state);
+    this.set('app_state', this.appState);
     this.set('model', {loading: true});
     var _this = this;
     if(_this.get('key')) {
@@ -45,15 +46,16 @@ export default Component.extend({
       modal.close_board_preview();
     },
     visit: function() {
-      app_state.set('referenced_board', {id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale')});
-      app_state.controller.transitionToRoute('board', this.get('model.key'));
+      this.appState.set('referenced_board', {id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale')});
+      this.appState.controller.transitionToRoute('board', this.get('model.key'));
     },
     copy: function() {
-      var oldBoard = this.get('model');
+      var _this = this;
+      var oldBoard = _this.get('model');
       modal.close_board_preview();
       modal.open('copy-board', {board: oldBoard, for_editing: false}).then(function(decision) {
         decision = decision || {};
-        decision.user = decision.user || app_state.get('currentUser');
+        decision.user = decision.user || _this.appState.get('currentUser');
         decision.action = decision.action || "nothing";
         oldBoard.set('copy_name', decision.board_name);
         oldBoard.set('copy_prefix', decision.board_prefix);

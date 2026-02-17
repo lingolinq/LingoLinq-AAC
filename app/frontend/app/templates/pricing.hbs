@@ -8,13 +8,13 @@
         {{t "We want %app_name% to be accessible to as many people as possible, so we offer multiple purchasing options. After the 2-month trial if you need a little more time, or don't have the resources to make a large up-front purchase, you can pay monthly for a %app_name% subscription, or for a hefty discount you can purchase a full %app_name% license." key="multiple_pricing_options"}}
       </p>
       <div style="clear: left;"></div>
-      {{#if show_bulk_purchase}}
+      {{#if this.show_bulk_purchase}}
         <p class="explanation" style="margin-top: 10px;">
           {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
         </p>
       {{/if}}
     </div>
     </div>
-    {{subscription-form subscription=subscription pricing_only=true subscription_success="subscription_success"}}
+    {{subscription-form subscription=this.subscription pricing_only=true subscription_success="subscription_success"}}
   </div>
 </div>

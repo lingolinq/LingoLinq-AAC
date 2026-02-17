@@ -1,5 +1,5 @@
 <div class='col-sm-6 col-sm-offset-3'>
-  {{#if setup_user.supporter_role}}
+  {{#if this.setup_user.supporter_role}}
     <p class='prompt'>{{t "As a supervisor, you'll have access to boards and usage reports for the communicators you work with. If you'd like, you can also turn on notifications, and receive regular updates on communicator progress, or even opt-in to receiving text messages from communicators that have added you as a supervisor." key="notifications_settings"}}</p>
   {{else}}
     <p class='prompt'>{{t "When logging is enabled, you can opt to receive regular emails with details on communication over time, including current goals and word usage. This can help keep everyone on the same page and can be a valuable tool is helping communicators make continual progress." key="communicator_notifications"}}</p>
@@ -7,23 +7,23 @@
   <div class='setup_setting'>
     <label>{{t "How often do you want summary emails?" key="summary_emails"}}</label>
     <div class="btn-group-vertical" style="width: 100%;">
-      <a href="#" class={{if notification.1_week "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_week"}}>{{t "Every Week" key="every_week"}}</a>
-      <a href="#" class={{if notification.2_weeks "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "2_weeks"}}>{{t "Every Other Week" key="every_other_week"}}</a>
-      <a href="#" class={{if notification.1_month "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_month"}}>{{t "Every Month" key="every_month"}}</a>
-      <a href="#" class={{if notification.none "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" ""}}>{{t "Never" key="never"}}</a>
+      <a href="#" class={{if this.notification.1_week "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_week"}}>{{t "Every Week" key="every_week"}}</a>
+      <a href="#" class={{if this.notification.2_weeks "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "2_weeks"}}>{{t "Every Other Week" key="every_other_week"}}</a>
+      <a href="#" class={{if this.notification.1_month "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_month"}}>{{t "Every Month" key="every_month"}}</a>
+      <a href="#" class={{if this.notification.none "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" ""}}>{{t "Never" key="never"}}</a>
     </div>
   </div>
-  {{#if setup_user.supporter_role}}
+  {{#if this.setup_user.supporter_role}}
     <div class='setup_setting'>
       <label>{{t "How would you like communicators to message you?" key="comm_preference"}}</label>
       <div class="btn-group-vertical" style="width: 100%;">
-        <span class={{if notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text"}}>
+        <span class={{if this.notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text"}}>
           {{t "As Text Messages" key="via_text"}}
           <br>
-          <span style='display: inline-block; width: 300px;'>{{input type="text" class="form-control input-lg" value=cell placeholder="cell #"}}</span>
+          <span style='display: inline-block; width: 300px;'><Input type="text" class="form-control input-lg" @value={{this.cell}} placeholder="cell #" /></span>
         </span>
-        <a href="#" class={{if notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email"}}>{{t "As Email Messages" key="via_email"}}</a>
-        <a href="#" class={{if notification.app "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "app"}}>{{t "As Dashboard Notifications" key="via_dashboard"}}</a>
+        <a href="#" class={{if this.notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email"}}>{{t "As Email Messages" key="via_email"}}</a>
+        <a href="#" class={{if this.notification.app "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "app"}}>{{t "As Dashboard Notifications" key="via_dashboard"}}</a>
       </div>
     </div>
   {{/if}}

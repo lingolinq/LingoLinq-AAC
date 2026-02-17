@@ -6,11 +6,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 **/
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import stashes from './_stashes';
-import app_state from './app_state';
-import persistence from './persistence';
+// import stashes from './_stashes';
+// import app_state from './app_state';
+// import persistence from './persistence';
 
 var geo = EmberObject.extend({
+  setup: function(appState, persistence, stashes) {
+    this.appState = appState;
+    this.persistence = persistence;
+    this.stashes = stashes;
+  },
   distance: function(lat1, lon1, lat2, lon2) {
     // http://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
     var p = 0.017453292519943295;    // Math.PI / 180
@@ -25,7 +30,7 @@ var geo = EmberObject.extend({
   },
   check_locations: function() {
     var _this = this;
-    var new_coords = stashes.get('geo.latest.coords');
+    var new_coords = this.stashes.get('geo.latest.coords');
     var last_check = _this.get('last_location_check');
     if(new_coords) {
       var distance = 0;
@@ -37,11 +42,11 @@ var geo = EmberObject.extend({
         var id = (new Date()).getTime() + "_" + Math.random(99999);
         new_coords.check_id = id;
         _this.set('last_location_check', new_coords);
-        return persistence.ajax('/api/v1/users/' + app_state.get('currentUser.user_name') + '/places?latitude=' + new_coords.latitude + "&longitude=" + new_coords.longitude, {type: 'GET'}).then(function(res) {
+        return this.persistence.ajax('/api/v1/users/' + this.appState.get('currentUser.user_name') + '/places?latitude=' + new_coords.latitude + "&longitude=" + new_coords.longitude, {type: 'GET'}).then(function(res) {
           if(_this.get('last_location_check.id') == id) {
             _this.set('last_location_check', null);
           }
-          app_state.set('nearby_places', res);
+          _this.appState.set('nearby_places', res);
           return res;
         }, function(err) {
           if(_this.get('last_location_check.id') == id) {

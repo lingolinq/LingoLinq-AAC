@@ -1,0 +1,70 @@
+app/frontend/app/templates/share-email.hbs:            {{input value=this.email class="form-control" id="email" placeholder="Email Address"}}
+app/frontend/app/templates/share-email.hbs:            {{input value=this.subject class="form-control" id="subject" placeholder="Email Subject Line"}}
+app/frontend/app/templates/pick-avatar.hbs:          {{input type="text" class="form-control" value=this.model.user.avatar_url placeholder="avatar url"}}
+app/frontend/app/templates/share-utterance.hbs:    <div style='position: absolute; left: -1000px;'>{{input type="text" value=this.sentence id="utterance_sentence"}}</div>
+app/frontend/app/templates/share-utterance.hbs:          {{input checked=this.text_only type="checkbox"}}
+app/frontend/app/templates/brief.hbs:          {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+app/frontend/app/templates/redeem.hbs:    {{input type="text" value=this.redeem_code class="form-control input-lg" placeholder="abcd123"}}
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.audio_on}} {{t "Audio on" key="audio_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.magnifier_on}} {{t "Magnifier on" key="magnifier_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.scan_on}} {{t "Scanning on" key="scanning_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.stash_on}} {{t "Stash on" key="stash_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.sidebar_on}} {{t "Sidebar on" key="sidebar_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.full_screen_on}} {{t "Full screen on" key="full_screen_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.sleep_on}} {{t "Sleep on" key="sleep_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:          <label>{{input type="checkbox" checked=this.model.lock_on}} {{t "Lock on" key="lock_on"}}</label>
+app/frontend/app/templates/button-settings.hbs:        {{input value=this.model.vocalization class="form-control inline" id="vocalization" placeholder=this.label}}
+app/frontend/app/templates/button-settings.hbs:          {{input checked=this.model.blocking_speech type="checkbox"}}
+app/frontend/app/templates/button-settings.hbs:          {{input type="text" value=this.sound_preview.name class="form-control"}}
+app/frontend/app/templates/button-settings.hbs:                {{input value=this.modifier_text class="form-control" id="modifier" placeholder="enter a word to hear it modified"}}
+app/frontend/app/templates/button-settings.hbs:        {{input value=locale.label class="form-control" id=locale.label_id}}
+app/frontend/app/templates/button-settings.hbs:        {{input value=locale.vocalization class="form-control" id=locale.vocalization_id placeholder="matches label if empty"}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.nw placeholder=locale.inflections_suggestions.nw}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.n placeholder=locale.inflections_suggestions.n}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.ne placeholder=locale.inflections_suggestions.ne}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.w placeholder=locale.inflections_suggestions.w}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.e placeholder=locale.inflections_suggestions.e}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.sw placeholder=locale.inflections_suggestions.sw}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.s placeholder=locale.inflections_suggestions.s}}
+app/frontend/app/templates/button-settings.hbs:              {{input class="form-control" value=locale.inflections_hash.se placeholder=locale.inflections_suggestions.se}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.nw placeholder=this.inflections_suggestions.nw}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.n placeholder=this.inflections_suggestions.n}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.ne placeholder=this.inflections_suggestions.ne}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.w placeholder=this.inflections_suggestions.w}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.e placeholder=this.inflections_suggestions.e}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.sw placeholder=this.inflections_suggestions.sw}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.s placeholder=this.inflections_suggestions.s}}
+app/frontend/app/templates/button-settings.hbs:                {{input class="form-control" value=this.inflections_hash.se placeholder=this.inflections_suggestions.se}}
+app/frontend/app/templates/button-settings.hbs:      {{input value=this.model.ref_id class="form-control" id="ref_id" placeholder="ID for custom referencing"}}
+app/frontend/app/templates/share-board.hbs:                  {{input checked=this.board.update_visibility_downstream type="checkbox"}}
+app/frontend/app/templates/share-board.hbs:              {{input value=this.share_user_name class="form-control" placeholder="user name to add"}}
+app/frontend/app/templates/share-board.hbs:                  {{input type="checkbox" checked=this.share_include_downstream}}
+app/frontend/app/templates/share-board.hbs:                  {{input type="checkbox" checked=this.share_allow_editing}}
+app/frontend/app/templates/word-data.hbs:            {{input type="text" value=this.sentence class="form-control"}}
+app/frontend/app/templates/batch-recording.hbs:                {{input insert-newline=(action "confirm_add_phrase") escape-press=(action "cancel_add_phrase") id="custom_phrase_text" type="text" class="form-control" value=this.custom_phrase.text}}
+app/frontend/app/templates/rename-board.hbs:          {{input type="text" class="form-control" id="old_key" value=this.old_key_value placeholder="shown above"}}
+app/frontend/app/templates/rename-board.hbs:          {{input type="text" class="form-control" id="new_key" value=this.new_key_value placeholder="new key"}}
+app/frontend/app/templates/switch-languages.hbs:              {{input type="checkbox" checked=this.same_locale}}
+app/frontend/app/templates/save-snapshot.hbs:            {{input value=this.snapshot.name class="form-control" id="name" placeholder=this.default_snapshot_name}}
+app/frontend/app/templates/utterance.hbs:                    {{input type="checkbox" checked=this.model.show_user}}
+app/frontend/app/templates/record-note.hbs:                {{input checked=this.notify type="checkbox"}}
+app/frontend/app/templates/record-note.hbs:                {{input checked=this.notify_user type="checkbox"}}
+app/frontend/app/templates/record-note.hbs:                {{input checked=this.notify type="checkbox"}}
+app/frontend/app/templates/record-note.hbs:                {{input checked=this.notify_user type="checkbox"}}
+app/frontend/app/templates/supervision-settings.hbs:                        {{input type="text" class="form-control" value=org.external_auth_alias placeholder="external login id or email"}}
+app/frontend/app/templates/search.hbs:      {{input type="text" value=this.searchString enter=(action "searchBoards") class="form-control" placeholder="Search Boards"}}
+app/frontend/app/templates/translation-select.hbs:            {{input type="checkbox" checked=this.default_language}}
+app/frontend/app/templates/user/recordings.hbs:                {{input type="text" value=this.search_string class="form-control" placeholder="find recordings"}}
+app/frontend/app/templates/user/subscription.hbs:              <p style='display: block; max-width: 500px;'>{{input type="text" value=this.cancel_reason class="form-control" placeholder="Can you share your reason for canceling?"}}</p>
+app/frontend/app/templates/user/subscription.hbs:                <p style='display: block; max-width: 500px;'>{{input type="text" value=this.cancel_reason class="form-control" placeholder="Can you share your reason for canceling?"}}</p>
+app/frontend/app/templates/user/password_reset.hbs:        {{input type="password" value=this.model.password class="form-control" id="password" placeholder="new password"}}
+app/frontend/app/templates/user/password_reset.hbs:        {{input type="password" value=this.model.password2 class="form-control" id="password2" title="Repeat password" placeholder="new password again"}}
+app/frontend/app/templates/user/logs.hbs:                  {{input type="text" value=this.logging_code class="form-control"}}
+app/frontend/app/templates/profile.hbs:          {{input type="checkbox" checked=this.profile.with_communicator}}
+app/frontend/app/templates/profile.hbs:                    {{input type="checkbox" checked=question.manual}}
+app/frontend/app/templates/support.hbs:            {{input value=this.name class="form-control" id="name" placeholder="Your Name"}}
+app/frontend/app/templates/support.hbs:            {{input value=this.email class="form-control" id="email" placeholder="you@example.com"}}
+app/frontend/app/templates/support.hbs:          {{input value=this.subject class="form-control" id="subject" placeholder=""}}
+app/frontend/app/templates/quick-assessment.hbs:          {{input value=this.description disabled=this.goal_id class="form-control" id="description" placeholder="brief description"}}
+app/frontend/app/templates/quick-assessment.hbs:          {{input value=this.totals.correct class="form-control input-lg" id="correct_tally" placeholder="0"}}
+app/frontend/app/templates/quick-assessment.hbs:          {{input value=this.totals.incorrect class="form-control input-lg" id="incorrect_tally" placeholder="0"}}

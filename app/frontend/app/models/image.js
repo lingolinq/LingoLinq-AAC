@@ -2,17 +2,15 @@ import RSVP from 'rsvp';
 import DS from 'ember-data';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
-import persistence from '../utils/persistence';
-import app_state from '../utils/app_state';
+import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 LingoLinq.Image = DS.Model.extend({
-  init() {
-    this._super(...arguments);
-    // Set app_state reference on initialization
-    this.set('app_state', app_state);
-  },
+  appState: service('app-state'),
+  persistence: service('persistence'),
+
+  // init removed as explicit injection handles it
   // Clean license when license attribute is loaded
   // This replicates the old didLoad() behavior since init() runs before data is loaded
   onLicenseLoad: observer('license', function() {
@@ -92,7 +90,7 @@ LingoLinq.Image = DS.Model.extend({
   }),
   personalizing_url: function(skip_alternates) {
     LingoLinq.Image.unskins = LingoLinq.Image.unskins || {};
-    var preferred_symbols = this.get('app_state.referenced_user.preferences.preferred_symbols') || 'original';
+    var preferred_symbols = this.get('appState.referenced_user.preferences.preferred_symbols') || 'original';
     var url = this.get('url');
     if(skip_alternates) {
       preferred_symbols = 'original';
@@ -101,18 +99,18 @@ LingoLinq.Image = DS.Model.extend({
       var alternate = (this.get('alternates') || []).find(function(a) { return a.library == preferred_symbols; });
       if(alternate) { url = alternate.url; }
     }
-    return LingoLinq.Image.personalize_url(url, this.get('app_state.currentUser.user_token'), this.get('app_state.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
+    return LingoLinq.Image.personalize_url(url, this.get('appState.currentUser.user_token'), this.get('appState.referenced_user.preferences.skin'), LingoLinq.Image.unskins[this.get('id')]);
   },
-  personalized_url: computed('url', 'app_state.currentUser.user_token', 'app_state.referenced_user.preferences.skin', 'app_state.referenced_user.preferences.preferred_symbols', 'app_state.edit_mode', function() {
+  personalized_url: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url();
   }),
-  personalized_url_without_preferred_symbols: computed('url', 'app_state.currentUser.user_token', 'app_state.referenced_user.preferences.skin', 'app_state.referenced_user.preferences.preferred_symbols', 'app_state.edit_mode', function() {
+  personalized_url_without_preferred_symbols: computed('url', 'appState.currentUser.user_token', 'appState.referenced_user.preferences.skin', 'appState.referenced_user.preferences.preferred_symbols', 'appState.edit_mode', function() {
     return this.personalizing_url(true);
   }),
-  best_url: computed('personalized_url', 'app_state.referenced_user.preferences.preferred_symbols', 'data_url', function() {
+  best_url: computed('personalized_url', 'appState.referenced_user.preferences.preferred_symbols', 'data_url', function() {
     return this.get('data_url') || this.get('personalized_url') || "";
   }),
-  best_url_without_preferred_symbols: computed('personalized_url', 'data_url', 'data_url_no_sym', 'app_state.referenced_user.preferences.preferred_symbols', function() {
+  best_url_without_preferred_symbols: computed('personalized_url', 'data_url', 'data_url_no_sym', 'appState.referenced_user.preferences.preferred_symbols', function() {
     return this.get('data_url_no_sym') || this.personalizing_url(true) || this.get('data_url') || "";
   }),
   checkForDataURL: function() {
@@ -127,22 +125,22 @@ LingoLinq.Image = DS.Model.extend({
       return _this;
     };
     if(!this.get('data_url_no_sym') && LingoLinq.remote_url(this.get('personalized_url_without_preferred_symbols'))) {
-      return persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
+      return _this.persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
         _this.set('data_url_no_sym', data_uri);
       });
     }
     if(!this.get('data_url') && LingoLinq.remote_url(this.get('personalized_url'))) {
-      return persistence.find_url(this.get('personalized_url'), 'image').then(function(data_uri) {
+      return _this.persistence.find_url(this.get('personalized_url'), 'image').then(function(data_uri) {
         // Found as expected!
         return found_one(data_uri);
       }, function(err) {
         var unvarianted_image_url = _this.get('personalized_url') && _this.get('personalized_url').replace(/\.variant-.+\.(png|svg)$/, '');
         if(unvarianted_image_url != _this.get('personalized_url')) {
-          return persistence.find_url(unvarianted_image_url, 'image').then(function(data_uri) {
+          return _this.persistence.find_url(unvarianted_image_url, 'image').then(function(data_uri) {
             // Found, but without the correct variant
             return found_one(data_uri);
           }, function(err) {
-            return persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
+            return _this.persistence.find_url(this.get('personalized_url_without_preferred_symbols'), 'image').then(function(data_uri) {
               // Found but without the correct symbol preference
               return found_one(data_uri);
             });

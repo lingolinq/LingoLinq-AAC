@@ -8,15 +8,15 @@
   <div class="modal-body">
     <div class="row">
       <div class="col-xs-12">
-        {{#if model.user.avatar_url}}
+        {{#if this.model.user.avatar_url}}
           <img src={{this.model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;">
         {{/if}}
         {{t "Select an image from the list below, or upload your own!" key="select_or_upload"}}<br>
-        {{#if loading_avatar}}
+        {{#if this.loading_avatar}}
           {{t "Uploading..." key="uploading"}}
         {{else}}
           <input type="file" id="avatar_upload" >
-          {{#if editable}}
+          {{#if this.editable}}
             <div style='margin-bottom: 10px; margin-top: 5px;'>
               <a href="#" class='btn btn-default btn-sm' {{action "edit_image_url"}}>{{t "edit image" key="edit_image_lower"}}</a>
             </div>
@@ -25,11 +25,11 @@
         <div style="clear: left;"></div>
       </div>
     </div>
-    {{#if editing}}
+    {{#if this.editing}}
       <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0" title="Avatar editor"></iframe>
     {{else}}
       <div class="row" style="max-height: 200px; max-height: calc(100vh - 315px); overflow: auto;">
-      {{#each avatar_options as |option|}}
+      {{#each this.avatar_options as |option|}}
         <div class="col-xs-3 col-sm-2" style="padding: 2px;">
             <button class={{if option.selected "btn btn-primary" "btn btn-default"}} style="width: 100%;" {{action "pick" option}}>
               <div style={{option.div_style}}>
@@ -40,15 +40,15 @@
       </div>
       <div class="row">
         <div class="col-xs-12" style="padding-top: 5px;">
-          {{input type="text" class="form-control" value=model.user.avatar_url placeholder="avatar url"}}
+          <Input @type="text" class="form-control" @value={{this.model.user.avatar_url}} placeholder="avatar url" />
         </div>
       </div>
     {{/if}}
   </div>
   <div class="modal-footer">
-    {{#if editing}}
+    {{#if this.editing}}
       <button class='btn btn-primary' {{action "save_edit"}}>
-        {{#if saving}}
+        {{#if this.saving}}
           {{t "Saving..." key="saving"}}
         {{else}}
           {{t "Save" key="save"}}

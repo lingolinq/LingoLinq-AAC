@@ -32,7 +32,7 @@
         <div class="col-sm-8 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              {{input type="checkbox" checked=auto_conclude}}
+              <Input type="checkbox" @checked={{this.auto_conclude}} />
               Auto-conclude the goal for all users in the room
             </label>
           </div>
@@ -41,10 +41,10 @@
     </div>
   </div>
   <div class="modal-header">
-    <button class='btn btn-primary btn-lg' disabled={{status.saving}} {{action "confirm"}}>
-      {{#if status.saving}}
+    <button class='btn btn-primary btn-lg' disabled={{this.status.saving}} {{action "confirm"}}>
+      {{#if this.status.saving}}
         {{t "Removing Goal..." key="removing_goal"}}
-      {{else if status.error}}
+      {{else if this.status.error}}
         {{t "Error Removing Goal" key="error_removing_goal"}}
       {{else}}
         {{t "Remove Goal" key="remove_goal"}}

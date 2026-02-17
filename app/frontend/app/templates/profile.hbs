@@ -1,47 +1,47 @@
 <div class='profile' style='max-width: 1000px; margin: 0 auto;'>
-  <h3><span class='glyphicon glyphicon-lamp'></span> {{profile.template.name}} - {{user.user_name}}</h3>
-  {{#if profile.template.description}}
+  <h3><span class='glyphicon glyphicon-lamp'></span> {{this.profile.template.name}} - {{this.user.user_name}}</h3>
+  {{#if this.profile.template.description}}
     <div style='margin: 15px 0 30px;'>
-      {{#each profile.template.description as |par|}}
+      {{#each this.profile.template.description as |par|}}
         <p>{{par}}</p>
       {{/each}}
     </div>
   {{/if}}
   <h4>{{t "Instructions" key="instructions"}}</h4>
-  {{#if profile.template.instructions}}
+  {{#if this.profile.template.instructions}}
     <div style='margin: 15px 0 30px;'>
-      {{#each profile.template.instructions as |par|}}
+      {{#each this.profile.template.instructions as |par|}}
         <p>{{par}}</p>
       {{/each}}
     </div>
   {{/if}}
   <div>
-    {{#if prior_profile}}
+    {{#if this.prior_profile}}
       <em>
-        {{user.user_name}}{{t "'s last assessment was" key="possessive last assessment"}}
+        {{this.user.user_name}}{{t "'s last assessment was" key="possessive last assessment"}}
 
-        {{#if prior_profile.self_assessment}}
+        {{#if this.prior_profile.self_assessment}}
           {{t "a self-assessment" key="a_self_assessment"}}
-          {{date_ago prior_profile.started_at}}
+          {{date_ago this.prior_profile.started_at}}
         {{else}}
           {{t "by" key="by"}}
-          {{prior_profile.assessor.user_name}}
-          {{date_ago prior_profile.started_at}}
+          {{this.prior_profile.assessor.user_name}}
+          {{date_ago this.prior_profile.started_at}}
         {{/if}}
       </em>
     {{/if}}
   </div>
-  {{#if communicator_type}}
+  {{#if this.communicator_type}}
     <div style='font-size: 16px; margin: 10px 0; border: 2px solid #c88; padding: 10px 20px; border-radius: 5px;'>
       <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
         <label style='display: block; margin-top: -2px;'>
-          {{input type="checkbox" checked=profile.with_communicator}}
+          <Input @type="checkbox" @checked={{this.profile.with_communicator}} />
           {{t "This profile was completed with the communicator's participation" key="profile_completed_with_communicator"}}
         </label>
       </div>
     </div>
   {{/if}}
-  {{#each profile.questions_layout as |question|}}
+  {{#each this.profile.questions_layout as |question|}}
     {{#if question.header}}
       <div class='question_header' style={{question.header_style}}>
         {{#if question.sub_label}}
@@ -77,9 +77,9 @@
             {{#if question.answer_type.text}}
               <div style={{if question.manual_selection "min-height: 75px; height: calc(100% - 59px);" "min-height: 75px; height: 100%;"}}>
                 {{#if question.answer_type.extra}}
-                  {{textarea placeholder=question.answer_type.hint value=question.text_response class="text_response"}}
+                  <Textarea @value={{question.text_response}} placeholder={{question.answer_type.hint}} class="text_response" />
                 {{else}}
-                  {{textarea placeholder=question.answer_type.hint value=question.text_response class="text_response expected"}}
+                  <Textarea @value={{question.text_response}} placeholder={{question.answer_type.hint}} class="text_response expected" />
                 {{/if}}
               </div>
             {{else}}
@@ -100,7 +100,7 @@
               <div class='manual_select'>
                 <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
                   <label style='display: block; margin-top: -2px;'>
-                    {{input type="checkbox" checked=question.manual}}
+                    <Input @type="checkbox" @checked={{question.manual}} />
                     {{question.manual_selection}}
                   </label>
                 </div>
@@ -114,12 +114,12 @@
   {{/each}}
   <div style='font-size: 16px; margin: 30px 0 10px; border: 2px solid #888; padding: 10px 20px; border-radius: 5px;'>
       <label for='feedback'>{{t "Feedback on your experience with this profile (will be made available to the profile author)"}}</label><br>
-      {{textarea placeholder="Feedback" value=profile.feedback class="form-control"}}
+      <Textarea @value={{this.profile.feedback}} placeholder="Feedback" class="form-control" />
   </div>
   <div style='margin-top: 50px;'>
-    {{#if missing_responses}}
+    {{#if this.missing_responses}}
       <p>
-        <a class='text-danger' href='#' {{action "highlight_blank" true}}>{{t "Missing" key="missing"}} {{t "response" count=missing_responses key="n_responses"}}</a>
+        <a class='text-danger' href='#' {{action "highlight_blank" true}}>{{t "Missing" key="missing"}} {{t "response" count=this.missing_responses key="n_responses"}}</a>
       </p>
     {{/if}}
     <button {{action "submit"}} class='btn btn-lg btn-primary'>{{t "Finalize Profile" key="finalize_profile"}}</button>

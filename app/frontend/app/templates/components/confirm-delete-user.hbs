@@ -1,0 +1,30 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Delete User Forever" key="delete_user"}}</h3>
+  </div>
+  <div class="modal-body">
+    <div class="form-horizontal">
+      <div class="form-group">
+        <div class="col-sm-8 col-sm-offset-3">
+          <p class="form-control-static">
+            {{t "Are you sure you want to delete this user? This will remove all user information, user boards, usage history, etc. and cannot be undone. To confirm, please enter your user name below." key="confirm_user_name_for_delete_user"}}
+          </p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
+        <div class="col-sm-5">
+          <Input @value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-default btn-lg' {{action "delete_user"}}>{{t "Delete User Account" key="delete_user_account"}}</button>
+    <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    {{#if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

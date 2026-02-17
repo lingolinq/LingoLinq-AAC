@@ -6,22 +6,22 @@
     </h3>
   </div>
   <div class="modal-body">
-    {{#if model.user}}
+    {{#if this.model.user}}
       <img src={{this.model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' >
-    {{else if model.log}}
+    {{else if this.model.log}}
       <span class='glyphicon glyphicon-time' style='font-size: 60px; float: left; margin: 0 10px 10px 0;'></span>
     {{/if}}
-    {{#if status.downloading}}
+    {{#if this.status.downloading}}
       <p>{{t "Generating log file for download..." key="generating_log"}}</p>
-    {{else if status.url}}
+    {{else if this.status.url}}
       <p>{{t "Download complete!" key="download_complete"}}</p>
       <p>
-        <a href={{status.url}} target="_blank" class='btn btn-lg btn-primary' rel="noopener">Download {{status.file_name}}</a>
+        <a href={{this.status.url}} target="_blank" class='btn btn-lg btn-primary' rel="noopener">Download {{this.status.file_name}}</a>
       </p>
-    {{else if status.errored}}
+    {{else if this.status.errored}}
       <p>{{t "There was an error downloading the log file" key="error_downloading_log"}}</p>
-    {{else if model.user}}
-      <p>{{t "%app_name% will generate a file containing <b>a full history of the %{un}'s logs</b> as an <a href='https://www.openboardformat.org/docs' target='_blank' rel='noopener'>open board log file</a> which you can download and share with your team or upload into another system. If you have been using %app_name% for a long time then this could take a while. Would you like to continue?" un=model.user.user_name key="confirm_user_log_download"}}</p>
+    {{else if this.model.user}}
+      <p>{{t "%app_name% will generate a file containing <b>a full history of the %{un}'s logs</b> as an <a href='https://www.openboardformat.org/docs' target='_blank' rel='noopener'>open board log file</a> which you can download and share with your team or upload into another system. If you have been using %app_name% for a long time then this could take a while. Would you like to continue?" un=this.model.user.user_name key="confirm_user_log_download"}}</p>
       <button class='btn btn-primary' {{action "download"}}>{{t "Generate Download (.obl)" key="generate_download"}}</button>
       <button class='btn btn-default' {{action "download" "obla"}}>{{t "Generate .obla" key="generate_obla"}}</button>
     {{else}}

@@ -8,7 +8,7 @@
     {{/if}}
   </div>
   <div class="modal-body">
-    {{#if model.lesson}}
+    {{#if this.model.lesson}}
       <p>
         {{t "Are you sure you want to remove the training for this room?" key="confirm_delete_training"}}
       </p>
@@ -18,24 +18,24 @@
         {{t "Are you sure you want to delete this room?" key="confirm_delete_room"}}
       </p>
       <strong>{{this.model.unit.name}}</strong><br>
-      {{t "supervisor" count=model.unit.supervisor_count key="n_supervisors_lower"}}<br>
-      {{t "communicator" count=model.unit.communicator_count key="n_communicators_lower"}}
+      {{t "supervisor" count=this.model.unit.supervisor_count key="n_supervisors_lower"}}<br>
+      {{t "communicator" count=this.model.unit.communicator_count key="n_communicators_lower"}}
     {{/if}}
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' {{action "confirm"}} disabled={{status.removing}}>
-      {{#if model.lesson}}
-        {{#if status.removing}}
+    <button class='btn btn-primary' {{action "confirm"}} disabled={{this.status.removing}}>
+      {{#if this.model.lesson}}
+        {{#if this.status.removing}}
           {{t "Removing Training..." key="removing_training"}}
-        {{else if status.error}}
+        {{else if this.status.error}}
           {{t "Error Removing Training" key="error_removing_training"}}
         {{else}}
           {{t "Remove Training" key="remove_training"}}
         {{/if}}
       {{else}}
-        {{#if status.removing}}
+        {{#if this.status.removing}}
           {{t "Deleting Room..." key="deleting_room"}}
-        {{else if status.error}}
+        {{else if this.status.error}}
           {{t "Error Deleting Room" key="error_deleting_room"}}
         {{else}}
           {{t "Delete Room" key="delete_room"}}

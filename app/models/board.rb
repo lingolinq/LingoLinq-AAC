@@ -28,6 +28,7 @@ class Board < ActiveRecord::Base
   before_save :check_inflections
   before_save :check_content_overrides
   before_save :process_suggested_symbols
+  before_save :process_suggested_sounds
   after_save :post_process
   after_save :assert_shallow_mapping
   after_destroy :flush_related_records
@@ -718,12 +719,39 @@ class Board < ActiveRecord::Base
     self.any_upstream = self.settings && self.settings['immediately_upstream_board_ids'] && self.settings['immediately_upstream_board_ids'].length > 0
     self.any_upstream ||= false
     grid = BoardContent.load_content(self, 'grid')
-    grid ||= {}
+    grid = {} if !grid.is_a?(Hash)
     grid['rows'] = (grid['rows'] || 2).to_i
     grid['columns'] = (grid['columns'] || 4).to_i
+    # Convert grid['order'] from Hash to Array if needed (Rails params often come as hash with string keys)
+    if grid['order'].is_a?(Hash)
+      # Convert hash with string keys to array, sorted by key
+      order_array = []
+      grid['order'].keys.sort_by(&:to_i).each do |key|
+        row = grid['order'][key]
+        # Also ensure each row is an array, not a hash
+        if row.is_a?(Hash)
+          row_array = []
+          row.keys.sort_by(&:to_i).each do |col_key|
+            row_array << row[col_key]
+          end
+          order_array << row_array
+        else
+          order_array << row
+        end
+      end
+      grid['order'] = order_array
+    end
     grid['order'] ||= []
     grid['rows'].times do |i|
       grid['order'][i] ||= []
+      # Ensure each row is an array, not a hash
+      if grid['order'][i].is_a?(Hash)
+        row_array = []
+        grid['order'][i].keys.sort_by(&:to_i).each do |key|
+          row_array << grid['order'][i][key]
+        end
+        grid['order'][i] = row_array
+      end
       grid['columns'].times do |j|
         grid['order'][i][j] ||= nil
       end
@@ -736,6 +764,24 @@ class Board < ActiveRecord::Base
     end
     if grid['labels'] && self.buttons.length == 0
       self.populate_buttons_from_labels(grid.delete('labels'), grid.delete('labels_order'))
+    end
+    # If buttons exist but aren't placed in grid, auto-place them
+    if self.buttons && self.buttons.length > 0
+      button_ids_in_grid = grid['order'].flatten.compact.uniq
+      unplaced_buttons = self.buttons.select{|b| !button_ids_in_grid.include?(b['id'].to_s) && !button_ids_in_grid.include?(b['id'].to_i)}
+      if unplaced_buttons.length > 0
+        button_idx = 0
+        grid['rows'].times do |row|
+          grid['columns'].times do |col|
+            if button_idx < unplaced_buttons.length && (!grid['order'][row] || !grid['order'][row][col])
+              grid['order'][row] ||= []
+              grid['order'][row][col] = unplaced_buttons[button_idx]['id']
+              button_idx += 1
+            end
+          end
+        end
+        @buttons_changed = 'auto_placed_in_grid' if button_idx > 0
+      end
     end
     self.settings['grid'] = grid
     update_immediately_downstream_board_ids
@@ -893,7 +939,9 @@ class Board < ActiveRecord::Base
       button = {
         'id' => max_id,
         'label' => label,
-        'suggest_symbol' => true
+        'suggest_symbol' => true,
+        'hidden' => false,
+        'hide_label' => false
       }
       buttons << button
       @buttons_changed = 'populated_from_labels'
@@ -969,7 +1017,12 @@ class Board < ActiveRecord::Base
     
     rev = (((self.settings || {})['revision_hashes'] || [])[-2] || [])[0] || current_revision
     notify('board_buttons_changed', {'revision' => rev, 'reason' => @buttons_changed}) if @buttons_changed && !@brand_new
-    content_changed = @button_links_changed || @brand_new || @buttons_changed
+    # Capture content_changed BEFORE map_images clears @buttons_changed
+    # @buttons_changed can be a string (like "buttons processed") or boolean, so convert to boolean
+    buttons_changed_bool = !!@buttons_changed
+    content_changed = @button_links_changed || @brand_new || buttons_changed_bool
+    # Store @brand_new before map_images in case it gets cleared
+    was_brand_new = @brand_new
     self.map_images # NOTE: this clears @buttons_changed
     
     if self.settings && self.settings['image_url'] == DEFAULT_ICON && self.settings['default_image_url'] == self.settings['image_url'] && self.settings['name'] && self.settings['name'] != 'Unnamed Board'
@@ -993,6 +1046,51 @@ class Board < ActiveRecord::Base
       schedule(:current_library, true) if content_changed && !self.settings['common_library'] && !self.settings['swapped_library']
     end
     @skip_board_post_checks = false
+
+    # Create/update buttonset when board is saved (especially for new boards)
+    # Check if buttonset exists to determine if this is a new board (more reliable than @brand_new)
+    # Use was_brand_new in case @brand_new was cleared
+    existing_buttonset = self.board_downstream_button_set
+    is_new_board = was_brand_new || @brand_new || (!existing_buttonset && content_changed)
+    
+    Rails.logger.info("[Board#post_process] Checking buttonset creation - content_changed: #{content_changed}, id: #{self.id}, @brand_new: #{@brand_new.inspect}, existing_buttonset: #{existing_buttonset ? existing_buttonset.global_id : 'none'}, is_new_board: #{is_new_board}")
+    
+    if self.id
+      # Always check if buttonset exists - create it if missing, update it if content changed
+      if !existing_buttonset
+        # No buttonset exists - create it immediately (whether new board or not)
+        Rails.logger.info("[Board#post_process] Creating buttonset for board #{self.global_id} (no buttonset exists)")
+        begin
+          BoardDownstreamButtonSet.update_for(self.global_id, true)
+          # Reload to get the newly created buttonset
+          self.reload
+          buttonset = self.board_downstream_button_set
+          if buttonset
+            Rails.logger.info("[Board#post_process] Buttonset created successfully: #{buttonset.global_id}, persisted: #{buttonset.persisted?}, saved?: #{buttonset.persisted? && buttonset.id.present?}")
+            # Ensure it's actually saved
+            if buttonset.persisted? && buttonset.changed?
+              buttonset.save!
+              Rails.logger.info("[Board#post_process] Buttonset saved after creation")
+            end
+          else
+            Rails.logger.warn("[Board#post_process] Buttonset update_for returned but buttonset not found for board #{self.global_id}")
+          end
+        rescue => e
+          # If immediate update fails, schedule it instead
+          Rails.logger.warn("[Board#post_process] Failed to create buttonset immediately for board #{self.global_id}: #{e.class}: #{e.message}")
+          Rails.logger.warn("[Board#post_process] Backtrace: #{e.backtrace.first(5).join("\n")}")
+          BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
+        end
+      elsif content_changed && (@buttons_changed || @button_links_changed || is_new_board)
+        # Buttonset exists but content changed - update it
+        Rails.logger.info("[Board#post_process] Scheduling buttonset update for board #{self.global_id} (content changed)")
+        BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, false)
+      else
+        Rails.logger.info("[Board#post_process] Buttonset exists and no content changes - skipping update")
+      end
+    else
+      Rails.logger.info("[Board#post_process] Skipping buttonset creation - board has no ID yet")
+    end
 
     schedule_downstream_checks(Board.last_scheduled_stamp)
   end
@@ -1080,6 +1178,45 @@ class Board < ActiveRecord::Base
     rescue => e
       Rails.logger.error "Failed to process suggested symbols: #{e.message}"
       # Don't raise - board creation should continue even if symbol lookup fails
+    end
+  end
+
+  def process_suggested_sounds
+    # Auto-add TTS sounds for buttons when board was populated from labels (same flow as images).
+    return unless @buttons_changed == 'populated_from_labels' || @buttons_changed == 'suggested_symbols_added'
+
+    buttons = self.settings['buttons'] || []
+    suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
+    return if suggested_buttons.empty?
+
+    locale = (self.settings['locale'] || 'en').to_s
+    author = self.user
+
+    suggested_buttons.each do |button|
+      next unless button['label']
+      text = button['vocalization'].presence || button['label']
+      next if text.blank?
+
+      begin
+        audio = Tts.generate_audio(text, locale: locale, mp3: true)
+        next unless audio && audio[:body].present?
+
+        bs = ButtonSound.new(user: author, settings: {})
+        bs.settings['name'] = text
+        bs.settings['content_type'] = audio[:content_type] || 'audio/mp3'
+        bs.settings['license'] = { 'type' => 'private' }
+        bs.settings['suggestion'] = true
+        bs.settings['data_uri'] = "data:#{bs.settings['content_type']};base64,#{Base64.strict_encode64(audio[:body])}"
+        bs.save
+        bs.upload_to_remote('data_uri')
+        next unless bs.url.present?
+
+        button['sound_id'] = bs.global_id
+        @buttons_changed = 'suggested_sounds_added'
+      rescue => e
+        Rails.logger.error "Failed to process suggested sound for '#{text}': #{e.message}"
+        # Continue with other buttons
+      end
     end
   end
 
@@ -1422,12 +1559,14 @@ class Board < ActiveRecord::Base
     end
 
     if params['intro']
-      self.settings['intro'] = params['intro'] 
+      self.settings['intro'] = params['intro']
       # When a board is copied and buttons change, the intro
       # should be marked unapproved until the user has manually
-      # reviewed it.
-      self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.settings['intro'] && self.parent_board_id && params['intro']['unapproved'] != false
-      self.settings['intro'].delete('unapproved') unless self.settings['intro']['unapproved']
+      # reviewed it. Only mutate hash-shaped intro (intro can be a string in some data).
+      if self.settings['intro'].is_a?(Hash)
+        self.settings['intro']['unapproved'] = true if self.settings['never_edited'] && self.parent_board_id && params['intro'].is_a?(Hash) && params['intro']['unapproved'] != false
+        self.settings['intro'].delete('unapproved') unless self.settings['intro']['unapproved']
+      end
     end
     self.settings['home_board'] = params['home_board'] if params['home_board'] != nil
     self.settings['categories'] = params['categories'] if params['categories']
@@ -1466,7 +1605,13 @@ class Board < ActiveRecord::Base
     end
     self.star(non_user_params[:updater], params['starred']) if params['starred'] != nil
     
-    self.settings['grid'] = params['grid'] if params['grid']
+    if params['grid']
+      grid_val = params['grid']
+      if grid_val.is_a?(String)
+        grid_val = JSON.parse(grid_val) rescue nil
+      end
+      self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
+    end
     if params['visibility'] != nil && !self.unshareable?
       if params['update_visibility_downstream']
         self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])
@@ -1526,7 +1671,14 @@ class Board < ActiveRecord::Base
       end
     end
     if self.settings['categories']
-      self.settings['categories'] -= ['protected_vocabulary', 'unprotected_vocabulary']
+      # Ensure categories is an Array (Rails params can come as String or other types)
+      if self.settings['categories'].is_a?(Array)
+        self.settings['categories'] -= ['protected_vocabulary', 'unprotected_vocabulary']
+      else
+        # If it's not an array, convert to array first, then subtract
+        categories_array = Array(self.settings['categories'])
+        self.settings['categories'] = categories_array - ['protected_vocabulary', 'unprotected_vocabulary']
+      end
     end
 
     if !params['sharing_key'].blank?
@@ -1659,8 +1811,25 @@ class Board < ActiveRecord::Base
   
   def process_buttons(buttons, editor, secondary_editor=nil, translations=nil)
     raise "can't update buttons for a shallow clone" if @sub_id
-    add_voc_error = buttons.instance_variable_get('@add_voc_error')
-    translations ||= {}
+    # Get add_voc_error before converting (it's set as instance variable on the buttons object)
+    add_voc_error = nil
+    if buttons && buttons.respond_to?(:instance_variable_get)
+      add_voc_error = buttons.instance_variable_get('@add_voc_error')
+    end
+    # Convert hash to array if needed (Rails params often come as hash with string keys)
+    if buttons.is_a?(Hash)
+      buttons = buttons.values
+    elsif !buttons.is_a?(Array)
+      buttons = []
+    end
+    # Ensure translations is a Hash, not an Array (Rails params can come as Array)
+    if translations.is_a?(Array)
+      translations = {}
+    elsif translations.is_a?(Hash)
+      # Already a hash, use as is
+    else
+      translations = {}
+    end
     clear_cached("images_and_sounds_with_fallbacks")
     @edit_notes ||= []
     @check_for_parts_of_speech = true
@@ -1674,6 +1843,8 @@ class Board < ActiveRecord::Base
       end
     end
     self.settings['buttons'] = buttons.map do |button|
+      # Ensure button is a Hash (skip if not)
+      next nil unless button.is_a?(Hash)
       if add_voc_error && button['add_vocalization'] == false && !button['load_board']
         button.delete('add_vocalization')
       end
@@ -1684,6 +1855,11 @@ class Board < ActiveRecord::Base
             'painted_part_of_speech', 'home_lock', 'meta_home', 'blocking_speech', 
             'level_modifications', 'inflections', 'ref_id', 'rules', 'add_vocalization', 'no_skin');
       button.delete('meta_home') if !button['meta_home']
+      # Normalize hidden/link_disabled so string "false" from params is not treated as truthy
+      button['hidden'] = (button['hidden'] == true || button['hidden'].to_s == 'true')
+      button['link_disabled'] = (button['link_disabled'] == true || button['link_disabled'].to_s == 'true')
+      button['hide_label'] = (button['hide_label'] == true || button['hide_label'].to_s == 'true')
+      button['text_only'] = (button['text_only'] == true || button['text_only'].to_s == 'true')
       button.delete('level_modifications') if button['level_modifications'] && !button['level_modifications'].is_a?(Hash)
       button.delete('ref_id') if button['ref_id'].blank?
       button.delete('rules') if button['rules'].blank?
@@ -1731,7 +1907,8 @@ class Board < ActiveRecord::Base
           self.settings['translations'][button['id'].to_s][loc]['label'] = tran['label'].to_s if tran['label']
           self.settings['translations'][button['id'].to_s][loc]['vocalization'] = tran['vocalization'].to_s if tran['vocalization'] || tran['label']
           self.settings['translations'][button['id'].to_s][loc].delete('vocalization') if self.settings['translations'][button['id'].to_s][loc]['vocalization'] == ""
-          tran['inflections'].to_a.each_with_index do |str, idx|
+          inflections_list = tran['inflections'].is_a?(Array) ? tran['inflections'] : (tran['inflections'].nil? ? [] : [tran['inflections']])
+          inflections_list.each_with_index do |str, idx|
             self.settings['translations'][button['id'].to_s][loc]['inflections'] ||= []
             self.settings['translations'][button['id'].to_s][loc]['inflections'][idx] = str.to_s if str
           end
@@ -1751,7 +1928,7 @@ class Board < ActiveRecord::Base
         button.delete('link_disabled')
       end
       button
-    end
+    end.compact
 
     if self.buttons.to_json != prior_buttons.to_json
       @edit_notes << "modified buttons"
@@ -1855,14 +2032,12 @@ class Board < ActiveRecord::Base
     # end
   end
 
+  # Derive from button data (grid_buttons) so sound_urls are included whenever any button has sound_id.
+  # Does not rely on BoardButtonSound join table being in sync.
   def known_button_sounds
-    if self.settings && self.settings['images_not_mapped']
-      return @button_sounds if @button_sounds
-      sound_ids = self.buttons.map{|b| b['sound_id'] }.compact.uniq
-      @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
-    else
-      self.button_sounds
-    end
+    return @button_sounds if @button_sounds
+    sound_ids = (self.grid_buttons || []).map { |b| b['sound_id'] }.compact.uniq
+    @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
   end
 
   def import_translation(translated_copy, locale, overwrite=false)

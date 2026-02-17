@@ -111,6 +111,16 @@ rails db:seed
 You can skip the last command if you want, it'll populate with some bootstrap data including
 a login, `example` and `password` to get you started.
 
+You can Use the rake task with environment variables to customize:
+#### Basic usage (default: "Sample Organization")
+`bundle exec rake db:seed_organization`
+#### Custom organization name
+`ORG_NAME="My Company" bundle exec rake db:seed_organization`
+#### Custom organization name and user counts
+`ORG_NAME="Test Org" MANAGER_COUNT=3 USER_COUNT=20 SUPERVISOR_COUNT=5 EVAL_COUNT=2 bundle exec rake db:seed_organization`
+
+Available environment variables:
+
 Once the database is created, you can start the server. If you run `rails server` you
 can start a single server process and hit it up in your browser at the default address
 (`http://localhost:3000` or whatever you changed it to). You'll be stuck on the
