@@ -1,4 +1,6 @@
 class ApplicationController < ActionController::Base
+  # API-style auth endpoints (token, saml, oauth) are called via AJAX without CSRF token
+  protect_from_forgery with: :null_session
   before_action :set_host
   before_action :check_api_token
   before_action :replace_helper_params

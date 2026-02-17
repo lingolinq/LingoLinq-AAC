@@ -212,15 +212,26 @@ import app_state from './app_state';
         options.headers = options.headers || {};
         options.headers['X-INSTALLED-COUGHDROP'] = (!!capabilities.installed_app).toString();
         
+        // Resolve token: capabilities first, then session, then stashes (avoids race after login)
+        var token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ? capabilities.access_token : null;
+        if(!token && LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token')) {
+          token = LingoLinq.session.get('access_token');
+        }
+        if(!token) {
+          var auth = extras.get_stashes().get_object('auth_settings', true);
+          if(auth && auth.access_token && auth.access_token !== 'none' && auth.access_token !== '') {
+            token = auth.access_token;
+          }
+        }
+        if(token && capabilities && capabilities.access_token !== token) {
+          capabilities.access_token = token;
+        }
         // Add Authorization header with defensive checks for token validity
-        // This ensures tokens are properly sent to the backend for authentication
-        if(capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') {
-          var token_preview = capabilities.access_token.substring(0, 10) + '...';
-          options.headers['Authorization'] = "Bearer " + capabilities.access_token;
+        if(token) {
+          var token_preview = token.substring(0, 10) + '...';
+          options.headers['Authorization'] = "Bearer " + token;
           options.headers['X-Device-Id'] = capabilities.device_id();
           options.headers['X-LingoLinq-Version'] = window.LingoLinq.VERSION;
-          
-          // Log token usage for debugging (only in development or when explicitly enabled)
           if(window.LingoLinq && (window.LingoLinq.DEBUG || localStorage.getItem('debug_tokens') === 'true')) {
             console.log('[extras.ajax] Adding Authorization header', {
               url: options.url,
@@ -228,16 +239,13 @@ import app_state from './app_state';
               has_device_id: !!capabilities.device_id()
             });
           }
-        } else {
-          // Log when token is missing for debugging authentication issues
-          if(window.LingoLinq && (window.LingoLinq.DEBUG || localStorage.getItem('debug_tokens') === 'true')) {
-            console.warn('[extras.ajax] No valid access_token available for request', {
-              url: options.url,
-              has_capabilities: !!capabilities,
-              access_token_value: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
-              auth_settings: extras.get_stashes().get_object('auth_settings', true) ? 'exists' : 'missing'
-            });
-          }
+        } else if(window.LingoLinq && (window.LingoLinq.DEBUG || localStorage.getItem('debug_tokens') === 'true')) {
+          console.warn('[extras.ajax] No valid access_token available for request', {
+            url: options.url,
+            has_capabilities: !!capabilities,
+            access_token_value: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
+            auth_settings: extras.get_stashes().get_object('auth_settings', true) ? 'exists' : 'missing'
+          });
         }
         if(LingoLinq.protected_user || extras.get_stashes().get('protected_user')) {
           options.headers['X-SILENCE-LOGGER'] = 'true';

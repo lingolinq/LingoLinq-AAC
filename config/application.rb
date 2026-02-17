@@ -42,7 +42,9 @@ module LingoLinq
     Rails.autoloaders.main.ignore(
       "#{config.root}/app/frontend",
       "#{config.root}/lib/converters",
-      "#{config.root}/lib/templates"
+      "#{config.root}/lib/templates",
+      "#{config.root}/lib/seed_organization.rb",   # script defines top-level method, not constant
+      "#{config.root}/lib/seed_reporting_logs.rb"  # script defines top-level method, not constant
     )
 #    config.autoload_paths += %W(#{config.root}/app/mailers/concerns)
   end

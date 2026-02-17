@@ -157,7 +157,7 @@ class Api::LogsController < ApplicationController
   end
 
   def create
-    ip = request.env["HTTP_X_FORWARDED_FOR"] || request.remote_ip
+    ip = request.remote_ip
     user_id = params['user_id'] || (params['log'] && params['log']['user_id'])
     user = user_id ? User.find_by_path(user_id) : @api_user
     return unless allowed?(user, 'model')

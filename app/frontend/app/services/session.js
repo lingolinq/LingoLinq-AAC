@@ -224,10 +224,16 @@ export default Service.extend({
       // TODO: what happens if the session token gets invalidated mid-session (i.e. without reload?)
       // TODO: if expired, then re-submit with the refresh token
       if(data.authenticated === false) {
-        _this.set('invalid_token', true);
-        if(allow_invalidate && store_data.access_token) {
-          _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
-          return {success: true};
+        // Only set invalid_token when we had a real token that is now rejected.
+        // When access_token is undefined/'none', we're simply not logged in, not "expired".
+        if(store_data.access_token && store_data.access_token !== 'none') {
+          _this.set('invalid_token', true);
+          if(allow_invalidate) {
+            _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
+            return {success: true};
+          }
+        } else {
+          _this.set('invalid_token', false);
         }
       } else {
         _this.set('invalid_token', false);
@@ -400,10 +406,18 @@ export default Service.extend({
 
   restore: function(force_check_for_token) {
     if(!this.stashes.get('enabled')) { return {}; }
+    try {
+      var prior = sessionStorage.getItem('lingolinq_login_debug');
+      if(prior) {
+        var arr = JSON.parse(prior);
+        console.log('[LOGIN-DEBUG] Prior page log:', arr);
+      }
+    } catch (e) {}
     console.debug('LINGOLINQ: restoring session data');
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
-    
+    console.log('[session.restore] auth from stashes', { has_token: !!store_data.access_token, user_name: store_data.user_name });
+
     // Ensure tokens logic works safely
     if(this.persistence && !this.persistence.tokens) {
         this.persistence.tokens = {};
@@ -553,6 +567,9 @@ export default Service.extend({
         _this.set(' ', null);
         _this.set('user_id', null);
         _this.set('as_user_id', null);
+        if(capabilities) {
+          capabilities.access_token = null;
+        }
         if(full_invalidate) {
           later(function() {
             _this.reload('/');

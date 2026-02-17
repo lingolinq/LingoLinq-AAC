@@ -128,6 +128,41 @@
 3. **Token Storage**: Verify frontend is storing token correctly after receiving it
 4. **Token Retrieval**: Verify frontend is retrieving token correctly for subsequent requests
 
+## Service Architecture (Post-Rails-Upgrade)
+
+### Key Services Involved in Auth
+
+| Service | Location | Role |
+|---------|----------|------|
+| **session** | `app/services/session.js` | Ember service; `LingoLinq.session` points to it. Persists/restores auth via stashes. |
+| **stashes** | `app/services/stashes.js` | Ember service; `window.stashes` set in init. Stores `auth_settings` in localStorage + IndexedDB. |
+| **capabilities** | `app/utils/capabilities.js` | Legacy module; holds `access_token` for API requests. Uses stashes via `_stashes` proxy. |
+| **extras** | `app/utils/extras.js` | Wraps `$.ajax`; resolves token from capabilities → session → stashes. Uses `extras.get_stashes()` (falls back to `_stashes` proxy). |
+
+### Data Flow
+
+1. **Login**: `login-form` → `session.confirm_authentication` → `stashes.persist_object('auth_settings', ...)` + `capabilities.access_token = token`
+2. **Post-login flush**: `stashes.flush(null, 'auth_')` preserves auth in IndexedDB; does not remove `cdStash-auth_settings` from localStorage
+3. **Token for API**: `extras` ajax interceptor uses: `capabilities.access_token` → `LingoLinq.session.get('access_token')` → `stashes.get_object('auth_settings', true)`
+4. **Restore**: `session.restore()` reads `stashes.get_object('auth_settings', true)` and syncs to `capabilities.access_token`
+
+### Service Registration
+
+- `application` route calls `lingoLinqExtras.register_services(appState, stashes)` in `setupController`, so `extras.get_stashes()` uses the injected stashes service
+- `capabilities.setup(stashes, ttsVoices)` is also called in `setupController`
+
+### Enabling Debug Logging
+
+1. **Token sync / API**: `localStorage.setItem('debug_tokens', 'true')` before login (or in console)
+2. **Login flow**: `[LOGIN-DEBUG]` logs are always emitted; prior-page log is stored in `sessionStorage.lingolinq_login_debug`
+3. **Session restore**: `[session.restore] auth from stashes` is always logged
+
+### Common Post-Upgrade Issues
+
+- **session.restore sees has_token: false**: Check if IndexedDB/storage has `auth_settings`; stashes.flush with `ignore_prefix='auth_'` must preserve it
+- **API returns 400 Invalid token**: Token resolution in extras may be using stale `capabilities.access_token`; ensure login-form and session set it immediately
+- **Login modal after dashboard**: `check_token` or `find_user` may be firing with invalid token; token may have been overwritten by `sync_access_token` before stashes was ready (guard prevents overwriting valid with empty)
+
 ## Testing Steps
 
 1. Open browser Dev Tools → Network tab
@@ -139,5 +174,6 @@
 4. Check if token appears in subsequent requests
 5. Check Application tab for stored token
 6. Check Console for any errors
+7. Optional: `localStorage.setItem('debug_tokens', 'true')` and reload to see detailed token resolution logs
 
 

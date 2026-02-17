@@ -9,7 +9,6 @@ import LingoLinq from '../app';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
-import { inject as service } from '@ember/service';
 
 export default Route.extend({
   store: service('store'),
@@ -95,7 +94,8 @@ export default Route.extend({
     }
 
     _this.appState.clear_mode();
-    if(!_this.appState.get('currentUser.preferences.home_board.id')) {
+    // Only query starting_boards when authenticated - user_id=self requires a token
+    if(session.get('isAuthenticated') && !_this.appState.get('currentUser.preferences.home_board.id')) {
       this.store.query('board', {user_id: 'self', starred: true, public: true}).then(function(boards) {
         controller.set('starting_boards', boards);
       }, function() { });
