@@ -349,6 +349,19 @@ export default Controller.extend({
     support: function() {
       modal.open('support');
     },
+    toggleDarkMode: function() {
+      this.appState.toggleDarkMode();
+    },
+    toggleThemePicker: function() {
+      this.set('showThemePicker', !this.get('showThemePicker'));
+    },
+    selectThemeMode: function(mode) {
+      this.appState.setThemeMode(mode);
+      this.set('showThemePicker', false);
+    },
+    closeThemePicker: function() {
+      this.set('showThemePicker', false);
+    },
     language: function() {
       modal.open('modals/choose-locale');
     },

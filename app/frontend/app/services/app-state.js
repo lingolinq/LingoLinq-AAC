@@ -195,6 +195,17 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
+    // Bento dashboard theme: light | midDay | dark - persisted in localStorage
+    var theme = 'light';
+    try {
+      var storedTheme = localStorage.getItem('ll_bento_theme_mode');
+      if (storedTheme === 'midDay' || storedTheme === 'dark') {
+        theme = storedTheme;
+      } else if (localStorage.getItem('ll_bento_dark_mode') === 'true') {
+        theme = 'dark';
+      }
+    } catch (e) { /* ignore */ }
+    this.set('themeMode', theme);
     // Ensure window.user_preferences.any_user exists to prevent TypeError
     window.user_preferences = window.user_preferences || {};
     window.user_preferences.any_user = window.user_preferences.any_user || {};
@@ -663,6 +674,12 @@ export default Service.extend({
   }),
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
     return this.get('domain_settings.board_user_name') || 'example';
+  }),
+  darkMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'dark';
+  }),
+  midDayMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'midDay';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -3810,6 +3827,22 @@ export default Service.extend({
         }
       }, 500);
     }
+  },
+
+  toggleDarkMode: function() {
+    var modes = ['light', 'midDay', 'dark'];
+    var current = this.get('themeMode') || 'light';
+    var idx = modes.indexOf(current);
+    var next = modes[(idx + 1) % modes.length];
+    this.setThemeMode(next);
+  },
+
+  setThemeMode: function(mode) {
+    this.set('themeMode', mode);
+    try {
+      localStorage.setItem('ll_bento_theme_mode', mode);
+      localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
+    } catch (e) { /* ignore */ }
   }
 });
 

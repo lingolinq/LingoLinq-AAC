@@ -8,6 +8,18 @@ task "extras:copy_terms" => :environment do
   end
 end
 
+task "extras:generate_favicon" do
+  logo = './public/images/pastel-logo.png'
+  raise "Source logo not found: #{logo}" unless File.exist?(logo)
+  # Fit logo to canvas width (preserves aspect, no cropping)
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-pastel-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
+  end
+  puts "Generated favicon-pastel-16.png and favicon-pastel-32.png"
+end
+
 task "extras:assert_js" do
   `mkdir -p ./app/frontend/dist/assets`
   `cp -n ./app/frontend/frontend-placeholder.js ./app/frontend/dist/assets/frontend.js`

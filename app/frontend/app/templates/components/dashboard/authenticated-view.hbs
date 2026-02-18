@@ -1,11 +1,11 @@
-<div class="ll-bento-app-shell">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
   <div class="ll-bento-device-frame ll-bento-device-frame--wide">
-    <header class="ll-bento-topbar">
+    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
           <img src={{path "images/pastel-logo.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
@@ -21,18 +21,6 @@
             <span class="ll-bento-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
           {{/if}}
         </span>
-      </div>
-      <div class="ll-bento-topbar__section ll-bento-topbar__getting-started">
-        {{#if this.blank_slate}}
-          <a href="#" class="ll-bento-getting-started" {{action "getting_started"}}>
-            <span class="ll-bento-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
-            <div class="ll-bento-progress" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100">
-              <div class="ll-bento-progress__fill" style={{this.blank_slate_percent_style}}></div>
-              <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
-            </div>
-            <span class="ll-bento-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
-          </a>
-        {{/if}}
       </div>
       <div class="ll-bento-topbar__section ll-bento-topbar__search">
         <a href="#" class="ll-bento-search" {{action "searchBoards"}} role="button" aria-label={{t "Search" key="search"}}>
@@ -51,11 +39,11 @@
         {{/unless}}
         {{#if this.app_state.currentUser.permissions.delete}}
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-icon-btn" aria-label={{t "Profile" key="profile"}}>
-            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 24px; height: 24px; border-radius: 999px; object-fit: cover;" alt="">
+            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 18px; height: 18px; border-radius: 999px; object-fit: cover;" alt="">
           </LinkTo>
         {{else}}
           <span class="ll-bento-icon-btn" aria-hidden="true">
-            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 24px; height: 24px; border-radius: 999px; object-fit: cover;" alt="">
+            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 18px; height: 18px; border-radius: 999px; object-fit: cover;" alt="">
           </span>
         {{/if}}
       </div>
@@ -91,6 +79,21 @@
     {{/unless}}
   </div>
   {{#if this.index_nav.main}}
+    {{#if this.blank_slate}}
+      <a href="#" class="ll-bento-getting-started ll-bento-getting-started--main" {{action "getting_started"}}>
+        <img src={{path "images/pastel-getting-started.svg"}} alt="" class="ll-bento-getting-started__image" aria-hidden="true">
+        <div class="ll-bento-getting-started__body">
+          <span class="ll-bento-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
+          <div class="ll-bento-progress" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100">
+            <div class="ll-bento-progress__fill" style={{this.blank_slate_percent_style}}></div>
+            <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
+          </div>
+          <span class="ll-bento-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
+        </div>
+        <span class="ll-bento-getting-started__btn">{{t "Help me Setup my Account" key="help_me_setup_account"}}</span>
+      </a>
+    {{/if}}
+    {{!-- Home board card - commented out, uncomment to restore
     {{#unless this.home_board_or_supporter}}
       {{#unless this.app_state.currentUser.modeling_only}}
         <LinkTo @route="home-boards" class="ll-bento-home-board-card">
@@ -103,8 +106,9 @@
         </LinkTo>
       {{/unless}}
     {{/unless}}
+    --}}
   {{/if}}
-  <div class='row big_buttons ll-bento-content' style='padding-right: 10px;'>
+  <div class='row big_buttons ll-bento-content'>
     {{#if this.index_nav.supervisees}}
       {{#unless this.app_state.currentUser.modeling_only}}
       <div class='col-xs-12'>
@@ -297,7 +301,9 @@
           </div>
         {{/if}}
         <div class="ll-bento-actions {{if this.show_main_extras "ll-bento-actions--extras-expanded"}}">
-          <div class="ll-bento-actions-grid">
+          <div class="ll-bento-section-group">
+            <span class="ll-bento-section-label">{{t "Primary Actions" key="primary_actions"}}</span>
+            <div class="ll-bento-actions-grid">
             {{#if this.app_state.currentUser.external_device}}
               <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "manual_session"}}>
                 <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
@@ -390,6 +396,7 @@
 
             {{#if this.show_main_extras}}
             <div class="ll-bento-extras-expanded">
+              <span class="ll-bento-section-label">{{t "More Tools & Resources" key="more_tools"}}</span>
               <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn ll-bento-action-card--extras-toggle ll-bento-action-card--extras-expanded" {{action "toggle_extras"}}>
                 <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
                   <img src={{path "images/pastel-extras.png"}} class="ll-bento-action-card__img" alt="">
@@ -545,6 +552,7 @@
             </a>
             {{/if}}
           </div>
+          </div>
         </div>
         {{#unless this.show_main_extras}}
           {{#if (persistence-online)}}
@@ -574,46 +582,48 @@
           </div>
         {{/if}}
       {{else}}
-        <div class='col-xs-8 col-sm-6'>
-          <h4>{{t "Browse Boards" key="browse_boards"}}</h4>
-          <ul class="nav nav-pills">
-            <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
-            <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
-            <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
-            <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
-          </ul>
-        </div>
-        <div class='col-xs-4 col-sm-6'>
-          <div style='margin: 10px 0 20px -10px;'>
+        {{#unless this.home_board_or_supporter}}
+          {{#unless this.app_state.currentUser.modeling_only}}
+            {{#unless this.app_state.currentUser.preferences.home_board}}
+              <div class="ll-bento-boards-home-board-wrap">
+                <LinkTo @route="home-boards" class="ll-bento-home-board-card">
+                  <img src={{path "images/pastel-house.png"}} alt="" class="ll-bento-home-board-card__image" aria-hidden="true">
+                  <div class="ll-bento-home-board-card__content">
+                    <h3 class="ll-bento-home-board-card__title">{{t "You haven't set a home board yet" key="choose_home_board"}}</h3>
+                    <p class="ll-bento-home-board-card__subtitle">{{t "Let us help you choose one." key="let_us_help_choose_home"}}</p>
+                  </div>
+                  <span class="ll-bento-home-board-card__btn">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</span>
+                </LinkTo>
+              </div>
+            {{/unless}}
+          {{/unless}}
+        {{/unless}}
+        {{#if this.app_state.currentUser.preferences.home_board}}
+          <div class='col-xs-12' style='margin-bottom: 10px;'>
             <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
             {{t "current home board:" key="current_home_board"}}<br>
-            {{#if this.app_state.currentUser.preferences.home_board}}
-              {{#link-to "board" this.app_state.currentUser.preferences.home_board.key}}
-                <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-              {{/link-to}}
-            {{else}}
-              {{#link-to "home-boards"}}
-                <span style='font-size: 20px;'>
-                  {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
-              {{/link-to}}
-            {{/if}}
+            {{#link-to "board" this.app_state.currentUser.preferences.home_board.key}}
+              <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
+            {{/link-to}}
             <div style='clear: left;'></div>
+          </div>
+        {{/if}}
+        <div class="ll-bento-browse-boards">
+          <div class="ll-bento-browse-boards__header">
+            <span class="glyphicon glyphicon-th-large ll-bento-browse-boards__icon" aria-hidden="true"></span>
+            <h4 class="ll-bento-browse-boards__title">{{t "Browse Boards" key="browse_boards"}}</h4>
+          </div>
+          <div class="ll-bento-section-group ll-bento-browse-boards__filter-group">
+            <span class="ll-bento-section-label">{{t "Filter" key="filter"}}</span>
+            <ul class="nav nav-pills ll-bento-browse-boards__pills">
+              <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
+              <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
+              <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
+              <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
+            </ul>
           </div>
         </div>
         <div style='clear: left;'></div>
-        {{#if this.suggested_selected}}
-          {{#unless this.app_state.currentUser.supporter_role}}
-            <div class="col-xs-12" style="margin-bottom: 10px;">
-              {{#link-to "home-boards"}}
-                <span>
-                <span class="glyphicon glyphicon-search"></span>
-                {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
-              {{/link-to}}
-            </div>
-          {{/unless}}
-        {{/if}}
         {{#if this.current_boards}}
           {{#if this.current_boards.loading}}
             <div class='col-sm-4'>{{t "Loading..." key="loading"}}</div>

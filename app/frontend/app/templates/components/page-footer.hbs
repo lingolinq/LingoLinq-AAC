@@ -22,7 +22,7 @@
           <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
         <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/language-icon.svg"}} style='height: 30px; margin: -20px 0 -10px;' alt="Language">
+          <img src={{path "images/language-globe.svg"}} style='height: 30px; margin: -20px 0 -10px;' alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
       </div>
@@ -72,7 +72,7 @@
         </li>
         <li>
           <a href='#' {{action "language"}}>
-            <img src={{path "images/language-icon.svg"}} style='height: 20px; margin: -10px 0 -5px;' alt="Language">
+            <img src={{path "images/language-globe.svg"}} style='height: 20px; margin: -10px 0 -5px;' alt="Language">
             {{this.app_state.current_locale_string}}
           </a>
         </li>

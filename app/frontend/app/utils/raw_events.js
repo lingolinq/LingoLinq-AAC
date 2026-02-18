@@ -407,6 +407,11 @@ var buttonTracker = EmberObject.extend({
         return;
       }
 
+      // allow dark mode toggle and theme picker to propagate so Ember actions run
+      if($(event.target).closest('.ll-bento-dark-toggle, .bento-dark-toggle-wrap, .ll-bento-theme-picker, .ll-bento-theme-picker__row, .ll-bento-theme-picker__options, .ll-bento-theme-picker-wrap, .ll-bento-theme-picker-backdrop').length > 0) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       // if no recent mouseup or touchend, then we can assume
