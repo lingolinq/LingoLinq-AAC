@@ -32,6 +32,7 @@ echo "NPM version: $(npm -v)"
 echo "=== Installing Ruby Dependencies ==="
 bundle install
 bundle exec rake extras:assert_js
+bundle exec rake extras:copy_terms
 
 echo "=== Building Frontend (Ember) ==="
 cd app/frontend
