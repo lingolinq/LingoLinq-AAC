@@ -61,7 +61,9 @@ export default Component.extend({
   }),
 
   first_log_date: computed('stashes.usage_log.length', function() {
-    const log = this.stashes.get('usage_log')[0];
+    const stashes = this.stashes;
+    if(!stashes || typeof stashes.get !== 'function') { return null; }
+    const log = stashes.get('usage_log')[0];
     if (log) {
       return new Date(log.timestamp * 1000);
     }

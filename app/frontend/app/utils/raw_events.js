@@ -743,7 +743,7 @@ var buttonTracker = EmberObject.extend({
                 runCancel(buttonTracker.track_short_press.later);
                 buttonTracker.track_short_press.later = null;
               }
-              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode')) {
+              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || buttonTracker.appState.get('currentUser.preferences.inflections_overlay')) {
                 buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
               }
               if(buttonTracker.check('short_press_delay')) {
@@ -1207,11 +1207,14 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            var hiddenAt = this.stashes.get && this.stashes.get('sidebar_hidden_at');
-            if(hiddenAt && (Date.now() - hiddenAt) < 400) {
-              this.stashes.set('sidebar_hidden_at', null);
-            } else {
-              this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+            var stashes = buttonTracker.stashes;
+            if(stashes && stashes.get) {
+              var hiddenAt = stashes.get('sidebar_hidden_at');
+              if(hiddenAt && (Date.now() - hiddenAt) < 400) {
+                stashes.set('sidebar_hidden_at', null);
+              } else {
+                stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+              }
             }
             buttonTracker.ignoreUp = true;
             buttonTracker.buttonDown = false;
@@ -2501,7 +2504,9 @@ var buttonTracker = EmberObject.extend({
     } else if((ls.selection_type == 'touch' || ls.selection_type == 'mouse') && buttonTracker.check('scan_modeling')) {
       ls.modeling = true;
     }
-    this.stashes.last_selection = ls;
+    if(buttonTracker.stashes) {
+      buttonTracker.stashes.last_selection = ls;
+    }
     buttonTracker.last_selection = ls;
     return { proceed: true };
   },

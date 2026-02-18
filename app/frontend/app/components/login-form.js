@@ -295,8 +295,9 @@ export default Component.extend({
       _this.set('logged_in', true);
       // Sync session state from stashes so isAuthenticated/access_token are set
       session.restore();
-      // Fetch user and set sessionUser/currentUser so hasCurrentUser becomes true
-      _this.appState.refresh_session_user();
+      // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
+      // Wait for user fetch before transitioning so navbar updates without page refresh
+      var userFetch = _this.appState.refresh_session_user();
       if(reload) {
         runLater(function() {
           _this.appState.set('logging_in', true);
@@ -314,13 +315,25 @@ export default Component.extend({
             }
           });
         } else {
-          // Web: skip full reload to avoid DB/persistence race. Auth is in memory.
-          wait.then(function() {
+          // Web: wait for stashes flush AND user fetch before transitioning
+          // so navbar shows signed-in state (sessionUser/currentUser) without page refresh
+          RSVP.all([wait, userFetch]).then(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
             if(_this.get('return')) {
               location.reload();
               session.set('return', true);
             } else {
               _loginDebug('Web: transitioning to index (no reload)');
+              _this.router.transitionTo('index');
+            }
+          }, function(err) {
+            // Still transition on user fetch failure to avoid blocking the user
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            console.warn('[login_success] User fetch failed, transitioning anyway', err);
+            if(_this.get('return')) {
+              location.reload();
+              session.set('return', true);
+            } else {
               _this.router.transitionTo('index');
             }
           });
