@@ -1,14 +1,14 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
   <div class="ll-bento-device-frame ll-bento-device-frame--wide">
-    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}}">
+    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
-          <img src={{path "images/pastel-logo.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
+          <img src={{if this.app_state.coolBlueMode (path "images/cool-blue-logo.png") (path "images/pastel-logo.png")}} alt="" class="ll-bento-logo" aria-hidden="true">
           <div class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</div>
         </a>
       </div>

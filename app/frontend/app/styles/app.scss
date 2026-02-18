@@ -6711,6 +6711,10 @@ body:-ms-fullscreen {
     background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%);
   }
 
+  &--coolBlue {
+    background: linear-gradient(135deg, #2C3E63 0%, #4A5D73 50%, #7E93A8 100%);
+  }
+
   &--dark {
     background: linear-gradient(135deg, rgba(63, 77, 95, 0.9) 0%, rgba(54, 68, 83, 0.85) 100%);
   }
@@ -6727,6 +6731,10 @@ body:-ms-fullscreen {
 
 .ll-bento-theme-picker__option--active .ll-bento-theme-picker__icon {
   color: var(--ll-bento-primary-1, #4ec5c8);
+}
+
+#within_ember.bento-cool-blue-mode-active .ll-bento-theme-picker__option--active .ll-bento-theme-picker__icon {
+  color: #2C3E63;
 }
 
 .ll-bento-brand__name {
@@ -8564,6 +8572,483 @@ body:-ms-fullscreen {
 #within_ember.bento-midday-mode-active .page-footer .text-muted,
 #within_ember.bento-midday-mode-active footer .text-muted {
   color: rgba(200, 210, 225, 0.7);
+}
+
+/* Cool Blue mode - palette from cool-blue-logo (#7A87C2, #A6B0DF, #D3DDF4, #BFCAD9, #E1EBF5, #F0F6FC) */
+.ll-bento-app-shell--coolBlue {
+  color: rgba(31, 42, 68, 0.95);
+  transition: background 0.4s var(--ll-bento-ease-in-out), color 0.3s ease;
+  --ll-bento-bg: #E1EBF5;
+  --ll-bento-ink: rgba(31, 42, 68, 0.95);
+  --ll-bento-muted: rgba(74, 93, 115, 0.75);
+  --ll-bento-card: rgba(255, 255, 255, 0.85);
+  --ll-bento-card-strong: rgba(248, 249, 253, 0.95);
+  --ll-bento-stroke: rgba(126, 147, 168, 0.35);
+  --ll-bento-shadow-lg: 0 18px 50px rgba(31, 42, 68, 0.12);
+  --ll-bento-shadow-md: 0 10px 28px rgba(31, 42, 68, 0.08);
+  --ll-bento-shadow-sm: 0 6px 16px rgba(31, 42, 68, 0.06);
+
+  background: radial-gradient(1400px 900px at 10% 10%, rgba(166, 176, 223, 0.35) 0%, transparent 50%),
+              radial-gradient(1200px 800px at 90% 30%, rgba(211, 221, 244, 0.3) 0%, transparent 55%),
+              radial-gradient(1200px 800px at 40% 100%, rgba(191, 202, 217, 0.25) 0%, transparent 50%),
+              linear-gradient(160deg, #F0F6FC 0%, #E1EBF5 50%, #D3DDF4 100%);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-bg-orbs {
+  opacity: 0.45;
+
+  .ll-bento-orb--a {
+    background: radial-gradient(circle at 30% 30%, rgba(122, 135, 194, 0.28), transparent 58%),
+                radial-gradient(circle at 70% 70%, rgba(166, 176, 223, 0.22), transparent 60%);
+  }
+
+  .ll-bento-orb--b {
+    background: radial-gradient(circle at 35% 35%, rgba(211, 221, 244, 0.25), transparent 60%),
+                radial-gradient(circle at 70% 70%, rgba(191, 202, 217, 0.2), transparent 58%);
+  }
+
+  .ll-bento-orb--c {
+    background: radial-gradient(circle at 35% 35%, rgba(166, 176, 223, 0.2), transparent 58%),
+                radial-gradient(circle at 70% 70%, rgba(211, 221, 244, 0.18), transparent 60%);
+  }
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-device-frame {
+  background: linear-gradient(135deg, #E1EBF5 0%, #D3DDF4 35%, #BFCAD9 70%, #A6B0DF 100%);
+  border-color: rgba(166, 176, 223, 0.35);
+}
+
+.ll-bento-topbar.ll-bento-topbar--coolBlue {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 249, 253, 0.98) 100%);
+  border-bottom: 1px solid rgba(126, 147, 168, 0.25);
+  box-shadow: 0 2px 12px rgba(31, 42, 68, 0.06),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-welcome__label {
+  color: rgba(74, 93, 115, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-welcome__badge {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.4);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-welcome__link:hover .ll-bento-welcome__badge {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.5);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-search {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.3);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-help-btn__icon {
+  color: rgba(31, 42, 68, 0.9) !important;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-help-btn:hover .ll-bento-help-btn__icon {
+  color: rgba(31, 42, 68, 0.95) !important;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-search__input {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-search__input::placeholder {
+  color: rgba(74, 93, 115, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-icon-btn {
+  background: var(--ll-bento-icon-gloss), rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.3);
+  color: rgba(31, 42, 68, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-tab:not(.ll-bento-tab--active) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
+  border-color: rgba(126, 147, 168, 0.3);
+  color: rgba(74, 93, 115, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-tab--active {
+  background: linear-gradient(135deg, #4A5D73 0%, #2C3E63 100%);
+  border-color: rgba(74, 93, 115, 0.5);
+  color: #ffffff;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card__btn {
+  background: linear-gradient(135deg, #4A5D73 0%, #2C3E63 100%);
+  border-color: rgba(74, 93, 115, 0.4);
+  color: #ffffff;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started__btn {
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
+  border-color: rgba(74, 93, 115, 0.5);
+  color: #ffffff;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-browse-boards {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
+  border-color: rgba(126, 147, 168, 0.25);
+
+  .ll-bento-browse-boards__icon {
+    background: var(--ll-bento-icon-gloss), rgba(233, 238, 244, 0.95);
+    border-color: rgba(126, 147, 168, 0.3);
+    color: rgba(74, 93, 115, 0.9);
+  }
+
+  ul.nav.nav-pills.ll-bento-browse-boards__pills li:not(.active) a {
+    background: linear-gradient(135deg, rgba(233, 238, 244, 0.95) 0%, rgba(220, 228, 238, 0.9) 100%);
+    border-color: rgba(126, 147, 168, 0.35);
+    color: rgba(31, 42, 68, 0.95);
+  }
+
+  ul.nav.nav-pills.ll-bento-browse-boards__pills li:not(.active) a:hover {
+    background: linear-gradient(135deg, rgba(233, 238, 244, 0.98) 0%, rgba(212, 222, 238, 0.95) 100%);
+  }
+
+  ul.nav.nav-pills.ll-bento-browse-boards__pills li.active a {
+    background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
+    border-color: rgba(74, 93, 115, 0.4);
+    color: #ffffff;
+  }
+}
+
+.ll-bento-app-shell--coolBlue .nav.nav-pills:not(.nav-stacked) li:not(.active) a {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
+  border-color: rgba(126, 147, 168, 0.3);
+  color: rgba(74, 93, 115, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .nav.nav-pills:not(.nav-stacked) li.active a {
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
+  border-color: rgba(74, 93, 115, 0.4);
+  color: #ffffff;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card,
+.ll-bento-app-shell--coolBlue .ll-bento-card,
+.ll-bento-app-shell--coolBlue .ll-bento-extras-expanded,
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started--main {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(126, 147, 168, 0.25);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-progress {
+  background: rgba(126, 147, 168, 0.2);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-progress__fill {
+  background: linear-gradient(90deg, #4A5D73, #2C3E63);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-brand-link:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-search:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-icon-btn:hover {
+  background: rgba(233, 238, 244, 0.98);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-tab:hover:not(.ll-bento-tab--active) {
+  background: linear-gradient(135deg, rgba(233, 238, 244, 0.98) 0%, rgba(220, 228, 238, 0.95) 100%);
+  border-color: rgba(126, 147, 168, 0.4);
+}
+
+.ll-bento-app-shell--coolBlue .nav.nav-pills:not(.nav-stacked) li:not(.active) a:hover {
+  background: linear-gradient(135deg, rgba(233, 238, 244, 0.98) 0%, rgba(220, 228, 238, 0.95) 100%);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started--main:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.35);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
+  border-color: rgba(126, 147, 168, 0.25);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock__item:not(.ll-bento-dock__item--active) {
+  color: rgba(74, 93, 115, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock__item--active {
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
+  border-color: rgba(74, 93, 115, 0.4);
+  color: #ffffff;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-section-label {
+  color: rgba(74, 93, 115, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-section-group {
+  background: transparent;
+}
+
+/* Primary Actions: distinct panel so it stands out from main content gradient */
+.ll-bento-app-shell--coolBlue .ll-bento-actions .ll-bento-section-group:first-child {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 248, 255, 0.92) 50%, rgba(227, 234, 248, 0.9) 100%);
+  border: 1px solid rgba(166, 176, 223, 0.4);
+  box-shadow: 0 4px 20px rgba(122, 135, 194, 0.12),
+              0 2px 8px rgba(122, 135, 194, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-browse-boards .ll-bento-section-group {
+  background: transparent;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-extras-expanded {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card--extras-expanded {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Cool blue: use default pastel icon backgrounds - visible on light theme */
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--speak {
+  background: var(--ll-bento-icon-gloss), rgba(225, 242, 235, 0.9);
+  border-color: rgba(195, 225, 215, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--reports {
+  background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.9);
+  border-color: rgba(195, 220, 230, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--ideas,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--modeling {
+  background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.9);
+  border-color: rgba(205, 218, 240, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--extras {
+  background: var(--ll-bento-icon-gloss), rgba(245, 232, 238, 0.9);
+  border-color: rgba(230, 210, 220, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--green-yellow {
+  background: var(--ll-bento-icon-gloss), rgba(245, 242, 228, 0.9);
+  border-color: rgba(230, 225, 205, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__icon--account {
+  background: var(--ll-bento-icon-gloss), rgba(235, 235, 245, 0.9);
+  border-color: rgba(215, 215, 230, 0.6);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock__cta {
+  background: linear-gradient(135deg, rgba(233, 238, 244, 0.95) 0%, rgba(220, 228, 238, 0.9) 100%);
+  border-color: rgba(126, 147, 168, 0.35);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock__label,
+.ll-bento-app-shell--coolBlue .ll-bento-dock__supervisor-label,
+.ll-bento-app-shell--coolBlue .ll-bento-dock__logging-sep,
+.ll-bento-app-shell--coolBlue .ll-bento-dock__logging-last,
+.ll-bento-app-shell--coolBlue .ll-bento-dock__logging-last-label {
+  color: rgba(74, 93, 115, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-dock__item--active .ll-bento-dock__label {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue h4,
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__glyph,
+.ll-bento-app-shell--coolBlue .ll-bento-feature__title,
+.ll-bento-app-shell--coolBlue .ll-bento-card__title {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card .ll-bento-home-board-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card .ll-bento-home-board-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started--main .ll-bento-getting-started__title,
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started--main .ll-bento-getting-started__hint,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card .ll-bento-hero-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card .ll-bento-action-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card .ll-bento-action-card__sub,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card .ll-bento-action-card__meta,
+.ll-bento-app-shell--coolBlue .ll-bento-card .ll-bento-card__title,
+.ll-bento-app-shell--coolBlue .ll-bento-card .ll-bento-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-feature__title,
+.ll-bento-app-shell--coolBlue .ll-bento-feature__sub {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card .ll-bento-home-board-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-getting-started--main .ll-bento-getting-started__hint,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card .ll-bento-action-card__sub,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card .ll-bento-action-card__meta,
+.ll-bento-app-shell--coolBlue .ll-bento-card .ll-bento-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-feature__sub {
+  color: rgba(74, 93, 115, 0.9);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__sub,
+.ll-bento-app-shell--coolBlue .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-home-board-card__subtitle,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__meta,
+.ll-bento-app-shell--coolBlue .ll-bento-feature__sub,
+.ll-bento-app-shell--coolBlue .ll-bento-card__subtitle {
+  color: rgba(74, 93, 115, 0.85);
+}
+
+.ll-bento-app-shell--coolBlue .simple_board_icon {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(126, 147, 168, 0.25);
+}
+
+.ll-bento-app-shell--coolBlue .simple_board_icon .name,
+.ll-bento-app-shell--coolBlue .simple_board_icon .author,
+.ll-bento-app-shell--coolBlue .ll-bento-action-card__action-btn {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.35);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .big_button_holder .btn {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .simple_board_icon .author {
+  color: rgba(74, 93, 115, 0.85);
+}
+
+.ll-bento-app-shell--coolBlue a {
+  color: #2C3E63;
+}
+
+.ll-bento-app-shell--coolBlue a:hover {
+  color: #1F2A44;
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-brand-link,
+.ll-bento-app-shell--coolBlue .ll-bento-welcome__link {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .ll-bento-brand-link:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-welcome__link:hover {
+  color: #1F2A44;
+}
+
+.ll-bento-app-shell--coolBlue .btn-default {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.35);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+.ll-bento-app-shell--coolBlue .btn-default:hover {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.45);
+  color: rgba(31, 42, 68, 0.98);
+}
+
+#within_ember.bento-cool-blue-mode-active {
+  background: #E9EEF4;
+}
+
+#within_ember.bento-cool-blue-mode-active header {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 249, 253, 0.98) 100%);
+  border-bottom: 1px solid rgba(126, 147, 168, 0.25);
+}
+
+#within_ember.bento-cool-blue-mode-active header h1 a,
+#within_ember.bento-cool-blue-mode-active header #board_id,
+#within_ember.bento-cool-blue-mode-active header #org_name,
+#within_ember.bento-cool-blue-mode-active header .user_name {
+  color: rgba(31, 42, 68, 0.95);
+}
+
+#within_ember.bento-cool-blue-mode-active header #identity_button {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 249, 253, 0.98) 100%);
+  border: 1px solid rgba(126, 147, 168, 0.3);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+#within_ember.bento-cool-blue-mode-active header #identity_button:hover,
+#within_ember.bento-cool-blue-mode-active header #identity_button:focus {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.4);
+  color: rgba(31, 42, 68, 0.98);
+}
+
+#within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button {
+  background: var(--ll-bento-icon-gloss), rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(126, 147, 168, 0.35);
+  box-shadow: 0 2px 8px rgba(31, 42, 68, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+#within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button:focus {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.45);
+  color: rgba(31, 42, 68, 0.98);
+}
+
+#within_ember.bento-cool-blue-mode-active header .btn-default:not(#identity_button) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.35);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+#within_ember.bento-cool-blue-mode-active header .btn-default:not(#identity_button):hover {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.45);
+  color: rgba(31, 42, 68, 0.98);
+}
+
+#within_ember.bento-cool-blue-mode-active .ll-bento-dark-toggle--header {
+  background: var(--ll-bento-icon-gloss), rgba(255, 255, 255, 0.95);
+  border-color: rgba(126, 147, 168, 0.35);
+  box-shadow: 0 2px 8px rgba(31, 42, 68, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(74, 93, 115, 0.9);
+}
+
+#within_ember.bento-cool-blue-mode-active .ll-bento-dark-toggle--header:hover {
+  background: rgba(233, 238, 244, 0.98);
+  border-color: rgba(126, 147, 168, 0.45);
+  color: rgba(31, 42, 68, 0.95);
+}
+
+#within_ember.bento-cool-blue-mode-active .page-footer,
+#within_ember.bento-cool-blue-mode-active footer {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
+  border-top: 1px solid rgba(126, 147, 168, 0.25);
+  color: rgba(31, 42, 68, 0.9);
+}
+
+#within_ember.bento-cool-blue-mode-active .page-footer a,
+#within_ember.bento-cool-blue-mode-active footer a {
+  color: #2C3E63;
+}
+
+#within_ember.bento-cool-blue-mode-active .page-footer a:hover,
+#within_ember.bento-cool-blue-mode-active footer a:hover {
+  color: #1F2A44;
+}
+
+#within_ember.bento-cool-blue-mode-active .page-footer .text-muted,
+#within_ember.bento-cool-blue-mode-active footer .text-muted {
+  color: rgba(74, 93, 115, 0.8);
 }
 
 /* Dark mode - medium dark theme (applies only to main bento dashboard) */

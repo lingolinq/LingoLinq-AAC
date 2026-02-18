@@ -195,17 +195,18 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: light | midDay | dark - persisted in localStorage
+    // Bento dashboard theme: light | midDay | coolBlue | dark - persisted in localStorage
     var theme = 'light';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
-      if (storedTheme === 'midDay' || storedTheme === 'dark') {
+      if (storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark') {
         theme = storedTheme;
       } else if (localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
       }
     } catch (e) { /* ignore */ }
     this.set('themeMode', theme);
+    this.updateFaviconForTheme(theme);
     // Ensure window.user_preferences.any_user exists to prevent TypeError
     window.user_preferences = window.user_preferences || {};
     window.user_preferences.any_user = window.user_preferences.any_user || {};
@@ -680,6 +681,9 @@ export default Service.extend({
   }),
   midDayMode: computed('themeMode', function() {
     return this.get('themeMode') === 'midDay';
+  }),
+  coolBlueMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'coolBlue';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -3830,7 +3834,7 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark'];
+    var modes = ['light', 'midDay', 'dark', 'coolBlue'];
     var current = this.get('themeMode') || 'light';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];
@@ -3842,6 +3846,24 @@ export default Service.extend({
     try {
       localStorage.setItem('ll_bento_theme_mode', mode);
       localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
+    } catch (e) { /* ignore */ }
+    this.updateFaviconForTheme(mode);
+  },
+
+  updateFaviconForTheme: function(mode) {
+    try {
+      var prefix = mode === 'coolBlue' ? 'favicon-cool-blue' : 'favicon-pastel';
+      var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
+      var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
+      if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
+      var base = rootURL + 'images/';
+      for (var i = 0; i < links.length; i++) {
+        var href = links[i].getAttribute('href') || '';
+        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('favicon-cool-blue') !== -1) {
+          var size = href.indexOf('32') !== -1 ? '32' : '16';
+          links[i].setAttribute('href', base + prefix + '-' + size + '.png');
+        }
+      }
     } catch (e) { /* ignore */ }
   }
 });
