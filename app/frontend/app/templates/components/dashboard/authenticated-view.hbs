@@ -8,7 +8,7 @@
     <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
-          <img src={{if this.app_state.coolBlueMode (path "images/cool-blue-logo.png") (path "images/pastel-logo.png")}} alt="" class="ll-bento-logo" aria-hidden="true">
+          <img src={{if (or (is-equal this.app_state.themeMode "light") (is-equal this.app_state.themeMode "midDay") (is-equal this.app_state.themeMode "dark")) (path "images/pastel-logo.png") (path "images/cool-blue-logo.png")}} alt="" class="ll-bento-logo" aria-hidden="true">
           <div class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</div>
         </a>
       </div>

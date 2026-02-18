@@ -195,15 +195,16 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: light | midDay | coolBlue | dark - persisted in localStorage
+    // Bento dashboard theme: light (default) | midDay | coolBlue | dark - persisted in localStorage
     var theme = 'light';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
       if (storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark') {
         theme = storedTheme;
-      } else if (localStorage.getItem('ll_bento_dark_mode') === 'true') {
+      } else if (storedTheme !== 'light' && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
       }
+      // else: light (default for first visit, explicit 'light', or any invalid stored value)
     } catch (e) { /* ignore */ }
     this.set('themeMode', theme);
     this.updateFaviconForTheme(theme);
@@ -3852,7 +3853,8 @@ export default Service.extend({
 
   updateFaviconForTheme: function(mode) {
     try {
-      var prefix = mode === 'coolBlue' ? 'favicon-cool-blue' : 'favicon-pastel';
+      // light, midDay, dark -> pastel; coolBlue -> cool-blue
+      var prefix = (mode === 'light' || mode === 'midDay' || mode === 'dark') ? 'favicon-pastel' : 'favicon-cool-blue';
       var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
       var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
       if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }

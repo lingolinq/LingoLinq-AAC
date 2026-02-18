@@ -190,7 +190,7 @@
     <h1 class={{this.app_state.h1_class}} style='position: relative; z-index: 1;'>
 
       <a href="#" {{action "index"}}>
-        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (if this.app_state.coolBlueMode (path "images/cool-blue-logo.png") (path "images/pastel-logo.png"))}} alt="LingoLinq">
+        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (if (or (is-equal this.app_state.themeMode "light") (is-equal this.app_state.themeMode "midDay") (is-equal this.app_state.themeMode "dark")) (path "images/pastel-logo.png") (path "images/cool-blue-logo.png"))}} alt="LingoLinq">
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
