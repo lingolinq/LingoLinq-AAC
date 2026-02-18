@@ -99,8 +99,12 @@ var editManager = EmberObject.extend({
           // open this overlay via scanning anyway? Idea: another button
           var grid = editManager.grid_for(opts.button_id);
           var $button = $(".button[data-id='" + opts.button_id + "']");
-          if($button[0] && grid && !modal.is_open() && !modal.is_open('highlight') && !modal.is_open('highlight-secondary')) {
-            editManager.overlay_grid(grid, $button[0], opts);
+          var elem = $button[0];
+          if(!elem && grid) {
+            elem = editManager.synthetic_button_elem_for_overlay(opts.button_id, opts);
+          }
+          if(elem && grid && !modal.is_open() && !modal.is_open('highlight') && !modal.is_open('highlight-secondary')) {
+            editManager.overlay_grid(grid, elem, opts);
           }
           return true;
         } else if(opts.radial_id && opts.radial_dom) {
@@ -120,6 +124,54 @@ var editManager = EmberObject.extend({
         return true;
       }
     }
+  },
+  synthetic_button_elem_for_overlay: function(button_id, opts) {
+    var boardDom = this.appState.get('board_virtual_dom');
+    if(!boardDom || !boardDom.button_from_id) { return null; }
+    var virtualButton = boardDom.button_from_id(button_id);
+    if(!virtualButton || virtualButton.left === undefined) { return null; }
+    var pos = virtualButton;
+    var $board = $('.board');
+    if(!$board.length) { return null; }
+    var boardRect = $board[0].getBoundingClientRect();
+    var bounds = {
+      top: boardRect.top + pos.top,
+      left: boardRect.left + pos.left,
+      width: pos.width || 100,
+      height: pos.height || 100,
+      right: boardRect.left + pos.left + (pos.width || 100),
+      bottom: boardRect.top + pos.top + (pos.height || 100)
+    };
+    var button = this.find_button(button_id);
+    var imageUrl = null;
+    if(button) {
+      imageUrl = (button.get ? button.get('local_image_url') || button.get('image') : button.local_image_url || button.image);
+      if(typeof imageUrl !== 'string') { imageUrl = null; }
+    }
+    if(imageUrl && this.persistence && typeof this.persistence.find_url === 'function') {
+      imageUrl = this.persistence.find_url(imageUrl);
+    }
+    var computedClass = (button && (button.get ? button.get('computed_class') : button.computed_class)) || 'button b__';
+    var symbolEl = imageUrl ? { src: imageUrl, parentNode: { getAttribute: function() { return 'width: 100%; height: 100%;'; } } } : null;
+    var lblHeight = 20;
+    var innerLbl = { style: { display: '' }, getBoundingClientRect: function() { return { height: lblHeight }; } };
+    var lblHolder = {
+      getElementsByClassName: function() { return [innerLbl]; },
+      getBoundingClientRect: function() { return { height: lblHeight }; }
+    };
+    return {
+      getBoundingClientRect: function() { return bounds; },
+      getElementsByClassName: function(name) {
+        if(name === 'symbol') { return symbolEl ? [symbolEl] : []; }
+        if(name === 'button-label-holder') { return [lblHolder]; }
+        if(name === 'button-label') { return [innerLbl]; }
+        return [];
+      },
+      getAttribute: function(attr) {
+        if(attr === 'class') { return computedClass; }
+        return null;
+      }
+    };
   },
   overlay_button_from: function(button, board) {
     return editManager.Button.create({

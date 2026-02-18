@@ -12,7 +12,7 @@ module JsonApi::Board
     json['key'] = board.shallow_key
     json['shallow_clone'] = true if board.instance_variable_get('@sub_id')
     json['simple_refs'] = true if args[:skip_subs]
-    json['buttons'] = board.buttons
+    json['buttons'] = board.buttons || []
     ['grid', 'intro', 'background'].each do |key|
       json[key] = BoardContent.load_content(board, key)
     end
@@ -49,8 +49,8 @@ module JsonApi::Board
     self.trace_execution_scoped(['json/board/license']) do
       json['license'] = OBF::Utils.parse_license(board.settings['license'])
     end
-    json['created'] = board.created_at.iso8601
-    json['updated'] = board.settings['last_updated'] || board.updated_at.iso8601
+    json['created'] = (board.created_at || Time.current).iso8601
+    json['updated'] = board.settings['last_updated'] || (board.updated_at || Time.current).iso8601
     # This checks for updated/newly-added launch URLs for previously-defined apps
     self.trace_execution_scoped(['json/board/apps']) do
       json['buttons'].each do |button|
@@ -70,8 +70,9 @@ module JsonApi::Board
     json['current_revision'] = board.current_revision
     json['protected'] = !!board.protected_material?
     # json['button_set_id'] = board.button_set_id (not used)
-    json['copy_id'] = board.settings['copy_id'] unless board.settings['copy_id'] == board.shallow_id.split(/-/)[0]
-    json['brand_new'] = board.created_at > 1.hour.ago
+    base_id = (board.shallow_id || board.global_id || '').to_s.split(/-/)[0]
+    json['copy_id'] = board.settings['copy_id'] unless board.settings['copy_id'] == base_id
+    json['brand_new'] = (board.created_at || Time.current) > 1.hour.ago
     json['non_author_uses'] = board.settings['non_author_uses'] if !json['shallow_clone']
     json['total_buttons'] = board.settings['total_buttons']
     json['unlinked_buttons'] = board.settings['unlinked_buttons']

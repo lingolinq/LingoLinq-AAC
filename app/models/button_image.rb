@@ -6,7 +6,7 @@ class ButtonImage < ActiveRecord::Base
   include GlobalId
   include SecureSerialize
   protect_global_id
-  belongs_to :board
+  belongs_to :board, optional: true
   has_many :board_button_images
   belongs_to :user
   before_save :generate_defaults

@@ -20,6 +20,10 @@ module Processable
       return false
     else
       res = obj.save
+      if res == false
+        obj.instance_variable_set(:@errored, true)
+        obj.errors.full_messages.each { |msg| obj.add_processing_error(msg) }
+      end
       obj == self ? res : obj
     end
   end

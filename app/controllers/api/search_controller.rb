@@ -48,6 +48,7 @@ class Api::SearchController < ApplicationController
       RedisInit.default.hincrby('missing_symbols', query.to_s, 1)
     end
 
+    # Rails 7: render json: expects a hash/array, not a pre-encoded string
     render json: results
   end
 
@@ -89,6 +90,7 @@ class Api::SearchController < ApplicationController
         'copyright_notice_url' => item['license']['copyright_notice_url']
       }
     end
+    # Rails 7: render json: expects a hash/array, not a pre-encoded string
     render json: formatted
   end
   
@@ -100,6 +102,7 @@ class Api::SearchController < ApplicationController
       return unless allowed?(ref_user, 'edit')
     end
     res = Uploader.find_resources(params['q'], params['source'], ref_user)
+    # Rails 7: render json: expects a hash/array, not a pre-encoded string
     render json: res
   end
 
@@ -128,6 +131,7 @@ class Api::SearchController < ApplicationController
       RedisInit.default.hincrby('overridden_parts_of_speech', str, 1) if RedisInit.default
     end
 
+    # Rails 7: render json: expects a hash, not a pre-encoded string
     render json: res.merge(data || {})
   end
   
@@ -219,6 +223,7 @@ class Api::SearchController < ApplicationController
     if !error
       str = "data:" + content_type
       str += ";base64," + Base64.strict_encode64(body)
+      # Rails 7: render json: expects a hash, not a pre-encoded string
       render json: {content_type: content_type, data: str}
     else
       api_error 400, {error: error}
@@ -227,6 +232,7 @@ class Api::SearchController < ApplicationController
   
   def apps
     res = AppSearcher.find(params['q'], params['os'])
+    # Rails 7: render json: expects a hash/array, not a pre-encoded string
     render json: res
   end
   

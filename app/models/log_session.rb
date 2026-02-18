@@ -1061,7 +1061,7 @@ class LogSession < ActiveRecord::Base
                 end
                 if params
                   log = LogSession.process_new(params, {
-                    :ip_address => self.data['id_address'], 
+                    :ip_address => self.data['ip_address'], 
                     :device => self.device,
                     :author => self.author,
                     :user => user

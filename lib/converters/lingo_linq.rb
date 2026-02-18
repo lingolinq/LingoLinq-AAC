@@ -61,19 +61,20 @@ module Converters::LingoLinq
         'text_only' => board.settings['text_only'],
         'hide_empty' => board.settings['hide_empty']
       }
-      if board.unshareable? 
-        res['protected_content_user_identifier'] = board.user ? board.user.settings['email'] : "nobody@example.com"
-        res['ext_lingolinq_settings']['protected_user_id'] = board.user.global_id if board.user
+      if board.protected_material? && board.user
+        # Include owner identifier so the author can re-import their own board
+        res['protected_content_user_identifier'] = board.user.settings['email'] || "nobody@example.com"
+        res['ext_lingolinq_settings']['protected_user_id'] = board.user.global_id
       end
     end
     grid = []
     res['buttons'] = []
-    button_count = board.buttons.length
+    button_count = (board.buttons || []).length
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
     Progress.as_percent(0.3, 1.0) do
-      board.buttons.each_with_index do |original_button, idx|
+      (board.buttons || []).each_with_index do |original_button, idx|
         button = {
           'id' => original_button['id'],
           'label' => original_button['label'],
@@ -103,7 +104,9 @@ module Converters::LingoLinq
             button['translations'][loc]['label'] = hash['label']
             button['translations'][loc]['vocalization'] = hash['vocalization'] if !hash['vocalization'].to_s.match(/^(\:|=+)/) || !hash['vocalization'].to_s.match(/&&/)
             button['translations'][loc]['ext_lingolinq_rules'] = hash['rules'] if hash['rules']
-            (hash['inflections'] || []).each_with_index do |str, idx| 
+            inflections = hash['inflections']
+            inflections = inflections.is_a?(Array) ? inflections : []
+            inflections.each_with_index do |str, idx| 
               next unless str
               button['translations'][loc]['inflections'] ||= {}
               button['translations'][loc]['inflections'][locs[idx]] = str
@@ -245,7 +248,25 @@ module Converters::LingoLinq
         Progress.update_current_progress(idx.to_f / button_count.to_f, "hashify button #{button['id']} from #{board.global_id}")
       end
     end
-    res['grid'] = BoardContent.load_content(board, 'grid')
+    grid = BoardContent.load_content(board, 'grid') || {}
+    # Ensure grid['order'] is an array of arrays (can be String/Hash from legacy/import data)
+    if grid['order']
+      if grid['order'].is_a?(Hash)
+        order_array = grid['order'].keys.sort_by(&:to_i).map do |k|
+          row = grid['order'][k]
+          row.is_a?(Array) ? row : (row.is_a?(Hash) ? row.keys.sort_by(&:to_i).map { |j| row[j] } : [])
+        end
+        grid = grid.merge('order' => order_array)
+      elsif grid['order'].is_a?(String)
+        grid = grid.merge('order' => [])
+      elsif grid['order'].is_a?(Array)
+        # Ensure each row is an array (rows can be Hash from Rails params)
+        grid = grid.merge('order' => grid['order'].map do |row|
+          row.is_a?(Array) ? row : (row.is_a?(Hash) ? row.keys.sort_by(&:to_i).map { |j| row[j] } : [])
+        end)
+      end
+    end
+    res['grid'] = grid
     res
   end
   
@@ -261,12 +282,16 @@ module Converters::LingoLinq
     raise "missing id" unless obj['id']
     protected_sources = opts['user'] ? opts['user'].enabled_protected_sources(true) : []
     if obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['protected'] && obj['ext_lingolinq_settings']['key']
+      importer = opts['user']
+      board_owner_id = obj['ext_lingolinq_settings']['protected_user_id']
       user_name = obj['ext_lingolinq_settings']['key'].split(/\//)[0]
-      if user_name != opts['user'].user_name
-        if obj['ext_lingolinq_settings']['protected_user_id'] != opts['user'].global_id
-          raise "can't import protected boards to a different user"
-        end
-      end
+      # Allow import if: (1) key says same user, (2) importer is board owner, or
+      # (3) importer has edit permission on the board owner (supervisor/manager)
+      board_owner = board_owner_id && User.find_by_global_id(board_owner_id)
+      allowed = (user_name == importer.user_name) ||
+                (board_owner_id == importer.global_id) ||
+                (board_owner && board_owner.allows?(importer, 'edit'))
+      raise "can't import protected boards to a different user" unless allowed
     end
 
     hashes = {}

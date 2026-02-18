@@ -4,7 +4,6 @@ require 'dotenv'
 Dotenv.load
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
-require 'rspec/autorun'
 require 'simplecov'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
@@ -13,7 +12,10 @@ Dir[Rails.root.join("spec/support/**/*.rb")].each { |f| require f }
 
 # Checks for pending migrations before tests are run.
 # If you are not using ActiveRecord, you can remove this line.
-ActiveRecord::Migration.check_pending! if defined?(ActiveRecord::Migration)
+# Rails 7: check_pending! was removed; use check_all_pending! (supports multi-DB).
+if defined?(ActiveRecord::Migration)
+  ActiveRecord::Migration.check_all_pending!
+end
 
 SimpleCov.start 'rails'
 

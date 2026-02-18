@@ -1627,16 +1627,26 @@ export default Service.extend({
   },
   refresh_session_user: function() {
     var _this = this;
-    LingoLinq.store.findRecord('user', 'self').then(function(user) {
+    return LingoLinq.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
-        user.reload().then(function(user) {
+        return user.reload().then(function(reloadedUser) {
+          reloadedUser.set('modeling_session', _this.session.get('modeling_session'));
+          _this.set('sessionUser', reloadedUser);
+          return reloadedUser;
+        }, function() {
+          // On reload failure, still set sessionUser with the user we have
           user.set('modeling_session', _this.session.get('modeling_session'));
           _this.set('sessionUser', user);
-        }, function() { });
+          return user;
+        });
       }
       user.set('modeling_session', _this.session.get('modeling_session'));
       _this.set('sessionUser', user);
-    }, function() { });
+      return user;
+    }, function(err) {
+      // Propagate failure so caller can handle (e.g. don't transition on auth failure)
+      return RSVP.reject(err);
+    });
   },
   set_auto_synced: observer('sessionUser', 'sessionUser.auto_sync', function() {
     // Guard: check this before accessing properties

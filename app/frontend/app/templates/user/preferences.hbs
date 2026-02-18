@@ -372,19 +372,18 @@
         </div>
       </div>
     {{/if}}
-    {{#if this.app_state.feature_flags.inflections_overlay}}
-      <div class="form-group">
-        <label for="inflections_overlay" class="col-sm-3 control-label">{{t "Long-Press" key='long_press'}}</label>
-        <div class="col-sm-5">
-          <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" />
-              {{t "Show inflection options on long-press in Speak Mode" key='inflections_overlay'}}
-            </label>
-          </div>
+    {{! Was gated by this.app_state.feature_flags.inflections_overlay - remove #if to restore flag use }}
+    <div class="form-group">
+      <label for="inflections_overlay" class="col-sm-3 control-label">{{t "Long-Press" key='long_press'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" />
+            {{t "Show inflection options on long-press in Speak Mode" key='inflections_overlay'}}
+          </label>
         </div>
       </div>
-    {{/if}}
+    </div>
     {{#unless this.pending_preferences.activation_on_start}}
       <div class="form-group">
         <label for="activation_location" class="col-sm-3 control-label">{{t "Select Based on" key='activation_location'}}</label>

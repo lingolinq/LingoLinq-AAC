@@ -465,8 +465,10 @@ class Api::BoardsController < ApplicationController
     rescue ActiveRecord::RecordNotUnique
       return api_error(400, {error: 'board key already in use'})
     end
-    if board.errored?
-      api_error(400, {error: "board creation failed", errors: board && board.processing_errors})
+    if board.errored? || !board.persisted?
+      errors = board&.processing_errors
+      errors ||= board&.errors&.full_messages if board && errors.blank?
+      api_error(400, {error: "board creation failed", errors: errors})
     else
       render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end
