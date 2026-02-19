@@ -125,7 +125,9 @@ export default Component.extend({
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
       }
-      if(_this.get('action_override')) {
+      if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
+        _this.onActionOverride(this.get('board_record.key'));
+      } else if(_this.get('action_override')) {
         _this.sendAction('action_override', this.get('board_record.key'));
       } else {
         modal.board_preview(board, board.preview_locale, this.get('allow_style'), function() {
@@ -146,9 +148,14 @@ export default Component.extend({
       
       if(_this.get('noop')) {
         return;
+      } else if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
+        var key = board_record.get ? board_record.get('key') : board_record.key;
+        _this.onActionOverride(key);
       } else if(_this.get('action_override')) {
         var key = board_record.get ? board_record.get('key') : board_record.key;
         _this.sendAction('action_override', key);
+      } else if(_this.onAction && typeof _this.onAction === 'function') {
+        _this.onAction(board_record);
       } else if(this.get('children')) {
         _this.sendAction('action', board_record);
       } else if(this.get('option') == 'select') {
@@ -157,7 +164,11 @@ export default Component.extend({
           board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
-          _this.sendAction('action', board_record);
+          if (_this.onAction && typeof _this.onAction === 'function') {
+            _this.onAction(board_record);
+          } else {
+            _this.sendAction('action', board_record);
+          }
         });
       } else if(_this.get('allow_style') && _this.get('override_count')) {
         if(_this.get('localized')) {

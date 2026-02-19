@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 gem 'dotenv'
 
 group :development, :test do
+  gem 'rack-cors'
   gem 'guard'
   gem 'guard-rspec'
   gem 'rspec-rails'

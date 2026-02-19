@@ -953,18 +953,18 @@
     <div class="form-group">
       <label for="core_word_list" class="col-sm-3 control-label">{{t "Core Word List" key='core_word_list'}}</label>
       <div class='col-sm-6'>
-        {{#if core_lists.loading}}
+        {{#if this.core_lists.loading}}
           <p class='form-control-static'>{{t "Loading..." key='loading'}}</p>
-        {{else if core_lists.error}}
+        {{else if this.core_lists.error}}
           <p class='form-control-static'>{{t "Error loading core word list" key='error_loading_core_word_list'}}</p>
-        {{else if core_lists}}
+        {{else if this.core_lists}}
           <p class='form-control-static'><em>{{t "Core words are the most common words in a language, and often express multiple intents or meanings. The following list of words will be marked as \"core\" (as opposed to \"fringe\") for this user." key='core_words_explainer'}}</em></p>
           <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
-            {{raw_user_core_list}}
+            {{this.raw_user_core_list}}
           </div>
           <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
           <span style='padding-left: 10px;'>
-            {{t "core word" count=core_lists.for_user.length}}
+            {{t "core word" count=this.core_lists.for_user.length}}
             {{t "listed" key='listed'}}
           </span>
         {{else}}
@@ -988,17 +988,17 @@
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <Textarea @value={{substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
+          <Textarea @value={{this.substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
         </div>
       </div>
-      {{#if core_lists.for_user}}
+      {{#if this.core_lists.for_user}}
         <div class="form-group">
           <label for="core_word_list" class="col-sm-3 control-label">{{t "Requested Buttons" key='requested_buttons'}}</label>
           <div class='col-sm-6'>
             <p class='form-control-static'><em>{{t "Communicators and supporters can request that phrases or words be added to a communicator's vocabulary set. Those requests are listed here." key='requested_phrases_explainer'}}</em></p>
             <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
-              {{#if requested_phrases}}
-                {{#each requested_phrases as |phrase|}}
+              {{#if this.requested_phrases}}
+                {{#each this.requested_phrases as |phrase|}}
                   <div style='padrequested_phrase_changesding-left: 10px;'>
                     {{#if phrase.used}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
                     {{phrase.text}}

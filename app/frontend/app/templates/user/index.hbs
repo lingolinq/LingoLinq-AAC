@@ -596,7 +596,7 @@
                     {{#unless board.board.removed}}
                       <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
                         {{#if board.children}}
-                          {{board-icon board=board noinfo=true action="load_children"}}
+                          {{board-icon board=board noinfo=true onAction=(action "load_children")}}
                         {{else}}
                           {{board-icon board=board.board}}
                         {{/if}}
@@ -612,7 +612,7 @@
                   {{else if board.orphan}}
                     {{#if board.children}}
                       <div class="col-sm-2 col-xs-3 board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
-                        {{board-icon board=board noinfo=true action="load_children"}}
+                        {{board-icon board=board noinfo=true onAction=(action "load_children")}}
                         {{#if this.model.permissions.edit}}
                           <button class="board_action" {{action "remove_board" "delete_orphans" board}}>
                             <span title="delete"><span class="glyphicon glyphicon-trash"></span></span>

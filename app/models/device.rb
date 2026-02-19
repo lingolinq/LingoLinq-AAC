@@ -3,8 +3,8 @@ class Device < ActiveRecord::Base
   include SecureSerialize
   secure_serialize :settings
   belongs_to :user
-  belongs_to :developer_key
-  belongs_to :user_integration
+  belongs_to :developer_key, optional: true   # developer_key_id 0 used for system/browser devices
+  belongs_to :user_integration, optional: true
   before_save :generate_defaults
   after_save :update_user_device_name
   after_destroy :invalidate_cached_keys

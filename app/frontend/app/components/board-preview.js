@@ -40,7 +40,9 @@ export default Component.extend({
   }),
   actions: {
     select: function() {
-      this.sendAction();
+      if (this.onSelect && typeof this.onSelect === 'function') {
+        this.onSelect();
+      }
     },
     close: function() {
       modal.close_board_preview();

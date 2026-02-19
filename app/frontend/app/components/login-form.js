@@ -317,8 +317,10 @@ export default Component.extend({
         } else {
           // Web: wait for stashes flush AND user fetch before transitioning
           // so navbar shows signed-in state (sessionUser/currentUser) without page refresh
-          RSVP.all([wait, userFetch]).then(function() {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
+          var transitionDone = false;
+          var transitionToDashboard = function() {
+            if(transitionDone || _this.isDestroyed || _this.isDestroying) { return; }
+            transitionDone = true;
             if(_this.get('return')) {
               location.reload();
               session.set('return', true);
@@ -326,17 +328,19 @@ export default Component.extend({
               _loginDebug('Web: transitioning to index (no reload)');
               _this.router.transitionTo('index');
             }
-          }, function(err) {
-            // Still transition on user fetch failure to avoid blocking the user
+          };
+          RSVP.all([wait, userFetch]).then(transitionToDashboard, function(err) {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             console.warn('[login_success] User fetch failed, transitioning anyway', err);
-            if(_this.get('return')) {
-              location.reload();
-              session.set('return', true);
-            } else {
-              _this.router.transitionTo('index');
-            }
+            transitionToDashboard();
           });
+          // Fallback: if promises hang (e.g. slow API, IndexedDB), transition after 5s
+          runLater(function() {
+            if(!transitionDone && _this.get('logged_in')) {
+              console.warn('[login_success] Fallback: transitioning after timeout');
+              transitionToDashboard();
+            }
+          }, 5000);
         }
       }
     },

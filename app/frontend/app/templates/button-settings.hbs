@@ -479,7 +479,7 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=this.foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" onAction=(action "selectFoundBoard") locale=this.foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>
