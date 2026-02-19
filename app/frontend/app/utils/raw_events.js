@@ -743,7 +743,8 @@ var buttonTracker = EmberObject.extend({
                 runCancel(buttonTracker.track_short_press.later);
                 buttonTracker.track_short_press.later = null;
               }
-              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || buttonTracker.appState.get('currentUser.preferences.inflections_overlay')) {
+              var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
+              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
                 buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
               }
               if(buttonTracker.check('short_press_delay')) {

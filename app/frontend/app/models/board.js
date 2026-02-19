@@ -1448,6 +1448,14 @@ LingoLinq.Board = DS.Model.extend({
       var persistence = _this.persistence || (typeof window !== 'undefined' && window.persistence);
       var url_cache = persistence && persistence.url_cache ? persistence.url_cache : {};
       var local_image_url = url_cache[pref_original_image_url || 'none'] || url_cache[original_image_url || 'none'] || url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      // Fallback for word art and other images (e.g. data URLs) that may not be in image_urls
+      if((!local_image_url || local_image_url === 'none') && button.image_id) {
+        var locals = _this.get('local_images_with_license') || [];
+        var img = locals.find(function(l) { return l.get && String(l.get('id')) === String(button.image_id); });
+        if(img && img.get('url')) {
+          local_image_url = img.get('url');
+        }
+      }
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
       var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
