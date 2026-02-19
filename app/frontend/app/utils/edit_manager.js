@@ -1,6 +1,6 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, schedule as runSchedule } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
@@ -92,7 +92,7 @@ var editManager = EmberObject.extend({
           app.toggleMode('edit');
         }
         return true;
-      } else if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.inflections_overlay')) {
+      } else if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
         if(opts.button_id) {
           // TODO: scanning will require a reset, and looking for this
           // new mini-grid, but scanning can wait because how do you
@@ -937,12 +937,17 @@ var editManager = EmberObject.extend({
       div.style.height = (far_bottom - far_top + (pad * 2)) + 'px';
       div.style.padding = pad + 'px';
       var button_margin = 5; // TODO: this is a user preference
-      var img = elem.getElementsByClassName('symbol')[0];
-      var lbl = elem.getElementsByClassName('button-label-holder')[0];
-      var inner = lbl.getElementsByClassName('button-label')[0];
-      inner.style.display = 'inline';
-      var lbl_height = Math.max(lbl.getBoundingClientRect().height);
-      inner.style.display = '';
+      var img = elem.getElementsByClassName && elem.getElementsByClassName('symbol')[0];
+      var lbl = elem.getElementsByClassName && elem.getElementsByClassName('button-label-holder')[0];
+      var inner = lbl && lbl.getElementsByClassName && lbl.getElementsByClassName('button-label')[0];
+      var lbl_height = 24;
+      if(lbl && inner && typeof lbl.getBoundingClientRect === 'function') {
+        var origDisplay = inner.style && inner.style.display;
+        if(inner.style) { inner.style.display = 'inline'; }
+        var rect = lbl.getBoundingClientRect();
+        lbl_height = (rect && rect.height) ? Math.max(rect.height, 12) : 24;
+        if(inner.style) { inner.style.display = origDisplay || ''; }
+      }
       var text_position = 'top';
       if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'bottom') {
         text_position = 'bottom';
@@ -951,11 +956,13 @@ var editManager = EmberObject.extend({
       } else if(editManager.get_app_state().get('referenced_user.preferences.device.button_text_position') == 'none') {
         text_position = 'bottom';
       }
+      var elemClass = (elem.getAttribute && elem.getAttribute('class')) || 'button b__';
+      var imgHolderStyle = (img && img.parentNode && img.parentNode.getAttribute && img.parentNode.getAttribute('style')) || '';
       var formatted_button = function(label, image_url, opposite) {
         // TODO: this needs to call persistence.find_url for local versions
-        image_url = image_url || (img || {}).src || "https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg";
+        image_url = image_url || (img && img.src) || "https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg";
         var btn = document.createElement('div');
-        btn.setAttribute('class', elem.getAttribute('class').replace(/b_[\w\d_]+_/, ''));
+        btn.setAttribute('class', elemClass.replace(/b_[\w\d_]+_/, ''));
         btn.classList.add('overlay_button');
         if(opposite) {
           btn.classList.add('opposite');
@@ -966,19 +973,22 @@ var editManager = EmberObject.extend({
         btn.style.width = Math.floor(button_width - (button_margin * 2)) + 'px';
         btn.style.height = Math.floor(button_height - (button_margin * 2)) + 'px';
         var html = "";
-        if(text_position != 'no_image' && img && img.parentNode) {
-          html = html + "<span class='img_holder' style=\"" + img.parentNode.getAttribute('style') + "\"><img src=\"" + image_url + "\" style=\"width: 100%; vertical-align: middle; height: 100%; object-fit: contain; object-position: center;\"/></span>";
+        if(text_position != 'no_image' && img) {
+          html = html + "<span class='img_holder' style=\"" + (imgHolderStyle || '') + "\"><img src=\"" + image_url + "\" style=\"width: 100%; vertical-align: middle; height: 100%; object-fit: contain; object-position: center;\"/></span>";
         } else {
           html = html + "<span class='img_holder'></span>";
         }
         html = html + "<div class='button-label-holder " + text_position + "'><span class='button-label' style='display: inline;'>" + label + "</span></div>";
         btn.innerHTML = html
         var holder = btn.getElementsByClassName('img_holder')[0];
-        holder.style.display = 'inline-block';
-        holder.style.height = (button_height - lbl_height - margin - margin) + 'px';
-        holder.style.lineHeight = holder.style.height;
-        if(img) {
-          holder.getElementsByTagName('IMG')[0].style.height = holder.style.height;
+        if(holder) {
+          holder.style.display = 'inline-block';
+          holder.style.height = (button_height - lbl_height - margin - margin) + 'px';
+          holder.style.lineHeight = holder.style.height;
+          var holderImg = holder.getElementsByTagName('IMG')[0];
+          if(holderImg) {
+            holderImg.style.height = holder.style.height;
+          }
         }
         return btn;
       };
@@ -1015,7 +1025,7 @@ var editManager = EmberObject.extend({
         }
         var btn = formatted_button((layout[idx] || {}).label || "nothing", null, (layout[idx] || {}).opposite);
         if(idx == 4) { 
-          btn.setAttribute('class', elem.getAttribute('class')); 
+          btn.setAttribute('class', elemClass); 
           btn.classList.remove('touched');
           btn.classList.add('overlay_button');
         }
@@ -1864,71 +1874,75 @@ var editManager = EmberObject.extend({
     for(var idx = 0; idx < orderedButtons.length; idx++) {
       var row = orderedButtons[idx];
       var gridRow = [];
+      var getBtnVal = function(btn, key) {
+        return (btn && btn.get && typeof btn.get === 'function') ? btn.get(key) : (btn ? btn[key] : undefined);
+      };
       for(var jdx = 0; jdx < row.length; jdx++) {
         var currentButton = row[jdx];
         var originalButton = null;
         for(var kdx = 0; kdx < priorButtons.length; kdx++) {
-          if(priorButtons[kdx].id == currentButton.id) {
+          if(priorButtons[kdx].id == getBtnVal(currentButton, 'id')) {
             originalButton = priorButtons[kdx];
           }
         }
         var newButton = $.extend({}, originalButton);
-        if(currentButton.label || currentButton.image_id) {
-          newButton.label = currentButton.label;
-          if(currentButton.vocalization && currentButton.vocalization != newButton.label) {
-            newButton.vocalization = currentButton.vocalization;
+        if(getBtnVal(currentButton, 'label') || getBtnVal(currentButton, 'image_id')) {
+          newButton.label = getBtnVal(currentButton, 'label');
+          var vocalization = getBtnVal(currentButton, 'vocalization');
+          if(vocalization && vocalization != newButton.label) {
+            newButton.vocalization = vocalization;
           } else {
             delete newButton['vocalization'];
           }
-          newButton.ref_id = currentButton.ref_id;
-          newButton.image_id = currentButton.image_id;
-          newButton.sound_id = currentButton.sound_id;
-          var bg = window.tinycolor(currentButton.background_color);
+          newButton.ref_id = getBtnVal(currentButton, 'ref_id');
+          newButton.image_id = getBtnVal(currentButton, 'image_id');
+          newButton.sound_id = getBtnVal(currentButton, 'sound_id');
+          var bg = window.tinycolor(getBtnVal(currentButton, 'background_color'));
           if(bg._ok) {
             newButton.background_color = bg.toRgbString();
           }
-          var border = window.tinycolor(currentButton.border_color);
+          var border = window.tinycolor(getBtnVal(currentButton, 'border_color'));
           if(border._ok) {
             newButton.border_color = border.toRgbString();
           }
-          newButton.hidden = (currentButton.get ? currentButton.get('hidden') : currentButton.hidden) === true;
-          newButton.link_disabled = !!(currentButton.get ? currentButton.get('link_disabled') : currentButton.link_disabled);
-          if(currentButton.text_only) {
+          newButton.hidden = getBtnVal(currentButton, 'hidden') === true;
+          newButton.link_disabled = !!getBtnVal(currentButton, 'link_disabled');
+          if(getBtnVal(currentButton, 'text_only')) {
             newButton.text_only = true;
           } else {
             delete newButton['text_only'];
           }
-          if(currentButton.no_skin) {
+          if(getBtnVal(currentButton, 'no_skin')) {
             newButton.no_skin = true;
           } else {
             delete newButton['no_skin'];
           }
           if(currentButton.get('talkAction')) {
-            if(currentButton.prevent_adding_to_vocalization == null) {
+            if(getBtnVal(currentButton, 'prevent_adding_to_vocalization') == null) {
               newButton.add_vocalization = true;
             } else {
-              newButton.add_vocalization = !currentButton.prevent_adding_to_vocalization;
+              newButton.add_vocalization = !getBtnVal(currentButton, 'prevent_adding_to_vocalization');
             }
           } else {
-            if(currentButton.force_add_to_vocalization == null) {
-              newButton.add_vocalization = !!currentButton.add_to_vocalization;
+            if(getBtnVal(currentButton, 'force_add_to_vocalization') == null) {
+              newButton.add_vocalization = !!getBtnVal(currentButton, 'add_to_vocalization');
             } else {
-              newButton.add_vocalization = !!currentButton.force_add_to_vocalization;
+              newButton.add_vocalization = !!getBtnVal(currentButton, 'force_add_to_vocalization');
             }
           }
-          if(currentButton.level_style) {
-            if(currentButton.level_style == 'none') {
+          if(getBtnVal(currentButton, 'level_style')) {
+            if(getBtnVal(currentButton, 'level_style') == 'none') {
               emberSet(currentButton, 'level_modifications', null);
-            } else if(currentButton.level_style == 'basic' && (currentButton.hidden_level || currentButton.link_disabled_level)) {
+            } else if(getBtnVal(currentButton, 'level_style') == 'basic' && (getBtnVal(currentButton, 'hidden_level') || getBtnVal(currentButton, 'link_disabled_level'))) {
               var mods = emberGet(currentButton, 'level_modifications') || {};
               mods.pre = mods.pre || {};
-              if(currentButton.hidden_level) {
+              if(getBtnVal(currentButton, 'hidden_level')) {
                 mods.pre['hidden'] = true;
-                mods[currentButton.hidden_level.toString()] = {hidden: false};
+                mods[getBtnVal(currentButton, 'hidden_level').toString()] = {hidden: false};
               }
-              if(currentButton.link_disabled_level) {
+              if(getBtnVal(currentButton, 'link_disabled_level')) {
                 mods.pre['link_disabled'] = true;
-                mods[currentButton.link_disabled_level.toString()] = {link_disabled: false};
+                mods[getBtnVal(currentButton, 'link_disabled_level').toString()] = {link_disabled: false};
               }
               for(var ref_key in mods.pre) {
                 var found_change = false;
@@ -1943,16 +1957,16 @@ var editManager = EmberObject.extend({
                 }
               }
               emberSet(currentButton, 'level_modifications', mods);
-            } else if(currentButton.level_json) {
-              emberSet(currentButton, 'level_modifications', JSON.parse(currentButton.level_json));
+            } else if(getBtnVal(currentButton, 'level_json')) {
+              emberSet(currentButton, 'level_modifications', JSON.parse(getBtnVal(currentButton, 'level_json')));
             }
           }
-          newButton.level_modifications = currentButton.get ? currentButton.get('level_modifications') : currentButton.level_modifications;
-          newButton.home_lock = !!currentButton.home_lock;
-          newButton.meta_home = !!(newButton.home_lock && currentButton.meta_home);
-          newButton.hide_label = !!currentButton.hide_label;
-          newButton.blocking_speech = !!currentButton.blocking_speech;
-          newButton.rules = currentButton.rules;
+          newButton.level_modifications = getBtnVal(currentButton, 'level_modifications');
+          newButton.home_lock = !!getBtnVal(currentButton, 'home_lock');
+          newButton.meta_home = !!(newButton.home_lock && getBtnVal(currentButton, 'meta_home'));
+          newButton.hide_label = !!getBtnVal(currentButton, 'hide_label');
+          newButton.blocking_speech = !!getBtnVal(currentButton, 'blocking_speech');
+          newButton.rules = getBtnVal(currentButton, 'rules');
           if(currentButton.get('translations.length') > 0) {
             newButton.translations = currentButton.get('translations');
           }
@@ -1962,10 +1976,10 @@ var editManager = EmberObject.extend({
           if(currentButton.get('external_id')) {
             newButton.external_id = currentButton.get('external_id');
           }
-          if(currentButton.part_of_speech) {
-            newButton.part_of_speech = currentButton.part_of_speech;
-            newButton.suggested_part_of_speech = currentButton.suggested_part_of_speech;
-            newButton.painted_part_of_speech = currentButton.painted_part_of_speech;
+          if(getBtnVal(currentButton, 'part_of_speech')) {
+            newButton.part_of_speech = getBtnVal(currentButton, 'part_of_speech');
+            newButton.suggested_part_of_speech = getBtnVal(currentButton, 'suggested_part_of_speech');
+            newButton.painted_part_of_speech = getBtnVal(currentButton, 'painted_part_of_speech');
           }
           if(currentButton.get('buttonAction') == 'talk') {
             delete newButton['load_board'];
@@ -1999,7 +2013,7 @@ var editManager = EmberObject.extend({
             delete newButton['url'];
             delete newButton['apps'];
             delete newButton['integration'];
-            newButton.load_board = currentButton.load_board;
+            newButton.load_board = getBtnVal(currentButton, 'load_board');
           }
           // newButton.top = ...
           // newButton.left = ...
@@ -2089,26 +2103,32 @@ var editManager = EmberObject.extend({
                 if(!imgUrl && preview && preview.url) {
                   imgUrl = editManager.get_persistence().normalize_url(preview.url);
                 }
-                emberSet(button, 'image_id', image.id);
-                emberSet(button, 'image', image);
-                if(imgUrl) {
-                  button.set('image_url', imgUrl);
-                  button.set('local_image_url', imgUrl);
-                  button.set('original_image_url', imgUrl);
-                }
-                var board = _this.controller && _this.controller.get('model');
-                if(board && imgUrl) {
-                  var urls = board.get('image_urls') || {};
-                  urls = Object.assign({}, urls, { [image.id]: imgUrl });
-                  board.set('image_urls', urls);
-                  var modelButtons = board.get('buttons') || [];
-                  for(var b = 0; b < modelButtons.length; b++) {
-                    if(modelButtons[b].id == id) {
-                      modelButtons[b].image_id = image.id;
-                      break;
+                // Defer to afterRender so we use the server-assigned id when the server returns a different id
+                runSchedule('afterRender', function() {
+                  button = _this.find_button(id);
+                  if(!button || _this.controller.get('model.id') !== board_id) { return; }
+                  var serverId = (image.get && image.get('id')) || image.id;
+                  emberSet(button, 'image_id', serverId);
+                  emberSet(button, 'image', image);
+                  if(imgUrl) {
+                    button.set('image_url', imgUrl);
+                    button.set('local_image_url', imgUrl);
+                    button.set('original_image_url', imgUrl);
+                  }
+                  var board = _this.controller && _this.controller.get('model');
+                  if(board && imgUrl) {
+                    var urls = board.get('image_urls') || {};
+                    urls = Object.assign({}, urls, { [serverId]: imgUrl });
+                    board.set('image_urls', urls);
+                    var modelButtons = board.get('buttons') || [];
+                    for(var b = 0; b < modelButtons.length; b++) {
+                      if(modelButtons[b].id == id) {
+                        modelButtons[b].image_id = serverId;
+                        break;
+                      }
                     }
                   }
-                }
+                });
                 runLater(function() {
                   if(editManager.controller && editManager.controller === _this.controller) {
                     if(editManager.controller.redraw_if_needed) {

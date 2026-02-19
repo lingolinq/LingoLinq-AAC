@@ -185,6 +185,13 @@ class ButtonImage < ActiveRecord::Base
       self.settings['library_alternates'] = alt_hash
     end
     if !self.url
+      # Data URLs (word art, file upload, webcam) are not processed by process_url (http only).
+      # Store in data column so JsonApi can return them before S3 upload completes.
+      data_url = params['data_url'].presence || (params['url'] if params['url'].to_s.match(/^data:/))
+      if data_url.present?
+        self.data = data_url
+        self.settings['data_uri'] = data_url
+      end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
       self.settings['content_type'] = params['content_type'] if params['content_type']
       self.settings['width'] = params['width'].to_i if params['width']

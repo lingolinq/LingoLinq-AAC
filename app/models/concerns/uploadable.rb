@@ -281,6 +281,7 @@ module Uploadable
         self.settings['pending'] = false
         self.settings['data_uri'] = nil
         self.settings['pending_url'] = nil
+        self.data = nil if self.respond_to?(:data=)
         self.save
       else
         self.settings['errored_pending_url'] = url
