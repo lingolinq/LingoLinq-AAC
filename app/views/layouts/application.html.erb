@@ -59,10 +59,9 @@
   <% if @domain_overrides && @domain_overrides['css'] %>
     <%= stylesheet_link_tag @domain_overrides['css'] %>
   <% end %>
-  <!-- Tab icon - square favicon with logo centered (preserves navbar width aspect) -->
-  <link rel="icon" href="/images/favicon-pastel-32.png" type="image/png" sizes="32x32" />
-  <link rel="icon" href="/images/favicon-pastel-16.png" type="image/png" sizes="16x16" />
-  <link href="/images/favicon-pastel-32.png" rel="apple-touch-icon" />
+  <!-- Tab icon - app logo (?v=2 forces cache refresh when changing favicon) -->
+  <link rel="icon" href="/images/logo-big.png?v=2" type="image/png" />
+  <link rel="apple-touch-icon" href="/images/logo-big.png?v=2" />
   <%= javascript_include_tag "globals" %>
 </head>
 <body class="<%= 'pretty_loader' if pretty_loader %>">

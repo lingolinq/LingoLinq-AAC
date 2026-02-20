@@ -57,6 +57,45 @@
     color: #ccc;
   }
 }
+
+/* ==========================================================================
+   MODERN SCROLLBARS (Global)
+   Applied: All scrollable elements (modals, sidebars, overflow areas)
+   ========================================================================== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Applied in: app/templates/board/index.hbs (line 76)
    Board background container - bg_style, bg_class set via board controller */
 #board_bg {
@@ -369,8 +408,9 @@ header .btn {
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
    Navigation header - nav_header_class from app-state service */
 #nav_header {
-  display: block; 
-  float: left; 
+  display: flex;
+  align-items: center;
+  float: left;
   width: -webkit-calc(100% - 60px);
   width: calc(100% - 60px);
 
@@ -385,16 +425,21 @@ header .btn {
     text-overflow: ellipsis;
   }
   #org_name {
-    font-size: 14px; 
-    position: absolute; 
-    left: 70px; 
-    top: 48px; 
+    font-size: 14px;
+    position: absolute;
+    left: 70px;
+    top: 48px;
     font-style: italic;
     color: #777;
-    max-width: 300px; 
+    max-width: 300px;
     white-space: nowrap;
-    overflow: hidden; 
+    overflow: hidden;
     text-overflow: ellipsis;
+    .nav-header__org-sep {
+      margin: 0 6px;
+      opacity: 0.8;
+      font-style: normal;
+    }
   }
   &.board_done #board_id {
     left: 120px;
@@ -409,8 +454,11 @@ header .btn {
     background: linear-gradient(to right, #fff 95%,#ddd 100%);
   }
   #header_search {
-    display: inline-block; 
+    display: inline-block;
     padding-left: 10px;
+  }
+  .header-index-with-dark-toggle & #header_search {
+    margin-left: 18px;
   }
   &.no_beta {
     h1 {
@@ -443,6 +491,34 @@ header .btn {
   display: block; 
   float: left; 
   padding: 2px 2px 3px 2px; 
+}
+/* Carved-out home marker: distinct left section of speak-mode topbar */
+.speak-header__home-marker {
+  display: inline-block;
+  float: left;
+  padding: 6px 14px 6px 12px;
+  margin: 4px 10px 4px 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0 12px 12px 0;
+  border-left: 2px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.4), 1px 0 0 rgba(0, 0, 0, 0.04);
+  min-height: 36px;
+  box-sizing: border-box;
+}
+.speak-header__home-marker .btn {
+  margin: 0;
+  padding: 4px 6px 4px 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+.speak-header__home-marker .btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+}
+#home_button .button_icon {
+  font-size: 1.2em;
+  margin-left: -6px;
 }
 /* Applied in: app/templates/application.hbs (line 519) - user/identity dropdown
    Referenced in: raw_events.js, scanner.js */
@@ -534,15 +610,19 @@ header.speaking #identity .user_name {
   display: none;
 }
 
+#nav_header h1 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
 h1.with_board {
   margin-top: 10px;
   margin-bottom: -5px;
 }
 
-h1.with_board span {
+h1.with_board .nav-header__app-name {
   font-size: 20px;
-  position: relative; 
-  top: -10px;
+  position: relative;
+  top: 0;
   left: -5px;
 }
 h1.with_board span.label {
@@ -554,14 +634,42 @@ h1 a {
 h1 a:hover {
   text-decoration: none;
 }
-h1 a img {
+/* Nav header brand: logo and app name in separate links for independent formatting */
+.nav-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.nav-header__logo-link,
+.nav-header__app-name-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.nav-header__logo-link:hover,
+.nav-header__app-name-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+.nav-header__logo {
+  display: inline-block;
+  vertical-align: middle;
+}
+.nav-header__app-name {
+  display: inline-block;
+  vertical-align: middle;
+}
+h1 a img,
+.nav-header__logo img {
   padding-top: 5px;
   height: 55px;
   width: 90px;
-  margin-right: 14px;
+  margin-right: 4px;
   object-fit: contain;
 }
-h1.with_board a img {
+h1.with_board a img,
+h1.with_board .nav-header__logo img {
   padding-top: 0;
   padding-bottom: 5px;
 }
@@ -600,6 +708,85 @@ h2 {
   margin-top: 0;
   margin-bottom: 0;
 }
+
+.subscribe-modal-header__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subscribe-modal-header__logo {
+  height: 50px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/* Welcome to LingoLinq subscribe modal: match main board rounding (36px) */
+.modal .modal-dialog:has(.subscribe-modal-header) {
+  border-radius: 36px;
+  overflow: hidden;
+}
+
+/* Start w/ 2-Month Trial button: dark teal, Scot's landing page hover effect */
+.subscribe-trial-btn {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  padding: 16px 32px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1.25rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  background: #2A9D8F;
+  box-shadow: 0 4px 14px rgba(42, 157, 143, 0.35);
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.subscribe-trial-btn:hover {
+  background: #248277;
+  color: var(--fs-light-gray, #F0F0F0);
+  box-shadow: 0 6px 20px rgba(42, 157, 143, 0.45);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.subscribe-trial-btn:focus {
+  outline: 2px solid #2A9D8F;
+  outline-offset: 2px;
+}
+
+/* Same button in subscription table bottom row: full styling so it matches top Start button */
+.subscription_table .subscribe-trial-btn {
+  float: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 16px 32px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1.25rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  color: #fff !important;
+  background: #2A9D8F !important;
+  box-shadow: 0 4px 14px rgba(42, 157, 143, 0.35);
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+.subscription_table .subscribe-trial-btn:hover {
+  background: #248277 !important;
+  color: var(--fs-light-gray, #F0F0F0) !important;
+  box-shadow: 0 6px 20px rgba(42, 157, 143, 0.45);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.subscription_table .subscribe-trial-btn:focus {
+  outline: 2px solid #2A9D8F;
+  outline-offset: 2px;
+}
+
 .create-board-actions {
   margin-top: 12px;
   display: flex;
@@ -628,9 +815,58 @@ h2 {
   }
 }
 /* Applied in: page-footer component, footer templates */
-footer {
+footer,
+.page-footer {
   clear: both;
-  padding: 20px 20px 0 20px;
+  padding: 28px 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+footer .wide_links,
+.page-footer .wide_links {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+}
+footer .wide_links .row,
+.page-footer .wide_links .row {
+  width: 100%;
+  margin-right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+/* Push Developers, Privacy, Terms to the right edge of the navbar */
+footer .wide_links .row > .page-footer__right-links,
+.page-footer .wide_links .row > .page-footer__right-links {
+  margin-left: auto;
+}
+/* Right-hand links flush to right side of bottom navbar: bar extends to viewport edge */
+footer,
+.page-footer {
+  padding-right: 0;
+}
+footer .wide_links .row > .page-footer__right-links,
+footer .wide_links .row > .page-footer__right-icons,
+.page-footer .wide_links .row > .page-footer__right-links,
+.page-footer .wide_links .row > .page-footer__right-icons {
+  padding-right: 0;
+}
+footer .wide_links .row > .page-footer__right-links:last-child,
+footer .wide_links .row > .page-footer__right-icons:last-child,
+.page-footer .wide_links .row > .page-footer__right-links:last-child,
+.page-footer .wide_links .row > .page-footer__right-icons:last-child {
+  padding-right: 20px;
+}
+/* Icons column: minimal width, just enough for the icon links */
+footer .wide_links .row > .page-footer__right-icons.col-sm-2,
+.page-footer .wide_links .row > .page-footer__right-icons.col-sm-2 {
+  width: 1%;
+  max-width: none;
+  white-space: nowrap;
 }
 footer .icons {
   padding-left: 10px;
@@ -639,8 +875,29 @@ footer .icons {
 footer .skinny_links {
   display: none;
 }
-footer .wide_links {
-  display: block;
+.page-footer__app-name {
+  color: var(--fs-dark-teal, #2A9D8F);
+  padding-right: 10px;
+  font-size: 1.2em;
+}
+footer a,
+.page-footer a {
+  color: var(--fs-navy, #1B365D);
+}
+footer a:hover,
+.page-footer a:hover {
+  color: var(--fs-navy, #1B365D);
+  opacity: 0.85;
+}
+
+.page-footer-link-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .glyphicon {
+    font-size: 0.9em;
+  }
 }
 .highlight.box {
   border: 8px solid #ff0;
@@ -2547,6 +2804,13 @@ body.pretty_loader {
   background-size: 100% auto;
   #intro_header {
     background: rgba(0, 0, 0, 0.3);
+  }
+  .intro-for-schools-link {
+    color: #fff !important;
+    text-decoration: underline;
+  }
+  .intro-for-schools-link:hover {
+    color: rgba(255, 255, 255, 0.9) !important;
   }
 }
 /* Applied in: Index route when logged in - content_class adds index + with_user */
@@ -5032,8 +5296,9 @@ table tr.long_delay td {
 .subscription_table {
   border-collapse: separate;
   max-width: 650px;
-  box-shadow: 0px 10px 10px 1px #888888;
-  border-radius: 10px;
+  box-shadow: 0px 10px 10px 1px rgba(136, 136, 136, 0.4);
+  border-radius: 36px;
+  overflow: hidden;
   .glyphicon {
     font-size: 20px;
   }
@@ -5061,7 +5326,7 @@ table tr.long_delay td {
   td.separator {
     border-left-width: 1px;
     border-left-color: #aaa;
-    box-shadow: inset 10px 1px 15px -10px #888888;
+    box-shadow: inset 6px 0 8px -6px rgba(136, 136, 136, 0.4);
   }
   td.dim {
     background: #fafafa;
@@ -5088,6 +5353,34 @@ table tr.long_delay td {
     top: 50px;
     font-size: 20px;
   }
+  .subscription-currency-us {
+    color: var(--fs-dark-teal, #2A9D8F);
+    font-size: 0.92em;
+  }
+  .subscription-table__lifetime-purchase {
+    color: var(--fs-navy, #1B365D);
+  }
+  /* Cloud extras links – dark teal (style guide) */
+  td a[href*='blog.mylingolinq.com'] {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.5px 0 var(--fs-navy, #1B365D);
+  }
+  td a[href*='blog.mylingolinq.com']:hover {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.5px 0 var(--fs-navy, #1B365D);
+  }
+  /* Right-side cloud extras (Supporter + Eval columns): style guide dark teal, same text shadow as left */
+  td.subscription-table__cloud-extras-right a[href*='blog.mylingolinq.com'] {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.5px 0 var(--fs-navy, #1B365D);
+  }
+  td.subscription-table__cloud-extras-right a[href*='blog.mylingolinq.com']:hover {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.5px 0 var(--fs-navy, #1B365D);
+  }
+  .btn-primary .subscription-currency-us {
+    color: var(--fs-teal, #4ECDC4);
+  }
   tr:hover {
     td {
       background: #eee;
@@ -5096,10 +5389,32 @@ table tr.long_delay td {
       background: #eee;
     }
   }
+  tbody tr:first-child:hover td {
+    background: #666;
+  }
+  tbody tr:first-child:hover td.subscription-table__communicator-header {
+    background: var(--fs-navy, #1B365D);
+  }
+  /* Row with 'select this plan' buttons: light teal hover (style guide) */
+  tr.subscription-table__row--plan-buttons:hover td {
+    background: rgba(78, 205, 196, 0.2);
+  }
   tbody tr:first-child td {
     border-top-color: #aaa;
     padding-top: 15px;
     padding-bottom: 15px;
+  }
+  tbody tr:first-child td:first-child {
+    border-top-left-radius: 36px;
+  }
+  tbody tr:first-child td:last-child {
+    border-top-right-radius: 36px;
+  }
+  .subscription-table__communicator-header {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    background: var(--fs-navy, #1B365D);
   }
   tbody tr:last-child td {
     border-bottom-color: #aaa;
@@ -5130,7 +5445,243 @@ table tr.long_delay td {
       border-bottom-right-radius: 10px;
     }
   }
+
+  /* Select this plan buttons: match landing page (for-schools) style and hover */
+  .btn {
+    padding: 8px 14px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.3;
+    transition: all 0.25s ease;
+    border: none;
+  }
+  .btn-primary {
+    background: var(--fs-navy, #1B365D);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(27, 54, 93, 0.35);
+  }
+  .btn-primary:hover {
+    background: #243F6B;
+    box-shadow: 0 6px 20px rgba(27, 54, 93, 0.45);
+    transform: translateY(-1px);
+  }
+  .btn-default {
+    background: transparent;
+    border: 2px solid #1B365D;
+    color: #1B365D;
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2);
+  }
+  /* Right three plan buttons: white background when unselected */
+  tr.subscription-table__row--plan-buttons td:nth-child(2) .btn-default,
+  tr.subscription-table__row--plan-buttons td:nth-child(3) .btn-default,
+  tr.subscription-table__row--plan-buttons td:nth-child(4) .btn-default {
+    background: #fff;
+  }
+  /* Right three plan buttons: same hover bg as far left (lighter navy #243F6B) */
+  tr.subscription-table__row--plan-buttons td:nth-child(2) .btn-default:hover,
+  tr.subscription-table__row--plan-buttons td:nth-child(3) .btn-default:hover,
+  tr.subscription-table__row--plan-buttons td:nth-child(4) .btn-default:hover {
+    background: #243F6B;
+    border: 2px solid #1B365D;
+    color: #fff;
+  }
+  /* Right three plan buttons: same lift on hover as far left (translateY + elevated shadow) */
+  tr.subscription-table__row--plan-buttons td:nth-child(2) .btn:hover,
+  tr.subscription-table__row--plan-buttons td:nth-child(3) .btn:hover,
+  tr.subscription-table__row--plan-buttons td:nth-child(4) .btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2), 0 4px 14px rgba(27, 54, 93, 0.25);
+  }
+  /* First plan button (monthly): same double outline as the other three – ensure it wins over theme/context */
+  td.subscription-table__cell--first-plan .btn-default,
+  td.subscription-table__cell--first-plan .btn-default:hover {
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2) !important;
+  }
+  /* First plan button when selected (primary): same outline style as the other three (2px border + double ring), keep navy bg and font colors */
+  td.subscription-table__cell--first-plan .btn-primary {
+    border: 2px solid #1B365D;
+    background: var(--fs-navy, #1B365D);
+    color: #fff;
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2), 0 4px 14px rgba(27, 54, 93, 0.35);
+  }
+  td.subscription-table__cell--first-plan .btn-primary:hover {
+    border: 2px solid #1B365D;
+    background: #243F6B;
+    color: #fff;
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2), 0 6px 20px rgba(27, 54, 93, 0.45);
+  }
+  /* When hovering the row (not on a specific button): far left button keeps navy */
+  tr.subscription-table__row--plan-buttons:hover td.subscription-table__cell--first-plan .btn-primary {
+    background: var(--fs-navy, #1B365D) !important;
+    color: #fff;
+  }
+  /* When hovering any of the right three buttons: far left button bg becomes white */
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(2):hover) td.subscription-table__cell--first-plan .btn-primary,
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(3):hover) td.subscription-table__cell--first-plan .btn-primary,
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(4):hover) td.subscription-table__cell--first-plan .btn-primary {
+    background: #fff !important;
+    color: #1B365D;
+  }
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(2):hover) td.subscription-table__cell--first-plan .btn-primary .subscription-currency-us,
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(3):hover) td.subscription-table__cell--first-plan .btn-primary .subscription-currency-us,
+  tr.subscription-table__row--plan-buttons:has(td:nth-child(4):hover) td.subscription-table__cell--first-plan .btn-primary .subscription-currency-us {
+    color: var(--fs-dark-teal, #2A9D8F);
+  }
+  .btn-default:hover {
+    background: #1B365D;
+    border: 2px solid #1B365D;
+    color: #fff;
+    box-shadow: 0 0 0 1px #F0F0F0, 0 0 0 3px rgba(27, 54, 93, 0.2);
+    transform: translateY(-1px) !important;
+  }
+  /* Ensure all plan buttons (including .btn-default) lift on hover – override theme rules */
+  td .btn:hover {
+    transform: translateY(-1px) !important;
+  }
+
+  /* Rows: run on multiple devices, premium voices, Works as a... – light gray bg (style guide) */
+  tr.subscription-table__row--light-gray-bg td {
+    background: var(--fs-light-gray, #F0F0F0);
+  }
+  tr.subscription-table__row--light-gray-bg:hover td {
+    background: var(--fs-light-gray, #F0F0F0);
+  }
+  /* Pricing row (US$9, -or-, US$295, US$25): vertically center content in row */
+  tr.subscription-table__row--pricing td {
+    vertical-align: middle;
+  }
+  tr.subscription-table__row--pricing div.middle {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  /* Rows with no hover effect: US$9/per month, full communication, cloud extras, premium symbols */
+  tr.subscription-table__row--no-hover:hover td {
+    background: #fff;
+  }
+  tr.subscription-table__row--no-hover:hover div.middle {
+    background: #fff;
+  }
+  /* Bottom row: include supervisor credits + Bulk Purchase – light teal bg (style guide) */
+  tr.subscription-table__row--teal-bg td {
+    background: rgba(78, 205, 196, 0.15);
+  }
+  tr.subscription-table__row--teal-bg:hover td {
+    background: rgba(78, 205, 196, 0.22);
+  }
+  tr.subscription-table__row--teal-bg td a {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.25px 0 var(--fs-navy, #1B365D);
+  }
+  tr.subscription-table__row--teal-bg td a:hover {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-shadow: 0 0.25px 0 var(--fs-navy, #1B365D);
+  }
+  /* Row below: trial / gift code / modeling-only – navy bg, light teal text (style guide) */
+  tbody tr.subscription-table__row--navy-bg td {
+    background: var(--fs-navy, #1B365D);
+    color: var(--fs-teal, #4ECDC4);
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    a {
+      color: var(--fs-teal, #4ECDC4);
+    }
+    .btn-default {
+      border-color: var(--fs-teal, #4ECDC4);
+      color: var(--fs-teal, #4ECDC4);
+    }
+    .btn-default:hover {
+      background: rgba(78, 205, 196, 0.2);
+      border-color: var(--fs-teal, #4ECDC4);
+      color: var(--fs-teal, #4ECDC4);
+    }
+    .btn-primary {
+      background: var(--fs-teal, #4ECDC4);
+      color: var(--fs-navy, #1B365D);
+    }
+    .btn-primary:hover {
+      background: #2A9D8F;
+      color: var(--fs-navy, #1B365D);
+    }
+  }
+  tr.subscription-table__row--navy-bg:hover td {
+    background: #243F6B;
+    color: var(--fs-teal, #4ECDC4);
+    a {
+      color: var(--fs-teal, #4ECDC4);
+    }
+  }
 }
+
+/* Activate Account button: match Try Lingo Free (Scot's landing page coral), same shadows as trial button */
+.subscription-activate-btn {
+  padding: 16px 36px;
+  border-radius: 50px;
+  font-weight: 600;
+  border: 2px solid var(--fs-navy, #1B365D);
+  background: #FFFFFF !important;
+  color: var(--fs-navy, #1B365D);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.08), 0 4px 14px rgba(27, 54, 93, 0.35);
+  transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  text-decoration: none;
+}
+.subscription-activate-btn:hover {
+  background: var(--fs-light-gray, #F0F0F0) !important;
+  color: var(--fs-navy, #1B365D);
+  border-color: var(--fs-navy, #1B365D);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.1), 0 6px 20px rgba(27, 54, 93, 0.45);
+  transform: translateY(-1px);
+}
+.subscription-activate-btn__heading-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.subscription-activate-btn__heading {
+  font-size: 21.6px; /* 24px −10% */
+  color: var(--fs-coral, #FF6B47);
+}
+.subscription-activate-btn__arrow {
+  color: var(--fs-coral, #FF6B47);
+  font-size: 19.8px; /* 22px −10% */
+}
+.subscription-activate-btn__icon {
+  color: var(--fs-teal, #4ECDC4);
+}
+.subscription-activate-btn__discount {
+  font-weight: bold;
+  color: var(--fs-navy, #1B365D);
+  .subscription-activate-btn__icon {
+    color: var(--fs-teal, #4ECDC4);
+  }
+}
+.subscription-activate-btn__subtext {
+  color: var(--fs-navy, #1B365D);
+  font-weight: normal;
+}
+.subscription-activate-btn__price {
+  color: var(--fs-navy, #1B365D);
+  font-size: 12.6px; /* 14px −10% */
+  font-weight: 500;
+}
+.subscription-activate-btn__paren {
+  color: var(--fs-dark-teal, #2A9D8F);
+  font-weight: 600;
+}
+.subscription-activate-btn__paying-line {
+  color: var(--fs-navy, #1B365D);
+  font-weight: 600;
+}
+
+/* Vertically center Start / Cancel next to Activate Account button */
+.subscription-activate-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* Applied in: speak-menu component - speak options dropdown */
 #speak_menu {
   .row {
@@ -6354,6 +6905,33 @@ body:-ms-fullscreen {
   }
 }
 
+/* Celebration burst when authenticated index view first shows - runs once then holds still */
+/* Celebration icon next to username after dismissing Getting Started */
+.nav-header-welcome__celebration-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: nav-header-celebration-bounce 0.6s ease-out 3;
+}
+
+.nav-header-welcome__celebration-icon svg {
+  display: block;
+  color: var(--ll-pastel-accent, #78c3c6);
+}
+
+@keyframes nav-header-celebration-bounce {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.9;
+  }
+}
+
 /* Device-style container - frosted glass card effect.
    Use ll-bento-device-frame--wide for two-column dashboard layout. */
 .ll-bento-device-frame {
@@ -6378,7 +6956,7 @@ body:-ms-fullscreen {
 .ll-bento-topbar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 16px;
   padding: 12px 28px 16px;
   min-height: 60px;
@@ -6408,33 +6986,37 @@ body:-ms-fullscreen {
 .ll-bento-topbar__brand {
   justify-content: flex-start;
   gap: 10px;
-  flex: 1 1 0;
+  flex: 0 0 auto;
+  width: max-content;
   min-width: 0;
+  margin-left: -2px;
 }
 
 .ll-bento-brand-link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 8px 20px;
   border-radius: 999px;
   text-decoration: none;
   color: inherit;
   outline: none;
   transition: background 0.2s ease, color 0.2s ease;
+  width: max-content;
+  background: rgba(225, 228, 238, 0.98);
 
   &:focus:not(:focus-visible) {
     outline: none;
   }
 
   &:hover {
-    background: rgba(225, 228, 238, 0.98);
+    background: #fff;
     text-decoration: none;
   }
 }
 
 .ll-bento-topbar__welcome {
-  justify-content: flex-start;
+  justify-content: center;
   flex: 3 1 0;
   min-width: 0;
 }
@@ -6450,6 +7032,14 @@ body:-ms-fullscreen {
   gap: 16px;
   flex: 0 0 auto;
   min-width: 150px;
+}
+
+/* Topbar icon buttons: same light bg as brand, white hover */
+.ll-bento-topbar .ll-bento-icon-btn {
+  background: rgba(225, 228, 238, 0.98);
+}
+.ll-bento-topbar .ll-bento-icon-btn:hover {
+  background: #fff;
 }
 
 .ll-bento-dark-toggle {
@@ -6489,40 +7079,108 @@ body:-ms-fullscreen {
   }
 }
 
-/* Header/navbar - match bento topbar in light mode (index view) */
+/* Header/navbar - navy from color scheme (index/for-schools view) */
 .header-index-with-dark-toggle {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.54) 0%, rgba(248, 250, 253, 0.48) 100%);
-  border-bottom: 1px solid rgba(30, 36, 48, 0.06);
+  background: #1B365D;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Identity button - same circular effect as dark toggle (index view) */
+.header-index-with-dark-toggle h1 a,
+.header-index-with-dark-toggle h1 .nav-header__logo-link,
+.header-index-with-dark-toggle h1 .nav-header__app-name-link,
+.header-index-with-dark-toggle h1 a span,
+.header-index-with-dark-toggle h1 .nav-header__app-name {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.header-index-with-dark-toggle h1 a:hover,
+.header-index-with-dark-toggle h1 .nav-header__logo-link:hover,
+.header-index-with-dark-toggle h1 .nav-header__app-name-link:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+.header-index-with-dark-toggle h1 a img,
+.header-index-with-dark-toggle h1 .nav-header__logo img {
+  height: 72px;
+  width: 118px;
+}
+
+/* Index navbar: center logo + name vertically, pair name closer to logo */
+.header-index-with-dark-toggle .nav-header__brand {
+  margin-top: -3px;
+}
+.header-index-with-dark-toggle .nav-header__logo img {
+  margin-right: 0;
+  padding-top: 0;
+}
+.header-index-with-dark-toggle .nav-header__app-name-link {
+  margin-left: -14px;
+  margin-top: -10px;
+}
+.header-index-with-dark-toggle .nav-header__app-name {
+  margin-left: 0;
+}
+
+/* Ensure light text on navy navbar overrides theme-specific colors */
+#within_ember .header-index-with-dark-toggle .identity-for-schools-link {
+  color: rgba(255, 255, 255, 0.9);
+}
+#within_ember .header-index-with-dark-toggle .identity-for-schools-link:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+/* Search form in navy header */
+.header-index-with-dark-toggle #header_search .form-control {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+}
+.header-index-with-dark-toggle #header_search .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.header-index-with-dark-toggle #header_search .btn-default {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+}
+.header-index-with-dark-toggle #header_search .btn-default:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: white;
+}
+
+/* Identity button - modern pill style (index/for-schools view) */
 #identity.identity-with-dark-toggle #identity_button {
-  width: 50px;
-  height: 50px;
-  min-width: 50px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(30, 36, 48, 0.25);
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 2px 10px rgba(19, 29, 56, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  outline: none;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   display: grid;
   place-items: center;
   overflow: visible;
   position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 #identity.identity-with-dark-toggle #identity_button:hover,
 #identity.identity-with-dark-toggle #identity_button:focus {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(30, 36, 48, 0.35);
-  box-shadow: 0 2px 10px rgba(19, 29, 56, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  outline: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
 }
 
 #identity.identity-with-dark-toggle #identity_button .user_holder {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   margin: 0;
   border-radius: 50%;
   overflow: hidden;
@@ -6530,10 +7188,12 @@ body:-ms-fullscreen {
 }
 
 #identity.identity-with-dark-toggle #identity_button img.user {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
+  border: none;
+  outline: none;
 }
 
 #identity.identity-with-dark-toggle #identity_button .caret,
@@ -6554,10 +7214,46 @@ body:-ms-fullscreen {
 
 /* Dark toggle in main header - same row as logo, no wrap */
 .header-index-with-dark-toggle #inner_header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
+}
+
+/* Welcome username centered on main navbar (authenticated index/for-schools only) */
+.nav-header-welcome {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: rgba(255, 255, 255, 0.95);
+  pointer-events: auto;
+}
+
+.nav-header-welcome__label {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.nav-header-welcome__link {
+  color: #4ECDC4;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.nav-header-welcome__link:hover {
+  color: #6bd9d2;
+  text-decoration: underline;
+}
+
+.nav-header-welcome__badge {
+  color: #4ECDC4;
+  font-weight: 600;
 }
 
 .header-index-with-dark-toggle #nav_header {
@@ -6565,6 +7261,20 @@ body:-ms-fullscreen {
   min-width: 0;
   float: none;
   width: auto;
+}
+
+.identity-for-schools-link {
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.9);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.identity-for-schools-link:hover {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
 }
 
 #identity.identity-with-dark-toggle {
@@ -6582,18 +7292,23 @@ body:-ms-fullscreen {
 }
 
 
-/* Dark toggle in main header (index page) - glass effect in light mode */
+/* Dark toggle in main header (index/for-schools) - Setup in Minutes badge style */
 .bento-dark-toggle-wrap .ll-bento-dark-toggle {
-  border-color: rgba(30, 36, 48, 0.25);
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 2px 10px rgba(19, 29, 56, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .bento-dark-toggle-wrap .ll-bento-dark-toggle:hover {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: rgba(30, 36, 48, 0.35);
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
 }
 
 .ll-bento-dark-toggle__moon-svg {
@@ -6601,9 +7316,9 @@ body:-ms-fullscreen {
   filter: drop-shadow(0 0 1px rgba(100, 116, 139, 0.5));
 }
 
-.ll-bento-dark-toggle__sun-svg {
+.ll-bento-dark-toggle__light-teal-svg {
   display: block;
-  filter: drop-shadow(0 0 1px rgba(255, 167, 38, 0.4));
+  filter: drop-shadow(0 0 1px rgba(42, 157, 143, 0.4));
 }
 
 .ll-bento-dark-toggle__midday-svg {
@@ -6611,7 +7326,7 @@ body:-ms-fullscreen {
   filter: drop-shadow(0 0 1px rgba(100, 116, 139, 0.35));
 }
 
-.ll-bento-theme-picker__sun-svg,
+.ll-bento-theme-picker__light-teal-svg,
 .ll-bento-theme-picker__midday-svg {
   display: block;
 }
@@ -6741,14 +7456,28 @@ body:-ms-fullscreen {
   font-weight: 700;
   letter-spacing: -0.02em;
   font-size: 16px;
+  margin-left: 10px;
+}
+
+.ll-bento-brand__logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 14px;
 }
 
 .ll-bento-logo {
-  width: 48%;
-  height: 40%;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
   border-radius: 14px;
   object-fit: contain;
   display: block;
+  flex-shrink: 0;
+  transform: scale(1.65);
 }
 
 .ll-bento-top-actions {
@@ -6866,6 +7595,7 @@ body:-ms-fullscreen {
     .ll-bento-getting-started--main & {
       width: 64px;
       height: 64px;
+      margin-left: -12px;
     }
   }
 
@@ -7178,7 +7908,7 @@ body:-ms-fullscreen {
   }
 
   &--refresh .glyphicon-refresh {
-    background: linear-gradient(to bottom, #5fb8ff 0%, #a855f7 100%);
+    background: linear-gradient(to bottom, var(--fs-dark-teal, #2A9D8F) 0%, var(--fs-navy, #1B365D) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -7195,11 +7925,16 @@ body:-ms-fullscreen {
   }
 
   .ll-bento-help-btn__icon {
-    font-size: 16px;
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--ll-bento-muted);
     line-height: 1;
-    font-family: inherit;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
   }
 
   &:hover .ll-bento-help-btn__icon {
@@ -7282,6 +8017,15 @@ body:-ms-fullscreen {
     box-shadow: 0 4px 16px rgba(100, 185, 188, 0.25),
                 0 2px 8px rgba(130, 195, 220, 0.12),
                 inset 0 2px 6px rgba(19, 29, 56, 0.08);
+  }
+
+  &--link {
+    flex: 0 1 auto;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   }
 }
 
@@ -7367,38 +8111,46 @@ body:-ms-fullscreen {
   box-sizing: border-box;
 }
 
-/* Browse Boards - card container with distinctive accent */
+/* Browse Boards - match primary action cards formatting */
 .ll-bento-browse-boards {
   width: 100%;
   margin: 0 var(--ll-bento-content-inset) 14px;
-  padding: 20px 24px 20px 20px;
-  background: linear-gradient(135deg, rgba(248, 250, 253, 0.98) 0%, rgba(240, 244, 250, 0.95) 50%, rgba(235, 240, 250, 0.92) 100%);
-  border-radius: var(--ll-bento-radius-xl);
-  border: 1px solid rgba(195, 205, 225, 0.5);
-  box-shadow: var(--ll-bento-shadow-sm),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8),
-              inset -1px 0 0 rgba(184, 168, 216, 0.08);
+  padding: 24px 28px;
+  background: rgba(255, 252, 250, 0.88);
+  border-radius: var(--ll-bento-radius-lg);
+  border: 1px solid var(--ll-bento-stroke);
+  box-shadow: var(--ll-bento-shadow-sm);
   box-sizing: border-box;
+  transition: background 0.2s ease, box-shadow 0.3s var(--ll-bento-ease-in-out), transform 0.3s var(--ll-bento-ease-in-out);
+
+  &:hover {
+    background: rgba(240, 242, 245, 0.9);
+    box-shadow: var(--ll-bento-shadow-lg);
+  }
 
   &__header {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     margin-bottom: 14px;
   }
 
+  &__search {
+    margin-left: auto;
+  }
+
   &__icon {
-    width: 40px;
-    height: 40px;
-    margin-left: 12px;
+    width: 48px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--ll-bento-radius-md);
-    background: var(--ll-bento-icon-gloss), rgba(230, 225, 245, 0.9);
-    border: 1px solid rgba(200, 190, 230, 0.5);
-    color: rgba(100, 85, 150, 0.85);
-    font-size: 18px;
+    border-radius: 16px;
+    background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
+    border: 1px solid rgba(205, 218, 240, 0.5);
+    box-shadow: 0 4px 12px rgba(19, 29, 56, 0.06), var(--ll-bento-icon-rim);
+    color: rgba(50, 60, 75, 0.75);
+    font-size: 22px;
     flex-shrink: 0;
   }
 
@@ -8024,7 +8776,7 @@ body:-ms-fullscreen {
   gap: 10px;
   border: none;
   background: transparent;
-  padding: 0 16px;
+  padding: 0 8px 0 16px;
   height: 42px;
   border-radius: 999px;
   cursor: pointer;
@@ -8043,6 +8795,7 @@ body:-ms-fullscreen {
   color: rgba(30, 36, 48, 0.90);
   font-size: 12px;
   flex-shrink: 0;
+  margin-left: -8px;
 }
 
 .ll-bento-dock__logging-last {
@@ -8289,7 +9042,18 @@ body:-ms-fullscreen {
   background: linear-gradient(90deg, rgba(78, 195, 200, 0.85), rgba(95, 185, 255, 0.8));
 }
 
-.ll-bento-app-shell--midday .ll-bento-brand-link:hover,
+.ll-bento-app-shell--midday .ll-bento-brand-link {
+  background: rgba(212, 222, 238, 0.95);
+}
+.ll-bento-app-shell--midday .ll-bento-topbar .ll-bento-icon-btn {
+  background: rgba(212, 222, 238, 0.95);
+}
+.ll-bento-app-shell--midday .ll-bento-topbar .ll-bento-icon-btn:hover {
+  background: #fff;
+}
+.ll-bento-app-shell--midday .ll-bento-brand-link:hover {
+  background: #fff;
+}
 .ll-bento-app-shell--midday .ll-bento-search:hover,
 .ll-bento-app-shell--midday .ll-bento-icon-btn:hover {
   background: rgba(212, 222, 238, 0.95);
@@ -8514,19 +9278,27 @@ body:-ms-fullscreen {
   color: #e8ecf2;
 }
 
+#within_ember.bento-midday-mode-active .identity-for-schools-link {
+  color: rgba(230, 236, 242, 0.9);
+}
+#within_ember.bento-midday-mode-active .identity-for-schools-link:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
 #within_ember.bento-midday-mode-active #identity.identity-with-dark-toggle #identity_button {
-  background: var(--ll-bento-icon-gloss), rgba(81, 87, 99, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  color: rgba(230, 236, 242, 0.95);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(27, 54, 93, 0.9);
 }
 
 #within_ember.bento-midday-mode-active #identity.identity-with-dark-toggle #identity_button:hover,
 #within_ember.bento-midday-mode-active #identity.identity-with-dark-toggle #identity_button:focus {
-  background: var(--ll-bento-icon-gloss), rgba(87, 93, 105, 0.8);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 54, 93, 0.95);
 }
 
 #within_ember.bento-midday-mode-active header .btn-default:not(#identity_button) {
@@ -8542,18 +9314,17 @@ body:-ms-fullscreen {
 }
 
 #within_ember.bento-midday-mode-active .ll-bento-dark-toggle--header {
-  background: var(--ll-bento-icon-gloss), rgba(81, 87, 99, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  color: rgba(230, 236, 242, 0.95);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(27, 54, 93, 0.9);
 }
 
 #within_ember.bento-midday-mode-active .ll-bento-dark-toggle--header:hover {
-  background: var(--ll-bento-icon-gloss), rgba(87, 93, 105, 0.8);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 54, 93, 0.95);
 }
 
 /* Bottom navbar matches topbar silver gradient */
@@ -8748,7 +9519,18 @@ body:-ms-fullscreen {
   background: linear-gradient(90deg, #4A5D73, #2C3E63);
 }
 
-.ll-bento-app-shell--coolBlue .ll-bento-brand-link:hover,
+.ll-bento-app-shell--coolBlue .ll-bento-brand-link {
+  background: rgba(233, 238, 244, 0.98);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn {
+  background: rgba(233, 238, 244, 0.98);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn:hover {
+  background: #fff;
+}
+.ll-bento-app-shell--coolBlue .ll-bento-brand-link:hover {
+  background: #fff;
+}
 .ll-bento-app-shell--coolBlue .ll-bento-search:hover,
 .ll-bento-app-shell--coolBlue .ll-bento-icon-btn:hover {
   background: rgba(233, 238, 244, 0.98);
@@ -8990,17 +9772,26 @@ body:-ms-fullscreen {
   color: rgba(31, 42, 68, 0.98);
 }
 
+#within_ember.bento-cool-blue-mode-active .identity-for-schools-link {
+  color: rgba(31, 42, 68, 0.9);
+}
+#within_ember.bento-cool-blue-mode-active .identity-for-schools-link:hover {
+  color: rgba(31, 42, 68, 1);
+}
+
 #within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button {
-  background: var(--ll-bento-icon-gloss), rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(126, 147, 168, 0.35);
-  box-shadow: 0 2px 8px rgba(31, 42, 68, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   color: rgba(31, 42, 68, 0.95);
 }
 
 #within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button:hover,
 #within_ember.bento-cool-blue-mode-active #identity.identity-with-dark-toggle #identity_button:focus {
-  background: rgba(233, 238, 244, 0.98);
-  border-color: rgba(126, 147, 168, 0.45);
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   color: rgba(31, 42, 68, 0.98);
 }
 
@@ -9017,15 +9808,16 @@ body:-ms-fullscreen {
 }
 
 #within_ember.bento-cool-blue-mode-active .ll-bento-dark-toggle--header {
-  background: var(--ll-bento-icon-gloss), rgba(255, 255, 255, 0.95);
-  border-color: rgba(126, 147, 168, 0.35);
-  box-shadow: 0 2px 8px rgba(31, 42, 68, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   color: rgba(74, 93, 115, 0.9);
 }
 
 #within_ember.bento-cool-blue-mode-active .ll-bento-dark-toggle--header:hover {
-  background: rgba(233, 238, 244, 0.98);
-  border-color: rgba(126, 147, 168, 0.45);
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   color: rgba(31, 42, 68, 0.95);
 }
 
@@ -9142,7 +9934,18 @@ body:-ms-fullscreen {
               var(--ll-bento-material-counter-shadow);
 }
 
-.ll-bento-app-shell--dark .ll-bento-brand-link:hover,
+.ll-bento-app-shell--dark .ll-bento-brand-link {
+  background: rgba(85, 100, 120, 0.9);
+}
+.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-icon-btn {
+  background: rgba(85, 100, 120, 0.9);
+}
+.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-icon-btn:hover {
+  background: #fff;
+}
+.ll-bento-app-shell--dark .ll-bento-brand-link:hover {
+  background: #fff;
+}
 .ll-bento-app-shell--dark .ll-bento-search:hover,
 .ll-bento-app-shell--dark .ll-bento-icon-btn:hover {
   background: rgba(85, 100, 120, 0.9);
@@ -9183,19 +9986,27 @@ body:-ms-fullscreen {
   color: #e8ecf2;
 }
 
+#within_ember.bento-dark-mode-active .identity-for-schools-link {
+  color: rgba(230, 236, 242, 0.9);
+}
+#within_ember.bento-dark-mode-active .identity-for-schools-link:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
 #within_ember.bento-dark-mode-active #identity.identity-with-dark-toggle #identity_button {
-  background: var(--ll-bento-icon-gloss), rgba(56, 68, 84, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: rgba(230, 236, 242, 0.95);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(27, 54, 93, 0.9);
 }
 
 #within_ember.bento-dark-mode-active #identity.identity-with-dark-toggle #identity_button:hover,
 #within_ember.bento-dark-mode-active #identity.identity-with-dark-toggle #identity_button:focus {
-  background: var(--ll-bento-icon-gloss), rgba(64, 76, 92, 0.85);
-  border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 54, 93, 0.95);
 }
 
 #within_ember.bento-dark-mode-active header .btn-default:not(#identity_button) {
@@ -9211,18 +10022,17 @@ body:-ms-fullscreen {
 }
 
 #within_ember.bento-dark-mode-active .ll-bento-dark-toggle--header {
-  background: var(--ll-bento-icon-gloss), rgba(56, 68, 84, 0.75);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: rgba(230, 236, 242, 0.95);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(27, 54, 93, 0.9);
 }
 
 #within_ember.bento-dark-mode-active .ll-bento-dark-toggle--header:hover {
-  background: var(--ll-bento-icon-gloss), rgba(64, 76, 92, 0.85);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 54, 93, 0.95);
 }
 
 #within_ember.bento-dark-mode-active .page-footer,
@@ -9557,4 +10367,861 @@ body:-ms-fullscreen {
   .ll-bento-search { min-width: 140px; }
   .ll-bento-btn--primary { min-width: 140px; }
   .ll-bento-grid { grid-template-columns: 1fr; }
+}
+
+/* Show company name in navbar on index/for-schools when screen is small (global h1 span is hidden below 1000px) */
+@media (max-width: 999px) {
+  #within_ember.index-or-for-schools-view #nav_header h1 .nav-header__app-name {
+    display: inline;
+  }
+}
+
+/* ========================================
+   Scot's Design marketing page
+   Style guide: LingoLinq Brand Kit & Accessibility Guide
+   - Navy (#1B365D) for all body text, headings, captions (WCAG AAA)
+   - Coral/Teal accents only; Dark Teal (#2A9D8F) for readable teal text
+   - Line height 1.5+ min, line length 50-75 chars
+   ======================================== */
+.for-schools-page {
+  --fs-navy: #1B365D;
+  --fs-coral: #FF6B47;
+  --fs-teal: #4ECDC4;
+  --fs-dark-teal: #2A9D8F;
+  --fs-white: #FFFFFF;
+  --fs-light-gray: #F0F0F0;
+  --fs-text: #1B365D;
+  --fs-shadow-sm: 0 1px 3px rgba(27, 54, 93, 0.08);
+  --fs-shadow-md: 0 4px 16px rgba(27, 54, 93, 0.10);
+  --fs-shadow-lg: 0 8px 32px rgba(27, 54, 93, 0.12);
+  --fs-radius: 12px;
+  --fs-radius-lg: 20px;
+  --fs-content-width: min(80vw, 1400px);
+
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--fs-text);
+  background: var(--fs-white);
+  line-height: 1.6;
+  font-size: 26px;
+  -webkit-font-smoothing: antialiased;
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    line-height: 1.3;
+  }
+
+  /* Links on light backgrounds: Dark Teal passes WCAG AA (4.6:1) */
+  .for-schools-hero a:not(.for-schools-btn),
+  .for-schools-features a:not(.for-schools-btn),
+  .for-schools-a11y-note a {
+    color: var(--fs-dark-teal);
+    text-decoration: underline;
+  }
+
+  .for-schools-hero a:not(.for-schools-btn):hover,
+  .for-schools-features a:not(.for-schools-btn):hover,
+  .for-schools-a11y-note a:hover {
+    color: var(--fs-navy);
+  }
+}
+
+/* Hero */
+.for-schools-hero {
+  padding: 20px;
+  background: linear-gradient(165deg, var(--fs-white) 0%, #F7FAFE 40%, #EDF6FF 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.for-schools-hero::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(78, 205, 196, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.for-schools-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  left: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 107, 71, 0.06) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.for-schools-hero-inner {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 80px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.for-schools-hero-content {
+  margin-bottom: 1.5rem;
+}
+
+.for-schools-hero-header {
+  margin-bottom: 5rem;
+}
+
+.for-schools-hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--fs-navy);
+  margin-bottom: 2rem;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.for-schools-hero-highlight {
+  display: inline;
+  margin-left: 0.25em;
+  font-size: 0.85em;
+  color: var(--fs-coral);
+}
+
+@media (min-width: 901px) {
+  .for-schools-hero-highlight {
+    background: linear-gradient(120deg, var(--fs-coral) 0%, #FF8A6B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.for-schools-hero-subtitle {
+  font-size: 1.76rem;
+  color: var(--fs-navy);
+  margin-bottom: 3rem;
+  max-width: 65ch;
+  line-height: 1.8;
+  margin-top: 0.5rem;
+}
+
+.for-schools-hero-buttons {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.for-schools-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1.5rem;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  border: none;
+  color: inherit;
+
+  &:hover,
+  &:focus,
+  &:active {
+    text-decoration: none;
+  }
+}
+
+.for-schools-btn-coral {
+  background: var(--fs-coral);
+  color: white;
+  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.3);
+}
+
+.for-schools-btn-coral:hover {
+  background: #e8573a;
+  box-shadow: 0 6px 20px rgba(255, 107, 71, 0.4);
+  transform: translateY(-1px);
+}
+
+.for-schools-btn-outline {
+  background: transparent;
+  color: var(--fs-navy);
+  border: 2px solid var(--fs-navy);
+}
+
+.for-schools-btn-outline:hover {
+  background: var(--fs-navy);
+  color: white;
+}
+
+.for-schools-btn-white {
+  background: white;
+  color: var(--fs-navy);
+  box-shadow: var(--fs-shadow-md);
+}
+
+.for-schools-btn-white:hover {
+  color: var(--fs-dark-teal);
+  transform: translateY(-1px);
+  box-shadow: var(--fs-shadow-lg);
+}
+
+.for-schools-hero-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.for-schools-mockup {
+  width: 100%;
+  max-width: 620px;
+  background: white;
+  border-radius: var(--fs-radius-lg);
+  box-shadow: var(--fs-shadow-lg);
+  overflow: hidden;
+  border: 1px solid rgba(27, 54, 93, 0.06);
+}
+
+.for-schools-mockup-toolbar {
+  height: 52px;
+  background: var(--fs-navy);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+}
+
+.for-schools-mockup-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.for-schools-mockup-dot-r { background: #FF6B6B; }
+.for-schools-mockup-dot-y { background: #FFD93D; }
+.for-schools-mockup-dot-g { background: #6BCB77; }
+
+.for-schools-mockup-url {
+  flex: 1;
+  margin-left: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.3rem;
+  font-family: inherit;
+}
+
+.for-schools-mockup-screen {
+  padding: 32px;
+}
+
+.for-schools-mockup-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.for-schools-aac-btn {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.43rem;
+  font-weight: 600;
+  color: var(--fs-navy);
+  border: none;
+  cursor: default;
+  transition: transform 0.2s;
+  font-family: inherit;
+}
+
+.for-schools-aac-icon {
+  font-size: 3.4rem;
+}
+
+.for-schools-aac-btn-c1 { background: #FFE8E2; }
+.for-schools-aac-btn-c2 { background: #E0F7F5; }
+.for-schools-aac-btn-c3 { background: #E8EDF4; }
+.for-schools-aac-btn-c4 { background: #FFF3E0; }
+.for-schools-aac-btn-c5 { background: #F3E5F5; }
+.for-schools-aac-btn-c6 { background: #E8F5E9; }
+.for-schools-aac-btn-c7 { background: #FFF8E1; }
+.for-schools-aac-btn-c8 { background: #E3F2FD; }
+
+.for-schools-mockup-bar {
+  margin-top: 22px;
+  padding: 18px 22px;
+  background: var(--fs-light-gray);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.for-schools-mockup-bar-text {
+  flex: 1;
+  font-size: 1.5rem;
+  color: var(--fs-navy);
+  font-weight: 500;
+}
+
+.for-schools-mockup-bar-speak {
+  background: var(--fs-coral);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 1.43rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: default;
+}
+
+.for-schools-floating-badge {
+  position: absolute;
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--fs-shadow-md);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: var(--fs-navy);
+  animation: for-schools-float 4s ease-in-out infinite;
+}
+
+.for-schools-floating-badge-top-right {
+  top: -10px;
+  right: -20px;
+  animation-delay: 0s;
+}
+
+.for-schools-floating-badge-bottom-left {
+  bottom: 20px;
+  left: -30px;
+  animation-delay: 2s;
+}
+
+.for-schools-badge-icon {
+  width: 51px;
+  height: 51px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.42rem;
+}
+
+.for-schools-badge-icon-teal {
+  background: rgba(78, 205, 196, 0.15);
+  color: var(--fs-dark-teal);
+}
+
+.for-schools-badge-icon-coral {
+  background: rgba(255, 107, 71, 0.12);
+  color: var(--fs-coral);
+}
+
+.for-schools-badge-title {
+  font-size: 1.58rem;
+}
+
+.for-schools-badge-subtitle {
+  font-size: 1.5rem;
+  color: var(--fs-navy);
+  font-weight: 400;
+}
+
+@keyframes for-schools-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Stats bar */
+.for-schools-stats-bar {
+  padding: 20px 2rem;
+  background: var(--fs-navy);
+}
+
+.for-schools-stats-inner {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: -1rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  text-align: center;
+}
+
+.for-schools-stat-number {
+  font-family: inherit;
+  font-size: 2.64rem;
+  font-weight: 700;
+  color: var(--fs-white);
+}
+
+.for-schools-stat-label {
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+/* Features */
+.for-schools-features {
+  padding: 4rem 2rem;
+  background: var(--fs-white);
+}
+
+.for-schools-features-inner {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.for-schools-section-label {
+  font-family: inherit;
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--fs-dark-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+}
+
+.for-schools-section-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--fs-navy);
+  margin-bottom: 1.25rem;
+  letter-spacing: 0.01em;
+}
+
+.for-schools-section-subtitle {
+  font-size: 1.9rem;
+  color: var(--fs-navy);
+  max-width: 65ch;
+  margin-bottom: 0;
+  line-height: 1.65;
+}
+
+.for-schools-features-grid-wrap {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: 48px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.for-schools-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.for-schools-feature-card {
+  padding: 24px 28px;
+  min-height: 88px;
+  border-radius: 22px;
+  background: rgba(232, 250, 249, 0.95);
+  border: 1px solid rgba(78, 205, 196, 0.25);
+  box-shadow: var(--fs-shadow-sm);
+  cursor: default;
+}
+
+.for-schools-feature-header-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.for-schools-feature-icon {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  box-shadow: var(--fs-shadow-sm);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+.for-schools-feature-icon-coral {
+  background: rgba(255, 107, 71, 0.12);
+  border-color: rgba(255, 107, 71, 0.25);
+}
+
+.for-schools-feature-icon-teal {
+  background: rgba(78, 205, 196, 0.15);
+  border-color: rgba(78, 205, 196, 0.3);
+}
+
+.for-schools-feature-icon-navy {
+  background: rgba(27, 54, 93, 0.08);
+  border-color: rgba(27, 54, 93, 0.15);
+}
+
+.for-schools-feature-header-row h3 {
+  font-size: 1.95rem;
+  font-weight: 600;
+  color: var(--fs-navy);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.for-schools-feature-card p {
+  font-size: 1.75rem;
+  color: var(--fs-navy);
+  line-height: 1.65;
+}
+
+/* Testimonial */
+.for-schools-testimonial {
+  padding: 6rem 2rem;
+  background: var(--fs-light-gray);
+}
+
+.for-schools-testimonial-inner {
+  width: var(--fs-content-width);
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.for-schools-testimonial-quote {
+  font-size: 2.08rem;
+  color: var(--fs-navy);
+  margin-bottom: 28px;
+  line-height: 1.65;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.for-schools-testimonial-quote::before {
+  content: '\201C';
+  font-size: 6.5rem;
+  color: var(--fs-dark-teal);
+  position: absolute;
+  top: -24px;
+  left: -12px;
+  font-family: Georgia, serif;
+  opacity: 0.4;
+}
+
+.for-schools-testimonial-author {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fs-navy);
+}
+
+.for-schools-testimonial-role {
+  font-size: 1.37rem;
+  color: var(--fs-navy);
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+/* CTA */
+.for-schools-cta {
+  padding: 100px 2rem;
+  background: linear-gradient(135deg, var(--fs-navy) 0%, #243F6B 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.for-schools-cta::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(78, 205, 196, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.for-schools-cta-inner {
+  width: var(--fs-content-width);
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.for-schools-cta-inner h2 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.for-schools-cta-inner p {
+  font-size: 1.69rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 40px;
+  max-width: 640px;
+  margin-inline: auto;
+  line-height: 1.7;
+}
+
+.for-schools-cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Accessibility note */
+.for-schools-a11y-wrapper {
+  padding: 0 2rem;
+}
+
+.for-schools-a11y-note {
+  background: rgba(78, 205, 196, 0.08);
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  border-radius: 14px;
+  padding: 28px 36px;
+  margin: 48px auto;
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.for-schools-a11y-icon {
+  font-size: 2.08rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.for-schools-a11y-note p {
+  font-size: 1.43rem;
+  color: var(--fs-navy);
+  line-height: 1.65;
+}
+
+.for-schools-a11y-note a {
+  color: var(--fs-dark-teal);
+  font-weight: 600;
+}
+
+.for-schools-a11y-note a:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+.for-schools-footer {
+  padding: 80px 2rem 56px;
+  background: var(--fs-navy);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.for-schools-footer-inner {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 56px;
+}
+
+.for-schools-footer-brand p {
+  font-size: 1.43rem;
+  line-height: 1.65;
+  margin-top: 20px;
+  max-width: 340px;
+}
+
+.for-schools-footer-logo {
+  display: inline-flex;
+  align-items: center;
+  color: white;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.69rem;
+  text-decoration: none;
+}
+
+.for-schools-footer-logo:hover {
+  color: var(--fs-teal);
+  text-decoration: none;
+}
+
+.for-schools-footer-col h4 {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fs-dark-teal);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.for-schools-footer-col a {
+  display: block;
+  font-size: 1.37rem;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 6px 0;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.for-schools-footer-col a:hover {
+  color: var(--fs-teal);
+}
+
+.for-schools-footer-bottom {
+  width: var(--fs-content-width);
+  max-width: 1400px;
+  margin: 48px auto 0;
+  padding-top: 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.3rem;
+}
+
+.for-schools-footer-badges {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.for-schools-a11y-badge {
+  background: rgba(78, 205, 196, 0.15);
+  color: var(--fs-teal);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 1.17rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.for-schools-oss-badge {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 1.17rem;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .for-schools-page {
+    --fs-content-width: 92vw;
+  }
+
+  .for-schools-hero-title {
+    font-size: 2.5rem;
+  }
+
+  .for-schools-hero-header {
+    margin-bottom: 2rem;
+  }
+
+  .for-schools-hero-inner {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    text-align: center;
+    overflow: visible;
+  }
+
+  .for-schools-hero-content {
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .for-schools-hero-subtitle {
+    margin-inline: auto;
+  }
+
+  .for-schools-hero-buttons {
+    justify-content: center;
+  }
+
+  .for-schools-hero {
+    overflow: visible;
+  }
+
+  .for-schools-hero-visual {
+    margin-top: 16px;
+    overflow: visible;
+  }
+
+  .for-schools-mockup-bar-text {
+    text-align: right;
+    margin-right: 2rem;
+  }
+
+  .for-schools-section-title {
+    font-size: 2.2rem;
+  }
+
+  .for-schools-features-grid-wrap {
+    margin-top: 32px;
+    width: 100%;
+  }
+
+  .for-schools-features-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .for-schools-stats-inner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .for-schools-stat-number {
+    font-size: 2.2rem;
+  }
+
+  .for-schools-cta {
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  .for-schools-cta-inner h2 {
+    font-size: 2.2rem;
+  }
+
+  .for-schools-footer {
+    padding-top: 48px;
+    padding-bottom: 32px;
+  }
+
+  .for-schools-footer-inner {
+    grid-template-columns: 1.5fr 1fr;
+  }
+
 }

@@ -619,6 +619,7 @@ export default Service.extend({
       this.refresh_session_user();
     }
     this.set('current_route', transition.to_route);
+    this.updateFavicon();
   },
   finish_global_transition: function() {
     var _this = this;
@@ -2076,6 +2077,9 @@ export default Service.extend({
       emberSet(res, feature, true);
     });
     return res;
+  }),
+  index_or_for_schools_view: computed('index_view', 'current_route', function() {
+    return this.get('index_view') || this.get('current_route') === 'for-schools';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -3848,25 +3852,27 @@ export default Service.extend({
       localStorage.setItem('ll_bento_theme_mode', mode);
       localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
     } catch (e) { /* ignore */ }
-    this.updateFaviconForTheme(mode);
+    this.updateFavicon();
   },
 
-  updateFaviconForTheme: function(mode) {
+  updateFavicon: function() {
     try {
-      // light, midDay, dark -> pastel; coolBlue -> cool-blue
-      var prefix = (mode === 'light' || mode === 'midDay' || mode === 'dark') ? 'favicon-pastel' : 'favicon-cool-blue';
       var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
       var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
       if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
       var base = rootURL + 'images/';
+      var faviconHref = base + 'logo-big.png?v=2';
       for (var i = 0; i < links.length; i++) {
         var href = links[i].getAttribute('href') || '';
-        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('favicon-cool-blue') !== -1) {
-          var size = href.indexOf('32') !== -1 ? '32' : '16';
-          links[i].setAttribute('href', base + prefix + '-' + size + '.png');
+        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('favicon-cool-blue') !== -1 || href.indexOf('logo-big') !== -1) {
+          links[i].setAttribute('href', faviconHref);
         }
       }
     } catch (e) { /* ignore */ }
+  },
+
+  updateFaviconForTheme: function(mode) {
+    this.updateFavicon();
   }
 });
 

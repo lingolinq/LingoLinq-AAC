@@ -1,4 +1,5 @@
 import Service from '@ember/service';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import {
   later as runLater,
@@ -15,6 +16,8 @@ import scanner from '../utils/scanner';
  * the existing modal.open() and modal.close() API.
  */
 export default Service.extend({
+  appState: service('app-state'),
+
   // Current modal state
   currentTemplate: null,
   currentOptions: null,
@@ -233,9 +236,23 @@ export default Service.extend({
    * Close regular modal
    */
   _closeModal(success) {
+    const wasGettingStarted = this.get('currentTemplate') === 'getting-started';
+    const appState = this.get('appState');
+
     // Resolve or reject promise
     this._resolveCurrentPromise(success);
-    
+
+    // After closing Getting Started, show welcome celebration icon next to username (once per session)
+    if (wasGettingStarted && appState && !appState.get('index_celebration_shown')) {
+      appState.set('show_index_celebration', true);
+      runLater(() => {
+        if (appState.get('show_index_celebration')) {
+          appState.set('show_index_celebration', false);
+          appState.set('index_celebration_shown', true);
+        }
+      }, 2500);
+    }
+
     // Clear state
     this.set('currentTemplate', null);
     this.set('currentOptions', null);

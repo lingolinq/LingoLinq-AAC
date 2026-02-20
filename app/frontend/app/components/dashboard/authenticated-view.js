@@ -29,6 +29,9 @@ export default Component.extend({
     // Initialize supervisees_with_badges to empty array
     this.set('supervisees_with_badges', []);
   },
+  didInsertElement() {
+    this._super(...arguments);
+  },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
     return this.get('extras.ready') && !this.appState.get('currentUser.external_device');

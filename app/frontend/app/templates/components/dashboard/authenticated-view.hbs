@@ -8,35 +8,16 @@
     <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
-          <img src={{if (or (is-equal this.app_state.themeMode "light") (is-equal this.app_state.themeMode "midDay") (is-equal this.app_state.themeMode "dark")) (path "images/pastel-logo.png") (path "images/cool-blue-logo.png")}} alt="" class="ll-bento-logo" aria-hidden="true">
-          <div class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</div>
-        </a>
-      </div>
-      <div class="ll-bento-topbar__section ll-bento-topbar__welcome">
-        <span class="ll-bento-welcome">
-          <span class="ll-bento-welcome__label">{{t "Welcome" key="welcome"}}</span>
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-welcome__link"><span class="ll-bento-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
-          {{else}}
-            <span class="ll-bento-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
-          {{/if}}
-        </span>
-      </div>
-      <div class="ll-bento-topbar__section ll-bento-topbar__search">
-        <a href="#" class="ll-bento-search" {{action "searchBoards"}} role="button" aria-label={{t "Search" key="search"}}>
-          <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
-          <span class="ll-bento-search__input">{{t "Search" key="search"}}…</span>
+          <span class="ll-bento-brand__logo-wrap" aria-hidden="true">
+            <img src={{path "images/icon-house-balanced.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
+          </span>
+          <span class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</span>
         </a>
       </div>
       <div class="ll-bento-topbar__section ll-bento-topbar__actions">
         <a href="#" class="ll-bento-icon-btn ll-bento-icon-btn--refresh" {{action "reload"}} role="button" aria-label={{t "Reload" key="reload"}} title={{t "Reload" key="reload"}}>
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
         </a>
-        {{#unless this.app_state.eval_mode}}
-          <a href="#" class="ll-bento-icon-btn ll-bento-help-btn" {{action "support"}} role="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}}>
-            <span class="ll-bento-help-btn__icon" aria-hidden="true">?</span>
-          </a>
-        {{/unless}}
         {{#if this.app_state.currentUser.permissions.delete}}
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-icon-btn" aria-label={{t "Profile" key="profile"}}>
             <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 18px; height: 18px; border-radius: 999px; object-fit: cover;" alt="">
@@ -612,6 +593,10 @@
           <div class="ll-bento-browse-boards__header">
             <span class="glyphicon glyphicon-th-large ll-bento-browse-boards__icon" aria-hidden="true"></span>
             <h4 class="ll-bento-browse-boards__title">{{t "Browse Boards" key="browse_boards"}}</h4>
+            <a href="#" class="ll-bento-search ll-bento-browse-boards__search" {{action "searchBoards"}} role="button" aria-label={{t "Search Boards" key="search_boards"}}>
+              <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
+              <span class="ll-bento-search__input">{{t "Search Boards" key="search_boards"}}</span>
+            </a>
           </div>
           <div class="ll-bento-section-group ll-bento-browse-boards__filter-group">
             <span class="ll-bento-section-label">{{t "Filter" key="filter"}}</span>

@@ -18,6 +18,9 @@
         <span class='glyphicon glyphicon-play-circle' style='font-size: 24px; vertical-align: bottom;'></span>
         {{t "What Is %app_name%?" key="what_is_app"}}
       </button>
+      <div style='margin-top: 20px;'>
+        {{#link-to "for-schools" class="intro-for-schools-link"}}<span class='glyphicon glyphicon-pencil'></span> {{t "Scot's Design" key="for_schools"}}{{/link-to}}
+      </div>
     {{/unless}}
   </h2>
   <div>
@@ -40,6 +43,7 @@
     </div>
     {{#unless this.app_state.no_linky}}
       {{#link-to "about"}}{{t "Learn More" key="learn_more"}}{{/link-to}}
+      {{#link-to "for-schools"}} | {{t "Scot's Design" key="for_schools"}}{{/link-to}}
     {{/unless}}
   </div>
   {{#unless this.app_state.no_linky}}
@@ -183,7 +187,7 @@
         </a>
       </div>
       <div class="col-sm-6" style='text-align: center;'>
-        <h3>{{t "For Schools" key="for_schools"}}</h3>
+        <h3>{{t "Scot's Design" key="for_schools"}}</h3>
         <a {{action "intro_video" "S_6lh5d0cco"}} href='#' style='position: relative;' class='dim_glyph_until_hover'>
           <img src='https://img.youtube.com/vi/eoiScclYEX4/maxresdefault.jpg' style='width: 420px; height: 235px; border: 2px solid #888; padding: 6px; border-radius: 5px;' alt="video">
           <span class='glyphicon glyphicon-play-circle' style='font-size: 80px;position: absolute;left: 168px;top: -32px;color: #444; text-shadow: 2px 2px 5px #fff, -2px -2px 5px #fff, 2px -2px 5px #fff, -2px 2px 5px #fff;'></span>

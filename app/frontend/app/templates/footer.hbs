@@ -2,7 +2,7 @@
   <div class="wide_links">
     <div class="row">
       <div class='col-sm-6'>
-        <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key="app_name"}}</span>
+        <span class="page-footer__app-name">{{t "%app_name%" key="app_name"}}</span>
         {{#unless this.app_state.no_linky}}
           {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
@@ -22,7 +22,7 @@
           {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
         {{/unless}}
         <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/language-globe.svg"}} style='height: 30px; margin: -20px 0 -10px;'>
+          <img src={{path "images/icon-language.png"}} style='height: 76px; margin: -37px 0 -39px;'>
           {{this.app_state.current_locale_string}}
         </a>
       </div>
@@ -72,7 +72,7 @@
         </li>
         <li>
           <a href='#' {{action "language"}}>
-            <img src={{path "images/language-globe.svg"}} style='height: 20px; margin: -10px 0 -5px;'>
+            <img src={{path "images/icon-language.png"}} style='height: 50px; margin: -22px 0 -28px;'>
             {{this.app_state.current_locale_string}}
           </a>
         </li>
