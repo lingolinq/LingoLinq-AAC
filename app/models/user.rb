@@ -1376,17 +1376,28 @@ class User < ActiveRecord::Base
   def process_home_board(home_board, non_user_params)
     board = home_board && Board.find_by_path(home_board['id'])
     board_updater = non_user_params['updater']
-    if home_board['copy'] && home_board['copy_from_org']
+    if home_board['copy'] && home_board['copy_from_org'] && board
       org = Organization.find_by_global_id(home_board['copy_from_org'])
       if org && non_user_params['updater']
         if Organization.attached_orgs(non_user_params['updater']).map{|o| o['id'] }.include?(org.global_id)
-          non_user_params['org'] = org 
+          non_user_params['org'] = org
           board_updater = board.user
         end
       end
     end
+    # When the referenced board doesn't exist (deleted/invalid), clear the invalid home_board ref
+    if home_board['id'] && !board
+      json = (self.settings['preferences']['home_board'] || {}).slice('id', 'key').to_json
+      self.settings['preferences'].delete('home_board')
+      if (self.settings['preferences']['home_board'] || {}).slice('id', 'key').to_json != json
+        notify('home_board_changed')
+        self.schedule_audit_protected_sources
+        self.schedule(:update_home_board_inflections)
+      end
+      return true
+    end
     json = (self.settings['preferences']['home_board'] || {}).slice('id', 'key').to_json
-    org_allowed_board = non_user_params['org'] && (non_user_params['org'].home_board_keys || []).include?(board.key)
+    org_allowed_board = non_user_params['org'] && board && (non_user_params['org'].home_board_keys || []).include?(board.key)
     if board && board.allows?(self, 'view') && !home_board['copy']
       self.settings['preferences']['home_board'] = {
         'id' => board.global_id,
@@ -1421,8 +1432,9 @@ class User < ActiveRecord::Base
       self.schedule_audit_protected_sources
       self.schedule(:update_home_board_inflections)
     end
+    true
   end
-  
+
   def process_sidebar_boards(sidebar, non_user_params)
     self.settings['preferences'] ||= {}
     result = []

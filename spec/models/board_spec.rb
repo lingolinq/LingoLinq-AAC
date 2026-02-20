@@ -2295,6 +2295,32 @@ describe Board, :type => :model do
       b.destroy
       Worker.process_queues
     end
+
+    it "should clear home_board from users who had the board as home" do
+      u = User.create
+      b = Board.create(:user => u)
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['home_board'] = { 'id' => b.global_id, 'key' => b.key, 'locale' => 'en' }
+      u.save
+      expect(UserBoardConnection.where(board_id: b.id, home: true).count).to eq(1)
+      b.destroy
+      u.reload
+      expect(u.settings['preferences']['home_board']).to eq(nil)
+      expect(UserBoardConnection.where(board_id: b.id).count).to eq(0)
+    end
+
+    it "should remove board from sidebar when board is destroyed" do
+      u = User.create
+      b = Board.create(:user => u)
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['sidebar_boards'] = [{ 'key' => b.key, 'name' => 'Test', 'locale' => 'en' }]
+      u.save
+      expect(UserBoardConnection.where(board_id: b.id, home: false).count).to eq(1)
+      b.destroy
+      u.reload
+      expect(u.settings['preferences']['sidebar_boards'].map { |s| s['key'] }).not_to include(b.key)
+      expect(UserBoardConnection.where(board_id: b.id).count).to eq(0)
+    end
   end
   
   describe "find_copies_by" do

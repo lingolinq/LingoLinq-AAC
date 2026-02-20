@@ -1960,13 +1960,45 @@ class Board < ActiveRecord::Base
   end
   
   def flush_related_records
+    board_global_id = self.global_id
+    board_key = self.key
+    ubcs = UserBoardConnection.where(board_id: self.id).includes(:user)
+    ubcs.each do |ubc|
+      user = ubc.user
+      next unless user && user.settings
+      user.settings['preferences'] ||= {}
+      user_changed = false
+      if ubc.home
+        if user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'] == board_global_id
+          user.settings['preferences'].delete('home_board')
+          user.settings['home_board_changed'] = true
+          user.notify('home_board_changed')
+          user.schedule_audit_protected_sources
+          user.schedule(:update_home_board_inflections)
+          user_changed = true
+        end
+      end
+      sidebar = user.settings['preferences']['sidebar_boards']
+      sidebar = sidebar.values if sidebar.is_a?(Hash)
+      if sidebar.is_a?(Array)
+        original_len = sidebar.length
+        sidebar.reject! { |b| b && b['key'] == board_key }
+        if sidebar.length != original_len
+          user.settings['preferences']['sidebar_boards'] = sidebar
+          user.settings['sidebar_changed'] = true
+          user_changed = true
+        end
+      end
+      user.save_with_sync('home_board_deleted') if user_changed
+    end
+    UserBoardConnection.where(board_id: self.id).delete_all
     ue = self.user && self.user.user_extra
     if ue && ue.settings['replaced_boards']
       id = self.global_id(true)
       changed = false
       ue.settings['replaced_boards'].each do |key, val|
         if val == id
-          ue.settings['replaced_boards'].delete(key) 
+          ue.settings['replaced_boards'].delete(key)
           changed = true
         end
       end
