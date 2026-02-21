@@ -865,7 +865,6 @@ export default Component.extend({
       }
     },
     move: function(direction) {
-      var _this = this;
       var row = null, col = null;
       var board = this.get('board');
       var new_button_id = null;
@@ -1130,12 +1129,12 @@ export default Component.extend({
       contentGrabbers.soundGrabber.select_sound_preview();
     },
     close: function() {
-      var _this = this;
       if(this.get('model.vocalization')) {
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
+      var _this = this;
       this.get('contentGrabbers').save_pending().then(function() {
         if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }
       }, function() {

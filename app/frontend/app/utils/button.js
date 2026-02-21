@@ -121,7 +121,7 @@ var Button = EmberObject.extend({
     }
   ),
   action_class: computed('action_styling', function() {
-    return htmlSafe(this.get('action_styling.action_class'));
+    return this.get('action_styling.action_class');
   }),
   action_image: computed('action_styling', function() {
     return this.get('action_styling.action_image');
@@ -227,7 +227,7 @@ var Button = EmberObject.extend({
     return this.get('buttonAction') == 'app';
   }),
   empty_or_hidden: computed('empty', 'hidden', 'stashes.all_buttons_enabled', function() {
-    return !!(this.get('empty') || (this.get('hidden') && !this.get('stashes.all_buttons_enabled')));
+    return !!(this.get('empty') || (this.get('hidden') === true && !this.get('stashes.all_buttons_enabled')));
   }),
   add_classes: observer(
     'background_color',
@@ -400,6 +400,17 @@ var Button = EmberObject.extend({
       return htmlSafe(Button.image_holder_style(pos, this.get('text_only')));
     }
   ),
+  image_holder_style_props: computed(
+    'positioning',
+    'positioning.image_height',
+    'positioning.image_top_margin',
+    'positioning.image_square',
+    'text_only',
+    function() {
+      var pos = this.get('positioning');
+      return Button.image_holder_style_props(pos, this.get('text_only'));
+    }
+  ),
   image_style: computed(
     'positioning',
     'positioning.image_height',
@@ -407,6 +418,15 @@ var Button = EmberObject.extend({
     function() {
       var pos = this.get('positioning');
       return htmlSafe(Button.image_style(pos));
+    }
+  ),
+  image_style_props: computed(
+    'positioning',
+    'positioning.image_height',
+    'positioning.image_square',
+    function() {
+      var pos = this.get('positioning');
+      return Button.image_style_props(pos);
     }
   ),
   computed_style: computed(
@@ -419,6 +439,18 @@ var Button = EmberObject.extend({
       var pos = this.get('positioning');
       if(!pos) { return htmlSafe(""); }
       return Button.computed_style(pos);
+    }
+  ),
+  computed_style_props: computed(
+    'positioning',
+    'positioning.height',
+    'positioning.width',
+    'positioning.left',
+    'positioning.top',
+    function() {
+      var pos = this.get('positioning');
+      if(!pos) { return {}; }
+      return Button.computed_style_props(pos);
     }
   ),
   computed_class: computed('display_class', 'board.text_size', 'for_swap', function() {
@@ -802,6 +834,21 @@ Button.computed_style = function(pos) {
     }
     return htmlSafe(str);
 };
+Button.computed_style_props = function(pos) {
+    var res = {};
+    if(pos && pos.top !== undefined && pos.left !== undefined) {
+      res['position'] = 'absolute';
+      res['left'] = pos.left + "px";
+      res['top'] = pos.top + "px";
+    }
+    if(pos.width) {
+      res['width'] = Math.max(pos.width, 20) + "px";
+    }
+    if(pos.height) {
+      res['height'] = Math.max(pos.height, 20) + "px";
+    }
+    return res;
+};
 Button.action_styling = function(action, button) {
   if(!action) {
     if(button.load_board) {
@@ -893,9 +940,28 @@ Button.image_holder_style = function(pos, text_only) {
   if(!pos || !pos.image_height) { return ""; }
   return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_square + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
 };
+Button.image_holder_style_props = function(pos, text_only) {
+  if(!pos || !pos.image_height) { return {}; }
+  return {
+    'margin-top': (text_only ? 0 : pos.image_top_margin) + "px",
+    'vertical-align': 'top',
+    'display': 'inline-block',
+    'width': pos.image_square + "px",
+    'height': pos.image_height + "px",
+    'line-height': pos.image_height + "px"
+  };
+};
 Button.image_style = function(pos) {
   if(!pos || !pos.image_height) { return ""; }
   return "width: 100%; vertical-align: middle; max-height: " + pos.image_square + "px;";
+};
+Button.image_style_props = function(pos) {
+  if(!pos || !pos.image_height) { return {}; }
+  return {
+    'width': '100%',
+    'vertical-align': 'middle',
+    'max-height': pos.image_square + "px"
+  };
 };
 Button.clean_url = function(str) { return clean_url(str); };
 

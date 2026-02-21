@@ -204,23 +204,14 @@ var Profile = EmberObject.extend({
     var results = (this.get('results') || {}).responses || {};
     var show_results = Object.keys(results).length > 0;
     this.get('template.question_groups').forEach(function(group) {
-      var style = "";
-      if(group.border) {
-        var rgb = group.border.map(function(n) { return parseInt(n, 10); }).join(', ');
-        style = style + "border-color: rgb(" + rgb + "); ";
-      }
-      if(group.background) {
-        var rgb = group.background.map(function(n) { return parseInt(n, 10); }).join(', ');
-        style = style + "background-color: rgb(" + rgb + "); ";
-        var avg = (group.background[0] + group.background[1] + group.background[2]) / 3;
-        if(avg < 150) {
-          style = style + "color: #fff; ";
-        }
-      }
       var item = {
         id: group.id,
         header: true,
-        header_style: htmlSafe(style),
+        header_style_props: {
+          'border-color': group.border ? "rgb(" + group.border.map(function(n) { return parseInt(n, 10); }).join(', ') + ")" : undefined,
+          'background-color': group.background ? "rgb(" + group.background.map(function(n) { return parseInt(n, 10); }).join(', ') + ")" : undefined,
+          'color': (group.background && (group.background[0] + group.background[1] + group.background[2]) / 3 < 150) ? '#fff' : undefined
+        },
         label: group.label
       };
       if(group.sub_label || group.header) {
@@ -269,7 +260,7 @@ var Profile = EmberObject.extend({
           label: question.label,
           hint: question.hint,
           manual_selection: block.manual_selection,
-          prompt_class: htmlSafe(max_options > 6 ? 'prompt many' : 'prompt'),
+          prompt_class: max_options > 6 ? 'prompt many' : 'prompt',
           answer_type: answer_type,
           has_more: question.has_more,
           answers: answers
@@ -318,7 +309,7 @@ var Profile = EmberObject.extend({
           data.pre_value = cats[report.score_category].pre_value;
           if(cats[report.score_category].border) {
             var rgb = cats[report.score_category].border.map(function(n) { return parseInt(n, 10); }).join(', ');
-            data.circle_style = htmlSafe("border-color: rgb(" + rgb + ");");
+            data.circle_style_props = { 'border-color': "rgb(" + rgb + ")" };
             data.summary_color = cats[report.score_category].border;
           }
           if(report.summary) {
@@ -368,12 +359,15 @@ var Profile = EmberObject.extend({
           };
           score_cat.bar_style = "";
           var pct = Math.round(cats[cat].value / (cats[cat].max || 1) * 100);
-          score_cat.bar_style = "width: " + pct + "%; ";
+          score_cat.bar_style_props = { width: pct + "%" };
 
           if(cats[cat].border) {
             if(cats[cat].background) {
-              score_cat.bar_style = score_cat.bar_style + htmlSafe("border-color: rgb(" + cats[cat].border.map(function(n) { return parseInt(n, 10); }).join(', ') + "); background: rgb(" + cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ') + ");");
-              score_cat.bar_bg_style = htmlSafe("border-top-color: rgb(" + cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ') + ");");
+              var border_rgb = cats[cat].border.map(function(n) { return parseInt(n, 10); }).join(', ');
+              var background_rgb = cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ');
+              score_cat.bar_style_props['border-color'] = "rgb(" + border_rgb + ")";
+              score_cat.bar_style_props['background'] = "rgb(" + background_rgb + ")";
+              score_cat.bar_bg_style_props = { 'border-top-color': "rgb(" + background_rgb + ")" };
             }
           }
   
@@ -387,7 +381,7 @@ var Profile = EmberObject.extend({
             }
             score_cat.history.push({
               value: value,
-              bar_style: "width: calc(" + (pct) + "% - 4px);",
+              bar_style_props: { width: "calc(" + (pct) + "% - 4px)" },
               max: max,
               date: started
             });
@@ -413,12 +407,15 @@ var Profile = EmberObject.extend({
           };
           max_manuals = Math.max(score_cat.manuals, max_manuals);
           if(score_cat.manuals > 0) { something_here = true; }
-          score_cat.bar_style = "";
+          score_cat.bar_style_props = {};
 
           if(cats[cat].border) {
             if(cats[cat].background) {
-              score_cat.bar_style = score_cat.bar_style + htmlSafe("border-color: rgb(" + cats[cat].border.map(function(n) { return parseInt(n, 10); }).join(', ') + "); background: rgb(" + cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ') + "); ");
-              score_cat.bar_bg_style = htmlSafe("border-top-color: rgb(" + cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ') + ");");
+              var border_rgb = cats[cat].border.map(function(n) { return parseInt(n, 10); }).join(', ');
+              var background_rgb = cats[cat].background.map(function(n) { return parseInt(n, 10); }).join(', ');
+              score_cat.bar_style_props['border-color'] = "rgb(" + border_rgb + ")";
+              score_cat.bar_style_props['background'] = "rgb(" + background_rgb + ")";
+              score_cat.bar_bg_style_props = { 'border-top-color': "rgb(" + background_rgb + ")" };
             }
           }
   
@@ -440,10 +437,10 @@ var Profile = EmberObject.extend({
         data.categories = data.categories.sortBy('manuals').reverse();
         data.categories.forEach(function(cat) {
           var pct = Math.round(cat.manuals / (max_manuals || 1) * 100);
-          cat.bar_style = cat.bar_style + 'width: ' + pct + '%; ';
+          cat.bar_style_props['width'] = pct + '%';
           (cat.history || []).forEach(function(hist) {
             var pct = Math.round(hist.manuals / (max_manuals || 1) * 100);
-            hist.bar_style = 'width: calc(' + (pct) + '% - 4px);';
+            hist.bar_style_props = { width: 'calc(' + (pct) + '% - 4px)' };
           });
         });
         res.push(data);
@@ -457,7 +454,7 @@ var Profile = EmberObject.extend({
         };
         if(report.border) {
           var rgb = report.border.map(function(n) { return parseInt(n, 10); }).join(', ');
-          data.border_style = htmlSafe("border-color: rgb(" + rgb + ");");
+          data.border_style_props = { 'border-color': "rgb(" + rgb + ")" };
         }
         (report.score_categories || []).forEach(function(cat) {
           data.scores.push(cats[cat].value || "?");

@@ -16,14 +16,12 @@ export default Route.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   model: function(params) {
-    console.log('[BOARD-DEBUG] route board/index.model() start');
     LingoLinq.log.track('getting model');
     var res = this.modelFor('board');
-    console.log('[BOARD-DEBUG] route board/index.model() modelFor(board)', { id: res && res.get && res.get('id'), key: res && res.get && res.get('key') });
     if((this.appState.get('board_reloads') || {})[res.get('id')]) {
       res.set('should_reload', true);
     }
-    if(res.get('should_reload')) {
+    if (res.get('should_reload')) {
       var do_reloads = this.appState.get('board_reloads') || {};
       delete do_reloads[res.get('id')];
       this.appState.set('board_reloads', do_reloads);
@@ -31,11 +29,9 @@ export default Route.extend({
       LingoLinq.log.track('reloading');
       res.reload(!this.appState.get('speak_mode'));
     }
-    console.log('[BOARD-DEBUG] route board/index.model() returning', { id: res && res.get && res.get('id'), key: res && res.get && res.get('key') });
     return res;
   },
   setupController: function(controller, model) {
-    console.log('[BOARD-DEBUG] route board/index.setupController() start', { modelId: model && model.get && model.get('id'), modelKey: model && model.get && model.get('key') });
     LingoLinq.log.track('setting up controller');
     var _this = this;
     _this.set('board', model);
@@ -47,7 +43,6 @@ export default Route.extend({
     if(model.get('valid_id') && !model.get('integration')) {
       model.load_button_set();
     }
-    console.log('[BOARD-DEBUG] route board/index.setupController() setting currentBoardState');
     _this.appState.set('currentBoardState', {
       id: model.get('global_id') || model.get('id'),
       key: model.get('key'),
@@ -62,34 +57,34 @@ export default Route.extend({
       text_direction: i18n.text_direction(model.get('locale')),
       translatable: (model.get('locales') || []).length > 1
     });
-    if(_this.appState.get('meta_home.unassigned') && _this.appState.get('meta_home.new_key') == model.get('key')) {
+    if (_this.appState.get('meta_home.unassigned') && _this.appState.get('meta_home.new_key') == model.get('key')) {
       var state = Object.assign({}, _this.appState.get('currentBoardState'));
       state.meta_home = _this.appState.get('meta_home.state');
       _this.stashes.persist('root_board_state', state);
       _this.appState.set('meta_home.unassigned', false);
     }
 
-    if(_this.stashes.get('root_board_state.id') == _this.appState.get('currentBoardState.id')) {
-      if(!_this.stashes.get('root_board_state.text_direction')) {
+    if (_this.stashes.get('root_board_state.id') == _this.appState.get('currentBoardState.id')) {
+      if (!_this.stashes.get('root_board_state.text_direction')) {
         _this.stashes.set('root_board_state.text_direction', _this.appState.get('currentBoardState.text_direction'));
       }
     }
-    if(_this.appState.get('speak_mode') && _this.stashes.get('board_level')) {
+    if (_this.appState.get('speak_mode') && _this.stashes.get('board_level')) {
       _this.appState.set('currentBoardState.level', _this.stashes.get('board_level'));
     }
     // By default use whatever locale is set for the board, but
     // if the user has explicitly set a preferred locale then try
     // to use that
     var board_langs = (model.get('locales') || []);
-    var stripped_langs = board_langs.map(function(l) { return l.split(/-|_/)[0]; });
+    var stripped_langs = board_langs.map(function (l) { return l.split(/-|_/)[0]; });
     var loc_types = ['label_locale', 'vocalization_locale'];
     loc_types.forEach(function(loc_type) {
       if(_this.stashes.get(loc_type)) {
         var preferred_lang = _this.stashes.get(loc_type);
         var preferred_stripped_lang = preferred_lang.split(/-|_/)[0];
-        if(stripped_langs.indexOf(preferred_stripped_lang) == -1) {
+        if (stripped_langs.indexOf(preferred_stripped_lang) == -1) {
           _this.appState.set(loc_type, model.get('locale'));
-        } else if(board_langs.indexOf(preferred_lang) == -1) {
+        } else if (board_langs.indexOf(preferred_lang) == -1) {
           _this.appState.set(loc_type, preferred_stripped_lang);
         } else {
           _this.appState.set(loc_type, _this.stashes.get(loc_type));
@@ -98,11 +93,11 @@ export default Route.extend({
         _this.appState.set(loc_type, model.get('locale'));
       }
     });
-    if(LingoLinq.embedded && !_this.appState.get('speak_mode')) {
+    if (LingoLinq.embedded && !_this.appState.get('speak_mode')) {
       // Embedded mode should only operate in Speak Mode, so force it
       var state = _this.appState.get('currentBoardState');
-      _this.appState.toggle_mode('speak', {override_state: state});
-      if(_this.appState.get('currentUser.preferences.home_board')) {
+      _this.appState.toggle_mode('speak', { override_state: state });
+      if (_this.appState.get('currentUser.preferences.home_board')) {
         _this.appState.toggle_home_lock(true);
       }
       emberSet(state, 'level', emberGet(state, 'default_level'));
@@ -113,39 +108,34 @@ export default Route.extend({
       _this.appState.set('temporary_root_board_key', null);
     }
     editManager.setup(controller, this.appState, this.persistence, this.stashes);
-    _this.appState.set('board_virtual_dom.sendAction', function(action, id, extra) {
+    _this.appState.set('board_virtual_dom.triggerAction', function (action, id, extra) {
       controller.send(action, id, extra);
     });
     contentGrabbers.board_controller = controller;
     var prior_revision = model.get('current_revision');
     LingoLinq.log.track('processing buttons without lookups');
     _this.set('load_state', {retrieved: true});
-    console.log('[BOARD-DEBUG] route board/index.setupController() calling processButtons (without_lookups)');
     try {
       model.without_lookups(function() {
         try {
           controller.processButtons();
-          console.log('[BOARD-DEBUG] route board/index.setupController() processButtons() returned');
         } catch (e) {
-          console.error('[BOARD-DEBUG] route board/index.setupController() processButtons() threw', e);
           throw e;
         }
       });
     } catch (e) {
-      console.error('[BOARD-DEBUG] route board/index.setupController() without_lookups/processButtons threw', e);
     }
-    console.log('[BOARD-DEBUG] route board/index.setupController() processButtons scheduled');
     model.prefetch_linked_boards();
 
     // if you have the model.id but not permissions, that means you got it from an /index
     // call and it doesn't actually have all the information you need to render, so you
     // better reload. if ordered_buttons isn't set then that just means we need some
     // additional lookups
-    if(model.get('integration')) { return; }
+    if (model.get('integration')) { return; }
 
     controller.get('valid_fast_html');
     var insufficient_data = model.get('id') && (!controller.get('has_rendered_material') || (!model.get('pseudo_board') && model.get('permissions') === undefined));
-    if(model.get('background.prompt') && this.appState.get('speak_mode')) {
+    if (model.get('background.prompt') && this.appState.get('speak_mode')) {
       // TODO: is there a way to wait until current speaking has
       // finished to activate the prompt?
       runLater(function() {
@@ -153,11 +143,9 @@ export default Route.extend({
       }, 100);
     }
     if(!model.get('valid_id')) {
-      console.log('[BOARD-DEBUG] route board/index.setupController() skip reload (invalid id)');
     } else if((_this.persistence && _this.persistence.get('online')) || insufficient_data) {
-      console.log('[BOARD-DEBUG] route board/index.setupController() will reload', { online: _this.persistence && _this.persistence.get('online'), insufficient_data: insufficient_data });
       LingoLinq.log.track('considering reload');
-      _this.set('load_state', {not_local: true});
+      _this.set('load_state', { not_local: true });
       var reload = RSVP.resolve(model);
       // if we're online then we should reload, but do it softly if we're in speak mode
       if(_this.persistence && _this.persistence.get('online') && !model.get('local_only')) {
@@ -179,99 +167,95 @@ export default Route.extend({
             return model.reload(false);
           }
         });
-      // if we're offline, then we should only reload if we absolutely have to (i.e. ordered_buttons isn't set)
-      } else if(!controller.get('has_rendered_material') && !model.get('local_only')) {
-        _this.set('load_state', {local_reload: true});
-        reload = model.reload(false).then(null, function(err) {
-          _this.set('load_state', {local_reload_local_reload: true});
+        // if we're offline, then we should only reload if we absolutely have to (i.e. ordered_buttons isn't set)
+      } else if (!controller.get('has_rendered_material') && !model.get('local_only')) {
+        _this.set('load_state', { local_reload: true });
+        reload = model.reload(false).then(null, function (err) {
+          _this.set('load_state', { local_reload_local_reload: true });
           return model.reload(false);
         });
       }
 
       reload.then(function(updated) {
-        console.log('[BOARD-DEBUG] route board/index.setupController() reload.then resolved', { has_rendered: controller.get('has_rendered_material'), revisionChanged: updated.get('current_revision') != prior_revision });
         if(!controller.get('has_rendered_material') || updated.get('current_revision') != prior_revision || insufficient_data) {
           LingoLinq.log.track('processing buttons again');
           controller.processButtons(true);
         }
       }, function(error) {
-        console.warn('[BOARD-DEBUG] route board/index.setupController() reload.then rejected', error);
         if(!controller.get('has_rendered_material') || !_this.appState.get('speak_mode')) {
           _this.send('error', error);
         }
       });
     } else {
-      console.log('[BOARD-DEBUG] route board/index.setupController() skip reload (offline and sufficient data)');
     }
-    console.log('[BOARD-DEBUG] route board/index.setupController() done');
   },
-  error_message: computed('load_state', 'load_state.has_permissions', 'model.id', function() {
-    if(this.get('model.id')) {
+  error_message: computed('load_state', 'load_state.has_permissions', 'model.id', function () {
+    if (this.get('model.id')) {
       return i18n.t('unexpected_board_error', "This board should have loaded, but there was an unexpected problem");
     } else {
       var error = this.get('load_state.error');
-      if(error && error.errors) {
+      if (error && error.errors) {
         error = error.errors[0];
       }
       if(this.persistence && this.persistence.get('online')) {
         // retrieved, not_local, remote_reload, remote_reload_local_reload, local_reload, local_reload_remote_reload
-        if(error && error.unauthorized) {
+        if (error && error.unauthorized) {
           return i18n.t('error_unauthorized', "You don't have permission to access this board.");
-        } else if(error && error.never_existed) {
+        } else if (error && error.never_existed) {
           return i18n.t('error_nonexistent', "This board doesn't exist.");
-        } else if(error && error.status >= 400) {
+        } else if (error && error.status >= 400) {
           return i18n.t('error_bad_status', "There was an unexpected error retrieving this board.");
-        } else if(this.get('load_state.retrieved')) {
+        } else if (this.get('load_state.retrieved')) {
           return i18n.t('error_retrieved_only', "The resources for this board could not be retrieved.");
-        } else if(this.get('load_state.not_local')) {
+        } else if (this.get('load_state.not_local')) {
           return i18n.t('error_not_local', "The resources for this board were not available locally, so it could not be loaded.");
-        } else if(this.get('load_state.remote_reload')) {
+        } else if (this.get('load_state.remote_reload')) {
           return i18n.t('error_no_remote', "This board could not be retrieved from the cloud.");
-        } else if(this.get('load_state.remote_reload_local_reload')) {
+        } else if (this.get('load_state.remote_reload_local_reload')) {
           return i18n.t('error_no_remote_or_local', "This board could not be retrieved from the cloud and hasn't been synced for offline use.");
-        } else if(this.get('load_state.local_reload')) {
+        } else if (this.get('load_state.local_reload')) {
           return i18n.t('error_no_local', "This board is not available offline.");
-        } else if(this.get('load_state.local_reload_remote_reload')) {
+        } else if (this.get('load_state.local_reload_remote_reload')) {
           return i18n.t('error_really_no_local', "This board has not been synced and is not available currently.");
         } else {
           return i18n.t('error_not_available', "This board is not currently available.");
         }
       } else {
-        if(this.get('load_state.retrieved')) {
+        if (this.get('load_state.retrieved')) {
           return i18n.t('error_retrieved_only_offline', "The resources for this board could not be retrieved while offline.");
-        } else if(this.get('load_state.not_local')) {
+        } else if (this.get('load_state.not_local')) {
           return i18n.t('error_not_local_offline', "The resources for this board were not available locally while offline, so it could not be loaded.");
-        } else if(this.get('load_state.remote_reload')) {
-          return i18n.t('error_no_remote_offline', "This board could not be retrieved while offline.");
-        } else if(this.get('load_state.remote_reload_local_reload')) {
+        } else if (this.get('load_state.remote_reload')) {
+          return i18n.t('error_no_remote_offline', "The resources for this board could not be retrieved while offline.");
+        } else if (this.get('load_state.remote_reload_local_reload')) {
           return i18n.t('error_not_anywhere_offline', "This board could not be retrieved while offline and hasn't been synced for offline use.");
-        } else if(this.get('load_state.local_reload')) {
+        } else if (this.get('load_state.local_reload')) {
           return i18n.t('error_no_local_offline', "This board is not available while offline.");
-        } else if(this.get('load_state.local_reload_remote_reload')) {
+        } else if (this.get('load_state.local_reload_remote_reload')) {
           return i18n.t('error_really_no_local_offline', "This board has not been synced and is not available while offline.");
         } else {
           return i18n.t('error_not_available_offline', "This board is not currently available while offline.");
         }
       }
-//      return i18n.t('error_with_board', "There was a problem retrieving this board.");
+      //      return i18n.t('error_with_board', "There was a problem retrieving this board.");
     }
   }),
   actions: {
-    willTransition: function(transition) {
-      if(this.get('board')) {
+    willTransition: function (transition) {
+      if (this.get('board')) {
         this.get('board').prompt('clear');
       }
-      if(this.appState.get('edit_mode')) {
+      if (this.appState.get('edit_mode')) {
         modal.warning(i18n.t('save_or_cancel_changes_first', "Save or cancel your changes before leaving this board!"));
         transition.abort();
       }
       return true;
     },
-    refreshData: function() {
+    refreshData: function () {
       this.refresh();
     },
-    error: function(error, transition) {
-      if(this.get('load_state')) {
+    error: function (error, transition) {
+      if (this.get('load_state')) {
         this.set('load_state.has_permissions', !!this.get('model.permissions'));
         this.set('load_state.error', error);
       }

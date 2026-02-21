@@ -107,12 +107,42 @@ var contentGrabbers = Service.extend({
         });
 
         if(existing_saved) {
+          // If we found an existing image, update it with any new metadata and return it
+          var needs_save = false;
+          if (object.get('content_type') && !existing_saved.get('content_type')) {
+            existing_saved.set('content_type', object.get('content_type'));
+            needs_save = true;
+          }
+          if (object.get('width') && !existing_saved.get('width')) {
+            existing_saved.set('width', object.get('width'));
+            needs_save = true;
+          }
+          if (object.get('height') && !existing_saved.get('height')) {
+            existing_saved.set('height', object.get('height'));
+            needs_save = true;
+          }
+          if (object.get('license') && !existing_saved.get('license')) {
+            existing_saved.set('license', object.get('license'));
+            needs_save = true;
+          }
+
           if(object.get('isNew')) {
             LingoLinq.store.unloadRecord(object);
           }
           delete pendingRecordMap[normalized_url];
-          deferred.resolve(existing_saved);
-          resolve(existing_saved);
+          
+          if (needs_save && existing_saved.get('hasDirtyAttributes')) {
+            existing_saved.save().then(function (saved) {
+              deferred.resolve(saved);
+              resolve(saved);
+            }, function (err) {
+              delete pendingMap[normalized_url];
+              reject(err);
+            });
+          } else {
+            deferred.resolve(existing_saved);
+            resolve(existing_saved);
+          }
           return;
         }
 
@@ -406,7 +436,6 @@ var contentGrabbers = Service.extend({
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
       var reader = new FileReader();
-      var _this = this;
       reader.onloadend = function(data) {
         run(function() {
           if(type == 'blob') {
@@ -1089,7 +1118,6 @@ var pictureGrabber = EmberObject.extend({
           type: 'private'
         }
       });
-      var _this = this;
       return window.cg.save_record(image);
     });
     return save_image;
@@ -1631,8 +1659,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(this.controller.get('video_recording.stream'));
+        if(_this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(_this.controller.get('video_recording.stream'));
           return;
         }
 

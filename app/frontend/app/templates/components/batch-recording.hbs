@@ -20,7 +20,7 @@
     {{/if}}
     {{#if this.model.user}}
       {{#if this.model.single}}
-        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound onDecideOnRecording=(action "decide_on_recording") onSelectPhrase=(action "select_phrase") audio_ready=(action "audio_ready") audio_not_ready=(action "audio_not_ready")}}
+        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording=(action "decide_on_recording") select_phrase=(action "select_phrase") audio_ready=(action "audio_ready") audio_not_ready=(action "audio_not_ready")}}
       {{else if this.phrase}}
         <button class='btn btn-default' {{action "select_phrase"}} style='float: left; margin-right: 5px; height: 50px;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to %{category}" key="back_to_named_category" category=this.category.name}}</span></button>
         <h4 style='margin-bottom: 0;'>
@@ -30,7 +30,7 @@
          {{this.category.name}}, <span style='color: #aaa;'>{{this.repository.name}}</span>
         </span>
         <div style='clear: both; margin-bottom: 10px;'></div>
-        {{audio-recorder id=this.phrase.id user_id=this.model.user.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound onDecideOnRecording=(action "decide_on_recording") onSelectPhrase=(action "select_phrase") audio_ready=(action "audio_ready") audio_not_ready=(action "audio_not_ready")}}
+        {{audio-recorder id=this.phrase.id user_id=this.model.user.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording="decide_on_recording" select_phrase="select_phrase" audio_ready="audio_ready" audio_not_ready="audio_not_ready"}}
       {{else if this.category}}
         <button class='btn btn-default' {{action "select_category"}} style='float: left; margin-right: 5px; height: 50px; vertical-align: top;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to List" key="back_to_list"}}</span></button>
         <h4 style='margin-bottom: 0;'>

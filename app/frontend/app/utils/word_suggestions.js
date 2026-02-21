@@ -120,7 +120,7 @@ var word_suggestions = EmberObject.extend({
         previous.then(function() {
           var store_key = "arpa-." + idx + "." + _this.pieces + ".json";
           // TODO: CDN
-          var remote_url = "https://lingolinq.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
+          var remote_url = "https://lingolinq-prod-static.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
           var persistenceService = word_suggestions.get_persistence();
           if(!persistenceService || typeof persistenceService.find !== 'function') {
             runLater(function() { defer.resolve(); });

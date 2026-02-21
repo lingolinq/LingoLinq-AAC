@@ -284,7 +284,16 @@ module Uploadable
         self.data = nil if self.respond_to?(:data=)
         self.save
       else
-        self.settings['errored_pending_url'] = url
+        # S3 upload failed - fall back to storing data URI directly
+        # This allows images to work without S3 configuration
+        if url.match(/^data:/)
+          self.data = url
+          self.settings['pending'] = false
+          self.settings['pending_url'] = nil
+          Rails.logger.warn("S3 upload failed, storing data URI directly for #{self.class.name} #{self.id}")
+        else
+          self.settings['errored_pending_url'] = url
+        end
         self.save
       end
     end

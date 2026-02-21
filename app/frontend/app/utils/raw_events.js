@@ -932,7 +932,7 @@ var buttonTracker = EmberObject.extend({
     // if dragging a button, behavior is very different than otherwise
     if(swipe_page) {
       buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
-      
+
     } else if(buttonTracker.drag) {
       // hide the dragged button for a second to find what's underneath it
       buttonTracker.drag.hide();

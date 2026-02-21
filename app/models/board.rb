@@ -483,6 +483,7 @@ class Board < ActiveRecord::Base
       self.popularity = 0
       self.home_popularity = 0
     end
+    self.home_popularity = 1 if self.public && self.home_popularity <= 0 && (self.buttons || []).length > 0
     true
   end
 
@@ -1132,10 +1133,13 @@ class Board < ActiveRecord::Base
     suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
     return if suggested_buttons.empty?
 
-    # Get user's preferred library
+    # Get user's preferred library. 'original' means "keep the board's
+    # original symbols" which is meaningless for new boards, so fall back
+    # to 'opensymbols' for actual symbol lookup.
     library = 'opensymbols'
     if self.user
-      library = self.user.settings.dig('preferences', 'preferred_symbols') || 'opensymbols'
+      pref = self.user.settings.dig('preferences', 'preferred_symbols')
+      library = (pref && pref != 'original') ? pref : 'opensymbols'
     end
 
     # Get board locale

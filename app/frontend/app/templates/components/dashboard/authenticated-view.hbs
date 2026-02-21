@@ -310,32 +310,32 @@
   </div>
 </div>
 <div class='col col-sm-8 col-md-9' id="new_right">
-  <div class='row big_buttons' style='padding-right: 10px;'>
-    <div class='col-xs-12 new_pills_wrapper'>
-      <ul class="nav nav-pills new_pills">
-        <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          {{#if this.show_communicators_tab}}
-            <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
+  <div class='new_pills_wrapper' style='position: absolute; top: -40px; left: 10px; right: 0; z-index: 5;'>
+    <ul class="nav nav-pills new_pills">
+      <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        {{#if this.show_communicators_tab}}
+          <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
+        {{/if}}
+      {{/unless}}
+      <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
+          {{t "Updates" key="updates"}}
+          {{#if this.pending_updates}}
+            <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
+              {{#if this.pending_updates.count}}
+                {{this.pending_updates.count}}
+              {{else}}
+                {{t "!" key="exclaim"}}
+              {{/if}}
+            </span>
           {{/if}}
-        {{/unless}}
-        <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
-            {{t "Updates" key="updates"}}
-            {{#if this.pending_updates}}
-              <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
-                {{#if this.pending_updates.count}}
-                  {{this.pending_updates.count}}
-                {{else}}
-                  {{t "!" key="exclaim"}}
-                {{/if}}
-              </span>
-            {{/if}}
-          </a></li>
-        {{/unless}}
-      </ul>
-    </div>
+        </a></li>
+      {{/unless}}
+    </ul>
+  </div>
+  <div class='row big_buttons' style='padding-right: 10px;'>
     {{#if this.index_nav.supervisees}}
       {{#unless this.app_state.currentUser.modeling_only}}
       <div class='col-xs-12'>

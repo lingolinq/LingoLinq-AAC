@@ -577,7 +577,7 @@
         </div>
       </div>
     {{/if}}
-  {{else if this.model.integrationOrWebhookAction}}
+  {{else if model.integrationOrWebhookAction}}
     {{#if has_supervisees}}
       <div class="form-group">
         <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
@@ -712,7 +712,7 @@
         </div>
       {{/if}}
     {{/if}}
-  {{else if this.model.webhookAction}}
+  {{else if model.webhookAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Webhook" key="webhook"}}</label>
       <div class="col-sm-10">
@@ -727,7 +727,7 @@
         <p class='text-muted'>{{t "Webhooks can be configured for this user by opening their profile in a web browser." key="webhooks_setup_web"}}</p>
       </div>
     </div>
-  {{else if this.model.exportAction}}
+  {{else if model.exportAction}}
     <div class="form-group">
       <label for="format" class="col-sm-2 control-label">{{t "Format" key="format"}}</label>
       <div class="col-sm-10">
@@ -757,7 +757,7 @@
         <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key="integration_user_action_info"}}</p>
       </div>
     </div>
-  {{else if this.model.toggleFeatureAction}}
+  {{else if model.toggleFeatureAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Feature" key="feature"}}</label>
       <div class="col-sm-10">
@@ -1149,8 +1149,8 @@
 
         {{!-- Language tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if this.languageState "active" "hidden"}}>
-  {{#each this.model.translations as |locale|}}
+<div class={{if languageState "active" "hidden"}}>
+  {{#each model.translations as |locale|}}
     <div class="form-group">
       <label for="label" class="col-sm-2 control-label">{{t "Language" key="language"}}</label>
       <div class="col-sm-10">
@@ -1217,7 +1217,7 @@
 
         {{!-- Extras tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if this.extrasState "active" "hidden"}}>
+<div class={{if extrasState "active" "hidden"}}>
     <div class="form-group">
       <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
@@ -1281,7 +1281,7 @@
           </div>
         </div>
       {{/unless}}
-    {{else if this.advanced_level_style}}
+    {{else if advanced_level_style}}
       <div class='form-group'>
         <div class='col-sm-2'>
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
@@ -1297,7 +1297,7 @@
         <div class='col-sm-10'>
           <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key="inflections_overlay_description"}}</p>
           <div>
-            {{#if this.board.translations}}
+            {{#if board.translations}}
               <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>

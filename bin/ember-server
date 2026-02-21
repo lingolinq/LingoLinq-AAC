@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Start Ember dev server with Node 18 via nvm when available.
+# Start Ember dev server with Node 20 via nvm when available.
 # Invoked from Procfile (foreman/heroku local). Run from repo root.
 # Uses bash when present (for nvm), otherwise falls back to sh for minimal envs (e.g. Alpine).
 set -e
@@ -7,10 +7,10 @@ set -e
 run_ember() {
   if [ -s "${HOME}/.nvm/nvm.sh" ]; then
     . "${HOME}/.nvm/nvm.sh"
-    nvm install 18 && nvm use 18
+    nvm install 20 && nvm use 20
   elif [ -s "/usr/local/share/nvm/nvm.sh" ]; then
     . "/usr/local/share/nvm/nvm.sh"
-    nvm install 18 && nvm use 18
+    nvm install 20 && nvm use 20
   fi
   cd ./app/frontend/ && npx ember server --port 8184 --proxy http://127.0.0.1:5000
 }
@@ -20,7 +20,7 @@ if command -v bash >/dev/null 2>&1; then
   exec bash -c '
     if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh";
     elif [ -s "/usr/local/share/nvm/nvm.sh" ]; then . "/usr/local/share/nvm/nvm.sh"; fi;
-    nvm install 18 && nvm use 18 && cd ./app/frontend/ && npx ember server --port 8184 --proxy http://127.0.0.1:5000
+    nvm install 20 && nvm use 20 && cd ./app/frontend/ && npx ember server --port 8184 --proxy http://127.0.0.1:5000
   '
 else
   run_ember

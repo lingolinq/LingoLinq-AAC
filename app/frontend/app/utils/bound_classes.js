@@ -86,7 +86,10 @@ var boundClasses = {};
       if(!button) { throw "need button"; }
       var key = this.keyify(button);
       var classes = 'button ' + key;
-      if(button.hidden) {
+      if(button.hidden === true) {
+        if(button.label) {
+          console.warn('button hidden:', button.id, button.label, 'hidden=' + JSON.stringify(button.hidden));
+        }
         classes = classes + " hidden_button";
       } else if(button.empty) {
         classes = classes + " empty";

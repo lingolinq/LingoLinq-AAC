@@ -1352,16 +1352,16 @@ class Organization < ActiveRecord::Base
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['premium'] = process_boolean(params['premium']) if params['premium'] != nil
-    self.settings['org_access'] = process_boolean(params['org_access']) if params['premium'] != nil
+    self.settings['org_access'] = process_boolean(params['org_access']) if params['org_access'] != nil
     self.settings['inactivity_timeout'] = params['inactivity_timeout'].to_i if params['inactivity_timeout']
     self.settings.delete('inactivity_timeout') if (self.settings['inactivity_timeout'] || 0) < 10
     self.settings['image_url'] = process_string(params['image_url']) if params['image_url']
     self.settings['default_locale'] = process_string(params['default_locale']) if params['default_locale']
     self.settings['preferred_symbols'] = process_string(params['preferred_symbols']) if params['preferred_symbols']
-    self.settings['status_overrides'] = params['status_overrides']
-    self.settings['extra_colors'] = params['extra_colors']
+    self.settings['status_overrides'] = params['status_overrides'] if params['status_overrides'] != nil
+    self.settings['extra_colors'] = params['extra_colors'] if params['extra_colors'] != nil
     self.settings['note_templates'] = params['note_templates'] if params['note_templates'] != nil
-    self.settings['support_target'] = params['support_target']
+    self.settings['support_target'] = params['support_target'] if params['support_target'] != nil
     raise "updater required" unless non_user_params['updater']
     if self.admin
       if params[:sale_cutoff_date]
@@ -1467,12 +1467,17 @@ class Organization < ActiveRecord::Base
       end
     end
     if !params[:licenses_expire].blank?
-      time = Time.parse(params[:licenses_expire])
-      self.settings['licenses_expire'] = time.iso8601
+      time = Time.parse(params[:licenses_expire]) rescue nil
+      if time
+        self.settings['licenses_expire'] = time.iso8601
+      else
+        add_processing_error("invalid licenses_expire date format")
+        return false
+      end
     end
-    self.settings['saml_metadata_url'] = params['saml_metadata_url']
-    self.settings['saml_sso_url'] = params['saml_sso_url']
-    self.settings['saml_enforced'] = params['saml_sso_url']
+    self.settings['saml_metadata_url'] = params['saml_metadata_url'] if params['saml_metadata_url'] != nil
+    self.settings['saml_sso_url'] = params['saml_sso_url'] if params['saml_sso_url'] != nil
+    self.settings['saml_enforced'] = params['saml_enforced'] if params['saml_enforced'] != nil
 
     if params[:host_settings]
       self.settings['host_settings'] ||= {}

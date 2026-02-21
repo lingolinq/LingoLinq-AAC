@@ -66,7 +66,7 @@ export default Component.extend({
     }
     this.set('users', this.get('users') || supervisees);
   },
-  users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.error', 'extra_users.length', function() {
+  users_with_extras: computed('users', 'extra_users', 'extra_users.loading', 'extra_users.length', function() {
     var _this = this;
     var res = [].concat(this.get('users') || []);
     if(this.get('extra_users.loading')) {

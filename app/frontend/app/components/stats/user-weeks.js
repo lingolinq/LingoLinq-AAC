@@ -304,20 +304,28 @@ export default Component.extend({
           goal_id = _this.get('room_goal_id');
         }
         modal.open('record-note', {note_type: 'text', user: user, goal_id: goal_id}).then(function() {
-          _this.sendAction('refresh');
+          if (_this.refresh) {
+            _this.refresh();
+          }
         });
       }, function(err) {
         modal.error(i18n.t('error_loading_user_un', "Error Loading User %{un}", {un: user.user_name}));
       })
     },
     delete_action: function(id) {
-      this.sendAction('delete_user', this.get('unit'), this.get('user_type'), id);
+      if (this.delete_user) {
+        this.delete_user(this.get('unit'), this.get('user_type'), id);
+      }
     },
     user_profile: function(user) {
-      this.sendAction('user_profile', user);
+      if (this.user_profile) {
+        this.user_profile(user);
+      }
     },
     user_status: function(user) {
-      this.sendAction('user_status', user);
+      if (this.user_status) {
+        this.user_status(user);
+      }
     }
   }
 });

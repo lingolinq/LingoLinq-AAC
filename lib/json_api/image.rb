@@ -35,6 +35,11 @@ module JsonApi::Image
     if (args[:data] || !image.url) && image.data
       json['url'] = image.data
     end
+    # Fall back to errored_pending_url for images where S3 upload failed
+    # This handles images imported when S3 wasn't configured
+    if !json['url'] && image.settings && image.settings['errored_pending_url']
+      json['url'] = image.settings['errored_pending_url']
+    end
     if args[:permissions]
       json['permissions'] = image.permissions_for(args[:permissions])
     end

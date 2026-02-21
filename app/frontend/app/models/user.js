@@ -534,13 +534,16 @@ LingoLinq.User = DS.Model.extend({
   preferred_symbol_library: function(board) {
     if(board && board.get('user_name')) {
       if(board.get('user_name') == this.get('user_name')) {
-        // On my boards, default to my preferred symbols
-        return this.get('preferences.preferred_symbols') || 'opensymbols';
+        // On my boards, default to my preferred symbols.
+        // 'original' means "keep the board's original symbols" and isn't
+        // a valid OpenSymbols repo, so fall back to 'opensymbols'.
+        var pref = this.get('preferences.preferred_symbols');
+        return (pref && pref !== 'original') ? pref : 'opensymbols';
       } else {
         // On a supervisee's boards, default to their preferred symbols if set
         var sup = this.get('known_supervisees').find(function(s) { return s.user_name == board.get('user_name'); });
         var symbols = sup && (emberGet(sup, 'preferred_symbols') || emberGet(sup, 'preferences.preferred_symbols'));
-        if(symbols) {
+        if(symbols && symbols !== 'original') {
           return symbols;
         }
       }

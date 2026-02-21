@@ -193,7 +193,7 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.12 with Ember Data for models
+**Framework:** Ember.js 3.28 with Ember Data for models
 
 **Offline Support:** IndexedDB (web) or SQLite (mobile) via `dbman.js` abstraction layer
 
@@ -287,19 +287,14 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js (managed via nvm):
-  - Default: Node 20 (for newer tools, deployment)
-  - Frontend: Node 18 (for Ember 3.12)
-  - Automatic switching configured via `.nvmrc` files
+- Node.js 20 (managed via nvm)
 - Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
 **Node Version Management:**
-- Root `/.nvmrc`: Node 20 (default)
-- `app/frontend/.nvmrc`: Node 18 (Ember requirement)
-- `foreman start` automatically handles version switching in Procfile
-- For manual work: `cd app/frontend && nvm use` to switch to Node 18
+- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 20
+- `bin/ember-server` uses nvm to ensure Node 20 for the frontend dev server
 
 **Environment variables:**
 - Copy `.env.example` to `.env`
