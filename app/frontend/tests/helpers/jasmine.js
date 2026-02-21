@@ -1,8 +1,6 @@
 /*jshint -W079 */
-// import { async } from 'qunit';
-import QUnit from 'qunit';
-import newTestHelpers from '@ember/test-helpers';
-import testHelpers from 'ember-test-helpers';
+// Use window.QUnit (from qunit-standalone.js) so tests register in the same instance Testem runs
+var QUnit = window.QUnit;
 import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
@@ -45,8 +43,8 @@ function test_wrap(name, instance, befores, afters, lookup) {
 
       var this_arg = _this;
 
-      if(lookup) {
-        this_arg = new testHelpers.TestModule(lookup, name, []);
+      if (lookup) {
+        this_arg = lookup;
       }
 
       current_test_id++;

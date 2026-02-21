@@ -338,7 +338,7 @@ s = u.log_sessions.last
 bi = ButtonImage.last
 ```
 
-See CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
+See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
 
 ## Testing
 
@@ -357,7 +357,7 @@ See CODE_INVESTIGATION.md for detailed debugging guidance on common problem area
 - Translation files: `public/locales/*.json`
 - Word data import tool available in admin org for inflections/parts of speech
 - Template files at OpenAAC tools site for rules.json and words.json
-- See TRANSLATIONS.md for contributor guidelines
+- See docs/TRANSLATIONS.md for contributor guidelines
 - Use `i18n_generator.rb` scripts to manage translation files
 
 ## Additional Notes

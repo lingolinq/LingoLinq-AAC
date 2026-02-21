@@ -14,10 +14,20 @@ import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 
+// Debug: logs that persist across full page reload (stored in sessionStorage)
+var _loginDebugLog = [];
+function _loginDebug(msg, data) {
+  var entry = { t: Date.now(), msg: msg, data: data || {} };
+  _loginDebugLog.push(entry);
+  try { sessionStorage.setItem('lingolinq_login_debug', JSON.stringify(_loginDebugLog.slice(-50))); } catch (e) {}
+  console.log('[LOGIN-DEBUG]', msg, data);
+}
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   stashes: service('stashes'),
+  router: service('router'),
   app_state: alias('appState'),
   willInsertElement: function() {
     var _this = this;
@@ -199,17 +209,23 @@ export default Component.extend({
       // TODO: admin UI for resetting 2fa
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
-      _this.send('login_success', false);
-      _this.set('login_single_assertion', true);
-      _this.set('login_followup', false);
+      session.confirm_authentication(data).then(function() {
+        _this.set('login_single_assertion', true);
+        _this.set('login_followup', false);
+        _this.send('login_success', false);
+      });
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
-      _this.send('login_success', false);
-      _this.set('login_followup', true);
-      _this.set('login_single_assertion', false)
-      _this.set('login_followup_already_long_token', data.long_token_set);
+      session.confirm_authentication(data).then(function() {
+        _this.set('login_followup', true);
+        _this.set('login_single_assertion', false);
+        _this.set('login_followup_already_long_token', data.long_token_set);
+        _this.send('login_success', false);
+      });
     } else {
-      _this.send('login_success', true);
+      session.confirm_authentication(data).then(function() {
+        _this.send('login_success', true);
+      });
     }
   },
   first_login: computed(function() {
@@ -247,6 +263,16 @@ export default Component.extend({
   actions: {
     login_success: function(reload) {
       var _this = this;
+      _loginDebug('login_success called', { reload: reload });
+
+      var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+      _loginDebug('Before flush', { has_token: !!auth_settings.access_token, user_name: auth_settings.user_name });
+      
+      // Store the token temporarily so we don't lose it during flush
+      var saved_token = auth_settings.access_token;
+      var saved_user_name = auth_settings.user_name;
+      var saved_user_id = auth_settings.user_id;
+      
       if(reload) {
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
@@ -254,31 +280,69 @@ export default Component.extend({
       }
       var wait = this.stashes.flush(null, 'auth_').then(function() {
         _this.stashes.setup();
+      }).then(function() {
+        var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+        // Use saved_token as fallback if flush/setup cleared auth_settings from memory briefly
+        var token = auth_settings.access_token || saved_token;
+        capabilities.access_token = token;
+        if(token && capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+        _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['cdStash-auth_settings'] });
+        _this.set('logging_in', false);
+        _this.set('login_followup', false);
+        _this.set('login_single_assertion', false);
+        _this.set('logged_in', true);
+        // Sync session state from stashes so isAuthenticated/access_token are set
+        session.restore();
+        // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
+        // Wait for user fetch before transitioning so navbar updates without page refresh
+        return _this.appState.refresh_session_user();
       });
-      var auth_settings = this.stashes.get_object('auth_settings', true) || {};
-      capabilities.access_token = auth_settings.access_token;
-      _this.set('logging_in', false);
-      _this.set('login_followup', false);
-      _this.set('login_single_assertion', false);
-      _this.set('logged_in', true);
+      var userFetch = wait;
       if(reload) {
         runLater(function() {
           _this.appState.set('logging_in', true);
         }, 1000);
         if(Ember.testing) {
           console.error("would have redirected to home");
-        } else {
+        } else if(capabilities.installed_app) {
           wait.then(function() {
             if(_this.get('return')) {
               location.reload();
               session.set('return', true);
-            } else if(capabilities.installed_app) {
+            } else {
               location.href = '#/';
               location.reload();
-            } else {
-              location.href = '/';
             }
           });
+        } else {
+          // Web: wait for stashes flush AND user fetch before transitioning
+          // so navbar shows signed-in state (sessionUser/currentUser) without page refresh
+          var transitionDone = false;
+          var transitionToDashboard = function() {
+            if(transitionDone || _this.isDestroyed || _this.isDestroying) { return; }
+            transitionDone = true;
+            if(_this.get('return')) {
+              location.reload();
+              session.set('return', true);
+            } else {
+              _loginDebug('Web: transitioning to index (no reload)');
+              _this.router.transitionTo('index');
+            }
+          };
+          RSVP.all([wait, userFetch]).then(transitionToDashboard, function(err) {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            console.warn('[login_success] User fetch failed, transitioning anyway', err);
+            transitionToDashboard();
+          });
+          // Fallback: if promises hang (e.g. slow API, IndexedDB), transition after 5s
+          runLater(function() {
+            if(!transitionDone && _this.get('logged_in')) {
+              console.warn('[login_success] Fallback: transitioning after timeout');
+              transitionToDashboard();
+            }
+          }, 5000);
         }
       }
     },

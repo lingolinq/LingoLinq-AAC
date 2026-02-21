@@ -31,6 +31,20 @@
     <script src="{{rootURL}}assets/vendor.js"></script>
     <script src="{{rootURL}}assets/frontend.js"></script>
 
+    <!-- When served by Ember dev server (not Rails), inject domain_settings so layout matches production -->
+    <script>
+      if (typeof window.domain_settings === 'undefined') {
+        window.domain_settings = {
+          app_name: 'LingoLinq',
+          company_name: 'Someone',
+          logo_url: '/images/logo-big.png',
+          full_domain: true,
+          support_url: 'https://lingolinq.zendesk.com',
+          domain: window.location.host || 'localhost'
+        };
+      }
+    </script>
+
     {{content-for "body-footer"}}
   </body>
 </html>

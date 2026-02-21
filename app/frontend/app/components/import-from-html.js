@@ -43,7 +43,6 @@ export default Component.extend({
         name: (this.get('name') || '').trim() || undefined,
         locale: 'en'
       };
-      if(payload.name) { payload.name = payload.name; }
       var body = JSON.stringify(payload);
 
       var persistenceService = this.get('persistence') || window.persistence;

@@ -15,14 +15,14 @@
           <div class='row'>
             {{#each this.style_boards as |board|}}
               <div class={{this.style_cols}}>
-                {{board-icon board=board action_override="preview" locale=this.model.locale}}
+                {{board-icon board=board onActionOverride=(action "preview") locale=this.model.locale}}
               </div>
             {{/each}}
           </div>
         </div>
       {{else}}
         <div class="modal-body" style='height: 100%; overflow: auto; padding-bottom: 60px;'>
-          {{board-preview key=this.model_key back=this.back_func option=this.model.option action="select"}}
+          {{board-preview key=this.model_key back=this.back_func option=this.model.option onSelect=(action "select")}}
         </div>
       {{/if}}
     </div><!-- /.modal-content -->

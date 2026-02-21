@@ -65,7 +65,10 @@ LingoLinq::Application.routes.draw do
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
-  # if Rails.env.production?
+  # Skip Rack::Offline during build (assets:precompile, extras:copy_terms) since
+  # asset_path requires precompiled assets which don't exist yet.
+  unless ENV['SKIP_OFFLINE_MANIFEST']
+    # if Rails.env.production?
     offline = Rack::Offline.configure :cache_interval => 120 do
       cache ActionController::Base.helpers.asset_path("application.css")
       cache ActionController::Base.helpers.asset_path("application.js")
@@ -125,7 +128,8 @@ LingoLinq::Application.routes.draw do
       network "*"  
     end
     get "/application.manifest" => offline  
-  # end
+    # end
+  end
   
   get 'profile' => ember_handler
   get 'profile/:user_id/:profile_id' => ember_handler

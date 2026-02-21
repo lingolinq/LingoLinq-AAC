@@ -2,7 +2,7 @@ import Ember from 'ember';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
-import { later as runLater, run } from '@ember/runloop';
+import { later as runLater, run, schedule } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
 // import $ from 'jquery';
@@ -59,7 +59,8 @@ var contentGrabbers = Service.extend({
     var promise = new RSVP.Promise(function(resolve, reject) {
       if((object.get('url') || "").match(/^data:/)) {
         object.set('data_url', object.get('url'));
-        object.set('url', null);
+        // Keep url as data URL so backend receives it (JsonApi stores in ButtonImage.data for persistence).
+        // Only clear after create if we need to trigger client upload flow.
       }
       var original = object;
       var original_url = object.get('url');
@@ -1279,17 +1280,33 @@ var pictureGrabber = EmberObject.extend({
     var save_image = this.save_image_preview(preview, force_content_type);
     var button_id = _this.controller.get('model.id');
     save_image.then(function(image) {
-      // TODO: if the image doesn't have a label yet, go ahead and set
-      // it to the filename of this image pretty formatted (I guess also
-      // strip off any trailing numbers).
       if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
         _this.controller.set('model.image', image);
       }
       _this.clear();
-      var button_image = {url: image.get('url'), id: image.id};
-      editManager.change_button(button_id, {
-        'image': image,
-        'image_id': image.id
+      // Defer to afterRender so Ember Data has finished processing the save response.
+      // This ensures we use the server-assigned id (not the client id) when the server
+      // returns a different id (e.g. due to RecordIdentifier handling).
+      schedule('afterRender', function() {
+        var serverId = image.get && image.get('id') || image.id;
+        editManager.change_button(button_id, {
+          'image': image,
+          'image_id': serverId
+        });
+        var board = editManager.controller && editManager.controller.get('model');
+        var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (image.url || '');
+        if(board && imgUrl && (imgUrl.match(/^https?:\/\//) || imgUrl.match(/^data:/) || imgUrl.match(/^blob:/))) {
+          var urls = board.get('image_urls') || {};
+          urls = Object.assign({}, urls, { [serverId]: imgUrl });
+          board.set('image_urls', urls);
+          var modelButtons = board.get('buttons') || [];
+          for(var b = 0; b < modelButtons.length; b++) {
+            if(modelButtons[b] && modelButtons[b].id == button_id) {
+              modelButtons[b].image_id = serverId;
+              break;
+            }
+          }
+        }
       });
       if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
         _this.controller.set('model.pending_image', false);

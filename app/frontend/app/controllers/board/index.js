@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
@@ -212,19 +213,38 @@ export default Controller.extend({
     // Preserve image_urls before save - server response can be incomplete for newly-created/edited boards,
     // causing images to disappear after save. Merge our local URLs back in so display stays correct.
     var imageUrlsBeforeSave = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
-    board.save().then(function(brd) {
+    // Include URLs from ordered_buttons for any images not yet in image_urls (newly added in-session)
+    (orderedButtons || []).forEach(function(btnRow) {
+      (btnRow || []).forEach(function(btn) {
+        var imgId = btn && (btn.get ? btn.get('image_id') : btn.image_id);
+        if(imgId && !imageUrlsBeforeSave[imgId]) {
+          var url = (btn.get ? btn.get('local_image_url') : btn.local_image_url) || (btn.get ? btn.get('image_url') : btn.image_url);
+          if(url) {
+            imageUrlsBeforeSave[imgId] = url;
+          }
+        }
+      });
+    });
+    // Ensure images are pushed/available before save so backend can resolve all image_ids
+    var pushPromise = (this.persistence.get('online') && board.get && board.find_content_locally) ?
+      (board.set('fetched', false), board.find_content_locally()) : RSVP.resolve();
+    pushPromise.catch(function() {
+      return RSVP.resolve();
+    }).then(function() {
+      return board.save();
+    }).then(function(brd) {
       var fromServer = brd.get('image_urls') || {};
-      var merged = Object.assign({}, imageUrlsBeforeSave, fromServer);
+      var merged = Object.assign({}, fromServer, imageUrlsBeforeSave);
       brd.set('image_urls', merged);
       if(update_locale) {
-        this.stashes.persist('label_locale', update_locale);
-        this.appState.set('label_locale', update_locale);
-        this.stashes.persist('vocalization_locale', update_locale);
-        this.appState.set('vocalization_locale', update_locale);
+        _this.stashes.persist('label_locale', update_locale);
+        _this.appState.set('label_locale', update_locale);
+        _this.stashes.persist('vocalization_locale', update_locale);
+        _this.appState.set('vocalization_locale', update_locale);
       }
       board.set('update_visibility_downstream', false);
       if(needs_refresh) {
-        this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
+        _this.appState.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
       }
       editManager.process_for_displaying();
       if(brd.get('protected_material') && brd.get('visibility') != 'private') {

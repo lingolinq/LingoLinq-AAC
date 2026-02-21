@@ -450,6 +450,9 @@ LingoLinq.Board = DS.Model.extend({
     return res;
   },
   contextualized_buttons: function(label_locale, vocalization_locale, history, capitalize, inflection_shift) {
+    if(this.get('isDeleted')) {
+      return [];
+    }
     var t = (this.get('updated') || (new Date()))
     if(t.getTime) { t = t.getTime(); }
     var state = JSON.stringify({hh: this.get('update_hash'), u: t, ll: label_locale, vl: vocalization_locale, h: history, c: capitalize, is: inflection_shift, sp: this.appState.get('speak_mode'), fw: this.appState.get('focus_words'), fid: this.get('focus_id'), uid: this.appState.get('sessionUser.id'), ai: this.appState.get('referenced_user.preferences.auto_inflections'), sk: this.appState.get('referenced_user.preferences.skin'), r: this.get('current_revision')});
@@ -1188,6 +1191,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_real_time_inflections: function() {
+    if(this.get('isDeleted')) {
+      return;
+    }
     var history = this.stashes.get('working_vocalization') || [];
     // TODO: update inflections for linked buttons as well
     // for load_board settings add a new option to support inflections
@@ -1217,6 +1223,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_word_suggestions: function(board_ids) {
+    if(this.get('isDeleted')) {
+      return null;
+    }
     var working = [].concat(this.stashes.get('working_vocalization') || []);
     var in_progress = null;
     if(working.length > 0 && working[working.length - 1].in_progress) {
@@ -1448,6 +1457,14 @@ LingoLinq.Board = DS.Model.extend({
       var persistence = _this.persistence || (typeof window !== 'undefined' && window.persistence);
       var url_cache = persistence && persistence.url_cache ? persistence.url_cache : {};
       var local_image_url = url_cache[pref_original_image_url || 'none'] || url_cache[original_image_url || 'none'] || url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      // Fallback for word art and other images (e.g. data URLs) that may not be in image_urls
+      if((!local_image_url || local_image_url === 'none') && button.image_id) {
+        var locals = _this.get('local_images_with_license') || [];
+        var img = locals.find(function(l) { return l.get && String(l.get('id')) === String(button.image_id); });
+        if(img && img.get('url')) {
+          local_image_url = img.get('url');
+        }
+      }
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
       var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
