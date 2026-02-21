@@ -67,13 +67,28 @@ export default class ConfirmDeleteBoardController extends modal.ModalController 
     var save = RSVP.resolve();
     var deleted_ids = [];
     if(!this.model.orphans) {
-      try {
-        board.deleteRecord();
-        save = board.save();
-        deleted_ids.push(board.id);
-      } catch(e) {
-        // TODO: if on the board page, it may barf when deleting the current board
-      }
+      save = (function waitThenDelete(retryCount) {
+        if (retryCount > 20) {
+          return RSVP.reject(new Error('Board save timed out'));
+        }
+        return board.save().catch(function() { return RSVP.resolve(); }).then(function() {
+          try {
+            board.deleteRecord();
+            deleted_ids.push(board.id);
+            return board.save();
+          } catch(e) {
+            const errMsg = (e && (e.message || String(e))) || '';
+            if (errMsg.indexOf('inFlight') !== -1 && retryCount < 20) {
+              return new RSVP.Promise(function(resolve, reject) {
+                runLater(function() {
+                  waitThenDelete(retryCount + 1).then(resolve, reject);
+                }, 100);
+              });
+            }
+            return RSVP.reject(e);
+          }
+        });
+      })(0);
     }
 
     var other_defers = [];
@@ -104,12 +119,23 @@ export default class ConfirmDeleteBoardController extends modal.ModalController 
               if(this.deleting) {
                 this.deleting = {deleting: true, board_key: b.key};
               }
-
-              b.deleteRecord();
-              deleted_ids.push(b.id);
-              b.save().then(() => {
-                defer.resolve(b);
-              }, (err) => { defer.reject(err); });  
+              // Wait for any in-flight save before deleting; retry if deleteRecord throws inFlight
+              (function tryDeleteBoard(attempt) {
+                b.save().catch(function() { return RSVP.resolve(); }).then(function() {
+                  try {
+                    b.deleteRecord();
+                    deleted_ids.push(b.id);
+                    b.save().then(() => { defer.resolve(b); }, (err) => { defer.reject(err); });
+                  } catch(err) {
+                    var msg = (err && (err.message || String(err))) || '';
+                    if (msg.indexOf('inFlight') !== -1 && attempt < 20) {
+                      runLater(function() { tryDeleteBoard(attempt + 1); }, 100);
+                    } else {
+                      defer.reject(err);
+                    }
+                  }
+                });
+              })(0);
             });
           }
         }, (err) => { defer.reject(err); });  

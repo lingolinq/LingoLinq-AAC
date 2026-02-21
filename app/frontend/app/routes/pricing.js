@@ -4,11 +4,12 @@ import { ScrollTopRoute } from '../services/app-state';
 import { inject as service } from '@ember/service';
 
 export default ScrollTopRoute.extend({
+  router: service('router'),
   appState: service('app-state'),
   persistence: service('persistence'),
   setupController: function(controller, model) {
     if(this.appState.get('no_linky')) {
-      controller.transitionToRoute('limited');
+      this.router.transitionTo('limited');
       return;
     }
     if(!this.appState.get('domain_settings.full_domain')) {
