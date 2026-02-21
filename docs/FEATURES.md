@@ -244,7 +244,7 @@ They can:
 
 ## 9. Sources and Maintenance
 
-- **premium_features.md** – Original premium feature list
+- **docs/premium_features.md** – Original premium feature list
 - **lib/feature_flags.rb** – Feature flag definitions
 - **app/models/user.rb** – Permission model
 - **app/models/concerns/subscription.rb** – Billing states

@@ -32,6 +32,10 @@ echo "NPM version: $(npm -v)"
 echo "=== Installing Ruby Dependencies ==="
 bundle install
 bundle exec rake extras:assert_js
+
+# SKIP_OFFLINE_MANIFEST: routes.rb loads Rack::Offline which calls asset_path;
+# assets don't exist until after precompile, so skip it during build tasks.
+export SKIP_OFFLINE_MANIFEST=1
 bundle exec rake extras:copy_terms
 
 echo "=== Building Frontend (Ember) ==="

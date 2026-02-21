@@ -349,7 +349,7 @@ export default Service.extend({
     modal.setup(route);
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
-    this.contentGrabbers.boardGrabber.transitioner = route;
+    this.contentGrabbers.boardGrabber.transitioner = this.router;
     LingoLinq.controller = controller;
     this.stashes.controller = controller;
     editManager.setup(controller, this, this.persistence, this.stashes);
@@ -2391,18 +2391,19 @@ export default Service.extend({
     }
   ),
   refresh_suggestions: function() {
-    if(this.controller && this.controller.get('board.model')) {
+    var board = this.controller && this.controller.get('board.model');
+    if(board && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
-      var ref = this.controller.get('board.model.id') + "::" + history_string + "::" + this.get('shift');
-      if(true || ref != this.get('suggestion_id')) {
-        var $board = $(".board[data-id='" + this.controller.get('board.model.id') + "']");
+      var ref = board.id + "::" + history_string + "::" + this.get('shift');
+      if(ref != this.get('suggestion_id')) {
+        var $board = $(".board[data-id='" + board.id + "']");
         if($board.length > 0) {
           this.set('suggestion_id', ref);
-          this.controller.get('board.model').clear_real_time_changes();
-          this.controller.get('board.model').load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
+          board.clear_real_time_changes();
+          board.load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
           if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
-            this.controller.get('board.model').load_real_time_inflections();
+            board.load_real_time_inflections();
           }
         }
       }

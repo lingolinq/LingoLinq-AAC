@@ -1874,75 +1874,72 @@ var editManager = EmberObject.extend({
     for(var idx = 0; idx < orderedButtons.length; idx++) {
       var row = orderedButtons[idx];
       var gridRow = [];
-      var getBtnVal = function(btn, key) {
-        return (btn && btn.get && typeof btn.get === 'function') ? btn.get(key) : (btn ? btn[key] : undefined);
-      };
       for(var jdx = 0; jdx < row.length; jdx++) {
         var currentButton = row[jdx];
         var originalButton = null;
         for(var kdx = 0; kdx < priorButtons.length; kdx++) {
-          if(priorButtons[kdx].id == getBtnVal(currentButton, 'id')) {
+          if(priorButtons[kdx].id == emberGet(currentButton, 'id')) {
             originalButton = priorButtons[kdx];
           }
         }
         var newButton = $.extend({}, originalButton);
-        if(getBtnVal(currentButton, 'label') || getBtnVal(currentButton, 'image_id')) {
-          newButton.label = getBtnVal(currentButton, 'label');
-          var vocalization = getBtnVal(currentButton, 'vocalization');
+        if(emberGet(currentButton, 'label') || emberGet(currentButton, 'image_id')) {
+          newButton.label = emberGet(currentButton, 'label');
+          var vocalization = emberGet(currentButton, 'vocalization');
           if(vocalization && vocalization != newButton.label) {
             newButton.vocalization = vocalization;
           } else {
             delete newButton['vocalization'];
           }
-          newButton.ref_id = getBtnVal(currentButton, 'ref_id');
-          newButton.image_id = getBtnVal(currentButton, 'image_id');
-          newButton.sound_id = getBtnVal(currentButton, 'sound_id');
-          var bg = window.tinycolor(getBtnVal(currentButton, 'background_color'));
+          newButton.ref_id = emberGet(currentButton, 'ref_id');
+          newButton.image_id = emberGet(currentButton, 'image_id');
+          newButton.sound_id = emberGet(currentButton, 'sound_id');
+          var bg = window.tinycolor(emberGet(currentButton, 'background_color'));
           if(bg._ok) {
             newButton.background_color = bg.toRgbString();
           }
-          var border = window.tinycolor(getBtnVal(currentButton, 'border_color'));
+          var border = window.tinycolor(emberGet(currentButton, 'border_color'));
           if(border._ok) {
             newButton.border_color = border.toRgbString();
           }
-          newButton.hidden = getBtnVal(currentButton, 'hidden') === true;
-          newButton.link_disabled = !!getBtnVal(currentButton, 'link_disabled');
-          if(getBtnVal(currentButton, 'text_only')) {
+          newButton.hidden = emberGet(currentButton, 'hidden') === true;
+          newButton.link_disabled = !!emberGet(currentButton, 'link_disabled');
+          if(emberGet(currentButton, 'text_only')) {
             newButton.text_only = true;
           } else {
             delete newButton['text_only'];
           }
-          if(getBtnVal(currentButton, 'no_skin')) {
+          if(emberGet(currentButton, 'no_skin')) {
             newButton.no_skin = true;
           } else {
             delete newButton['no_skin'];
           }
-          if(currentButton.get('talkAction')) {
-            if(getBtnVal(currentButton, 'prevent_adding_to_vocalization') == null) {
+          if(emberGet(currentButton, 'talkAction')) {
+            if(emberGet(currentButton, 'prevent_adding_to_vocalization') == null) {
               newButton.add_vocalization = true;
             } else {
-              newButton.add_vocalization = !getBtnVal(currentButton, 'prevent_adding_to_vocalization');
+              newButton.add_vocalization = !emberGet(currentButton, 'prevent_adding_to_vocalization');
             }
           } else {
-            if(getBtnVal(currentButton, 'force_add_to_vocalization') == null) {
-              newButton.add_vocalization = !!getBtnVal(currentButton, 'add_to_vocalization');
+            if(emberGet(currentButton, 'force_add_to_vocalization') == null) {
+              newButton.add_vocalization = !!emberGet(currentButton, 'add_to_vocalization');
             } else {
-              newButton.add_vocalization = !!getBtnVal(currentButton, 'force_add_to_vocalization');
+              newButton.add_vocalization = !!emberGet(currentButton, 'force_add_to_vocalization');
             }
           }
-          if(getBtnVal(currentButton, 'level_style')) {
-            if(getBtnVal(currentButton, 'level_style') == 'none') {
+          if(emberGet(currentButton, 'level_style')) {
+            if(emberGet(currentButton, 'level_style') == 'none') {
               emberSet(currentButton, 'level_modifications', null);
-            } else if(getBtnVal(currentButton, 'level_style') == 'basic' && (getBtnVal(currentButton, 'hidden_level') || getBtnVal(currentButton, 'link_disabled_level'))) {
+            } else if(emberGet(currentButton, 'level_style') == 'basic' && (emberGet(currentButton, 'hidden_level') || emberGet(currentButton, 'link_disabled_level'))) {
               var mods = emberGet(currentButton, 'level_modifications') || {};
               mods.pre = mods.pre || {};
-              if(getBtnVal(currentButton, 'hidden_level')) {
+              if(emberGet(currentButton, 'hidden_level')) {
                 mods.pre['hidden'] = true;
-                mods[getBtnVal(currentButton, 'hidden_level').toString()] = {hidden: false};
+                mods[emberGet(currentButton, 'hidden_level').toString()] = {hidden: false};
               }
-              if(getBtnVal(currentButton, 'link_disabled_level')) {
+              if(emberGet(currentButton, 'link_disabled_level')) {
                 mods.pre['link_disabled'] = true;
-                mods[getBtnVal(currentButton, 'link_disabled_level').toString()] = {link_disabled: false};
+                mods[emberGet(currentButton, 'link_disabled_level').toString()] = {link_disabled: false};
               }
               for(var ref_key in mods.pre) {
                 var found_change = false;
@@ -1957,63 +1954,70 @@ var editManager = EmberObject.extend({
                 }
               }
               emberSet(currentButton, 'level_modifications', mods);
-            } else if(getBtnVal(currentButton, 'level_json')) {
-              emberSet(currentButton, 'level_modifications', JSON.parse(getBtnVal(currentButton, 'level_json')));
+            } else if(emberGet(currentButton, 'level_json')) {
+              emberSet(currentButton, 'level_modifications', JSON.parse(emberGet(currentButton, 'level_json')));
             }
           }
-          newButton.level_modifications = getBtnVal(currentButton, 'level_modifications');
-          newButton.home_lock = !!getBtnVal(currentButton, 'home_lock');
-          newButton.meta_home = !!(newButton.home_lock && getBtnVal(currentButton, 'meta_home'));
-          newButton.hide_label = !!getBtnVal(currentButton, 'hide_label');
-          newButton.blocking_speech = !!getBtnVal(currentButton, 'blocking_speech');
-          newButton.rules = getBtnVal(currentButton, 'rules');
-          if(currentButton.get('translations.length') > 0) {
-            newButton.translations = currentButton.get('translations');
+          newButton.level_modifications = emberGet(currentButton, 'level_modifications');
+          newButton.home_lock = !!emberGet(currentButton, 'home_lock');
+          newButton.meta_home = !!(newButton.home_lock && emberGet(currentButton, 'meta_home'));
+          newButton.hide_label = !!emberGet(currentButton, 'hide_label');
+          newButton.blocking_speech = !!emberGet(currentButton, 'blocking_speech');
+          newButton.rules = emberGet(currentButton, 'rules');
+          var translations = emberGet(currentButton, 'translations');
+          if(translations && translations.length > 0) {
+            newButton.translations = translations;
           }
-          if(currentButton.get('inflections.length') > 0) {
-            newButton.inflections = currentButton.get('inflections');
+          var inflections = emberGet(currentButton, 'inflections');
+          if(inflections && inflections.length > 0) {
+            newButton.inflections = inflections;
           }
-          if(currentButton.get('external_id')) {
-            newButton.external_id = currentButton.get('external_id');
+          var externalId = emberGet(currentButton, 'external_id');
+          if(externalId) {
+            newButton.external_id = externalId;
           }
-          if(getBtnVal(currentButton, 'part_of_speech')) {
-            newButton.part_of_speech = getBtnVal(currentButton, 'part_of_speech');
-            newButton.suggested_part_of_speech = getBtnVal(currentButton, 'suggested_part_of_speech');
-            newButton.painted_part_of_speech = getBtnVal(currentButton, 'painted_part_of_speech');
+          if(emberGet(currentButton, 'part_of_speech')) {
+            newButton.part_of_speech = emberGet(currentButton, 'part_of_speech');
+            newButton.suggested_part_of_speech = emberGet(currentButton, 'suggested_part_of_speech');
+            newButton.painted_part_of_speech = emberGet(currentButton, 'painted_part_of_speech');
           }
-          if(currentButton.get('buttonAction') == 'talk') {
+          if(emberGet(currentButton, 'buttonAction') == 'talk') {
             delete newButton['load_board'];
             delete newButton['apps'];
             delete newButton['url'];
             delete newButton['integration'];
-          } else if(currentButton.get('buttonAction') == 'link') {
+          } else if(emberGet(currentButton, 'buttonAction') == 'link') {
             delete newButton['load_board'];
             delete newButton['apps'];
             delete newButton['integration'];
-            newButton.url = currentButton.get('fixed_url');
-            if(currentButton.get('video')) {
-              newButton.video = currentButton.get('video');
-            } else if(currentButton.get('book')) {
-              newButton.book = currentButton.get('book');
+            newButton.url = emberGet(currentButton, 'fixed_url');
+            var video = emberGet(currentButton, 'video');
+            if(video) {
+              newButton.video = video;
+            } else {
+              var book = emberGet(currentButton, 'book');
+              if(book) {
+                newButton.book = book;
+              }
             }
-          } else if(currentButton.get('buttonAction') == 'app') {
+          } else if(emberGet(currentButton, 'buttonAction') == 'app') {
             delete newButton['load_board'];
             delete newButton['url'];
             delete newButton['integration'];
-            newButton.apps = currentButton.get('apps');
-            if(newButton.apps.web && newButton.apps.web.launch_url) {
-              newButton.apps.web.launch_url = currentButton.get('fixed_app_url');
+            newButton.apps = emberGet(currentButton, 'apps');
+            if(newButton.apps && newButton.apps.web && newButton.apps.web.launch_url) {
+              newButton.apps.web.launch_url = emberGet(currentButton, 'fixed_app_url');
             }
-          } else if(currentButton.get('buttonAction') == 'integration') {
+          } else if(emberGet(currentButton, 'buttonAction') == 'integration') {
             delete newButton['load_board'];
             delete newButton['apps'];
             delete newButton['url'];
-            newButton.integration = currentButton.get('integration');
+            newButton.integration = emberGet(currentButton, 'integration');
           } else {
             delete newButton['url'];
             delete newButton['apps'];
             delete newButton['integration'];
-            newButton.load_board = getBtnVal(currentButton, 'load_board');
+            newButton.load_board = emberGet(currentButton, 'load_board');
           }
           // newButton.top = ...
           // newButton.left = ...

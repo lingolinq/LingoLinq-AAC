@@ -11,6 +11,7 @@ import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Route.extend({
+  router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
   appState: service('app-state'),
@@ -146,7 +147,7 @@ export default Route.extend({
       LingoLinq.Log.manual_log(this.appState.get('currentUser.id'), !!this.appState.get('currentUser.external_device'))
     },
     home_board: function(key) {
-      this.transitionTo('board', key);
+      this.router.transitionTo('board', key);
     },
     saveProfile: function() {
       var controller = this.get('controller');

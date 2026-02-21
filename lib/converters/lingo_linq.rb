@@ -179,10 +179,17 @@ module Converters::LingoLinq
               'protected' => image_settings['protected'],
               'protected_source' => image_settings['protected_source'],
               'license' => OBF::Utils.parse_license(image_settings['license']),
-              'url' => Uploader.fronted_url(image_settings['url']),
+              'url' => image_settings['url'].present? ? Uploader.fronted_url(image_settings['url']) : nil,
               'data_url' => "#{JsonApi::Json.current_host}/api/v1/images/#{image.global_id}",
               'content_type' => image_settings['content_type']
             }
+            # Word Art, webcam, file upload: stored as data URI only. OBF needs data to embed.
+            if image['url'].blank? && (image_record.data.present? || image_record.settings['data_uri'].present?)
+              image['data'] = image_record.data.presence || image_record.settings['data_uri']
+              image['content_type'] ||= image_record.settings['content_type']
+              image['width'] ||= image_record.settings['width'].to_i
+              image['height'] ||= image_record.settings['height'].to_i
+            end
             if skinned_url && skinned_url != image['url']
               image['ext_lingolinq_unskinned_url'] = image['url']
               image['url'] = Uploader.fronted_url(skinned_url)
@@ -317,12 +324,18 @@ module Converters::LingoLinq
           item['ref_url'] = item['ext_lingolinq_unskinned_url'] || item['url']
         end
         if record && !hashes[item['id']]
-          item.delete('data')
+          data_uri = item.delete('data') || item['ref_url']
           item.delete('url')
 
           if Uploader.valid_remote_url?(item['ref_url'])
             item['url'] = item['ref_url']
             item.delete('ref_url')
+          elsif data_uri.to_s.match(/^data:/)
+            # Data URIs (from OBZ path→base64) must be passed to process so ButtonImage stores them.
+            # Use both data_url (checked first) and url for maximum compatibility.
+            item['data_url'] = data_uri
+            item['url'] = data_uri
+            item['ref_url'] ||= data_uri  # Keep for upload_to_remote
           end
 
           record.process(item)
@@ -535,8 +548,6 @@ module Converters::LingoLinq
         }
       end
     end
-    
-    sleep 10
     
     content['boards'].each do |board|
       board['images'] = content['images'] || []

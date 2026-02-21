@@ -4231,7 +4231,9 @@ persistence.DSExtend = {
             persistence.store(type.modelName, record).then(function() {
               update_resolve(record);
             }, function() {
-              update_reject({error: "failed to update to local db"});
+              // Server succeeded; local cache failed. Resolve anyway so caller does not see false error.
+              console.warn('updateRecord: server succeeded but local store failed', type.modelName);
+              update_resolve(record);
             });
           }, function(err) {
             update_reject(err);

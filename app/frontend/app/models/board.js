@@ -450,6 +450,9 @@ LingoLinq.Board = DS.Model.extend({
     return res;
   },
   contextualized_buttons: function(label_locale, vocalization_locale, history, capitalize, inflection_shift) {
+    if(this.get('isDeleted')) {
+      return [];
+    }
     var t = (this.get('updated') || (new Date()))
     if(t.getTime) { t = t.getTime(); }
     var state = JSON.stringify({hh: this.get('update_hash'), u: t, ll: label_locale, vl: vocalization_locale, h: history, c: capitalize, is: inflection_shift, sp: this.appState.get('speak_mode'), fw: this.appState.get('focus_words'), fid: this.get('focus_id'), uid: this.appState.get('sessionUser.id'), ai: this.appState.get('referenced_user.preferences.auto_inflections'), sk: this.appState.get('referenced_user.preferences.skin'), r: this.get('current_revision')});
@@ -1188,6 +1191,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_real_time_inflections: function() {
+    if(this.get('isDeleted')) {
+      return;
+    }
     var history = this.stashes.get('working_vocalization') || [];
     // TODO: update inflections for linked buttons as well
     // for load_board settings add a new option to support inflections
@@ -1217,6 +1223,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_word_suggestions: function(board_ids) {
+    if(this.get('isDeleted')) {
+      return null;
+    }
     var working = [].concat(this.stashes.get('working_vocalization') || []);
     var in_progress = null;
     if(working.length > 0 && working[working.length - 1].in_progress) {

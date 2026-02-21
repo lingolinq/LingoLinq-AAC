@@ -234,7 +234,7 @@ export default Controller.extend({
       return board.save();
     }).then(function(brd) {
       var fromServer = brd.get('image_urls') || {};
-      var merged = Object.assign({}, imageUrlsBeforeSave, fromServer);
+      var merged = Object.assign({}, fromServer, imageUrlsBeforeSave);
       brd.set('image_urls', merged);
       if(update_locale) {
         _this.stashes.persist('label_locale', update_locale);

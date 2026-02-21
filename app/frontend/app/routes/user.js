@@ -4,6 +4,7 @@ import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  router: service('router'),
   store: service('store'),
   persistence: service('persistence'),
   model: function(params) {
@@ -57,7 +58,7 @@ export default Route.extend({
           return false; // Don't bubble the error
         }
         // Transition to error route for 404s
-        this.transitionTo('error');
+        this.router.transitionTo('error');
         return false; // Don't bubble the error
       }
       // Let other errors bubble up

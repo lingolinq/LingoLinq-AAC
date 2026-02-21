@@ -210,18 +210,18 @@ export default Component.extend({
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
       session.confirm_authentication(data).then(function() {
+        _this.set('login_single_assertion', true);
+        _this.set('login_followup', false);
         _this.send('login_success', false);
       });
-      _this.set('login_single_assertion', true);
-      _this.set('login_followup', false);
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
       session.confirm_authentication(data).then(function() {
+        _this.set('login_followup', true);
+        _this.set('login_single_assertion', false);
+        _this.set('login_followup_already_long_token', data.long_token_set);
         _this.send('login_success', false);
       });
-      _this.set('login_followup', true);
-      _this.set('login_single_assertion', false)
-      _this.set('login_followup_already_long_token', data.long_token_set);
     } else {
       session.confirm_authentication(data).then(function() {
         _this.send('login_success', true);
@@ -280,24 +280,26 @@ export default Component.extend({
       }
       var wait = this.stashes.flush(null, 'auth_').then(function() {
         _this.stashes.setup();
+      }).then(function() {
+        var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+        // Use saved_token as fallback if flush/setup cleared auth_settings from memory briefly
+        var token = auth_settings.access_token || saved_token;
+        capabilities.access_token = token;
+        if(token && capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+        _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['cdStash-auth_settings'] });
+        _this.set('logging_in', false);
+        _this.set('login_followup', false);
+        _this.set('login_single_assertion', false);
+        _this.set('logged_in', true);
+        // Sync session state from stashes so isAuthenticated/access_token are set
+        session.restore();
+        // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
+        // Wait for user fetch before transitioning so navbar updates without page refresh
+        return _this.appState.refresh_session_user();
       });
-      var auth_settings = this.stashes.get_object('auth_settings', true) || {};
-      // Use saved_token as fallback if flush/setup cleared auth_settings from memory briefly
-      var token = auth_settings.access_token || saved_token;
-      capabilities.access_token = token;
-      if(token && capabilities.sync_access_token) {
-        capabilities.sync_access_token();
-      }
-      _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['cdStash-auth_settings'] });
-      _this.set('logging_in', false);
-      _this.set('login_followup', false);
-      _this.set('login_single_assertion', false);
-      _this.set('logged_in', true);
-      // Sync session state from stashes so isAuthenticated/access_token are set
-      session.restore();
-      // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
-      // Wait for user fetch before transitioning so navbar updates without page refresh
-      var userFetch = _this.appState.refresh_session_user();
+      var userFetch = wait;
       if(reload) {
         runLater(function() {
           _this.appState.set('logging_in', true);
