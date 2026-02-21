@@ -33,13 +33,9 @@ echo "=== Installing Ruby Dependencies ==="
 bundle install
 bundle exec rake extras:assert_js
 
-# Precompile assets with placeholders first so routes can load (Rack::Offline
-# needs asset_path for application.css/js, which requires precompiled assets).
-# We will precompile again after Ember build to include the real frontend.
-echo "=== Precompiling Rails assets (placeholder pass) ==="
-bundle exec rake assets:precompile
-
-echo "=== Copying terms (requires Rails env + asset pipeline) ==="
+# SKIP_OFFLINE_MANIFEST: routes.rb loads Rack::Offline which calls asset_path;
+# assets don't exist until after precompile, so skip it during build tasks.
+export SKIP_OFFLINE_MANIFEST=1
 bundle exec rake extras:copy_terms
 
 echo "=== Building Frontend (Ember) ==="
