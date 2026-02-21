@@ -2396,7 +2396,7 @@ export default Service.extend({
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
       var ref = board.id + "::" + history_string + "::" + this.get('shift');
-      if(true || ref != this.get('suggestion_id')) {
+      if(ref != this.get('suggestion_id')) {
         var $board = $(".board[data-id='" + board.id + "']");
         if($board.length > 0) {
           this.set('suggestion_id', ref);
