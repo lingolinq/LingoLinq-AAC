@@ -32,6 +32,14 @@ echo "NPM version: $(npm -v)"
 echo "=== Installing Ruby Dependencies ==="
 bundle install
 bundle exec rake extras:assert_js
+
+# Precompile assets with placeholders first so routes can load (Rack::Offline
+# needs asset_path for application.css/js, which requires precompiled assets).
+# We will precompile again after Ember build to include the real frontend.
+echo "=== Precompiling Rails assets (placeholder pass) ==="
+bundle exec rake assets:precompile
+
+echo "=== Copying terms (requires Rails env + asset pipeline) ==="
 bundle exec rake extras:copy_terms
 
 echo "=== Building Frontend (Ember) ==="
