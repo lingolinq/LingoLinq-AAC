@@ -625,13 +625,14 @@ class User < ActiveRecord::Base
     end
     if self.settings['preferences'] && self.settings['preferences']['sidebar_boards']
       self.settings['preferences']['sidebar_boards'].each do |brd|
-        board_record = Board.find_by_path(brd['key'])
+        board_record = Board.find_by_path(brd['key']) if brd['key']
+        next unless board_record
         linked_boards << {
           board: board_record,
           locale: brd['locale'] || board_record.settings['locale'] || 'en',
           changed: self.settings['sidebar_changed'],
           home: false
-        } if brd['key']
+        }
       end
     end
     Board.lump_triggers

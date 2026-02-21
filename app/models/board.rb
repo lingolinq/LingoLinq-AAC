@@ -1,5 +1,8 @@
 class Board < ActiveRecord::Base
   DEFAULT_ICON = "https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png"
+  # When a board used as home/sidebar by more users than this, cleanup runs in a background job
+  # to avoid blocking board destruction and request timeouts on popular public boards.
+  HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
   include Processable
   include Permissions
   include Async
@@ -1963,33 +1966,13 @@ class Board < ActiveRecord::Base
     board_global_id = self.global_id
     board_key = self.key
     ubcs = UserBoardConnection.where(board_id: self.id).includes(:user)
-    ubcs.each do |ubc|
-      user = ubc.user
-      next unless user && user.settings
-      user.settings['preferences'] ||= {}
-      user_changed = false
-      if ubc.home
-        if user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'] == board_global_id
-          user.settings['preferences'].delete('home_board')
-          user.settings['home_board_changed'] = true
-          user.notify('home_board_changed')
-          user.schedule_audit_protected_sources
-          user.schedule(:update_home_board_inflections)
-          user_changed = true
-        end
+    if ubcs.count > HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD
+      user_connection_data = ubcs.map { |ubc| { 'user_id' => ubc.user_id, 'home' => ubc.home } }
+      Board.schedule_for(:slow, :clear_home_and_sidebar_for_deleted_board, board_global_id, board_key, user_connection_data)
+    else
+      ubcs.each do |ubc|
+        Board.clear_home_and_sidebar_for_user(ubc.user, board_global_id, board_key, ubc.home)
       end
-      sidebar = user.settings['preferences']['sidebar_boards']
-      sidebar = sidebar.values if sidebar.is_a?(Hash)
-      if sidebar.is_a?(Array)
-        original_len = sidebar.length
-        sidebar.reject! { |b| b && b['key'] == board_key }
-        if sidebar.length != original_len
-          user.settings['preferences']['sidebar_boards'] = sidebar
-          user.settings['sidebar_changed'] = true
-          user_changed = true
-        end
-      end
-      user.save_with_sync('home_board_deleted') if user_changed
     end
     UserBoardConnection.where(board_id: self.id).delete_all
     ue = self.user && self.user.user_extra
@@ -2005,6 +1988,45 @@ class Board < ActiveRecord::Base
       ue.save if changed
     end
     DeletedBoard.process(self)
+  end
+
+  # Clears home_board and sidebar refs for one user. Used inline (few users) and by the background job.
+  def self.clear_home_and_sidebar_for_user(user, board_global_id, board_key, had_home)
+    return unless user && user.settings
+    user.settings['preferences'] ||= {}
+    user_changed = false
+    if had_home
+      if user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'] == board_global_id
+        user.settings['preferences'].delete('home_board')
+        user.settings['home_board_changed'] = true
+        user.notify('home_board_changed')
+        user.schedule_audit_protected_sources
+        user.schedule(:update_home_board_inflections)
+        user_changed = true
+      end
+    end
+    sidebar = user.settings['preferences']['sidebar_boards']
+    sidebar = sidebar.values if sidebar.is_a?(Hash)
+    if sidebar.is_a?(Array)
+      original_len = sidebar.length
+      sidebar.reject! { |b| b && b['key'] == board_key }
+      if sidebar.length != original_len
+        user.settings['preferences']['sidebar_boards'] = sidebar
+        user.settings['sidebar_changed'] = true
+        user_changed = true
+      end
+    end
+    user.save_with_sync('home_board_deleted') if user_changed
+  end
+
+  # Background job: clears home_board and sidebar refs for many users after board deletion.
+  def self.clear_home_and_sidebar_for_deleted_board(board_global_id, board_key, user_connection_data)
+    return unless user_connection_data.is_a?(Array)
+    user_connection_data.each do |entry|
+      next unless entry.is_a?(Hash) && entry['user_id']
+      user = User.find_by(id: entry['user_id'])
+      clear_home_and_sidebar_for_user(user, board_global_id, board_key, entry['home'])
+    end
   end
   
   def images_and_sounds_for(user)

@@ -905,7 +905,11 @@ export default Component.extend({
             modalService.open('button-settings', {button: button, board: board});
           }, 100);
         };
-        _this.get('contentGrabbers').save_pending().then(openNextButtonSettings, openNextButtonSettings);
+        var onSaveFailure = function() {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          modal.error(i18n.t('error_saving_content', "There was an error saving content, please try again"));
+        };
+        _this.get('contentGrabbers').save_pending().then(openNextButtonSettings, onSaveFailure);
       }
     },
     setState: function(state) {

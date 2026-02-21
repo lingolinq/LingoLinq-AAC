@@ -2302,6 +2302,7 @@ describe Board, :type => :model do
       u.settings['preferences'] ||= {}
       u.settings['preferences']['home_board'] = { 'id' => b.global_id, 'key' => b.key, 'locale' => 'en' }
       u.save
+      Worker.process_queues  # track_boards creates UserBoardConnection
       expect(UserBoardConnection.where(board_id: b.id, home: true).count).to eq(1)
       b.destroy
       u.reload
@@ -2315,11 +2316,37 @@ describe Board, :type => :model do
       u.settings['preferences'] ||= {}
       u.settings['preferences']['sidebar_boards'] = [{ 'key' => b.key, 'name' => 'Test', 'locale' => 'en' }]
       u.save
+      Worker.process_queues  # track_boards creates UserBoardConnection
       expect(UserBoardConnection.where(board_id: b.id, home: false).count).to eq(1)
       b.destroy
       u.reload
       expect(u.settings['preferences']['sidebar_boards'].map { |s| s['key'] }).not_to include(b.key)
       expect(UserBoardConnection.where(board_id: b.id).count).to eq(0)
+    end
+
+    it "should schedule background job when many users affected to avoid blocking destroy" do
+      stub_const('Board::HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD', 2)
+      u = User.create
+      b = Board.create(:user => u, public: true)
+      users = 3.times.map { User.create }
+      users.each_with_index do |usr, i|
+        usr.settings['preferences'] ||= {}
+        usr.settings['preferences']['home_board'] = i < 2 ? { 'id' => b.global_id, 'key' => b.key } : nil
+        usr.settings['preferences']['sidebar_boards'] = [{ 'key' => b.key, 'name' => 'Test' }]
+        usr.save
+        UserBoardConnection.create!(user: usr, board: b, home: i < 2)
+      end
+      Worker.process_queues  # run track_boards while board still exists
+      expect(UserBoardConnection.where(board_id: b.id).count).to be >= 3
+      b.destroy
+      actions = Worker.scheduled_actions('slow')
+      expect(actions.any? { |a| a['args'] && a['args'][0] == 'Board' && a['args'][2].to_h['method'] == 'clear_home_and_sidebar_for_deleted_board' }).to eq(true)
+      Worker.process_queues
+      users.each do |usr|
+        usr.reload
+        expect(usr.settings['preferences']['home_board']).to eq(nil)
+        expect(usr.settings['preferences']['sidebar_boards'].map { |s| s['key'] }).not_to include(b.key)
+      end
     end
   end
   

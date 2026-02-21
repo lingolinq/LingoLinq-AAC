@@ -46,7 +46,7 @@ When a board is destroyed via the normal flow (`DELETE /api/v1/boards/:id`):
 **Notes:**
 - `self.id` is still valid in `after_destroy` (object exists in memory)
 - Match by `global_id` because `preferences.home_board['id']` stores global_id
-- If many users are affected, consider scheduling a job instead of doing it inline to avoid slow destroys
+- If many users are affected (see `Board::HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD`), a background job is scheduled instead of doing it inline to avoid slow destroys
 
 ### Option B: Extract Shared Logic
 

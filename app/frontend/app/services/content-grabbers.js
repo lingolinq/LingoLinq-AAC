@@ -1301,7 +1301,7 @@ var pictureGrabber = EmberObject.extend({
           board.set('image_urls', urls);
           var modelButtons = board.get('buttons') || [];
           for(var b = 0; b < modelButtons.length; b++) {
-            if(modelButtons[b] && modelButtons[b].id === button_id) {
+            if(modelButtons[b] && modelButtons[b].id == button_id) {
               modelButtons[b].image_id = serverId;
               break;
             }

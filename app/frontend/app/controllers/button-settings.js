@@ -1048,7 +1048,7 @@ export default modal.ModalController.extend({
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
-      _this.get('contentGrabbers').save_pending().then(function() {
+      this.get('contentGrabbers').save_pending().then(function() {
         modal.close();
       }, function() {
         modal.close();

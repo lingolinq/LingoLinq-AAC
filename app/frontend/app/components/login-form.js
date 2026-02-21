@@ -210,18 +210,18 @@ export default Component.extend({
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
       session.confirm_authentication(data).then(function() {
+        _this.set('login_single_assertion', true);
+        _this.set('login_followup', false);
         _this.send('login_success', false);
       });
-      _this.set('login_single_assertion', true);
-      _this.set('login_followup', false);
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
       session.confirm_authentication(data).then(function() {
+        _this.set('login_followup', true);
+        _this.set('login_single_assertion', false);
+        _this.set('login_followup_already_long_token', data.long_token_set);
         _this.send('login_success', false);
       });
-      _this.set('login_followup', true);
-      _this.set('login_single_assertion', false)
-      _this.set('login_followup_already_long_token', data.long_token_set);
     } else {
       session.confirm_authentication(data).then(function() {
         _this.send('login_success', true);
