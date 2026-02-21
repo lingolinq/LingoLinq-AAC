@@ -120,7 +120,7 @@ describe('app_state', function() {
       expect(LingoLinq.controller).toEqual(controller);
       expect(app_state.controller).toEqual(controller);
       expect(stashes.controller).toEqual(controller);
-      expect(boardGrabber.transitioner).toEqual(route);
+      expect(boardGrabber.transitioner).toEqual(app_state.get('router'));
       expect(bound_classes_setup).toEqual(true);
       expect(utterance_setup).toEqual(true);
       expect(logging_checked).toEqual(true);
