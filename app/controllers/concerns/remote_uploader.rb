@@ -13,7 +13,9 @@ module RemoteUploader
       res = Typhoeus.head(url)
       if res.success?
         record.url = url
-        record.settings['pending'] = false;
+        record.settings['pending'] = false
+        record.settings['data_uri'] = nil
+        record.data = nil if record.respond_to?(:data=)
         record.save
         render json: {confirmed: true, url: url}.to_json
       else

@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
@@ -35,12 +36,15 @@ export default Controller.extend({
   }),
   ordered_buttons: null,
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
-    if(!this || typeof this.get !== 'function' || !this.appState) { return; }
-    if(!this.get('model')) { return; }
+    console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') });
+    if(!this || typeof this.get !== 'function' || !this.appState) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); return; }
+    if(!this.get('model')) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); return; }
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying');
     editManager.process_for_displaying(ignore_fast_html);
+    console.log('[BOARD-DEBUG] board/index processButtons() done');
   }),
   check_for_share_approval: observer(
     'model.id',
@@ -110,6 +114,21 @@ export default Controller.extend({
     }
   ),
   saveButtonChanges: function() {
+    var orderedButtons = this.get('ordered_buttons') || [];
+    var pendingImage = false;
+    for(var ri = 0; ri < orderedButtons.length && !pendingImage; ri++) {
+      var row = orderedButtons[ri];
+      for(var ci = 0; ci < row.length && !pendingImage; ci++) {
+        var btn = row[ci];
+        if(btn && btn.get && btn.get('image_id') && btn.get('pending_image')) {
+          pendingImage = true;
+        }
+      }
+    }
+    if(pendingImage) {
+      modal.warning(i18n.t('wait_for_images', "Please wait for all images to finish loading before saving."), true);
+      return;
+    }
 
     var state = editManager.process_for_saving();
 
@@ -191,7 +210,32 @@ export default Controller.extend({
 
     var board = this.get('model');
     var needs_refresh = board.get('update_visibility_downstream');
-    board.save().then(function(brd) {
+    // Preserve image_urls before save - server response can be incomplete for newly-created/edited boards,
+    // causing images to disappear after save. Merge our local URLs back in so display stays correct.
+    var imageUrlsBeforeSave = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
+    // Include URLs from ordered_buttons for any images not yet in image_urls (newly added in-session)
+    (orderedButtons || []).forEach(function(btnRow) {
+      (btnRow || []).forEach(function(btn) {
+        var imgId = btn && (btn.get ? btn.get('image_id') : btn.image_id);
+        if(imgId && !imageUrlsBeforeSave[imgId]) {
+          var url = (btn.get ? btn.get('local_image_url') : btn.local_image_url) || (btn.get ? btn.get('image_url') : btn.image_url);
+          if(url) {
+            imageUrlsBeforeSave[imgId] = url;
+          }
+        }
+      });
+    });
+    // Ensure images are pushed/available before save so backend can resolve all image_ids
+    var pushPromise = (this.persistence.get('online') && board.get && board.find_content_locally) ?
+      (board.set('fetched', false), board.find_content_locally()) : RSVP.resolve();
+    pushPromise.catch(function() {
+      return RSVP.resolve();
+    }).then(function() {
+      return board.save();
+    }).then(function(brd) {
+      var fromServer = brd.get('image_urls') || {};
+      var merged = Object.assign({}, fromServer, imageUrlsBeforeSave);
+      brd.set('image_urls', merged);
       if(update_locale) {
         _this.stashes.persist('label_locale', update_locale);
         _this.appState.set('label_locale', update_locale);
@@ -293,12 +337,13 @@ export default Controller.extend({
   ),
   update_current_board_state: observer(
     'model.id',
+    'model.global_id',
     'model.integration',
     'model.integration_name',
     'model.locale',
     'model.locales',
     function() {
-      if(this.get('model.id') && this.appState.get('currentBoardState.id') == this.get('model.id')) {
+      if(this.get('model.id') && this.appState.get('currentBoardState.id') == (this.get('model.global_id') || this.get('model.id'))) {
         this.appState.setProperties({
           'currentBoardState.integration_name': this.get('model.integration') && this.get('model.integration_name'),
           'currentBoardState.text_direction': i18n.text_direction(this.get('model.locale')),
@@ -913,9 +958,12 @@ export default Controller.extend({
   ),
   base_text_height: computed(
     'appState.currentUser.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text_position',
     function() {
-      var text = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
-      var position = this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var text = (user && user.get && user.get('preferences.device.button_text')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(text == "small") {
         return 14;
       } else if(text == "none" || position == "none") {
@@ -932,9 +980,14 @@ export default Controller.extend({
   text_style: computed(
     'appState.currentUser.preferences.device.button_text',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.preferences.device.button_text',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
-      var size = this.appState.get('currentUser.preferences.device.button_text') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
-      if(this.appState.get('currentUser.preferences.device.button_text_position') == 'none') {
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var size = (user && user.get && user.get('preferences.device.button_text')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text);
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      if(position == 'none') {
         size = 'none';
       }
       if(size != 'none') {
@@ -950,11 +1003,15 @@ export default Controller.extend({
   text_position: computed(
     'model.text_only',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
       if(this.get('model.text_only')) {
         return 'text_position_text_only';
       }
-      return "text_position_" + (this.appState.get('currentUser.preferences.device.button_text_position') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position));
+      var user = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      var position = (user && user.get && user.get('preferences.device.button_text_position')) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
+      return "text_position_" + (position || 'top');
     }
   ),
   symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
@@ -985,17 +1042,27 @@ export default Controller.extend({
     'stashes.all_buttons_enabled',
     'stashes.current_mode',
     'paint_mode',
+    'appState.edit_mode',
     'border_style',
     'text_style',
     'model.finding_target',
     'model.hide_empty',
     'appState.currentUser.preferences.hidden_buttons',
     'appState.currentUser.hide_symbols',
+    'appState.referenced_user.hide_symbols',
+    'appState.speak_mode',
+    'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
     'appState.currentUser.preferences.high_contrast',
     function() {
-      var res = "board advanced_selection colored_icons ";
+      var res = "board advanced_selection ";
+      if(this.appState.get('edit_mode')) {
+        res = res + "edit ";
+      }
+      if(!this.appState.get('currentUser.preferences.folder_icons')) {
+        res = res + "colored_icons ";
+      }
       if(this.appState.get('currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
@@ -1015,7 +1082,8 @@ export default Controller.extend({
           res = res + 'grid_hidden_buttons ';
         }
       }
-      if(this.appState.get('currentUser.hide_symbols')) {
+      var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((displayUser && displayUser.get && displayUser.get('hide_symbols'))) {
         res = res + 'show_labels ';
       }
       if(this.get('paint_mode')) {
@@ -1085,13 +1153,16 @@ export default Controller.extend({
     'model.text_only',
     'appState.currentUser.hide_symbols',
     'appState.currentUser.preferences.device.button_text_position',
+    'appState.referenced_user.hide_symbols',
+    'appState.referenced_user.preferences.device.button_text_position',
+    'appState.speak_mode',
     function() {
       var res = "button-label-holder ";
-      if(this.get('appState.currentUser.hide_symbols') || this.get('model.text_only')) {
+      var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((displayUser && displayUser.get && displayUser.get('hide_symbols')) || this.get('model.text_only')) {
         res = res + "no_image ";
       }
-      var currentUser = this.appState.get('currentUser');
-      var devicePrefs = currentUser && currentUser.get && currentUser.get('preferences.device');
+      var devicePrefs = displayUser && displayUser.get && displayUser.get('preferences.device');
       var position = (devicePrefs && devicePrefs.button_text_position) || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_text_position);
       if(position == 'top' && !this.get('model.text_only')) {
         res = res + "top ";
@@ -1117,6 +1188,15 @@ export default Controller.extend({
 //       }, function() { });
     }
   }),
+
+  _extractButtonId: function(id, event) {
+    if (id && typeof id === 'object' && id.target) {
+      event = id;
+      id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
+    }
+    return { id: id, event: event };
+  },
+
   actions: {
     boardDetails: function() {
       modal.open('board-details', {board: this.get('model')});
@@ -1125,6 +1205,10 @@ export default Controller.extend({
       var _this = this;
       var controller = this;
       var board = this.get('model');
+      var extracted = this._extractButtonId(id, event);
+      id = extracted.id;
+      event = extracted.event;
+      if(!id) { return; }
       if(_this.appState.get('edit_mode')) {
         if(editManager.finding_target()) {
           editManager.apply_to_target(id);
@@ -1144,7 +1228,8 @@ export default Controller.extend({
       }
     },
     buttonPaint: function(id) {
-      editManager.paint_button(id);
+      id = this._extractButtonId(id).id;
+      if(id) { editManager.paint_button(id); }
     },
     complete_word: function(word) {
       try {
@@ -1172,17 +1257,19 @@ export default Controller.extend({
     },
     symbolSelect: function(id) {
       var _this = this;
-      var board = this;
-      if(!_this.appState.get('edit_mode')) { return; }
+      id = this._extractButtonId(id).id;
+      if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
+      if(!button) { return; }
       button.state = 'picture';
       modal.open('button-settings', {button: button, board: this.get('model')});
     },
     actionSelect: function(id) {
       var _this = this;
-      var board = this;
-      if(!_this.appState.get('edit_mode')) { return; }
+      id = this._extractButtonId(id).id;
+      if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
+      if(!button) { return; }
       button.state = 'action';
       modal.open('button-settings', {button: button, board: this.get('model')});
     },
@@ -1190,9 +1277,11 @@ export default Controller.extend({
       editManager.switch_buttons(dragId, dropId);
     },
     clear_button: function(id) {
-      editManager.clear_button(id);
+      id = this._extractButtonId(id).id;
+      if(id) { editManager.clear_button(id); }
     },
     stash_button: function(id) {
+      id = this._extractButtonId(id).id;
       editManager.stash_button(id || editManager.stashed_button_id);
       modal.success(i18n.t('button_stashed', "Button stashed!"));
       var $stash_hover = $("#stash_hover");

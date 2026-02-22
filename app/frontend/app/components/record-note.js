@@ -172,6 +172,7 @@ export default Component.extend({
           notify: notify
         }, _this.get('model.id'));
         stashes.push_log(true);
+        _this.get('modal').close(true);
       };
       if (this.get('persistence').get('online')) {
         const log = _this.get('store').createRecord('log', {

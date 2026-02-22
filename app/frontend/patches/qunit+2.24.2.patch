@@ -1,0 +1,17 @@
+diff --git a/node_modules/qunit/qunit/qunit.js b/node_modules/qunit/qunit/qunit.js
+index 294dd08..52a86c3 100644
+--- a/node_modules/qunit/qunit/qunit.js
++++ b/node_modules/qunit/qunit/qunit.js
+@@ -3572,10 +3572,9 @@
+     var exportedModule = false;
+     if (window$1 && document) {
+       // QUnit may be defined when it is preconfigured but then only QUnit and QUnit.config may be defined.
+-      if (window$1.QUnit && window$1.QUnit.version) {
+-        throw new Error('QUnit has already been defined.');
++      if (!(window$1.QUnit && window$1.QUnit.version)) {
++        window$1.QUnit = QUnit;
+       }
+-      window$1.QUnit = QUnit;
+       exportedModule = true;
+     }
+ 

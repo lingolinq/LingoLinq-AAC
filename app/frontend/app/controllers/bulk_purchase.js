@@ -10,7 +10,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
-  update_classes: Subscription.obs_func.observes.apply(Subscription.obs_func, Subscription.obs_properties),
+  update_classes: Subscription.update_classes_observer,
   load_gift: function(gift_id) {
     var _this = this;
     _this.set('gift', {loading: true});

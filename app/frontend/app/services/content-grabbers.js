@@ -1,8 +1,8 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
-import { later as runLater, run } from '@ember/runloop';
+import { later as runLater, run, schedule } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import RSVP from 'rsvp';
 // import $ from 'jquery';
@@ -59,7 +59,8 @@ var contentGrabbers = Service.extend({
     var promise = new RSVP.Promise(function(resolve, reject) {
       if((object.get('url') || "").match(/^data:/)) {
         object.set('data_url', object.get('url'));
-        object.set('url', null);
+        // Keep url as data URL so backend receives it (JsonApi stores in ButtonImage.data for persistence).
+        // Only clear after create if we need to trigger client upload flow.
       }
       var original = object;
       var original_url = object.get('url');
@@ -106,42 +107,12 @@ var contentGrabbers = Service.extend({
         });
 
         if(existing_saved) {
-          // If we found an existing image, update it with any new metadata and return it
-          var needs_save = false;
-          if (object.get('content_type') && !existing_saved.get('content_type')) {
-            existing_saved.set('content_type', object.get('content_type'));
-            needs_save = true;
-          }
-          if (object.get('width') && !existing_saved.get('width')) {
-            existing_saved.set('width', object.get('width'));
-            needs_save = true;
-          }
-          if (object.get('height') && !existing_saved.get('height')) {
-            existing_saved.set('height', object.get('height'));
-            needs_save = true;
-          }
-          if (object.get('license') && !existing_saved.get('license')) {
-            existing_saved.set('license', object.get('license'));
-            needs_save = true;
-          }
-
           if(object.get('isNew')) {
             LingoLinq.store.unloadRecord(object);
           }
           delete pendingRecordMap[normalized_url];
-          
-          if (needs_save && existing_saved.get('hasDirtyAttributes')) {
-            existing_saved.save().then(function (saved) {
-              deferred.resolve(saved);
-              resolve(saved);
-            }, function (err) {
-              delete pendingMap[normalized_url];
-              reject(err);
-            });
-          } else {
-            deferred.resolve(existing_saved);
-            resolve(existing_saved);
-          }
+          deferred.resolve(existing_saved);
+          resolve(existing_saved);
           return;
         }
 
@@ -435,6 +406,7 @@ var contentGrabbers = Service.extend({
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
       var reader = new FileReader();
+      var _this = this;
       reader.onloadend = function(data) {
         run(function() {
           if(type == 'blob') {
@@ -1117,6 +1089,7 @@ var pictureGrabber = EmberObject.extend({
           type: 'private'
         }
       });
+      var _this = this;
       return window.cg.save_record(image);
     });
     return save_image;
@@ -1152,13 +1125,63 @@ var pictureGrabber = EmberObject.extend({
       i.src = preview.save_url || preview.url;
     });
 
-    var button = editManager.find_button(_this.controller.get('model.id'));
+    var button_id = _this.controller && _this.controller.get('model.id');
+    var button = button_id ? editManager.find_button(button_id) : null;
     var label = button && button.label;
     var save_image = image_load.then(function(data) {
       var url = preview.save_url || preview.url;
 
-      // Validate URL before saving
-      if(!url || !url.match(/^https?:\/\//)) {
+      if(!url) {
+        console.error('Invalid URL in save_image_preview: missing url', preview);
+        return RSVP.reject({error: 'invalid image URL'});
+      }
+
+      // Data URLs (file upload, webcam) - save_record handles these by storing in data_url
+      if(url.match(/^data:/)) {
+        var image = LingoLinq.store.createRecord('image', {
+          url: url,
+          content_type: preview.content_type,
+          width: data.width,
+          height: data.height,
+          hc: preview.hc,
+          button_label: label || preview.suggestion,
+          license: preview.license || {type: 'private'},
+          protected: preview.protected,
+          protected_source: preview.protected_source
+        });
+        return window.cg.save_record(image);
+      }
+
+      // Blob URLs (local file preview via File API) - fetch and convert to data URL before saving
+      if(url.match(/^blob:/)) {
+        return fetch(url).then(function(r) { return r.blob(); }).then(function(blob) {
+          return new RSVP.Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onloadend = function() {
+              var dataUrl = reader.result;
+              var image = LingoLinq.store.createRecord('image', {
+                url: dataUrl,
+                content_type: preview.content_type || blob.type,
+                width: data.width,
+                height: data.height,
+                hc: preview.hc,
+                button_label: label || preview.suggestion,
+                license: preview.license || {type: 'private'},
+                protected: preview.protected,
+                protected_source: preview.protected_source
+              });
+              resolve(window.cg.save_record(image));
+            };
+            reader.onerror = function() { reject({error: 'invalid image URL'}); };
+            reader.readAsDataURL(blob);
+          });
+        }, function() {
+          return RSVP.reject({error: 'invalid image URL'});
+        });
+      }
+
+      // HTTP/HTTPS URLs (symbol search, etc.)
+      if(!url.match(/^https?:\/\//)) {
         console.error('Invalid URL in save_image_preview:', url, preview);
         return RSVP.reject({error: 'invalid image URL'});
       }
@@ -1257,23 +1280,45 @@ var pictureGrabber = EmberObject.extend({
     var save_image = this.save_image_preview(preview, force_content_type);
     var button_id = _this.controller.get('model.id');
     save_image.then(function(image) {
-      // TODO: if the image doesn't have a label yet, go ahead and set
-      // it to the filename of this image pretty formatted (I guess also
-      // strip off any trailing numbers).
-      _this.controller.set('model.image', image);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.image', image);
+      }
       _this.clear();
-      var button_image = {url: image.get('url'), id: image.id};
-      editManager.change_button(button_id, {
-        'image': image,
-        'image_id': image.id
+      // Defer to afterRender so Ember Data has finished processing the save response.
+      // This ensures we use the server-assigned id (not the client id) when the server
+      // returns a different id (e.g. due to RecordIdentifier handling).
+      schedule('afterRender', function() {
+        var serverId = image.get && image.get('id') || image.id;
+        editManager.change_button(button_id, {
+          'image': image,
+          'image_id': serverId
+        });
+        var board = editManager.controller && editManager.controller.get('model');
+        var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (image.url || '');
+        if(board && imgUrl && (imgUrl.match(/^https?:\/\//) || imgUrl.match(/^data:/) || imgUrl.match(/^blob:/))) {
+          var urls = board.get('image_urls') || {};
+          urls = Object.assign({}, urls, { [serverId]: imgUrl });
+          board.set('image_urls', urls);
+          var modelButtons = board.get('buttons') || [];
+          for(var b = 0; b < modelButtons.length; b++) {
+            if(modelButtons[b] && modelButtons[b].id == button_id) {
+              modelButtons[b].image_id = serverId;
+              break;
+            }
+          }
+        }
       });
-      _this.controller.set('model.pending_image', false);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.pending_image', false);
+      }
     }).then(null, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
       lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
-      _this.controller.set('model.pending_image', false);
+      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+        _this.controller.set('model.pending_image', false);
+      }
     });
   },
   save_pending: function() {
@@ -1285,17 +1330,25 @@ var pictureGrabber = EmberObject.extend({
       var original = this.controller.get('original_image_license') || {};
       emberSet(license, 'type', license.type || original.type);
       if(license.type != original.type || license.author_name != original.author_name || license.author_url != original.author_url) {
-        this.controller.set('model.pending_image', false);
+        if(this.controller && !this.controller.isDestroyed && !this.controller.isDestroying) {
+          this.controller.set('model.pending_image', false);
+        }
         if(this.controller.get('model.image.permissions.edit')) {
           this.controller.get('model.image').save().then(function() {
-            _this.controller.set('model.pending_image', false);
+            if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+              _this.controller.set('model.pending_image', false);
+            }
           }, function() {
             alert(i18n.t('saving_image_failed', "Saving image settings failed!"));
-            _this.controller.set('model.pending_image', false);
-          });  
+            if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+              _this.controller.set('model.pending_image', false);
+            }
+          });
         } else {
-          console.error("tried to save uneditable image")
-          _this.controller.set('model.pending_image', false);
+          console.error("tried to save uneditable image");
+          if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+            _this.controller.set('model.pending_image', false);
+          }
         }
       }
     }
@@ -1490,6 +1543,9 @@ var pictureGrabber = EmberObject.extend({
 var videoGrabber = EmberObject.extend({
   setup: function(controller) {
     var _this = this;
+    if (!controller || controller.isDestroyed || controller.isDestroying) {
+      return;
+    }
     this.controller = controller;
     _this.controller.addObserver('video_preview', _this, _this.default_video_preview_license);
   },
@@ -1578,8 +1634,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(_this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(_this.controller.get('video_recording.stream'));
+        if(this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(this.controller.get('video_recording.stream'));
           return;
         }
 
@@ -2165,13 +2221,13 @@ var soundGrabber = EmberObject.extend({
     }
     if(action == 'start' && mr && mr.state == 'inactive') {
       var _this = this;
-      var delay = Ember.testing ? 0 : 500;
+      var delay = isTesting() ? 0 : 500;
       var start = function() {
         _this.controller.set('sound_recording.blob', null);
         _this.controller.set('sound_recording.recording', true);
         mr.start(60000);
       };
-      if(Ember.testing) {
+      if(isTesting()) {
         start();
       } else {
         runLater(start, 500);

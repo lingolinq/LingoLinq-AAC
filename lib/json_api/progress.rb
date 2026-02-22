@@ -21,8 +21,10 @@ module JsonApi::Progress
       json['finished_at'] = last_progress.finished_at.iso8601
       json['result'] = last_progress.settings['result']
     end
-    if json['status'] == 'errored' && last_progress.settings['error_result']
-      json['result'] = last_progress.settings['error_result']
+    if json['status'] == 'errored'
+      error_from_settings = last_progress.settings['error_result'] ||
+        (last_progress.settings['error'] ? { 'error' => last_progress.settings['error'] } : nil)
+      json['result'] = error_from_settings if error_from_settings
     end
     json['percent'] = progress.settings['percent'] if progress.settings['percent']
     json['sub_status'] = progress.settings['message_key'] if progress.settings['message_key']

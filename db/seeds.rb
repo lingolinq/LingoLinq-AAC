@@ -4,6 +4,19 @@
 # This file is idempotent - it can be run multiple times safely without creating duplicates.
 # It checks for existing records before creating new ones.
 #
+# Sensitive credentials: Use environment variables. In production/staging, SEED_*_PASSWORD
+# must be set; in development/test, defaults are used if not set.
+#   SEED_EXAMPLE_PASSWORD - example user (default in dev: 'password')
+#   SEED_ADMIN_PASSWORD   - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_DEMO_PASSWORD   - demo users: SLPs, students (default in dev: 'demo2025!')
+
+def seed_password(env_key, dev_default)
+  if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
+    raise "Cannot seed: #{env_key} must be set in production/staging. Use strong credentials."
+  end
+  ENV[env_key].presence || dev_default
+end
+#
 # Examples:
 #
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
@@ -23,6 +36,7 @@ else
   puts "Starting database seeding..."
   puts "=" * 60
 
+  example_password = seed_password('SEED_EXAMPLE_PASSWORD', 'password')
   user1 = User.find_by(user_name: 'example')
   unless user1
     user1 = User.process_new({
@@ -30,7 +44,7 @@ else
       user_name: 'example',
       email: 'admin@example.com',
       public: false,
-      password: 'password',
+      password: example_password,
       description: "I'm just here to help",
       location: "Anywhere and everywhere"
     }, { 
@@ -399,6 +413,8 @@ unless DEMO_ALREADY_SEEDED
   puts "=" * 60
 
   # ---- 1. Site Admin with lifetime license ----
+  admin_password = seed_password('SEED_ADMIN_PASSWORD', 'admin2025!')
+  demo_password = seed_password('SEED_DEMO_PASSWORD', 'demo2025!')
   demo_admin = User.find_by(user_name: 'lingolinq_admin')
   unless demo_admin
     demo_admin = User.process_new({
@@ -406,16 +422,16 @@ unless DEMO_ALREADY_SEEDED
       user_name: 'lingolinq_admin',
       email: 'admin@lingolinq.com',
       public: false,
-      password: 'admin2025!',
+      password: admin_password,
       description: "LingoLinq site administrator",
       location: "Portland, OR"
     }, {
       is_admin: true
     })
-    puts "  Created site admin: lingolinq_admin / admin2025!"
+    puts "  Created site admin: lingolinq_admin"
   end
   # Always ensure password and subscription are set (handles interrupted seed runs)
-  demo_admin.generate_password('admin2025!')
+  demo_admin.generate_password(admin_password)
   demo_admin.settings ||= {}
   demo_admin.settings['subscription'] ||= {}
   demo_admin.settings['subscription']['never_expires'] = true
@@ -466,7 +482,7 @@ unless DEMO_ALREADY_SEEDED
         user_name: profile[:user_name],
         email: profile[:email],
         public: false,
-        password: 'demo2025!',
+        password: demo_password,
         description: "Speech-Language Pathologist at Demo School District",
         location: profile[:location]
       }, {
@@ -563,7 +579,7 @@ unless DEMO_ALREADY_SEEDED
         user_name: profile[:user_name],
         email: "#{profile[:user_name]}@demoschooldistrict.org",
         public: false,
-        password: 'demo2025!',
+        password: demo_password,
         description: "AAC user, age #{profile[:age]}",
         location: "Portland, OR"
       }, {
@@ -925,8 +941,9 @@ unless DEMO_ALREADY_SEEDED
   puts "\n" + "=" * 60
   puts "Demo School District seeding complete!"
   puts "=" * 60
-  puts "\nLogin Credentials (all passwords: demo2025!):"
-  puts "  Admin:       lingolinq_admin / admin2025!"
+  puts "\nLogin Credentials:"
+  puts "  Admin:       lingolinq_admin (password from SEED_ADMIN_PASSWORD)"
+  puts "  SLP/Students: (password from SEED_DEMO_PASSWORD)"
   puts "  SLP 1:       sarah_chen_slp (manager + supervisor)"
   puts "  SLP 2:       marcus_williams_slp"
   puts "  SLP 3:       elena_rodriguez_slp"

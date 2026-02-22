@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import EmberObject from '@ember/object';
+import templateHelpers from './template_helpers';
 import LingoLinq from '../app';
 import i18n from './i18n';
 import { observer } from '@ember/object';
@@ -141,7 +141,7 @@ LingoLinq.Stats = EmberObject.extend({
     }
   ),
   label: computed('started_at', 'ended_at', function() {
-    return Ember.templateHelpers.date(this.get('started_at'), 'day') + " " + i18n.t('to', "to") + " " + Ember.templateHelpers.date(this.get('ended_at'), 'day');
+    return templateHelpers.date(this.get('started_at'), 'day') + " " + i18n.t('to', "to") + " " + templateHelpers.date(this.get('ended_at'), 'day');
   }),
   geo_locations: computed('locations', function() {
     return (this.get('locations') || []).filter(function(location) { return location.type == 'geo'; });

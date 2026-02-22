@@ -6,7 +6,7 @@ module Rails
           request.request_method,
           request.filtered_path,
           anonymized_ip(request),
-          Time.now.to_default_s ]
+          Time.now.iso8601 ]
       end
 
       def anonymized_ip(request)

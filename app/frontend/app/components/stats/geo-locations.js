@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Component from '@ember/component';
+import templateHelpers from '../../utils/template_helpers';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
@@ -49,13 +49,24 @@ export default Component.extend({
             marker.setMap(map);
             markers.push(marker);
 
-            var dater = Ember.templateHelpers.date;
-            var html = title + "<br/>" + dater(location.started_at, null) +
-                        " to <br/>" + dater(location.ended_at, null) + "<br/>" +
-                        "<a href='#' class='ember_link' data-location_id='" + location.id + "'>filter by this location</a>";
+            var dater = templateHelpers.date;
+            var container = document.createElement('div');
+            container.appendChild(document.createTextNode(title));
+            container.appendChild(document.createElement('br'));
+            container.appendChild(document.createTextNode(dater(location.started_at, null)));
+            container.appendChild(document.createTextNode(' to '));
+            container.appendChild(document.createElement('br'));
+            container.appendChild(document.createTextNode(dater(location.ended_at, null)));
+            container.appendChild(document.createElement('br'));
+            var link = document.createElement('a');
+            link.href = '#';
+            link.className = 'ember_link';
+            link.dataset.location_id = String(location.id);
+            link.textContent = i18n.t('filter_by_location', 'filter by this location');
+            container.appendChild(link);
 
             var info = new window.google.maps.InfoWindow({
-              content: html
+              content: container
             });
             window.google.maps.event.addListener(marker, 'click', function() {
               if(current_info) {

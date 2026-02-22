@@ -1,13 +1,11 @@
 /*jshint -W079 */
-// import { async } from 'qunit';
-import QUnit from 'qunit';
-import * as testHelpers from '@ember/test-helpers';
+// Use window.QUnit (from qunit-standalone.js) so tests register in the same instance Testem runs
+var QUnit = window.QUnit;
 import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
 import { set as emberSet, get as emberGet } from '@ember/object';
 
-var currentHooks = null;
 var names = [];
 var all_befores = [[]];
 var all_afters = [[]];
@@ -16,10 +14,8 @@ var current_test_id = 0;
 var current_afters = [];
 var waiting = {};
 
-var LingoLinq = window.LingoLinq || (window.LingoLinq = {});
-
 var assert = null;
-function test_wrap(name, instance, befores, afters) {
+function test_wrap(name, instance, befores, afters, lookup) {
   var pre = [];
   var post = [];
   all_befores.forEach(function(list) {
@@ -47,6 +43,10 @@ function test_wrap(name, instance, befores, afters) {
 
       var this_arg = _this;
 
+      if (lookup) {
+        this_arg = lookup;
+      }
+
       current_test_id++;
       // try {
         instance.call(this_arg);
@@ -67,67 +67,36 @@ function test_wrap(name, instance, befores, afters) {
 
 var container_lookup = null;
 var describe = function(name, lookup, callback) {
-  // Handle optional lookup parameter
   if(!callback) {
     callback = lookup;
-    lookup = null;
   } else {
-    if(names.length === 0) {
-      container_lookup = lookup;
-    }
+    if(names.length === 0) { container_lookup = lookup; }
   }
-
-  var add_test = function(hooks) {
+  var add_test = function() {
     names.push(name);
     all_tests.push([]);
     all_befores.push([]);
     all_afters.unshift([]);
-
-    // Store hooks for nested beforeEach/afterEach to use
-    var previousHooks = currentHooks;
-    if (hooks) {
-      currentHooks = hooks;
-    }
-
     callback();
-
     all_tests[all_tests.length - 1].forEach(function(args) {
       if(args[1]) {
-        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters);
+        test_wrap(names.join(" ") + " - " + args[0], args[1], all_befores, all_afters, container_lookup);
       } else {
         console.debug('PENDING TEST: ' + names.join(" ") + " - " + args[0]);
       }
     });
-
-    currentHooks = previousHooks;
     names.pop();
     all_befores.pop();
     all_afters.shift();
     all_tests.pop();
-  };
-
+  }
   if(names.length === 0) {
-    // Top-level describe: create QUnit.module with proper lifecycle
     QUnit.module(name, function(hooks) {
-      // Determine which setup function to use based on lookup
-      if (container_lookup && container_lookup.startsWith('component:')) {
-        setupRenderingTest(hooks);
-      } else {
-        setupTest(hooks);
-      }
-
-      // Set up LingoLinq.store in beforeEach so this.owner is available
-      hooks.beforeEach(function() {
-        if (this.owner) {
-          LingoLinq.store = this.owner.lookup('service:store');
-        }
-      });
-
-      add_test(hooks);
+      // setupTest(hooks);
+      add_test();
     });
   } else {
-    // Nested describe: inherit parent module's hooks, don't create new module
-    add_test(currentHooks);
+    add_test();
   }
 };
 var context = describe;
@@ -258,22 +227,8 @@ var afterEach = function(callback) {
 var stub = function(object, method, replacement) {
   stub.stubs = stub.stubs || [];
   var stash = object[method];
-  // Use Object.defineProperty to bypass proxy restrictions
-  try {
-    Object.defineProperty(object, method, {
-      value: replacement,
-      writable: true,
-      configurable: true
-    });
-  } catch(e) {
-    // Fallback to direct assignment if defineProperty fails
-    try {
-      object[method] = replacement;
-    } catch(e2) {
-      // Last resort: use emberSet
-      emberSet(object, method, replacement);
-    }
-  }
+  emberSet(object, method, replacement);
+  //console.log(stubs);
   stub.stubs.push([object, method, stash]);
 };
 stub.stubs = [];

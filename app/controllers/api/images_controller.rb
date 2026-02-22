@@ -40,7 +40,7 @@ class Api::ImagesController < ApplicationController
     image = ButtonImage.find_by_path(params['id'])
     return unless exists?(image)
     return unless allowed?(image, 'view')
-    if image.process(params['image'])
+    if image.process(params['image'], {:user => @api_user})
       render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "image update failed", errors: image.processing_errors})

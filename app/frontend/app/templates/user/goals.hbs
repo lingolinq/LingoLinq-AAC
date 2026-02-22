@@ -9,7 +9,7 @@
     {{t "Goals failed to load" key="goals_failed_to_load"}}
   {{else}}
     {{#if this.primary_goal}}
-      {{#with this.primary_goal as |goal|}}
+      {{#let this.primary_goal as |goal|}}
         <div class='well goal sparkle_list_item'>
           {{#if this.badges_loaded}}
             <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
@@ -81,7 +81,7 @@
             {{goal.description}}
           </div>
         </div>
-      {{/with}}
+      {{/let}}
     {{else if this.any_goal}}
       <p>{{t "No primary goal set" key="no_primary_goal_set"}}</p>
     {{else}}
@@ -278,7 +278,7 @@
   <p>
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1f"}}
     {{#if this.app_state.feature_flags.subscriptions}}
-      {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+      <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
     {{else}}
       {{t "purchase a premium account" key="purchase_subscription_2"}}
     {{/if}}

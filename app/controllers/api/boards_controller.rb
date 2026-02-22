@@ -369,6 +369,67 @@ class Api::BoardsController < ApplicationController
     Rails.logger.warn('done with controller')
   end
   
+  def from_html
+    html = params['html'].to_s
+    return api_error(400, { error: 'html required' }) if html.blank?
+
+    board_opts = {
+      name: params['name'].presence || 'Imported Board',
+      key: params['key'].presence,
+      locale: params['locale'].presence || 'en'
+    }.compact
+
+    board = Converters::HtmlBoard.create_from_html(html, @api_user, board_opts)
+    if board && !board.errored?
+      render json: JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user)
+    else
+      api_error(400, {
+        error: 'board creation failed',
+        errors: board&.processing_errors
+      })
+    end
+  end
+
+  def generate_labels
+    unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
+      return api_error(403, { error: 'Feature not available' })
+    end
+    processed_params = request.content_type == 'application/json' ? JSON.parse(request.body.read) : params
+    prompt = (processed_params['prompt'] || '').to_s.strip
+    return api_error(400, { error: 'prompt required' }) if prompt.blank?
+
+    rows = (processed_params['rows'] || 2).to_i
+    columns = (processed_params['columns'] || 4).to_i
+    rows = [[1, rows].max, 20].min
+    columns = [[1, columns].max, 20].min
+
+    cell_count = rows * columns
+    locale_param = processed_params['locale'].presence || 'en'
+    include_core_words = processed_params['include_core_words'] != false && processed_params['include_core_words'] != 'false'
+    result = AiBoardGenerator.generate_words(
+      prompt: prompt,
+      rows: rows,
+      columns: columns,
+      locale: locale_param,
+      include_core_words: include_core_words
+    )
+    if result[:error]
+      return api_error(503, { error: result[:error] })
+    end
+    words = result[:words]
+    return api_error(400, { error: 'Could not generate words' }) if words.blank?
+    labels_str = words.first(cell_count).join(', ')
+    response = { labels: labels_str }
+    ai_name = result[:name].to_s.strip
+    response[:name] = if ai_name.present? && !name_looks_truncated?(ai_name)
+      ai_name
+    else
+      fallback_board_name(prompt)
+    end
+    response[:description] = result[:description].presence || prompt
+    render json: response
+  end
+
   def create
     @board_user = @api_user
     processed_params = params
@@ -404,8 +465,10 @@ class Api::BoardsController < ApplicationController
     rescue ActiveRecord::RecordNotUnique
       return api_error(400, {error: 'board key already in use'})
     end
-    if board.errored?
-      api_error(400, {error: "board creation failed", errors: board && board.processing_errors})
+    if board.errored? || !board.persisted?
+      errors = board&.processing_errors
+      errors ||= board&.errors&.full_messages if board && errors.blank?
+      api_error(400, {error: "board creation failed", errors: errors})
     else
       render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end
@@ -630,7 +693,7 @@ class Api::BoardsController < ApplicationController
   end
   
   def download
-    board = Board.find_by_path(params['board_id'])
+    board = Board.find_by_path(params['id'] || params['board_id'])
     return unless exists?(board)
     return unless allowed?(board, 'view')
     progress = Progress.schedule(board, :generate_download, (@api_user && @api_user.global_id), params['type'], {
@@ -713,5 +776,22 @@ class Api::BoardsController < ApplicationController
     board.star!(@api_user, star)
     render json: {starred: board.starred_by?(@api_user), user_id: @api_user.global_id, stars: board.stars}.to_json
   end
-  
+
+  TRUNCATED_NAME_ENDINGS = %w[the a an to for with and or of in on].freeze
+
+  def name_looks_truncated?(name)
+    return true if name.blank?
+    return true if name.split(/\s+/).size > 6
+    last_word = name.split(/\s+/).last&.downcase
+    TRUNCATED_NAME_ENDINGS.include?(last_word)
+  end
+
+  def fallback_board_name(prompt)
+    return 'AI Generated Board' if prompt.blank?
+    words = prompt.split(/\s+/).reject(&:blank?).first(6)
+    name = words.join(' ')
+    name = name[0, 50] + '…' if name.length > 50
+    name.presence || 'AI Generated Board'
+  end
+
 end

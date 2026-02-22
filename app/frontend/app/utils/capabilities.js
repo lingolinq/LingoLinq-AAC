@@ -247,14 +247,22 @@ var capabilities;
         capabilities.sync_access_token = function() {
           var auth_settings = stashes.get_object('auth_settings', true) || {};
           var new_token = auth_settings.access_token;
+          var has_valid_current = capabilities.access_token && capabilities.access_token !== 'none';
+          var has_valid_new = new_token && new_token !== 'none';
+          // Never overwrite a valid token with empty/'none' (stashes may not be populated yet, e.g. right after login)
+          if(!has_valid_new && has_valid_current) {
+            return;
+          }
           if(new_token !== capabilities.access_token) {
-            var old_token_preview = capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none';
-            var new_token_preview = new_token ? new_token.substring(0, 10) + '...' : 'none';
-            console.log('[capabilities] Syncing access_token', {
-              old_token_preview: old_token_preview,
-              new_token_preview: new_token_preview,
-              changed: new_token !== capabilities.access_token
-            });
+            if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {
+              var old_token_preview = capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none';
+              var new_token_preview = new_token ? new_token.substring(0, 10) + '...' : 'none';
+              console.log('[capabilities] Syncing access_token', {
+                old_token_preview: old_token_preview,
+                new_token_preview: new_token_preview,
+                changed: new_token !== capabilities.access_token
+              });
+            }
             capabilities.access_token = new_token;
           }
         };

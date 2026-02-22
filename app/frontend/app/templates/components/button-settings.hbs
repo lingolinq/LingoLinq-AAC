@@ -74,7 +74,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @checked={{this.model.hide_label}} @type="checkbox" />
+                  <Input @checked={{this.model.hide_label}} @type="checkbox" {{on "change" (action "updateHideLabel" value="target.checked")}} />
                   {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>
@@ -163,7 +163,7 @@
   {{/if}}
   <div style="margin-bottom: 10px;" class="options">
     <span class="picture_search_field">
-      <span style={{if this.multi_locales "display: inline-block; width: calc(100% - 60px); vertical-align: middle;" "display: inline-block; width: 100%; vertical-align: middle;"}}>
+      <span class={{if this.multi_locales "picture_search_input_with_locale" "picture_search_input_full"}}>
         <Input id="find_picture" @value={{this.model.image_field}} @enter={{action "find_picture"}} placeholder={{this.search_prompt}} class="form-control inline select_on_click" />
       </span>
       {{#if this.multi_locales}}
@@ -224,6 +224,14 @@
     {{/if}}
   </div>
 
+  {{#if this.model.image.url}}
+    {{#unless this.image_preview}}
+      <div style="text-align: center; margin-bottom: 15px; margin-top: 5px;">
+        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">{{t "Current picture" key="current_picture"}}</div>
+        <img src={{this.model.image.best_url_without_preferred_symbols}} class="button_image" alt="">
+      </div>
+    {{/unless}}
+  {{/if}}
   {{#if this.image_preview}}
     {{#if this.image_preview.error}}
       {{this.image_preview.error}}
@@ -291,23 +299,23 @@
       </div>
     {{/if}}
   {{else}}
-    {{#if image_search.error}}
-      <p class='text-danger' style='margin: 15px 0;'>{{image_search.error}}</p>
+    {{#if this.image_search.error}}
+      <p class='text-danger' style='margin: 15px 0;'>{{this.image_search.error}}</p>
       <div style='margin-top: 10px;'>
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
         <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
-      {{#if missing_library}}
+      {{#if this.missing_library}}
         <div style="margin: 10px 0 10px 0;">
-          {{#if missing_library.lessonpix}}
+          {{#if this.missing_library.lessonpix}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "LessonPix is a paid third-party symbol library with over 33,000 symbols. If you have a <a href='https://lessonpix.com' target='_blank' rel='noopener'>LessonPix account</a> you can <b>connect it to your %app_name% account in your User Profile</b>, and then you and any supervisors will be able to add LessonPix symbols to your boards." key="lessonpix_detailer"}}
-          {{else if missing_library.pcs}}
+          {{else if this.missing_library.pcs}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
             {{#link-to "user.subscription" this.appState.currentUser.user_name}}billing page{{/link-to}}.
-          {{else if missing_library.symbolstix}}
+          {{else if this.missing_library.symbolstix}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
             {{#link-to "user.subscription" this.appState.currentUser.user_name}}billing page{{/link-to}}.
@@ -317,26 +325,26 @@
         </div>
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
         <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
-      {{else if image_search.previews}}
+      {{else if this.image_search.previews}}
         <div style="margin: 10px 0 10px 0;">
-          {{#each image_search.previews as |image|}}
+          {{#each this.image_search.previews as |image|}}
             <img src={{image.thumbnail_url}} {{action "pick_preview" image}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;">
           {{/each}}
         </div>
-        {{#if current_library.giphy_asl}}
+        {{#if this.current_library.giphy_asl}}
           <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
 
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
         <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
-      {{else if image_search.previews_loaded}}
+      {{else if this.image_search.previews_loaded}}
         <div style="margin: 10px 0 10px 0;">
-          {{t "No results found for %{term}" key="no_image_results_for" term=image_search.term}}
+          {{t "No results found for %{term}" key="no_image_results_for" term=this.image_search.term}}
         </div>
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
         <button type="button" class='btn btn-default' {{action "clearImageWork"}}>{{t "Cancel" key="cancel"}}</button>
       {{else}}
-        {{#if current_library.giphy_asl}}
+        {{#if this.current_library.giphy_asl}}
           <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
         <button type='button' class='btn btn-default' {{action "word_art"}}>{{t "Make Word Art" key="make_word_art"}}</button>
@@ -360,7 +368,7 @@
       <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
-          {{#if model.load_board.key}}
+          {{#if this.model.load_board.key}}
             <img src={{this.model.icon}} style="height: 20px;">
             <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
@@ -479,7 +487,7 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=this.foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" onAction=(action "selectFoundBoard") locale=this.foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>
@@ -569,8 +577,8 @@
         </div>
       </div>
     {{/if}}
-  {{else if model.integrationOrWebhookAction}}
-    {{#if has_supervisees}}
+  {{else if this.model.integrationOrWebhookAction}}
+    {{#if this.has_supervisees}}
       <div class="form-group">
         <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
         <div class="col-sm-10">
@@ -704,7 +712,7 @@
         </div>
       {{/if}}
     {{/if}}
-  {{else if model.webhookAction}}
+  {{else if this.model.webhookAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Webhook" key="webhook"}}</label>
       <div class="col-sm-10">
@@ -719,7 +727,7 @@
         <p class='text-muted'>{{t "Webhooks can be configured for this user by opening their profile in a web browser." key="webhooks_setup_web"}}</p>
       </div>
     </div>
-  {{else if model.exportAction}}
+  {{else if this.model.exportAction}}
     <div class="form-group">
       <label for="format" class="col-sm-2 control-label">{{t "Format" key="format"}}</label>
       <div class="col-sm-10">
@@ -749,7 +757,7 @@
         <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key="integration_user_action_info"}}</p>
       </div>
     </div>
-  {{else if model.toggleFeatureAction}}
+  {{else if this.model.toggleFeatureAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Feature" key="feature"}}</label>
       <div class="col-sm-10">
@@ -1141,8 +1149,8 @@
 
         {{!-- Language tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if languageState "active" "hidden"}}>
-  {{#each model.translations as |locale|}}
+<div class={{if this.languageState "active" "hidden"}}>
+  {{#each this.model.translations as |locale|}}
     <div class="form-group">
       <label for="label" class="col-sm-2 control-label">{{t "Language" key="language"}}</label>
       <div class="col-sm-10">
@@ -1209,7 +1217,7 @@
 
         {{!-- Extras tab content (inlined) --}}
         <form class="form-horizontal">
-<div class={{if extrasState "active" "hidden"}}>
+<div class={{if this.extrasState "active" "hidden"}}>
     <div class="form-group">
       <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
@@ -1223,7 +1231,7 @@
             {{t "Visibility" key="visibility"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Show Button" key="never_show_button"}}
             {{else}}
               {{t "Always Show Button" key="always_show_button"}}
@@ -1232,13 +1240,13 @@
           </div>
         </div>
       {{/if}}
-      {{#if level_overrides.link_disabled}}
+      {{#if this.level_overrides.link_disabled}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
             {{t "Links" key="links"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Disable Link" key="never_disable_link"}}
             {{else}}
               {{t "Always Disable Link" key="always_disable_link"}}
@@ -1249,7 +1257,7 @@
       {{/if}}
       <div class='form-group'>
         <label for='hidden_level' class='col-sm-offset-2 col-sm-4'>
-          {{#if level_overrides.hidden}}
+          {{#if this.level_overrides.hidden}}
             <s>{{t "Hide Until Level" key="hide_until_level"}}</s>
           {{else}}
             {{t "Hide Until Level" key="hide_until_level"}}
@@ -1259,10 +1267,10 @@
             {{bound-select select_class="form-control" select_id="hidden_level" content=this.board_levels selection=this.model.hidden_level action=(action "updateModelHiddenLevel") }}
         </div>
       </div>
-      {{#unless model.talkAction}}
+      {{#unless this.model.talkAction}}
         <div class='form-group'>
           <label for='link_disabled_level' class='col-sm-offset-2 col-sm-4'>
-            {{#if level_overrides.link_disabled}}
+            {{#if this.level_overrides.link_disabled}}
               <s>{{t "Disable Link Until Level" key="disable_link_until_level"}}</s>
             {{else}}
               {{t "Disable Link Until Level" key="disable_link_until_level"}}
@@ -1273,7 +1281,7 @@
           </div>
         </div>
       {{/unless}}
-    {{else if advanced_level_style}}
+    {{else if this.advanced_level_style}}
       <div class='form-group'>
         <div class='col-sm-2'>
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
@@ -1289,7 +1297,7 @@
         <div class='col-sm-10'>
           <p class='form-control-static'>{{t "When users enable inflections and long-press on the button, these are the options they will see:" key="inflections_overlay_description"}}</p>
           <div>
-            {{#if board.translations}}
+            {{#if this.board.translations}}
               <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>

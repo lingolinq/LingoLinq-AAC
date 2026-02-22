@@ -1,6 +1,8 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  router: service('router'),
   title: "Search",
   model: function(params) {
     var q = params.q;
@@ -11,6 +13,6 @@ export default Route.extend({
   },
   setupController: function(controller) {
     var locale = (window.navigator.language || 'en').split(/-|_/)[0];
-    controller.transitionToRoute('search', locale, this.get('queryString'));
+    this.router.transitionTo('search', locale, this.get('queryString'));
   }
 });

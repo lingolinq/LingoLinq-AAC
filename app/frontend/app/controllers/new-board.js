@@ -12,8 +12,15 @@ import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
   uncloseable: true,
+  unprotected_vocabulary: computed('model.locale', function() {
+    var locale = this.get('model.locale');
+    if(locale) {
+      return i18n.get('unprotected_vocabulary')[locale];
+    }
+    return null;
+  }),
   opening: function() {
-    this.set('model', LingoLinq.store.createRecord('board', {public: false, license: {type: 'private'}, grid: {rows: 2, columns: 4}}));
+    this.set('model', LingoLinq.store.createRecord('board', {public: false, visibility: 'private', license: {type: 'private'}, grid: {rows: 2, columns: 4}}));
     if(window.webkitSpeechRecognition) {
       var speech = new window.webkitSpeechRecognition();
       if(speech) {
@@ -290,6 +297,13 @@ export default modal.ModalController.extend({
             cats.push(cat.id);
           }
         });
+        this.set('model.categories', cats);
+      }
+      if(this.get('model.visibility') == 'private') {
+        var cats = this.get('model.categories') || [];
+        if(cats.indexOf('protected_vocabulary') == -1 && cats.indexOf('unprotected_vocabulary') == -1) {
+          cats.push('unprotected_vocabulary');
+        }
         this.set('model.categories', cats);
       }
       this.get('model').save().then(function(board) {

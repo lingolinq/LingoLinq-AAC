@@ -76,24 +76,12 @@ module Passwords
         self.save
       end
     end
-    # 2FA enforcement for admin managers disabled pre-MVP.
-    # Re-enable before public release.
-    # if Organization.admin_manager?(self)
+    # TODO: Re-enable before production. Admin managers should have mandatory 2FA in production/staging.
+    # if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && Organization.admin_manager?(self)
     #   state[:required] = true
     #   state[:mandatory] = true
     #   self.assert_2fa! if !self.settings['2fa'] && !self.settings['tmp_2fa']
     # end
-    # Pre-MVP: 2FA is not user-configurable yet, so any existing
-    # settings['2fa'] was auto-asserted by the now-disabled mandatory
-    # enforcement above. Clear it so users are not blocked by
-    # device.missing_2fa? → permission_scopes=['none'].
-    # Remove this block when re-enabling 2FA enforcement.
-    if self.settings['2fa']
-      self.settings.delete('2fa')
-      self.settings.delete('tmp_2fa')
-      self.save if self.persisted?
-      state[:required] = false
-    end
     if state[:required]
       state[:verified] = !!(self.settings['2fa'] || {})['last_otp']
     end

@@ -195,6 +195,8 @@ rake extras:desktop
 
 **Framework:** Ember.js 3.28 with Ember Data for models
 
+**jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
+
 **Offline Support:** IndexedDB (web) or SQLite (mobile) via `dbman.js` abstraction layer
 
 **Key Utilities:** (in `app/frontend/app/utils/`)
@@ -254,6 +256,15 @@ rake extras:desktop
 - **User-facing strings:** ALWAYS use double quotes `"string"`
 - **All other strings:** ALWAYS use single quotes `'string'`
 - This convention is CRITICAL - i18n generator depends on it
+
+**Deprecations:**
+- NEVER suppress or hide deprecations. Fix the root cause instead.
+- Do not use `registerDeprecationHandler` to silence warnings.
+- When addressing Ember deprecations, migrate to the recommended APIs (e.g. `observer()` instead of `.observes()`, `isTesting()` from `@ember/debug` instead of `Ember.testing`).
+
+**Functionality and styling:**
+- Do NOT remove or change functionality when refactoring.
+- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
 
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
@@ -333,7 +344,7 @@ s = u.log_sessions.last
 bi = ButtonImage.last
 ```
 
-See CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
+See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
 
 ## Testing
 
@@ -352,7 +363,7 @@ See CODE_INVESTIGATION.md for detailed debugging guidance on common problem area
 - Translation files: `public/locales/*.json`
 - Word data import tool available in admin org for inflections/parts of speech
 - Template files at OpenAAC tools site for rules.json and words.json
-- See TRANSLATIONS.md for contributor guidelines
+- See docs/TRANSLATIONS.md for contributor guidelines
 - Use `i18n_generator.rb` scripts to manage translation files
 
 ## Additional Notes

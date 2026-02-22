@@ -9,7 +9,7 @@ module FeatureFlags
               'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages', 
               'app_store_monthly_purchases', 'ios_head_tracking', 'vertical_ios_head_tracking',
               'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
-              'skin_tones', 'lessons', 'other_menu', 'shallow_clones']
+              'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -18,7 +18,7 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations', 'swipe_pages',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu']
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation']
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

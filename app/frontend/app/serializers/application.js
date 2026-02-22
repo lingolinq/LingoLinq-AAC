@@ -46,6 +46,21 @@ export default DS.RESTSerializer.extend({
       }
     }
 
+    // When we request a board by key (e.g. findRecord('board', 'example/winter')), the API returns
+    // the board with global_id as id (e.g. '1_10'). Ember Data then tries to update the
+    // RecordIdentifier from 'example/winter' to '1_10', which triggers "The 'id' for a
+    // RecordIdentifier should not be updated once it has been set." Normalize so the primary
+    // data id matches the request; store the backend id as _actual_id for comparisons/API.
+    if (primaryModelClass.modelName === 'board' && requestType === 'findRecord' && payload && payload.board) {
+      var boardData = payload.board;
+      var boardId = boardData.id;
+      if (boardId != null && String(boardId) !== String(id)) {
+        payload = Object.assign({}, payload, {
+          board: Object.assign({}, boardData, { id: id, _actual_id: boardId })
+        });
+      }
+    }
+
     // Call the parent normalizeResponse (pass payload in case we replaced it for user 'self')
     return this._super(store, primaryModelClass, payload, id, requestType);
   }

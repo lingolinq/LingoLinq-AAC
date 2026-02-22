@@ -1,8 +1,8 @@
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import DS from 'ember-data';
-import Ember from 'ember';
 import LingoLinq from '../app';
+import templateHelpers from '../utils/template_helpers';
 import speecher from '../utils/speecher';
 import lingoLinqExtras from '../utils/extras';
 import editManager from '../utils/edit_manager';
@@ -222,10 +222,10 @@ LingoLinq.User = DS.Model.extend({
     var device = LingoLinq.User.devices.find(function(dev) { return dev.id == device_id; });
     var vocab = ((device || {vocabs: []}).vocabs || []).find(function(voc) { return voc.id == vocab_id; });
     if(device && device.img) {
-      res.device_url = Ember.templateHelpers.path('alt-aac/' + device.img);
+      res.device_url = templateHelpers.path('alt-aac/' + device.img);
     }
     if(vocab && vocab.img) {
-      res.vocab_url = Ember.templateHelpers.path('alt-aac/' + vocab.img);
+      res.vocab_url = templateHelpers.path('alt-aac/' + vocab.img);
     }
     return res;
   }),
@@ -296,7 +296,7 @@ LingoLinq.User = DS.Model.extend({
   avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', function() {
     var url = this.get('avatar_data_uri') || this.get('avatar_url');
     if(!url) {
-      url = Ember.templateHelpers.path('images/action.png');
+      url = templateHelpers.path('images/action.png');
     }
     return url;
   }),

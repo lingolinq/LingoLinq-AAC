@@ -1279,6 +1279,26 @@ describe Converters::LingoLinq do
       expect { Converters::LingoLinq.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
     end
 
+    it "should allow supervisor with edit permission to import protected board" do
+      board_owner = User.create(:user_name => 'communicator')
+      supervisor = User.create(:user_name => 'therapist')
+      User.link_supervisor_to_user(supervisor, board_owner, nil, true)
+      json = {
+        'buttons' => [{'id' => '1', 'label' => 'cat', 'image_id' => '111'}],
+        'images' => [{'id' => '111', 'data' => 'data:text/plaintext;base64,YWJj', 'protected' => true, 'protected_source' => 'lessonpix'}],
+        'id' => 'board123',
+        'ext_lingolinq_settings' => {
+          'protected' => true,
+          'key' => 'communicator/my-board',
+          'protected_user_id' => board_owner.global_id
+        }
+      }
+      expect { Converters::LingoLinq.from_external(json, {'user' => supervisor}) }.not_to raise_error
+      b = Board.last
+      expect(b).to be_present
+      expect(b.user_id).to eq(supervisor.id)
+    end
+
     it "should support known boards"
   end
 

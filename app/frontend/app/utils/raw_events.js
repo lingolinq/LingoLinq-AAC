@@ -743,7 +743,8 @@ var buttonTracker = EmberObject.extend({
                 runCancel(buttonTracker.track_short_press.later);
                 buttonTracker.track_short_press.later = null;
               }
-              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode')) {
+              var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
+              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
                 buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
               }
               if(buttonTracker.check('short_press_delay')) {
@@ -868,6 +869,13 @@ var buttonTracker = EmberObject.extend({
       // select after 100ms and you can hit blank spaces without it
       // hitting somewhere else then you should be good
       return;
+    }
+    // Suppress synthetic mouseup that follows touchend (prevents double vocalization on touch devices)
+    if(event.type === 'mouseup' && buttonTracker.lastReleaseEvent && buttonTracker.lastReleaseEvent.type === 'touchend') {
+      var elapsed = event.timeStamp - (buttonTracker.lastReleaseEvent.timeStamp || 0);
+      if(elapsed >= 0 && elapsed < 800) {
+        return;
+      }
     }
     buttonTracker.lastReleaseEvent = event;
     if(buttonTracker.sidebarScrollStart != null) {
@@ -1200,11 +1208,14 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            var hiddenAt = this.stashes.get && this.stashes.get('sidebar_hidden_at');
-            if(hiddenAt && (Date.now() - hiddenAt) < 400) {
-              this.stashes.set('sidebar_hidden_at', null);
-            } else {
-              this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+            var stashes = buttonTracker.stashes;
+            if(stashes && stashes.get) {
+              var hiddenAt = stashes.get('sidebar_hidden_at');
+              if(hiddenAt && (Date.now() - hiddenAt) < 400) {
+                stashes.set('sidebar_hidden_at', null);
+              } else {
+                stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
+              }
             }
             buttonTracker.ignoreUp = true;
             buttonTracker.buttonDown = false;
@@ -1250,6 +1261,18 @@ var buttonTracker = EmberObject.extend({
             e.pass_through = true;
             $(elem_wrap.dom).trigger(e);
           }
+        }
+      }
+    } else if(buttonTracker.appState.get('edit_mode') && editManager.paint_mode) {
+      var isButton = (elem_wrap && elem_wrap.dom) && (
+        ((elem_wrap.dom.className || "").match(/button/)) ||
+        ($(elem_wrap.dom).closest('.board').length && $(elem_wrap.dom).attr('data-id'))
+      );
+      if(isButton) {
+        event.preventDefault();
+        var id = elem_wrap.id != null ? elem_wrap.id : $(elem_wrap.dom).attr('data-id');
+        if(id && editManager.controller) {
+          editManager.controller.send('buttonPaint', id);
         }
       }
     } else if(buttonTracker.appState.get('edit_mode') && !editManager.paint_mode) {
@@ -1300,7 +1323,19 @@ var buttonTracker = EmberObject.extend({
   swipe_direction: function(dom, event, targets) {
     var final = [event.clientX, event.clientY];
     if(!dom || (targets || []).length == 0) { return 'final'; }
-    var rect = dom.getBoundingClientRect();
+    var rect;
+    if(dom && typeof dom.getBoundingClientRect === 'function') {
+      rect = dom.getBoundingClientRect();
+    } else {
+      // Virtual button: dom is button id. Get dimensions from board_virtual_dom.
+      var boardDom = buttonTracker.appState && buttonTracker.appState.get('board_virtual_dom');
+      var vb = boardDom && boardDom.button_from_id && boardDom.button_from_id(dom);
+      if(vb && vb.width !== undefined && vb.height !== undefined) {
+        rect = { width: vb.width, height: vb.height };
+      } else {
+        return 'final';
+      }
+    }
     var non_event_cutoff = 15;
     // max diff is the largest distance between the intial target and all subsequent targets
     var max_x_diff = Math.max.apply(null, targets.map(function(t) { return Math.abs(targets[0][0] - t[0]); }).concat([Math.abs(targets[0][0] - final[0])]));
@@ -2482,7 +2517,9 @@ var buttonTracker = EmberObject.extend({
     } else if((ls.selection_type == 'touch' || ls.selection_type == 'mouse') && buttonTracker.check('scan_modeling')) {
       ls.modeling = true;
     }
-    this.stashes.last_selection = ls;
+    if(buttonTracker.stashes) {
+      buttonTracker.stashes.last_selection = ls;
+    }
     buttonTracker.last_selection = ls;
     return { proceed: true };
   },

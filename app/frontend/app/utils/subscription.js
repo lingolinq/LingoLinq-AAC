@@ -665,9 +665,12 @@ var Subscription = EmberObject.extend({
   })
 });
 
+var update_classes_observer = observer.apply(null, obs_properties.concat([obs_func]));
+
 Subscription.reopenClass({
   obs_func: obs_func,
   obs_properties: obs_properties,
+  update_classes_observer: update_classes_observer,
   // Static service registry for use in event listeners and static methods
   _services: {
     appState: null,

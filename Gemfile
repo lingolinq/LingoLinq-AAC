@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 gem 'dotenv'
 
 group :development, :test do
+  gem 'rack-cors'
   gem 'guard'
   gem 'guard-rspec'
   gem 'rspec-rails'
@@ -21,19 +22,19 @@ end
 
 gem 'benchmark'
 
-# Required for Ruby 3.4+ compatibility with Rails 6.1.7+
+# Required for Ruby 3.4+ compatibility with Rails 7.0+
 gem 'mutex_m'
 gem 'matrix'
 
-gem 'concurrent-ruby', '1.3.4'
+gem 'concurrent-ruby', '~> 1.3'
 
-# Rails 6.1.7+ has Rack 3 and Ruby 3.4 support
-gem 'rails', '~> 6.1.7'
-gem 'pg' #, '0.19.0' #, '>=1.1.3'
-gem 'sass-rails'
-gem 'sprockets-rails', '~> 3.4.2'
-gem 'uglifier', '>= 1.3.0'
-gem 'mimemagic', '0.4.3'
+# Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
+gem 'rails', '~> 7.2.0'
+gem 'pg', '~> 1.5'
+gem 'sass-rails', '~> 6.0'
+gem 'sprockets-rails', '~> 3.5'
+# uglifier is deprecated, use terser via ember-cli-terser (already in frontend)
+# mimemagic is deprecated, Rails 7 uses marcel/mini_mime internally
 
 gem 'typhoeus'
 gem 'coffee-rails'
@@ -48,9 +49,11 @@ gem 'rails_12factor', group: :production
 # gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
 gem 'puma'
 gem 'rack-offline'
-gem 'paper_trail'
+gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
+# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+gem 'rubyzip', '~> 2.3'
 gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'
@@ -69,6 +72,7 @@ gem 'rotp'
 
 gem 'sinatra'
 gem 'sanitize'
+gem 'ruby-openai', '~> 6.0'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

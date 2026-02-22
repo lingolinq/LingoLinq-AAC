@@ -154,8 +154,27 @@ export default Service.extend({
       promises.push(this.flush_db_id());
     }
     if(stash_capabilities && stash_capabilities.dbman) {
-      var stash = {};
-      stash.storageId = 'stash';
+      var stash;
+      if(ignore_prefix === 'auth_') {
+        // Preserve auth data in IndexedDB for page reload (e.g. post-login).
+        // Overwriting with {} would wipe auth_settings and break session restore.
+        stash = {};
+        for(var k in memory_stash) {
+          if(k !== 'raw' && k !== 'storageId' && k !== 'changed') {
+            stash[k] = JSON.stringify(memory_stash[k]);
+          }
+        }
+        // persist_object writes to localStorage but may not update memory_stash;
+        // ensure auth_settings from localStorage is included for post-login reload.
+        var auth_obj = this.get_object('auth_settings', true);
+        if(auth_obj && auth_obj.access_token) {
+          stash.auth_settings = JSON.stringify(auth_obj);
+        }
+        stash.storageId = 'stash';
+      } else {
+        stash = {};
+        stash.storageId = 'stash';
+      }
       promises.push(stash_capabilities.storage_store({store: 'settings', id: 'stash', record: stash}));
     }
     for(var idx = 0; idx < localStorage.length; idx++) {

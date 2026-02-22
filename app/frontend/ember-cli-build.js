@@ -4,7 +4,7 @@ var EmberApp = require('ember-cli/lib/broccoli/ember-app');
 module.exports = function (defaults) {
   var app = new EmberApp(defaults, {
     sourcemaps: {
-      enabled: false
+      enabled: true
     },
     storeConfigInMeta: false,
     //    vendorFiles: {
@@ -43,7 +43,6 @@ module.exports = function (defaults) {
   app.import('node_modules/jquery-minicolors/jquery.minicolors.css');
 
   // Import JS files
-  app.import('vendor/deprecation-workflow.js', { prepend: true });
   app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js');
   // Import source map to prevent 404 errors
   app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js.map', {
@@ -66,6 +65,12 @@ module.exports = function (defaults) {
   app.import('vendor/media_recorder/media_recorder.js');
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
+
+  // Load QUnit before vendor.js so window.QUnit is set (test-support expects it before bundled qunit runs)
+  app.import('node_modules/qunit/qunit/qunit.js', {
+    type: 'vendor',
+    outputFile: 'assets/qunit-standalone.js'
+  });
 
   return app.toTree();
 };

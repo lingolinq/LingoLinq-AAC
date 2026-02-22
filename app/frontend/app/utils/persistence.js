@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import EmberObject from '@ember/object';
+import { isTesting } from '@ember/debug';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import {
   later as runLater,
@@ -303,7 +303,7 @@ var persistence = EmberObject.extend({
       if(stashesInstance.get('allow_local_filesystem_request') == false) {
         capabilities.storage.already_limited_size = true;      
       }
-      if(stashesInstance.get_object && typeof stashesInstance.get_object === 'function' && stashesInstance.get('auth_settings') && !Ember.testing) {
+      if(stashesInstance.get_object && typeof stashesInstance.get_object === 'function' && stashesInstance.get('auth_settings') && !isTesting()) {
         if(stashesInstance.get_object('just_logged_in', false)) {
           stashesInstance.persist_object('just_logged_in', null, false);
           runLater(function() {
@@ -3797,7 +3797,7 @@ var persistence = EmberObject.extend({
       if(safeGet(getStashes(), 'auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
       // if last 2 sync attempts failed, last_sync_at should be set to prevent repeated attempts
       var synced = _this.get('last_sync_at') || 0;
-      var syncable = safeGet(getPersistence(), 'online') && !Ember.testing && !safeGet(getPersistence(), 'syncing');
+      var syncable = safeGet(getPersistence(), 'online') && !isTesting() && !safeGet(getPersistence(), 'syncing');
       // default to checking every 5 minutes
       var interval = safeGet(getPersistence(), 'last_sync_stamp_interval') || (5 * 60 * 1000);
       interval = interval + (0.2 * interval * Math.random()); // jitter
@@ -3806,7 +3806,7 @@ var persistence = EmberObject.extend({
         syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
       }
       var now = (new Date()).getTime() / 1000;
-      if(!Ember.testing && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+      if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
         // on mobile, don't auto-sync until 30 seconds after bootup, unless it's never been synced
         // NOTE: the db is keyed to the user, so you'll always have a user-specific last_sync_at
         return false;
@@ -3858,7 +3858,7 @@ var persistence = EmberObject.extend({
             safeSet(getPersistence(), 'last_sync_stamp_check', (new Date()).getTime());
             // TODO: if error implies no connection, consider marking as offline and checking for stamp more frequently
             if(err && err.result && err.result.invalid_token) {
-              if(safeGet(getStashes(), 'auth_settings') && !Ember.testing) {
+              if(safeGet(getStashes(), 'auth_settings') && !isTesting()) {
                 if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
                   LingoLinq.session.check_token(false);
                 }
@@ -3892,7 +3892,7 @@ var persistence = EmberObject.extend({
       var synced = _this.get('last_sync_at') || 0;
       var now = (new Date()).getTime() / 1000;
       // if we haven't synced in 14 days, remind to sync
-      if(synced > 0 && (now - synced) > (14 * 24 * 60 * 60) && !Ember.testing) {
+      if(synced > 0 && (now - synced) > (14 * 24 * 60 * 60) && !isTesting()) {
         if(persistence && typeof persistence.set === 'function') {
           safeSet(getPersistence(), 'sync_reminder', true);
         }
@@ -4231,7 +4231,9 @@ persistence.DSExtend = {
             persistence.store(type.modelName, record).then(function() {
               update_resolve(record);
             }, function() {
-              update_reject({error: "failed to update to local db"});
+              // Server succeeded; local cache failed. Resolve anyway so caller does not see false error.
+              console.warn('updateRecord: server succeeded but local store failed', type.modelName);
+              update_resolve(record);
             });
           }, function(err) {
             update_reject(err);

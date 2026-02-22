@@ -3,8 +3,8 @@ class Device < ActiveRecord::Base
   include SecureSerialize
   secure_serialize :settings
   belongs_to :user
-  belongs_to :developer_key
-  belongs_to :user_integration
+  belongs_to :developer_key, optional: true   # developer_key_id 0 used for system/browser devices
+  belongs_to :user_integration, optional: true
   before_save :generate_defaults
   after_save :update_user_device_name
   after_destroy :invalidate_cached_keys
@@ -209,8 +209,12 @@ class Device < ActiveRecord::Base
       manual_timeout = Organization.attached_orgs(self.user).map{|o| o['login_timeout'] }.compact.max
       key['timeout'] = manual_timeout.minutes.to_i if manual_timeout
     end
+    # Append new key. Rails 7 + SecureSerialize: in-place mutation and setter assignment
+    # can fail to persist. Bypass by writing encrypted settings directly.
+    self.settings['keys'] ||= []
     self.settings['keys'] << key
-    self.save
+    encrypted = GoSecure::SecureJson.dump(self.settings)
+    self.update_column(:settings, encrypted)
   end
   
   def logout!
@@ -317,6 +321,19 @@ class Device < ActiveRecord::Base
       device = Device.find_by_global_id(id)
       user_id = device && device.related_global_id(device.user_id)
       device_id = device && device.global_id
+      # Debug: log why token validation fails (helps diagnose post-login "Invalid token")
+      # STDERR puts visible in Foreman output even when Rails log level filters other messages
+      if !device
+        msg = "Device.check_token: device not found for id=#{id.inspect}, token_prefix=#{token[0..20]}..."
+        Rails.logger.warn(msg)
+        STDERR.puts "[AUTH-DEBUG] #{msg}"
+      elsif !device.valid_token?(token, app_version)
+        keys_count = (device.settings && device.settings['keys']) ? device.settings['keys'].length : 0
+        token_in_keys = !!(device.settings && device.settings['keys'] && device.settings['keys'].any? { |k| k['value'] == token })
+        msg = "Device.check_token: valid_token?=false for device #{device.global_id}, keys_count=#{keys_count}, token_in_keys=#{token_in_keys}"
+        Rails.logger.warn(msg)
+        STDERR.puts "[AUTH-DEBUG] #{msg}"
+      end
       if !device || !device.valid_token?(token, app_version)
         expired = device && (device.instance_variable_get('@expired_keys') || {})[token]
         needs_refresh = device && (device.instance_variable_get('@refreshable_keys') || {})[token]

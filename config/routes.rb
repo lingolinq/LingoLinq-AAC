@@ -65,7 +65,10 @@ LingoLinq::Application.routes.draw do
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
-  # if Rails.env.production?
+  # Skip Rack::Offline during build (assets:precompile, extras:copy_terms) since
+  # asset_path requires precompiled assets which don't exist yet.
+  unless ENV['SKIP_OFFLINE_MANIFEST']
+    # if Rails.env.production?
     offline = Rack::Offline.configure :cache_interval => 120 do
       cache ActionController::Base.helpers.asset_path("application.css")
       cache ActionController::Base.helpers.asset_path("application.js")
@@ -125,12 +128,14 @@ LingoLinq::Application.routes.draw do
       network "*"  
     end
     get "/application.manifest" => offline  
-  # end
+    # end
+  end
   
   get 'profile' => ember_handler
   get 'profile/:user_id/:profile_id' => ember_handler
   get 'search/:query' => ember_handler
   get 'search/:locale/:query' => ember_handler
+  get 'setup' => ember_handler
   get 'u/:reply_code' => 'boards#utterance_redirect'
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
@@ -165,6 +170,8 @@ LingoLinq::Application.routes.draw do
       get 'stats' => 'boards#stats'
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
+      post 'from_html' => 'boards#from_html', on: :collection
+      post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
       post 'stars' => 'boards#star'
       post 'slice_locales' => 'boards#slice_locales'
