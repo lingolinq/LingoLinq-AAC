@@ -4,7 +4,6 @@ import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
-import session from '../utils/session';
 import { isEmpty } from '@ember/utils';
 import LingoLinq from '../app';
 import { htmlSafe } from '@ember/template';
@@ -28,6 +27,7 @@ export default Component.extend({
   persistence: service('persistence'),
   stashes: service('stashes'),
   router: service('router'),
+  session: service('session'),
   app_state: alias('appState'),
   willInsertElement: function() {
     var _this = this;
@@ -64,7 +64,7 @@ export default Component.extend({
       }, timeout);
       this.get('pendingTimeouts').push(timeoutHandle);
       if(this.get('restore') !== false) {
-        session.restore(true);
+        this.get('session').restore(true);
       }
     }
     if(this.get('set_overflow')) {
@@ -85,7 +85,7 @@ export default Component.extend({
     if(!_this.get('client_secret')) {
       console.log('[login-form] No client_secret, starting token check');
       _this.set('requesting', true);
-      session.check_token().then(function(result) {
+      _this.get('session').check_token().then(function(result) {
         if (_this.isDestroyed || _this.isDestroying) {
           console.log('[login-form] Component destroyed during token check success');
           return;
@@ -145,7 +145,7 @@ export default Component.extend({
       type: 'GET'
     }).then(function(data) {
       if(data.authenticated && data.token) {
-        return session.confirm_authentication(data.token).then(function() {
+        return _this.get('session').confirm_authentication(data.token).then(function() {
           _this.handle_auth(data.token);
         }, function(err) {
           return RSVP.reject(err);
@@ -164,7 +164,7 @@ export default Component.extend({
     if(capabilities.installed_app) {
       var popout_id = (new Date()).getTime() + "T" + Math.round(Math.random() * 999999);
       url = url + "&popout_id=" + popout_id;
-      session.wait_for_token(popout_id).then(function(res) {
+      _this.get('session').wait_for_token(popout_id).then(function(res) {
         _this.handle_auth(res);
       }, function(err) {
         _this.set('login_followup', false);
@@ -209,22 +209,40 @@ export default Component.extend({
       // TODO: admin UI for resetting 2fa
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
-      session.confirm_authentication(data).then(function() {
+      _this.get('session').confirm_authentication(data).then(function() {
         _this.set('login_single_assertion', true);
         _this.set('login_followup', false);
         _this.send('login_success', false);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
       });
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
-      session.confirm_authentication(data).then(function() {
+      _this.get('session').confirm_authentication(data).then(function() {
         _this.set('login_followup', true);
         _this.set('login_single_assertion', false);
         _this.set('login_followup_already_long_token', data.long_token_set);
         _this.send('login_success', false);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
       });
     } else {
-      session.confirm_authentication(data).then(function() {
+      _this.get('session').confirm_authentication(data).then(function() {
         _this.send('login_success', true);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
       });
     }
   },
@@ -278,6 +296,7 @@ export default Component.extend({
           window.navigator.splashscreen.show();
         }
       }
+      // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {
         _this.stashes.setup();
       }).then(function() {
@@ -294,12 +313,10 @@ export default Component.extend({
         _this.set('login_single_assertion', false);
         _this.set('logged_in', true);
         // Sync session state from stashes so isAuthenticated/access_token are set
-        session.restore();
+        _this.get('session').restore();
         // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
-        // Wait for user fetch before transitioning so navbar updates without page refresh
         return _this.appState.refresh_session_user();
       });
-      var userFetch = wait;
       if(reload) {
         runLater(function() {
           _this.appState.set('logging_in', true);
@@ -310,7 +327,7 @@ export default Component.extend({
           wait.then(function() {
             if(_this.get('return')) {
               location.reload();
-              session.set('return', true);
+              _this.get('session').set('return', true);
             } else {
               location.href = '#/';
               location.reload();
@@ -325,13 +342,13 @@ export default Component.extend({
             transitionDone = true;
             if(_this.get('return')) {
               location.reload();
-              session.set('return', true);
+              _this.get('session').set('return', true);
             } else {
               _loginDebug('Web: transitioning to index (no reload)');
               _this.router.transitionTo('index');
             }
           };
-          RSVP.all([wait, userFetch]).then(transitionToDashboard, function(err) {
+          wait.then(transitionToDashboard, function(err) {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             console.warn('[login_success] User fetch failed, transitioning anyway', err);
             transitionToDashboard();
@@ -350,7 +367,7 @@ export default Component.extend({
       if(choice) {
         this.send('login_followup', true);
       } else {
-        session.invalidate(true);        
+        this.get('session').invalidate(true);
       }
     },
     login_followup: function(choice) {
@@ -514,7 +531,7 @@ export default Component.extend({
       });
     },
     logout: function() {
-      session.invalidate(true);
+      this.get('session').invalidate(true);
     },
     confirm_2fa: function() {
       var _this = this;
@@ -526,7 +543,7 @@ export default Component.extend({
         type: 'GET'
       }).then(function(data) {
         if(data.authenticated && data.token && data.valid_2fa) {
-          session.confirm_authentication(data.token).then(function() {
+          _this.get('session').confirm_authentication(data.token).then(function() {
             _this.set('status_2fa', {confirmed: true});
             _this.handle_auth(data.token);
           }, function(err) {
@@ -560,7 +577,7 @@ export default Component.extend({
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
         this.set('password', null);
         _this.set('login_followup_already_long_token', false);
-        session.authenticate(data).then(function(data) {
+        _this.get('session').authenticate(data).then(function(data) {
           console.log('[login-form] Authentication succeeded', {
             has_redirect: !!data.redirect,
             has_token: !!data.access_token

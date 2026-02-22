@@ -10,6 +10,7 @@ import app_state from './app_state';
 import Utils from './misc';
 import i18n from './i18n';
 import LingoLinq from '../app';
+import config from '../config/environment';
 
 var helpers = {
   "I": ['really', 'have', 'did'],
@@ -119,8 +120,8 @@ var word_suggestions = EmberObject.extend({
         promises.push(defer.promise);
         previous.then(function() {
           var store_key = "arpa-." + idx + "." + _this.pieces + ".json";
-          // TODO: CDN
-          var remote_url = "https://lingolinq-prod-static.s3.amazonaws.com/language/ngrams.arpa." + idx + "." + _this.pieces + ".json";
+          var bucket = config.staticS3Bucket || 'lingolinq-prod-static';
+          var remote_url = 'https://' + bucket + '.s3.amazonaws.com/language/ngrams.arpa.' + idx + '.' + _this.pieces + '.json';
           var persistenceService = word_suggestions.get_persistence();
           if(!persistenceService || typeof persistenceService.find !== 'function') {
             runLater(function() { defer.resolve(); });

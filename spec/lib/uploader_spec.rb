@@ -1088,6 +1088,13 @@ describe Uploader do
   end
 
   describe 'default_images' do
+    # Use v1 API fallback so specs can mock Typhoeus.post with search_token
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return(nil)
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_TOKEN').and_return('test_token')
+    end
+
     it 'should to nothing on invalid library' do
       expect(Typhoeus).to_not receive(:post)
       res = Uploader.default_images('bacon', [], 'en', nil)

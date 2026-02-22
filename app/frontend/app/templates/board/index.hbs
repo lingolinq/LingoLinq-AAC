@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if this.app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" redraw="redraw" tabindex="0"}}
+              {{board-canvas id="board_canvas" onInsert=(action "redraw") tabindex="0"}}
             {{else}}
               {{#each this.ordered_buttons as |row|}}
                 <div class="button_row">

@@ -23,7 +23,9 @@ module.exports = function(environment) {
       // when it is created
       // Use an explicit root so we never use body (avoids "same root element (body) multiple times")
       rootElement: '#ember-application-root'
-    }
+    },
+    // S3 bucket for static assets (language/ngrams, etc). Set via STATIC_S3_BUCKET at build time, or defaults by environment.
+    staticS3Bucket: process.env.STATIC_S3_BUCKET || (environment === 'production' ? 'lingolinq-prod-static' : 'lingolinq-dev-static')
   };
 
 //   ENV['simple-auth'] = {
