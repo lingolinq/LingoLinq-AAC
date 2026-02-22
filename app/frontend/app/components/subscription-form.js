@@ -13,7 +13,7 @@ import { inject as service } from '@ember/service';
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
-  update_classes: Subscription.obs_func.observes.apply(Subscription.obs_func, Subscription.obs_properties),
+  update_classes: Subscription.update_classes_observer,
   app_state: computed(function() {
     return this.appState;
   }),

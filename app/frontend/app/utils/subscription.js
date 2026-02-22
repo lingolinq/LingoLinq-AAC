@@ -49,6 +49,11 @@ var obs_func = function() {
   });
 };
 
+// Non-deprecated observer for subscription.* properties (replaces .observes() prototype extension)
+var update_classes_observer = observer(...obs_properties, function() {
+  obs_func.call(this);
+});
+
 var Subscription = EmberObject.extend({
   init: function() {
     this.reset();
@@ -668,6 +673,7 @@ var Subscription = EmberObject.extend({
 Subscription.reopenClass({
   obs_func: obs_func,
   obs_properties: obs_properties,
+  update_classes_observer: update_classes_observer,
   // Static service registry for use in event listeners and static methods
   _services: {
     appState: null,

@@ -199,7 +199,7 @@ export default Service.extend({
     var theme = 'light';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
-      if (storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark') {
+      if (storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'flat' || storedTheme === 'default') {
         theme = storedTheme;
       } else if (storedTheme !== 'light' && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
@@ -686,6 +686,12 @@ export default Service.extend({
   }),
   coolBlueMode: computed('themeMode', function() {
     return this.get('themeMode') === 'coolBlue';
+  }),
+  flatMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'flat';
+  }),
+  defaultMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'default';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -2089,7 +2095,7 @@ export default Service.extend({
     return res;
   }),
   index_or_for_schools_view: computed('index_view', 'current_route', function() {
-    return this.get('index_view') || this.get('current_route') === 'for-schools';
+    return this.get('index_view') || this.get('current_route') === 'for-schools' || this.get('current_route') === 'stacked-spaces';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -3850,7 +3856,7 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'coolBlue'];
+    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'flat', 'default'];
     var current = this.get('themeMode') || 'light';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];

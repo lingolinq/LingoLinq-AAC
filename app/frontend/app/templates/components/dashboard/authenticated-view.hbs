@@ -1,18 +1,35 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.flatMode "ll-bento-app-shell--flat"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
   <div class="ll-bento-device-frame ll-bento-device-frame--wide">
-    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}}">
+    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}} {{if this.app_state.flatMode "ll-bento-topbar--flat"}} {{if this.app_state.defaultMode "ll-bento-topbar--default"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
           <span class="ll-bento-brand__logo-wrap" aria-hidden="true">
             <img src={{path "images/icon-house-balanced.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
           </span>
           <span class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</span>
+          <span class="ll-bento-topbar__brand-sep" aria-hidden="true">·</span>
+          <span class="ll-bento-topbar__brand-home">{{t "Home" key="home"}}</span>
         </a>
+      </div>
+      <div class="ll-bento-topbar__section ll-bento-topbar__welcome">
+        <span class="ll-bento-topbar-welcome" aria-hidden="true">
+          <span class="ll-bento-topbar-welcome__label">{{t "It's great to see you" key="welcome"}}</span>
+          {{#if this.app_state.currentUser.permissions.delete}}
+            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-topbar-welcome__link"><span class="ll-bento-topbar-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
+          {{else}}
+            <span class="ll-bento-topbar-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
+          {{/if}}
+          {{#if this.app_state.show_index_celebration}}
+            <span class="ll-bento-topbar-welcome__celebration-icon" aria-hidden="true" title={{t "Welcome!" key="welcome_exclaim"}}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 21l2-6 4 2-2 4-4-0z"/><path d="M19 21l2-6-4 2 2 4 4 0z"/></svg>
+            </span>
+          {{/if}}
+        </span>
       </div>
       <div class="ll-bento-topbar__section ll-bento-topbar__actions">
         <a href="#" class="ll-bento-icon-btn ll-bento-icon-btn--refresh" {{action "reload"}} role="button" aria-label={{t "Reload" key="reload"}} title={{t "Reload" key="reload"}}>

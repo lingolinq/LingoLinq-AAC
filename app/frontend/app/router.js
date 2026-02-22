@@ -49,6 +49,7 @@ Router.map(function() {
   this.route('index', { path: '/' });
   this.route('about', { path: '/about' });
   this.route('for-schools', { path: '/for-schools' });
+  this.route('stacked-spaces', { path: '/stacked-spaces' });
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });
   this.route('privacy', { path: '/privacy' });

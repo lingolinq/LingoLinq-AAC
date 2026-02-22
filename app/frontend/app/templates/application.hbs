@@ -1,4 +1,4 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_for_schools_view "index-or-for-schools-view"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.coolBlueMode) "bento-cool-blue-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_for_schools_view "index-or-for-schools-view"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.coolBlueMode) "bento-cool-blue-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.flatMode) "bento-flat-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 <header class="{{this.header_class}} {{if (and this.app_state.index_or_for_schools_view this.app_state.currentUser) "header-index-with-dark-toggle"}}">
   <div id="inner_header">
@@ -252,19 +252,21 @@
       </div>
     {{/if}}
     {{#if this.app_state.empty_header}}
-      {{#if (persistence-online)}}
-        {{#unless this.app_state.super_no_linky}}
-          {{#if this.allow_search}}
-            <form id="header_search">
-              <div style="float: left; margin-right: 4px; width: 150px;">
-              <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
-              </div>
-              <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
-              <div style="clear: left;"></div>
-            </form>
-          {{/if}}
-        {{/unless}}
-      {{/if}}
+      {{#unless (is-equal this.app_state.current_route "for-schools")}}
+        {{#if (persistence-online)}}
+          {{#unless this.app_state.super_no_linky}}
+            {{#if this.allow_search}}
+              <form id="header_search">
+                <div style="float: left; margin-right: 4px; width: 150px;">
+                <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
+                </div>
+                <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
+                <div style="clear: left;"></div>
+              </form>
+            {{/if}}
+          {{/unless}}
+        {{/if}}
+      {{/unless}}
     {{/if}}
     {{#unless this.session.isAuthenticated}}
       {{#unless this.app_state.installed_app}}
@@ -688,49 +690,43 @@
     {{/if}}
     </span>
   {{/if}}
-    {{#if (and this.app_state.index_or_for_schools_view this.app_state.currentUser)}}
-      <span class="nav-header-welcome" aria-hidden="true">
-        <span class="nav-header-welcome__label">{{t "It's great to see you" key="welcome"}}</span>
-        {{#if this.app_state.currentUser.permissions.delete}}
-          <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="nav-header-welcome__link"><span class="nav-header-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
-        {{else}}
-          <span class="nav-header-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
-        {{/if}}
-        {{#if this.app_state.show_index_celebration}}
-          <span class="nav-header-welcome__celebration-icon" aria-hidden="true" title={{t "Welcome!" key="welcome_exclaim"}}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 21l2-6 4 2-2 4-4-0z"/><path d="M19 21l-2-6-4 2 2 4 4 0z"/></svg>
-          </span>
-        {{/if}}
-      </span>
-    {{/if}}
     <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.currentUser) "identity-with-dark-toggle"}}">
       {{#if (and this.app_state.index_or_for_schools_view this.app_state.currentUser)}}
-        <span class="identity-for-schools-link-wrap" style="display: inline-block; margin-right: 12px; vertical-align: middle;">
-          {{#if (is-equal this.app_state.current_route "for-schools")}}
-            <LinkTo @route="index" class="identity-for-schools-link"><span class="glyphicon glyphicon-arrow-left"></span> {{t "Back to Home" key="back_to_home"}}</LinkTo>
-          {{else}}
+        {{#if (is-equal this.app_state.current_route "for-schools")}}
+          <span class="identity-for-schools-link-wrap identity-for-schools-link-wrap--for-schools">
+            <nav class="for-schools-nav" aria-label={{t "Main" key="main"}}>
+              <a href="#features" class="for-schools-nav__link">{{t "Features" key="for_schools_footer_features"}}</a>
+              <LinkTo @route="for-schools" class="for-schools-nav__link">{{t "For Schools" key="for_schools_nav_for_schools"}}</LinkTo>
+              <LinkTo @route="pricing" class="for-schools-nav__link">{{t "Pricing" key="for_schools_footer_pricing"}}</LinkTo>
+              <LinkTo @route="about" class="for-schools-nav__link">{{t "About" key="about"}}</LinkTo>
+              <LinkTo @route="register" class="for-schools-nav__cta">{{t "Get Started Free" key="for_schools_get_started_free"}}</LinkTo>
+            </nav>
+          </span>
+        {{else if (is-equal this.app_state.current_route "stacked-spaces")}}
+          {{! Back arrow only in header-nav-bar below }}
+        {{else}}
+          <span class="identity-for-schools-link-wrap">
             <LinkTo @route="for-schools" class="identity-for-schools-link"><span class="glyphicon glyphicon-pencil"></span> {{t "Scot's Landing Page" key="for_schools"}}</LinkTo>
-          {{/if}}
-        </span>
-        {{#unless this.app_state.eval_mode}}
-          <a href="#" class="ll-bento-help-btn ll-bento-help-btn--nav" {{action "support"}} role="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}} style="display: inline-block; margin-right: 12px; vertical-align: middle;">
-            <span class="ll-bento-help-btn__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
-          </a>
-        {{/unless}}
-        <span class="bento-dark-toggle-wrap ll-bento-theme-picker-wrap" style="display: inline-block; position: relative;">
+          </span>
+        {{/if}}
+        {{#unless (is-equal this.app_state.current_route "for-schools")}}
+          {{#unless this.app_state.eval_mode}}
+            <a href="#" class="ll-bento-help-btn ll-bento-help-btn--nav" {{action "support"}} role="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}}>
+              <span class="ll-bento-help-btn__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <span class="ll-bento-help-btn__label">{{t "Help" key="help"}}</span>
+            </a>
+          {{/unless}}
+          <span class="bento-dark-toggle-wrap ll-bento-theme-picker-wrap" style="display: inline-block; position: relative;">
           {{#if this.showThemePicker}}
             <div class="ll-bento-theme-picker-backdrop" {{action "closeThemePicker"}} role="button" aria-label={{t "Close" key="close"}}></div>
             <div class="ll-bento-theme-picker ll-bento-theme-picker--open" role="dialog" aria-label={{t "Choose theme" key="choose_theme"}}>
               <div class="ll-bento-theme-picker__row">
-              <div class="ll-bento-theme-picker__swatch-bar">
-                <span class="ll-bento-theme-picker__swatch ll-bento-theme-picker__swatch--light"></span>
-                <span class="ll-bento-theme-picker__swatch ll-bento-theme-picker__swatch--coolBlue"></span>
-                <span class="ll-bento-theme-picker__swatch ll-bento-theme-picker__swatch--midday"></span>
-                <span class="ll-bento-theme-picker__swatch ll-bento-theme-picker__swatch--dark"></span>
-              </div>
               <div class="ll-bento-theme-picker__options">
                 <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.app_state.themeMode "light") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "light"}} title={{t "Light" key="light"}} aria-pressed={{is-equal this.app_state.themeMode "light"}}>
                   <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad-picker" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
+                </button>
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.app_state.themeMode "flat") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "flat"}} title={{t "Flat" key="flat"}} aria-pressed={{is-equal this.app_state.themeMode "flat"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__flat-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-flat-grad-picker" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#81B29A"/><stop offset="100%" stop-color="#A7C4B5"/></linearGradient></defs><path fill="url(#ll-flat-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
                 </button>
                 <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.app_state.themeMode "coolBlue") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "coolBlue"}} title={{t "Cool Blue" key="cool_blue"}} aria-pressed={{is-equal this.app_state.themeMode "coolBlue"}}>
                   <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__cool-blue-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-cool-blue-grad-picker" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2C3E63"/><stop offset="50%" stop-color="#4A5D73"/><stop offset="100%" stop-color="#7E93A8"/></linearGradient></defs><path fill="url(#ll-cool-blue-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
@@ -741,15 +737,23 @@
                 <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.app_state.themeMode "dark") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "dark"}} title={{t "Dark" key="dark"}} aria-pressed={{is-equal this.app_state.themeMode "dark"}}>
                   <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><defs><radialGradient id="ll-moon-grad-picker" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad-picker)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg></span>
                 </button>
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.app_state.themeMode "default") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "default"}} title={{t "Default" key="default_theme"}} aria-pressed={{is-equal this.app_state.themeMode "default"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__default-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-default-grad-picker" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="50%" stop-color="#F0F0F0"/><stop offset="100%" stop-color="#FF6B47"/></linearGradient></defs><path fill="url(#ll-default-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
+                </button>
+                <button type="button" class="ll-bento-theme-picker__option ll-bento-theme-picker__option--stacked-spaces {{if this.isStackedSpacesRoute "ll-bento-theme-picker__option--active"}}" {{action "goToStackedSpaces"}} title={{t "Stacked Spaces" key="stacked_spaces"}} aria-label={{t "Stacked Spaces" key="stacked_spaces"}} aria-pressed={{this.isStackedSpacesRoute}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__stacked-spaces-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30"><defs><linearGradient id="ll-stacked-navy-picker" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1B365D"/><stop offset="100%" stop-color="#243d66"/></linearGradient><linearGradient id="ll-stacked-teal-picker" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#2A9D8F"/><stop offset="100%" stop-color="#34b5a5"/></linearGradient><linearGradient id="ll-stacked-gray-picker" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6B7280"/><stop offset="100%" stop-color="#9CA3AF"/></linearGradient></defs><g transform="rotate(45 12 12)"><rect x="2" y="3" width="20" height="4" rx="1.2" fill="url(#ll-stacked-navy-picker)"/><rect x="2" y="9" width="20" height="4" rx="1.2" fill="url(#ll-stacked-teal-picker)"/><rect x="2" y="15" width="20" height="4" rx="1.2" fill="url(#ll-stacked-gray-picker)"/></g></svg></span>
+                </button>
               </div>
               </div>
             </div>
           {{/if}}
           <button type="button" class="ll-bento-dark-toggle ll-bento-dark-toggle--header" {{action "toggleThemePicker"}} aria-label={{t "Toggle theme" key="toggle_theme"}} title={{t "Toggle theme" key="toggle_theme"}} aria-expanded={{this.showThemePicker}} aria-haspopup="dialog">
-            <span class="ll-bento-dark-toggle__icon" aria-hidden="true">{{#if this.app_state.darkMode}}<svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-moon-grad" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg>{{else if this.app_state.midDayMode}}<svg class="ll-bento-dark-toggle__midday-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-eclipse-sun" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#ffe082"/><stop offset="25%" stop-color="#ffc107"/><stop offset="50%" stop-color="#ff8f00"/><stop offset="75%" stop-color="#e65100"/><stop offset="100%" stop-color="#bf360c"/></radialGradient><radialGradient id="ll-eclipse-moon" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-eclipse-sun)" fill-rule="evenodd" d="M20 12L15.7 10.5 17.66 6.34 13.5 8.3 12 4 10.5 8.3 6.34 6.34 8.3 10.5 4 12 8.3 13.5 6.34 17.66 10.5 15.7 12 20 13.5 15.7 17.66 17.66 15.7 13.5 20 12z" clip-rule="evenodd"/><circle cx="15" cy="12" r="5.5" fill="url(#ll-eclipse-moon)"/></svg>{{else if this.app_state.coolBlueMode}}<svg class="ll-bento-dark-toggle__cool-blue-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-cool-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2C3E63"/><stop offset="50%" stop-color="#4A5D73"/><stop offset="100%" stop-color="#7E93A8"/></linearGradient></defs><path fill="url(#ll-cool-blue-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else}}<svg class="ll-bento-dark-toggle__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{/if}}</span>
+            <span class="ll-bento-dark-toggle__icon" aria-hidden="true">{{#if this.app_state.flatMode}}<svg class="ll-bento-theme-picker__flat-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-flat-grad-header" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#81B29A"/><stop offset="100%" stop-color="#A7C4B5"/></linearGradient></defs><path fill="url(#ll-flat-grad-header)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else if this.isStackedSpacesRoute}}<svg class="ll-bento-theme-picker__stacked-spaces-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30"><defs><linearGradient id="ll-stacked-navy-header" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1B365D"/><stop offset="100%" stop-color="#243d66"/></linearGradient><linearGradient id="ll-stacked-teal-header" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#2A9D8F"/><stop offset="100%" stop-color="#34b5a5"/></linearGradient><linearGradient id="ll-stacked-gray-header" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#6B7280"/><stop offset="100%" stop-color="#9CA3AF"/></linearGradient></defs><g transform="rotate(45 12 12)"><rect x="2" y="3" width="20" height="4" rx="1.2" fill="url(#ll-stacked-navy-header)"/><rect x="2" y="9" width="20" height="4" rx="1.2" fill="url(#ll-stacked-teal-header)"/><rect x="2" y="15" width="20" height="4" rx="1.2" fill="url(#ll-stacked-gray-header)"/></g></svg>{{else if this.app_state.darkMode}}<svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-moon-grad" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg>{{else if this.app_state.midDayMode}}<svg class="ll-bento-dark-toggle__midday-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-eclipse-sun" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#ffe082"/><stop offset="25%" stop-color="#ffc107"/><stop offset="50%" stop-color="#ff8f00"/><stop offset="75%" stop-color="#e65100"/><stop offset="100%" stop-color="#bf360c"/></radialGradient><radialGradient id="ll-eclipse-moon" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-eclipse-sun)" fill-rule="evenodd" d="M20 12L15.7 10.5 17.66 6.34 13.5 8.3 12 4 10.5 8.3 6.34 6.34 8.3 10.5 4 12 8.3 13.5 6.34 17.66 10.5 15.7 12 20 13.5 15.7 17.66 17.66 15.7 13.5 20 12z" clip-rule="evenodd"/><circle cx="15" cy="12" r="5.5" fill="url(#ll-eclipse-moon)"/></svg>{{else if this.app_state.defaultMode}}<svg class="ll-bento-theme-picker__default-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-default-grad-header" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="50%" stop-color="#F0F0F0"/><stop offset="100%" stop-color="#FF6B47"/></linearGradient></defs><path fill="url(#ll-default-grad-header)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else if this.app_state.coolBlueMode}}<svg class="ll-bento-dark-toggle__cool-blue-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-cool-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2C3E63"/><stop offset="50%" stop-color="#4A5D73"/><stop offset="100%" stop-color="#7E93A8"/></linearGradient></defs><path fill="url(#ll-cool-blue-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else}}<svg class="ll-bento-dark-toggle__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{/if}}</span>
           </button>
         </span>
+        {{/unless}}
       {{/if}}
+      {{#unless (is-equal this.app_state.current_route "for-schools")}}
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
         <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
@@ -1066,6 +1070,7 @@
           {{/unless}}
         </ul>
       </span>
+      {{/unless}}
     </span>
   </div>
 </header>

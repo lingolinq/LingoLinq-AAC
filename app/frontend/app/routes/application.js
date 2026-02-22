@@ -97,12 +97,20 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
+      var toRoute = transition.to;
+      var fromRoute = transition.from;
+      var leafRouteName = function(routeInfo) {
+        if (!routeInfo || !routeInfo.name) { return (routeInfo && routeInfo.name) || null; }
+        var leaf = routeInfo;
+        while (leaf && leaf.child) { leaf = leaf.child; }
+        return leaf ? leaf.name : routeInfo.name;
+      };
       _this.appState.global_transition({
         aborted: transition.isAborted,
         source: transition,
-        from_route: (transition.from || {}).name,
+        from_route: leafRouteName(fromRoute) || (fromRoute && fromRoute.name),
         from_params: params_list(transition.from),
-        to_route: (transition.to || {}).name,
+        to_route: leafRouteName(toRoute) || (toRoute && toRoute.name),
         to_params: params_list(transition.to),
       });
       // let { to: toRouteInfo, from: fromRouteInfo } = transition;
