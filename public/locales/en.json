@@ -1445,6 +1445,7 @@
   "messages_about": "Messages about",
   "logs_for": "Logs for",
   "filtered": "(filtered)",
+  "filter_by_location": "filter by this location",
   "clear_filter": "clear filter",
   "show_only_messages": "Show Only Messages",
   "show_highlighted": "Show Highlighted",

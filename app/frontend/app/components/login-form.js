@@ -64,7 +64,7 @@ export default Component.extend({
       }, timeout);
       this.get('pendingTimeouts').push(timeoutHandle);
       if(this.get('restore') !== false) {
-        this.get('session').restore(true);
+        this.session.restore(true);
       }
     }
     if(this.get('set_overflow')) {
@@ -85,7 +85,7 @@ export default Component.extend({
     if(!_this.get('client_secret')) {
       console.log('[login-form] No client_secret, starting token check');
       _this.set('requesting', true);
-      _this.get('session').check_token().then(function(result) {
+      _this.session.check_token().then(function(result) {
         if (_this.isDestroyed || _this.isDestroying) {
           console.log('[login-form] Component destroyed during token check success');
           return;
@@ -145,7 +145,7 @@ export default Component.extend({
       type: 'GET'
     }).then(function(data) {
       if(data.authenticated && data.token) {
-        return _this.get('session').confirm_authentication(data.token).then(function() {
+        return _this.session.confirm_authentication(data.token).then(function() {
           _this.handle_auth(data.token);
         }, function(err) {
           return RSVP.reject(err);
@@ -164,7 +164,7 @@ export default Component.extend({
     if(capabilities.installed_app) {
       var popout_id = (new Date()).getTime() + "T" + Math.round(Math.random() * 999999);
       url = url + "&popout_id=" + popout_id;
-      _this.get('session').wait_for_token(popout_id).then(function(res) {
+      _this.session.wait_for_token(popout_id).then(function(res) {
         _this.handle_auth(res);
       }, function(err) {
         _this.set('login_followup', false);
@@ -209,7 +209,7 @@ export default Component.extend({
       // TODO: admin UI for resetting 2fa
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
-      _this.get('session').confirm_authentication(data).then(function() {
+      _this.session.confirm_authentication(data).then(function() {
         _this.set('login_single_assertion', true);
         _this.set('login_followup', false);
         _this.send('login_success', false);
@@ -222,7 +222,7 @@ export default Component.extend({
       });
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
-      _this.get('session').confirm_authentication(data).then(function() {
+      _this.session.confirm_authentication(data).then(function() {
         _this.set('login_followup', true);
         _this.set('login_single_assertion', false);
         _this.set('login_followup_already_long_token', data.long_token_set);
@@ -235,7 +235,7 @@ export default Component.extend({
         }
       });
     } else {
-      _this.get('session').confirm_authentication(data).then(function() {
+      _this.session.confirm_authentication(data).then(function() {
         _this.send('login_success', true);
       }, function(err) {
         if (!_this.isDestroyed && !_this.isDestroying) {
@@ -313,7 +313,7 @@ export default Component.extend({
         _this.set('login_single_assertion', false);
         _this.set('logged_in', true);
         // Sync session state from stashes so isAuthenticated/access_token are set
-        _this.get('session').restore();
+        _this.session.restore();
         // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
         return _this.appState.refresh_session_user();
       });
@@ -327,7 +327,7 @@ export default Component.extend({
           wait.then(function() {
             if(_this.get('return')) {
               location.reload();
-              _this.get('session').set('return', true);
+              _this.session.set('return', true);
             } else {
               location.href = '#/';
               location.reload();
@@ -342,7 +342,7 @@ export default Component.extend({
             transitionDone = true;
             if(_this.get('return')) {
               location.reload();
-              _this.get('session').set('return', true);
+              _this.session.set('return', true);
             } else {
               _loginDebug('Web: transitioning to index (no reload)');
               _this.router.transitionTo('index');
@@ -364,10 +364,11 @@ export default Component.extend({
       }
     },
     login_force_logut: function(choice) {
+      var _this = this;
       if(choice) {
-        this.send('login_followup', true);
+        _this.send('login_followup', true);
       } else {
-        this.get('session').invalidate(true);
+        _this.session.invalidate(true);
       }
     },
     login_followup: function(choice) {
@@ -531,7 +532,7 @@ export default Component.extend({
       });
     },
     logout: function() {
-      this.get('session').invalidate(true);
+      this.session.invalidate(true);
     },
     confirm_2fa: function() {
       var _this = this;
@@ -543,7 +544,7 @@ export default Component.extend({
         type: 'GET'
       }).then(function(data) {
         if(data.authenticated && data.token && data.valid_2fa) {
-          _this.get('session').confirm_authentication(data.token).then(function() {
+          _this.session.confirm_authentication(data.token).then(function() {
             _this.set('status_2fa', {confirmed: true});
             _this.handle_auth(data.token);
           }, function(err) {
@@ -577,7 +578,7 @@ export default Component.extend({
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
         this.set('password', null);
         _this.set('login_followup_already_long_token', false);
-        _this.get('session').authenticate(data).then(function(data) {
+        _this.session.authenticate(data).then(function(data) {
           console.log('[login-form] Authentication succeeded', {
             has_redirect: !!data.redirect,
             has_token: !!data.access_token

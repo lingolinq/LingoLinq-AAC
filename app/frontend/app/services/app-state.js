@@ -2299,7 +2299,7 @@ export default Service.extend({
         }
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
-        capabilities.fullscreen(false);
+        var fullscreenPromise = capabilities.fullscreen(false);
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
@@ -2325,16 +2325,25 @@ export default Service.extend({
           if(LingoLinq.Board) {
             LingoLinq.Board.clear_fast_html();
           }
-          // Schedule a delayed re-render to catch viewport changes from
-          // async fullscreen exit or other deferred layout updates. The
-          // initial clear_fast_html triggers an immediate re-render, but
-          // dimensions may change once fullscreen has fully exited (async).
+          // Schedule a re-render after fullscreen exit so layout reflects the new
+          // viewport. capabilities.fullscreen(false) returns a promise that resolves
+          // once we're out of fullscreen; we use runNext after that to allow one
+          // layout frame before processButtons.
           var _controller = editManager.controller;
-          runLater(function() {
-            if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
-              _controller.processButtons();
-            }
-          }, 600);
+          var doProcessButtons = function() {
+            runNext(function() {
+              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
+                _controller.processButtons();
+              }
+            });
+          };
+          if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {
+            fullscreenPromise.then(doProcessButtons, function() {
+              runLater(doProcessButtons, 200);
+            });
+          } else {
+            runLater(doProcessButtons, 600);
+          }
         }
       }
       this.refresh_suggestions();

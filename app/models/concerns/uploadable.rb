@@ -3,7 +3,11 @@ require 'uri'
 
 module Uploadable
   extend ActiveSupport::Concern
-  
+
+  # Max size for data URIs stored in DB when S3 upload fails. Prevents DB bloat from large images.
+  # 512KB is enough for typical button images (400x400) but blocks oversized photos.
+  DATA_URI_STORE_MAX_BYTES = 512 * 1024
+
   def file_type 
     if self.is_a?(ButtonImage)
       'images'
@@ -284,13 +288,18 @@ module Uploadable
         self.data = nil if self.respond_to?(:data=)
         self.save
       else
-        # S3 upload failed - fall back to storing data URI directly
-        # This allows images to work without S3 configuration
+        # S3 upload failed - fall back to storing data URI directly when small enough
+        # This allows images to work without S3 configuration, but we limit size to prevent DB bloat
         if url.match(/^data:/)
-          self.data = url
-          self.settings['pending'] = false
-          self.settings['pending_url'] = nil
-          Rails.logger.warn("S3 upload failed, storing data URI directly for #{self.class.name} #{self.id}")
+          if url.bytesize <= DATA_URI_STORE_MAX_BYTES
+            self.data = url
+            self.settings['pending'] = false
+            self.settings['pending_url'] = nil
+            Rails.logger.warn("S3 upload failed, storing data URI directly for #{self.class.name} #{self.id}")
+          else
+            self.settings['errored_pending_url'] = url
+            Rails.logger.warn("S3 upload failed, data URI too large (#{url.bytesize} bytes > #{DATA_URI_STORE_MAX_BYTES}) for #{self.class.name} #{self.id}")
+          end
         else
           self.settings['errored_pending_url'] = url
         end

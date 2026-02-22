@@ -12,6 +12,16 @@ import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import templateHelpers, { registerTemplateHelpers } from './template_helpers';
 
+function escapeHtmlForInterpolation(val) {
+  if(val == null || val === '') { return ''; }
+  return String(val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 var i18n = EmberObject.extend({
   init: function() {
     this._super();
@@ -60,7 +70,7 @@ var i18n = EmberObject.extend({
         if(options[word] !== undefined && options[word] !== null) {
           value = options[word];
           if(options.increment == word || options.hash.increment == word) { value++; }
-          str = str.replace(terms[idx], value);
+          str = str.replace(terms[idx], escapeHtmlForInterpolation(value));
         } else if(options.hash && options.hash[word] !== undefined && options.hash[word] !== null) {
           value = options.hash[word];
           if(options.increment == word || options.hash.increment == word) { value++; }
@@ -71,7 +81,7 @@ var i18n = EmberObject.extend({
               value = value || options.hash[word];
             }
           }
-          str = str.replace(terms[idx], value);
+          str = str.replace(terms[idx], escapeHtmlForInterpolation(value));
         }
       }
       str = str.replace(/%app_name%/g, LingoLinq.app_name);

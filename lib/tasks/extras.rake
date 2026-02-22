@@ -44,8 +44,14 @@ task "extras:clear_report_tallies" => :environment do
 end
 
 task "extras:fix_seed_users" => :environment do
+  admin_pwd = ENV['SEED_ADMIN_PASSWORD'].presence || (Rails.env.development? || Rails.env.test? ? 'admin2025!' : nil)
+  example_pwd = ENV['SEED_EXAMPLE_PASSWORD'].presence || (Rails.env.development? || Rails.env.test? ? 'password' : nil)
   ['lingolinq_admin', 'example'].each do |uname|
-    pwd = uname == 'lingolinq_admin' ? 'admin2025!' : 'password'
+    pwd = uname == 'lingolinq_admin' ? admin_pwd : example_pwd
+    if pwd.blank?
+      puts "#{uname}: SKIPPED - set SEED_#{uname == 'lingolinq_admin' ? 'ADMIN' : 'EXAMPLE'}_PASSWORD in production/staging"
+      next
+    end
     u = User.find_by(user_name: uname)
     if !u
       puts "#{uname}: NOT FOUND"
@@ -55,7 +61,7 @@ task "extras:fix_seed_users" => :environment do
     puts "  DB: #{ActiveRecord::Base.connection.current_database}"
     puts "  settings has password: #{!!(u.settings && u.settings['password'])}"
     puts "  billing_state: #{u.billing_state}"
-    puts "  before fix - valid_password?('#{pwd}'): #{u.valid_password?(pwd)}"
+    puts "  before fix - valid_password?(<env>): #{u.valid_password?(pwd)}"
 
     # Set password and subscription
     u.generate_password(pwd)
@@ -71,7 +77,7 @@ task "extras:fix_seed_users" => :environment do
 
     # Reload from DB and verify
     u.reload
-    puts "  after fix - valid_password?('#{pwd}'): #{u.valid_password?(pwd)}"
+    puts "  after fix - valid_password?(<env>): #{u.valid_password?(pwd)}"
     puts "  billing_state: #{u.billing_state}"
     puts "  subscription: #{u.settings['subscription'].inspect}"
     puts "  has password hash: #{!!(u.settings['password'])}"

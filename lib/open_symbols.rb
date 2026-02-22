@@ -46,7 +46,6 @@ module OpenSymbols
           url,
           params: params,
           headers: { 'Authorization' => "Bearer #{token}" },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -60,7 +59,6 @@ module OpenSymbols
             url,
             params: params,
             headers: { 'Authorization' => "Bearer #{token}" },
-            ssl_verifypeer: false,
             timeout: 10
           )
         end
@@ -217,7 +215,6 @@ module OpenSymbols
         response = Typhoeus.post(
           "https://www.opensymbols.org/api/v2/token",
           body: { secret: secret },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -279,13 +276,13 @@ module OpenSymbols
       headers = { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }
 
       begin
-        response = Typhoeus.post(url, body: body, headers: headers, ssl_verifypeer: false, timeout: 10)
+        response = Typhoeus.post(url, body: body, headers: headers, timeout: 10)
 
         if response.code == 401
           clear_token_cache
           token = generate_new_token
           return {} unless token
-          response = Typhoeus.post(url, body: body, headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }, ssl_verifypeer: false, timeout: 10)
+          response = Typhoeus.post(url, body: body, headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }, timeout: 10)
         end
 
         if response.code == 429

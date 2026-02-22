@@ -93,8 +93,15 @@ templateHelpers.round = function(number) {
 templateHelpers.safe = function(str, type) {
   if(!str) { return ''; }
   if(type == 'stripped') {
-    const doc = new DOMParser().parseFromString(str, 'text/html');
-    return htmlSafe(doc.body.textContent || '');
+    let stripped;
+    if(typeof DOMParser !== 'undefined') {
+      const doc = new DOMParser().parseFromString(str, 'text/html');
+      stripped = doc.body.textContent || '';
+    } else {
+      // Node.js / SSR: fallback when DOMParser is unavailable (e.g. FastBoot)
+      stripped = String(str).replace(/<[^>]*>/g, '');
+    }
+    return htmlSafe(stripped);
   } else {
     return htmlSafe(str);
   }

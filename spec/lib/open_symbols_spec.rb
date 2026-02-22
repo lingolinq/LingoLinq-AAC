@@ -9,7 +9,6 @@ describe OpenSymbols do
       expect(Typhoeus).to receive(:post).with(
         "https://www.opensymbols.org/api/v2/token",
         body: { secret: 'test_secret' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -65,7 +64,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'cat', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -83,7 +81,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'dog repo:arasaac', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -99,7 +96,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'house favor:tawasol', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -115,7 +111,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'sun hc:1', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       

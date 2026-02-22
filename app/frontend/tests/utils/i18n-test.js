@@ -167,9 +167,15 @@ describe("i18n", function() {
       str = templateHelpers.t("%{num} cow", {hash: {num: 0}, hashTypes: {}});
       expect(str.string).toEqual("0 cow");
     });
-    it("should not escape t results", function() {
+    it("should not escape HTML in translation template (trusted locale strings)", function() {
       var str = templateHelpers.t("happi<b>ness</b>", {});
       expect(str.string).toEqual("happi<b>ness</b>");
+    });
+    it("should escape HTML in interpolated values to prevent XSS", function() {
+      var str = templateHelpers.t("Hello %{name}", {hash: {name: '<script>alert(1)</script>'}, hashTypes: {}});
+      expect(str.string).toEqual("Hello &lt;script&gt;alert(1)&lt;/script&gt;");
+      str = templateHelpers.t("Org: %{org}", {hash: {org: '<img src=x onerror=alert(1)>'}, hashTypes: {}});
+      expect(str.string).toEqual("Org: &lt;img src=x onerror=alert(1)&gt;");
     });
     it("should increment t number value if specified", function() {
       var str = templateHelpers.t("%{hat} cow", {hash: {hat: 0, increment: 'hat'}, hashTypes: {}});
