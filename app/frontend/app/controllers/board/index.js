@@ -36,12 +36,15 @@ export default Controller.extend({
   }),
   ordered_buttons: null,
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
-    if(!this || typeof this.get !== 'function' || !this.appState) { return; }
-    if(!this.get('model')) { return; }
+    console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') });
+    if(!this || typeof this.get !== 'function' || !this.appState) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); return; }
+    if(!this.get('model')) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); return; }
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying');
     editManager.process_for_displaying(ignore_fast_html);
+    console.log('[BOARD-DEBUG] board/index processButtons() done');
   }),
   check_for_share_approval: observer(
     'model.id',
@@ -1039,6 +1042,7 @@ export default Controller.extend({
     'stashes.all_buttons_enabled',
     'stashes.current_mode',
     'paint_mode',
+    'appState.edit_mode',
     'border_style',
     'text_style',
     'model.finding_target',
@@ -1052,7 +1056,13 @@ export default Controller.extend({
     'appState.eval_mode',
     'appState.currentUser.preferences.high_contrast',
     function() {
-      var res = "board advanced_selection colored_icons ";
+      var res = "board advanced_selection ";
+      if(this.appState.get('edit_mode')) {
+        res = res + "edit ";
+      }
+      if(!this.appState.get('currentUser.preferences.folder_icons')) {
+        res = res + "colored_icons ";
+      }
       if(this.appState.get('currentUser.preferences.high_contrast')) {
         res = res + "high_contrast ";
       }
@@ -1178,6 +1188,15 @@ export default Controller.extend({
 //       }, function() { });
     }
   }),
+
+  _extractButtonId: function(id, event) {
+    if (id && typeof id === 'object' && id.target) {
+      event = id;
+      id = $(id.target).closest('.button').attr('data-id') || $(id.target).attr('id');
+    }
+    return { id: id, event: event };
+  },
+
   actions: {
     boardDetails: function() {
       modal.open('board-details', {board: this.get('model')});
@@ -1186,6 +1205,10 @@ export default Controller.extend({
       var _this = this;
       var controller = this;
       var board = this.get('model');
+      var extracted = this._extractButtonId(id, event);
+      id = extracted.id;
+      event = extracted.event;
+      if(!id) { return; }
       if(_this.appState.get('edit_mode')) {
         if(editManager.finding_target()) {
           editManager.apply_to_target(id);
@@ -1205,7 +1228,8 @@ export default Controller.extend({
       }
     },
     buttonPaint: function(id) {
-      editManager.paint_button(id);
+      id = this._extractButtonId(id).id;
+      if(id) { editManager.paint_button(id); }
     },
     complete_word: function(word) {
       try {
@@ -1233,17 +1257,19 @@ export default Controller.extend({
     },
     symbolSelect: function(id) {
       var _this = this;
-      var board = this;
-      if(!_this.appState.get('edit_mode')) { return; }
+      id = this._extractButtonId(id).id;
+      if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
+      if(!button) { return; }
       button.state = 'picture';
       modal.open('button-settings', {button: button, board: this.get('model')});
     },
     actionSelect: function(id) {
       var _this = this;
-      var board = this;
-      if(!_this.appState.get('edit_mode')) { return; }
+      id = this._extractButtonId(id).id;
+      if(!_this.appState.get('edit_mode') || !id) { return; }
       var button = editManager.find_button(id);
+      if(!button) { return; }
       button.state = 'action';
       modal.open('button-settings', {button: button, board: this.get('model')});
     },
@@ -1251,9 +1277,11 @@ export default Controller.extend({
       editManager.switch_buttons(dragId, dropId);
     },
     clear_button: function(id) {
-      editManager.clear_button(id);
+      id = this._extractButtonId(id).id;
+      if(id) { editManager.clear_button(id); }
     },
     stash_button: function(id) {
+      id = this._extractButtonId(id).id;
       editManager.stash_button(id || editManager.stashed_button_id);
       modal.success(i18n.t('button_stashed', "Button stashed!"));
       var $stash_hover = $("#stash_hover");

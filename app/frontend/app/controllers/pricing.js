@@ -6,7 +6,7 @@ import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Controller.extend({
-  update_classes: Subscription.obs_func.observes.apply(Subscription.obs_func, Subscription.obs_properties),
+  update_classes: Subscription.update_classes_observer,
   actions: {
     reset: function() {
       this.get('subscription').reset();

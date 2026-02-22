@@ -10,7 +10,7 @@ import {
 } from 'frontend/tests/helpers/jasmine';
 import { easyPromise, db_wait } from 'frontend/tests/helpers/ember_helper';
 import i18n from '../../utils/i18n';
-import Ember from 'ember';
+import templateHelpers from '../../utils/template_helpers';
 import EmberObject from '@ember/object';
 
 
@@ -135,21 +135,21 @@ describe("i18n", function() {
 
   describe("handlebars_helpers", function() {
     it("should format dates", function() {
-      var str = Ember.templateHelpers.date();
+      var str = templateHelpers.date();
       expect(str).toMatch(/\w+ \w+ \d+, \d+:\d+ \w+/);
-      str = Ember.templateHelpers.date({});
+      str = templateHelpers.date({});
       expect(str).toMatch(/\w+ \w+ \d+, \d+:\d+ \w+/);
 
       var date = new Date(0 + ((new Date()).getTimezoneOffset() * 1000 * 60));
       var date_string = window.moment(date).format("MMMM Do YYYY, h:mm a");
-      expect(Ember.templateHelpers.date(date, {})).toEqual(date_string);
+      expect(templateHelpers.date(date, {})).toEqual(date_string);
     });
     it("should handle date_ago", function() {
       var date = new Date();
-      var str = Ember.templateHelpers.date_ago(date);
+      var str = templateHelpers.date_ago(date);
       expect(str).toEqual("a few seconds ago");
       date = new Date((new Date()).getTime() - (1000 * 60 * 5));
-      str = Ember.templateHelpers.date_ago(date);
+      str = templateHelpers.date_ago(date);
       expect(str).toEqual("5 minutes ago");
     });
 
@@ -158,47 +158,47 @@ describe("i18n", function() {
     });
 
     it("should handle t (translation)", function() {
-      var str = Ember.templateHelpers.t("happiness", {});
+      var str = templateHelpers.t("happiness", {});
       expect(str.string).toEqual("happiness");
 
-      str = Ember.templateHelpers.t("%{type} cow", {hash: {type: "happy"}, hashTypes: {}});
+      str = templateHelpers.t("%{type} cow", {hash: {type: "happy"}, hashTypes: {}});
       expect(str.string).toEqual("happy cow");
 
-      str = Ember.templateHelpers.t("%{num} cow", {hash: {num: 0}, hashTypes: {}});
+      str = templateHelpers.t("%{num} cow", {hash: {num: 0}, hashTypes: {}});
       expect(str.string).toEqual("0 cow");
     });
     it("should not escape t results", function() {
-      var str = Ember.templateHelpers.t("happi<b>ness</b>", {});
+      var str = templateHelpers.t("happi<b>ness</b>", {});
       expect(str.string).toEqual("happi<b>ness</b>");
     });
     it("should increment t number value if specified", function() {
-      var str = Ember.templateHelpers.t("%{hat} cow", {hash: {hat: 0, increment: 'hat'}, hashTypes: {}});
+      var str = templateHelpers.t("%{hat} cow", {hash: {hat: 0, increment: 'hat'}, hashTypes: {}});
       expect(str.string).toEqual("1 cow");
 
-      str = Ember.templateHelpers.t("cow", {hash: {count: 1, increment: 'count'}, hashTypes: {}});
+      str = templateHelpers.t("cow", {hash: {count: 1, increment: 'count'}, hashTypes: {}});
       expect(str.string).toEqual("2 cows");
     });
 
     it("should format time strings", function() {
-      var str = Ember.templateHelpers.duration(null);
+      var str = templateHelpers.duration(null);
       expect(str).toEqual("");
 
-      str = Ember.templateHelpers.duration(0);
+      str = templateHelpers.duration(0);
       expect(str).toEqual("");
 
-      str = Ember.templateHelpers.duration(-5);
+      str = templateHelpers.duration(-5);
       expect(str).toEqual("");
 
-      str = Ember.templateHelpers.duration(5);
+      str = templateHelpers.duration(5);
       expect(str).toEqual("0:05");
 
-      str = Ember.templateHelpers.duration(23);
+      str = templateHelpers.duration(23);
       expect(str).toEqual("0:23");
 
-      str = Ember.templateHelpers.duration(90);
+      str = templateHelpers.duration(90);
       expect(str).toEqual("1:30");
 
-      str = Ember.templateHelpers.duration(3923);
+      str = templateHelpers.duration(3923);
       expect(str).toEqual("1:05:23");
     });
 
@@ -670,70 +670,70 @@ describe("i18n", function() {
 
   describe("seconds_ago", function() {
     it("should return correct values", function() {
-      expect(Ember.templateHelpers.seconds_ago(12)).toEqual("12 seconds");
-      expect(Ember.templateHelpers.seconds_ago(1)).toEqual("1 second");
-      expect(Ember.templateHelpers.seconds_ago(0)).toEqual("");
-      expect(Ember.templateHelpers.seconds_ago(100)).toEqual("1.7 minutes");
-      expect(Ember.templateHelpers.seconds_ago(5000)).toEqual("1.4 hours");
-      expect(Ember.templateHelpers.seconds_ago(12600)).toEqual("3.5 hours");
-      expect(Ember.templateHelpers.seconds_ago(270000)).toEqual("75 hours");
-      expect(Ember.templateHelpers.seconds_ago(345800)).toEqual("96.1 hours");
-      expect(Ember.templateHelpers.seconds_ago(691800)).toEqual("192.2 hours");
-      expect(Ember.templateHelpers.seconds_ago(1382990)).toEqual("384.2 hours");
-      expect(Ember.templateHelpers.seconds_ago(2851200)).toEqual("792 hours");
-      expect(Ember.templateHelpers.seconds_ago(8553600)).toEqual("2,376 hours");
-      expect(Ember.templateHelpers.seconds_ago(17280000)).toEqual("4,800 hours");
-      expect(Ember.templateHelpers.seconds_ago(3801999)).toEqual("1,056 hours");
-      expect(Ember.templateHelpers.seconds_ago(3801500)).toEqual("1,056 hours");
-      expect(Ember.templateHelpers.seconds_ago(86400)).toEqual("24 hours");
-      expect(Ember.templateHelpers.seconds_ago(86401)).toEqual("24 hours");
-      expect(Ember.templateHelpers.seconds_ago(86399)).toEqual("24 hours");
-      expect(Ember.templateHelpers.seconds_ago(100, 'long')).toEqual("1.7 minutes");
-      expect(Ember.templateHelpers.seconds_ago(5000, 'long')).toEqual("1.4 hours");
-      expect(Ember.templateHelpers.seconds_ago(12600, 'long')).toEqual("3.5 hours");
-      expect(Ember.templateHelpers.seconds_ago(270000, 'long')).toEqual("3 days");
-      expect(Ember.templateHelpers.seconds_ago(345800, 'long')).toEqual("4 days");
-      expect(Ember.templateHelpers.seconds_ago(691800, 'long')).toEqual("1.1 weeks");
-      expect(Ember.templateHelpers.seconds_ago(1382990, 'long')).toEqual("2.3 weeks");
-      expect(Ember.templateHelpers.seconds_ago(2851200, 'long')).toEqual("4.7 weeks");
-      expect(Ember.templateHelpers.seconds_ago(8553600, 'long')).toEqual("3.3 months");
-      expect(Ember.templateHelpers.seconds_ago(17280000, 'long')).toEqual("6.7 months");
-      expect(Ember.templateHelpers.seconds_ago(3801999, 'long')).toEqual("6.3 weeks");
-      expect(Ember.templateHelpers.seconds_ago(3801500, 'long')).toEqual("6.3 weeks");
-      expect(Ember.templateHelpers.seconds_ago(86400, 'long')).toEqual("1 day");
-      expect(Ember.templateHelpers.seconds_ago(86401, 'long')).toEqual("1 day");
-      expect(Ember.templateHelpers.seconds_ago(86399, 'long')).toEqual("1 day");
+      expect(templateHelpers.seconds_ago(12)).toEqual("12 seconds");
+      expect(templateHelpers.seconds_ago(1)).toEqual("1 second");
+      expect(templateHelpers.seconds_ago(0)).toEqual("");
+      expect(templateHelpers.seconds_ago(100)).toEqual("1.7 minutes");
+      expect(templateHelpers.seconds_ago(5000)).toEqual("1.4 hours");
+      expect(templateHelpers.seconds_ago(12600)).toEqual("3.5 hours");
+      expect(templateHelpers.seconds_ago(270000)).toEqual("75 hours");
+      expect(templateHelpers.seconds_ago(345800)).toEqual("96.1 hours");
+      expect(templateHelpers.seconds_ago(691800)).toEqual("192.2 hours");
+      expect(templateHelpers.seconds_ago(1382990)).toEqual("384.2 hours");
+      expect(templateHelpers.seconds_ago(2851200)).toEqual("792 hours");
+      expect(templateHelpers.seconds_ago(8553600)).toEqual("2,376 hours");
+      expect(templateHelpers.seconds_ago(17280000)).toEqual("4,800 hours");
+      expect(templateHelpers.seconds_ago(3801999)).toEqual("1,056 hours");
+      expect(templateHelpers.seconds_ago(3801500)).toEqual("1,056 hours");
+      expect(templateHelpers.seconds_ago(86400)).toEqual("24 hours");
+      expect(templateHelpers.seconds_ago(86401)).toEqual("24 hours");
+      expect(templateHelpers.seconds_ago(86399)).toEqual("24 hours");
+      expect(templateHelpers.seconds_ago(100, 'long')).toEqual("1.7 minutes");
+      expect(templateHelpers.seconds_ago(5000, 'long')).toEqual("1.4 hours");
+      expect(templateHelpers.seconds_ago(12600, 'long')).toEqual("3.5 hours");
+      expect(templateHelpers.seconds_ago(270000, 'long')).toEqual("3 days");
+      expect(templateHelpers.seconds_ago(345800, 'long')).toEqual("4 days");
+      expect(templateHelpers.seconds_ago(691800, 'long')).toEqual("1.1 weeks");
+      expect(templateHelpers.seconds_ago(1382990, 'long')).toEqual("2.3 weeks");
+      expect(templateHelpers.seconds_ago(2851200, 'long')).toEqual("4.7 weeks");
+      expect(templateHelpers.seconds_ago(8553600, 'long')).toEqual("3.3 months");
+      expect(templateHelpers.seconds_ago(17280000, 'long')).toEqual("6.7 months");
+      expect(templateHelpers.seconds_ago(3801999, 'long')).toEqual("6.3 weeks");
+      expect(templateHelpers.seconds_ago(3801500, 'long')).toEqual("6.3 weeks");
+      expect(templateHelpers.seconds_ago(86400, 'long')).toEqual("1 day");
+      expect(templateHelpers.seconds_ago(86401, 'long')).toEqual("1 day");
+      expect(templateHelpers.seconds_ago(86399, 'long')).toEqual("1 day");
     });
   });
   describe("date", function() {
     it("should return the correct value", function() {
       var d = new Date(1474326397835);
-      expect(Ember.templateHelpers.date(d, 'day')).toEqual('September 19th 2016');
-      expect(Ember.templateHelpers.date(d, 'short_day')).toEqual('Sep 19th 2016');
-      expect(Ember.templateHelpers.date(d, 'whatever')).toEqual('September 19th 2016, 5:06 pm');
+      expect(templateHelpers.date(d, 'day')).toEqual('September 19th 2016');
+      expect(templateHelpers.date(d, 'short_day')).toEqual('Sep 19th 2016');
+      expect(templateHelpers.date(d, 'whatever')).toEqual('September 19th 2016, 5:06 pm');
     });
   });
 
   describe("delimit", function() {
     it("should return correct values", function() {
-      expect(Ember.templateHelpers.delimit(0.0432)).toEqual("0.0432");
-      expect(Ember.templateHelpers.delimit(12.999)).toEqual("12.999");
-      expect(Ember.templateHelpers.delimit(999.998)).toEqual("999.998");
-      expect(Ember.templateHelpers.delimit(1024.324)).toEqual("1,024");
-      expect(Ember.templateHelpers.delimit(5000.0004)).toEqual("5,000");
-      expect(Ember.templateHelpers.delimit(999999.987)).toEqual("999,999");
-      expect(Ember.templateHelpers.delimit(123456789)).toEqual("123,456k");
-      expect(Ember.templateHelpers.delimit(123456789, 'full')).toEqual("123,456,789");
+      expect(templateHelpers.delimit(0.0432)).toEqual("0.0432");
+      expect(templateHelpers.delimit(12.999)).toEqual("12.999");
+      expect(templateHelpers.delimit(999.998)).toEqual("999.998");
+      expect(templateHelpers.delimit(1024.324)).toEqual("1,024");
+      expect(templateHelpers.delimit(5000.0004)).toEqual("5,000");
+      expect(templateHelpers.delimit(999999.987)).toEqual("999,999");
+      expect(templateHelpers.delimit(123456789)).toEqual("123,456k");
+      expect(templateHelpers.delimit(123456789, 'full')).toEqual("123,456,789");
     });
   });
 
   describe("safe", function() {
     it("should return safe text", function() {
-      var res = Ember.templateHelpers.safe('something <b>cool</b>');
+      var res = templateHelpers.safe('something <b>cool</b>');
       expect(res.string).toEqual('something <b>cool</b>');
     });
     it("should strip html if specified", function() {
-      var res = Ember.templateHelpers.safe('something <b>cool</b>', 'stripped');
+      var res = templateHelpers.safe('something <b>cool</b>', 'stripped');
       expect(res.string).toEqual('something cool');
     });
   });

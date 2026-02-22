@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Component from '@ember/component';
+import templateHelpers from '../../utils/template_helpers';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
@@ -49,7 +49,7 @@ export default Component.extend({
             marker.setMap(map);
             markers.push(marker);
 
-            var dater = Ember.templateHelpers.date;
+            var dater = templateHelpers.date;
             var html = title + "<br/>" + dater(location.started_at, null) +
                         " to <br/>" + dater(location.ended_at, null) + "<br/>" +
                         "<a href='#' class='ember_link' data-location_id='" + location.id + "'>filter by this location</a>";

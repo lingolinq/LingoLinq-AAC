@@ -1072,7 +1072,7 @@
       <div class="form-group">
         <label class="col-sm-3 control-label">{{t "Links and Buttons" key='links_and_buttons'}}</label>
         <div class="col-sm-5">
-          {{#unless editing_sidebar}}
+          {{#unless this.editing_sidebar}}
             <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button><br>
           {{else}}
             <p class="form-control-static">
@@ -1156,7 +1156,7 @@
               {{t "No tags saved" key='no_tags_saved'}}
             {{/if}}
           </p>
-          {{#if can_record_tags}}
+          {{#if this.can_record_tags}}
             <button class='btn btn-default' {{action 'program_tag'}}>{{t "Save New Tag" key='save_new_tag'}}</button>
           {{/if}}
           <button class='btn btn-default' {{action 'clear_nfc_tags'}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>

@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import templateHelpers from '../utils/template_helpers';
 import {
   later as runLater,
   cancel as runCancel
@@ -158,7 +158,7 @@ LingoLinq.Board = DS.Model.extend({
   nothing_visible: computed('buttons', 'grid', function() {
     var found_visible = false;
     this.get('used_buttons').forEach(function(button) {
-      if(button && button.hidden !== true) {
+      if(button && !button.hidden) {
         found_visible = true;
       }
     });
@@ -718,7 +718,7 @@ LingoLinq.Board = DS.Model.extend({
     return unused;
   }),
   long_preview: computed('name', 'labels', 'user_name', 'created', function() {
-    var date = Ember.templateHelpers.date(this.get('created'), 'day');
+    var date = templateHelpers.date(this.get('created'), 'day');
     var labels = this.get('labels');
     if(labels && labels.length > 100) {
       var new_labels = "";
@@ -1614,24 +1614,8 @@ LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
-      // Reset classes_added so board.add_classes() can re-run with fresh
-      // display_class values on the next speak mode entry
-      b.set('classes_added', false);
     });
-    // Clear stale ordered_buttons to prevent the template from rendering
-    // old Button objects while new ones are being created asynchronously.
-    // Without this, old buttons from a previous render cycle may display
-    // with stale state (wrong display_class, positioning, etc.)
-    if(editManager.controller) {
-      editManager.controller.set('ordered_buttons', null);
-    }
-    // Trigger a full board reload via board_reload_key. This fires the
-    // processButtons observer which does computeHeight + process_for_displaying
-    // in the correct sequence.
-    var appState = editManager.appState;
-    if(appState && typeof appState.set === 'function') {
-      appState.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
-    } else if(editManager.controller) {
+    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
   },

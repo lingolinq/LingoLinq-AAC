@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
@@ -107,42 +107,12 @@ var contentGrabbers = Service.extend({
         });
 
         if(existing_saved) {
-          // If we found an existing image, update it with any new metadata and return it
-          var needs_save = false;
-          if (object.get('content_type') && !existing_saved.get('content_type')) {
-            existing_saved.set('content_type', object.get('content_type'));
-            needs_save = true;
-          }
-          if (object.get('width') && !existing_saved.get('width')) {
-            existing_saved.set('width', object.get('width'));
-            needs_save = true;
-          }
-          if (object.get('height') && !existing_saved.get('height')) {
-            existing_saved.set('height', object.get('height'));
-            needs_save = true;
-          }
-          if (object.get('license') && !existing_saved.get('license')) {
-            existing_saved.set('license', object.get('license'));
-            needs_save = true;
-          }
-
           if(object.get('isNew')) {
             LingoLinq.store.unloadRecord(object);
           }
           delete pendingRecordMap[normalized_url];
-          
-          if (needs_save && existing_saved.get('hasDirtyAttributes')) {
-            existing_saved.save().then(function (saved) {
-              deferred.resolve(saved);
-              resolve(saved);
-            }, function (err) {
-              delete pendingMap[normalized_url];
-              reject(err);
-            });
-          } else {
-            deferred.resolve(existing_saved);
-            resolve(existing_saved);
-          }
+          deferred.resolve(existing_saved);
+          resolve(existing_saved);
           return;
         }
 
@@ -436,6 +406,7 @@ var contentGrabbers = Service.extend({
   read_file: function(file, type) {
     return new RSVP.Promise(function(resolve, reject) {
       var reader = new FileReader();
+      var _this = this;
       reader.onloadend = function(data) {
         run(function() {
           if(type == 'blob') {
@@ -1118,6 +1089,7 @@ var pictureGrabber = EmberObject.extend({
           type: 'private'
         }
       });
+      var _this = this;
       return window.cg.save_record(image);
     });
     return save_image;
@@ -1571,6 +1543,9 @@ var pictureGrabber = EmberObject.extend({
 var videoGrabber = EmberObject.extend({
   setup: function(controller) {
     var _this = this;
+    if (!controller || controller.isDestroyed || controller.isDestroying) {
+      return;
+    }
     this.controller = controller;
     _this.controller.addObserver('video_preview', _this, _this.default_video_preview_license);
   },
@@ -1659,8 +1634,8 @@ var videoGrabber = EmberObject.extend({
           console.error('native vidoe capture failed', e) 
         }, {limit: 1});
       } else if(navigator.getUserMedia) {
-        if(_this.controller.get('video_recording.stream')) {
-          _this.user_media_ready(_this.controller.get('video_recording.stream'));
+        if(this.controller.get('video_recording.stream')) {
+          _this.user_media_ready(this.controller.get('video_recording.stream'));
           return;
         }
 
@@ -2246,13 +2221,13 @@ var soundGrabber = EmberObject.extend({
     }
     if(action == 'start' && mr && mr.state == 'inactive') {
       var _this = this;
-      var delay = Ember.testing ? 0 : 500;
+      var delay = isTesting() ? 0 : 500;
       var start = function() {
         _this.controller.set('sound_recording.blob', null);
         _this.controller.set('sound_recording.recording', true);
         mr.start(60000);
       };
-      if(Ember.testing) {
+      if(isTesting()) {
         start();
       } else {
         runLater(start, 500);

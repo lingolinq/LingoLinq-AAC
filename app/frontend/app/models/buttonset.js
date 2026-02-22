@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import { inject as service } from '@ember/service';
+import templateHelpers from '../utils/template_helpers';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
@@ -579,7 +579,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             if(image) {
               button.image = image.get('best_url');
             }
-            emberSet(button, 'image', emberGet(button, 'image') || Ember.templateHelpers.path('images/blank.gif'));
+            emberSet(button, 'image', emberGet(button, 'image') || templateHelpers.path('images/blank.gif'));
             if(emberGet(button, 'image') && LingoLinqImage.personalize_url) {
               emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
             }
@@ -998,7 +998,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
     button.image_license = image.get('license');
     button.hc = image.get('hc');
   }
-  emberSet(button, 'image', emberGet(button, 'image') || Ember.templateHelpers.path('images/blank.gif'));
+  emberSet(button, 'image', emberGet(button, 'image') || templateHelpers.path('images/blank.gif'));
 
   emberSet(button, 'current_depth', (button.pre_buttons || []).length);
   if(LingoLinq.remote_url(button.image)) {

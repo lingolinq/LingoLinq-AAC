@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Component from '@ember/component';
+import { isTesting } from '@ember/debug';
 import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
@@ -304,7 +304,7 @@ export default Component.extend({
         runLater(function() {
           _this.appState.set('logging_in', true);
         }, 1000);
-        if(Ember.testing) {
+        if(isTesting()) {
           console.error("would have redirected to home");
         } else if(capabilities.installed_app) {
           wait.then(function() {

@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Controller from '@ember/controller';
+import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
@@ -60,7 +60,7 @@ export default Controller.extend({
     }
   },
   updateTitle: function(str) {
-    if(!Ember.testing) {
+    if(!isTesting()) {
       if(str) {
         document.title = str + " - " + LingoLinq.app_name;
       } else {

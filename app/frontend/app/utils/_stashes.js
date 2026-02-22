@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import EmberObject from '@ember/object';
+import { isTesting } from '@ember/debug';
 import {
   later as runLater,
   debounce as runDebounce
@@ -168,7 +168,7 @@ var stashes = EmberObject.extend({
     }
     if(stashes.get('global_integrations') && window.user_preferences) {
       window.user_preferences.global_integrations = stashes.get('global_integrations');
-    } else if(!Ember.testing) {
+    } else if(!isTesting()) {
       runLater(function() {
         if(LingoLinq && LingoLinq.session && LingoLinq.session.check_token && !LingoLinq.testing) {
           LingoLinq.session.check_token();

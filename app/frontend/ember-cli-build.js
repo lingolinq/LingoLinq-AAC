@@ -4,7 +4,7 @@ var EmberApp = require('ember-cli/lib/broccoli/ember-app');
 module.exports = function (defaults) {
   var app = new EmberApp(defaults, {
     sourcemaps: {
-      enabled: false
+      enabled: true
     },
     storeConfigInMeta: false,
     //    vendorFiles: {
@@ -43,7 +43,6 @@ module.exports = function (defaults) {
   app.import('node_modules/jquery-minicolors/jquery.minicolors.css');
 
   // Import JS files
-  app.import('vendor/deprecation-workflow.js', { prepend: true });
   app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js');
   // Import source map to prevent 404 errors
   app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js.map', {

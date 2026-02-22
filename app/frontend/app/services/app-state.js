@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Route from '@ember/routing/route';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
@@ -2950,7 +2950,7 @@ export default Service.extend({
     }
   }),
   testing: computed(function() {
-    return Ember.testing;
+    return isTesting();
   }),
   logging_paused: computed('stashes.logging_paused_at', function() {
     return !!this.stashes.get('logging_paused_at');

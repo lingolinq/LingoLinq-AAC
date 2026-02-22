@@ -1,6 +1,6 @@
-import Ember from 'ember';
-
 import { helper } from '@ember/component/helper';
+import templateHelpers from '../utils/template_helpers';
+
 export default helper(function(params, hash) {
-  return Ember.templateHelpers.safe(params[0], params[1]);
+  return templateHelpers.safe(params[0], params[1]);
 });

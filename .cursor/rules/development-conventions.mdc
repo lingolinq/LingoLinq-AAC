@@ -1,0 +1,34 @@
+---
+description: Development conventions - deprecations, functionality, styling
+alwaysApply: true
+---
+
+# Development Conventions
+
+## Deprecations
+
+- **Never suppress or hide deprecations.** Fix the root cause instead.
+- Do not use `registerDeprecationHandler` or similar to silence warnings.
+- When addressing Ember deprecations, migrate to the recommended APIs:
+  - `observer('prop', fn)` instead of `function(){}.observes('prop')`
+  - `isTesting()` from `@ember/debug` instead of `Ember.testing`
+  - Import specific modules (e.g. `import Component from '@ember/component'`) instead of `Ember.Component`
+  - `EmberObject.reopen.call(Subclass, {...})` to extend a subclass without triggering `Component.reopen` deprecation
+
+## Functionality
+
+- **Do not remove or change functionality when refactoring.**
+- Preserve existing behavior. If a change would alter what the app does, do not make it without explicit user approval.
+
+## Styling and class names
+
+- **Preserve existing class names** used for styling.
+- Do not rename or remove CSS classes unless there is a clear need.
+- If a class name change is necessary, **prompt the user first** before making it.
+
+## jQuery context
+
+- jQuery removal work has been done on the develop branch.
+- `jquery-integration` is disabled in `config/optional-features.json`.
+- Prefer native DOM APIs or Ember patterns over jQuery where practical.
+- The app does not use `this.$()` on components.

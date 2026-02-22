@@ -1,5 +1,6 @@
-import Ember from 'ember';
 import EmberApplication from '@ember/application';
+import { isTesting } from '@ember/debug';
+import { setOnerror } from '@ember/-internals/error-handling';
 import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
@@ -21,7 +22,7 @@ window.onerror = function(msg, url, line, col, obj) {
   }
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
-Ember.onerror = function(err) {
+setOnerror(function(err) {
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
@@ -43,10 +44,10 @@ Ember.onerror = function(err) {
       LingoLinq.track_error(JSON.stringify(err), false);
     }
   }
-  if(Ember.testing || LingoLinq.testing) {
+  if(isTesting() || LingoLinq.testing) {
     throw(err);
   }
-};
+});
 
 var customEvents = {
     'buttonselect': 'buttonSelect',
@@ -753,7 +754,7 @@ window.addEventListener('message', function(event) {
 //     RunLater(LingoLinq.YT.poll, 100);
 //   }
 // };
-// if(!Ember.testing) {
+// if(!isTesting()) {
 //   RunLater(LingoLinq.YT.poll, 500);
 // }
 

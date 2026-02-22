@@ -1323,7 +1323,19 @@ var buttonTracker = EmberObject.extend({
   swipe_direction: function(dom, event, targets) {
     var final = [event.clientX, event.clientY];
     if(!dom || (targets || []).length == 0) { return 'final'; }
-    var rect = dom.getBoundingClientRect();
+    var rect;
+    if(dom && typeof dom.getBoundingClientRect === 'function') {
+      rect = dom.getBoundingClientRect();
+    } else {
+      // Virtual button: dom is button id. Get dimensions from board_virtual_dom.
+      var boardDom = buttonTracker.appState && buttonTracker.appState.get('board_virtual_dom');
+      var vb = boardDom && boardDom.button_from_id && boardDom.button_from_id(dom);
+      if(vb && vb.width !== undefined && vb.height !== undefined) {
+        rect = { width: vb.width, height: vb.height };
+      } else {
+        return 'final';
+      }
+    }
     var non_event_cutoff = 15;
     // max diff is the largest distance between the intial target and all subsequent targets
     var max_x_diff = Math.max.apply(null, targets.map(function(t) { return Math.abs(targets[0][0] - t[0]); }).concat([Math.abs(targets[0][0] - final[0])]));
