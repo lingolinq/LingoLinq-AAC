@@ -41,6 +41,8 @@ class Api::LogsController < ApplicationController
       for_self = false
     else
       cutoff = user.logging_cutoff_for(@api_user, logging_code_for(user))
+      # Users can always see their own logs when cutoff is 0 (which would otherwise hide everything)
+      cutoff = nil if cutoff == 0 && @api_user == user
       if cutoff
         user_id_cutoffs[user.id] = cutoff
       end
@@ -76,7 +78,12 @@ class Api::LogsController < ApplicationController
       return unless allowed?(user, 'delete')
     end
     if params['type'] != 'all' && ['session', 'note', 'assessment', 'eval', 'profile', 'journal'].include?(params['type'])
-      logs = logs.where(:log_type => params['type'])
+      # type=note includes assessments so the "Messages about X" view shows both notes and quick assessments
+      if params['type'] == 'note'
+        logs = logs.where(:log_type => ['note', 'assessment'])
+      else
+        logs = logs.where(:log_type => params['type'])
+      end
     else
       logs = logs.where(:log_type => ['session', 'note', 'assessment', 'eval', 'profile'])
     end
@@ -126,6 +133,9 @@ class Api::LogsController < ApplicationController
       json[:meta]['logging_cutoffs'] = true 
       json[:meta]['logging_cutoff_min'] = user_id_cutoffs.values.compact.min
     end
+    # Prevent HTTP caching so we always return fresh log data (avoids 304 serving stale empty responses)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
     render json: json
   end
 
@@ -170,7 +180,9 @@ class Api::LogsController < ApplicationController
       :request_id => request.request_id
     })
     if !log || log.errored?
-      api_error(400, {error: "log creation failed", errors: log && log.processing_errors})
+      errs = log && log.processing_errors
+      Rails.logger.warn("Log creation failed: user_id=#{params.dig('log', 'user_id')}, goal_id=#{params.dig('log', 'goal_id')}, errors=#{errs.inspect}")
+      api_error(400, {error: "log creation failed", errors: errs})
     else
       render json: JsonApi::Log.as_json(log, :wrapper => true).to_json
     end

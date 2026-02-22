@@ -1,4 +1,3 @@
-import Ember from 'ember';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import capabilities from './capabilities';
@@ -9,17 +8,6 @@ import LingoLinq from '../app';
 import stashes from './_stashes';
 import app_state from './app_state';
 import lingoLinqExtras from './extras';
-
-
-Ember.templateHelpers = Ember.templateHelpers || {};
-
-Ember.templateHelpers.path = function(value1, options) {
-  if(capabilities.installed_app) {
-    return value1;
-  } else {
-    return "/" + value1;
-  }
-};
 
 RSVP.resolutions = function(list) {
   return new RSVP.Promise(function(resolve, reject) {

@@ -86,7 +86,19 @@ class Device < ActiveRecord::Base
   end
 
   def missing_2fa?
-    return !!(self.settings && self.settings['2fa'] && self.settings['2fa']['pending'])
+    if self.settings && self.settings['2fa'] && self.settings['2fa']['pending']
+      # Double-check that the user still requires 2FA. If mandatory
+      # enforcement was disabled (pre-MVP), clear the stale pending
+      # flag so the device is not stuck with ['none'] scopes.
+      if self.user && !self.user.state_2fa[:required]
+        self.settings.delete('2fa')
+        self.invalidate_cached_keys
+        self.save if self.persisted?
+        return false
+      end
+      return true
+    end
+    false
   end
 
   def confirm_2fa!(code, manually_approve=false)

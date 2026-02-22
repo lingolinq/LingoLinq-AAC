@@ -398,9 +398,11 @@ describe Api::LogsController, :type => :controller do
       expect(@user.logging_cutoff_for(@user, nil)).to eq(0)
       get :index, params: {:user_id => @user.global_id}
       json = assert_success_json
-      expect(json['log'].length).to eq(0)
-      expect(json['meta']['logging_cutoffs']).to eq(true)
-      expect(json['meta']['logging_cutoff_min']).to eq(0)
+      # Users can always see their own logs when cutoff is 0 (avoids hiding just-created logs from self)
+      expect(json['log'].length).to eq(2)
+      # No cutoff applied when user views own logs with cutoff=0, so meta reflects that
+      expect(json['meta']['logging_cutoffs']).to eq(nil)
+      expect(json['meta']['logging_cutoff_min']).to eq(nil)
     end
 
     it "should allow overriding logging_cutoff with a valid logging code" do

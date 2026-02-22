@@ -26,7 +26,9 @@ export default Component.extend({
   }),
   actions: {
     filter: function(device) {
-      this.sendAction('filter', 'device', device.id);
+      if (this.filter) {
+        this.filter('device', device.id);
+      }
     }
   }
 });

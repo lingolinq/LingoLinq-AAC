@@ -2066,9 +2066,14 @@ var editManager = EmberObject.extend({
       if(needs_check) {
         button.set('pending_image', true);
         // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-        if(button && button.label && !button.image) {
-          button.check_for_parts_of_speech();
-        }
+      }
+      // Always add colors when button has label but no colors - regardless of image.
+      // Previously we only called this when !button.image, which meant buttons with
+      // images (e.g. from backend process_suggested_symbols) never got part-of-speech colors.
+      if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
+        button.check_for_parts_of_speech();
+      }
+      if(needs_check) {
         var locale = _this.controller.get('model.locale') || 'en';
         contentGrabbers.pictureGrabber.picture_search(library, button.label, _this.controller.get('model.user_name'), locale, true, true, null).then(function(data) {
           button = _this.find_button(id);

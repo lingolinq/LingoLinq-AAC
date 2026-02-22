@@ -9,7 +9,6 @@ describe OpenSymbols do
       expect(Typhoeus).to receive(:post).with(
         "https://www.opensymbols.org/api/v2/token",
         body: { secret: 'test_secret' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -65,7 +64,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'cat', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -83,7 +81,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'dog repo:arasaac', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -99,7 +96,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'house favor:tawasol', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -115,7 +111,6 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'sun hc:1', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        ssl_verifypeer: false,
         timeout: 10
       ).and_return(response)
       
@@ -226,7 +221,7 @@ describe OpenSymbols do
       expect(OpenSymbols).to receive(:search).with('test', locale: 'en', repo: nil, favor: nil).and_return([])
       OpenSymbols.find_images('test', 'opensymbols', 'en')
     end
-    
+
     it "should mark protected sources correctly" do
       search_results = [{
         'id' => 123,
@@ -237,14 +232,48 @@ describe OpenSymbols do
         'author' => 'PCS',
         'author_url' => 'https://example.com'
       }]
-      
+
       expect(OpenSymbols).to receive(:search).and_return(search_results)
-      
+
       results = OpenSymbols.find_images('test', 'pcs', 'en', protected_source: 'pcs')
-      
+
       expect(results[0]['public']).to eq(false)
       expect(results[0]['protected']).to eq(true)
       expect(results[0]['protected_source']).to eq('pcs')
+    end
+  end
+
+  describe 'defaults' do
+    it 'should use bulk API for specific repositories' do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token')
+      expect(Typhoeus).to receive(:post).with(
+        'https://www.opensymbols.org/api/v2/repositories/arasaac/defaults',
+        hash_including(
+          body: { words: ['cat', 'dog'], allow_search: true, locale: 'en' }.to_json,
+          headers: { 'Authorization' => 'Bearer test_token', 'Content-Type' => 'application/json' }
+        )
+      ).and_return(double(success?: true, body: {
+        'cat' => { 'image_url' => 'https://example.com/cat.png', 'extension' => 'png', 'width' => 100, 'height' => 100, 'id' => '1', 'license' => 'CC', 'license_url' => nil, 'author' => nil, 'author_url' => nil, 'source_url' => nil }
+      }.to_json, code: 200))
+
+      results = OpenSymbols.defaults('arasaac', ['cat', 'dog'], 'en')
+      expect(results.keys).to eq(['cat'])
+      expect(results['cat']['image_url']).to eq('https://example.com/cat.png')
+    end
+
+    it 'should fall back to per-word search for opensymbols meta-repo' do
+      expect(OpenSymbols).to receive(:search).with('cat', locale: 'en', repo: nil, favor: nil).and_return([{ 'image_url' => 'https://example.com/cat.png', 'id' => 1 }])
+      expect(OpenSymbols).to receive(:search).with('dog', locale: 'en', repo: nil, favor: nil).and_return([])
+
+      results = OpenSymbols.defaults('opensymbols', ['cat', 'dog'], 'en')
+      expect(results).to eq('cat' => { 'image_url' => 'https://example.com/cat.png', 'id' => 1 })
+    end
+
+    it 'should fall back to per-word search for tawasol' do
+      expect(OpenSymbols).to receive(:search).with('house', locale: 'en', repo: nil, favor: 'tawasol').and_return([])
+
+      results = OpenSymbols.defaults('tawasol', ['house'], 'en')
+      expect(results).to eq({})
     end
   end
 end

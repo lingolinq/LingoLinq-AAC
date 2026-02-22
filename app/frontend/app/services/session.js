@@ -1,5 +1,5 @@
 import Service from '@ember/service';
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { later as runLater, run } from '@ember/runloop';
 import RSVP from 'rsvp';
@@ -475,7 +475,7 @@ export default Service.extend({
     var onlineForCheck = this.persistence ? this.persistence.get('online') : false;
     var tokens = (this.persistence) ? (this.persistence.tokens || {}) : {};
     
-    if(force_check_for_token || (tokens[key] == null && !Ember.testing && onlineForCheck)) {
+    if(force_check_for_token || (tokens[key] == null && !isTesting() && onlineForCheck)) {
       if(store_data.access_token || force_check_for_token) { 
         this.check_token(true);
       } else {
@@ -502,7 +502,7 @@ export default Service.extend({
 
   reload: function(path) {
     if(path) {
-      if(Ember.testing) {
+      if(isTesting()) {
         console.error("would have redirected off the page");
       } else {
         if(capabilities.installed_app) {
@@ -521,7 +521,7 @@ export default Service.extend({
   },
 
   alert: function(message) {
-    if(!Ember.testing) {
+    if(!isTesting()) {
       alert(message);
     }
   },
@@ -555,7 +555,7 @@ export default Service.extend({
     this.stashes.flush().then(null, function() { return RSVP.resolve(); }).then(function() {
       _this.stashes.setup();
       var later = function(callback, delay) { callback(); };
-      if(!Ember.testing) {
+      if(!isTesting()) {
         later = runLater;
       }
 
@@ -564,7 +564,7 @@ export default Service.extend({
       later(function() {
         _this.set('isAuthenticated', false);
         _this.set('access_token', null);
-        _this.set(' ', null);
+        _this.set('user_name', null);
         _this.set('user_id', null);
         _this.set('as_user_id', null);
         if(capabilities) {

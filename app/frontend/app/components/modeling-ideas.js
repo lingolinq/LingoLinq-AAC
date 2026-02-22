@@ -4,8 +4,8 @@ import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { A } from '@ember/array';
-import Ember from 'ember';
 import modal from '../utils/modal';
+import templateHelpers from '../utils/template_helpers';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
@@ -157,7 +157,7 @@ export default Component.extend({
     const res = (this.get('user_activities') || [])[idx];
     if (res && emberGet(res, 'image.image_url')) {
       const img = emberGet(res, 'image.image_url');
-      emberSet(res, 'image.image_url', Ember.templateHelpers.path('images/blank.gif'));
+      emberSet(res, 'image.image_url', templateHelpers.path('images/blank.gif'));
       runLater(function() {
         emberSet(res, 'image.image_url', img);
       });

@@ -16,14 +16,12 @@ export default Route.extend({
   appState: service('app-state'),
   model: function(params) {
     var _this = this;
-    console.log('[BOARD-DEBUG] route board.model() start', { key: params.key });
     // TODO: when on the home screen if you have a large board and hit to open
     // it, it takes a while to change views. This does not, however, happen
     // if you hit the same board in the 'popular boards' list since those
     // views already have a record for the board, albeit a limited one
     // that must be reloaded..
     if(params.key && params.key.match(/^integrations\//)) {
-      console.log('[BOARD-DEBUG] route board.model() integrations path');
       var parts = params.key.split(/\//);
       var id = parts[1];
       parts = id.split(/:/);
@@ -60,7 +58,6 @@ export default Route.extend({
         return RSVP.resolve(obj);
       });
     } else if(params.key.match(/^obf\//)) {
-      console.log('[BOARD-DEBUG] route board.model() obf path');
       var wait_for_user = RSVP.resolve();
       if(session.get('access_token') && !_this.appState.get('currentUser')) {
         wait_for_user = new RSVP.Promise(function(res, rej) {
@@ -79,7 +76,6 @@ export default Route.extend({
         return obf.lookup(params.key.split(/\//)[1]);
       });
     } else {
-      console.log('[BOARD-DEBUG] route board.model() find_board path');
       var find_board = function(allow_retry) {
         var key = params.key;
         if(_this.appState.get('referenced_user.preferences.home_board.key') == key) {
@@ -103,7 +99,6 @@ export default Route.extend({
           return bKey === String(params.key) || bId === String(params.key) || bKey === String(lookupKey) || bId === String(lookupKey);
         });
         if(cached) {
-          console.log('[BOARD-DEBUG] route board.model() using cached board', { id: cached.get('id'), key: cached.get('key') });
           var data = cached;
           try {
             emberSet(data, 'lookup_key', params.key);
@@ -116,7 +111,6 @@ export default Route.extend({
           }
           return RSVP.resolve(data);
         }
-        console.log('[BOARD-DEBUG] route board.model() findRecord', { lookupKey: lookupKey });
         var obj = _this.store.findRecord('board', lookupKey);
         return obj.then(function(data) {
           // Set lookup_key safely - wrap in try/catch to handle state issues
@@ -137,14 +131,12 @@ export default Route.extend({
               }, 100);
             }
           }
-          console.log('[BOARD-DEBUG] route board.model() findRecord resolved', { id: data && data.get && data.get('id'), key: data && data.get && data.get('key') });
           return RSVP.resolve(data);
         }, function(err) {
           var error = err;
           if(err && err.errors) {
             error = err.errors[0];
           }
-          console.log('[BOARD-DEBUG] route board.model() findRecord rejected', { status: error && error.status, allow_retry: allow_retry });
           if(error.status != '404' && allow_retry) {
             return find_board(false);
           } else {
@@ -160,7 +152,6 @@ export default Route.extend({
     }
   },
   afterModel: function(model) {
-    console.log('[BOARD-DEBUG] route board.afterModel()', { modelId: model && model.get && model.get('id'), modelKey: model && model.get && model.get('key') });
     return this._super(...arguments);
   },
   serialize: function(model) {

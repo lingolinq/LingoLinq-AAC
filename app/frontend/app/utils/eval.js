@@ -5,8 +5,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import Ember from 'ember';
 import { later as runLater } from '@ember/runloop';
+import templateHelpers from './template_helpers';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
@@ -335,7 +335,7 @@ var evaluation = {
         if(fail) { accuracy_class = 'accuracy_non_mastered'; }
 
         res.assessments.push({
-          accuracy_class: accuracy_class ? htmlSafe(accuracy_class) : null,
+          accuracy_class: accuracy_class || null,
           library: library,
           fail: !!fail,
           type: name,
@@ -369,8 +369,8 @@ var evaluation = {
               count: items[key].cnt,
               pct: pct,
               fail: !!items[key].fail,
-              bar_class: htmlSafe('bar ' + (items[key].cnt > 10 ? 'confident ' : (items[key].cnt > 5) ? 'semi_confident ' : 'unconfident ') + (items[key].fail ? 'failure ' : '') + ((pct >= assessment.mastery_cutoff * 100) ? (pct >= 100 ? 'perfect' : 'mastered') : (pct <= assessment.non_mastery_cutoff * 100 ? 'non_mastered' : ''))),
-              bar_style: htmlSafe("margin-top: " + Math.min(100 - pct, 99) + "px; height: " + Math.max(1, pct) + "px;")
+              bar_class: 'bar ' + (items[key].cnt > 10 ? 'confident ' : (items[key].cnt > 5) ? 'semi_confident ' : 'unconfident ') + (items[key].fail ? 'failure ' : '') + ((pct >= assessment.mastery_cutoff * 100) ? (pct >= 100 ? 'perfect' : 'mastered') : (pct <= assessment.non_mastery_cutoff * 100 ? 'non_mastered' : '')),
+              bar_style_props: { 'margin-top': Math.min(100 - pct, 99) + "px", height: Math.max(1, pct) + "px" }
             };  
             if(item_key == 'field_sizes') {
               maxes[item_key] = maxes[item_key] || {size: 0};
@@ -388,7 +388,7 @@ var evaluation = {
               item.title = pct + "% accuracy over " + items[key].possibly_correct + " trials";
               item.avg_response = Math.round(items[key].time_tally / item.count / 1000 * 10) / 10;
               if(items[key]) {
-                item.title = item.title + ", " + Ember.templateHelpers.seconds_ago(item.avg_response) + " avg. response time";
+                item.title = item.title + ", " + templateHelpers.seconds_ago(item.avg_response) + " avg. response time";
               }
               if(item.fail) { item.title = item.title + " (stopped early from errors)"; }
             } else if(item_key == 'button_sizes') {
@@ -400,7 +400,7 @@ var evaluation = {
             list.push(item);
           }
         }
-        list.forEach(function(i) { i.box_style = htmlSafe("width: " + (Math.floor(1000 / list.length) / 10) + "%;")});
+        list.forEach(function(i) { i.box_style_props = { width: (Math.floor(1000 / list.length) / 10) + "%" }});
         if(item_key == 'button_sizes') {
           list = list.sortBy('size').reverse();
         } else if(item_key == 'field_sizes') {

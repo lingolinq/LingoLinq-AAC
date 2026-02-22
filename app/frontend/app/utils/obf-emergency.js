@@ -5,8 +5,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import Ember from 'ember';
 import app_state from './app_state';
+import templateHelpers from './template_helpers';
 import speecher from './speecher';
 import persistence from './persistence';
 import { later as runLater } from '@ember/runloop';
@@ -157,7 +157,7 @@ var words = {
 */
 for(var key in words) {
   if(words[key] && words[key].path) {
-    words[key].url = Ember.templateHelpers.path(("images/emergency/" + words[key].path));
+    words[key].url = templateHelpers.path(("images/emergency/" + words[key].path));
   }
 }
 

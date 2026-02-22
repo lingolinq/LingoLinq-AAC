@@ -12,9 +12,7 @@ else
     exit 1
 fi
 
-# Install Node 18 and set Node 20 as default
-nvm install 18
-nvm alias node18 18
+# Set Node 20 as default
 nvm use 20
 nvm alias default 20
 

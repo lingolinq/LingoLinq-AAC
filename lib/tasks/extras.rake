@@ -43,6 +43,260 @@ task "extras:clear_report_tallies" => :environment do
   RedisInit.default.del('overridden_parts_of_speech')
 end
 
+task "extras:fix_seed_users" => :environment do
+  admin_pwd = ENV['SEED_ADMIN_PASSWORD'].presence || (Rails.env.development? || Rails.env.test? ? 'admin2025!' : nil)
+  example_pwd = ENV['SEED_EXAMPLE_PASSWORD'].presence || (Rails.env.development? || Rails.env.test? ? 'password' : nil)
+  ['lingolinq_admin', 'example'].each do |uname|
+    pwd = uname == 'lingolinq_admin' ? admin_pwd : example_pwd
+    if pwd.blank?
+      puts "#{uname}: SKIPPED - set SEED_#{uname == 'lingolinq_admin' ? 'ADMIN' : 'EXAMPLE'}_PASSWORD in production/staging"
+      next
+    end
+    u = User.find_by(user_name: uname)
+    if !u
+      puts "#{uname}: NOT FOUND"
+      next
+    end
+    puts "#{uname}: found (id=#{u.id})"
+    puts "  DB: #{ActiveRecord::Base.connection.current_database}"
+    puts "  settings has password: #{!!(u.settings && u.settings['password'])}"
+    puts "  billing_state: #{u.billing_state}"
+    puts "  before fix - valid_password?(<env>): #{u.valid_password?(pwd)}"
+
+    # Set password and subscription
+    u.generate_password(pwd)
+    u.settings['subscription'] ||= {}
+    u.settings['subscription']['never_expires'] = true
+    u.settings['subscription']['plan_id'] = 'slp_monthly_granted'
+    u.settings['subscription']['started'] = 1.year.ago.iso8601
+    u.expires_at = nil
+
+    # Force ActiveRecord to detect the serialized column change
+    u.settings_will_change! if u.respond_to?(:settings_will_change!)
+    u.save!
+
+    # Reload from DB and verify
+    u.reload
+    puts "  after fix - valid_password?(<env>): #{u.valid_password?(pwd)}"
+    puts "  billing_state: #{u.billing_state}"
+    puts "  subscription: #{u.settings['subscription'].inspect}"
+    puts "  has password hash: #{!!(u.settings['password'])}"
+    puts "  possibly_full_premium: #{u.possibly_full_premium}"
+  end
+end
+
+task "extras:reprocess_imported_boards" => :environment do
+  puts "=" * 60
+  puts "Reprocessing all imported boards (full post_process)..."
+  puts "=" * 60
+
+  total = Board.count
+  puts "  Total boards: #{total}"
+
+  # Step 1: Re-save every board with full post_process enabled
+  # This triggers map_images, check_for_parts_of_speech, BoardDownstreamButtonSet creation,
+  # update_affected_users, and schedule_downstream_checks
+  processed = 0
+  errors = 0
+  Board.find_each do |board|
+    processed += 1
+    print "\r  Processing board #{processed}/#{total}: #{board.key}...      "
+    begin
+      # Force content_changed flags so post_process runs fully
+      board.instance_variable_set(:@buttons_changed, 'reprocess')
+      board.instance_variable_set(:@brand_new, true)
+      board.save!
+    rescue => e
+      errors += 1
+      puts "\n  ERROR on #{board.key}: #{e.message}"
+    end
+  end
+  puts "\n  Saved #{processed} boards (#{errors} errors)"
+
+  # Step 2: Find the first public home board to assign to users
+  home_board = nil
+  Board.find_each do |board|
+    if board.settings && board.settings['home_board']
+      home_board = board
+      break
+    end
+  end
+
+  if !home_board
+    # Fallback: use first public board
+    home_board = Board.where(public: true).first
+  end
+
+  if home_board
+    puts "\n  Home board: #{home_board.key} (id=#{home_board.global_id})"
+  else
+    puts "\n  WARNING: No home board found!"
+  end
+
+  # Step 3: Assign home board to all demo students and enable logging
+  demo_org = Organization.find_by(admin: false)
+  if demo_org && home_board
+    puts "\n  Assigning home boards and enabling logging for org users..."
+    user_links = UserLink.where(record_code: Webhook.get_record_code(demo_org))
+    user_ids = user_links.select { |l| l.data['type'] == 'org_user' }.map(&:user_id)
+    User.where(id: user_ids).each do |user|
+      user.settings['preferences'] ||= {}
+      user.settings['preferences']['home_board'] = {
+        'id' => home_board.global_id,
+        'key' => home_board.key
+      }
+      user.settings['preferences']['logging'] = true
+      user.settings['preferences']['role'] = 'communicator'
+      user.save!
+      user.schedule(:update_available_boards) rescue nil
+      print "."
+    end
+    puts "\n  Updated #{user_ids.length} users"
+
+    # Also set for admin/supervisor users
+    ['example', 'lingolinq_admin'].each do |uname|
+      user = User.find_by(user_name: uname)
+      next unless user
+      user.settings['preferences'] ||= {}
+      user.settings['preferences']['home_board'] ||= {
+        'id' => home_board.global_id,
+        'key' => home_board.key
+      }
+      user.save!
+      puts "  Set home board for #{uname}"
+    end
+
+    # Set for supervisors too
+    UserLink.where(record_code: Webhook.get_record_code(demo_org)).each do |link|
+      next unless link.data['type'] == 'org_supervisor'
+      user = User.find(link.user_id) rescue nil
+      next unless user
+      user.settings['preferences'] ||= {}
+      user.settings['preferences']['home_board'] ||= {
+        'id' => home_board.global_id,
+        'key' => home_board.key
+      }
+      user.save!
+      puts "  Set home board for #{user.user_name}"
+    end
+  end
+
+  puts "\n" + "=" * 60
+  puts "Board reprocessing complete!"
+  puts "=" * 60
+end
+
+task "extras:generate_weekly_stats" => :environment do
+  puts "=" * 60
+  puts "Generating WeeklyStatsSummary records from log sessions..."
+  puts "=" * 60
+
+  processed = 0
+  errors = 0
+  user_weeks = Set.new
+
+  LogSession.where(log_type: 'session').find_each do |session|
+    next unless session.user_id && session.started_at
+    start_at = session.started_at.utc.beginning_of_week(:sunday)
+    weekyear = WeeklyStatsSummary.date_to_weekyear(start_at)
+    key = "#{session.user_id}-#{weekyear}"
+    next if user_weeks.include?(key) # Only process each user-week once
+    user_weeks << key
+    begin
+      WeeklyStatsSummary.update_now(session.user_id, weekyear)
+      processed += 1
+      print "." if processed % 10 == 0
+    rescue => e
+      errors += 1
+      puts "\n  ERROR for user #{session.user_id} week #{weekyear}: #{e.message}" if errors < 5
+    end
+  end
+
+  puts "\n  Generated #{processed} weekly summaries (#{errors} errors)"
+  puts "=" * 60
+end
+
+task "extras:fix_prod_setup" => :environment do
+  puts "=" * 60
+  puts "Fixing production setup..."
+  puts "=" * 60
+
+  # ---- 1. Link admin users to admin organization ----
+  admin_org = Organization.find_by(admin: true)
+  if admin_org
+    puts "\nAdmin org: #{admin_org.settings['name']} (id=#{admin_org.id})"
+    ['example', 'lingolinq_admin'].each do |uname|
+      user = User.find_by(user_name: uname)
+      next unless user
+      if admin_org.managers.include?(user)
+        puts "  #{uname}: already linked to admin org"
+      else
+        admin_org.add_manager(user.user_name, true)
+        puts "  #{uname}: linked to admin org as full manager"
+      end
+    end
+  else
+    puts "WARNING: No admin organization found!"
+  end
+
+  # ---- 2. Rebuild board downstream button sets ----
+  puts "\nAnalyzing boards..."
+  total = Board.count
+  root_boards = []
+  all_downstream_ids = Set.new
+
+  # First pass: find root boards (those with downstream children but no upstream parents)
+  # NOTE: settings is encrypted (secure_serialize), so we must load each record
+  Board.find_each do |board|
+    downstream = board.settings['immediately_downstream_board_ids'] || []
+    upstream = board.settings['immediately_upstream_board_ids'] || []
+    if upstream.empty? && downstream.any?
+      root_boards << board
+    end
+    downstream.each { |id| all_downstream_ids << id }
+  end
+
+  # Also find boards that are never referenced as downstream by anyone (orphan roots)
+  Board.find_each do |board|
+    next if all_downstream_ids.include?(board.global_id)
+    next if root_boards.any? { |rb| rb.id == board.id }
+    downstream = board.settings['immediately_downstream_board_ids'] || []
+    root_boards << board if downstream.any?
+  end
+
+  puts "  Total boards: #{total}"
+  puts "  Root boards (have children, no parents): #{root_boards.length}"
+
+  processed = 0
+  root_boards.each do |board|
+    downstream_count = (board.settings['immediately_downstream_board_ids'] || []).length
+    print "  [#{processed + 1}/#{root_boards.length}] #{board.key} (#{downstream_count} children)..."
+    begin
+      board.track_downstream_boards!
+      BoardDownstreamButtonSet.update_for(board.global_id, true)
+      puts " done"
+      processed += 1
+    rescue => e
+      puts " ERROR: #{e.message}"
+    end
+  end
+
+  puts "  Processed #{processed} root boards"
+  puts "\n" + "=" * 60
+  puts "Production setup fix complete!"
+  puts "=" * 60
+end
+
+task "extras:reindex_public_boards" => :environment do
+  puts "Reindexing public boards..."
+  Board.where(public: true).find_each do |board|
+    print "."
+    board.generate_stats
+    board.save_without_post_processing
+  end
+  puts "\nDone!"
+end
+
 task "extras:deploy_notification", [:system, :level, :version] => :environment do |t, args|
   message = "Something got deployed!"
   if !args[:system] && ARGV.length > 1
@@ -342,4 +596,151 @@ task "extras:mobile" => :environment do
       puts "  NO DOMAIN SETTINGS FOUND FOR #{domain}"
     end
   end
+end
+
+# ============================================================
+# Vocabulary Organization Tasks (Serialized Column Safe)
+# Now searches ALL boards, not just public ones
+# ============================================================
+
+task "extras:list_board_names" => :environment do
+  puts "=== Board Statistics ==="
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts "Non-public boards: #{Board.where(public: false).count}"
+  puts ""
+  
+  puts "=== Public Board Names (first 100) ==="
+  Board.where(public: true)
+       .order("id ASC")
+       .limit(100)
+       .each do |board|
+    name = board.settings['name'] rescue 'N/A'
+    puts "#{board.id}: #{name} (key: #{board.key})"
+  end
+  
+  puts ""
+  puts "=== Looking for vocabulary sets in ALL boards ==="
+  vocab_patterns = ['Quick Core', 'Vocal Flair', 'CommuniKate', 'Project Core', 'Sequoia']
+  
+  vocab_patterns.each do |pattern|
+    puts "\n--- #{pattern} ---"
+    count = 0
+    Board.find_each(batch_size: 100) do |board|
+      name = board.settings['name'].to_s rescue ''
+      if name.include?(pattern)
+        status = board.public ? "PUBLIC" : "private"
+        puts "  #{board.id}: #{name} [#{status}]"
+        count += 1
+      end
+    end
+    puts "  (#{count} boards found)" if count > 0
+    puts "  (none found)" if count == 0
+  end
+
+  puts "\nDone."
+end
+
+task "extras:fix_vocabulary_organization" => :environment do
+  vocabulary_targets = [
+    { search: 'Quick Core 24', full: 'Quick Core 24' },
+    { search: 'Quick Core 40', full: 'Quick Core 40' },
+    { search: 'Quick Core 60', full: 'Quick Core 60' },
+    { search: 'Quick Core 84', full: 'Quick Core 84' },
+    { search: 'Quick Core 112', full: 'Quick Core 112' },
+    { search: 'Vocal Flair 24', full: 'Vocal Flair 24' },
+    { search: 'Vocal Flair 40', full: 'Vocal Flair 40' },
+    { search: 'Vocal Flair 60', full: 'Vocal Flair 60' },
+    { search: 'Vocal Flair 84', full: 'Vocal Flair 84' },
+    { search: 'Vocal Flair 112', full: 'Vocal Flair 112' },
+    { search: 'Vocal Flair 84 With Keyboard', full: 'Vocal Flair 84 With Keyboard' },
+    { search: 'CommuniKate Top', full: 'CommuniKate Top Page' },
+    { search: 'Project Core', full: 'Project Core-36 Universal Universal Core© 2017 by the CLDS' },
+    { search: 'Sequoia 15', full: 'Sequoia 15' }
+  ]
+
+  puts "=============================================="
+  puts "Fixing vocabulary organization"
+  puts "(Searches ALL boards, not just public)"
+  puts "=============================================="
+  puts ""
+  puts "Total boards: #{Board.count}"
+  puts "Public boards: #{Board.where(public: true).count}"
+  puts ""
+
+  vocabulary_targets.each do |target|
+    name = target[:full]
+    term = target[:search]
+
+    begin
+      # Search ALL boards (not just public) for exact match first
+      board = Board.find_each(batch_size: 100).find do |b|
+        b.settings['name'] == name
+      end
+
+      # If not found, try partial match (but not subtopic boards)
+      if !board
+        board = Board.find_each(batch_size: 100).find do |b|
+          b_name = b.settings['name'].to_s
+          b_name.include?(term) && !b_name.include?(' - ')
+        end
+      end
+
+      if board
+        actual_name = board.settings['name']
+        was_public = board.public
+        puts "✓ Found main board: #{actual_name}"
+        puts "  ID: #{board.id}, Was public: #{was_public}"
+
+        # Mark main board as public home board
+        board.public = true
+        board.settings['home_board'] = true
+        board.settings['unlisted'] = false
+        board.generate_stats
+        board.save_without_post_processing
+        puts "  → Marked as PUBLIC home board"
+
+        # Determine prefix for topics (e.g., "Quick Core 40")
+        prefix = actual_name.split(' - ')[0].split('©')[0].strip
+        puts "  Searching for subtopic boards with prefix: '#{prefix}'"
+
+        # Search ALL boards for subtopics (not just public)
+        topic_count = 0
+        made_public_count = 0
+        Board.where.not(id: board.id).find_each(batch_size: 50) do |b|
+          b_name = b.settings['name'].to_s
+          if b_name.start_with?("#{prefix} - ") || (b_name.include?("#{prefix} -") && b_name != prefix)
+            was_public = b.public
+            
+            # Make subtopic PUBLIC but UNLISTED (visible via navigation, not search)
+            b.public = true
+            b.settings['unlisted'] = true
+            b.generate_stats
+            b.save_without_post_processing
+            
+            status_change = was_public ? "" : " [was private → now public]"
+            puts "    Organized: #{b_name}#{status_change}"
+            topic_count += 1
+            made_public_count += 1 unless was_public
+          end
+        end
+
+        puts "  → Organized #{topic_count} subtopic boards"
+        puts "  → Made #{made_public_count} previously private boards public" if made_public_count > 0
+        puts ""
+      else
+        puts "⚠ Could not find main board for: #{term}"
+        puts "  (Board doesn't exist in database)"
+        puts ""
+      end
+    rescue => e
+      puts "❌ ERROR processing #{term}: #{e.message}"
+      puts e.backtrace.first(3)
+      puts ""
+    end
+  end
+
+  puts "=============================================="
+  puts "Done!"
+  puts "=============================================="
 end

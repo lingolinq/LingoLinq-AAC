@@ -7,10 +7,10 @@ class LogSession < ActiveRecord::Base
   include ExtraData
   belongs_to :user
   belongs_to :author, :class_name => 'User'
-  belongs_to :ip_cluster, :class_name => 'ClusterLocation'
-  belongs_to :geo_cluster, :class_name => 'ClusterLocation'
+  belongs_to :ip_cluster, :class_name => 'ClusterLocation', optional: true
+  belongs_to :geo_cluster, :class_name => 'ClusterLocation', optional: true
   belongs_to :device
-  belongs_to :goal, :class_name => 'UserGoal'
+  belongs_to :goal, :class_name => 'UserGoal', optional: true
   before_save :generate_defaults
   before_save :generate_stats
   after_save :split_out_later_sessions
@@ -55,10 +55,10 @@ class LogSession < ActiveRecord::Base
 
     attrs = ClusterLocation.calculate_attributes(self)
     self.data['geo'] = attrs['geo']
-    self.geo_cluster_id ||= -1 if !self.data['geo']
+    self.geo_cluster_id = nil if !self.data['geo']
     self.geo_cluster_id = nil if self.data['geo'] && self.geo_cluster_id == -1
     self.data['ip_address'] = attrs['ip_address']
-    self.ip_cluster_id ||= -1 if !self.data['ip_address']
+    self.ip_cluster_id = nil if !self.data['ip_address']
     self.ip_cluster_id = nil if self.data['ip_address'] && self.ip_cluster_id == -1
     self.data['readable_ip_address'] = attrs['readable_ip_address']
     

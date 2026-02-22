@@ -372,6 +372,8 @@ module Uploader
     found_words = {}
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
+      list = words - found_words.keys
+
       # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
       if ENV['OPENSYMBOLS_SECRET'].present?
         require 'open_symbols' unless defined?(OpenSymbols)
@@ -383,7 +385,6 @@ module Uploader
           protected_source = 'symbolstix'
         end
         
-        list = words - found_words.keys
         results = {}
         
         if library == 'opensymbols'

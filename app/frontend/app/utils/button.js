@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import EmberObject from '@ember/object';
+import templateHelpers from './template_helpers';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
@@ -352,7 +352,7 @@ var Button = EmberObject.extend({
       }
       res = res + "<a href='#' style='" + this.get('computed_style') + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
       if(this.get('pending')) {
-        res = res + "<div class='pending'><img src='" + Ember.templateHelpers.path('images/spinner.gif') + "' draggable='false' /></div>";
+        res = res + "<div class='pending'><img src='" + templateHelpers.path('images/spinner.gif') + "' draggable='false' /></div>";
       }
       res = res + "<div class='" + this.get('action_class') + "'>";
       res = res + "<span class='action'>";
@@ -827,7 +827,7 @@ Button.action_styling = function(action, button) {
   if(action) { res.action_class = res.action_class + action + " "; }
   if(button.home_lock) { res.action_class = res.action_class + "home "; }
 
-  var path = Ember.templateHelpers.path;
+  var path = templateHelpers.path;
   if(action == 'folder') {
     if(button.home_lock) {
       res.action_image = path('images/folder_home.png');
@@ -909,7 +909,7 @@ Button.button_styling = function(button, board, pos) {
   res.button_style = Button.computed_style(pos);
   var action = Button.action_styling(null, button);
   res.action_class = action.action_class; //"action_container talk"; // TODO
-  res.action_image = action.action_image; //Ember.templateHelpers.path('images/folder.png'); // TODO
+  res.action_image = action.action_image; //templateHelpers.path('images/folder.png'); // TODO
   var style = Button.style(res.button_class);
   res.font_family = style.font_family;
   res.action_alt = action.action_alt; //"alt"; // TODO
@@ -946,7 +946,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
     return;
   }
   image.already_broken[image.src] = true;
-  var original_fallback = Ember.templateHelpers.path('images/square.svg');
+  var original_fallback = templateHelpers.path('images/square.svg');
   var fallback = original_fallback;
   var error_listen = function(img, callback) {
     if(!img) { return; }
@@ -1710,7 +1710,7 @@ Button.load_actions = function() {
       description: i18n.t('current_calendar_date', "Speak the current calendar date"),
       content: function() {
         var now = window.moment();
-        return [{text: Ember.templateHelpers.date(now, 'day')}];
+        return [{text: templateHelpers.date(now, 'day')}];
       }
     },
     {
@@ -1720,7 +1720,7 @@ Button.load_actions = function() {
       description: i18n.t('current_time', "Speak the current time"),
       content: function() {
         var now = window.moment();
-        return [{text: Ember.templateHelpers.time(now, 'day')}];
+        return [{text: templateHelpers.time(now, 'day')}];
       }
     },
     {
@@ -1745,7 +1745,7 @@ Button.load_actions = function() {
       content: function(match) {
         var n_days = (match && parseInt(match[1], 10)) || 1;
         var now = window.moment().add(-1 * n_days, 'day');
-        return [{text: Ember.templateHelpers.date(now, 'day')}];
+        return [{text: templateHelpers.date(now, 'day')}];
       }
     },
     {
@@ -1775,7 +1775,7 @@ Button.load_actions = function() {
       content: function(match) {
         var n_days = (match && parseInt(match[1], 10)) || 1;
         var now = window.moment().add(n_days, 'day');
-        return [{text: Ember.templateHelpers.date(now, 'day')}];
+        return [{text: templateHelpers.date(now, 'day')}];
       }
     },
     {
@@ -1955,12 +1955,12 @@ Button.load_actions = function() {
       match: /^:timer\((\d+)s\)/,
       description_callback: function(match) {
         var seconds = match ? parseInt(match[1], 10) : 30;
-        var duration = Ember.templateHelpers.seconds_ago(seconds);
+        var duration = templateHelpers.seconds_ago(seconds);
         return i18n.t('set_timer', "Set a timer for %{duration}", {duration: duration});
       },
       trigger: function(match) {
         var seconds = match ? parseInt(match[1], 10) : 30;
-        var duration = Ember.templateHelpers.seconds_ago(seconds);
+        var duration = templateHelpers.seconds_ago(seconds);
         modal.success(i18n.t('timer_started', "Timer Started:") + " " + duration, true);
         var start = (new Date()).getTime();
         var tick = function() {

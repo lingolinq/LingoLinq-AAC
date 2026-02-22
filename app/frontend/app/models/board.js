@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import templateHelpers from '../utils/template_helpers';
 import {
   later as runLater,
   cancel as runCancel
@@ -718,7 +718,7 @@ LingoLinq.Board = DS.Model.extend({
     return unused;
   }),
   long_preview: computed('name', 'labels', 'user_name', 'created', function() {
-    var date = Ember.templateHelpers.date(this.get('created'), 'day');
+    var date = templateHelpers.date(this.get('created'), 'day');
     var labels = this.get('labels');
     if(labels && labels.length > 100) {
       var new_labels = "";

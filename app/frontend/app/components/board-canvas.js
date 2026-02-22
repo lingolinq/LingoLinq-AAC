@@ -4,6 +4,11 @@ export default Component.extend({
   tagName: 'canvas',
   attributeBindings: ['tabindex'],
   didInsertElement: function() {
-    this.sendAction('redraw');
+    var redrawFn = this.get('onInsert');
+    if (redrawFn && typeof redrawFn === 'function') {
+      redrawFn();
+    } else if (this.sendAction) {
+      this.sendAction('redraw');
+    }
   }
 });

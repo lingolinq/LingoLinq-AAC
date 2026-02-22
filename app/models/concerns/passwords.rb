@@ -76,11 +76,12 @@ module Passwords
         self.save
       end
     end
-    if Organization.admin_manager?(self)
-      state[:required] = true
-      state[:mandatory] = true
-      self.assert_2fa! if !self.settings['2fa'] && !self.settings['tmp_2fa']
-    end
+    # TODO: Re-enable before production. Admin managers should have mandatory 2FA in production/staging.
+    # if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && Organization.admin_manager?(self)
+    #   state[:required] = true
+    #   state[:mandatory] = true
+    #   self.assert_2fa! if !self.settings['2fa'] && !self.settings['tmp_2fa']
+    # end
     if state[:required]
       state[:verified] = !!(self.settings['2fa'] || {})['last_otp']
     end

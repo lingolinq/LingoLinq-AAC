@@ -2,28 +2,29 @@ import Component from '@ember/component';
 import { later as runLater } from '@ember/runloop';
 
 export default Component.extend({
-  willInsertElement: function() {
+  didInsertElement: function() {
+    this._super(...arguments);
+    var _this = this;
     if(!this.get('already_opened')) {
-      var _this = this;
+      // Use runLater to avoid setting attributes during render
       runLater(function() {
-        // TODO: this is considered bad behavior. an error was being triggered after upgrading
-        // because we're setting an attribute before the rendering has finished
         _this.set('already_opened', true);
         if(_this.opening) {
           _this.opening();
         }
       });
     }
-  },
-  didInsertElement: function() {
     if(!this.get('already_done_opening')) {
-      this.set('already_done_opening', true);
-      if(this.done_opening) {
-        this.done_opening();        
-      }
+      runLater(function() {
+        _this.set('already_done_opening', true);
+        if(_this.done_opening) {
+          _this.done_opening();
+        }
+      });
     }
   },
   willDestroy: function() {
+    this._super(...arguments);
     if(!this.get('already_closed')) {
       this.set('already_closed', true);
       if(this.closing) {

@@ -111,12 +111,11 @@ else
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 fi
 
-# Install Node versions
-print_step "Installing Node.js versions..."
-nvm install 22
-nvm install 18
-nvm alias default 22
-nvm use 22
+# Install Node 20
+print_step "Installing Node.js..."
+nvm install 20
+nvm alias default 20
+nvm use 20
 
 # Install bower globally
 print_step "Installing bower..."
@@ -141,7 +140,6 @@ echo "   bundle install"
 echo ""
 echo "   # Install frontend dependencies"
 echo "   cd app/frontend"
-echo "   nvm use 18  # Frontend needs Node 18"
 echo "   npm install"
 echo "   bower install"
 echo "   cd ../.."

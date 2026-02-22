@@ -10,7 +10,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
-  update_classes: Subscription.obs_func.observes.apply(Subscription.obs_func, Subscription.obs_properties),
+  update_classes: Subscription.update_classes_observer,
   subscription: computed('app_state.currentUser', function() {
     var res;
     if(app_state.get('currentUser')) {
