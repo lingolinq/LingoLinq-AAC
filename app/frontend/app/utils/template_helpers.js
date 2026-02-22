@@ -93,9 +93,8 @@ templateHelpers.round = function(number) {
 templateHelpers.safe = function(str, type) {
   if(!str) { return ''; }
   if(type == 'stripped') {
-    var div = document.createElement('div');
-    div.innerHTML = str;
-    return htmlSafe(div.textContent);
+    const doc = new DOMParser().parseFromString(str, 'text/html');
+    return htmlSafe(doc.body.textContent || '');
   } else {
     return htmlSafe(str);
   }
