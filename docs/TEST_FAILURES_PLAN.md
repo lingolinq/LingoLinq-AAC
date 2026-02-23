@@ -6,15 +6,20 @@ This document organizes failure patterns observed after the Rails upgrade and su
 
 ---
 
-## 1. Rails 7 Security: Unsafe Redirects
+## 1. Rails 7 Security: Unsafe Redirects ✅ DONE
+
+**Status:** Fixed in `app/controllers/session_controller.rb`. OAuth and SAML redirects now pass `allow_other_host: true`. Other controllers (boards icon, users image proxy) use internal paths or route helpers; add `allow_other_host: true` there only if failures appear.
 
 **Error:** `Unsafe redirect to "http://...", pass allow_other_host: true to redirect anyway`
 
 **Cause:** Rails 7.0+ blocks redirects to external hosts by default for security.
 
-**Fix:** Add `allow_other_host: true` to `redirect_to` calls when redirecting to external URLs (OAuth, SAML, etc.).
+**Fix applied:** Added `allow_other_host: true` to:
+- OAuth `paramified_redirect` (success and reject callbacks)
+- SAML `saml_start` (AuthRequest to IdP)
+- SAML `saml_idp_logout_request` (SLO response to IdP)
 
-**Where to search:**
+**Where to search** (if more failures appear):
 ```bash
 rg "redirect_to" app/controllers/
 ```
@@ -105,7 +110,7 @@ Look for redirects to user-controlled or external URLs (OAuth callbacks, SAML au
 
 | Priority | Category                    | Effort | Impact |
 |----------|-----------------------------|--------|--------|
-| 1        | Unsafe redirects            | Low    | High   |
+| 1        | Unsafe redirects ✅         | Low    | High   |
 | 2        | SecureSerialize persistence | Medium | High   |
 | 3        | Device spec setup           | Low    | Medium |
 | 4        | URL/host expectations       | Medium | Medium |
