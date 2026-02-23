@@ -19,7 +19,8 @@
 9. [MCP Gateway Plan](#9-mcp-gateway-plan)
 10. [Incident Response](#10-incident-response)
 11. [Audit Schedule](#11-audit-schedule)
-12. [Revision History](#12-revision-history)
+12. [Accepted Risks & Vulnerability Management](#12-accepted-risks--vulnerability-management)
+13. [Revision History](#13-revision-history)
 
 ---
 
@@ -469,10 +470,77 @@ Perform an immediate review when:
 
 ---
 
-## 12. Revision History
+## 12. Accepted Risks & Vulnerability Management
+
+### Ember 3.28 Frontend Framework — Accepted Risk
+
+**Status:** Accepted
+**Date accepted:** 2026-02-23
+**Owner:** Scott W.
+**Review trigger:** If migration timeline slips past Q3 2026 or a runtime CVE is discovered in ember-source 3.28
+
+**Background:** Ember 3.28 is the last 3.x LTS release and is end-of-life for official upstream support. Automated dependency scans report ~180 npm vulnerabilities in the Ember 3.28 dependency tree.
+
+**Why we are accepting this risk:**
+
+1. **Nearly all vulnerabilities are in build-time tooling, not production runtime code.** The vulnerable packages (babel-traverse, broccoli plugins, ansi-html, webpack-dev-server internals, ember-cli internals) run during `ember build` on the developer's machine and CI server. They are not included in the compiled JavaScript bundle that ships to users' browsers.
+
+2. **The production-facing packages are stable.** `ember-source 3.28`, `ember-data 3.28`, and `jQuery 3.7.1` (the code that actually runs in the browser) have no known exploitable CVEs.
+
+3. **Upgrading to Ember 5.x would be significant throwaway work.** The migration path from 3.28 to 5.x requires rewriting components (Glimmer), adopting tracked properties, and updating route patterns. We are migrating to React incrementally, so investing weeks in an Ember major upgrade provides temporary vulnerability-count reduction that would be discarded during the React migration.
+
+4. **The React migration is the real fix.** As each feature area is migrated from Ember to React, the corresponding Ember build dependencies are removed. This is a permanent solution vs. a temporary framework upgrade.
+
+**Mitigations in place:**
+
+| Mitigation | Status |
+|-----------|--------|
+| Removed `ember-cli-update` from dependencies (eliminated 6 critical transitive CVEs) | Done (2026-02-22) |
+| Pinned lodash to `^4.17.21` (patched 5 prototype pollution CVEs) | Done (2026-02-22) |
+| Automated security scanning via `security-hotfix` skill (run before deploys) | Done (2026-02-22) |
+| React migration plan in progress — incremental, feature-by-feature | In progress |
+| Build pipeline runs in isolated CI environment, not on user-facing servers | Already in place |
+| Content Security Policy (CSP) headers limit what scripts can execute in browser | Already in place |
+
+**What would change this assessment:**
+- A CVE is discovered in `ember-source 3.28` or `ember-data 3.28` (the runtime packages) — would trigger an emergency patch or accelerated migration of affected features.
+- A SOC2 auditor specifically requires zero high/critical findings in npm audit — would trigger a conversation about build-time vs. runtime scope with the auditor. If they insist, we would evaluate Embroider (Ember's build system) as a lighter-weight path to resolve build-time dependency issues without a full framework upgrade.
+- The React migration timeline slips significantly — would re-evaluate upgrading to Ember 5.x as an interim measure.
+
+### Security Hotfix — Remediated (2026-02-22)
+
+The following critical and high-severity vulnerabilities were remediated on 2026-02-22:
+
+| Finding | What | Status |
+|---------|------|--------|
+| nokogiri 1.19.0 (CVE-2025-30206) | SAML authentication bypass via XML C14N failure | **Fixed** — updated to 1.19.1 |
+| SSL verification disabled (11 locations) | `ssl_verifypeer: false` on all OpenSymbols/Pixabay API calls | **Fixed** — removed from 4 production files + 5 spec files |
+| Giphy API over plaintext HTTP | API key and search queries sent unencrypted | **Fixed** — switched to HTTPS |
+| lodash `>=4.17.11` (5 CVEs) | Prototype pollution vulnerabilities | **Fixed** — pinned to `^4.17.21` |
+| ember-cli-update in dependencies (6 critical transitive CVEs) | OS command injection, prototype pollution in transitive deps | **Fixed** — removed from dependencies |
+
+Full scan report: `audit-reports/security-hotfix-2026-02-22.md`
+
+### Remaining Remediation Backlog
+
+| Priority | Item | Risk if deferred | Target |
+|----------|------|-----------------|--------|
+| High | Remove coffee-rails (abandoned since 2017) | No security patches for build tool | Q1 2026 |
+| High | Replace sassc-rails with dartsass-rails (archived Oct 2025) | No security patches for build tool | Q1 2026 |
+| High | Replace legacy `s3` gem with `aws-sdk-s3` | Unmaintained dependency | Q1 2026 |
+| Medium | Add `sslmode=require` to PostgreSQL connection | DB traffic could theoretically be unencrypted | Q1 2026 |
+| Medium | Validate `CDWEBSOCKET_URL` for `wss://` protocol | Misconfiguration could expose WebSocket traffic | Q1 2026 |
+| Medium | Require `https://` for webhook callbacks | Webhook payloads could be sent over HTTP | Q1 2026 |
+| Low | Audit CoughDrop-era gems (go_secure, permissable-coughdrop, boy_band) | Limited community security review | Q2 2026 |
+| Ongoing | Ember → React incremental migration | Resolves ~180 build-time npm vulnerabilities permanently | 2026 |
+
+---
+
+## 13. Revision History
 
 | Date       | Author   | Change                                              |
 |------------|----------|-----------------------------------------------------|
+| 2026-02-23 | Scott W. | Add accepted risk for Ember 3.28, security hotfix summary, remediation backlog |
 | 2026-02-21 | Scott W. | Initial version: full compliance framework created   |
 
 ---
