@@ -57,7 +57,10 @@ class AiApiLog < ApplicationRecord
     log.error_message = params[:error_message]
     log.ip_address = params[:ip_address]
     log.feature_flag = params[:feature_flag]
-    log.save
+    log.save!
+    log
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "AiApiLog: failed to persist audit log: #{e.message}"
     log
   end
 

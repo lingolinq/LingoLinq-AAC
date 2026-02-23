@@ -1,10 +1,5 @@
 ---
-description: 
-alwaysApply: true
----
-
----
-description: 
+description:
 alwaysApply: true
 ---
 

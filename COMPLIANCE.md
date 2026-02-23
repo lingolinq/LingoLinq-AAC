@@ -161,7 +161,7 @@ This table covers every MCP (Model Context Protocol) server used in the developm
 ### Architecture Overview
 
 ```
-User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  AI API (Anthropic, etc.)
+User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  AI API (OpenAI, Gemini, etc.)
                       |                                         |
                       |                                    De-identified
                       |                                    data only
