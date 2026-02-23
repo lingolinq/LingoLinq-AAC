@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 
 export default Component.extend({
   router: service('router'),
@@ -9,6 +10,31 @@ export default Component.extend({
   tab: 'home',
   isProfileOpen: false,
   isSearchOpen: false,
+
+  /** Current step (1–5) for Getting Started; same order as modal */
+  getting_started_step: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (var i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
+  }),
+  getting_started_percent: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 100; }
+    var done = 0;
+    order.forEach(function(opt) {
+      if (progress[opt]) { done++; }
+    });
+    return Math.round(done / order.length * 100);
+  }),
+  getting_started_percent_style: computed('getting_started_percent', function() {
+    var pct = this.get('getting_started_percent');
+    return pct != null ? 'width: ' + pct + '%;' : 'width: 0%;';
+  }),
 
   actions: {
     go(key) {
@@ -65,6 +91,9 @@ export default Component.extend({
     },
     onNewBoard() {
       this.send('go', 'boards.new');
+    },
+    gettingStarted() {
+      this.router.transitionTo('index');
     }
   }
 });

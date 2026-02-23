@@ -42,6 +42,8 @@ export default Controller.extend({
     return name === 'stacked-spaces' || current === 'stacked-spaces';
   }),
 
+  forSchoolsNavOpen: false,
+
   init() {
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
@@ -370,6 +372,12 @@ export default Controller.extend({
     },
     closeThemePicker: function() {
       this.set('showThemePicker', false);
+    },
+    toggleForSchoolsNav: function() {
+      this.set('forSchoolsNavOpen', !this.get('forSchoolsNavOpen'));
+    },
+    closeForSchoolsNav: function() {
+      this.set('forSchoolsNavOpen', false);
     },
     goToStackedSpaces: function() {
       this.set('showThemePicker', false);

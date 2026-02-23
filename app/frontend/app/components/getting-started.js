@@ -77,6 +77,17 @@ export default Component.extend({
     return res;
   }),
 
+  /** Current step (1–5) for stage label; same order as checklist */
+  currentStep: computed('model.progress', function() {
+    const order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    const progress = this.get('model.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (let i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
+  }),
+
   actions: {
     close() {
       this.get('modal').close();

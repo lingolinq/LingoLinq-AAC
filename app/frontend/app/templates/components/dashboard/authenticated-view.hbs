@@ -1,17 +1,17 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.flatMode "ll-bento-app-shell--flat"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
-  <div class="ll-bento-device-frame ll-bento-device-frame--wide">
-    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}} {{if this.app_state.flatMode "ll-bento-topbar--flat"}} {{if this.app_state.defaultMode "ll-bento-topbar--default"}}">
+  <div class="ll-bento-device-frame ll-bento-device-frame--wide {{if (is-equal this.sectionBorderMode "off") "ll-bento-device-frame--no-section-border"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-device-frame--section-border-thick"}} {{if this.demoMainContentBg "ll-bento-device-frame--demo-bg"}}" style={{this.demoMainContentBgStyle}}>
+    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-topbar--default"}}">
       <div class="ll-bento-topbar__section ll-bento-topbar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
           <span class="ll-bento-brand__logo-wrap" aria-hidden="true">
             <img src={{path "images/icon-house-balanced.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
           </span>
-          <span class="ll-bento-brand__name">{{t "%app_name_upper%" key="app_name_upper"}}</span>
+          <span class="ll-bento-brand__name">{{t "%app_name%" key="app_name"}}</span>
           <span class="ll-bento-topbar__brand-sep" aria-hidden="true">·</span>
           <span class="ll-bento-topbar__brand-home">{{t "Home" key="home"}}</span>
         </a>
@@ -31,6 +31,19 @@
           {{/if}}
         </span>
       </div>
+      {{#if this.app_state.defaultMode}}
+        <div class="ll-bento-topbar__section ll-bento-topbar__demo-colors" role="group" aria-label={{t "Demo content background" key="demo_content_background"}}>
+          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy" title={{t "Navy" key="navy_color"}} aria-label={{t "Navy" key="navy_color"}} {{action "setDemoMainContentBg" "#1B365D"}}></button>
+          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy-light" title={{t "Medium gray" key="medium_gray"}} aria-label={{t "Medium gray" key="medium_gray"}} {{action "setDemoMainContentBg" "#C6CDD7"}}></button>
+          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--tab-light" title={{t "Light teal" key="light_teal"}} aria-label={{t "Light teal" key="light_teal"}} {{action "setDemoMainContentBg" "#E9F9F8"}}></button>
+          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--reset" title={{t "Reset to default" key="reset_to_default"}} aria-label={{t "Reset to default" key="reset_to_default"}} {{action "clearDemoMainContentBg"}}>
+            <span class="glyphicon glyphicon-repeat" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--border {{if (is-equal this.sectionBorderMode "off") "ll-bento-demo-color--border-off"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-demo-color--border-thick"}}" title={{t "Toggle section border" key="toggle_section_border"}} aria-label={{t "Toggle section border" key="toggle_section_border"}} {{action "toggleSectionBorder"}}>
+            <span class="ll-bento-demo-color--border-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+      {{/if}}
       <div class="ll-bento-topbar__section ll-bento-topbar__actions">
         <a href="#" class="ll-bento-icon-btn ll-bento-icon-btn--refresh" {{action "reload"}} role="button" aria-label={{t "Reload" key="reload"}} title={{t "Reload" key="reload"}}>
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
@@ -46,7 +59,7 @@
         {{/if}}
       </div>
     </header>
-    <div class="row">
+    <div class="row ll-bento-main-content">
 <div class='col col-12' id="new_right">
   <div class="ll-bento-tabs" role="tablist" aria-label={{t "Home filters" key="home_filters"}}>
     <button class="ll-bento-tab {{if this.index_nav.main "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.main "true" "false"}} type="button" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</button>
@@ -81,12 +94,16 @@
       <a href="#" class="ll-bento-getting-started ll-bento-getting-started--main" {{action "getting_started"}}>
         <img src={{path "images/pastel-getting-started.svg"}} alt="" class="ll-bento-getting-started__image" aria-hidden="true">
         <div class="ll-bento-getting-started__body">
-          <span class="ll-bento-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
+          <div class="ll-bento-getting-started__header">
+            <span class="ll-bento-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
+            <span class="ll-bento-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
+          </div>
           <div class="ll-bento-progress" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100">
             <div class="ll-bento-progress__fill" style={{this.blank_slate_percent_style}}></div>
             <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
           </div>
-          <span class="ll-bento-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
+          <span class="ll-bento-getting-started__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.getting_started_step total=5}}</span>
+          <div class="ll-bento-getting-started__divider" aria-hidden="true"></div>
         </div>
         <span class="ll-bento-getting-started__btn">{{t "Help me Setup my Account" key="help_me_setup_account"}}</span>
       </a>
@@ -608,7 +625,7 @@
         {{/if}}
         <div class="ll-bento-browse-boards">
           <div class="ll-bento-browse-boards__header">
-            <span class="glyphicon glyphicon-th-large ll-bento-browse-boards__icon" aria-hidden="true"></span>
+            <span class="ll-bento-browse-boards__icon" aria-hidden="true"><img src={{path "images/browse-boards-icon.svg"}} alt="" class="ll-bento-browse-boards__icon-img"></span>
             <h4 class="ll-bento-browse-boards__title">{{t "Browse Boards" key="browse_boards"}}</h4>
             <a href="#" class="ll-bento-search ll-bento-browse-boards__search" {{action "searchBoards"}} role="button" aria-label={{t "Search Boards" key="search_boards"}}>
               <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
@@ -617,12 +634,48 @@
           </div>
           <div class="ll-bento-section-group ll-bento-browse-boards__filter-group">
             <span class="ll-bento-section-label">{{t "Filter" key="filter"}}</span>
-            <ul class="nav nav-pills ll-bento-browse-boards__pills">
-              <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
-              <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
-              <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
-              <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
-            </ul>
+            <div class="ll-bento-filter-cards" role="group" aria-label={{t "Filter" key="filter"}}>
+              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.suggested_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "suggested"}}>
+                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--suggested">
+                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-star" aria-hidden="true"></span>
+                </div>
+                <div class="ll-bento-action-card__body">
+                  <h4 class="ll-bento-action-card__title">{{t "Suggested" key="suggested"}}</h4>
+                  <p class="ll-bento-action-card__sub">{{t "We think you'll like these" key="filter_suggested_sub"}}</p>
+                </div>
+                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--suggested">{{t "View" key="view"}}</span>
+              </a>
+              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.personal_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "personal"}}>
+                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--mine">
+                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-user" aria-hidden="true"></span>
+                </div>
+                <div class="ll-bento-action-card__body">
+                  <h4 class="ll-bento-action-card__title">{{t "Mine" key="mine"}}</h4>
+                  <p class="ll-bento-action-card__sub">{{t "The boards you've made" key="filter_mine_sub"}}</p>
+                </div>
+                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--mine">{{t "View" key="view"}}</span>
+              </a>
+              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.popular_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "popular"}}>
+                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--community">
+                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-globe" aria-hidden="true"></span>
+                </div>
+                <div class="ll-bento-action-card__body">
+                  <h4 class="ll-bento-action-card__title">{{t "Community" key="community"}}</h4>
+                  <p class="ll-bento-action-card__sub">{{t "Boards others have shared" key="filter_community_sub"}}</p>
+                </div>
+                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--community">{{t "View" key="view"}}</span>
+              </a>
+              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.recent_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "recent"}}>
+                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--recent">
+                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-time" aria-hidden="true"></span>
+                </div>
+                <div class="ll-bento-action-card__body">
+                  <h4 class="ll-bento-action-card__title">{{t "Recent" key="recent"}}</h4>
+                  <p class="ll-bento-action-card__sub">{{t "Boards you've opened lately" key="filter_recent_sub"}}</p>
+                </div>
+                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--recent">{{t "View" key="view"}}</span>
+              </a>
+            </div>
           </div>
         </div>
         <div style='clear: left;'></div>

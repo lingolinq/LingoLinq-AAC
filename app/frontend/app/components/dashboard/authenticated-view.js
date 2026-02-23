@@ -93,6 +93,16 @@ export default Component.extend({
   blank_slate_percent_style: computed('blank_slate_percent', function() {
     return htmlSafe("width: " + this.get('blank_slate_percent') + "%;");
   }),
+  /** Current step (1–5) for Getting Started; same order as modal: intro, home board, app, preferences, profile */
+  getting_started_step: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (var i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
+  }),
   checkForBlankSlate: observer('persistence.online', function() {
     if(!this || typeof this.get !== 'function') { return; }
     var persistenceService = null;
@@ -498,9 +508,29 @@ export default Component.extend({
     }
     return false;
   }),
+  demoMainContentBg: null,
+  demoMainContentBgStyle: computed('demoMainContentBg', function() {
+    var bg = this.get('demoMainContentBg');
+    return bg ? htmlSafe('background: ' + bg + ';') : htmlSafe('');
+  }),
+  // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
+  sectionBorderMode: 'off',
+
   actions: {
     invalidateSession: function() {
       session.invalidate(true);
+    },
+    setDemoMainContentBg: function(color) {
+      var current = this.get('demoMainContentBg');
+      this.set('demoMainContentBg', current === color ? null : color);
+    },
+    clearDemoMainContentBg: function() {
+      this.set('demoMainContentBg', null);
+    },
+    toggleSectionBorder: function() {
+      var mode = this.get('sectionBorderMode');
+      var next = mode === 'off' ? 'thin' : (mode === 'thin' ? 'thick' : 'off');
+      this.set('sectionBorderMode', next);
     },
     reload: function() {
       location.reload();

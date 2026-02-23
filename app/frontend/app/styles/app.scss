@@ -34,6 +34,41 @@
   overflow: hidden; /* Windows-only quirk causes extra scrollbars without this, if you 
                       change, make sure to test sidebar and modal.highlight */
 }
+/* When page-footer is present: flex column so content can extend flush to footer */
+#within_ember:has(.page-footer) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+#within_ember:has(.page-footer) #content.index.with_user {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#within_ember:has(.page-footer) #content.index.with_user #index_view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#within_ember:has(.page-footer) #content.index.with_user .ll-bento-app-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Sticky top navbar on every page (main, stacked-spaces, for-schools, etc.) – match HTML mockup */
+#within_ember > header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+#within_ember #content {
+  padding-top: 80px;
+}
+
 #within_ember.dim_sides {
   header #speak, header #identity_button {
     opacity: 0.7;
@@ -457,6 +492,42 @@ header .btn {
     display: inline-block;
     padding-left: 10px;
   }
+  #header_search .form-control {
+    border-radius: 14px;
+  }
+  .header-search-wrap {
+    position: relative;
+    display: inline-block;
+    width: 180px;
+  }
+  #header_search .header-search-input {
+    padding-right: 36px;
+    width: 100%;
+  }
+  #header_search .header-search-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    opacity: 1;
+  }
+  #header_search .header-search-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+  #header_search .header-search-icon {
+    pointer-events: none;
+  }
   .header-index-with-dark-toggle & #header_search {
     margin-left: 18px;
   }
@@ -707,6 +778,15 @@ h2 {
 .modal-header h3 {
   margin-top: 0;
   margin-bottom: 0;
+}
+.getting-started-modal__stage {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #777;
+  margin-bottom: 6px;
 }
 
 .subscribe-modal-header__title-wrap {
@@ -2816,7 +2896,7 @@ body.pretty_loader {
 /* Applied in: Index route when logged in - content_class adds index + with_user */
 #content.index.with_user {
   background-color: #fff;
-  border-top: 15px solid #49c7e8;
+  border-top: none;
   border-bottom: none;
   .main_columns {
     background-image: url('../images/orange.png');
@@ -2832,7 +2912,7 @@ body.pretty_loader {
     margin-right: 5px;
   }
   &.new_index {
-    border-top-width: 20px;
+    border-top-width: 0;
     .main_columns {
       background-image: none;
     }
@@ -7132,9 +7212,15 @@ body:-ms-fullscreen {
 }
 
 /* Header/navbar - navy from color scheme (index/for-schools view); bar below = style guide dark teal */
-.header-index-with-dark-toggle {
-  background: #1B365D;
+/* Top navbar: solid navy #1B365D so it matches card header/dock/footer – no image, filter, or blend */
+#within_ember > header.header-index-with-dark-toggle {
+  background: #1B365D !important;
+  background-color: #1B365D !important;
   border-bottom: 1px solid #2A9D8F;
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  isolation: isolate;
 }
 
 .header-index-with-dark-toggle h1 a,
@@ -7181,8 +7267,9 @@ body:-ms-fullscreen {
   color: rgba(255, 255, 255, 1);
 }
 
-/* Search form in navy header */
+/* Search form in navy header – rounded to match app styling */
 .header-index-with-dark-toggle #header_search .form-control {
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
   color: rgba(255, 255, 255, 0.95);
@@ -7190,15 +7277,12 @@ body:-ms-fullscreen {
 .header-index-with-dark-toggle #header_search .form-control::placeholder {
   color: rgba(255, 255, 255, 0.6);
 }
-.header-index-with-dark-toggle #header_search .btn-default {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.35);
-  color: rgba(255, 255, 255, 0.95);
+.header-index-with-dark-toggle #header_search .header-search-btn {
+  color: rgba(255, 255, 255, 0.98);
 }
-.header-index-with-dark-toggle #header_search .btn-default:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: white;
+.header-index-with-dark-toggle #header_search .header-search-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
 /* Identity button - modern pill style (index/for-schools view) */
@@ -7264,13 +7348,14 @@ body:-ms-fullscreen {
   top: -2px;
 }
 
-/* Dark toggle in main header - same row as logo, no wrap */
+/* Dark toggle in main header - same row as logo, no wrap; solid navy so bar matches card/dock */
 .header-index-with-dark-toggle #inner_header {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
+  background-color: #1B365D;
 }
 
 /* Welcome username centered on main navbar (authenticated index/for-schools only) */
@@ -7315,6 +7400,26 @@ body:-ms-fullscreen {
   width: auto;
 }
 
+/* Main navbar (index, for-schools, stacked-spaces): soft divider to the left of theme picker + identity (same as stacked-spaces topbar) */
+.header-index-with-dark-toggle .bento-dark-toggle-wrap {
+  margin-left: 8px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Stacked-spaces: reduce main header density – more padding and soft grouping */
+.stacked-spaces-route .header-index-with-dark-toggle #inner_header {
+  padding-left: 22px;
+  padding-right: 22px;
+  gap: 24px;
+}
+.stacked-spaces-route .header-index-with-dark-toggle #nav_header #header_search {
+  margin-left: 18px;
+}
+.stacked-spaces-route .header-index-with-dark-toggle .ll-bento-help-btn--nav {
+  margin-right: 16px;
+}
+
 /* When returning from setup (single_org), show org name + username centered on navbar (same spot as old welcome message) */
 .header-index-with-dark-toggle #nav_header #org_name {
   position: absolute;
@@ -7323,7 +7428,7 @@ body:-ms-fullscreen {
   transform: translate(-50%, -50%);
   font-size: 14px;
   font-style: normal;
-  color: var(--fs-light-gray, #F0F0F0) !important;
+  color: rgba(255, 255, 255, 0.82) !important;
   max-width: 60%;
   white-space: nowrap;
   overflow: hidden;
@@ -7331,11 +7436,18 @@ body:-ms-fullscreen {
 }
 .header-index-with-dark-toggle #nav_header #org_name .nav-header__org-sep {
   margin: 0 6px;
-  opacity: 0.85;
-  color: var(--fs-light-gray, #F0F0F0) !important;
+  opacity: 0.75;
+  color: rgba(255, 255, 255, 0.82) !important;
 }
 .header-index-with-dark-toggle #nav_header #org_name .nav-header__user-home {
-  color: var(--fs-light-gray, #F0F0F0) !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+/* Username: coral 50% lighter, 10% darker – slightly reduced contrast */
+#nav_header #org_name .nav-header__user-name {
+  color: rgba(229, 162, 144, 0.92);
+}
+.header-index-with-dark-toggle #nav_header #org_name .nav-header__user-name {
+  color: rgba(229, 162, 144, 0.92) !important;
 }
 
 /* Help link on main navbar – visible and matches other nav links */
@@ -7419,20 +7531,155 @@ body:-ms-fullscreen {
 .for-schools-nav__cta {
   font-size: 15px;
   font-weight: 600;
-  color: #1B365D;
-  background: #FF6B47;
+  color: white;
+  background: var(--fs-coral, #FF6B47);
   padding: 10px 20px;
   border-radius: 999px;
   text-decoration: none;
   border: none;
-  box-shadow: 0 2px 10px rgba(255, 107, 71, 0.35);
+  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.3);
+  transition: all 0.25s ease;
 }
 .for-schools-nav__cta:hover {
   background: #e8573a;
-  color: #1B365D;
+  color: white;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.4);
+  box-shadow: 0 6px 20px rgba(255, 107, 71, 0.4);
   transform: translateY(-1px);
+}
+
+/* Hamburger button: hidden on desktop, shown on small screens */
+.for-schools-nav-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin-left: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.for-schools-nav-hamburger:hover,
+.for-schools-nav-hamburger:focus {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+  outline: none;
+}
+.for-schools-nav-hamburger__bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1px;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+.for-schools-nav-hamburger__bar + .for-schools-nav-hamburger__bar {
+  margin-top: 5px;
+}
+.for-schools-nav-open .for-schools-nav-hamburger__bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.for-schools-nav-open .for-schools-nav-hamburger__bar:nth-child(2) {
+  opacity: 0;
+}
+.for-schools-nav-open .for-schools-nav-hamburger__bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile nav drawer: full-screen overlay with slide-in panel */
+.for-schools-nav-drawer {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+.for-schools-nav-open .for-schools-nav-drawer {
+  display: block;
+  pointer-events: auto;
+}
+.for-schools-nav-drawer__backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(27, 54, 93, 0.4);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.for-schools-nav-open .for-schools-nav-drawer__backdrop {
+  opacity: 1;
+}
+.for-schools-nav-drawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(320px, 88vw);
+  max-width: 100%;
+  height: 100%;
+  background: #fff;
+  box-shadow: -4px 0 24px rgba(27, 54, 93, 0.15);
+  padding: 80px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.for-schools-nav-open .for-schools-nav-drawer__panel {
+  transform: translateX(0);
+}
+.for-schools-nav-drawer__link {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--fs-navy, #1B365D);
+  text-decoration: none;
+  padding: 14px 16px;
+  border-radius: 10px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.for-schools-nav-drawer__link:hover {
+  background: rgba(27, 54, 93, 0.06);
+  color: var(--fs-navy, #1B365D);
+}
+.for-schools-nav-drawer__cta {
+  margin-top: 16px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  background: var(--fs-coral, #FF6B47);
+  padding: 14px 20px;
+  border-radius: 12px;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.3);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.for-schools-nav-drawer__cta:hover {
+  background: #e8573a;
+  color: white;
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .identity-for-schools-link-wrap--for-schools .for-schools-nav-hamburger {
+    display: flex;
+  }
+  .identity-for-schools-link-wrap--for-schools .for-schools-nav--desktop {
+    display: none;
+  }
+  .identity-for-schools-link-wrap--for-schools .for-schools-nav-drawer {
+    display: block;
+  }
 }
 
 #identity.identity-with-dark-toggle {
@@ -7493,10 +7740,6 @@ body:-ms-fullscreen {
   display: block;
   width: 29px;
   height: 29px;
-}
-
-.ll-bento-theme-picker__flat-svg {
-  display: block;
 }
 
 .ll-bento-theme-picker__default-svg {
@@ -7778,6 +8021,21 @@ body:-ms-fullscreen {
     min-width: 0;
   }
 
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__divider {
+    height: 1px;
+    margin: 8px 0 6px;
+    background: rgba(27, 54, 93, 0.12);
+    border: 0;
+    flex-shrink: 0;
+  }
+
   /* Base styles - exclude --main which uses action-card-style effects */
   &:not(.ll-bento-getting-started--main) {
     outline: 2px solid transparent;
@@ -7808,6 +8066,20 @@ body:-ms-fullscreen {
     }
   }
 
+  &__stage {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ll-bento-muted, rgba(15, 23, 42, 0.6));
+    margin-bottom: 4px;
+
+    .ll-bento-getting-started--main & {
+      font-size: 12px;
+    }
+  }
+
   &__title {
     font-size: 13px;
     font-weight: 600;
@@ -7815,7 +8087,7 @@ body:-ms-fullscreen {
     .ll-bento-getting-started--main & {
       font-size: 18px;
       font-weight: 700;
-      margin: 0 0 4px;
+      margin: 0;
       line-height: 1.3;
     }
     color: var(--ll-bento-ink);
@@ -7828,6 +8100,7 @@ body:-ms-fullscreen {
     .ll-bento-getting-started--main & {
       font-size: 14px;
       line-height: 1.4;
+      text-align: right;
     }
   }
 
@@ -7871,20 +8144,22 @@ body:-ms-fullscreen {
   }
 }
 
-/* Home board card - Speak Mode style */
+/* Home board card - same formatting and hover as Getting Started (--main) */
 .ll-bento-home-board-card {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   padding: 24px 28px;
-  margin: 0 4px 14px;
+  margin: 0 var(--ll-bento-content-inset) 14px;
+  max-width: none;
   box-sizing: border-box;
 
   /* Boards section - fit bento-content width with margins */
   .ll-bento-boards-home-board-wrap & {
     width: 100%;
-    margin: 0 4px 14px;
+    margin: 0 var(--ll-bento-content-inset) 14px;
     box-sizing: border-box;
 
     .ll-bento-home-board-card__btn {
@@ -7892,10 +8167,12 @@ body:-ms-fullscreen {
       min-width: 0;
     }
   }
-  background: rgba(251, 251, 251, 0.92);
+  background: linear-gradient(135deg, rgba(255, 252, 250, 0.38) 0%, rgba(248, 250, 253, 0.32) 100%);
   border-radius: var(--ll-bento-radius-xl);
-  border: 1px solid var(--ll-bento-stroke);
-  box-shadow: var(--ll-bento-shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 16px rgba(19, 29, 56, 0.04),
+              var(--ll-bento-material-inner-highlight),
+              var(--ll-bento-material-counter-shadow);
   text-decoration: none;
   color: inherit;
   outline: 2px solid transparent;
@@ -7903,16 +8180,26 @@ body:-ms-fullscreen {
   transition: background 0.2s ease, box-shadow 0.3s var(--ll-bento-ease-in-out), transform 0.3s var(--ll-bento-ease-in-out), outline-color 0.2s var(--ll-bento-ease-out);
 
   &:hover {
-    background: rgba(236, 238, 241, 0.9);
-    box-shadow: var(--ll-bento-shadow-lg);
+    background: linear-gradient(135deg, rgba(248, 250, 253, 0.42) 0%, rgba(240, 244, 250, 0.36) 100%);
+    box-shadow: 0 8px 24px rgba(19, 29, 56, 0.08),
+                var(--ll-bento-material-inner-highlight),
+                var(--ll-bento-material-counter-shadow);
     transform: translateY(-3px);
     text-decoration: none;
     color: inherit;
   }
 
+  &:active,
+  &:focus,
+  &:visited {
+    text-decoration: none;
+  }
+
   &:active {
     transform: translateY(-1px);
-    box-shadow: var(--ll-bento-shadow-md);
+    box-shadow: 0 6px 20px rgba(19, 29, 56, 0.06),
+                var(--ll-bento-material-inner-highlight),
+                var(--ll-bento-material-counter-shadow);
   }
 
   &__image {
@@ -7953,19 +8240,31 @@ body:-ms-fullscreen {
     color: rgba(15, 20, 30, 0.98);
     font-size: 14px;
     font-weight: 600;
-    box-shadow: 0 6px 20px rgba(100, 185, 188, 0.28),
-                0 2px 8px rgba(130, 195, 220, 0.15),
+    box-shadow: 0 6px 20px rgba(100, 185, 188, 0.18),
+                0 3px 10px rgba(130, 195, 220, 0.12),
+                0 2px 6px rgba(19, 29, 56, 0.08),
                 inset 0 1px 0 rgba(255, 255, 255, 0.6),
-                inset 0 0 20px rgba(200, 248, 255, 0.25);
-    border: 1px solid rgba(110, 195, 200, 0.5);
+                inset 0 0 28px rgba(255, 255, 255, 0.2),
+                inset 0 0 20px rgba(200, 248, 255, 0.3);
+    border: 1px solid rgba(110, 195, 200, 0.55);
     outline: 2px solid transparent;
     outline-offset: 2px;
     transition: transform 0.25s var(--ll-bento-ease-in-out), box-shadow 0.25s var(--ll-bento-ease-in-out), outline-color 0.2s var(--ll-bento-ease-out);
 
-    &:active {
+    .ll-bento-home-board-card:hover & {
+      box-shadow: 0 10px 32px rgba(100, 185, 188, 0.35),
+                  0 4px 14px rgba(130, 195, 220, 0.22),
+                  0 2px 6px rgba(19, 29, 56, 0.08),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                  inset 0 0 28px rgba(255, 255, 255, 0.25),
+                  inset 0 0 24px rgba(200, 248, 255, 0.35);
+    }
+
+    .ll-bento-home-board-card:active & {
       transform: translateY(1px);
-      box-shadow: 0 2px 8px rgba(100, 185, 188, 0.2),
-                  inset 0 2px 6px rgba(19, 29, 56, 0.12);
+      box-shadow: 0 4px 16px rgba(100, 185, 188, 0.25),
+                  0 2px 8px rgba(130, 195, 220, 0.12),
+                  inset 0 2px 6px rgba(19, 29, 56, 0.08);
     }
   }
 }
@@ -8236,9 +8535,8 @@ body:-ms-fullscreen {
       &:hover {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.48) 0%, rgba(248, 250, 253, 0.42) 100%);
         border-color: rgba(255, 255, 255, 0.55);
-        box-shadow: 0 4px 16px rgba(19, 29, 56, 0.05),
-                    var(--ll-bento-material-inner-highlight),
-                    var(--ll-bento-material-counter-shadow);
+        box-shadow: var(--ll-bento-shadow-lg);
+        transform: translateY(-3px);
         text-decoration: none;
         color: rgba(30, 36, 48, 0.85);
       }
@@ -8255,7 +8553,7 @@ body:-ms-fullscreen {
     }
 
     a:active {
-      transform: translateY(1px);
+      transform: translateY(-1px);
       box-shadow: 0 1px 4px rgba(19, 29, 56, 0.08),
                   inset 0 2px 4px rgba(19, 29, 56, 0.06);
     }
@@ -8282,21 +8580,33 @@ body:-ms-fullscreen {
   box-sizing: border-box;
 }
 
-/* Browse Boards - match primary action cards formatting */
+/* Browse Boards - same styling as home board card / Getting Started for consistency */
 .ll-bento-browse-boards {
   width: 100%;
   margin: 0 var(--ll-bento-content-inset) 14px;
   padding: 24px 28px;
-  background: rgba(255, 252, 250, 0.88);
-  border-radius: var(--ll-bento-radius-lg);
-  border: 1px solid var(--ll-bento-stroke);
-  box-shadow: var(--ll-bento-shadow-sm);
   box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(255, 252, 250, 0.38) 0%, rgba(248, 250, 253, 0.32) 100%);
+  border-radius: var(--ll-bento-radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 16px rgba(19, 29, 56, 0.04),
+              var(--ll-bento-material-inner-highlight),
+              var(--ll-bento-material-counter-shadow);
   transition: background 0.2s ease, box-shadow 0.3s var(--ll-bento-ease-in-out), transform 0.3s var(--ll-bento-ease-in-out);
 
   &:hover {
-    background: rgba(240, 242, 245, 0.9);
-    box-shadow: var(--ll-bento-shadow-lg);
+    background: linear-gradient(135deg, rgba(248, 250, 253, 0.42) 0%, rgba(240, 244, 250, 0.36) 100%);
+    box-shadow: 0 8px 24px rgba(19, 29, 56, 0.08),
+                var(--ll-bento-material-inner-highlight),
+                var(--ll-bento-material-counter-shadow);
+    transform: translateY(-3px);
+  }
+
+  &:active {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(19, 29, 56, 0.06),
+                var(--ll-bento-material-inner-highlight),
+                var(--ll-bento-material-counter-shadow);
   }
 
   &__header {
@@ -8310,19 +8620,31 @@ body:-ms-fullscreen {
     margin-left: auto;
   }
 
+  /* Icon container - same bg as Reports action card icon */
   &__icon {
     width: 48px;
     height: 48px;
+    border-radius: 16px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 16px;
-    background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
-    border: 1px solid rgba(205, 218, 240, 0.5);
     box-shadow: 0 4px 12px rgba(19, 29, 56, 0.06), var(--ll-bento-icon-rim);
-    color: rgba(50, 60, 75, 0.75);
-    font-size: 22px;
-    flex-shrink: 0;
+    border: 1px solid rgba(210, 214, 224, 0.5);
+    background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.85);
+    border-color: rgba(195, 220, 230, 0.5);
+
+    .ll-bento-browse-boards__icon-img {
+      width: 32px;
+      height: 32px;
+      display: block;
+      object-fit: contain;
+    }
+
+    .glyphicon {
+      color: rgba(50, 60, 75, 0.8);
+      font-size: 22px;
+    }
   }
 
   &__title {
@@ -8392,12 +8714,14 @@ body:-ms-fullscreen {
   }
 }
 
-/* Section grouping - glass container with label + content */
+/* Section grouping - glass container with left bar to signify section */
 .ll-bento-section-group {
+  position: relative;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(248, 250, 253, 0.22) 100%);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: var(--ll-bento-radius-lg);
-  padding: 16px 20px 18px;
+  padding: 16px 20px 18px 24px;
+  border-left: 4px solid rgba(42, 157, 143, 0.55);
   backdrop-filter: blur(var(--ll-bento-material-blur));
   -webkit-backdrop-filter: blur(var(--ll-bento-material-blur));
   transform: translateZ(0);
@@ -8406,7 +8730,14 @@ body:-ms-fullscreen {
               var(--ll-bento-material-counter-shadow);
 }
 
-/* Section grouping labels - small uppercase labels with left margin */
+/* Light theme: no left teal bar (only default theme has it, with toggle) */
+.ll-bento-app-shell--light .ll-bento-section-group,
+.ll-bento-app-shell--light .ll-bento-extras-expanded {
+  border-left-width: 0;
+  padding-left: 20px;
+}
+
+/* Section grouping labels - small uppercase, no bar (bar is on the div) */
 .ll-bento-section-label {
   display: block;
   font-size: 11px;
@@ -8414,12 +8745,27 @@ body:-ms-fullscreen {
   color: var(--ll-bento-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin: 0 0 10px 20px;
+  margin: 0 0 10px 0;
 }
 
 .ll-bento-browse-boards .ll-bento-section-group .ll-bento-section-label {
   margin-top: 0;
   margin-bottom: 12px;
+}
+
+/* Filter cards grid - 2x2 like primary actions */
+.ll-bento-filter-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Active filter card - subtle highlight */
+.ll-bento-action-card--filter-active {
+  background: rgba(240, 244, 250, 0.95);
+  border-color: rgba(78, 205, 196, 0.35);
+  box-shadow: 0 4px 16px rgba(19, 29, 56, 0.06),
+              0 2px 8px rgba(78, 205, 196, 0.12);
 }
 
 .ll-bento-extras-expanded .ll-bento-section-label {
@@ -8636,6 +8982,24 @@ body:-ms-fullscreen {
     &--account {
       background: var(--ll-bento-icon-gloss), rgba(235, 235, 245, 0.85);
       border-color: rgba(215, 215, 230, 0.5);
+    }
+
+    /* Filter cards (Suggested, Mine, Community, Recent) - same palette as primary actions */
+    &--suggested {
+      background: var(--ll-bento-icon-gloss), rgba(228, 235, 250, 0.85);
+      border-color: rgba(205, 218, 240, 0.5);
+    }
+    &--mine {
+      background: var(--ll-bento-icon-gloss), rgba(235, 235, 245, 0.85);
+      border-color: rgba(215, 215, 230, 0.5);
+    }
+    &--community {
+      background: var(--ll-bento-icon-gloss), rgba(245, 242, 228, 0.85);
+      border-color: rgba(230, 225, 205, 0.5);
+    }
+    &--recent {
+      background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.85);
+      border-color: rgba(195, 220, 230, 0.5);
     }
   }
 
@@ -8893,7 +9257,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-dock__supervisor {
-  flex: 0.75 1 0;
+  flex: 0.65 1 0;
   justify-content: flex-start;
   padding: 0 16px;
 
@@ -8933,7 +9297,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-dock__logging {
-  flex: 1.25 1 0;
+  flex: 1.35 1 0;
   border: none;
   background: transparent;
   padding: 0;
@@ -9082,12 +9446,19 @@ body:-ms-fullscreen {
 
 /* Topbar modifier: applied directly on element when mid-day mode */
 .ll-bento-topbar.ll-bento-topbar--midday {
-  background: linear-gradient(135deg, rgba(118, 122, 130, 0.85) 0%, rgba(114, 118, 126, 0.8) 100%);
+  background: #1B365D !important;
   border-bottom: 1px solid #2A9D8F;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2),
               0 8px 24px rgba(0, 0, 0, 0.15),
               inset 0 1px 0 rgba(255, 255, 255, 0.15),
               inset 0 -1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-brand-link,
+.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-brand__name,
+.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar__brand-sep,
+.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar__brand-home {
+  color: #1B365D;
 }
 
 .ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome {
@@ -9098,10 +9469,10 @@ body:-ms-fullscreen {
 }
 .ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__link,
 .ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__badge {
-  color: var(--fs-dark-teal, #2A9D8F);
+  color: var(--fs-teal, #4ECDC4);
 }
 .ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__link:hover {
-  color: #34b5a5;
+  color: #5ed9d1;
 }
 .ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__celebration-icon {
   color: rgba(255, 255, 255, 0.9);
@@ -9177,9 +9548,13 @@ body:-ms-fullscreen {
   background: linear-gradient(135deg, rgba(200, 212, 228, 0.95) 0%, rgba(188, 200, 218, 0.9) 100%);
   border-color: rgba(255, 255, 255, 0.2);
 
+  &:hover {
+    background: rgba(212, 222, 238, 0.9);
+  }
+
   .ll-bento-browse-boards__icon {
-    background: var(--ll-bento-icon-gloss), rgba(175, 185, 210, 0.9);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--ll-bento-icon-gloss), rgba(165, 179, 182, 0.85);
+    border-color: rgba(146, 165, 173, 0.5);
     color: rgba(50, 55, 70, 0.9);
   }
 
@@ -9266,7 +9641,7 @@ body:-ms-fullscreen {
 /* Dock - icy blue light gray; Upgrade and active item keep their styling */
 /* Dock matches topbar silver gradient */
 .ll-bento-app-shell--midday .ll-bento-dock {
-  background: linear-gradient(135deg, rgba(118, 122, 130, 0.85) 0%, rgba(114, 118, 126, 0.8) 100%);
+  background: #1B365D;
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2),
               0 8px 24px rgba(0, 0, 0, 0.15),
@@ -9286,10 +9661,10 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--midday .ll-bento-section-label {
   color: rgba(30, 36, 48, 0.62);
 }
-
 .ll-bento-app-shell--midday .ll-bento-section-group {
   background: linear-gradient(135deg, rgba(200, 212, 228, 0.35) 0%, rgba(188, 200, 218, 0.28) 100%);
   border-color: rgba(255, 255, 255, 0.35);
+  border-left-color: rgba(42, 157, 143, 0.5);
 }
 
 .ll-bento-app-shell--midday .ll-bento-browse-boards .ll-bento-section-group {
@@ -9337,9 +9712,34 @@ body:-ms-fullscreen {
   border-color: rgba(161, 161, 173, 0.5);
 }
 
-/* Upgrade button - black font in mid-day */
+.ll-bento-app-shell--midday .ll-bento-action-card__icon--suggested {
+  background: var(--ll-bento-icon-gloss), rgba(171, 176, 188, 0.85);
+  border-color: rgba(154, 164, 180, 0.5);
+}
+.ll-bento-app-shell--midday .ll-bento-action-card__icon--mine {
+  background: var(--ll-bento-icon-gloss), rgba(176, 176, 184, 0.85);
+  border-color: rgba(161, 161, 173, 0.5);
+}
+.ll-bento-app-shell--midday .ll-bento-action-card__icon--community {
+  background: var(--ll-bento-icon-gloss), rgba(184, 182, 171, 0.85);
+  border-color: rgba(173, 169, 154, 0.5);
+}
+.ll-bento-app-shell--midday .ll-bento-action-card__icon--recent {
+  background: var(--ll-bento-icon-gloss), rgba(165, 179, 182, 0.85);
+  border-color: rgba(146, 165, 173, 0.5);
+}
+
+/* Upgrade button - style guide coral in mid-day, navy text */
 .ll-bento-app-shell--midday .ll-bento-dock__cta {
-  color: #000 !important;
+  background: #FF6B47;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1B365D !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 71, 0.25);
+}
+.ll-bento-app-shell--midday .ll-bento-dock__cta:hover {
+  background: #e85a38;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(255, 107, 71, 0.35);
 }
 
 /* Dock labels - light text on darkened dock */
@@ -9576,11 +9976,58 @@ body:-ms-fullscreen {
   border-color: rgba(166, 176, 223, 0.35);
 }
 
+.ll-bento-app-shell--coolBlue .ll-bento-topbar,
 .ll-bento-topbar.ll-bento-topbar--coolBlue {
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 249, 253, 0.98) 100%);
-  border-bottom: 1px solid #2A9D8F;
-  box-shadow: 0 2px 12px rgba(31, 42, 68, 0.06),
-              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%) !important; /* same as Help me setup my account button */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* Cool blue topbar: brand, welcome, actions sections transparent; brand link matches active action button */
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__welcome,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__actions {
+  background: transparent;
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link {
+  background: linear-gradient(135deg, #657588 0%, #4C5B7A 100%);
+  border-color: rgba(74, 93, 115, 0.5);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link:hover {
+  background: linear-gradient(135deg, #728399 0%, #5a6a85 100%);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand__name,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand-sep,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand-home {
+  color: rgba(255, 255, 255, 0.98);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__label {
+  color: rgba(232, 236, 242, 0.95);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__link,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__badge {
+  color: var(--fs-teal, #4ECDC4);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__link:hover {
+  color: #5ed9d1;
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__celebration-icon {
+  color: rgba(255, 255, 255, 0.9);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search {
+  background: rgba(74, 93, 115, 0.5);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search__input {
+  color: rgba(255, 255, 255, 0.95);
+}
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-welcome__label {
@@ -9632,7 +10079,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-tab--active {
-  background: linear-gradient(135deg, #4A5D73 0%, #2C3E63 100%);
+  background: linear-gradient(135deg, #657588 0%, #4C5B7A 100%); /* 15% lighter than #4A5D73 / #2C3E63 */
   border-color: rgba(74, 93, 115, 0.5);
   color: #ffffff;
 }
@@ -9653,9 +10100,14 @@ body:-ms-fullscreen {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
   border-color: rgba(126, 147, 168, 0.25);
 
+  &:hover {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(126, 147, 168, 0.35);
+  }
+
   .ll-bento-browse-boards__icon {
-    background: var(--ll-bento-icon-gloss), rgba(233, 238, 244, 0.95);
-    border-color: rgba(126, 147, 168, 0.3);
+    background: var(--ll-bento-icon-gloss), rgba(220, 238, 242, 0.9);
+    border-color: rgba(195, 220, 230, 0.6);
     color: rgba(74, 93, 115, 0.9);
   }
 
@@ -9710,17 +10162,21 @@ body:-ms-fullscreen {
   background: rgba(233, 238, 244, 0.98);
 }
 .ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn {
-  background: rgba(233, 238, 244, 0.98);
+  background: rgba(74, 93, 115, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
 }
 .ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn:hover {
-  background: #fff;
+  background: rgba(101, 117, 136, 0.8);
+  color: #fff;
 }
-.ll-bento-app-shell--coolBlue .ll-bento-brand-link:hover {
-  background: #fff;
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search:hover {
+  background: rgba(74, 93, 115, 0.6);
+  border-color: rgba(255, 255, 255, 0.2);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-search:hover,
-.ll-bento-app-shell--coolBlue .ll-bento-icon-btn:hover {
-  background: rgba(233, 238, 244, 0.98);
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-help-btn .ll-bento-help-btn__icon,
+.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-help-btn .ll-bento-help-btn__label {
+  color: rgba(255, 255, 255, 0.95) !important;
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-tab:hover:not(.ll-bento-tab--active) {
@@ -9741,32 +10197,34 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(233, 238, 244, 0.9) 100%);
-  border-color: rgba(126, 147, 168, 0.25);
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%); /* same as topbar / Help me setup button */
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock__item:not(.ll-bento-dock__item--active) {
-  color: rgba(74, 93, 115, 0.9);
+  color: rgba(232, 236, 242, 0.9);
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock__item--active {
-  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
-  border-color: rgba(74, 93, 115, 0.4);
+  background: linear-gradient(135deg, #657588 0%, #4C5B7A 100%); /* 15% lighter so it stands out on dock */
+  border-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-section-label {
   color: rgba(74, 93, 115, 0.9);
 }
-
 .ll-bento-app-shell--coolBlue .ll-bento-section-group {
   background: transparent;
+  border-left-color: rgba(100, 140, 200, 0.6);
 }
 
-/* Primary Actions: distinct panel so it stands out from main content gradient */
+/* Primary Actions: distinct panel so it stands out from main content gradient; no left border in cool blue */
 .ll-bento-app-shell--coolBlue .ll-bento-actions .ll-bento-section-group:first-child {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 248, 255, 0.92) 50%, rgba(227, 234, 248, 0.9) 100%);
   border: 1px solid rgba(166, 176, 223, 0.4);
+  border-left-width: 0;
+  padding-left: 20px;
   box-shadow: 0 4px 20px rgba(122, 135, 194, 0.12),
               0 2px 8px rgba(122, 135, 194, 0.08),
               inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -9817,9 +10275,9 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock__cta {
-  background: linear-gradient(135deg, rgba(233, 238, 244, 0.95) 0%, rgba(220, 228, 238, 0.9) 100%);
-  border-color: rgba(126, 147, 168, 0.35);
-  color: rgba(31, 42, 68, 0.95);
+  background: linear-gradient(135deg, #657588 0%, #4C5B7A 100%); /* same as active action tab */
+  border-color: rgba(74, 93, 115, 0.5);
+  color: #ffffff;
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock__label,
@@ -9827,7 +10285,7 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--coolBlue .ll-bento-dock__logging-sep,
 .ll-bento-app-shell--coolBlue .ll-bento-dock__logging-last,
 .ll-bento-app-shell--coolBlue .ll-bento-dock__logging-last-label {
-  color: rgba(74, 93, 115, 0.9);
+  color: rgba(232, 236, 242, 0.95);
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock__item--active .ll-bento-dock__label {
@@ -10077,7 +10535,9 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--dark .ll-bento-topbar {
-  background: linear-gradient(135deg, rgba(63, 77, 95, 0.5) 0%, rgba(54, 68, 83, 0.42) 100%);
+  background: #172E4F !important; /* navy 15% darker */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
               0 8px 24px rgba(0, 0, 0, 0.2),
@@ -10157,6 +10617,22 @@ body:-ms-fullscreen {
 /* Dark mode - application header and footer (when on main page) */
 #within_ember.bento-dark-mode-active {
   background: #3d4a5c;
+}
+
+/* Bento action card buttons in dark mode: same as Browse boards pills (Suggested, Mine, Community) */
+#within_ember.bento-dark-mode-active .ll-bento-action-card__action-btn,
+#within_ember.bento-dark-mode-active .ll-bento-action-card .ll-bento-action-card__action-btn {
+  background: rgba(65, 78, 95, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(230, 236, 242, 0.9) !important;
+}
+#within_ember.bento-dark-mode-active .ll-bento-action-card a:hover .ll-bento-action-card__action-btn,
+#within_ember.bento-dark-mode-active .ll-bento-action-card .ll-bento-action-card__action-btn:hover {
+  background: rgba(114, 132, 156, 0.9) !important;
+  border-color: rgba(160, 145, 210, 0.3) !important;
+}
+#within_ember.bento-dark-mode-active a:has(.ll-bento-action-card__action-btn) {
+  color: rgba(230, 236, 242, 0.9) !important;
 }
 
 /* Navbar matches bento topbar (dark) only when NOT index/for-schools navbar */
@@ -10276,21 +10752,29 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--dark .ll-bento-tab--active {
-  background: linear-gradient(135deg, rgba(78, 165, 168, 0.75) 0%, rgba(100, 180, 200, 0.69) 50%, rgba(90, 140, 180, 0.75) 100%);
-  border-color: rgba(120, 200, 210, 0.5);
-  color: rgba(15, 25, 35, 0.98);
+  background: #546886; /* 25% lighter than navy #1B365D */
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.98);
 }
 
 .ll-bento-app-shell--dark .ll-bento-home-board-card__btn {
-  background: linear-gradient(135deg, rgba(78, 165, 168, 0.75) 0%, rgba(100, 180, 200, 0.6) 50%, rgba(90, 140, 180, 0.7) 100%);
-  border-color: rgba(120, 200, 210, 0.4);
-  color: rgba(15, 25, 35, 0.98);
+  background: #1B365D;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.98);
+}
+.ll-bento-app-shell--dark .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn {
+  background: #243d66;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .ll-bento-app-shell--dark .ll-bento-getting-started__btn {
-  background: linear-gradient(135deg, rgba(78, 165, 168, 0.75) 0%, rgba(100, 180, 200, 0.6) 50%, rgba(90, 140, 180, 0.7) 100%);
-  border-color: rgba(120, 200, 210, 0.4);
-  color: rgba(15, 25, 35, 0.98);
+  background: #1B365D;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.98);
+}
+.ll-bento-app-shell--dark .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn {
+  background: #243d66;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .ll-bento-app-shell--dark .nav.nav-pills:not(.nav-stacked) li a {
@@ -10313,9 +10797,13 @@ body:-ms-fullscreen {
   background: rgba(65, 78, 95, 0.7);
   border-color: rgba(255, 255, 255, 0.08);
 
+  &:hover {
+    background: rgba(75, 90, 110, 0.75);
+  }
+
   .ll-bento-browse-boards__icon {
-    background: var(--ll-bento-icon-gloss), rgba(175, 185, 210, 0.9);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--ll-bento-icon-gloss), rgba(224, 240, 243, 0.4);
+    border-color: rgba(201, 224, 233, 0.35);
     color: rgba(50, 55, 70, 0.9);
   }
 
@@ -10381,7 +10869,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--dark .ll-bento-dock {
-  background: linear-gradient(135deg, rgba(65, 78, 95, 0.45) 0%, rgba(55, 68, 85, 0.38) 100%);
+  background: #172E4F; /* navy 15% darker */
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
               0 8px 24px rgba(0, 0, 0, 0.2),
@@ -10395,7 +10883,22 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--dark .ll-bento-dock__cta {
-  color: #000 !important;
+  background: #D95B3C; /* style guide coral #FF6B47 at 15% darker */
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1B365D !important;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: transform 0.25s var(--ll-bento-ease-in-out), background 0.25s var(--ll-bento-ease-in-out), border-color 0.25s var(--ll-bento-ease-in-out), box-shadow 0.25s var(--ll-bento-ease-in-out), outline-color 0.2s var(--ll-bento-ease-out);
+
+  &:hover {
+    background: #E86442; /* slightly lighter coral */
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
 }
 
 .ll-bento-app-shell--dark .ll-bento-dock__label,
@@ -10411,7 +10914,11 @@ body:-ms-fullscreen {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
+.ll-bento-app-shell--dark .ll-bento-section-label {
+  color: rgba(255, 255, 255, 0.88);
+}
 .ll-bento-app-shell--dark .ll-bento-section-group {
+  border-left-color: rgba(78, 205, 196, 0.6);
   background: linear-gradient(135deg, rgba(65, 78, 95, 0.35) 0%, rgba(55, 68, 85, 0.28) 100%);
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
@@ -10475,6 +10982,29 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--dark .ll-bento-action-card__icon--account {
   background: var(--ll-bento-icon-gloss), rgba(237, 237, 246, 0.4);
   border-color: rgba(220, 220, 233, 0.35);
+}
+
+/* Same as Browse boards pills (Suggested, Mine, Community) in dark mode */
+.ll-bento-app-shell--dark .ll-bento-action-card .ll-bento-action-card__action-btn,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--speak,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--reports,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--ideas,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--modeling,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--extras,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--account,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--green-yellow,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--suggested,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--mine,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--community,
+.ll-bento-app-shell--dark .ll-bento-action-card__action-btn--recent {
+  background: rgba(65, 78, 95, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(230, 236, 242, 0.9) !important;
+}
+.ll-bento-app-shell--dark .ll-bento-action-card a:hover .ll-bento-action-card__action-btn,
+.ll-bento-app-shell--dark .ll-bento-action-card .ll-bento-action-card__action-btn:hover {
+  background: rgba(114, 132, 156, 0.9) !important;
+  border-color: rgba(160, 145, 210, 0.3) !important;
 }
 
 .ll-bento-app-shell--dark .ll-bento-action-card__glyph,
@@ -10564,175 +11094,6 @@ body:-ms-fullscreen {
   }
 }
 
-/* Flat theme – main page with flat (no gradient) button/card backgrounds */
-.ll-bento-app-shell--flat {
-  background: #e8ecf0;
-  color: rgba(30, 36, 48, 0.95);
-}
-
-.ll-bento-app-shell--flat .ll-bento-bg-orbs {
-  opacity: 0;
-}
-
-.ll-bento-app-shell--flat .ll-bento-device-frame {
-  background: #e8ecf0;
-  border-color: rgba(30, 36, 48, 0.12);
-}
-
-.ll-bento-app-shell--flat .ll-bento-topbar {
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(30, 36, 48, 0.1);
-}
-
-.ll-bento-app-shell--flat .ll-bento-section-group,
-.ll-bento-app-shell--flat .ll-bento-extras-expanded {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(30, 36, 48, 0.1);
-  box-shadow: 0 2px 8px rgba(19, 29, 56, 0.06);
-}
-
-.ll-bento-app-shell--flat .ll-bento-getting-started--main {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(30, 36, 48, 0.1);
-  box-shadow: 0 2px 8px rgba(19, 29, 56, 0.06);
-}
-
-.ll-bento-app-shell--flat .ll-bento-getting-started--main:hover {
-  background: rgba(248, 250, 253, 0.98);
-  box-shadow: 0 4px 12px rgba(19, 29, 56, 0.08);
-}
-
-.ll-bento-app-shell--flat .ll-bento-getting-started__btn {
-  background: #2A9D8F;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.25);
-}
-
-.ll-bento-app-shell--flat .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn {
-  background: #238a7e;
-  box-shadow: 0 4px 10px rgba(42, 157, 143, 0.3);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card,
-.ll-bento-app-shell--flat .ll-bento-action-card--extras-expanded {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(30, 36, 48, 0.1);
-  box-shadow: 0 2px 8px rgba(19, 29, 56, 0.06);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card:hover {
-  background: rgba(248, 250, 253, 0.98);
-  box-shadow: 0 4px 12px rgba(19, 29, 56, 0.08);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon {
-  box-shadow: 0 2px 6px rgba(19, 29, 56, 0.06);
-  border: 1px solid rgba(30, 36, 48, 0.12);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--speak {
-  background: rgba(225, 242, 235, 0.95);
-  border-color: rgba(195, 225, 215, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--reports {
-  background: rgba(220, 238, 242, 0.95);
-  border-color: rgba(195, 220, 230, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--ideas,
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--modeling {
-  background: rgba(228, 235, 250, 0.95);
-  border-color: rgba(205, 218, 240, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--extras {
-  background: rgba(245, 232, 238, 0.95);
-  border-color: rgba(230, 210, 220, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--green-yellow {
-  background: rgba(245, 242, 228, 0.95);
-  border-color: rgba(230, 225, 205, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__icon--account {
-  background: rgba(235, 235, 245, 0.95);
-  border-color: rgba(215, 215, 230, 0.6);
-}
-
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--speak,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--reports,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--ideas,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--modeling,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--extras,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--account,
-.ll-bento-app-shell--flat .ll-bento-action-card__action-btn--green-yellow {
-  background: #e8ecf2;
-  border: 1px solid rgba(30, 36, 48, 0.12);
-  color: rgba(30, 36, 48, 0.9);
-}
-
-.ll-bento-app-shell--flat .ll-bento-hero-card__btn {
-  background: #2A9D8F;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.25);
-}
-
-.ll-bento-app-shell--flat .ll-bento-btn--primary {
-  background: #2A9D8F;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.25);
-}
-
-.ll-bento-app-shell--flat .nav.nav-pills:not(.nav-stacked) li a {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(30, 36, 48, 0.12);
-  box-shadow: 0 1px 4px rgba(19, 29, 56, 0.04);
-}
-
-.ll-bento-app-shell--flat .nav.nav-pills:not(.nav-stacked) li.active a {
-  background: #2A9D8F;
-  border-color: rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
-}
-
-.ll-bento-app-shell--flat .ll-bento-dock {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(30, 36, 48, 0.1);
-}
-
-.ll-bento-app-shell--flat .ll-bento-dock__cta {
-  background: #FF896C; /* style guide coral #FF6B47 at ~20% lighter */
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-}
-.ll-bento-app-shell--flat .ll-bento-dock__cta:hover {
-  background: #FF6B47;
-}
-
-.ll-bento-app-shell--flat .ll-bento-tab {
-  background: #e8ecf2;
-  border: 1px solid rgba(30, 36, 48, 0.12);
-  box-shadow: 0 1px 4px rgba(19, 29, 56, 0.04);
-  color: rgba(30, 36, 48, 0.9);
-}
-
-.ll-bento-app-shell--flat .ll-bento-tab:hover:not(.ll-bento-tab--active) {
-  background: #e0e4eb;
-  border-color: rgba(30, 36, 48, 0.16);
-}
-
-.ll-bento-app-shell--flat .ll-bento-tab--active {
-  background: #65B8AE; /* Help me button #2A9D8F at ~30% lighter */
-  border-color: rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
-}
-
 /* Default theme – style guide colors and typography
    Teal #4ECDC4 (accent), Dark Teal #2A9D8F (accessible), White #FFFFFF, Light Gray #F0F0F0, Coral #FF6B47
    Typography: Lexend (headings), Atkinson Hyperlegible (body), Source Code Pro (data) */
@@ -10748,12 +11109,27 @@ body:-ms-fullscreen {
   color: var(--ll-bento-ink);
 }
 
+/* #index_view only exists when the index route is active (template in app/templates/index.hbs).
+   When you navigate to stacked-spaces, for-schools, user profile, or a board, the outlet renders
+   a different template and #index_view is not in the DOM. Use white so no teal bar shows above the footer;
+   the teal bar below the navbar is from #content.index.with_user { border-top: 15px solid #2A9D8F }. */
+#within_ember.bento-default-mode-active #index_view {
+  background: #FFFFFF;
+}
+
 .ll-bento-app-shell--default .ll-bento-bg-orbs {
   opacity: 0;
 }
 
+/* Default shell: subtle multi-tone gradient – light navy, very light coral, and teal for professional differentiation. */
+.ll-bento-app-shell--default {
+  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
+              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
+              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
+              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+}
+
 .ll-bento-app-shell--default .ll-bento-device-frame {
-  background: #F0F0F0;
   border-color: rgba(0, 0, 0, 0.08);
 }
 
@@ -10763,22 +11139,163 @@ body:-ms-fullscreen {
   font-family: "Lexend", "Nunito Sans", Calibri, sans-serif;
 }
 
+/* Demo: color circles on topbar (default theme only) – change ll-bento-main-content bg for client preview */
+.ll-bento-topbar--default .ll-bento-topbar__demo-colors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+.ll-bento-demo-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ll-bento-demo-color:hover {
+  transform: scale(1.12);
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.ll-bento-demo-color:focus {
+  outline: none;
+  border-color: #2A9D8F;
+  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.35);
+}
+.ll-bento-demo-color--navy { background: #1B365D; }
+.ll-bento-demo-color--navy-light { background: #C6CDD7; }
+.ll-bento-demo-color--tab-light { background: #E9F9F8; }
+.ll-bento-demo-color--reset {
+  background: #F0F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e2430;
+  font-size: 12px;
+}
+.ll-bento-demo-color--reset:hover {
+  background: #e8e8e8;
+  color: #1B365D;
+}
+.ll-bento-demo-color--border {
+  background: #F0F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.ll-bento-demo-color--border .ll-bento-demo-color--border-icon {
+  width: 8px;
+  height: 14px;
+  border-left: 3px solid rgba(42, 157, 143, 0.7);
+  border-radius: 0 2px 2px 0;
+}
+.ll-bento-demo-color--border:hover .ll-bento-demo-color--border-icon {
+  border-left-color: #2A9D8F;
+}
+.ll-bento-demo-color--border-off .ll-bento-demo-color--border-icon {
+  border-left-color: rgba(30, 36, 48, 0.25);
+  opacity: 0.7;
+}
+/* Thick state: icon shows wider bar (matches 24px section border) */
+.ll-bento-demo-color--border-thick .ll-bento-demo-color--border-icon {
+  border-left-width: 10px;
+}
+
+/* When border is toggled off, hide left bar on section groups (specificity must beat default-theme rule below) */
+.ll-bento-device-frame--no-section-border .ll-bento-section-group,
+.ll-bento-device-frame--no-section-border .ll-bento-extras-expanded {
+  border-left-width: 0;
+  padding-left: 20px;
+}
+
 .ll-bento-app-shell--default .ll-bento-section-group,
 .ll-bento-app-shell--default .ll-bento-extras-expanded {
   background: #F0F0F0;
   border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 4px solid rgba(42, 157, 143, 0.55);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Default theme: when border toggle is off, remove teal left bar on all section groups (including Primary actions and filter) */
+.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-section-group,
+.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-extras-expanded {
+  border-left-width: 0;
+  border-left-color: transparent;
+  padding-left: 20px;
+}
+
+/* Default theme: thick border = 4px + 20px fill to the right (24px total teal strip) */
+.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-section-group,
+.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-extras-expanded {
+  border-left-width: 24px;
+  border-left-color: rgba(42, 157, 143, 0.55);
+  padding-left: 24px;
+}
+
+.ll-bento-app-shell--default .ll-bento-actions .ll-bento-section-group:first-child {
+  background: linear-gradient(to bottom,
+    #E8EBED 0%,
+    rgba(27, 54, 93, 0.06) 12%,
+    #F5F7FA 25%,
+    #F5F7FA 75%,
+    rgba(27, 54, 93, 0.06) 88%,
+    #E8EBED 100%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* When a demo color is selected, use light gray 5% darker instead of gradient */
+/* When a demo background is set, disable backdrop-filter so the solid color matches the navbar (no blending with shell) */
+.ll-bento-device-frame--demo-bg {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.ll-bento-app-shell--default .ll-bento-device-frame--demo-bg .ll-bento-actions .ll-bento-section-group:first-child {
+  background: #E8EBED;
 }
 
 .ll-bento-app-shell--default .ll-bento-getting-started--main {
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .ll-bento-app-shell--default .ll-bento-getting-started--main:hover {
   background: #F0F0F0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ll-bento-app-shell--default .ll-bento-home-board-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.ll-bento-app-shell--default .ll-bento-home-board-card:hover {
+  background: #F0F0F0;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ll-bento-app-shell--default .ll-bento-browse-boards {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.ll-bento-app-shell--default .ll-bento-browse-boards:hover {
+  background: #F0F0F0;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ll-bento-app-shell--default .ll-bento-browse-boards__icon {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(78, 205, 196, 0.15);
+  border-color: rgba(78, 205, 196, 0.3);
 }
 
 .ll-bento-app-shell--default .ll-bento-getting-started__btn {
@@ -10793,16 +11310,45 @@ body:-ms-fullscreen {
   box-shadow: 0 4px 10px rgba(42, 157, 143, 0.25);
 }
 
+.ll-bento-app-shell--default .ll-bento-home-board-card__btn {
+  background: #2A9D8F;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
+}
+
+.ll-bento-app-shell--default .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn {
+  background: #238a7e;
+  box-shadow: 0 4px 10px rgba(42, 157, 143, 0.25);
+}
+
+/* Lifted card shadows – action cards and hero card look elevated off the page */
+.ll-bento-app-shell--default .ll-bento-hero-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04),
+              0 8px 24px rgba(0, 0, 0, 0.06),
+              0 20px 48px rgba(0, 0, 0, 0.06);
+}
+
+.ll-bento-app-shell--default .ll-bento-hero-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+              0 12px 32px rgba(0, 0, 0, 0.08),
+              0 28px 56px rgba(0, 0, 0, 0.07);
+}
+
 .ll-bento-app-shell--default .ll-bento-action-card,
 .ll-bento-app-shell--default .ll-bento-action-card--extras-expanded {
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04),
+              0 6px 20px rgba(0, 0, 0, 0.06),
+              0 14px 40px rgba(0, 0, 0, 0.05);
 }
 
 .ll-bento-app-shell--default .ll-bento-action-card:hover {
   background: #F0F0F0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+              0 10px 28px rgba(0, 0, 0, 0.08),
+              0 20px 48px rgba(0, 0, 0, 0.06);
 }
 
 .ll-bento-app-shell--default .ll-bento-action-card__icon {
@@ -10847,8 +11393,12 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--default .ll-bento-action-card__action-btn--modeling,
 .ll-bento-app-shell--default .ll-bento-action-card__action-btn--extras,
 .ll-bento-app-shell--default .ll-bento-action-card__action-btn--account,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--green-yellow {
-  background: #F0F0F0;
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--green-yellow,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--suggested,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--mine,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--community,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--recent {
+  background: #D8D8D8; /* style guide light gray #F0F0F0 at 10% darker */
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--ll-bento-ink);
 }
@@ -10908,10 +11458,10 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--default .ll-bento-tab--active {
-  background: #2A9D8F;
+  background: #95CEC7; /* #2A9D8F at 50% lighter */
   border-color: rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
+  color: rgba(30, 36, 48, 0.95);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 /* Default theme – headings use Lexend */
@@ -11048,7 +11598,7 @@ body:-ms-fullscreen {
 }
 
 .for-schools-hero-title {
-  font-size: 4.025rem;
+  font-size: 5.03rem; /* +25% from 4.025rem */
   font-weight: 700;
   color: var(--fs-navy);
   margin-bottom: 2rem;
@@ -11158,23 +11708,20 @@ body:-ms-fullscreen {
   align-self: stretch;
 }
 
+/* Mockup – match pasted HTML/CSS (hero-mockup, mockup-toolbar, aac-btn, mockup-bar) */
 .for-schools-mockup {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
-  max-width: 100%;
+  width: 100%;
+  max-width: 480px;
+  margin-left: 4rem;
   background: white;
   border-radius: var(--fs-radius-lg);
   box-shadow: var(--fs-shadow-lg);
   overflow: hidden;
   border: 1px solid rgba(27, 54, 93, 0.06);
-  display: flex;
-  flex-direction: column;
 }
 
 .for-schools-mockup-toolbar {
-  height: 44px;
-  flex-shrink: 0;
+  height: 40px;
   background: var(--fs-navy);
   display: flex;
   align-items: center;
@@ -11183,8 +11730,8 @@ body:-ms-fullscreen {
 }
 
 .for-schools-mockup-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
@@ -11197,47 +11744,40 @@ body:-ms-fullscreen {
   margin-left: 12px;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  height: 28px;
+  height: 30px;
   display: flex;
   align-items: center;
   padding: 0 12px;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 1.15rem;
-  font-family: inherit;
+  font-size: 1rem;
+  font-family: 'Atkinson Hyperlegible', monospace;
 }
 
 .for-schools-mockup-screen {
-  padding: 18px 20px 20px;
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
+  padding: 20px;
 }
 
 .for-schools-mockup-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  flex: 0 0 auto;
-  min-width: 0;
 }
 
 .for-schools-aac-btn {
-  aspect-ratio: 10 / 9;
-  border-radius: 10px;
+  aspect-ratio: 1;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: 1.15rem;
+  gap: 8px;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--fs-navy);
   border: none;
   cursor: default;
   transition: transform 0.2s;
-  font-family: inherit;
+  font-family: 'Lexend', sans-serif;
 }
 
 .for-schools-aac-icon {
@@ -11255,19 +11795,19 @@ body:-ms-fullscreen {
 
 .for-schools-mockup-bar {
   margin-top: 14px;
-  padding: 12px 16px;
-  flex-shrink: 0;
-  flex-grow: 0;
+  padding: 10px 14px;
   background: var(--fs-light-gray);
   border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .for-schools-mockup-bar-text {
   flex: 1;
-  font-size: 1.25rem;
+  text-align: right;
+  padding-right: 2rem;
+  font-size: 1.1rem;
   color: var(--fs-navy);
   font-weight: 500;
 }
@@ -11277,10 +11817,10 @@ body:-ms-fullscreen {
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 1.2rem;
+  padding: 10px 20px;
+  font-size: 1.1rem;
   font-weight: 700;
-  font-family: inherit;
+  font-family: 'Lexend', sans-serif;
   cursor: default;
 }
 
@@ -11349,7 +11889,7 @@ body:-ms-fullscreen {
 /* Stats bar */
 .for-schools-stats-bar {
   padding: 20px calc(0.9 * (20px + 25rem)) 20px 22.5rem;
-  background: var(--fs-navy);
+  background: var(--fs-navy, #1B365D);
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -11369,12 +11909,12 @@ body:-ms-fullscreen {
   font-family: inherit;
   font-size: 2.64rem;
   font-weight: 700;
-  color: #4ecdc4;
+  color: var(--fs-teal, #4ECDC4);
 }
 
 .for-schools-stat-label {
   font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #FFFFFF;
   margin-top: 4px;
   line-height: 1.35;
 }
@@ -11396,7 +11936,7 @@ body:-ms-fullscreen {
 
 .for-schools-section-label {
   font-family: inherit;
-  font-size: 1.55rem;
+  font-size: 1.94rem; /* +25% from 1.55rem */
   font-weight: 600;
   color: var(--fs-dark-teal);
   text-transform: uppercase;
@@ -11405,11 +11945,12 @@ body:-ms-fullscreen {
 }
 
 .for-schools-section-title {
-  font-size: 3.45rem;
+  font-size: 4.31rem; /* +25% from 3.45rem */
   font-weight: 700;
   color: var(--fs-navy);
   margin-bottom: 1.25rem;
   letter-spacing: 0.01em;
+  line-height: 1.3;
 }
 
 .for-schools-section-subtitle {
@@ -11432,19 +11973,28 @@ body:-ms-fullscreen {
 .for-schools-features-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
+  gap: 52px; /* 12px more than 40px for row/column breathing room */
   flex: 1 1 100%;
   min-width: 0;
 }
 
+/* Match Home Page getting started card; crisper shadow (slightly less opacity + tighter blur) for anchored feel */
+/* Hover lift: match HTML mockup .feature-card (shadow-sm → shadow-lg, translateY(-4px), border-color, transition all 0.3s ease) */
 .for-schools-feature-card {
   padding: 24px 28px;
   min-height: 88px;
-  border-radius: 22px;
-  background: rgba(232, 250, 249, 0.95);
-  border: 1px solid rgba(78, 205, 196, 0.25);
-  box-shadow: var(--fs-shadow-sm);
+  border-radius: 28px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 54, 93, 0.06);
+  box-shadow: 0 8px 24px rgba(27, 54, 93, 0.1), 0 2px 8px rgba(27, 54, 93, 0.06);
   cursor: default;
+  transition: all 0.3s ease;
+}
+
+.for-schools-feature-card:hover {
+  box-shadow: 0 14px 40px rgba(27, 54, 93, 0.14), 0 6px 16px rgba(27, 54, 93, 0.08);
+  transform: translateY(-4px);
+  border-color: rgba(78, 205, 196, 0.2);
 }
 
 .for-schools-feature-header-row {
@@ -11454,6 +12004,7 @@ body:-ms-fullscreen {
   margin-bottom: 14px;
 }
 
+/* Icon tile: identical fill opacity (0.12), border-radius (14px), shadow, border for optical consistency */
 .for-schools-feature-icon {
   width: 60px;
   height: 60px;
@@ -11463,27 +12014,24 @@ body:-ms-fullscreen {
   align-items: center;
   justify-content: center;
   font-size: 3.2rem;
-  box-shadow: var(--fs-shadow-sm);
-  border: 1px solid rgba(78, 205, 196, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .for-schools-feature-icon-coral {
   background: rgba(255, 107, 71, 0.12);
-  border-color: rgba(255, 107, 71, 0.25);
 }
 
 .for-schools-feature-icon-teal {
-  background: rgba(78, 205, 196, 0.15);
-  border-color: rgba(78, 205, 196, 0.3);
+  background: rgba(78, 205, 196, 0.12);
 }
 
 .for-schools-feature-icon-navy {
-  background: rgba(27, 54, 93, 0.08);
-  border-color: rgba(27, 54, 93, 0.15);
+  background: rgba(27, 54, 93, 0.12);
 }
 
 .for-schools-feature-header-row h3 {
-  font-size: 1.95rem;
+  font-size: 2.44rem; /* +25% from 1.95rem */
   font-weight: 600;
   color: var(--fs-navy);
   margin: 0;
@@ -11574,7 +12122,7 @@ body:-ms-fullscreen {
 }
 
 .for-schools-cta-inner h2 {
-  font-size: 3.22rem;
+  font-size: 4.03rem; /* +25% from 3.22rem */
   font-weight: 700;
   color: white;
   margin-bottom: 20px;
@@ -11603,6 +12151,13 @@ body:-ms-fullscreen {
   overflow-x: hidden;
 }
 
+@media (max-width: 1200px) {
+  .for-schools-a11y-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
 .for-schools-a11y-note {
   background: rgba(78, 205, 196, 0.08);
   border: 1px solid rgba(78, 205, 196, 0.2);
@@ -11617,10 +12172,19 @@ body:-ms-fullscreen {
   min-width: 0;
 }
 
+/* Accessibility icon: same pattern as .for-schools-feature-icon (tile, teal tint) */
 .for-schools-a11y-icon {
-  font-size: 2.08rem;
+  width: 60px;
+  height: 60px;
   flex-shrink: 0;
-  margin-top: 2px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(78, 205, 196, 0.12);
 }
 
 .for-schools-a11y-note p {
@@ -11660,23 +12224,23 @@ body:-ms-fullscreen {
 .for-schools-footer-brand p {
   font-size: 1.43rem;
   line-height: 1.65;
-  margin-top: 20px;
+  margin-top: 4px;
   max-width: 340px;
 }
 
 .for-schools-footer-logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: white;
   font-family: inherit;
   font-weight: 700;
-  font-size: 1.69rem;
+  font-size: 2.1rem;
   text-decoration: none;
 }
 
 .for-schools-footer-logo-img {
-  height: 36px;
+  height: 48px;
   width: auto;
   display: block;
 }
@@ -11688,7 +12252,7 @@ body:-ms-fullscreen {
 
 .for-schools-footer-col h4 {
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: var(--fs-dark-teal);
   margin-bottom: 20px;
@@ -11754,7 +12318,7 @@ body:-ms-fullscreen {
   }
 
   .for-schools-hero-title {
-    font-size: 2.875rem;
+    font-size: 3.59rem; /* +25% from 2.875rem */
   }
 
   .for-schools-hero-header {
@@ -11783,6 +12347,38 @@ body:-ms-fullscreen {
 
   .for-schools-hero {
     overflow: visible;
+    padding-left: 12.5rem;
+    padding-right: calc(0.9 * (20px + 25rem) - 10rem);
+  }
+
+  .for-schools-stats-bar {
+    padding-left: 12.5rem;
+    padding-right: calc(0.9 * (20px + 25rem) - 10rem);
+  }
+
+  .for-schools-features {
+    padding-left: 12.5rem;
+    padding-right: calc(0.9 * (20px + 25rem) - 10rem);
+  }
+
+  .for-schools-testimonial {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .for-schools-cta {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .for-schools-a11y-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .for-schools-footer {
+    padding-left: 12.5rem;
+    padding-right: calc(0.9 * (20px + 25rem) - 10rem);
   }
 
   .for-schools-hero-visual {
@@ -11796,7 +12392,7 @@ body:-ms-fullscreen {
   }
 
   .for-schools-section-title {
-    font-size: 2.53rem;
+    font-size: 3.16rem; /* +25% from 2.53rem */
   }
 
   .for-schools-features-grid-wrap {
@@ -11824,7 +12420,7 @@ body:-ms-fullscreen {
   }
 
   .for-schools-cta-inner h2 {
-    font-size: 2.53rem;
+    font-size: 3.16rem; /* +25% from 2.53rem */
   }
 
   .for-schools-footer {
@@ -11836,6 +12432,90 @@ body:-ms-fullscreen {
     grid-template-columns: 1.5fr 1fr;
   }
 
+}
+
+/* 768px–900px: shift Product and Company footer columns right */
+@media (min-width: 768px) and (max-width: 900px) {
+  .for-schools-footer-inner .for-schools-footer-col:nth-child(2),
+  .for-schools-footer-inner .for-schools-footer-col:nth-child(4) {
+    margin-left: 5rem;
+  }
+}
+
+/* 768px and below: reduce section padding to expand content (not navbar) */
+@media (max-width: 768px) {
+  .for-schools-hero {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  .for-schools-stats-bar {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  .for-schools-features {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  .for-schools-testimonial {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .for-schools-cta {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .for-schools-a11y-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .for-schools-footer {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+/* Very small screens: minimal section padding (not navbar) */
+@media (max-width: 480px) {
+  .for-schools-hero {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .for-schools-stats-bar {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .for-schools-features {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .for-schools-testimonial {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .for-schools-cta {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .for-schools-a11y-wrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .for-schools-footer {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
 }
 
 /* ===== Stacked Spaces (scrollable feed, carousels, tabs, upgrade banner) ===== */
@@ -11858,27 +12538,213 @@ body:-ms-fullscreen {
   --ll-shadow2: 0 10px 25px rgba(27, 54, 93, 0.06);
   background: var(--ll-bg);
 }
+/* Stacked-spaces topbar: fixed under main navbar (sticky broken by #within_ember overflow:hidden) */
 .stacked-spaces-page .ll-topbar {
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #B8BCC8; /* darker blue-gray (reverted from #D4D8E2) */
   border-bottom-color: #2A9D8F;
 }
+/* Reduce header density: more padding and soft grouping (title | tabs | icons + upgrade) */
+.stacked-spaces-page .ll-topbar .ll-topbar__inner {
+  gap: 20px;
+  padding: 16px 20px 12px;
+}
+.stacked-spaces-page .ll-topbar .ll-actions {
+  gap: 12px;
+  margin-left: 16px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(27, 54, 93, 0.14);
+}
+.stacked-spaces-page .ll-topbar .ll-upgrade {
+  margin-left: 4px;
+}
+/* Reserve space so content doesn’t sit under the fixed topbar */
+.stacked-spaces-page .ll-shell {
+  padding-top: 56px;
+}
+.stacked-spaces-page .ll-tabs {
+  background: #E4E8F0;
+  border-color: rgba(27, 54, 93, 0.09);
+  display: flex;
+  min-width: 0;
+}
+.stacked-spaces-page .ll-tab {
+  flex: 1 1 0;
+  min-width: 120px; /* same size for all; fits longest label (Supervisors) with padding */
+  text-align: center;
+  justify-content: center;
+}
 .stacked-spaces-page .ll-upgrade {
-  background: var(--ll-coral);
-  color: #FFFFFF;
+  min-height: 40px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #FF9075; /* coral #FF6B47 at 25% lighter */
+  color: var(--ll-text);
+  font-family: inherit;
+  font-weight: 850;
 }
 .stacked-spaces-page .ll-upgrade:hover {
   background: #F0F0F0;
   color: var(--ll-text);
 }
+/* Action tabs: same font as Help me Setup button (stacked-spaces only) */
+.stacked-spaces-page .ll-tab {
+  font-family: inherit;
+  font-weight: 850;
+  background: #D8DCE4;
+  color: var(--ll-text);
+  border: 1px solid rgba(27, 54, 93, 0.09);
+}
+.stacked-spaces-page .ll-tab:hover:not(.is-active) {
+  background: #D8DCE4;
+  color: var(--ll-text);
+}
+.stacked-spaces-page .ll-tab.is-active {
+  border-color: rgba(27, 54, 93, 0.09);
+}
+.stacked-spaces-page .ll-tab.is-active {
+  background: #7AD9D3; /* var(--ll-teal) #4ECDC4 at 25% lighter */
+  color: var(--ll-text);
+}
+
+/* Getting Started card on Stacked Spaces – teal / white / navy gradient; full width to match Actions group */
+.stacked-spaces-page .ll-getting-started--stacked,
+.ll-shell .ll-getting-started--stacked {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 20px 0 14px;
+  padding: 24px 28px;
+  border-radius: 26px;
+  border: 1px solid rgba(27, 54, 93, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
+  text-decoration: none;
+  color: var(--ll-text);
+  font-family: inherit;
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.18) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(27, 54, 93, 0.08) 100%);
+  box-shadow: 0 4px 16px rgba(27, 54, 93, 0.08),
+              0 2px 8px rgba(27, 54, 93, 0.04);
+  transition: background 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+.stacked-spaces-page .ll-getting-started--stacked:hover,
+.ll-shell .ll-getting-started--stacked:hover {
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.22) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(27, 54, 93, 0.1) 100%);
+  box-shadow: 0 8px 24px rgba(27, 54, 93, 0.1),
+              0 4px 12px rgba(27, 54, 93, 0.06);
+  transform: translateY(-2px);
+  text-decoration: none;
+  color: var(--ll-text);
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__image,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__image {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__body,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__header,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__divider,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__divider {
+  height: 1px;
+  margin: 8px 0 6px;
+  background: rgba(27, 54, 93, 0.12);
+  border: 0;
+  flex-shrink: 0;
+}
+/* Professional stage label (e.g. "Step 2 of 5") on Getting Started cards */
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__stage,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__stage {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ll-muted);
+  margin-bottom: 4px;
+  font-family: inherit;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__title,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__title {
+  font-weight: 950;
+  font-size: 22px;
+  margin: 0;
+  line-height: 1.3;
+  color: var(--ll-text);
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__hint,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__hint {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ll-muted);
+  font-family: inherit;
+  text-align: right;
+  flex-shrink: 0;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__progress,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(27, 54, 93, 0.12);
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__progress-fill,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ll-dark-teal);
+  transition: width 0.3s ease;
+}
+/* Help me Setup button matches Start Speaking (.ll-primaryBtn) and New Board rounding */
+.stacked-spaces-page .ll-getting-started--stacked .ll-getting-started__btn,
+.ll-shell .ll-getting-started--stacked .ll-getting-started__btn {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-radius: 22px;
+  font-weight: 850;
+  font-family: inherit;
+  background: var(--ll-teal);
+  border: 1px solid var(--ll-line);
+  color: var(--ll-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(27, 54, 93, 0.1), 0 6px 16px rgba(27, 54, 93, 0.15);
+}
+.stacked-spaces-page .ll-getting-started--stacked:hover .ll-getting-started__btn,
+.ll-shell .ll-getting-started--stacked:hover .ll-getting-started__btn {
+  background: #F0F0F0;
+  color: var(--ll-text);
+}
+
 /* Thick bar just below navbar (content top border) – dark teal on Stacked Spaces */
 #content.index.with_user.stacked_spaces {
   border-top-color: #2A9D8F;
   border-bottom: none;
-}
-
-/* Scot's landing page: content top border = light teal; keep bottom border only here */
-#content.index.for_schools {
-  border-top-color: #4ecdc4;
-  border-bottom: 15px solid #e86060;
 }
 
 :root {
@@ -12207,6 +13073,50 @@ body:-ms-fullscreen {
   display: flex; align-items: baseline; justify-content: space-between;
   padding: 0 2px;
 }
+/* Stacked Spaces: line under each section header to define Actions, Your Boards, Supervisors, Reports */
+.ll-shell .ll-sectionHead,
+.stacked-spaces-page .ll-sectionHead {
+  position: relative;
+  background: transparent;
+  padding-bottom: 10px;
+  margin-bottom: 2px;
+  border-bottom: none;
+}
+/* Light teal shading above the line separator */
+.ll-shell .ll-sectionHead::before,
+.stacked-spaces-page .ll-sectionHead::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--ll-teal-tint);
+  pointer-events: none;
+}
+.ll-shell .ll-sectionHead::after,
+.stacked-spaces-page .ll-sectionHead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--ll-line);
+  box-shadow: 0 4px 10px rgba(27, 54, 93, 0.22),
+              0 8px 24px rgba(27, 54, 93, 0.14);
+}
+.ll-shell .ll-sectionHead--withSupervisor,
+.stacked-spaces-page .ll-sectionHead--withSupervisor {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.ll-shell .ll-sectionHead--withSupervisor::before,
+.stacked-spaces-page .ll-sectionHead--withSupervisor::before,
+.ll-shell .ll-sectionHead--withSupervisor::after,
+.stacked-spaces-page .ll-sectionHead--withSupervisor::after {
+  display: none;
+}
 .ll-sectionTitle { font-weight: 900; letter-spacing: 0.2px; color: var(--ll-text); }
 .ll-link {
   color: var(--ll-muted);
@@ -12330,7 +13240,27 @@ body:-ms-fullscreen {
   background: linear-gradient(135deg, var(--ll-teal), var(--ll-coral));
 }
 
-.ll-stack { padding-top: 12px; }
+/* Full-width gradient wrapper for stacked-spaces main content – same as default shell */
+.ll-stack-bg {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
+              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
+              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
+              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+}
+
+/* Stacked-spaces: lightened gradients (lower tint opacity, lighter base) */
+.ll-stack-bg--stacked {
+  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.041) 0%, transparent 55%),
+              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.034) 0%, transparent 50%),
+              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.041) 0%, transparent 55%),
+              linear-gradient(160deg, #F6F8F9 0%, #F8FAFC 35%, #FAFBFC 70%, #F8FAFC 100%);
+}
+
+.ll-stack {
+  padding-top: 12px;
+}
 
 .ll-banner {
   display: flex;
@@ -12345,14 +13275,14 @@ body:-ms-fullscreen {
 }
 .ll-bannerText { color: rgba(15, 23, 42, 0.74); font-weight: 650; }
 
-/* Grouped sections: Actions, Boards, Reports */
+/* Grouped sections: Actions, Boards, Reports – raised */
 .ll-group {
   margin-top: 14px;
   padding: 18px;
   border-radius: 26px;
   background: linear-gradient(to bottom, var(--ll-bg), var(--ll-surface));
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
 }
 .ll-groupTitle {
   margin: 0 0 12px;
@@ -12381,14 +13311,44 @@ body:-ms-fullscreen {
   color: var(--ll-muted);
 }
 
+/* Stacked-spaces: clarify section boundaries for long-page scanning */
+.stacked-spaces-page .ll-group {
+  border-top: 1px solid rgba(27, 54, 93, 0.07);
+}
+.stacked-spaces-page .ll-group--actions {
+  border-top-color: transparent;
+  margin-top: 14px;
+}
+.stacked-spaces-page .ll-group--boards {
+  margin-top: 20px;
+  background: linear-gradient(to bottom, #FAFBFD, var(--ll-surface));
+}
+.stacked-spaces-page .ll-group--reports {
+  margin-top: 22px;
+  background: linear-gradient(to bottom, #FDFCFB, var(--ll-surface));
+}
+.stacked-spaces-page .ll-section.ll-section--supervisors {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(27, 54, 93, 0.07);
+}
+.stacked-spaces-page .ll-section--supervisors .ll-supervisorsBox {
+  background: linear-gradient(to bottom, #F8FAFC, var(--ll-surface));
+  border-radius: 26px;
+  padding: 18px;
+  border: 1px solid var(--ll-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
+}
+
+/* Speak Mode hero: same gradient as Getting Started card */
 .ll-hero {
   position: relative;
   margin-top: 12px;
   padding: 18px;
   border-radius: 26px;
-  background: var(--ll-surface);
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.18) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(27, 54, 93, 0.08) 100%);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
   overflow: hidden;
   display: flex;
   gap: 14px;
@@ -12397,11 +13357,7 @@ body:-ms-fullscreen {
 .ll-heroBg {
   position: absolute;
   inset: -30%;
-  background:
-    radial-gradient(circle at 70% 40%, var(--ll-teal-tint), transparent 55%),
-    radial-gradient(circle at 35% 70%, var(--ll-teal-tint), transparent 55%),
-    radial-gradient(circle at 30% 30%, var(--ll-coral-tint), transparent 55%);
-  opacity: 0.95;
+  background: transparent;
   pointer-events: none;
 }
 .ll-heroLeft {
@@ -12428,6 +13384,13 @@ body:-ms-fullscreen {
 }
 .ll-heroActions-pill { margin-top: 0; }
 .ll-heroActions-btn { margin-top: 0; }
+/* Start Speaking button: subtle teal glow on stacked-spaces */
+.stacked-spaces-page .ll-hero .ll-primaryBtn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(27, 54, 93, 0.1), 0 6px 16px rgba(27, 54, 93, 0.15), 0 0 24px rgba(78, 205, 196, 0.32);
+}
+.stacked-spaces-page .ll-hero .ll-primaryBtn:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(27, 54, 93, 0.1), 0 6px 16px rgba(27, 54, 93, 0.15), 0 0 28px rgba(78, 205, 196, 0.4);
+}
 .ll-pill {
   display: inline-flex;
   margin-top: 10px;
@@ -12435,18 +13398,29 @@ body:-ms-fullscreen {
   border-radius: 999px;
   border: 1px solid var(--ll-line);
   background: var(--ll-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 3px rgba(27, 54, 93, 0.08);
   color: var(--ll-muted);
   font-size: 12px;
+}
+/* Last Board pill: coral 50% lighter then 20% lighter, small so it doesn't compete with Start Speaking */
+.ll-pill.ll-heroActions-pill {
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--ll-text);
+  background: #FFC4B3; /* #FFB5A0 (50% lighter coral) at 20% lighter */
+  border: 1px solid rgba(27, 54, 93, 0.2);
+  box-shadow: 0 2px 6px rgba(27, 54, 93, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .ll-primaryBtn {
   margin-top: 12px;
   padding: 12px 14px;
-  border-radius: 16px;
-  background: var(--ll-teal);
+  border-radius: 22px;
+  background: #95E1DC; /* #7AD9D3 light teal at 20% lighter */
   border: 1px solid var(--ll-line);
   font-weight: 850;
   color: var(--ll-text);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(27, 54, 93, 0.1), 0 6px 16px rgba(27, 54, 93, 0.15);
 }
 .ll-primaryBtn:hover {
   background: #F0F0F0;
@@ -12463,14 +13437,14 @@ body:-ms-fullscreen {
   border-radius: 20px;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(27, 54, 93, 0.06), 0 6px 16px rgba(27, 54, 93, 0.1);
   font-size: 26px;
 
   /* Speak mode icon: solid white bg (overrides theme/transparent) */
   &.ll-bento-action-card__icon--speak {
     background: var(--ll-surface) !important;
     border-color: var(--ll-line);
-    box-shadow: var(--ll-shadow2), inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(27, 54, 93, 0.06), 0 6px 16px rgba(27, 54, 93, 0.1);
   }
   /* Keep hero size when dashboard icon classes are applied */
   &.ll-bento-action-card__icon {
@@ -12517,7 +13491,7 @@ body:-ms-fullscreen {
   border-radius: 22px;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
 }
 .ll-boardCard:hover {
   background: #F0F0F0;
@@ -12527,7 +13501,7 @@ body:-ms-fullscreen {
   background: #F0F0F0;
 }
 .ll-boardCard--new {
-  background: var(--ll-teal);
+  background: #95E1DC; /* #7AD9D3 light teal at 20% lighter */
 }
 .ll-boardCard--new .ll-boardName { color: var(--ll-text); }
 .ll-boardName { font-weight: 900; color: var(--ll-text); }
@@ -12545,14 +13519,56 @@ body:-ms-fullscreen {
   border-radius: 26px;
   background: linear-gradient(to bottom, var(--ll-bg), var(--ll-surface));
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
 }
-.ll-sectionHead--withSupervisor { align-items: center; }
-.ll-sectionHeadLeft {
+/* Three-column layout so supervisor names are centered over the full row */
+.ll-sectionHead--withSupervisor {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.ll-sectionHead--withSupervisor .ll-sectionHeadLeft {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  min-width: 0;
+}
+.ll-sectionHead--withSupervisor .ll-sectionHeadSupervisors {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.ll-sectionHead--withSupervisor .ll-seeAll {
+  justify-self: end;
+}
+/* Separator between Supervisors label and supervisor list – actual element so shadow applies */
+.ll-sectionHeadLeft .ll-sectionTitle {
+  margin-right: 4px;
+}
+.ll-sectionHeadSeparator {
+  position: relative;
+  display: inline-block;
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.2em;
+  margin: 0 12px 0 0;
+  background: var(--ll-line);
+  /* Same shadow as other section lines (::after), cast to the right */
+  box-shadow: 4px 0 10px rgba(27, 54, 93, 0.22),
+              8px 0 24px rgba(27, 54, 93, 0.14);
+}
+/* Light teal band to the right of the line (same as ::before above other section lines) */
+.ll-sectionHeadSeparator::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--ll-teal-tint);
+  pointer-events: none;
 }
 .ll-mainSupervisor {
   display: inline-flex;
@@ -12562,7 +13578,7 @@ body:-ms-fullscreen {
   border-radius: 999px;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(27, 54, 93, 0.06), 0 4px 12px rgba(27, 54, 93, 0.1);
   font-weight: 700;
   font-size: 14px;
   color: var(--ll-text);
@@ -12586,7 +13602,7 @@ body:-ms-fullscreen {
   border-radius: 20px;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
 }
 .ll-metricCard:hover {
   background: #F0F0F0;
@@ -12630,7 +13646,7 @@ body:-ms-fullscreen {
   border-radius: 20px;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(27, 54, 93, 0.06), 0 8px 24px rgba(27, 54, 93, 0.12);
 }
 .ll-softCard:hover {
   background: #F0F0F0;
@@ -12646,17 +13662,13 @@ body:-ms-fullscreen {
   justify-content: center;
   background: var(--ll-surface);
   border: 1px solid var(--ll-line);
-  box-shadow: var(--ll-shadow2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(27, 54, 93, 0.06), 0 4px 12px rgba(27, 54, 93, 0.08);
 }
-.ll-softCard__icon--modeling {
-  background: var(--ll-surface) !important;
-  border-color: var(--ll-line);
-  box-shadow: var(--ll-shadow2), inset 1px 1px 0 rgba(255, 255, 255, 0.8);
-}
+.ll-softCard__icon--modeling,
 .ll-softCard__icon--extras {
   background: var(--ll-surface) !important;
   border-color: var(--ll-line);
-  box-shadow: var(--ll-shadow2), inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 4px rgba(27, 54, 93, 0.06), 0 4px 12px rgba(27, 54, 93, 0.08);
 }
 .ll-softCard__img {
   width: 28px;

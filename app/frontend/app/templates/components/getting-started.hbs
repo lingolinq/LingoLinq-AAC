@@ -2,6 +2,7 @@
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Getting Started" key="getting_started"}}</h3>
+    <span class="getting-started-modal__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.currentStep total=5}}</span>
   </div>
   <div class="modal-body">
     {{t "Welcome to %app_name%! You should get a confirmation email in your inbox soon. In the mean time here's some easy next steps. You can get back to this list anytime from the dashboard, just hit the logo in the top corner then open this list again." key="welcome_with_steps"}}

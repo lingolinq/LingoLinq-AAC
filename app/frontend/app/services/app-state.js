@@ -195,16 +195,19 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: light (default) | midDay | coolBlue | dark - persisted in localStorage
-    var theme = 'light';
+    // Bento dashboard theme: default (initial) | light | midDay | coolBlue | dark - persisted in localStorage
+    var theme = 'default';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
-      if (storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'flat' || storedTheme === 'default') {
+      if (storedTheme === 'flat') {
+        theme = 'default';
+        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'default') {
         theme = storedTheme;
-      } else if (storedTheme !== 'light' && localStorage.getItem('ll_bento_dark_mode') === 'true') {
+      } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
       }
-      // else: light (default for first visit, explicit 'light', or any invalid stored value)
+      // else: default (first visit or invalid stored value)
     } catch (e) { /* ignore */ }
     this.set('themeMode', theme);
     this.updateFaviconForTheme(theme);
@@ -687,11 +690,11 @@ export default Service.extend({
   coolBlueMode: computed('themeMode', function() {
     return this.get('themeMode') === 'coolBlue';
   }),
-  flatMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'flat';
-  }),
   defaultMode: computed('themeMode', function() {
     return this.get('themeMode') === 'default';
+  }),
+  lightMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'light';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -3856,8 +3859,8 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'flat', 'default'];
-    var current = this.get('themeMode') || 'light';
+    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'default'];
+    var current = this.get('themeMode') || 'default';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];
     this.setThemeMode(next);

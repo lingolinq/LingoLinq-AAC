@@ -1,7 +1,7 @@
 <div class="ll-shell">
   <header class="ll-topbar ll-topbar--stacked">
     <div class="ll-topbar__inner">
-      <div class="ll-title">{{t "Home" key="home"}}</div>
+      <div class="ll-title">{{t "Home Page" key="home_page"}}</div>
 
       <div class="ll-tabs" role="tablist" aria-label={{t "Primary pages" key="primary_pages"}}>
         <button type="button" class="ll-tab {{if (is-equal this.tab "home") "is-active"}}" {{action "goTab" "home"}}>
@@ -22,15 +22,29 @@
         <button type="button" class="ll-iconBtn" {{action "openSearch"}} aria-label={{t "Search" key="search"}}>
           &#8981;
         </button>
-        <button type="button" class="ll-avatarBtn" {{action "openProfile"}} aria-label={{t "Account" key="account"}}>
-          <span class="ll-avatarDot" aria-hidden="true"></span>
-        </button>
         <button type="button" class="ll-upgrade ll-upgrade--topbar" {{action "onUpgrade"}}>{{t "Upgrade" key="upgrade"}}</button>
       </div>
     </div>
   </header>
 
+  <div class="ll-stack-bg ll-stack-bg--stacked">
   <main class="ll-main ll-stack">
+    <a href="#" class="ll-getting-started ll-getting-started--stacked" {{action "gettingStarted"}}>
+      <img src={{path "images/pastel-getting-started.svg"}} alt="" class="ll-getting-started__image" aria-hidden="true">
+      <div class="ll-getting-started__body">
+        <div class="ll-getting-started__header">
+          <span class="ll-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
+          <span class="ll-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
+        </div>
+        <div class="ll-getting-started__progress" role="progressbar" aria-valuenow={{this.getting_started_percent}} aria-valuemin="0" aria-valuemax="100">
+          <div class="ll-getting-started__progress-fill" style={{this.getting_started_percent_style}}></div>
+          <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.getting_started_percent}}</span>
+        </div>
+        <span class="ll-getting-started__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.getting_started_step total=5}}</span>
+        <div class="ll-getting-started__divider" aria-hidden="true"></div>
+      </div>
+      <span class="ll-getting-started__btn">{{t "Help me Setup my Account" key="help_me_setup_account"}}</span>
+    </a>
     <div class="ll-group ll-group--actions">
       <div class="ll-sectionHead">
         <div class="ll-sectionTitle">{{t "Actions" key="actions"}}</div>
@@ -104,6 +118,9 @@
         <div class="ll-sectionHead ll-sectionHead--withSupervisor">
           <div class="ll-sectionHeadLeft">
             <div class="ll-sectionTitle">{{t "Supervisors" key="supervisors"}}</div>
+            <span class="ll-sectionHeadSeparator" aria-hidden="true"></span>
+          </div>
+          <div class="ll-sectionHeadSupervisors">
             <button type="button" class="ll-mainSupervisor" {{action "go" "speak"}}>
               <span class="ll-mainSupervisorName">{{t "Sarah Chen" key="stacked_spaces_supervisor_1"}}</span>
             </button>
@@ -155,6 +172,7 @@
       </div>
     </div>
   </main>
+  </div>
 
   {{!-- Profile Sheet (Users/Settings) --}}
   {{#if this.isProfileOpen}}
