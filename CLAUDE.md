@@ -373,3 +373,38 @@ See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem
 - Contributor agreement required for code contributions
 - OpenAAC Slack channel available for questions
 - Background jobs use Resque with multiple queues: priority, default, slow, whenever
+
+## Audit Orchestration System
+
+This repo includes a full audit orchestration system for continuous code quality, compliance, and MVP readiness assessment.
+
+### Directory Layout
+| Directory | Purpose |
+|-----------|---------|
+| `skills/` | 7 structured audit skills (checklists + output schemas) |
+| `subagents/` | 7 isolated audit worker prompts for Claude Code Task tool |
+| `workflows/` | Orchestration runbooks (full-audit pipeline, team coordination) |
+| `audit-reports/` | Generated audit output (JSON + markdown) |
+| `.claude/skills/` | Claude Code native skills (a11y, compliance, deploy, ember) |
+
+### Running a Full Audit
+1. Read `workflows/full-audit.md`
+2. Follow its orchestration steps (launches 6 parallel subagents)
+3. Results land in `audit-reports/` and sync to Notion
+
+### Skills Reference
+| Skill | Path | Purpose |
+|-------|------|---------|
+| Full-Stack Auditor | `skills/full-stack-auditor/SKILL.md` | Master orchestrator + MVP scoring |
+| GDPR/FERPA Compliance | `skills/gdpr-ferpa-compliance/SKILL.md` | Privacy & compliance |
+| Ember Stabilization | `skills/ember-stabilization/SKILL.md` | Ember 3.12->3.28 migration |
+| Rails Upgrade | `skills/rails-upgrade/SKILL.md` | Rails upgrade readiness |
+| API Contract Verification | `skills/api-contract-verification/SKILL.md` | Ember<->Rails contract checks |
+| SOC2 Auditor | `skills/soc2-auditor/SKILL.md` | SOC2-style security posture |
+| Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
+
+### Audit Rules
+- NEVER modify code during audits — read-only until "apply fixes" is explicitly said
+- Always show diffs before proposing changes
+- Subagents scan only their declared domain
+- All findings include file paths and line numbers where possible
