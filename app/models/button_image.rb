@@ -8,7 +8,7 @@ class ButtonImage < ActiveRecord::Base
   protect_global_id
   belongs_to :board, optional: true
   has_many :board_button_images
-  belongs_to :user
+  belongs_to :user, optional: true
   before_save :generate_defaults
   after_create :track_image_use_later
   after_create :assert_raster
@@ -223,7 +223,7 @@ class ButtonImage < ActiveRecord::Base
       if self.url.match(/\/libraries\/twemoji\//) && self.settings['external_id']
         token = ENV['OPENSYMBOLS_TOKEN']
         url = "https://www.opensymbols.org/api/v2/symbols/twemoji/#{self.settings['external_id']}"
-        res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
+        res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10)
         json = JSON.parse(res.body) rescue nil
         if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != self.url
           self.settings['pre_variant_url'] = self.url

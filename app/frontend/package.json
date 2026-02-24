@@ -58,7 +58,7 @@
     "jquery": "^3.7.1",
     "jquery-minicolors": "^2.1.10",
     "loader.js": "^4.7.0",
-    "lodash": ">=4.17.11",
+    "lodash": "^4.17.21",
     "merge": ">=1.2.1",
     "moment": "^2.29.4",
     "patch-package": "^8.0.1",
@@ -71,9 +71,7 @@
     "tinycolor2": "^1.6.0",
     "wordcloud2": "^1.0.0"
   },
-  "dependencies": {
-    "ember-cli-update": "^0.48.2"
-  },
+  "dependencies": {},
   "overrides": {
     "ember-cli-babel": "^7.26.6"
   },

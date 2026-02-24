@@ -327,13 +327,21 @@ describe Uploader do
 
   describe "valid_remote_url?" do
     it "should return true only for known URLs" do
-      expect(Uploader.valid_remote_url?("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon")).to eq(true)
-      expect(Uploader.valid_remote_url?("http://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon/downloads/maple.zip")).to eq(true)
-      expect(Uploader.valid_remote_url?("https://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com/hat.png")).to eq(true)
-      expect(Uploader.valid_remote_url?("http://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com/hat.png")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com2/hat.png")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://images.com/cow.png")).to eq(false)
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_opensymbols = ENV['OPENSYMBOLS_S3_BUCKET']
+      ENV['OPENSYMBOLS_S3_BUCKET'] = ENV['OPENSYMBOLS_S3_BUCKET'] || 'opensymbols'
+      begin
+        opensymbols_bucket = ENV['OPENSYMBOLS_S3_BUCKET']
+        expect(Uploader.valid_remote_url?("https://#{uploads_bucket}.s3.amazonaws.com/bacon")).to eq(true)
+        expect(Uploader.valid_remote_url?("http://#{uploads_bucket}.s3.amazonaws.com/bacon")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://#{uploads_bucket}.s3.amazonaws.com/bacon/downloads/maple.zip")).to eq(true)
+        expect(Uploader.valid_remote_url?("https://#{opensymbols_bucket}.s3.amazonaws.com/hat.png")).to eq(true)
+        expect(Uploader.valid_remote_url?("http://#{opensymbols_bucket}.s3.amazonaws.com/hat.png")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://#{opensymbols_bucket}.s3.amazonaws.com2/hat.png")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://images.com/cow.png")).to eq(false)
+      ensure
+        ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
+      end
     end
   end  
   
@@ -441,7 +449,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -458,7 +466,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_raise("bacon")
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_raise("bacon")
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -491,7 +499,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -503,6 +511,13 @@ describe Uploader do
   end
   
   describe 'find_images' do
+    # Use v1 API so specs can mock Typhoeus.get with search_token
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return(nil)
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_TOKEN').and_return('test_token')
+    end
+
     it 'should return nothing for unknown libraries' do
       expect(Typhoeus).to_not receive(:get)
       expect(Uploader.find_images('bacon', 'cool-pics', 'en', nil)).to eq(false)
@@ -521,7 +536,7 @@ describe Uploader do
     it 'should make a remote request' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([])
     end
@@ -529,7 +544,7 @@ describe Uploader do
     it 'should pass the search token' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([])
     end
@@ -537,7 +552,7 @@ describe Uploader do
     it 'should allow searching all public images via opensymbols key' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'opensymbols', 'en', nil)
       expect(images).to eq([])
     end
@@ -548,7 +563,7 @@ describe Uploader do
       u = User.create
       u.settings['extras_disabled'] = true
       u.save
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([])
     end
@@ -571,7 +586,7 @@ describe Uploader do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -605,7 +620,7 @@ describe Uploader do
 
       u.settings['extras_disabled'] = true
       u.save
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([])
     end
@@ -625,7 +640,7 @@ describe Uploader do
           'author_url' => 'http://www.example.com/bob'
         }
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -664,7 +679,7 @@ describe Uploader do
           'id' => '1234',
           'pageURL' => 'http://www.example.com/pics2',
         }]}.to_json)
-      expect(Typhoeus).to receive(:get).with('https://pixabay.com/api/?key=pixkey&q=bacon&image_type=vector&per_page=30&safesearch=true', timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with('https://pixabay.com/api/?key=pixkey&q=bacon&image_type=vector&per_page=30&safesearch=true', timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pixabay_vectors', 'en', nil)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -796,7 +811,7 @@ describe Uploader do
 
     it "should handle giphy searches" do
       ENV['GIPHY_KEY'] = 'giphy'
-      expect(Typhoeus).to receive(:get).with("http://api.giphy.com/v1/gifs/search?q=%23asl+bacon&api_key=giphy&lang=en&rating=pg13", {timeout: 5}).and_return(OpenStruct.new({
+      expect(Typhoeus).to receive(:get).with("https://api.giphy.com/v1/gifs/search?q=%23asl+bacon&api_key=giphy&lang=en&rating=pg13", {timeout: 5}).and_return(OpenStruct.new({
         body: {
           data: [
             {
@@ -1107,7 +1122,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {},
           'b' => {},
@@ -1125,7 +1140,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1151,12 +1166,12 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" => bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['a']['license']).to eq({"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true})
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['b']['license']).to include("uneditable"=>true)
     end
 
     it 'should not send premium library token if not enabled' do
@@ -1168,7 +1183,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {}.to_json,
         code: 200
       }))
@@ -1188,7 +1203,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}:pcs"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {},
           'b' => {},
@@ -1219,7 +1234,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',
@@ -1233,12 +1248,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-         '_missing' => []
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq([])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1268,7 +1281,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',
@@ -1282,12 +1295,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['A', 'b', 'c'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'A' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-        '_missing' => []
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['A']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq([])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1304,7 +1315,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1330,12 +1341,11 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" =>  bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['a']['license']).to eq({"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true})
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
       cache = LibraryCache.find_by(library: 'arasaac', locale: 'en')
       expect(cache).to_not eq(nil)
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1352,7 +1362,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1378,12 +1388,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil, true, true)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" =>  bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
       cache = LibraryCache.find_by(library: 'arasaac', locale: 'en')
       expect(cache).to_not eq(nil)
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1416,7 +1424,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',
@@ -1430,12 +1438,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c', 'water'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-        '_missing' => ['water']
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq(['water'])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)

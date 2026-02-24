@@ -20,7 +20,7 @@ class GiftPurchase < ActiveRecord::Base
       code = code.gsub(/o/, '0')
       parts = code.split(/x/)
       if parts.length > 1
-        gifts = gifts.where(["code LIKE ?", "#{parts[0]}%"])
+        gifts = gifts.where(["code LIKE ?", "#{ActiveRecord::Base.sanitize_sql_like(parts[0])}%"])
         gift = gifts.detect{|g| g.settings['total_codes'] && g.settings['codes'].has_key?(code) }
       else
         gift = gifts.where(:code => code).first

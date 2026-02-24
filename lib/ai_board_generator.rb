@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'openai'
+require_relative 'pii_scrubber'
 
 module AiBoardGenerator
   class << self
@@ -9,7 +10,8 @@ module AiBoardGenerator
     # Returns { words: [...], name: "...", description: "...", error: nil } on success,
     # or { words: nil, name: nil, description: nil, error: "..." } on failure.
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
-    def generate_words(prompt:, rows:, columns:, locale: 'en', include_core_words: true)
+    # user: optional User object for audit logging
+    def generate_words(prompt:, rows:, columns:, locale: 'en', include_core_words: true, user: nil)
       gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
       openai_key = ENV['OPENAI_API_KEY'].to_s.strip
       use_gemini = gemini_key.present?
@@ -18,7 +20,18 @@ module AiBoardGenerator
         return { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
       end
 
+      # Check org-level AI opt-out (FERPA/HIPAA compliance)
+      if defined?(FeatureFlags) && !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
+        return { words: nil, name: nil, description: nil, error: 'AI features are disabled for this organization' }
+      end
+
       cell_count = rows * columns
+
+      # PII scrub the user prompt before sending to AI
+      scrub_result = PiiScrubber.redact_for_ai(prompt)
+      scrubbed_prompt = scrub_result[:payload]
+      pii_detected = scrub_result[:pii_found]
+
       system_prompt = <<~PROMPT.strip
         You are an AAC (Augmentative and Alternative Communication) vocabulary expert.
         CRITICAL: You MUST output exactly the requested number of words—count them before responding.
@@ -35,7 +48,7 @@ module AiBoardGenerator
       end
       user_prompt = <<~PROMPT.strip
         Generate exactly #{cell_count} words for an AAC board. CRITICAL: Output exactly #{cell_count} comma-separated words after WORDS: —no more, no fewer. Count to verify.
-        Context: #{prompt}
+        Context: #{scrubbed_prompt}
         Language: #{locale}
         #{vocabulary_instruction}
         Format:
@@ -48,7 +61,9 @@ module AiBoardGenerator
       if use_gemini
         client_options[:uri_base] = 'https://generativelanguage.googleapis.com/v1beta/openai/'
       end
+      provider = use_gemini ? 'gemini' : 'openai'
       model = use_gemini ? 'gemini-2.5-flash' : 'gpt-4o-mini'
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       begin
         client = OpenAI::Client.new(client_options)
@@ -63,9 +78,24 @@ module AiBoardGenerator
             temperature: 0.5
           }
         )
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
 
         raw = extract_content(response)
         parsed = parse_structured_response(raw, cell_count)
+
+        # Log the AI API call
+        log_ai_call(
+          provider: provider, model: model, user: user,
+          request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: raw.truncate(500),
+          tokens_sent: response.dig('usage', 'prompt_tokens'),
+          tokens_received: response.dig('usage', 'completion_tokens'),
+          duration_ms: duration_ms,
+          pii_detected: pii_detected,
+          pii_findings: scrub_result[:findings],
+          success: parsed.present?
+        )
+
         return { words: nil, name: nil, description: nil, error: 'Could not parse AI response' } unless parsed
 
         words = parsed[:words]
@@ -79,9 +109,25 @@ module AiBoardGenerator
           error: nil
         }
       rescue Faraday::Error => e
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider, model: model, user: user,
+          request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          success: false, error_message: e.message
+        )
         Rails.logger.error "AiBoardGenerator LLM error: #{e.message}"
         { words: nil, name: nil, description: nil, error: 'AI service unavailable. Please try again later.' }
       rescue StandardError => e
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider, model: model, user: user,
+          request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          success: false, error_message: "#{e.class}: #{e.message}"
+        )
         Rails.logger.error "AiBoardGenerator error: #{e.class}: #{e.message}"
         { words: nil, name: nil, description: nil, error: 'Generation failed' }
       end
@@ -146,6 +192,30 @@ module AiBoardGenerator
         words = combined_words if combined_words.length > words.length
       end
       words
+    end
+
+    def log_ai_call(provider:, model:, user:, request_summary:, response_summary:,
+                    tokens_sent: nil, tokens_received: nil, duration_ms: nil,
+                    pii_detected: false, pii_findings: [], success: true, error_message: nil)
+      return unless defined?(AiApiLog)
+      AiApiLog.log_ai_call(
+        provider: provider,
+        model: model,
+        type: 'board_generation',
+        user: user,
+        request_summary: request_summary,
+        response_summary: response_summary,
+        tokens_sent: tokens_sent,
+        tokens_received: tokens_received,
+        duration_ms: duration_ms,
+        pii_detected: pii_detected,
+        pii_findings: pii_findings,
+        success: success,
+        error_message: error_message,
+        feature_flag: 'ai_board_generation'
+      )
+    rescue StandardError => e
+      Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"
     end
   end
 end

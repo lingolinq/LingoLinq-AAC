@@ -7,12 +7,13 @@ describe SentencePic do
   end
   
   it "should generate a preview image" do
+    author = User.create
     button_list = [
       {'label' => 'hat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
     ]
-    u = Utterance.create(:data => {
+    u = Utterance.create(:user => author, :data => {
       'button_list' => button_list
     })
     expect(OBF::Utils).to receive(:save_image).with({'url' => 'http://www.example.com/pib.png'}).and_return("pic1.png")

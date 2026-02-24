@@ -113,9 +113,9 @@ class BoardsController < ApplicationController
   def icon
     board = Board.find_by_path(params['id'])
     if board
-      redirect_to board.icon_url_or_fallback
+      redirect_to board.icon_url_or_fallback, allow_other_host: true
     else
-      redirect_to Board::DEFAULT_ICON
+      redirect_to Board::DEFAULT_ICON, allow_other_host: true
     end
   end
   

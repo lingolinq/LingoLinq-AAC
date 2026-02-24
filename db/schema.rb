@@ -10,8 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_10_30_173246) do
-
+ActiveRecord::Schema[7.2].define(version: 2026_02_24_181933) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -19,24 +18,52 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "activation_codes", id: :serial, force: :cascade do |t|
     t.string "code_hash"
     t.string "record_code"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["code_hash"], name: "index_activation_codes_on_code_hash", unique: true
+  end
+
+  create_table "ai_api_logs", id: :serial, force: :cascade do |t|
+    t.string "ai_provider", null: false
+    t.string "ai_model"
+    t.string "request_type", null: false
+    t.string "request_payload_hash"
+    t.text "request_summary"
+    t.text "response_summary"
+    t.integer "tokens_sent"
+    t.integer "tokens_received"
+    t.integer "duration_ms"
+    t.string "user_global_id"
+    t.string "organization_global_id"
+    t.boolean "pii_detected", default: false
+    t.text "pii_findings"
+    t.boolean "success", default: true
+    t.text "error_message"
+    t.string "ip_address"
+    t.string "feature_flag"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["ai_provider", "created_at"], name: "index_ai_api_logs_on_provider_and_created_at"
+    t.index ["ai_provider"], name: "index_ai_api_logs_on_ai_provider"
+    t.index ["created_at"], name: "index_ai_api_logs_on_created_at"
+    t.index ["organization_global_id"], name: "index_ai_api_logs_on_organization_global_id"
+    t.index ["request_type"], name: "index_ai_api_logs_on_request_type"
+    t.index ["user_global_id"], name: "index_ai_api_logs_on_user_global_id"
   end
 
   create_table "api_calls", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "audit_events", id: :serial, force: :cascade do |t|
     t.string "user_key"
     t.text "data"
     t.string "summary", limit: 4096
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "event_type"
     t.string "record_id"
     t.index ["event_type", "created_at"], name: "index_audit_events_on_event_type_and_created_at"
@@ -47,8 +74,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "board_button_images", id: :serial, force: :cascade do |t|
     t.integer "button_image_id"
     t.integer "board_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id"], name: "index_board_button_images_on_board_id"
     t.index ["button_image_id"], name: "index_board_button_images_on_button_image_id"
   end
@@ -56,8 +83,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "board_button_sounds", id: :serial, force: :cascade do |t|
     t.integer "button_sound_id"
     t.integer "board_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id"], name: "index_board_button_sounds_on_board_id"
   end
 
@@ -65,15 +92,15 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "settings"
     t.integer "board_count"
     t.integer "source_board_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "board_downstream_button_sets", id: :serial, force: :cascade do |t|
     t.text "data"
     t.integer "board_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "user_id"
     t.index ["board_id", "user_id"], name: "index_board_downstream_button_sets_on_board_id_and_user_id", unique: true
   end
@@ -84,8 +111,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "home_popularity"
     t.string "locale"
     t.string "search_string", limit: 10000
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.tsvector "tsv_search_string"
     t.index "to_tsvector('simple'::regconfig, COALESCE((search_string)::text, ''::text))", name: "board_locales_search_string", using: :gin
     t.index ["tsv_search_string"], name: "index_board_locales_tsv_search_string", using: :gin
@@ -101,8 +128,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.integer "popularity"
     t.integer "home_popularity"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "current_revision"
     t.boolean "any_upstream"
     t.integer "board_content_id"
@@ -128,8 +155,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "data"
     t.text "settings"
     t.string "file_hash"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "nonce"
     t.boolean "removable"
     t.index ["url"], name: "index_button_images_on_url"
@@ -145,8 +172,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "data"
     t.text "settings"
     t.string "file_hash"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "nonce"
     t.boolean "removable"
     t.index ["file_hash"], name: "index_button_sounds_on_file_hash"
@@ -157,8 +184,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "cluster_locations", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "cluster_type"
     t.string "cluster_hash"
     t.index ["cluster_type", "cluster_hash"], name: "index_cluster_locations_on_cluster_type_and_cluster_hash", unique: true
@@ -166,8 +193,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
 
   create_table "contact_messages", id: :serial, force: :cascade do |t|
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "deleted_boards", id: :serial, force: :cascade do |t|
@@ -176,8 +203,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "board_id"
     t.integer "user_id"
     t.boolean "cleared"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id"], name: "index_deleted_boards_on_board_id", unique: true
     t.index ["created_at", "cleared"], name: "index_deleted_boards_on_created_at_and_cleared"
     t.index ["key"], name: "index_deleted_boards_on_key"
@@ -190,8 +217,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "name"
     t.string "secret", limit: 4096
     t.string "icon_url", limit: 4096
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["key"], name: "index_developer_keys_on_key", unique: true
   end
 
@@ -199,8 +226,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.string "device_key"
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "developer_key_id"
     t.integer "user_integration_id"
     t.index ["user_id"], name: "index_devices_on_user_id"
@@ -210,8 +237,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "purpose"
     t.string "nonce"
     t.string "transform"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "uses"
   end
 
@@ -219,16 +246,16 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "settings"
     t.boolean "active"
     t.string "code"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["active", "code"], name: "index_gift_purchases_on_active_and_code"
     t.index ["code"], name: "index_gift_purchases_on_code", unique: true
   end
 
   create_table "job_stashes", id: :serial, force: :cascade do |t|
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "log_session_id"
     t.integer "user_id"
     t.index ["created_at"], name: "index_job_stashes_on_created_at"
@@ -242,34 +269,34 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "organization_unit_id"
     t.boolean "public"
     t.integer "popularity"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "library_caches", id: :serial, force: :cascade do |t|
     t.string "library"
     t.string "locale"
     t.text "data"
-    t.datetime "invalidated_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "invalidated_at", precision: nil
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["library", "locale"], name: "index_library_caches_on_library_and_locale", unique: true
   end
 
   create_table "log_mergers", id: :serial, force: :cascade do |t|
-    t.datetime "merge_at"
+    t.datetime "merge_at", precision: nil
     t.boolean "started"
     t.integer "log_session_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["log_session_id"], name: "index_log_mergers_on_log_session_id"
   end
 
   create_table "log_session_boards", id: :serial, force: :cascade do |t|
     t.integer "log_session_id"
     t.integer "board_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id", "log_session_id"], name: "index_log_session_boards_on_board_id_and_log_session_id"
   end
 
@@ -277,17 +304,17 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.integer "author_id"
     t.integer "device_id"
-    t.datetime "started_at"
-    t.datetime "ended_at"
+    t.datetime "started_at", precision: nil
+    t.datetime "ended_at", precision: nil
     t.text "data"
     t.boolean "processed"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "ip_cluster_id"
     t.integer "geo_cluster_id"
     t.string "log_type"
     t.boolean "has_notes"
-    t.datetime "last_cluster_attempt_at"
+    t.datetime "last_cluster_attempt_at", precision: nil
     t.integer "goal_id"
     t.boolean "needs_remote_push"
     t.boolean "highlighted"
@@ -304,10 +331,10 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
 
   create_table "log_snapshots", id: :serial, force: :cascade do |t|
     t.integer "user_id"
-    t.datetime "started_at"
+    t.datetime "started_at", precision: nil
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["user_id", "started_at"], name: "index_log_snapshots_on_user_id_and_started_at"
   end
 
@@ -317,8 +344,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "nonce"
     t.boolean "public"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.boolean "has_content"
     t.index ["tag_id", "has_content", "public", "user_id"], name: "index_nfc_tags_on_tag_id_and_has_content_and_public_and_user_id"
     t.index ["tag_id", "public", "user_id"], name: "index_nfc_tags_on_tag_id_and_public_and_user_id"
@@ -328,8 +355,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "record_id"
     t.string "type"
     t.string "key"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["type", "key"], name: "index_old_keys_on_type_and_key"
   end
 
@@ -337,8 +364,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "organization_id"
     t.text "settings"
     t.integer "position"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "user_goal_id"
     t.index ["organization_id", "position"], name: "index_organization_units_on_organization_id_and_position"
   end
@@ -346,8 +373,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "organizations", id: :serial, force: :cascade do |t|
     t.text "settings"
     t.boolean "admin"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "parent_organization_id"
     t.boolean "custom_domain"
     t.string "external_auth_key"
@@ -364,8 +391,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.integer "organization_id"
     t.integer "parent_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.text "settings"
     t.string "public_profile_id"
     t.boolean "communicator"
@@ -375,29 +402,29 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "progresses", id: :serial, force: :cascade do |t|
     t.text "settings"
     t.string "nonce"
-    t.datetime "started_at"
-    t.datetime "finished_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "started_at", precision: nil
+    t.datetime "finished_at", precision: nil
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["nonce"], name: "index_progresses_on_nonce"
   end
 
   create_table "purchase_tokens", id: :serial, force: :cascade do |t|
     t.string "token"
     t.integer "user_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "hashed_device_id"
     t.index ["hashed_device_id"], name: "index_purchase_tokens_on_hashed_device_id"
     t.index ["token"], name: "index_purchase_tokens_on_token", unique: true
   end
 
   create_table "remote_actions", id: :serial, force: :cascade do |t|
-    t.datetime "act_at"
+    t.datetime "act_at", precision: nil
     t.string "path"
     t.string "action"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "extra"
   end
 
@@ -410,17 +437,17 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "target_id"
     t.integer "target_index"
     t.string "contact_id"
-    t.datetime "last_outbound_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "last_outbound_at", precision: nil
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["target_type", "target_id", "target_index"], name: "remote_targets_target_sorting"
   end
 
   create_table "settings", id: :serial, force: :cascade do |t|
     t.string "key"
     t.string "value"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.text "data"
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
@@ -433,8 +460,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "data"
     t.boolean "highlighted"
     t.boolean "earned"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.boolean "disabled"
     t.index ["disabled"], name: "index_user_badges_on_disabled"
   end
@@ -443,8 +470,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.integer "board_id"
     t.boolean "home"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "parent_board_id"
     t.string "locale"
     t.index ["board_id", "home", "updated_at"], name: "user_board_lookups"
@@ -454,8 +481,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "user_extras", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["user_id"], name: "index_user_extras_on_user_id", unique: true
   end
 
@@ -465,9 +492,9 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "settings"
     t.boolean "template"
     t.boolean "template_header"
-    t.datetime "advance_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "advance_at", precision: nil
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.boolean "primary"
     t.boolean "global"
     t.index ["advance_at"], name: "index_user_goals_on_advance_at"
@@ -481,8 +508,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "device_id"
     t.boolean "template"
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.boolean "for_button"
     t.string "integration_key"
     t.integer "template_integration_id"
@@ -499,8 +526,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.string "user_global_id"
     t.string "code"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["code"], name: "index_user_link_codes_on_code", unique: true
   end
 
@@ -508,8 +535,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.string "record_code"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "secondary_user_id"
     t.index ["record_code"], name: "index_user_links_on_record_code"
     t.index ["secondary_user_id"], name: "index_user_links_on_secondary_user_id"
@@ -522,8 +549,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.text "settings"
     t.string "file_hash"
     t.boolean "public"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "nonce"
   end
 
@@ -531,17 +558,17 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "user_name"
     t.string "email_hash", limit: 4096
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.datetime "expires_at"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "expires_at", precision: nil
     t.integer "managing_organization_id"
     t.integer "managed_organization_id"
-    t.datetime "next_notification_at"
+    t.datetime "next_notification_at", precision: nil
     t.boolean "possibly_full_premium"
-    t.datetime "badges_updated_at"
-    t.datetime "schedule_deletion_at"
-    t.datetime "boards_updated_at"
-    t.datetime "sync_stamp"
+    t.datetime "badges_updated_at", precision: nil
+    t.datetime "schedule_deletion_at", precision: nil
+    t.datetime "boards_updated_at", precision: nil
+    t.datetime "sync_stamp", precision: nil
     t.index ["email_hash"], name: "index_users_on_email_hash"
     t.index ["managed_organization_id"], name: "index_users_on_managed_organization_id"
     t.index ["managing_organization_id"], name: "index_users_on_managing_organization_id"
@@ -554,8 +581,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
   create_table "utterances", id: :serial, force: :cascade do |t|
     t.text "data"
     t.integer "user_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "nonce"
     t.string "reply_nonce"
     t.index ["reply_nonce"], name: "index_utterances_on_reply_nonce", unique: true
@@ -567,7 +594,7 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "event", null: false
     t.string "whodunnit"
     t.text "object"
-    t.datetime "created_at"
+    t.datetime "created_at", precision: nil
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
@@ -575,8 +602,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "user_id"
     t.string "record_code"
     t.text "settings"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "user_integration_id"
     t.index ["record_code", "user_id"], name: "index_webhooks_on_record_code_and_user_id"
     t.index ["user_id"], name: "index_webhooks_on_user_id"
@@ -587,8 +614,8 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.integer "board_id"
     t.integer "weekyear"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["board_id", "weekyear"], name: "index_weekly_stats_summaries_on_board_id_and_weekyear"
     t.index ["user_id", "weekyear"], name: "index_weekly_stats_summaries_on_user_id_and_weekyear"
   end
@@ -597,13 +624,12 @@ ActiveRecord::Schema.define(version: 2023_10_30_173246) do
     t.string "word"
     t.string "locale"
     t.text "data"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "priority"
     t.integer "reviews"
     t.index ["locale", "priority", "word"], name: "index_word_data_on_locale_and_priority_and_word"
     t.index ["locale", "reviews", "priority", "word"], name: "index_word_data_on_locale_and_reviews_and_priority_and_word"
     t.index ["word", "locale"], name: "index_word_data_on_word_and_locale", unique: true
   end
-
 end

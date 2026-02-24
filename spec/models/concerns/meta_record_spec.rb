@@ -2,7 +2,8 @@ require 'spec_helper'
 
 describe MetaRecord, :type => :model do
   it "should create a valid meta record for an utterance" do
-    u = Utterance.create(:data => {
+    author = User.create
+    u = Utterance.create(:user => author, :data => {
       :button_list => [{label: 'ok'}],
       :sentence => 'ok'
     })

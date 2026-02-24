@@ -1,0 +1,389 @@
+{
+  "audit_date": "2026-02-21",
+  "project": "LingoLinq-AAC",
+  "mvp_readiness_score": 31,
+  "readiness_level": "NOT_READY",
+  "score_breakdown": {
+    "security": {
+      "score": 18,
+      "weight": 0.25,
+      "weighted": 4.5,
+      "rationale": "Critical auth bypass CVEs in ruby-saml (CVE-2025-25291/25292). Global permit_all_parameters=true disables all mass assignment protection. SQL injection confirmed in 16 files including BoardDownstreamButtonSet. SSL verification disabled in 8+ production code paths. Unauthenticated purchasing webhook. SNS callbacks lack signature verification. Auth failures return wrong HTTP status codes masking real errors. No Content Security Policy. Tokens leaked in error responses. protect_from_forgery with :null_session provides no CSRF protection. No production CORS configuration means the API is wide open to cross-origin requests."
+    },
+    "stability": {
+      "score": 20,
+      "weight": 0.2,
+      "weighted": 4.0,
+      "rationale": "Zero CI/CD pipeline (no GitHub Actions). No health checks on Render services. Single instance with no redundancy. Free-tier 256MB database with no HA or read replicas. Single free Redis shared across all environments. Near-zero test coverage (3 tests across 102 test files on frontend; backend tests exist but many are stale). No monitoring or alerting. No error tracking integration. render.yaml branch mismatch between web (functional-baseline) and worker (main) means they deploy different code."
+    },
+    "compliance": {
+      "score": 35,
+      "weight": 0.2,
+      "weighted": 7.0,
+      "rationale": "PiiScrubber exists but has coverage gaps. No COPPA age verification (critical for AAC users who are often minors). No FERPA educational records logging. BAAs with Render and AWS not confirmed executed. Zendesk receives PII without BAA. IP addresses stored without retention policy. No formal data retention/deletion policy. Hardcoded API secret in test file. .env contains production credentials (not in .gitignore check needed). SSL peer verification disabled undermines data-in-transit compliance. Some positive work exists (PiiScrubber, AiApiLog audit trail, COMPLIANCE.md)."
+    },
+    "functionality": {
+      "score": 38,
+      "weight": 0.2,
+      "weighted": 7.6,
+      "rationale": "Rails backend is the strongest domain at 58/100 -- core AAC features work. API layer at 48/100 has structural issues (200-masked errors from AppCache workaround, wrong status codes). Frontend at 22/100 is severely degraded: 15,519 deprecated patterns, 215 classic components with zero Glimmer, fingerprinting/minification disabled in production (performance and caching impact), 9 Bower dependencies. The application functions but with significant reliability and performance gaps."
+    },
+    "code_quality": {
+      "score": 22,
+      "weight": 0.15,
+      "weighted": 3.3,
+      "rationale": "God classes (Board 2504 lines, LogSession 2052, User 1900). Near-zero model validations (2 across 49 models). 22 gems with no version constraints. No frontend lock file means non-reproducible builds. N+1 queries and in-memory filtering throughout. Missing database indexes. 15,519 deprecated Ember patterns representing massive technical debt. Ember 3.28 is 3+ years EOL. Estimated 6-9 months for Octane migration. Bootstrap 3.3 and moment.js 2.9 via Bower."
+    }
+  },
+  "domain_scores": {
+    "ember": 22,
+    "dependencies": 38,
+    "infrastructure": 38,
+    "api": 48,
+    "rails": 58,
+    "privacy": 62
+  },
+  "findings_by_severity": {
+    "critical": 13,
+    "high": 25,
+    "medium": 30,
+    "low": 15,
+    "info": 12
+  },
+  "total_findings": 95,
+  "top_5_blockers": [
+    {
+      "rank": 1,
+      "title": "Critical Authentication & Authorization Vulnerabilities",
+      "severity": "CRITICAL",
+      "domains": [
+        "Dependencies",
+        "API",
+        "Rails Backend"
+      ],
+      "details": "ruby-saml has CRITICAL auth bypass CVEs (CVE-2025-25291, CVE-2025-25292) allowing attackers to forge SAML assertions and bypass authentication entirely. Combined with permit_all_parameters=true globally disabling Strong Parameters, an attacker can modify any model attribute including roles, permissions, and ownership. The purchasing webhook is completely unauthenticated. This combination means any attacker can escalate privileges and access all user data.",
+      "impact": "Complete system compromise. Any school or hospital deployment would fail security review immediately.",
+      "fix_effort": "1-2 weeks",
+      "fix_approach": "Update ruby-saml to >= 1.18.0. Remove permit_all_parameters initializer and implement Strong Parameters in every controller. Add webhook authentication."
+    },
+    {
+      "rank": 2,
+      "title": "SQL Injection in Production Code",
+      "severity": "CRITICAL",
+      "domains": [
+        "Rails Backend"
+      ],
+      "details": "String interpolation in SQL queries confirmed in 16 files including BoardDownstreamButtonSet.reconcile, LogSession, User, Organization, and multiple controllers. This allows attackers to read, modify, or delete any data in the database.",
+      "impact": "Full database compromise including all user PII, communication logs, and organizational data.",
+      "fix_effort": "1-2 weeks",
+      "fix_approach": "Audit all 16 files. Replace string interpolation with parameterized queries or ActiveRecord query interface. Add Brakeman to CI to prevent regressions."
+    },
+    {
+      "rank": 3,
+      "title": "No CI/CD Pipeline or Automated Testing",
+      "severity": "HIGH",
+      "domains": [
+        "Infrastructure",
+        "Ember Frontend"
+      ],
+      "details": "Zero GitHub Actions workflows. 3 frontend tests across 102 test files. No automated security scanning (Brakeman, bundler-audit, npm audit). No pre-deployment checks. render.yaml deploys web from 'functional-baseline' but worker from 'main' -- they may be running different code versions. Any fix to blockers 1 and 2 above could introduce regressions with no safety net.",
+      "impact": "Cannot safely deploy fixes. Cannot demonstrate security posture to institutional buyers. Every deployment is a roll of the dice.",
+      "fix_effort": "1 week for basic pipeline, ongoing for test coverage",
+      "fix_approach": "Create GitHub Actions with: Brakeman, bundler-audit, npm audit, RSpec, ESLint. Fix render.yaml branch mismatch. Add health checks."
+    },
+    {
+      "rank": 4,
+      "title": "Missing COPPA/FERPA Compliance for Target Market",
+      "severity": "HIGH",
+      "domains": [
+        "Privacy/Compliance"
+      ],
+      "details": "AAC users frequently include minors and students with disabilities. No COPPA age verification exists. No FERPA educational records audit logging. BAAs with Render and AWS are not confirmed executed. Zendesk receives PII without a BAA. IP addresses stored without retention policy. No formal data retention/deletion procedures. Schools and hospitals cannot legally adopt without these.",
+      "impact": "Schools cannot legally deploy (FERPA/COPPA). Hospitals cannot deploy (HIPAA). This blocks the entire institutional sales channel.",
+      "fix_effort": "2-4 weeks",
+      "fix_approach": "Implement age-gate/parental consent flow. Add FERPA audit logging. Execute BAAs with all subprocessors. Establish data retention policy. Remove PII from Zendesk or execute BAA."
+    },
+    {
+      "rank": 5,
+      "title": "SSL Verification Disabled Across Production Code",
+      "severity": "HIGH",
+      "domains": [
+        "Infrastructure",
+        "Rails Backend",
+        "Privacy/Compliance"
+      ],
+      "details": "ssl_verifypeer: false found in 8+ production code locations (uploader.rb, open_symbols.rb, button_image.rb, board.rb). This disables TLS certificate validation, making every external API call vulnerable to man-in-the-middle attacks. Combined with the lack of Content Security Policy and no security headers, data in transit is not protected.",
+      "impact": "Fails HIPAA technical safeguard requirements for encryption in transit. Any penetration test will flag this. User communication data (highly sensitive for AAC users) could be intercepted.",
+      "fix_effort": "2-3 days",
+      "fix_approach": "Remove all ssl_verifypeer: false from production code. Update CA certificate bundle if needed. Add Content Security Policy via secure_headers gem."
+    }
+  ],
+  "top_5_quick_wins": [
+    {
+      "rank": 1,
+      "title": "Enable SSL Verification Everywhere",
+      "effort": "2-4 hours",
+      "impact": "HIGH",
+      "details": "Remove ssl_verifypeer: false from all 8 production locations in uploader.rb, open_symbols.rb, button_image.rb, and board.rb. Test that external API calls still work (they will -- this was a legacy workaround for bad CA bundles).",
+      "risk": "Low. Modern Ruby includes up-to-date CA bundles. If OpenSymbols API has cert issues, that is their problem to fix."
+    },
+    {
+      "rank": 2,
+      "title": "Add Health Checks to render.yaml",
+      "effort": "1-2 hours",
+      "impact": "HIGH",
+      "details": "Add healthCheckPath: /api/v1/health to the web service in render.yaml. Create a simple health check endpoint that verifies DB and Redis connectivity. This enables Render's zero-downtime deploys and automatic restart on failure.",
+      "risk": "None. Pure addition."
+    },
+    {
+      "rank": 3,
+      "title": "Fix render.yaml Branch Mismatch",
+      "effort": "30 minutes",
+      "impact": "HIGH",
+      "details": "Web service deploys from 'functional-baseline', worker deploys from 'main'. These must match or the worker will process jobs with different code than the web service that enqueued them. Change both to the same branch.",
+      "risk": "None. Configuration fix only."
+    },
+    {
+      "rank": 4,
+      "title": "Add Brakeman + bundler-audit GitHub Action",
+      "effort": "2-3 hours",
+      "impact": "HIGH",
+      "details": "Create .github/workflows/security.yml that runs Brakeman (static analysis for Rails security) and bundler-audit (known CVE checker) on every push/PR. This immediately surfaces all SQL injection, mass assignment, and known CVE issues and prevents new ones.",
+      "risk": "None. Read-only analysis. Will produce a long initial report that serves as the remediation backlog."
+    },
+    {
+      "rank": 5,
+      "title": "Update ruby-saml Gem",
+      "effort": "1-2 hours",
+      "impact": "CRITICAL",
+      "details": "Run 'bundle update ruby-saml' to get >= 1.18.0 which patches CVE-2025-25291 and CVE-2025-25292. These are authentication bypass vulnerabilities -- the single highest-severity class of bug. The update is straightforward as the API is stable.",
+      "risk": "Low. Test SAML login flow after update. The gem maintains backward compatibility."
+    }
+  ],
+  "roadmap": {
+    "phase_1_critical_security": {
+      "timeframe": "This week (days 1-7)",
+      "goal": "Eliminate exploitable vulnerabilities that could lead to data breach",
+      "items": [
+        {
+          "task": "Update ruby-saml to >= 1.18.0",
+          "effort": "1-2 hours",
+          "why": "Authentication bypass CVEs allow forged SAML assertions"
+        },
+        {
+          "task": "Update rack to >= 2.2.22 (CVE-2025-27610 path traversal)",
+          "effort": "1 hour",
+          "why": "CVSS 7.5 path traversal allows reading arbitrary files"
+        },
+        {
+          "task": "Update nokogiri to >= 1.19.1 (CVE-2025-30206)",
+          "effort": "1 hour",
+          "why": "XML parsing vulnerability in a gem used for SAML and HTML processing"
+        },
+        {
+          "task": "Update sinatra to fix ReDoS and open redirect CVEs",
+          "effort": "1 hour",
+          "why": "DoS and phishing attack vectors"
+        },
+        {
+          "task": "Remove ssl_verifypeer: false from all 8 production locations",
+          "effort": "2-4 hours",
+          "why": "Enables man-in-the-middle attacks on all external API calls"
+        },
+        {
+          "task": "Fix SQL injection in BoardDownstreamButtonSet.reconcile and audit remaining 15 files",
+          "effort": "3-5 days",
+          "why": "Direct database compromise vector"
+        },
+        {
+          "task": "Add authentication to purchasing webhook",
+          "effort": "2-4 hours",
+          "why": "Unauthenticated webhook allows fraudulent purchase manipulation"
+        },
+        {
+          "task": "Add SNS signature verification",
+          "effort": "2-4 hours",
+          "why": "Unauthenticated callbacks allow spoofed notifications"
+        }
+      ]
+    },
+    "phase_2_mvp_blockers": {
+      "timeframe": "This month (weeks 2-4)",
+      "goal": "Achieve minimum viable security and compliance for institutional pilot",
+      "items": [
+        {
+          "task": "Remove permit_all_parameters and implement Strong Parameters in all controllers",
+          "effort": "1-2 weeks",
+          "why": "Mass assignment vulnerability in every single endpoint"
+        },
+        {
+          "task": "Create CI/CD pipeline with Brakeman, bundler-audit, RSpec, and npm audit",
+          "effort": "1 week",
+          "why": "Cannot safely deploy or demonstrate security posture without automation"
+        },
+        {
+          "task": "Fix render.yaml branch mismatch and add health checks",
+          "effort": "2 hours",
+          "why": "Web and worker may be running different code; no auto-recovery on failure"
+        },
+        {
+          "task": "Implement COPPA age verification / parental consent flow",
+          "effort": "1 week",
+          "why": "Legal requirement for AAC users who are minors"
+        },
+        {
+          "task": "Add FERPA audit logging for educational record access",
+          "effort": "1 week",
+          "why": "Legal requirement for school deployments"
+        },
+        {
+          "task": "Execute BAAs with Render and AWS; resolve Zendesk PII issue",
+          "effort": "1-2 weeks (mostly procurement/legal)",
+          "why": "Required for HIPAA compliance and hospital deployments"
+        },
+        {
+          "task": "Fix API error response codes (remove 200-masking, return proper 401/403)",
+          "effort": "3-5 days",
+          "why": "Clients cannot distinguish success from failure; breaks error handling"
+        },
+        {
+          "task": "Add Content Security Policy via secure_headers gem",
+          "effort": "2-3 days",
+          "why": "XSS mitigation required by all security frameworks"
+        },
+        {
+          "task": "Add production CORS configuration",
+          "effort": "2-4 hours",
+          "why": "API currently accepts cross-origin requests from any domain in production"
+        },
+        {
+          "task": "Establish and implement data retention policy",
+          "effort": "1 week",
+          "why": "Required for FERPA, HIPAA, and GDPR compliance"
+        },
+        {
+          "task": "Stop leaking tokens in error responses",
+          "effort": "1-2 days",
+          "why": "Information disclosure that aids further attacks"
+        },
+        {
+          "task": "Remove hardcoded API secret from test file; ensure .env is in .gitignore",
+          "effort": "1-2 hours",
+          "why": "Credential exposure in version control"
+        }
+      ]
+    },
+    "phase_3_quality_scale": {
+      "timeframe": "This quarter (months 2-3)",
+      "goal": "Production-grade reliability and performance",
+      "items": [
+        {
+          "task": "Add model validations across all 49 models (currently 2 have validations)",
+          "effort": "2-3 weeks",
+          "why": "Data integrity -- invalid data can corrupt the entire board/user graph"
+        },
+        {
+          "task": "Add version constraints to all 22 unconstrained gems",
+          "effort": "1-2 days",
+          "why": "Reproducible builds and protection against breaking changes"
+        },
+        {
+          "task": "Add frontend lock file (yarn.lock or package-lock.json)",
+          "effort": "1 hour",
+          "why": "Non-reproducible frontend builds"
+        },
+        {
+          "task": "Upgrade database from free tier; add connection pooling",
+          "effort": "1-2 days",
+          "why": "256MB free tier with no HA cannot support institutional workload"
+        },
+        {
+          "task": "Add separate Redis instances per environment",
+          "effort": "1 day",
+          "why": "Single shared Redis is a reliability and security risk"
+        },
+        {
+          "task": "Add database indexes for known slow queries",
+          "effort": "1 week",
+          "why": "Performance degradation under institutional user counts"
+        },
+        {
+          "task": "Fix N+1 queries in critical paths (boards, users, organizations)",
+          "effort": "2-3 weeks",
+          "why": "Performance and database load"
+        },
+        {
+          "task": "Enable fingerprinting and minification in Ember production build",
+          "effort": "1-2 days",
+          "why": "Performance, caching, and bandwidth for users on limited devices"
+        },
+        {
+          "task": "Add error tracking (Sentry or equivalent)",
+          "effort": "1-2 days",
+          "why": "Cannot detect or diagnose production issues"
+        },
+        {
+          "task": "Expand PiiScrubber coverage to all PII field types",
+          "effort": "1 week",
+          "why": "AI API calls may leak PII through uncovered fields"
+        },
+        {
+          "task": "Add second web instance for redundancy",
+          "effort": "1 day (cost increase)",
+          "why": "Single instance means zero availability during deploys or crashes"
+        },
+        {
+          "task": "Increase backend test coverage to >= 80% on critical models",
+          "effort": "4-6 weeks",
+          "why": "Safety net for ongoing security and feature work"
+        }
+      ]
+    },
+    "phase_4_excellence": {
+      "timeframe": "Quarters 2-4",
+      "goal": "Technical excellence and long-term sustainability",
+      "items": [
+        {
+          "task": "Begin Ember Octane migration (15,519 deprecated patterns)",
+          "effort": "6-9 months estimated",
+          "why": "Ember 3.28 is 3+ years EOL with no security patches. Migration is mandatory but can be phased."
+        },
+        {
+          "task": "Migrate from Bower to npm (9 Bower dependencies)",
+          "effort": "1-2 weeks",
+          "why": "Bower has been deprecated since 2017. Bootstrap 3.3 and moment.js 2.9 need major version updates."
+        },
+        {
+          "task": "Convert 215 classic components to Glimmer",
+          "effort": "Part of Octane migration",
+          "why": "Performance improvements and alignment with Ember's future"
+        },
+        {
+          "task": "Refactor god classes (Board 2504 lines, LogSession 2052, User 1900)",
+          "effort": "4-8 weeks",
+          "why": "Maintainability -- these classes are the core domain and are nearly impossible to reason about or test"
+        },
+        {
+          "task": "Add comprehensive API documentation (OpenAPI/Swagger)",
+          "effort": "2-3 weeks",
+          "why": "Required for third-party integrations and institutional IT review"
+        },
+        {
+          "task": "Implement read replicas for database",
+          "effort": "1-2 weeks",
+          "why": "Scale and performance for reporting/analytics queries"
+        },
+        {
+          "task": "Add frontend test coverage to >= 60%",
+          "effort": "8-12 weeks",
+          "why": "Currently 3 tests. Cannot safely modify frontend without coverage."
+        },
+        {
+          "task": "Implement proper feature flag system for gradual rollouts",
+          "effort": "1-2 weeks",
+          "why": "AAC users are sensitive to UI changes. Feature flags enable controlled rollouts."
+        }
+      ]
+    }
+  }
+}

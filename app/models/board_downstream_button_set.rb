@@ -5,10 +5,15 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
   include SecureSerialize
   include ExtraData
   secure_serialize :data
-  belongs_to :board
+  belongs_to :board, optional: true
   include Replicate
 
+  after_initialize :init_data
   before_save :generate_defaults
+
+  def init_data
+    self.data ||= {}
+  end
 
   def board
     if self.user_id
@@ -491,8 +496,11 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
         boards_to_visit.sort_by!{|bv| [bv[:depth], bv[:index]] }
         batch = boards_to_visit[0, 20]
         boards_to_visit = boards_to_visit - batch
-        Board.find_all_by_global_id(batch.map{|bv| bv[:board_id] }).each do |board_to_visit|
-          bv = batch.detect{|v| v[:board_id] == board_to_visit.global_id}
+        batch_ids = batch.map{|bv| bv[:board_id]}
+        boards_by_id = Board.find_all_by_global_id(batch_ids).index_by(&:global_id)
+        batch_ids.each do |board_id|
+          board_to_visit = boards_by_id[board_id]
+          bv = batch.detect{|v| v[:board_id] == board_id}
           if bv && board_to_visit
             images = board_to_visit.known_button_images
             visited_board_ids << board_to_visit.global_id
@@ -687,7 +695,7 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
   def self.reconcile(start_id = 0)
     wasted = 0
     destroyed = 0
-    BoardDownstreamButtonSet.where("id > #{start_id}").find_in_batches(batch_size: 10) do |batch|
+    BoardDownstreamButtonSet.where("id > ?", start_id).find_in_batches(batch_size: 10) do |batch|
       batch.each do |button_set|
         button_set.assert_extra_data
         if button_set.data['buttons']

@@ -1,6 +1,11 @@
 require "spec_helper"
 
 describe SubscriptionMailer, :type => :mailer do
+  def long_ordinal_date(date)
+    return '' unless date
+    "#{date.strftime('%B')} #{date.day.ordinalize}, #{date.strftime('%Y')}"
+  end
+
   after(:each) do
     JsonApi::Json.load_domain("default")
   end
@@ -14,12 +19,12 @@ describe SubscriptionMailer, :type => :mailer do
       
       html = message_body(m, :html)
       expect(html).to match(/set to expire/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/<b>#{u.settings['name']}<\/b>/)
       
       text = message_body(m, :text)
       expect(text).to match(/set to expire/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/"#{u.settings['name']}"/)
     end
   end
@@ -33,12 +38,12 @@ describe SubscriptionMailer, :type => :mailer do
       
       html = message_body(m, :html)
       expect(html).to match(/#{u.user_name}/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/to be updated soon/)
       
       text = message_body(m, :text)
       expect(text).to match(/#{u.user_name}/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/to be updated soon/)
     end
   end
@@ -52,12 +57,12 @@ describe SubscriptionMailer, :type => :mailer do
       
       html = message_body(m, :html)
       expect(html).to match(/will conclude soon/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/<b>#{u.settings['name']}<\/b>/)
       
       text = message_body(m, :text)
       expect(text).to match(/about to expire/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/"#{u.settings['name']}"/)
     end
   end

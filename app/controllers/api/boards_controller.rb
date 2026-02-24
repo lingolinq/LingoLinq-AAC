@@ -205,7 +205,7 @@ class Api::BoardsController < ApplicationController
         # board.search_string now includes locales, even on private boards
         # This filter should be applied for private searches (which wouldn't yet
         # have been filtered by locale) or for requests without a search query
-        boards = boards.where(['search_string ILIKE ?', "%locale:#{lang}%"])
+        boards = boards.where(['search_string ILIKE ?', "%locale:#{ActiveRecord::Base.sanitize_sql_like(lang)}%"])
       end
     end
 
@@ -447,8 +447,9 @@ class Api::BoardsController < ApplicationController
         # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       elsif !allowed?(user, 'edit')
-        # User exists but current user lacks edit permission for that user
-        return api_error(400, {error: "Not authorized", unauthorized: true})
+        # User exists but current user lacks edit permission - ensure response is always rendered
+        return api_error(400, {error: "Not authorized", unauthorized: true}) unless performed?
+        return
       else
         @board_user = user
       end
@@ -468,7 +469,7 @@ class Api::BoardsController < ApplicationController
     if board.errored? || !board.persisted?
       errors = board&.processing_errors
       errors ||= board&.errors&.full_messages if board && errors.blank?
-      api_error(400, {error: "board creation failed", errors: errors})
+      return api_error(400, {error: "board creation failed", errors: errors})
     else
       render json: JsonApi::Board.as_json(board, :wrapper => true, :permissions => @api_user)
     end

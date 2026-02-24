@@ -1138,7 +1138,21 @@ export default Controller.extend({
     back_to_from_route: function() {
       var from = this.appState.get('from_route');
       if(from && from.length && this.router) {
-        this.router.transitionTo.apply(this.router, from);
+        // Routes with no dynamic segments must not receive context objects (avoids "More context objects" error)
+        var routeName = from[0];
+        var routeNeedsParams = false;
+        if(routeName) {
+          try {
+            this.router.urlFor(routeName);
+          } catch(e) {
+            routeNeedsParams = true;
+          }
+        }
+        if(routeName && !routeNeedsParams) {
+          this.router.transitionTo(routeName);
+        } else {
+          this.router.transitionTo.apply(this.router, from);
+        }
       } else {
         this.appState.return_to_index();
       }

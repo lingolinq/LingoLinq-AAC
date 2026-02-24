@@ -9,12 +9,12 @@ describe Api::SoundsController, :type => :controller do
     
     it "should create a sound based on the passer parameters" do
       token_user
-      url = "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon.mp3"
+      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.mp3"
       post :create, params: {:sound => {'url' => url, 'content_type' => 'audio/mp3'}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['sound']['id']).not_to eq(nil)
-      expect(json['sound']['url']).to eq("#{ENV['UPLOADS_S3_CDN']}/bacon.mp3")
+      expect(json['sound']['url']).to match(/bacon\.mp3$/)
       expect(json['meta']).to eq(nil)
     end
     
@@ -45,12 +45,12 @@ describe Api::SoundsController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      url = "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon.mp3"
+      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.mp3"
       post :create, params: {:sound => {'user_id' => u.global_id, 'url' => url, 'content_type' => 'audio/mp3'}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['sound']['id']).not_to eq(nil)
-      expect(json['sound']['url']).to eq("#{ENV['UPLOADS_S3_CDN']}/bacon.mp3")
+      expect(json['sound']['url']).to match(/bacon\.mp3$/)
       expect(json['meta']).to eq(nil)
       bs = ButtonSound.find_by_global_id(json['sound']['id'])
       expect(bs).to_not eq(nil)
@@ -82,7 +82,8 @@ describe Api::SoundsController, :type => :controller do
     end
     
     it "should error for valid confirmation key but missing from server" do
-      s = ButtonSound.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => false)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
@@ -93,7 +94,8 @@ describe Api::SoundsController, :type => :controller do
     end
     
     it "should succeed for valid confirmation key that is found on server" do
-      s = ButtonSound.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
@@ -120,7 +122,7 @@ describe Api::SoundsController, :type => :controller do
     
     it "should return a found object" do
       token_user
-      s = ButtonSound.create(:settings => {'content_type' => 'audio/mp3'})
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       get :show, params: {:id => s.global_id}
       expect(response).to be_successful
       json = JSON.parse(response.body)

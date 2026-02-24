@@ -58,6 +58,7 @@ gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'
 gem 'stripe'
+gem 'rack', '~> 2.2.22' # Pin to 2.2.x to avoid Rack 3.x incompatibilities
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'

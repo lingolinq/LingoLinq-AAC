@@ -137,12 +137,14 @@ describe Converters::Utils do
     end
     
     it "should return image if found" do
-      bi = ButtonImage.create
+      u = User.create
+      bi = ButtonImage.create(user: u)
       expect(Converters::Utils.find_by_data_url("#{JsonApi::Json.current_host}/api/v1/images/#{bi.global_id}")).to eq(bi)
     end
     
     it "should return sound if found" do
-      bs = ButtonSound.create
+      u = User.create
+      bs = ButtonSound.create(user: u)
       expect(Converters::Utils.find_by_data_url("#{JsonApi::Json.current_host}/api/v1/sounds/#{bs.global_id}")).to eq(bs)
     end
     

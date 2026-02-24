@@ -35,8 +35,15 @@ export default modal.ModalController.extend({
       modal.close();
       if(this.get('model.route')) {
         var _this = this;
+        var routeName = this.get('model.route');
+        // index has no dynamic segments - passing user_name would cause "More context objects" error
+        var routeNeedsModel = routeName !== 'index';
         this.store.findRecord('user', board_for_user_id).then(function(u) {
-          _this.transitionToRoute(_this.get('model.route'), u.get('user_name'));
+          if(routeNeedsModel) {
+            _this.transitionToRoute(routeName, u.get('user_name'));
+          } else {
+            _this.transitionToRoute(routeName);
+          }
         }, function(err) {
           modal.close();
           modal.error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));

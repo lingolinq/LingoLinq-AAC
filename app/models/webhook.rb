@@ -10,7 +10,7 @@ class Webhook < ActiveRecord::Base
   secure_serialize :settings
   include Replicate
   belongs_to :user
-  belongs_to :user_integration
+  belongs_to :user_integration, optional: true  # webhooks can exist without integration (e.g. register)
   before_save :generate_defaults
   after_destroy :delete_user_integration
   

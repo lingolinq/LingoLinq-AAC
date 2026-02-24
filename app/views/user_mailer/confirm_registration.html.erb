@@ -9,7 +9,7 @@ To finish registering just
 <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/confirm_registration/<%= @user.registration_code %>">open this link (<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/confirm_registration/<%= @user.registration_code %>) in your web browser of choice</a>.
 <% if @user.grace_period? %><%= app_name %> comes with "cloud extras" features that include
 logging, reports, goals and badges, and your <%= app_name %> account will have access to these
-features through <b><%= @user.expires_at.to_s(:long_ordinal) %></b>. Don't worry, we won't 
+features through <b><%= long_ordinal_date(@user.expires_at) %></b>. Don't worry, we won't 
 automatically start billing you after that unless you decide to purchase :-).<% end %>
 <br/><br/>
 

@@ -232,7 +232,7 @@ describe Lesson, :type => :model do
     it "should unassign from valid types" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
       l.settings['usages'] = [
         {'obj' => 'a'},
@@ -278,7 +278,7 @@ describe Lesson, :type => :model do
     it "should add the lesson to both objects" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)
@@ -304,7 +304,7 @@ describe Lesson, :type => :model do
     it "should record types if specified" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)
@@ -331,7 +331,7 @@ describe Lesson, :type => :model do
     it "should record lesson to assignee if specified" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)

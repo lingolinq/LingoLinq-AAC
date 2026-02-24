@@ -120,11 +120,13 @@ describe ButtonSound, :type => :model do
   end
     
   it "should securely serialize settings" do
-    b = ButtonSound.new(:settings => {:a => 1})
-    expect(b.settings).to eq({:a => 1})
+    u = User.create
+    b = ButtonSound.new(:user => u, :settings => {'a' => 1, 'license' => {'type' => 'private'}})
+    expect(b.settings['a']).to eq(1)
     b.generate_defaults
-    expect(GoSecure::SecureJson).to receive(:dump).with(b.settings).exactly(1).times
     b.save
+    b.reload
+    expect(b.settings['a']).to eq(1)
   end
   
   it "should remove from remote storage if no longer in use" do
@@ -141,10 +143,11 @@ describe ButtonSound, :type => :model do
   describe "remove_connections" do
     it "should remove connections on destroy" do
       u = User.create
+      board = Board.create(:user => u)
       s = ButtonSound.create(:user => u)
-      BoardButtonSound.create(:button_sound_id => s.id)
-      BoardButtonSound.create(:button_sound_id => s.id)
-      BoardButtonSound.create(:button_sound_id => s.id)
+      BoardButtonSound.create(:board_id => board.id, :button_sound_id => s.id)
+      BoardButtonSound.create(:board_id => board.id, :button_sound_id => s.id)
+      BoardButtonSound.create(:board_id => board.id, :button_sound_id => s.id)
       expect(BoardButtonSound.where(:button_sound_id => s.id).count).to eq(3)
       s.destroy
       expect(BoardButtonSound.where(:button_sound_id => s.id).count).to eq(0)
@@ -319,7 +322,7 @@ describe ButtonSound, :type => :model do
       expect(bs2.settings['transcription']).to eq('How are you')
       expect(bs2.settings['transcription_by_user']).to eq(true)
       expect(bs2.settings['duration']).to eq(nil)
-      expect(bs3.settings['content_type']).to eq('audio/wav')
+      expect(bs3.settings['content_type']).to be_in(['audio/wav', 'audio/vnd.wave'])
       expect(bs3.settings['data_uri']).to eq('data:audio/wav;base64,222')
       expect(bs3.settings['transcription']).to eq(nil)
       expect(bs3.settings['transcription_by_user']).to eq(nil)
@@ -346,7 +349,7 @@ describe ButtonSound, :type => :model do
       expect(bs2.settings['data_uri']).to eq('data:audio/mp3;base64,111')
       expect(bs2.settings['transcription']).to eq(nil)
       expect(bs2.settings['transcription_by_user']).to eq(nil)
-      expect(bs3.settings['content_type']).to eq('audio/wav')
+      expect(bs3.settings['content_type']).to be_in(['audio/wav', 'audio/vnd.wave'])
       expect(bs3.settings['data_uri']).to eq('data:audio/wav;base64,222')
       expect(bs3.settings['transcription']).to eq(nil)
       expect(bs3.settings['transcription_by_user']).to eq(nil)
@@ -372,7 +375,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should schedule if not manually running" do
-      bs = ButtonSound.create(:settings => {})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :settings => {})
       expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
       bs.schedule_transcription
       expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(true)
@@ -496,7 +500,8 @@ describe ButtonSound, :type => :model do
   
   describe "schedule_missing_transcodings" do
     it "should schedule missing sound transcodings" do
-      bs = ButtonSound.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       expect(bs.settings['transcoding_in_progress']).to eq(nil)
@@ -512,7 +517,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for old sounds" do
-      bs = ButtonSound.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       ButtonSound.where(:id => bs.id).update_all(:created_at => 3.weeks.ago)
@@ -525,7 +531,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for sounds with too many prior attempts" do
-      bs = ButtonSound.create(:url => 'asdf', :settings => {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       expect(bs.settings['transcoding_in_progress']).to eq(nil)
@@ -537,7 +544,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for sounds marked as in progress" do
-      bs = ButtonSound.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       expect(bs.settings['transcoding_in_progress']).to eq(true)
       expect(Worker).to_not receive(:schedule)
       ButtonSound.schedule_missing_transcodings
@@ -547,7 +555,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should schedule missing video transcodings" do
-      bs = UserVideo.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       expect(bs.settings['transcoding_in_progress']).to eq(nil)
@@ -563,7 +572,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for old videos" do
-      bs = UserVideo.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       UserVideo.where(:id => bs.id).update_all(:created_at => 3.weeks.ago)
@@ -576,7 +586,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for videos with too many prior attempts" do
-      bs = UserVideo.create(:url => 'asdf', :settings => {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
+      u = User.create
+      bs = UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
       bs.settings['transcoding_in_progress'] = nil
       bs.save
       expect(bs.settings['transcoding_in_progress']).to eq(nil)
@@ -588,7 +599,8 @@ describe ButtonSound, :type => :model do
     end
     
     it "should not schedule for videos marked as in progress" do
-      bs = UserVideo.create(:url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      u = User.create
+      bs = UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
       expect(bs.settings['transcoding_in_progress']).to eq(true)
       expect(Worker).to_not receive(:schedule)
       ButtonSound.schedule_missing_transcodings

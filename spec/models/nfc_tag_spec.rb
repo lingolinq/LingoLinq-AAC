@@ -11,7 +11,8 @@ describe NfcTag, :type => :model do
     end
 
     it 'should allow searching by nonce' do
-      t = NfcTag.create
+      u = User.create
+      t = NfcTag.create(user: u)
       expect(t.nonce).to_not eq(nil)
       expect(t.global_id).to_not eq(nil)
       id = t.global_id

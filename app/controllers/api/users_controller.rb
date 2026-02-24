@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
         users = lookup.where(:user_name => query)
         users = [lookup.find_by_global_id(query)].compact if users.count == 0 && query.match(/^\d+_\d+$/)
         if users.count == 0
-          users = lookup.where(["user_name ILIKE ?", "%#{query}%"]).order('user_name')
+          users = lookup.where(["user_name ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(query)}%"]).order('user_name')
         end
       end
     end
@@ -730,7 +730,7 @@ class Api::UsersController < ApplicationController
         safe_url = ButtonImage.cached_copy_url(request.original_url, user, false)
         if safe_url
           expires_in 12.days, :public => true
-          return redirect_to safe_url
+          return redirect_to safe_url, allow_other_host: true
         end
         url = Uploader.found_image_url(params['image_id'], params['library'], user)
         if url

@@ -424,7 +424,8 @@ describe Api::UtterancesController, :type => :controller do
   
   describe "GET show" do
     it "should not require api token" do
-      u = Utterance.create(:data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
       get :show, params: {:id => u.global_id}
       expect(response).to be_successful
     end
@@ -435,7 +436,8 @@ describe Api::UtterancesController, :type => :controller do
     end
     
     it "should return a json response" do
-      u = Utterance.create(:data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
       get :show, params: {:id => u.global_id}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -451,8 +453,8 @@ describe Api::UtterancesController, :type => :controller do
     it "should return additional information if a reply_code is set" do
       token_user
       user = User.create
-      Device.create(user: user)
-      u = Utterance.create(:data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
+      d = Device.create(user: user)
+      u = Utterance.create(:user => user, :data => {:button_list => [{label: 'ok'}], :sentence => 'ok'})
       u.share_with({'user_id' => user.global_id}, user)
 
       get :show, params: {:id => "#{u.global_id}x#{u.reply_nonce}A"}
@@ -466,7 +468,8 @@ describe Api::UtterancesController, :type => :controller do
     it "should not allow viewing private_only utterance without a reply_code" do
       token_user
       user = User.create
-      u = Utterance.create(:data => {:private_only => true, :button_list => [{label: 'ok'}], :sentence => 'ok'})
+      d = Device.create(user: user)
+      u = Utterance.create(:user => user, :data => {:private_only => true, :button_list => [{label: 'ok'}], :sentence => 'ok'})
       u.share_with({'user_id' => user.global_id}, user)
       get :show, params: {:id => u.global_id}
       assert_unauthorized
