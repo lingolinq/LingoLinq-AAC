@@ -6,9 +6,9 @@ class UserIntegration < ActiveRecord::Base
   include SecureSerialize
   include Notifiable
 
-  belongs_to :user
-  belongs_to :device
-  belongs_to :template_integration, :class_name => 'UserIntegration'
+  belongs_to :user, optional: true  # template/global integrations have no user
+  belongs_to :device, optional: true  # created in assert_device (called from generate_defaults before first save)
+  belongs_to :template_integration, :class_name => 'UserIntegration', optional: true  # custom integrations have no template
   before_save :generate_defaults
   after_save :assert_device
   after_save :assert_webhooks
@@ -105,7 +105,7 @@ class UserIntegration < ActiveRecord::Base
   end
   
   def assert_device
-    if !self.device
+    if !self.device && self.user
       self.device = Device.create(:user => user)
     end
     if self.device && self.device.id && self.id
@@ -128,11 +128,12 @@ class UserIntegration < ActiveRecord::Base
         if self.settings['button_webhook_id']
           hook = Webhook.find_by_path(self.settings['button_webhook_id'])
         else
-          hook = Webhook.create(:user_integration_id => self.id)
+          hook = Webhook.create(:user_integration_id => self.id, :user_id => self.user_id)
           self.settings['button_webhook_id'] = hook.global_id
-          self.save
+          self.update_column(:settings, GoSecure::SecureJson.dump(self.settings))
         end
         if hook
+          hook.settings ||= {}
           hook.settings['name'] = self.settings['name']
           hook.settings['notifications'] = {
             'button_action' => [{

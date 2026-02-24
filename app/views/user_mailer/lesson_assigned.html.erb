@@ -1,6 +1,6 @@
 You have been assigned a new LingoLinq lesson! Lessons can be assigned by your organization, 
 room, or supervisors, based on a skill or concept they think you would benefit from learning. 
-This lesson was assigned to the user <b><%= @user.user_name %></b><% if @lesson.settings['due_at'] %> and is due <%= Time.parse(@lesson.settings['due_at']).to_s(:long_ordinal) %><% end %>.
+This lesson was assigned to the user <b><%= @user.user_name %></b><% if @lesson.settings['due_at'] %> and is due <%= long_ordinal_date(Time.parse(@lesson.settings['due_at'])) %><% end %>.
 Here are the details for this lesson:
 <br/><br/>
 

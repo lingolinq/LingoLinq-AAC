@@ -3,7 +3,8 @@ require 'spec_helper'
 describe JsonApi::Token do
   describe "as_json" do
     it "should return correct attributes" do
-      d = Device.create
+      u_for_device = User.create
+      d = Device.create(:user => u_for_device)
       d.generate_token!
       u = User.new(user_name: 'fred')
       hash = JsonApi::Token.as_json(u, d)
@@ -14,7 +15,8 @@ describe JsonApi::Token do
     end
     
     it "should include scopes data" do
-      d = Device.create
+      u_for_device = User.create
+      d = Device.create(:user => u_for_device)
       d.developer_key_id = 1
       d.settings['permission_scopes'] = ['a', 'b']
       d.generate_token!
@@ -26,7 +28,8 @@ describe JsonApi::Token do
     end
 
     it "should return an anonymized keyed id that is unique to the developer key tied to the device" do
-      d = Device.create
+      u_for_device = User.create
+      d = Device.create(:user => u_for_device)
       d.developer_key_id = 14
       u = User.new(user_name: 'fred')
       hash = JsonApi::Token.as_json(u, d)
@@ -34,7 +37,8 @@ describe JsonApi::Token do
     end
 
     it "should include long_token information" do
-      d = Device.create
+      u_for_device = User.create
+      d = Device.create(:user => u_for_device)
       u = User.new(user_name: 'fred')
       hash = JsonApi::Token.as_json(u, d)
       expect(hash['long_token']).to eq(nil)

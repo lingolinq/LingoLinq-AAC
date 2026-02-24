@@ -96,9 +96,12 @@ describe JsonApi::Unit do
       expect(json['communicators'].length).to eq(2)
       expect(json['supervisors']).to_not eq(nil)
       expect(json['supervisors'].length).to eq(2)
-      expect(json['supervisors'][1]['user_name']).to eq(u4.user_name)
-      expect(json['supervisors'][1]['org_unit_edit_permission']).to eq(true)
-      expect(json['supervisors'][0]['org_unit_edit_permission']).to eq(false)
+      sup_with_edit = json['supervisors'].find { |s| s['org_unit_edit_permission'] }
+      sup_without_edit = json['supervisors'].find { |s| !s['org_unit_edit_permission'] }
+      expect(sup_with_edit['user_name']).to eq(u4.user_name)
+      expect(sup_with_edit['org_unit_edit_permission']).to eq(true)
+      expect(sup_without_edit['user_name']).to eq(u2.user_name)
+      expect(sup_without_edit['org_unit_edit_permission']).to eq(false)
     end
 
     it "should include for communicators/supervisors, profile history if saved on UserLink records" do

@@ -41,7 +41,7 @@ class AiApiLog < ApplicationRecord
   def self.log_ai_call(params = {})
     log = new
     log.ai_provider = params[:provider]
-    log.model_name = params[:model]
+    log.ai_model = params[:model]
     log.request_type = params[:type]
     log.user_global_id = resolve_global_id(params[:user])
     log.organization_global_id = resolve_global_id(params[:organization])
@@ -118,7 +118,7 @@ class AiApiLog < ApplicationRecord
     {
       id: id,
       ai_provider: ai_provider,
-      model_name: model_name,
+      model_name: ai_model,
       request_type: request_type,
       request_payload_hash: request_payload_hash,
       tokens_sent: tokens_sent,

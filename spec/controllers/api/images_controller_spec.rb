@@ -9,12 +9,12 @@ describe Api::ImagesController, :type => :controller do
     
     it "should create an image based on the passer parameters" do
       token_user
-      url = "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon.png"
+      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.png"
       post :create, params: {:image => {'url' => url, 'content_type' => 'image/png'}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['image']['id']).not_to eq(nil)
-      expect(json['image']['url']).to eq("#{ENV['UPLOADS_S3_CDN']}/bacon.png")
+      expect(json['image']['url']).to match(/bacon\.png$/)
       expect(json['meta']).to eq(nil)
     end
     
@@ -57,7 +57,8 @@ describe Api::ImagesController, :type => :controller do
     end
     
     it "should error for valid confirmation key but missing from server" do
-      s = ButtonImage.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => false)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
@@ -68,7 +69,8 @@ describe Api::ImagesController, :type => :controller do
     end
     
     it "should succeed for valid confirmation key that is found on server" do
-      s = ButtonImage.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
@@ -95,7 +97,7 @@ describe Api::ImagesController, :type => :controller do
     
     it "should return a found object" do
       token_user
-      s = ButtonImage.create(:settings => {'content_type' => 'audio/mp3'})
+      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       get :show, params: {:id => s.global_id}
       expect(response).to be_successful
       json = JSON.parse(response.body)

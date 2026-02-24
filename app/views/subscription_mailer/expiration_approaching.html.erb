@@ -8,7 +8,7 @@ Remember, your purchase doesn't just help you or the communicators you work with
 it also goes to help fund communicators in need, and to help push technology 
 forward for the thousands communicators in need around the world!<br/><br/>
 
-Your premium cloud extras access is set to expire <b><%= @user.expires_at.to_s(:long_ordinal) %></b>. 
+Your premium cloud extras access is set to expire <b><%= long_ordinal_date(@user.expires_at) %></b>. 
 Please 
 <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings</a> 
 so that you don't miss out on the great resource <%= app_name %> can be to help

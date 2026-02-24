@@ -140,9 +140,10 @@ describe Webhook, :type => :model do
   
   describe "for_record" do
     it "should return default webhooks" do
-      h = Webhook.create(:record_code => 'asdf')
-      h2 = Webhook.create(:record_code => 'asdf2')
-      h3 = Webhook.create(:record_code => 'asdf')
+      u = User.create
+      h = Webhook.create(:record_code => 'asdf', :user => u)
+      h2 = Webhook.create(:record_code => 'asdf2', :user => u)
+      h3 = Webhook.create(:record_code => 'asdf', :user => u)
       res = Webhook.for_record('something', 'asdf', nil, {})
       expect(res.length).to eq(2)
       expect(res).to be_include(h)
@@ -151,9 +152,10 @@ describe Webhook, :type => :model do
     end
     
     it "should return any additional webhooks" do
-      h = Webhook.create(:record_code => 'asdf')
-      h2 = Webhook.create(:record_code => 'jkl')
-      h3 = Webhook.create(:record_code => 'wert')
+      u = User.create
+      h = Webhook.create(:record_code => 'asdf', :user => u)
+      h2 = Webhook.create(:record_code => 'jkl', :user => u)
+      h3 = Webhook.create(:record_code => 'wert', :user => u)
       r = User.new
       expect(r).to receive(:additional_webhook_record_codes).and_return(['jkl', 'jkl', 'wert'])
       res = Webhook.for_record('something', 'asdf', r, {})
@@ -209,7 +211,8 @@ describe Webhook, :type => :model do
     end
 
     it "should post information to all matching webhooks" do 
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       h.settings = {
         'notifications' => {
           '*' => [
@@ -249,7 +252,8 @@ describe Webhook, :type => :model do
     end
     
     it "should include content if specified" do
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       h.settings = {
         'notifications' => {
           'bacon' => [
@@ -269,7 +273,8 @@ describe Webhook, :type => :model do
     end
 
     it "should update parameterized url if available from the content" do
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       h.settings = {
         'notifications' => {
           'bacon' => [
@@ -291,7 +296,8 @@ describe Webhook, :type => :model do
     end
     
     it "should include api_url if defined" do
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       h.settings = {
         'notifications' => {
           'friend' => [
@@ -309,7 +315,8 @@ describe Webhook, :type => :model do
     end
     
     it "should run all listeners for a test notification" do
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       h.settings = {
         'notifications' => {
           '*' => [
@@ -419,7 +426,8 @@ describe Webhook, :type => :model do
   
   describe "generate_defaults" do
     it "should generate a callback token" do
-      h = Webhook.create
+      u = User.create
+      h = Webhook.create(:user => u)
       expect(h.settings).to_not eq(nil)
       expect(h.settings['callback_token']).to_not eq(nil)
     end

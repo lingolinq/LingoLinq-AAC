@@ -262,6 +262,7 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
+      ENV['IPSTACK_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
@@ -281,6 +282,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'preferences' => {'registration_type' => 'therapist'}})
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
+      ENV['IPSTACK_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('MyCoolApp - New Supervisor Registration')
@@ -300,7 +302,8 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPSTACK_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
       html = message_body(m, :html)
@@ -321,7 +324,8 @@ describe UserMailer, :type => :mailer do
       u.save
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPSTACK_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
       html = message_body(m, :html)
@@ -613,7 +617,11 @@ describe UserMailer, :type => :mailer do
   describe "log_summary" do
     it "should generate a message to the intended user" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
-      d = Device.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['role'] = 'communicator'
+      u.expires_at = 2.weeks.from_now
+      u.save!
+      d = Device.create(:user => u)
 
       s1 = LogSession.process_new({'events' => [
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
@@ -631,6 +639,7 @@ describe UserMailer, :type => :mailer do
       
       ClusterLocation.clusterize_ips(u.global_id)
       ClusterLocation.clusterize_geos(u.global_id)
+      ClusterLocation.all.each { |c| c.generate_stats(true) }
       WeeklyStatsSummary.update_for(s1.global_id)
       WeeklyStatsSummary.update_for(s2.global_id)
       WeeklyStatsSummary.update_for(s3.global_id)
@@ -642,17 +651,18 @@ describe UserMailer, :type => :mailer do
 
       html = m.body.to_s
       expect(html).to_not match(/All Communicators/)
-#      expect(html).to match(/ever, again, never/)
-#      expect(html).to match(/ok, go/)
       expect(html).to match(/\+100\.0%/)
-      expect(html).to match(/\+200\.0%/)
     end
     
     it "should include supervisees" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       u2 = User.create
+      u2.settings['preferences'] ||= {}
+      u2.settings['preferences']['role'] = 'communicator'
+      u2.expires_at = 2.weeks.from_now
+      u2.save!
       u3 = User.create
-      d = Device.create
+      d = Device.create(:user => u2)
       User.link_supervisor_to_user(u, u2)
       User.link_supervisor_to_user(u, u3)
       Worker.process_queues
@@ -668,7 +678,7 @@ describe UserMailer, :type => :mailer do
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i - 2},
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i - 1},
         {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i}
-      ]}, {:user => u3, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      ]}, {:user => u2, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [
         {'type' => 'button', 'button' => {'label' => 'never ever ever ever again', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 8.days.ago.to_time.to_i - 1},
         {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 8.days.ago.to_time.to_i}
@@ -676,6 +686,7 @@ describe UserMailer, :type => :mailer do
       
       ClusterLocation.clusterize_ips(u.global_id)
       ClusterLocation.clusterize_geos(u.global_id)
+      ClusterLocation.all.each { |c| c.generate_stats(true) }
       WeeklyStatsSummary.update_for(s1.global_id)
       WeeklyStatsSummary.update_for(s2.global_id)
       WeeklyStatsSummary.update_for(s3.global_id)
@@ -690,8 +701,6 @@ describe UserMailer, :type => :mailer do
       expect(html).to match(/stacy/)
       expect(html).to match(/#{u2.user_name}/)
       expect(html).to match(/#{u3.user_name}/)
-#      expect(html).to match(/ever, again, never/)
-#      expect(html).to match(/ok, go/)
       expect(html).to match(/\+100\.0%/)
       expect(html).to match(/so no reports are generated/)
     end

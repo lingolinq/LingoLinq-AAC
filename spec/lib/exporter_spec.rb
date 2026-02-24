@@ -234,6 +234,11 @@ describe Exporter do
 
   describe 'event_session' do
     it 'should generate the correct information' do
+      allow(WordData).to receive(:find_words).and_return(
+        'want' => {'word' => 'want', 'types' => ['verb', 'transitive verb', 'noun', 'intransitive verb']},
+        'chicken' => {'word' => 'chicken', 'types' => ['noun', 'adjective']},
+        'good' => {'word' => 'good', 'types' => ['adjective', 'interjection', 'noun']}
+      )
       u = User.create
       d = Device.create(user: u)
       s = LogSession.create()
@@ -548,9 +553,9 @@ describe Exporter do
           "action": ":bacon",
           "modeling": false,
           "orientation": {
-            "alpha": 20,
-            "beta": 100,
-            "gamma": -60
+            "alpha": 20.0,
+            "beta": 100.0,
+            "gamma": -60.0
           },
           "ip_address": "1.2.3.4"
         },
@@ -684,13 +689,13 @@ describe Exporter do
           {
             "id": "sesh:note",
             "timestamp": Time.now.utc.iso8601,
-            "author_name": "no-name",
+            "author_name": u.user_name,
             "author_url": hash[:events][0][:author_url],
             "text": "hello friend video recorded (5s)"
           }
         ]        
       })
-      expect(hash[:events][0][:author_url]).to match(/no-name/)
+      expect(hash[:events][0][:author_url]).to match(/#{Regexp.escape(u.user_name)}/)
     end
   end
 

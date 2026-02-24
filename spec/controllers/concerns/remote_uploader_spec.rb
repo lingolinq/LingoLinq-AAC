@@ -21,7 +21,8 @@ describe RemoteUploader, :type => :controller do
     end
     
     it "should error for valid confirmation key but missing from server" do
-      s = ButtonImage.create(:settings => {'content_type' => 'audio/mp3'})
+      u = User.create
+      s = ButtonImage.create(:user => u, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => false)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
@@ -32,7 +33,8 @@ describe RemoteUploader, :type => :controller do
     end
     
     it "should succeed for valid confirmation key that is found on server" do
-      s = ButtonImage.create(:settings => {'content_type' => 'audio/mp3'})
+      u = User.create
+      s = ButtonImage.create(:user => u, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)

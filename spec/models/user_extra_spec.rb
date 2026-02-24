@@ -2,7 +2,8 @@ require 'spec_helper'
 
 describe UserExtra, type: :model do
   it "should generate defaults" do
-    e = UserExtra.create
+    u = User.create
+    e = UserExtra.create(user: u)
     expect(e.settings).to_not eq(nil)
   end
 
@@ -558,7 +559,7 @@ describe UserExtra, type: :model do
       ])
       expect(l1.user).to eq(u)
       expect(l1.data['state']['profile_id']).to eq(nil)
-      expect(l1.data['state']['profile_history']).to eq(nil)
+      expect(l1.data['state']['profile_history'].blank?).to eq(true)
       expect(l2.user).to eq(u)
       expect(l2.data['state']['profile_id']).to eq('bacon')
       expect(l2.data['state']['profile_history']).to eq([

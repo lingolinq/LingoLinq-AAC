@@ -290,7 +290,7 @@ describe JsonApi::Log do
     it "should include video data" do
       u = User.create
       d = Device.create(:user => u)
-      v = UserVideo.create(:url => 'http://www.example.com/video.mp4')
+      v = UserVideo.create(:user => u, :url => 'http://www.example.com/video.mp4')
       l = LogSession.new(data: {'note' => {'note' => 'howdy', 'video' => {'id' => v.global_id}}, 'stats' => {'bob' => 2}}, :log_type => 'note', started_at: Time.now, ended_at: Time.now, :user => u, :device => d, :author => u)
       json = JsonApi::Log.as_json(l, :wrapper => true, :permissions => u)
       expect(json['log']['video']).to eq({

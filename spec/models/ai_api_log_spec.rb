@@ -109,7 +109,7 @@ describe AiApiLog, :type => :model do
       )
       expect(log).to be_persisted
       expect(log.ai_provider).to eq('openai')
-      expect(log.model_name).to eq('gpt-4o-mini')
+      expect(log.ai_model).to eq('gpt-4o-mini')
       expect(log.request_type).to eq('board_generation')
       expect(log.request_summary).to eq('Generate 3x4 board')
       expect(log.response_summary).to eq('Returned 12 buttons')

@@ -82,7 +82,8 @@ describe JsonApi::Json do
         expect(args[:b]).to eq(1)
         expect(args[:page_results]).to_not eq(nil)
       end.and_return({:a => 1})
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(organization: o)
       expect(JsonApi::Unit).to receive(:build_json){|unit, args|
         expect(unit).to eq(ou)
         expect(args[:page_data]).to eq({:a => 1})

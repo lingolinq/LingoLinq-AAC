@@ -28,6 +28,7 @@ module MediaObject
   end
   
   def media_object_error(opts)
+    self.settings ||= {}
     self.settings['media_object_errors'] ||= []
     self.settings['media_object_errors'] << opts
     self.save
