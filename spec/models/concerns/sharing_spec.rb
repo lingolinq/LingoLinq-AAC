@@ -991,6 +991,8 @@ describe Sharing, :type => :model do
       b3.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b4.global_id}}]
       b3.save
       Worker.process_queues
+      Worker.process_queues
+      b.reload.track_downstream_boards!
       
       Board.where(:user_id => u.id).update_all(:updated_at => 2.weeks.ago)
       b.reload
@@ -999,6 +1001,10 @@ describe Sharing, :type => :model do
       expect(b3.reload.updated_at).to be < 1.hour.ago
       expect(b4.reload.updated_at).to be < 1.hour.ago
       
+      Worker.process_queues
+      Worker.process_queues
+      RemoteAction.process_all
+      Worker.process_queues
       Worker.process_queues
       expect(b3.reload.updated_at).to be > 1.hour.ago
       expect(b4.reload.updated_at).to be > 1.hour.ago
@@ -1108,6 +1114,8 @@ describe Sharing, :type => :model do
       b.reload.update_shares_for(u2.reload, true)
       RemoteAction.process_all
       Worker.process_queues
+      Worker.process_queues
+      b.reload.track_downstream_boards!
       b2.reload
       expect(Board.all_shared_board_ids_for(u.reload, true)).to eq([b.global_id, b2.global_id])
       expect(Board.all_shared_board_ids_for(u2.reload, true)).to eq([b.global_id, b2.global_id])

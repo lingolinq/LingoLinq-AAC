@@ -882,6 +882,8 @@ describe Board, :type => :model do
       b1.instance_variable_set('@buttons_changed', true)
       b1.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash1)
       expect(b1.current_revision).to_not eq(current1)
       expect(b2.reload.settings['full_set_revision']).to eq(hash2)
@@ -3799,6 +3801,9 @@ describe Board, :type => :model do
         {'id' => 3, 'label' => 'flats'}
       ]}, {user: u})
       Worker.process_queues
+      Worker.process_queues
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       expect(b.reload.settings['downstream_board_ids']).to eq([b2.global_id, b3.global_id])
       expect(b2.reload.settings['downstream_board_ids']).to eq([b3.global_id])
 
@@ -4089,6 +4094,9 @@ describe Board, :type => :model do
         {'id' => 3, 'label' => 'flats'}
       ]}, {user: u})
       Worker.process_queues
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b.reload.settings['downstream_board_ids']).to eq([b2.global_id, b3.global_id])
       expect(b2.reload.settings['downstream_board_ids']).to eq([b3.global_id])
       

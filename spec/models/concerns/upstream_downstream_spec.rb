@@ -159,6 +159,8 @@ describe UpstreamDownstream, :type => :model do
       b1.save
       RemoteAction.process_all
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b2.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b1.reload.downstream_board_ids.sort).to eq([b2.global_id].sort)
@@ -173,6 +175,8 @@ describe UpstreamDownstream, :type => :model do
       RemoteAction.process_all
       Worker.process_queues
       Worker.process_queues
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b2.reload.downstream_board_ids.sort).to eq([b3.global_id].sort)
       expect(b1.reload.downstream_board_ids.sort).to eq([b2.global_id, b3.global_id].sort)

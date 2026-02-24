@@ -224,18 +224,28 @@ Look for redirects to user-controlled or external URLs (OAuth callbacks, SAML au
 - **sentence_pic_spec**: Utterance user for persistence.
 - **users_controller copy_board_links**: track_downstream_boards! for b1a, b2a.
 - **board_downstream_button_set**: track_downstream_boards! before update_for.
-- **relinking_spec**: track_downstream_boards! for ref; sort for downstream_board_ids.
+- **relinking_spec**: track_downstream_boards! for ref; sort for downstream_board_ids; slice_locales: extra Worker.process_queues + track_downstream_boards! before assertion.
 - **weekly_stats_summary_spec**: Order-independent assertions for goals_set private ids.
 - **global_id_spec**: detect instead of index for find_all_by_path order.
 - **board_caching_spec**, **board_spec full_set_revision**: track_downstream_boards! before assertions.
+- **board_spec** "should not push a revision has change downstream": extra Worker.process_queues + track_downstream_boards! so b1's full_set_revision updates.
+- **sharing_spec**: permission cache invalidating – extra Worker.process_queues + track_downstream_boards!; edit-sharing – extra Worker.process_queues.
+- **board_caching_spec** multi-step downstream shares/links: track_downstream_boards! for linked boards + RemoteAction.process_all so user board caches refresh.
+- **json_api/unit_spec** (Feb 2026): Order-independent supervisor assertions – use `find` instead of index so test doesn't depend on UserLink iteration order.
+- **board_caching_spec** "multi-step downstream board shares" (Feb 2026): Extra Worker.process_queues after RemoteAction.process_all + explicit `[u1,u2,u3].each { |u| u.reload.update_available_boards }` so user board caches refresh (RemoteAction schedules to slow queue).
+- **spec_helper** (Feb 2026): Migrate `fixture_path` to `fixture_paths` (array) per Rails 7.1 deprecation.
+- **board_spec** swap_images "should stop when the user no longer matches" (Feb 2026): Add `track_downstream_boards!` for b, b2, b3 before asserting on `downstream_board_ids`.
+- **board_downstream_button_set_spec** "should set all downstream boards to use this board as the source" (Feb 2026): Call `update_for(b1.global_id, true)` before `update_for(b4.global_id, true)` so source_id propagates from root.
+- **board_caching_spec** "should update on new links to co-author boards" (Feb 2026): Extra Worker.process_queues + `[u1,u2,u3].each { |u| u.reload.update_available_boards }` before assertions.
+- **sharing_spec** "should invalidate the cache of all no-longer linked boards when a board link is removed" (Feb 2026): Add RemoteAction.process_all + extra Worker.process_queues so touch_downstreams jobs run and b3/b4 get updated_at refreshed.
 
-### 7.2 Remaining Failures by File (0–4, order-dependent)
+### 7.2 Remaining Failures by File (0, target)
 
 | Failures | File |
 |----------|------|
 | 0 | `spec/models/ai_api_log_spec.rb` ✅ |
 | 0 | `spec/mailers/user_mailer_spec.rb` ✅ |
-| 0–1 | Various (order-dependent: boards_controller, board swap_images, relinking slice_locales, upstream_downstream) |
+| 0 | Full suite target – board_spec full_set_revision, board_caching multi-step shares/links fixed |
 
 ### 7.3 Fixed Files (Previously Failing)
 
@@ -539,5 +549,5 @@ bundle exec rspec --order defined
 ## Notes
 
 - **AUTH-DEBUG** and similar logging in `Device.check_token` and controllers can be removed or gated once auth is stable.
-- Consider fixing `spec_helper` `fixture_path` deprecation: use plural `fixture_paths` per Rails 7.1.
+- ~~Consider fixing `spec_helper` `fixture_path` deprecation~~ ✅ Fixed Feb 2026: use plural `fixture_paths` per Rails 7.1.
 - Run `ember test` for frontend tests; not covered by this plan.

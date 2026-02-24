@@ -698,6 +698,11 @@ describe BoardDownstreamButtonSet, :type => :model do
       Worker.process_queues
       Worker.process_queues
       b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
+      b4.reload.track_downstream_boards!
+      # Update from root so source_id propagates to all downstream sets
+      BoardDownstreamButtonSet.update_for(b1.global_id, true)
       BoardDownstreamButtonSet.update_for(b4.global_id, true)
       bs1 = b1.reload.board_downstream_button_set.reload
       bs2 = b2.reload.board_downstream_button_set.reload

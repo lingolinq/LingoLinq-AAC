@@ -1746,6 +1746,8 @@ describe Relinking, :type => :model do
       b3.settings['translations'] = {'1' => {'fr' => {'label' => 'mange'}, 'zh' => {'label' => 'da'}, 'es' => {'label' => 'dias'}}, '2' => {'fr' => {'label' => 'allez'}}}
       b3.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
 
       expect(b1.reload.slice_locales(['fr', 'de'], [b1.global_id, b2.global_id], u)).to eq({sliced: true, ids: [b1.global_id, b2.global_id]})
       expect(b1.settings['locale']).to eq('fr')

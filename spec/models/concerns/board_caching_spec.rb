@@ -263,6 +263,11 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
+      RemoteAction.process_all
+      Worker.process_queues
+      Worker.process_queues
+      # Explicitly run update_available_boards - RemoteAction schedules to slow queue
+      [u1, u2, u3].each { |usr| usr.reload.update_available_boards }
       expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
       expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
       expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
@@ -288,10 +293,13 @@ describe BoardCaching, :type => :model do
       
       b2 = Board.create(:user => u2)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
+      RemoteAction.process_all
       expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
       expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
       expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
@@ -479,6 +487,10 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
+      RemoteAction.process_all
+      Worker.process_queues
+      Worker.process_queues
+      [u1, u2, u3].each { |usr| usr.reload.update_available_boards }
       expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
       expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
       expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
