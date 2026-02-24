@@ -73,7 +73,7 @@ gem 'rotp'
 
 gem 'sinatra'
 gem 'sanitize'
-gem 'ruby-openai', '~> 6.0'
+gem 'anthropic', '~> 1.23'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

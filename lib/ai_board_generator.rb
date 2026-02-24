@@ -1,21 +1,20 @@
 # frozen_string_literal: true
 
-require 'openai'
+require 'anthropic'
 require_relative 'pii_scrubber'
 
 module AiBoardGenerator
+  # Default model for board generation — Haiku is fast and cheap for structured output
+  DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+
   class << self
-    # Generates word labels, suggested name, and description for an AAC board using an LLM.
-    # Supports GEMINI_API_KEY (Gemini) or OPENAI_API_KEY (OpenAI).
+    # Generates word labels, suggested name, and description for an AAC board using Claude.
     # Returns { words: [...], name: "...", description: "...", error: nil } on success,
     # or { words: nil, name: nil, description: nil, error: "..." } on failure.
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
-    # user: optional User object for audit logging
+    # user: optional User object for audit logging and feature flag checks
     def generate_words(prompt:, rows:, columns:, locale: 'en', include_core_words: true, user: nil)
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      openai_key = ENV['OPENAI_API_KEY'].to_s.strip
-      use_gemini = gemini_key.present?
-      api_key = use_gemini ? gemini_key : openai_key
+      api_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
       if api_key.blank?
         return { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
       end
@@ -57,26 +56,18 @@ module AiBoardGenerator
         DESCRIPTION: One sentence about the board's purpose.
       PROMPT
 
-      client_options = { access_token: api_key }
-      if use_gemini
-        client_options[:uri_base] = 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      end
-      provider = use_gemini ? 'gemini' : 'openai'
-      model = use_gemini ? 'gemini-2.5-flash' : 'gpt-4o-mini'
+      model = ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       begin
-        client = OpenAI::Client.new(client_options)
-        response = client.chat(
-          parameters: {
-            model: model,
-            messages: [
-              { role: 'system', content: system_prompt },
-              { role: 'user', content: user_prompt }
-            ],
-            max_tokens: [1024, (cell_count * 4) + 150].max,
-            temperature: 0.5
-          }
+        client = Anthropic::Client.new(api_key: api_key)
+        response = client.messages.create(
+          model: model,
+          max_tokens: [1024, (cell_count * 4) + 150].max,
+          system: system_prompt,
+          messages: [
+            { role: 'user', content: user_prompt }
+          ]
         )
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
 
@@ -85,11 +76,11 @@ module AiBoardGenerator
 
         # Log the AI API call
         log_ai_call(
-          provider: provider, model: model, user: user,
+          provider: 'claude', model: model, user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: raw.truncate(500),
-          tokens_sent: response.dig('usage', 'prompt_tokens'),
-          tokens_received: response.dig('usage', 'completion_tokens'),
+          tokens_sent: response.usage&.input_tokens,
+          tokens_received: response.usage&.output_tokens,
           duration_ms: duration_ms,
           pii_detected: pii_detected,
           pii_findings: scrub_result[:findings],
@@ -108,21 +99,21 @@ module AiBoardGenerator
           description: parsed[:description].presence,
           error: nil
         }
-      rescue Faraday::Error => e
+      rescue Anthropic::APIError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
-          provider: provider, model: model, user: user,
+          provider: 'claude', model: model, user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
           pii_detected: pii_detected, pii_findings: scrub_result[:findings],
           success: false, error_message: e.message
         )
-        Rails.logger.error "AiBoardGenerator LLM error: #{e.message}"
+        Rails.logger.error "AiBoardGenerator Claude API error: #{e.message}"
         { words: nil, name: nil, description: nil, error: 'AI service unavailable. Please try again later.' }
       rescue StandardError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
-          provider: provider, model: model, user: user,
+          provider: 'claude', model: model, user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
           pii_detected: pii_detected, pii_findings: scrub_result[:findings],
@@ -174,9 +165,10 @@ module AiBoardGenerator
     end
 
     def extract_content(response)
-      return '' unless response.is_a?(Hash)
-      msg = response.dig('choices', 0, 'message', 'content')
-      msg.to_s.strip
+      # Anthropic SDK returns structured response with content blocks
+      return '' unless response&.content&.is_a?(Array)
+      text_blocks = response.content.select { |block| block.type == 'text' }
+      text_blocks.map(&:text).join("\n").strip
     end
 
     def parse_words(raw, expected_count)

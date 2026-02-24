@@ -162,7 +162,7 @@ This table covers every MCP (Model Context Protocol) server used in the developm
 ### Architecture Overview
 
 ```
-User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  AI API (OpenAI, Gemini, etc.)
+User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude API (Haiku 4.5)
                       |                                         |
                       |                                    De-identified
                       |                                    data only
