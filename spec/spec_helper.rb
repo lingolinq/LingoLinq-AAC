@@ -50,8 +50,11 @@ RSpec.configure do |config|
   config.order = "random"
   
   config.before(:each) do
+    ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs
     Time.zone = nil
     Worker.flush_queues
+    RemoteAction.delete_all
+    RedisInit.reset_queue_pressure_cache!
     PaperTrail.request.whodunnit = nil
     RedisInit.cache_token = "#{rand(999)}.#{Time.now.to_f}"
     ENV['REMOTE_EXTRA_DATA'] = nil

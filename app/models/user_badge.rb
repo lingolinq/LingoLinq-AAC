@@ -9,7 +9,7 @@ class UserBadge < ActiveRecord::Base
   include Replicate
   
   belongs_to :user
-  belongs_to :user_goal
+  belongs_to :user_goal, optional: true  # badges can exist without a goal
 
   before_save :generate_defaults
   after_save :notify_on_earned

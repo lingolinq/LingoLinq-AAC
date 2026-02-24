@@ -730,7 +730,7 @@ class Api::UsersController < ApplicationController
         safe_url = ButtonImage.cached_copy_url(request.original_url, user, false)
         if safe_url
           expires_in 12.days, :public => true
-          return redirect_to safe_url
+          return redirect_to safe_url, allow_other_host: true
         end
         url = Uploader.found_image_url(params['image_id'], params['library'], user)
         if url

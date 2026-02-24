@@ -5,10 +5,15 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
   include SecureSerialize
   include ExtraData
   secure_serialize :data
-  belongs_to :board
+  belongs_to :board, optional: true
   include Replicate
 
+  after_initialize :init_data
   before_save :generate_defaults
+
+  def init_data
+    self.data ||= {}
+  end
 
   def board
     if self.user_id

@@ -31,7 +31,7 @@ describe Api::VideosController, type: :controller do
 
     it "should return result" do
       token_user
-      v = UserVideo.create(:url => 'http://www.example.com/video.mp4')
+      v = UserVideo.create(:user => @user, :url => 'http://www.example.com/video.mp4')
       get :show, params: {:id => v.global_id}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -54,7 +54,7 @@ describe Api::VideosController, type: :controller do
 
     it "should require permission" do
       token_user
-      v = UserVideo.create
+      v = UserVideo.create(:user => User.create)
       put :update, params: {:id => v.global_id}
       assert_unauthorized
     end
@@ -87,7 +87,8 @@ describe Api::VideosController, type: :controller do
     end
     
     it "should error for valid confirmation key but missing from server" do
-      v = UserVideo.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      v = UserVideo.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => false)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + v.full_filename).and_return(res)
@@ -98,7 +99,8 @@ describe Api::VideosController, type: :controller do
     end
     
     it "should succeed for valid confirmation key that is found on server" do
-      v = UserVideo.create(:settings => {'content_type' => 'audio/mp3'})
+      token_user
+      v = UserVideo.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:head).with(config[:upload_url] + v.full_filename).and_return(res)

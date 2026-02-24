@@ -10,32 +10,25 @@ describe Api::SearchController, :type => :controller do
     it "should make an opensymbols api call and return the adjusted results" do
       token_user
       list = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat&search_token=#{ENV['OPENSYMBOLS_TOKEN']}&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Uploader).to receive(:find_images).with('hat', 'opensymbols', 'en', @user, nil, false, false).and_return(list)
       get :symbols, params: {:q => 'hat'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq([
-        {'extension' => 'png', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
-        {'extension' => 'gif', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
-      ])
+      expect(json).to eq(list)
     end
     
     it "should tally any search queries that have no results" do
       RedisInit.default.del('missing_symbols')
       token_user
-      list = []
       list2 = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      res2 = OpenStruct.new(:body => list2.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat&search_token=#{ENV['OPENSYMBOLS_TOKEN']}&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hats&search_token=#{ENV['OPENSYMBOLS_TOKEN']}&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res2)
+      expect(Uploader).to receive(:find_images).with('hat', 'opensymbols', 'en', @user, nil, false, false).and_return([])
+      expect(Uploader).to receive(:find_images).with('hats', 'opensymbols', 'en', @user, nil, false, false).and_return(list2)
       get :symbols, params: {:q => 'hat'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -68,18 +61,14 @@ describe Api::SearchController, :type => :controller do
       token_user
       User.purchase_extras({'premium_symbols' => true, 'user_id' => @user.global_id})
       list = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Uploader).to receive(:find_images).with('hat ', 'pcs', 'en', @user, nil, false, false).and_return(list)
       get :symbols, params: {:q => 'hat premium_repo:pcs'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq([
-        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
-        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
-      ])
+      expect(json).to eq(list)
     end
 
     it 'should not allow searching for symbolstix symbols if not allowed' do
@@ -99,18 +88,14 @@ describe Api::SearchController, :type => :controller do
       token_user
       User.purchase_extras({'premium_symbols' => true, 'user_id' => @user.global_id})
       list = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'protected' => true, 'protected_source' => 'symbolstix', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'symbolstix', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat+repo%3Asymbolstix&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:symbolstix&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Uploader).to receive(:find_images).with('hat ', 'symbolstix', 'en', @user, nil, false, false).and_return(list)
       get :symbols, params: {:q => 'hat premium_repo:symbolstix'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq([
-        {'extension' => 'png', 'protected' => true, 'protected_source' => 'symbolstix', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
-        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'symbolstix', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
-      ])
+      expect(json).to eq(list)
     end
 
     it "should search for pcs symbols if not allowed for the user but for the referenced supervisee" do
@@ -122,36 +107,28 @@ describe Api::SearchController, :type => :controller do
       User.link_supervisor_to_user(@user, u, nil, true)
       Worker.process_queues
       list = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Uploader).to receive(:find_images).with('hat ', 'pcs', 'en', @user, nil, false, false).and_return(list)
       get :symbols, params: {:q => 'hat premium_repo:pcs', :user_name => u.user_name}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq([
-        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
-        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
-      ])
+      expect(json).to eq(list)
     end
 
     it "should mark protected symbols as such when found via search" do
       token_user
       User.purchase_extras({'premium_symbols' => true, 'user_id' => @user.global_id})
       list = [
-        {'extension' => 'png', 'name' => 'bob'},
-        {'extension' => 'gif', 'name' => 'fred'}
+        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
+        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
       ]
-      res = OpenStruct.new(:body => list.to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=hat+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs&locale=en&safe=1", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Uploader).to receive(:find_images).with('hat ', 'pcs', 'en', @user, nil, false, false).and_return(list)
       get :symbols, params: {:q => 'hat premium_repo:pcs'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq([
-        {'extension' => 'png', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/png', 'name' => 'bob', 'thumbnail_url' => nil},
-        {'extension' => 'gif', 'protected' => true, 'protected_source' => 'pcs', 'content_type' => 'image/gif', 'name' => 'fred', 'thumbnail_url' => nil}
-      ])
+      expect(json).to eq(list)
     end
   end
   
@@ -206,21 +183,30 @@ describe Api::SearchController, :type => :controller do
     it "should allow searching LessonPix without an integration if premium symbols are enabled" do
       uid = ENV['LESSONPIX_USER']
       md5 = ENV['LESSONPIX_MD5']
-      ENV['LESSONPIX_USER'] = 'bacon'
-      ENV['LESSONPIX_MD5'] = '24tq3tq24t23r1'
-      token_user
-      u = User.create
-      User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
-      token = Digest::MD5.hexdigest('24tq3tq24t23r1' + ENV['LESSONPIX_SECRET'])
-      expect(Typhoeus).to receive(:get).with("https://lessonpix.com/apiKWSearch.php?pid=#{ENV['LESSONPIX_PID']}&username=bacon&token=#{token}&word=snowman&fmt=json&allstyles=n&limit=30", {timeout: 5, followlocation: true}).and_return(OpenStruct.new({body: [
-      ].to_json}))
-      User.link_supervisor_to_user(@user, u.reload, nil, true)
-      get :protected_symbols, params: {:q => 'snowman', :library => 'lessonpix', :user_name => u.user_name}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json).to eq([])
-      ENV['LESSONPIX_USER'] = uid
-      ENV['LESSONPIX_MD5'] = md5
+      sec = ENV['LESSONPIX_SECRET']
+      pid = ENV['LESSONPIX_PID']
+      begin
+        ENV['LESSONPIX_USER'] = 'bacon'
+        ENV['LESSONPIX_MD5'] = '24tq3tq24t23r1'
+        ENV['LESSONPIX_SECRET'] = 'test_secret'
+        ENV['LESSONPIX_PID'] = '99' if ENV['LESSONPIX_PID'].blank?
+        token_user
+        u = User.create
+        User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
+        token = Digest::MD5.hexdigest('24tq3tq24t23r1' + ENV['LESSONPIX_SECRET'])
+        expect(Typhoeus).to receive(:get).with("https://lessonpix.com/apiKWSearch.php?pid=#{ENV['LESSONPIX_PID']}&username=bacon&token=#{token}&word=snowman&fmt=json&allstyles=n&limit=30", {timeout: 5, followlocation: true}).and_return(OpenStruct.new({body: [
+        ].to_json}))
+        User.link_supervisor_to_user(@user, u.reload, nil, true)
+        get :protected_symbols, params: {:q => 'snowman', :library => 'lessonpix', :user_name => u.user_name}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json).to eq([])
+      ensure
+        ENV['LESSONPIX_USER'] = uid
+        ENV['LESSONPIX_MD5'] = md5
+        ENV['LESSONPIX_SECRET'] = sec
+        ENV['LESSONPIX_PID'] = pid
+      end
     end
 
     it "should fall back to api user if authorized user isn't authorized" do

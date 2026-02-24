@@ -34,7 +34,7 @@ class Api::WebhooksController < ApplicationController
     webhook = Webhook.find_by_path(params['id'])
     return unless exists?(webhook, params['id'])
     return unless allowed?(webhook, 'edit')
-    if webhook.process(params['webhook'])
+    if webhook.process(params['webhook'], {user: @api_user})
       render json: JsonApi::Webhook.as_json(webhook, {wrapper: true, permissions: @api_user})
     else
       api_error(400, {error: "webhook update failed", errors: webhook.processing_errors})

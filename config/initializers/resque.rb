@@ -74,6 +74,10 @@ module RedisInit
     size.to_i
   end
 
+  def self.reset_queue_pressure_cache!
+    @any_queue_pressure = nil
+  end
+
   def self.any_queue_pressure?
     return @any_queue_pressure['res'] if @any_queue_pressure != nil && @any_queue_pressure['ts'] > 1.minute.ago.to_i
     @any_queue_pressure = {

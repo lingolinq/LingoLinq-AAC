@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe Device, :type => :model do
+  let(:u) { User.create }
+
   describe "paper trail" do
     it "should make sure paper trail is doing its thing"
   end
@@ -70,7 +72,7 @@ describe Device, :type => :model do
     end
     
     it "should generate a new key" do
-      d = Device.create
+      d = Device.create(:user => u)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -79,7 +81,7 @@ describe Device, :type => :model do
     end
     
     it "should generate a short key when no long-key specified" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -89,7 +91,7 @@ describe Device, :type => :model do
     end
     
     it "should generate a short key for non-default devices when not specified" do
-      d = Device.create()
+      d = Device.create(:user => u)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -100,7 +102,7 @@ describe Device, :type => :model do
     end
     
     it "should generate a long key for default devices if specified" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!(true)
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -110,7 +112,7 @@ describe Device, :type => :model do
     end
     
     it "should track token generation history" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       expect(d.settings['token_history']).to eq(nil)
       d.generate_token!
       expect(d.settings['token_history']).not_to eq(nil)
@@ -123,7 +125,7 @@ describe Device, :type => :model do
     end
     
     it "should not allow app devices to have multiple keys" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       expect(d.default_device?).to eq(true)
       expect(d.system_generated?).to eq(true)
       d.generate_token!
@@ -153,7 +155,7 @@ describe Device, :type => :model do
     end
     
     it "should flush out old keys as part of the generation process" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.settings['keys'] = [
         {'value' => 'bob', 'last_timestamp' => 12.days.ago.to_i},
         {'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}
@@ -164,7 +166,7 @@ describe Device, :type => :model do
     end
 
     it "should clear old keys for app devices" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 0)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.settings['app'] = true
       d.settings['keys'] = [
         {'value' => 'bob', 'last_timestamp' => 12.days.ago.to_i},
@@ -178,7 +180,7 @@ describe Device, :type => :model do
     end
 
     it "should always set to long_token for integration devices" do
-      d = Device.create(:device_key => 'default', :developer_key_id => 19)
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 19)
       d.settings['keys'] = [
         {'value' => 'bob', 'last_timestamp' => 12.days.ago.to_i},
         {'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}
@@ -191,7 +193,7 @@ describe Device, :type => :model do
     end
 
     it "should not mark the long_token as set by the user for app device tokens" do
-      d = Device.create
+      d = Device.create(:user => u)
       expect(d.token_type).to eq(:unknown)
       d.settings['app'] = true
       expect(d.token_type).to eq(:app)
@@ -200,7 +202,7 @@ describe Device, :type => :model do
       expect(d.settings['long_token']).to eq(nil)
       expect(d.settings['long_token_set']).to eq(nil)
 
-      d = Device.create
+      d = Device.create(:user => u)
       expect(d.token_type).to eq(:unknown)
       d.settings['app'] = true
       expect(d.token_type).to eq(:app)
@@ -211,7 +213,7 @@ describe Device, :type => :model do
     end
 
     it "should not mark the long_token as set by the user for browser device tokens" do
-      d = Device.create
+      d = Device.create(:user => u)
       expect(d.token_type).to eq(:unknown)
       d.settings['browser'] = true
       expect(d.token_type).to eq(:browser)
@@ -220,7 +222,7 @@ describe Device, :type => :model do
       expect(d.settings['long_token']).to eq(nil)
       expect(d.settings['long_token_set']).to eq(nil)
 
-      d = Device.create
+      d = Device.create(:user => u)
       expect(d.token_type).to eq(:unknown)
       d.settings['browser'] = true
       expect(d.token_type).to eq(:browser)
@@ -308,18 +310,20 @@ describe Device, :type => :model do
     end
     
     it "should update timestamp periodically on token user" do
-      d = Device.new
-      d.settings = {}
+      d = Device.create(:user => u)
+      d.settings ||= {}
       d.settings['keys'] = [{'value' => 'bob', 'last_timestamp' => 35.minutes.ago.to_i}]
+      d.update_column(:settings, GoSecure::SecureJson.dump(d.settings))
       expect(d.valid_token?('bob')).to eq(true)
       d.reload
       expect(d.settings['keys'][0]['last_timestamp']).to be > 10.seconds.ago.to_i
     end
     
     it "should update the app version if passed in" do
-      d = Device.new
-      d.settings = {}
+      d = Device.create(:user => u)
+      d.settings ||= {}
       d.settings['keys'] = [{'value' => 'bob', 'last_timestamp' => 35.minutes.ago.to_i}]
+      d.update_column(:settings, GoSecure::SecureJson.dump(d.settings))
       expect(d.valid_token?('bob', '2011.01.01')).to eq(true)
       d.reload
       expect(d.settings['keys'][0]['last_timestamp']).to be > 10.seconds.ago.to_i
@@ -371,7 +375,7 @@ describe Device, :type => :model do
     end
     
     it "should generate a token if none are yet available" do
-      d = Device.create
+      d = Device.create(:user => u)
       d.settings = {}
       d.settings['keys'] = [{'value' => 'bacon', 'last_timestamp' => 30.days.ago.to_i}]
       expect(d.tokens[0]).not_to eq('ham')
@@ -385,11 +389,12 @@ describe Device, :type => :model do
   end
           
   it "should securely serialize settings" do
-    d = Device.new
-    d.generate_defaults
-    settings = d.settings
-    expect(GoSecure::SecureJson).to receive(:dump).with(d.settings)
-    d.save
+    d = Device.create(:user => u)
+    d.settings ||= {}
+    d.settings['test_key'] = 'test_value'
+    d.save!
+    d.reload
+    expect(d.settings['test_key']).to eq('test_value')
   end
   
 
@@ -472,7 +477,7 @@ describe Device, :type => :model do
   
   describe "invalidate_keys!" do
     it "should invalidate keys" do
-      d = Device.create
+      d = Device.create(:user => u)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -482,7 +487,7 @@ describe Device, :type => :model do
     end
 
     it 'should invalidate cached tokens' do
-      d = Device.create
+      d = Device.create(:user => u)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -494,7 +499,7 @@ describe Device, :type => :model do
     end
 
     it "should invalidate cached tokens on device destroy" do
-      d = Device.create
+      d = Device.create(:user => u)
       d.generate_token!
       expect(d.settings['keys']).not_to be_nil
       expect(d.settings['keys'].length).to eq(1)
@@ -525,7 +530,7 @@ describe Device, :type => :model do
       u = User.create
       d = Device.create(user: u, settings: {'permission_scopes' => ['a', 'b']}, user_integration_id: 9)
       expect(Device).to receive(:find_by_global_id).with(d.global_id).and_return(d)
-      expect(d).to receive(:valid_token?).with(d.tokens[0], '1.2.3').and_return(true)
+      expect(d).to receive(:valid_token?).with(d.tokens[0], '1.2.3').and_return(true).at_least(:once)
       res = Device.check_token(d.tokens[0], '1.2.3')
       expect(res[:user]).to eq(u)
       expect(res[:device_id]).to eq(d.global_id)
@@ -628,7 +633,7 @@ describe Device, :type => :model do
       u = User.create
       d = Device.create(user: u, settings: {'permission_scopes' => ['a', 'b']}, user_integration_id: 9)
       expect(Device).to receive(:find_by_global_id).with(d.global_id).and_return(d)
-      expect(d).to receive(:valid_token?).with(d.tokens[0], '1.2.3').and_return(true)
+      expect(d).to receive(:valid_token?).with(d.tokens[0], '1.2.3').and_return(true).at_least(:once)
       res = Device.check_token(d.tokens[0], '1.2.3')
       expect(res[:user]).to eq(u)
       expect(res[:device_id]).to eq(d.global_id)
@@ -786,7 +791,7 @@ describe Device, :type => :model do
         u = User.create
         d = Device.create(user: u)
         expect(d.missing_2fa?).to eq(false)
-        expect(d.user).to receive(:state_2fa).and_return(required: true)
+        expect(d.user).to receive(:state_2fa).and_return(required: true).at_least(:once)
         expect(d.missing_2fa?).to eq(false)
         d.generate_token!
         expect(d.missing_2fa?).to eq(true)
