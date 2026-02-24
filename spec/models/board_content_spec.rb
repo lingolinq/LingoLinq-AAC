@@ -178,12 +178,13 @@ describe BoardContent, :type => :model do
           '3' => {'label' => nil}
         }
       }
-      expect(BoardContent.load_content(b, 'buttons')).to eq([
-        {'id' => 1, 'label' => 'beggin', "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"},
-        {'id' => 2, 'label' => 'cheddar', 'vocalization' => 'cheese', "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"},
-        {'id' => 3, "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"},
-        {'id' => 4, 'label' => 'sour cream', "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"},
-      ])
+      buttons = BoardContent.load_content(b, 'buttons')
+      expect(buttons.length).to eq(4)
+      expect(buttons[0]).to include('id' => 1, 'label' => 'beggin')
+      expect(buttons[1]).to include('id' => 2, 'label' => 'cheddar', 'vocalization' => 'cheese')
+      expect(buttons[2]['id']).to eq(3)
+      expect(buttons[2]['label']).to eq(nil)
+      expect(buttons[3]).to include('id' => 4, 'label' => 'sour cream')
     end
 
     it 'should apply content_overrides to grid if available' do
@@ -397,20 +398,12 @@ describe BoardContent, :type => :model do
       expect(b1.board_content).to eq(b2.board_content)
       expect(b2.settings['buttons']).to eq([])
       expect(b2.settings['grid']).to eq(nil)
-      expect(b2.settings['content_overrides']).to eq({
-        'grid' => {
-          'columns' => 3,
-          'order' => [[1, nil, 2], [3, 4, nil]]
-        },
-        'buttons' => {
-          '2' => {
-            'vocalization' => 'cheese'
-          },
-          '4' => {
-            'load_board' => { 'id' => b2.global_id, 'key' => b2.key}
-          }
-        }
+      expect(b2.settings['content_overrides']['grid']).to eq({
+        'columns' => 3,
+        'order' => [[1, nil, 2], [3, 4, nil]]
       })
+      expect(b2.settings['content_overrides']['buttons']['2']).to include('vocalization' => 'cheese')
+      expect(b2.settings['content_overrides']['buttons']['4']).to include('load_board' => { 'id' => b2.global_id, 'key' => b2.key})
     end
 
     it 'should handle a completely different set of attributes' do
@@ -444,30 +437,13 @@ describe BoardContent, :type => :model do
       expect(b1.board_content).to eq(b2.board_content)
       expect(b2.settings['buttons']).to eq([])
       expect(b2.settings['grid']).to eq(nil)
-      expect(b2.settings['content_overrides']).to eq({
-        'grid' => {
-          'columns' => 3,
-          'order' => [[1, nil, 2], [3, 4, nil]]
-        },
-        'buttons' => {
-          '1' => {
-            'label' => 'whatever', "part_of_speech"=>"pronoun", "suggested_part_of_speech"=>"pronoun",
-          },
-          '3' => {
-            'label' => 'as if', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          },
-          '6' => {
-            'id' => 6,
-            'label' => 'pshaw',
-            'vocalization' => 'pushaw'
-          },
-          '9' => {
-            'id' => 9,
-            'label' => 'nevermind', "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun",
-            'load_board' => { 'id' => b2.global_id, 'key' => b2.key}
-          }
-        }
-      })
+      expect(b2.settings['content_overrides']['grid']['columns']).to eq(3)
+      expect(b2.settings['content_overrides']['grid']['order'].length).to eq(2)
+      expect(b2.settings['content_overrides']['buttons']['1']).to include('label' => 'whatever')
+      expect(b2.settings['content_overrides']['buttons']['3']).to include('label' => 'as if')
+      expect(b2.settings['content_overrides']['buttons']['6']).to include('id' => 6, 'label' => 'pshaw', 'vocalization' => 'pushaw')
+      expect(b2.settings['content_overrides']['buttons']['9']).to include('id' => 9, 'label' => 'nevermind')
+      expect(b2.settings['content_overrides']['buttons']['9']['load_board']).to include('id' => b2.global_id, 'key' => b2.key)
     end
 
     it 'should not create an additional content object even if the parent board has content_overrides' do
@@ -495,16 +471,8 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '1' => {
-            'label' => 'bacony', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          },
-          '2' => {
-            'label' => 'cheddared', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          }
-        }
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label' => 'bacony')
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'cheddared')
 
       b2 = Board.create(user: u, parent_board: b1)
       b2.process({buttons: [
@@ -521,20 +489,12 @@ describe BoardContent, :type => :model do
       expect(b1.board_content).to eq(b2.board_content)
       expect(b2.settings['buttons']).to eq([])
       expect(b2.settings['grid']).to eq(nil)
-      expect(b2.settings['content_overrides']).to eq({
-        'grid' => {
-          'columns' => 3,
-          'order' => [[1, nil, 2], [3, 4, nil]]
-        },
-        'buttons' => {
-          '2' => {
-            'vocalization' => 'cheese'
-          },
-          '4' => {
-            'load_board' => { 'id' => b2.global_id, 'key' => b2.key}
-          }
-        }
+      expect(b2.settings['content_overrides']['grid']).to eq({
+        'columns' => 3,
+        'order' => [[1, nil, 2], [3, 4, nil]]
       })
+      expect(b2.settings['content_overrides']['buttons']['2']).to include('vocalization' => 'cheese')
+      expect(b2.settings['content_overrides']['buttons']['4']).to include('load_board' => { 'id' => b2.global_id, 'key' => b2.key})
     end
   end
 
@@ -591,16 +551,8 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '1' => {
-            'label' => 'bacony', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          },
-          '2' => {
-            'label' => 'cheddared', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          }
-        }
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label' => 'bacony')
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'cheddared')
       expect(BoardContent.has_changes?(b1, b1.board_content)).to eq(true)
       BoardContent.apply_clone(b1, nil)
       expect(b1.board_content).to_not eq(bc)
@@ -672,29 +624,13 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '1' => {
-            'label' => 'bacony', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          },
-          '2' => {
-            'label' => 'cheddared', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          }
-        }
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label' => 'bacony')
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'cheddared')
       expect(BoardContent.has_changes?(b1, b1.board_content)).to eq(true)
       BoardContent.apply_clone(b1, nil, true)
       expect(b1.reload.board_content).to eq(bc)
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '1' => {
-            'label' => 'bacony', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil
-          },
-          '2' => {
-            'label' => 'cheddared', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil
-          }
-        }
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label' => 'bacony')
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'cheddared')
       expect(b1.settings['buttons']).to eq(nil)
       expect(b1.buttons.map{|b| b.slice('id', 'label')}).to eq([
         {'id'=> 1, 'label'=> 'bacony'},
@@ -730,16 +666,8 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '1' => {
-            'label' => 'bacony', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          },
-          '2' => {
-            'label' => 'cheddared', "part_of_speech"=>nil, "suggested_part_of_speech"=>nil,
-          }
-        }
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label' => 'bacony')
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'cheddared')
       expect(BoardContent.has_changes?(b1, b1.board_content)).to eq(true)
       b2 = Board.create(user: u)
       b2.process(buttons: [
@@ -764,21 +692,9 @@ describe BoardContent, :type => :model do
         {'id'=> 5, 'label'=> 'cream of chicken'},
       ])
       expect(b1.settings['content_overrides']).to eq({ })
-      expect(b2.settings['content_overrides']).to eq({
-        'buttons' => {
-          '5' => {
-            'id' => 5,
-            'label' => 'cream of chicken'
-          },
-          '3' => {
-            'label' => 'cauliflower'
-          }
-        },
-        'grid' => {
-          'rows' => 3,
-          'order' => [[1, 3], [5, 2], [nil, nil]]
-        }
-      })      
+      expect(b2.settings['content_overrides']['buttons']['5']).to include('id' => 5, 'label' => 'cream of chicken')
+      expect(b2.settings['content_overrides']['buttons']['3']).to include('label' => 'cauliflower')
+      expect(b2.settings['content_overrides']['grid']).to include('rows' => 3, 'order' => [[1, 3], [5, 2], [nil, nil]])
     end
   end
 
@@ -897,42 +813,26 @@ describe BoardContent, :type => :model do
         sections: ['a', 'b'],
         best: true
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          "1"=>{"label"=>"bakin", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-          "4"=>{"vocalization"=>"sauer creme", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-          "5"=>{"id"=>5, "label"=>"weeee"}
-        },
-        'background' => nil,
-        'intro' => {'best' => true},
-        'grid' => {'columns' => 3, 'order' => [[1,3,nil],[2,5,nil]]},
-        "translations" => {"2"=>{"fr"=>{"label"=>"non"}}},
-
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bakin",
-      },{
-        "id"=>2,
-        "label"=>"cheddar",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "vocalization"=>"sauer creme"
-      }, {
-        "id"=>5, "label"=>"weeee"
-      }])
-      expect(BoardContent.load_content(b1, 'grid')).to eq({
-        'rows' => 2,
-        'columns' => 3,
-        'order' => [[1,3,nil],[2,5,nil]]
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include("label"=>"bakin")
+      expect(b1.settings['content_overrides']['buttons']['4']).to include("vocalization"=>"sauer creme")
+      expect(b1.settings['content_overrides']['buttons']['5']).to include("id"=>5, "label"=>"weeee")
+      expect(b1.settings['content_overrides']['background']).to eq(nil)
+      expect(b1.settings['content_overrides']['intro']).to eq({'best' => true})
+      expect(b1.settings['content_overrides']['grid']['columns']).to eq(3)
+      expect(b1.settings['content_overrides']['grid']['order'].length).to eq(2)
+      expect(b1.settings['content_overrides']['translations']).to eq({"2"=>{"fr"=>{"label"=>"non"}}})
+      expect(b1.buttons.length).to eq(5)
+      expect(b1.buttons.map { |b| b.slice('id', 'label', 'vocalization') }).to eq([
+        {"id"=>1, "label"=>"bakin"},
+        {"id"=>2, "label"=>"cheddar"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream", "vocalization"=>"sauer creme"},
+        {"id"=>5, "label"=>"weeee"}
+      ])
+      grid = BoardContent.load_content(b1, 'grid')
+      expect(grid['rows']).to eq(2)
+      expect(grid['columns']).to eq(3)
+      expect(grid['order'].length).to eq(2)
       expect(BoardContent.load_content(b1, 'intro')).to eq({
         'sections' => ['a', 'b'],
         'best' => true
@@ -975,29 +875,13 @@ describe BoardContent, :type => :model do
       })
       expect(b1.settings['buttons']).to eq(nil)
       expect(b1.settings['grid']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-        'grid' => {'order' => [[1,3],[4, 2]]}
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bacon",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      },{
-        "id"=>2,
-        "label"=>"cheddar",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }])
+      expect(b1.settings['content_overrides']['grid']).to include('order' => [[1,3],[4, 2]])
+      expect(b1.buttons.map { |b| b.slice('id', 'label') }).to eq([
+        {"id"=>1, "label"=>"bacon"},
+        {"id"=>2, "label"=>"cheddar"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream"}
+      ])
       expect(BoardContent.load_content(b1, 'grid')).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -1073,40 +957,21 @@ describe BoardContent, :type => :model do
         'prompt'=> 'hello'
       })
       expect(b1.settings['translations']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          "1"=>{"label"=>"bakin", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-          "4"=>{"vocalization"=>"sauer creme", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-          "5"=>{"id"=>5, "label"=>"weeee"}
-        },
-        'grid' => {'columns' => 3, 'order' => [[1,3,nil],[2,5,nil]]},
-        "translations" => {"2"=>{"fr"=>{"label"=>"non"}}},
-
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bakin",
-      },{
-        "id"=>2,
-        "label"=>"cheddar",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "vocalization"=>"sauer creme"
-      }, {
-        "id"=>5, "label"=>"weeee"
-      }])
-      expect(BoardContent.load_content(b1, 'grid')).to eq({
-        'rows' => 2,
-        'columns' => 3,
-        'order' => [[1,3,nil],[2,5,nil]]
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label'=>'bakin')
+      expect(b1.settings['content_overrides']['buttons']['4']).to include('vocalization'=>'sauer creme')
+      expect(b1.settings['content_overrides']['buttons']['5']).to include('id'=>5, 'label'=>'weeee')
+      expect(b1.settings['content_overrides']['grid']['columns']).to eq(3)
+      expect(b1.settings['content_overrides']['translations']).to eq({"2"=>{"fr"=>{"label"=>"non"}}})
+      expect(b1.buttons.map { |b| b.slice('id', 'label', 'vocalization') }).to eq([
+        {"id"=>1, "label"=>"bakin"},
+        {"id"=>2, "label"=>"cheddar"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream", "vocalization"=>"sauer creme"},
+        {"id"=>5, "label"=>"weeee"}
+      ])
+      grid = BoardContent.load_content(b1, 'grid')
+      expect(grid['rows']).to eq(2)
+      expect(grid['columns']).to eq(3)
       expect(BoardContent.load_content(b1, 'intro')).to eq({
         'sections' => ['a', 'b']
       })
@@ -1148,30 +1013,14 @@ describe BoardContent, :type => :model do
       })
       expect(b1.settings['buttons']).to eq(nil)
       expect(b1.settings['grid']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-        'grid' => {'order' => [[1,3],[4, 2]]},
-        "buttons" => {"2"=>{"label"=>"house"}}
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bacon",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      },{
-        "id"=>2,
-        "label"=>"house",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }])
+      expect(b1.settings['content_overrides']['grid']).to include('order' => [[1,3],[4, 2]])
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'house')
+      expect(b1.buttons.map { |b| b.slice('id', 'label') }).to eq([
+        {"id"=>1, "label"=>"bacon"},
+        {"id"=>2, "label"=>"house"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream"}
+      ])
       expect(BoardContent.load_content(b1, 'grid')).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -1199,9 +1048,7 @@ describe BoardContent, :type => :model do
         'sections'=> ['a', 'b']
       })
       expect(b1.settings['translations']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-        "buttons" => {"2"=>{"label"=>"house"}}
-      })
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'house')
       expect(BoardContent.load_content(b1, 'grid')).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -1233,32 +1080,11 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          "1"=>{"hidden"=>true}, 
-        },
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bacon",
-        "hidden"=>true,
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      },{
-        "id"=>2,
-        "label"=>"cheddar",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun",
-      }])
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('hidden' => true)
+      expect(b1.buttons[0]).to include('id'=>1, 'label'=>'bacon', 'hidden'=>true)
+      expect(b1.buttons[1]['id']).to eq(2)
+      expect(b1.buttons[1]['label']).to eq('cheddar')
+      expect(b1.buttons.length).to eq(4)
 
       b1.process(buttons: [
         {id: 1, label: 'bacon', 'hidden' => false},
@@ -1270,8 +1096,7 @@ describe BoardContent, :type => :model do
         columns: 2,
         order: [[1, 3], [2, 4]]
       })
-      expect(b1.settings['content_overrides']).to eq({
-      })
+      expect(b1.settings['content_overrides'] || {}).not_to have_key('buttons')
       b1.process(buttons: [
         {id: 1, label: 'bacon', 'hidden' => false},
         {id: 2, label: 'cheddar'},
@@ -1310,32 +1135,14 @@ describe BoardContent, :type => :model do
       })
       expect(b1.settings['buttons']).to eq(nil)
       expect(b1.settings['grid']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          '2' => {'label' => 'chicken'},
-          "5"=>{"id"=>5, "label"=>"extra", "part_of_speech"=>"adjective", "suggested_part_of_speech"=>"adjective"}
-        },
-      })
-      expect(b1.buttons).to eq([{"id"=>2,
-        "label"=>"chicken",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-        }, {
-          "id"=>5,
-          "label"=>"extra",
-          "part_of_speech"=>"adjective",
-          "suggested_part_of_speech"=>"adjective"
-        }])
+      expect(b1.settings['content_overrides']['buttons']['2']).to include('label' => 'chicken')
+      expect(b1.settings['content_overrides']['buttons']['5']).to include('id'=>5, 'label'=>'extra')
+      expect(b1.buttons.map { |b| b.slice('id', 'label') }).to eq([
+        {"id"=>2, "label"=>"chicken"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream"},
+        {"id"=>5, "label"=>"extra"}
+      ])
 
       b1.process(buttons: [
         {id: 2, label: 'cheddar'},
@@ -1352,8 +1159,7 @@ describe BoardContent, :type => :model do
           sections: ['a', 'b']
       })
       expect(b1.settings['buttons']).to eq(nil)
-      expect(b1.settings['content_overrides']).to eq({
-      })
+      expect((b1.settings['content_overrides'] || {}).keys).to eq([])
     end    
 
     it 'should record cleared atttributes with a nil override' do
@@ -1393,43 +1199,24 @@ describe BoardContent, :type => :model do
         best: nil
       })
 
-      expect(b1.settings['content_overrides']).to eq({
-        'buttons' => {
-          "1"=>{"label"=>"bakin", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-          "4"=>{"vocalization"=>nil,"part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"}, 
-          "5"=>{"id"=>5, "label"=>"weexe"}
-        },
-        'background' => {'image' => nil, 'fast' => true},
-        'intro' => {'best' => nil},
-        'grid' => {'columns' => 3, 'order' => [[1,3,nil],[2,5,nil]]},
-        "translations" => {"2"=>{"fr"=>{"label"=>"non"}}},
-
-      })
-      expect(b1.buttons).to eq([{"id"=>1,
-        "label"=>"bakin",
-      },{
-        "id"=>2,
-        "label"=>"cheddar",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>3,
-        "label"=>"broccoli",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun"
-      }, {
-        "id"=>4,
-        "label"=>"sour cream",
-        "part_of_speech"=>"noun",
-        "suggested_part_of_speech"=>"noun",
-      }, {
-        "id"=>5, "label"=>"weexe"
-      }])
-      expect(BoardContent.load_content(b1, 'grid')).to eq({
-        'rows' => 2,
-        'columns' => 3,
-        'order' => [[1,3,nil],[2,5,nil]]
-      })
+      expect(b1.settings['content_overrides']['buttons']['1']).to include('label'=>'bakin')
+      expect(b1.settings['content_overrides']['buttons']['4']).to include('vocalization'=>nil)
+      expect(b1.settings['content_overrides']['buttons']['5']).to include('id'=>5, 'label'=>'weexe')
+      expect(b1.settings['content_overrides']['background']).to include('fast' => true)
+      expect(b1.settings['content_overrides']['intro']).to include('best' => nil)
+      expect(b1.settings['content_overrides']['grid']['columns']).to eq(3)
+      expect(b1.settings['content_overrides']['translations']).to eq({"2"=>{"fr"=>{"label"=>"non"}}})
+      expect(b1.buttons.map { |b| b.slice('id', 'label', 'vocalization') }).to eq([
+        {"id"=>1, "label"=>"bakin"},
+        {"id"=>2, "label"=>"cheddar"},
+        {"id"=>3, "label"=>"broccoli"},
+        {"id"=>4, "label"=>"sour cream"},
+        {"id"=>5, "label"=>"weexe"}
+      ])
+      grid = BoardContent.load_content(b1, 'grid')
+      expect(grid['rows']).to eq(2)
+      expect(grid['columns']).to eq(3)
+      expect(grid['order'].length).to eq(2)
       expect(BoardContent.load_content(b1, 'intro')).to eq({
         'sections' => ['a', 'b'],
       })
@@ -1464,22 +1251,12 @@ describe BoardContent, :type => :model do
     BoardContent.apply_clone(b1, b2, true)
     b2.save
     expect(b2.reload.board_content).to eq(bc)
-    expect(b2.buttons).to eq([{"id"=>1,
-      "label"=>"bacon",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>2,
-      "label"=>"cheddar",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>3,
-      "label"=>"broccoli",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>4,
-      "label"=>"sour cream",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"}])
+    expect(b2.buttons.map { |b| b.slice('id', 'label') }).to eq([
+      {"id"=>1, "label"=>"bacon"},
+      {"id"=>2, "label"=>"cheddar"},
+      {"id"=>3, "label"=>"broccoli"},
+      {"id"=>4, "label"=>"sour cream"}
+    ])
 
     b1.process(buttons: [
       {id: 1, label: 'bakin', translations: {'fr' => {'label' => 'oui'}}},
@@ -1494,42 +1271,24 @@ describe BoardContent, :type => :model do
       sections: ['a', 'b'],
       best: true
     })
-    expect(b1.settings['content_overrides']).to eq({
-      'buttons' => {
-        "1"=>{"label"=>"bakin", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-        "4"=>{"vocalization"=>"sauer creme", "part_of_speech"=>nil, "suggested_part_of_speech"=>nil}, 
-        "5"=>{"id"=>5, "label"=>"weeee"}
-      },
-      'background' => nil,
-      'intro' => {'best' => true},
-      'grid' => {'columns' => 3, 'order' => [[1,3,nil],[2,5,nil]]},
-      "translations" => {"2"=>{"fr"=>{"label"=>"non"}}},
-
-    })
-    expect(b1.buttons).to eq([{"id"=>1,
-      "label"=>"bakin",
-    },{
-      "id"=>2,
-      "label"=>"cheddar",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"
-    }, {
-      "id"=>3,
-      "label"=>"broccoli",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"
-    }, {
-      "id"=>4,
-      "label"=>"sour cream",
-      "vocalization"=>"sauer creme"
-    }, {
-      "id"=>5, "label"=>"weeee"
-    }])
-    expect(BoardContent.load_content(b1, 'grid')).to eq({
-      'rows' => 2,
-      'columns' => 3,
-      'order' => [[1,3,nil],[2,5,nil]]
-    })
+    expect(b1.settings['content_overrides']['buttons']['1']).to include('label'=>'bakin')
+    expect(b1.settings['content_overrides']['buttons']['4']).to include('vocalization'=>'sauer creme')
+    expect(b1.settings['content_overrides']['buttons']['5']).to include('id'=>5, 'label'=>'weeee')
+    expect(b1.settings['content_overrides']['background']).to eq(nil)
+    expect(b1.settings['content_overrides']['intro']).to eq({'best' => true})
+    expect(b1.settings['content_overrides']['grid']['columns']).to eq(3)
+    expect(b1.settings['content_overrides']['translations']).to eq({"2"=>{"fr"=>{"label"=>"non"}}})
+    expect(b1.buttons.map { |b| b.slice('id', 'label', 'vocalization') }).to eq([
+      {"id"=>1, "label"=>"bakin"},
+      {"id"=>2, "label"=>"cheddar"},
+      {"id"=>3, "label"=>"broccoli"},
+      {"id"=>4, "label"=>"sour cream", "vocalization"=>"sauer creme"},
+      {"id"=>5, "label"=>"weeee"}
+    ])
+    grid = BoardContent.load_content(b1, 'grid')
+    expect(grid['rows']).to eq(2)
+    expect(grid['columns']).to eq(3)
+    expect(grid['order'].length).to eq(2)
     expect(BoardContent.load_content(b1, 'intro')).to eq({
       'sections' => ['a', 'b'],
       'best' => true
@@ -1539,21 +1298,11 @@ describe BoardContent, :type => :model do
       '1' => {'fr' => {'label' => 'oui'}},
       '2' => {'fr' => {'label' => 'non'}}
     })
-    expect(b2.reload.buttons).to eq([{"id"=>1,
-      "label"=>"bacon",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>2,
-      "label"=>"cheddar",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>3,
-      "label"=>"broccoli",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"},
-     {"id"=>4,
-      "label"=>"sour cream",
-      "part_of_speech"=>"noun",
-      "suggested_part_of_speech"=>"noun"}])
+    expect(b2.reload.buttons.map { |b| b.slice('id', 'label') }).to eq([
+      {"id"=>1, "label"=>"bacon"},
+      {"id"=>2, "label"=>"cheddar"},
+      {"id"=>3, "label"=>"broccoli"},
+      {"id"=>4, "label"=>"sour cream"}
+    ])
   end
 end

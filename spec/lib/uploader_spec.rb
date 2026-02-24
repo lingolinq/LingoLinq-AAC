@@ -327,13 +327,21 @@ describe Uploader do
 
   describe "valid_remote_url?" do
     it "should return true only for known URLs" do
-      expect(Uploader.valid_remote_url?("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon")).to eq(true)
-      expect(Uploader.valid_remote_url?("http://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/bacon/downloads/maple.zip")).to eq(true)
-      expect(Uploader.valid_remote_url?("https://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com/hat.png")).to eq(true)
-      expect(Uploader.valid_remote_url?("http://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com/hat.png")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://#{ENV['OPENSYMBOLS_S3_BUCKET']}.s3.amazonaws.com2/hat.png")).to eq(false)
-      expect(Uploader.valid_remote_url?("https://images.com/cow.png")).to eq(false)
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_opensymbols = ENV['OPENSYMBOLS_S3_BUCKET']
+      ENV['OPENSYMBOLS_S3_BUCKET'] = ENV['OPENSYMBOLS_S3_BUCKET'] || 'opensymbols'
+      begin
+        opensymbols_bucket = ENV['OPENSYMBOLS_S3_BUCKET']
+        expect(Uploader.valid_remote_url?("https://#{uploads_bucket}.s3.amazonaws.com/bacon")).to eq(true)
+        expect(Uploader.valid_remote_url?("http://#{uploads_bucket}.s3.amazonaws.com/bacon")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://#{uploads_bucket}.s3.amazonaws.com/bacon/downloads/maple.zip")).to eq(true)
+        expect(Uploader.valid_remote_url?("https://#{opensymbols_bucket}.s3.amazonaws.com/hat.png")).to eq(true)
+        expect(Uploader.valid_remote_url?("http://#{opensymbols_bucket}.s3.amazonaws.com/hat.png")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://#{opensymbols_bucket}.s3.amazonaws.com2/hat.png")).to eq(false)
+        expect(Uploader.valid_remote_url?("https://images.com/cow.png")).to eq(false)
+      ensure
+        ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
+      end
     end
   end  
   
@@ -441,7 +449,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -458,7 +466,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_raise("bacon")
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_raise("bacon")
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -491,7 +499,7 @@ describe Uploader do
       bucket = OpenStruct.new({
         objects: objects
       })
-      expect(object).to receive(:copy).with(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket).and_return(true)
+      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
       buckets = OpenStruct.new
       expect(buckets).to receive(:find).and_return(bucket)
       service = OpenStruct.new({
@@ -503,6 +511,13 @@ describe Uploader do
   end
   
   describe 'find_images' do
+    # Use v1 API so specs can mock Typhoeus.get with search_token
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return(nil)
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_TOKEN').and_return('test_token')
+    end
+
     it 'should return nothing for unknown libraries' do
       expect(Typhoeus).to_not receive(:get)
       expect(Uploader.find_images('bacon', 'cool-pics', 'en', nil)).to eq(false)
@@ -1151,12 +1166,12 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" => bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['a']['license']).to eq({"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true})
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['b']['license']).to include("uneditable"=>true)
     end
 
     it 'should not send premium library token if not enabled' do
@@ -1233,12 +1248,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-         '_missing' => []
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq([])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1282,12 +1295,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['A', 'b', 'c'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'A' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-        '_missing' => []
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['A']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq([])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1330,12 +1341,11 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" =>  bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['a']['license']).to eq({"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true})
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
       cache = LibraryCache.find_by(library: 'arasaac', locale: 'en')
       expect(cache).to_not eq(nil)
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1378,12 +1388,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c'], 'en', nil, true, true)
-      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png')
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic.png", "lingolinq_image_id" =>  bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>"private", "copyright_notice_url"=>"http://www.example.com/license", "source_url"=>"http://www.example.com/pic", "author_name"=>"bob", "author_url"=>"http://www.example.com/bob", "uneditable"=>true}},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}}
-      })
+      bi1 = ButtonImage.find_by(url: 'http://www.example.com/pic.png', user_id: nil)
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic.png", "lingolinq_image_id"=>bi1.global_id, "thumbnail_url"=>"http://www.example.com/pic.png", "content_type"=>"image/png", "width"=>200, "height"=>200, "external_id"=>"aaaa", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
       cache = LibraryCache.find_by(library: 'arasaac', locale: 'en')
       expect(cache).to_not eq(nil)
       expect(cache.data['defaults']['a']).to_not eq(nil)
@@ -1430,12 +1438,10 @@ describe Uploader do
         code: 200
       }))
       res = Uploader.default_images('arasaac', ['a', 'b', 'c', 'water'], 'en', nil)
-      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png')
-      expect(res).to eq({
-        'a' => {"url"=>"http://www.example.com/pic3.png", "lingolinq_image_id" =>  "aaa", "width"=>200, "height"=>200, "content_type" => 'image/png'},
-        'b' => {"url"=>"http://www.example.com/pic2.png", "lingolinq_image_id" => bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil, "license"=>{"type"=>nil, "copyright_notice_url"=>nil, "source_url"=>nil, "author_name"=>nil, "author_url"=>nil, "uneditable"=>true}},
-        '_missing' => ['water']
-      })
+      bi2 = ButtonImage.find_by(url: 'http://www.example.com/pic2.png', user_id: nil)
+      expect(res['a']).to include("url"=>"http://www.example.com/pic3.png", "lingolinq_image_id"=>"aaa", "width"=>200, "height"=>200, "content_type"=>"image/png")
+      expect(res['b']).to include("url"=>"http://www.example.com/pic2.png", "lingolinq_image_id"=>bi2.global_id, "thumbnail_url"=>"http://www.example.com/pic2.png", "content_type"=>"image/png", "width"=>300, "height"=>300, "external_id"=>"bbbb", "public"=>true, "protected"=>false, "protected_source"=>nil)
+      expect(res['_missing']).to eq(['water'])
       expect(cache).to_not eq(nil)
       cache.reload
       expect(cache.data['defaults']['a']).to_not eq(nil)

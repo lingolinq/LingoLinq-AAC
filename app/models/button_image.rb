@@ -8,7 +8,7 @@ class ButtonImage < ActiveRecord::Base
   protect_global_id
   belongs_to :board, optional: true
   has_many :board_button_images
-  belongs_to :user
+  belongs_to :user, optional: true
   before_save :generate_defaults
   after_create :track_image_use_later
   after_create :assert_raster
