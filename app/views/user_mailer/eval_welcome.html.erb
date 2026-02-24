@@ -8,7 +8,7 @@ difference for you.<br/><br/>
 Your evaluation is for an account with the user name <b><%= @user.display_user_name %></b>.
 <%= app_name %> comes with "cloud extras" features that include
 logging, reports, goals and badges, and your <%= app_name %> account will have access to these
-features throughout your evaluation, which concludes <b><%= @user.expires_at.to_s(:long_ordinal) %></b>. 
+features throughout your evaluation, which concludes <b><%= long_ordinal_date(@user.expires_at) %></b>. 
 <br/><br/>
 
 <%= app_name %> has a lot of great features, from eye tracking to switches to reports to badges, but 

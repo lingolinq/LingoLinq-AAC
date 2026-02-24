@@ -154,7 +154,7 @@ describe Utterance, :type => :model do
       }]})).to eq(false)
       # check that it was recorded for sharer
       expect(s2.log_type).to eq('note')
-      expect(s2.data['event_summary']).to eq('Note by no-name: hat cat scat')
+      expect(s2.data['event_summary']).to eq("Note by #{u1.user_name}: hat cat scat")
     end
 
     it "should allow sharing with one of the supervisors of one of my supervisees" do

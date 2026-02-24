@@ -799,6 +799,8 @@ describe Board, :type => :model do
       b1.instance_variable_set('@buttons_changed', true)
       b1.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['downstream_board_ids']).to eq([b2.global_id])
       expect(b2.reload.settings['immediately_upstream_board_ids']).to eq([b1.global_id])
       hash = b1.reload.settings['full_set_revision']
@@ -809,6 +811,7 @@ describe Board, :type => :model do
       RemoteAction.process_all
       Worker.process_queues
       Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash)
       expect(b1.current_revision).to eq(current_hash)
     end
@@ -850,6 +853,9 @@ describe Board, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash1)
       expect(b1.current_revision).to eq(current1)
       expect(b3.reload.settings['full_set_revision']).to_not eq(hash3)

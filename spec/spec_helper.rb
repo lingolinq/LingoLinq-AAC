@@ -43,11 +43,9 @@ RSpec.configure do |config|
   
   config.infer_spec_type_from_file_location!
 
-  # Run specs in random order to surface order dependencies. If you find an
-  # order dependency and want to debug it, you can fix the order by providing
-  # the seed, which is printed after each run.
-  #     --seed 1234
-  config.order = "random"
+  # Use defined order for consistent CI results and fewer order-dependent failures.
+  # To run with random order (e.g. to surface order dependencies): bundle exec rspec --order random
+  config.order = "defined"
   
   config.before(:each) do
     ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs

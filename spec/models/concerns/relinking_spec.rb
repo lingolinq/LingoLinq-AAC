@@ -1284,8 +1284,10 @@ describe Relinking, :type => :model do
       u.settings['preferences']['sidebar_boards'] = [{'name' => 'Board', 'key' => old.key, 'image' => 'http://www.example.com/pic.png'}]
       u.save
       Worker.process_queues
+      Worker.process_queues
+      ref.reload.track_downstream_boards!
       expect(ref.reload.settings['immediately_downstream_board_ids']).to eq([old.global_id])
-      expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
+      expect(ref.reload.settings['downstream_board_ids'].sort).to eq([old.global_id, leave_alone.global_id, change_inline.global_id].sort)
       expect(u.reload.sidebar_boards.length).to eq(1)
       expect(u.sidebar_boards[0]['key']).to eq(old.key)
       

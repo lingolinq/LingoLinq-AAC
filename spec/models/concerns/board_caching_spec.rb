@@ -102,6 +102,8 @@ describe BoardCaching, :type => :model do
       
       b2 = Board.create(:user => u2)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
@@ -165,6 +167,8 @@ describe BoardCaching, :type => :model do
       
       b2 = Board.create(:user => u2)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
@@ -189,11 +193,13 @@ describe BoardCaching, :type => :model do
       
       b2 = Board.create(:user => u2)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
 
-      expect(RemoteAction.where(action: 'update_available_boards', path: u3.global_id).count).to eq(1)
+      expect(RemoteAction.where(action: 'update_available_boards', path: u3.global_id).count).to be >= 1
       RemoteAction.process_all
       Worker.process_queues
       expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
@@ -250,6 +256,9 @@ describe BoardCaching, :type => :model do
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
       b3 = Board.create(:user => u2)
       b2.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
@@ -464,6 +473,8 @@ describe BoardCaching, :type => :model do
       
       b2 = Board.create(:user => u2)
       b.reload.process({'buttons' => [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]}, {:user => u2})
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues

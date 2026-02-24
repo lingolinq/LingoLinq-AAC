@@ -1203,7 +1203,8 @@ describe UserBadge, type: :model do
 
   describe "award!" do
     it "should update the badge based on the parameters" do
-      b = UserBadge.new
+      u = User.create
+      b = UserBadge.new(:user => u)
       started = 2.days.ago
       ended = 1.day.ago
       b.award!({
@@ -1310,7 +1311,8 @@ describe UserBadge, type: :model do
   
   describe "mark_progress!" do
     it "should mark progress" do
-      b = UserBadge.new
+      u = User.create
+      b = UserBadge.new(:user => u)
       b.mark_progress!(0.5)
       expect(b.id).to_not eq(nil)
       expect(b.data['percent']).to eq(0.5)
@@ -1325,7 +1327,8 @@ describe UserBadge, type: :model do
     end
     
     it "should track progress invalidation date" do
-      b = UserBadge.new
+      u = User.create
+      b = UserBadge.new(:user => u)
       exp = 2.weeks.from_now
       b.mark_progress!(0.5, exp)
       expect(b.id).to_not eq(nil)

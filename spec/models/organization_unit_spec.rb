@@ -832,7 +832,8 @@ describe OrganizationUnit, :type => :model do
     end
 
     it "should delete a recently-created goal" do
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
       g = UserGoal.create(user: u, active: true)
       g2 = UserGoal.create(user: u, active: true)
@@ -843,7 +844,8 @@ describe OrganizationUnit, :type => :model do
     end
 
     it "should conclude a relatively-new goal" do
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
       g = UserGoal.create(user: u, active: true)
       g2 = UserGoal.create(user: u, active: true)
@@ -856,7 +858,8 @@ describe OrganizationUnit, :type => :model do
     end
 
     it "should detach a user from the root goal if removed" do
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
       g = UserGoal.create(user: u, active: true)
       g2 = UserGoal.create(user: u, active: true)

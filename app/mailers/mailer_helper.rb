@@ -1,4 +1,9 @@
 module MailerHelper
+  def long_ordinal_date(date)
+    return '' unless date
+    "#{date.strftime('%B')} #{date.day.ordinalize}, #{date.strftime('%Y')}"
+  end
+
   def email_signature
     "-The #{JsonApi::Json.current_domain['settings']['company_name']} Team"
   end

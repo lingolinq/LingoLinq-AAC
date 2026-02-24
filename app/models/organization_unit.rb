@@ -200,6 +200,7 @@ class OrganizationUnit < ActiveRecord::Base
       user_goal.active = false
       user_goal.save
     end
+    self.settings ||= {}
     if (self.settings['goal_assertions'] || {})[goal.global_id]
       self.settings['goal_assertions'][goal.global_id]['user_ids'] -= [user.global_id]
     end

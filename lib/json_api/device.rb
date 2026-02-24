@@ -32,7 +32,7 @@ module JsonApi::Device
     json['token_type'] = device.token_type
     json['token_timeout'] = readable_timeout(device.token_timeout)
     json['inactivity_timeout'] = readable_timeout(device.inactivity_timeout)
-    json['last_used'] = device.last_used_at.iso8601
+    json['last_used'] = (device.last_used_at || device.created_at)&.iso8601
     json['hidden'] = true if device.hidden?
     if args[:current_device] && args[:current_device] == device
       json['current_device'] = true

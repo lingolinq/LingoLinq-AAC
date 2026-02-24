@@ -1,6 +1,6 @@
 Welcome to <%= app_name %>! Your evaluation period has officially begun! We're excited that you're ready use what we think is the most flexible,  usable communication tool out there! We  built <%= app_name %> to make things easier for  communicators and the support teams around them, so we hope the app can make a difference for you.
 
-Your evaluation is for an account with the user name *<%= @user.display_user_name %>*. <%= app_name %> comes with "cloud extras" features that include logging, reports, goals and badges, and your <%= app_name %> account will have access to these features throughout your evaluation, which concludes <%= @user.expires_at.to_s(:long_ordinal) %>. 
+Your evaluation is for an account with the user name *<%= @user.display_user_name %>*. <%= app_name %> comes with "cloud extras" features that include logging, reports, goals and badges, and your <%= app_name %> account will have access to these features throughout your evaluation, which concludes <%= long_ordinal_date(@user.expires_at) %>. 
 
 <%= app_name %> has a lot of great features, from eye tracking to switches to reports to badges, but those features are all more than happy to wait patiently until you're ready for them. You can find walkthroughs and guides on the simple and advanced features available in the <%= app_name %> app by visiting our support site (<%= support_url %>) or our YouTube channel (<%= domain_settings['youtube_url'] %>). You can also shoot us a message (<%= JsonApi::Json.current_host %>/contact) there is you think something might be broken.
 

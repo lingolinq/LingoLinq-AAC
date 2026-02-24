@@ -534,18 +534,22 @@ describe Sharing, :type => :model do
       u = User.create
       u2 = User.create
       b = Board.create(:user => u)
+      u.settings ||= {}
       u.settings['boards_i_shared'] = {}
       u.settings['boards_i_shared'][b.global_id] = [{
         'user_id' => u2.global_id, 'hat' => true
       }]
+      u.save!
+      u2.settings ||= {}
       u2.settings['boards_shared_with_me'] = [{
         'board_id' => b.global_id, 'cheese' => true
       }]
+      u2.save!
       res = b.unshare_with(u2)
       expect(res).to eq(true)
-      expect(u.settings['boards_i_shared']).not_to eq(nil)
+      expect(u.reload.settings['boards_i_shared']).not_to eq(nil)
       expect(u.settings['boards_i_shared'][b.global_id]).to eq([])
-      expect(u2.settings['boards_shared_with_me']).not_to eq(nil)
+      expect(u2.reload.settings['boards_shared_with_me']).not_to eq(nil)
       expect(u2.settings['boards_shared_with_me']).to eq([])
       expect(UserLink.count).to eq(0)
       expect(UserLink.links_for(u.reload)).to eq([])

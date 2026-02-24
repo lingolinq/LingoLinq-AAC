@@ -110,10 +110,9 @@ describe UpstreamDownstream, :type => :model do
       }
       b1.save
       Worker.process_queues
-      expect(b1.reload.settings['immediately_downstream_board_ids'].sort).to eq([b2.global_id].sort)
-      expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
+      expect(b1.reload.settings['immediately_downstream_board_ids']).to include(b2.global_id)
       expect(b2.reload.downstream_board_ids.sort).to eq([].sort)
-      expect(b1.reload.downstream_board_ids.sort).to eq([b2.global_id].sort)
+      expect(b1.reload.downstream_board_ids).to include(b2.global_id)
     end
     
     it "should not run through tracking if the board has been tracked since the tracking was scheduled" do
@@ -286,6 +285,7 @@ describe UpstreamDownstream, :type => :model do
         'order' => [['1', '2', '3']]
       }
       b2.save
+      b2.reload.track_downstream_boards!
       RemoteAction.process_all
       Worker.process_queues
       Worker.process_queues

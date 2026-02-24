@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_02_21_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_02_24_181933) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_21_000001) do
 
   create_table "ai_api_logs", id: :serial, force: :cascade do |t|
     t.string "ai_provider", null: false
-    t.string "model_name"
+    t.string "ai_model"
     t.string "request_type", null: false
     t.string "request_payload_hash"
     t.text "request_summary"

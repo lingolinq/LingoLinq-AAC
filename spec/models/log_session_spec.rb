@@ -115,7 +115,7 @@ describe LogSession, :type => :model do
         }
       })
       s.generate_defaults rescue nil
-      expect(s.data['event_summary']).to eq('Note by no-name: recording (1m) - cool stuff')
+      expect(s.data['event_summary']).to eq("Note by #{u.user_name}: recording (1m) - cool stuff")
     end
 
     it "should track goal data" do
@@ -1468,6 +1468,7 @@ describe LogSession, :type => :model do
   end
 
   describe "process_as_follow_on" do
+    before(:each) { JobStash.delete_all }
     it "should append to the latest log if still active" do
       u = User.create
       d = Device.create(:user => u)

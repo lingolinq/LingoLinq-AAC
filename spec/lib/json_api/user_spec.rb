@@ -22,12 +22,12 @@ describe JsonApi::User do
     
     it "should include a correct gravatar url if profile is visible" do
       u = User.create(settings: {'email' => 'bob@example.com', 'public' => true})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/lingolinq\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
     end
     
     it "should include a silhouette url if profile is not visible" do
       u = User.create(settings: {'email' => 'bob@example.com'})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/lingolinq\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
     end
 
     it "should include permissions if requested" do
