@@ -36,6 +36,9 @@
 # Ignore local settings for claude
 /.claude
 
+# antigravity-mcp is a separate git repository
+/antigravity-mcp
+
 # Ignore node modules
 /node_modules
 

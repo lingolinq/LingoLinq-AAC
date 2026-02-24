@@ -205,7 +205,7 @@ class Api::BoardsController < ApplicationController
         # board.search_string now includes locales, even on private boards
         # This filter should be applied for private searches (which wouldn't yet
         # have been filtered by locale) or for requests without a search query
-        boards = boards.where(['search_string ILIKE ?', "%locale:#{lang}%"])
+        boards = boards.where(['search_string ILIKE ?', "%locale:#{ActiveRecord::Base.sanitize_sql_like(lang)}%"])
       end
     end
 

@@ -2213,7 +2213,7 @@ describe Board, :type => :model do
       expect(b.settings['image_url']).to eq(Board::DEFAULT_ICON)
       expect(b.settings['default_image_url']).to eq(Board::DEFAULT_ICON)
       res = OpenStruct.new(:body => [{}, {'license' => 'CC By', 'image_url' => 'http://example.com/pic.png'}].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5).and_return(res)
       b.save
       Worker.process_queues
       b.reload
@@ -2229,7 +2229,7 @@ describe Board, :type => :model do
       expect(b.settings['image_url']).to eq(Board::DEFAULT_ICON)
       expect(b.settings['default_image_url']).to eq(Board::DEFAULT_ICON)
       res = OpenStruct.new(:body => [{}, {'license' => 'CC By', 'image_url' => 'http://example.com/pic.png'}].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5).and_return(res)
       b.save
       Worker.process_queues
       b.reload
