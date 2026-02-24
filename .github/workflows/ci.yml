@@ -46,6 +46,9 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
+      - name: Setup assets (vendor.css, frontend.css symlinks)
+        run: bundle exec rails extras:assert_js
+
       - name: Setup database
         run: |
           bundle exec rails db:create db:schema:load
