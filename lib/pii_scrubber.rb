@@ -192,8 +192,12 @@ module PiiScrubber
                    redact_string(payload, findings)
                  when Hash
                    redact_hash(payload, findings)
-                 when Array
-                   payload.map { |item| redact_for_ai(item)[:payload] }
+                when Array
+                  payload.map do |item|
+                    res = redact_for_ai(item)
+                    findings.concat(res[:findings])
+                    res[:payload]
+                  end
                  else
                    payload
                  end
@@ -222,6 +226,7 @@ module PiiScrubber
       scan_pattern(text, PHONE_PATTERN, :phone, findings)
       scan_pattern(text, SSN_PATTERN, :ssn, findings)
       scan_pattern(text, IP_PATTERN, :ip_address, findings)
+      scan_pattern(text, GLOBAL_ID_PATTERN, :global_id, findings)
       scan_blocklist(text, findings)
 
       findings.sort_by { |f| f[:position] }
@@ -259,9 +264,11 @@ module PiiScrubber
       when Array
         obj.map { |item| deep_copy(item) }
       else
-        obj.duplicable? ? obj.dup : obj
-      rescue TypeError
-        obj
+        begin
+          obj.duplicable? ? obj.dup : obj
+        rescue TypeError
+          obj
+        end
       end
     end
 
@@ -418,6 +425,7 @@ module PiiScrubber
       result = redact_pattern(result, EMAIL_PATTERN, '[REDACTED_EMAIL]', :email, findings)
       result = redact_pattern(result, PHONE_PATTERN, '[REDACTED_PHONE]', :phone, findings)
       result = redact_pattern(result, IP_PATTERN, '[REDACTED_IP]', :ip_address, findings)
+      result = redact_pattern(result, GLOBAL_ID_PATTERN, '[REDACTED_ID]', :global_id, findings)
       result = redact_blocklist_names(result, findings)
 
       result
@@ -429,8 +437,8 @@ module PiiScrubber
         str_key = key.to_s
         sym_key = key.to_sym rescue nil
 
-        # Redact known identity keys entirely
-        if IDENTITY_STRING_KEYS.include?(str_key) && value.is_a?(String)
+        # Redact known identity keys entirely (any value type: string, integer, etc.)
+        if IDENTITY_STRING_KEYS.include?(str_key)
           placeholder = PLACEHOLDERS[sym_key] || PLACEHOLDERS[str_key.to_sym] || '[REDACTED]'
           findings << { type: :identity_field, value: redact_value_preview(value), position: 0 }
           result[key] = placeholder
