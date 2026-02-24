@@ -521,7 +521,7 @@ describe Uploader do
     it 'should make a remote request' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([])
     end
@@ -529,7 +529,7 @@ describe Uploader do
     it 'should pass the search token' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([])
     end
@@ -537,7 +537,7 @@ describe Uploader do
     it 'should allow searching all public images via opensymbols key' do
       res = OpenStruct.new(body: [
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'opensymbols', 'en', nil)
       expect(images).to eq([])
     end
@@ -548,7 +548,7 @@ describe Uploader do
       u = User.create
       u.settings['extras_disabled'] = true
       u.save
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([])
     end
@@ -571,7 +571,7 @@ describe Uploader do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}:pcs", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -605,7 +605,7 @@ describe Uploader do
 
       u.settings['extras_disabled'] = true
       u.save
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Apcs&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pcs', 'en', u)
       expect(images).to eq([])
     end
@@ -625,7 +625,7 @@ describe Uploader do
           'author_url' => 'http://www.example.com/bob'
         }
       ].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=bacon+repo%3Aarasaac&search_token=#{ENV['OPENSYMBOLS_TOKEN']}", timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'arasaac', 'en', nil)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -664,7 +664,7 @@ describe Uploader do
           'id' => '1234',
           'pageURL' => 'http://www.example.com/pics2',
         }]}.to_json)
-      expect(Typhoeus).to receive(:get).with('https://pixabay.com/api/?key=pixkey&q=bacon&image_type=vector&per_page=30&safesearch=true', timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with('https://pixabay.com/api/?key=pixkey&q=bacon&image_type=vector&per_page=30&safesearch=true', timeout: 5).and_return(res)
       images = Uploader.find_images('bacon', 'pixabay_vectors', 'en', nil)
       expect(images).to eq([{
         'url' => 'http://www.example.com/pic.png',
@@ -796,7 +796,7 @@ describe Uploader do
 
     it "should handle giphy searches" do
       ENV['GIPHY_KEY'] = 'giphy'
-      expect(Typhoeus).to receive(:get).with("http://api.giphy.com/v1/gifs/search?q=%23asl+bacon&api_key=giphy&lang=en&rating=pg13", {timeout: 5}).and_return(OpenStruct.new({
+      expect(Typhoeus).to receive(:get).with("https://api.giphy.com/v1/gifs/search?q=%23asl+bacon&api_key=giphy&lang=en&rating=pg13", {timeout: 5}).and_return(OpenStruct.new({
         body: {
           data: [
             {
@@ -1107,7 +1107,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {},
           'b' => {},
@@ -1125,7 +1125,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1168,7 +1168,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {}.to_json,
         code: 200
       }))
@@ -1188,7 +1188,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}:pcs"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {},
           'b' => {},
@@ -1219,7 +1219,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',
@@ -1268,7 +1268,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',
@@ -1304,7 +1304,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1352,7 +1352,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'a' => {
             'image_url' => 'http://www.example.com/pic.png',
@@ -1416,7 +1416,7 @@ describe Uploader do
         allow_search: true,
         locale: 'en',
         search_token: "#{ENV['OPENSYMBOLS_TOKEN']}"
-      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false).and_return(OpenStruct.new({
+      }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10).and_return(OpenStruct.new({
         body: {
           'b' => {
             'image_url' => 'http://www.example.com/pic2.png',

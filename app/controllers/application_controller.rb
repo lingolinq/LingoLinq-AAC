@@ -66,14 +66,14 @@ class ApplicationController < ActionController::Base
     end
     @token = token
     if token
-      Rails.logger.debug("check_api_token: Token found for path #{request.path}, token preview: #{token[0..30]}...")
+      Rails.logger.debug("check_api_token: Token found for path #{request.path}, token prefix: #{token[0..7]}...")
       status = Device.check_token(token, request.headers['X-LingoLinq-Version'])
       @cached = true if status[:cached]
       ignorable_error = ['/api/v1/token_check', '/oauth/token/refresh'].include?(request.path) && status[:skip_on_token_check]
       Rails.logger.debug("check_api_token: status keys: #{status.keys.inspect}, error: #{status[:error]}, skip_on_token_check: #{status[:skip_on_token_check]}, ignorable_error: #{ignorable_error}")
       if status[:error] && !ignorable_error
         set_browser_token_header
-        error = {error: status[:error], token: token, invalid_token: status[:invalid_token]}
+        error = {error: status[:error], invalid_token: status[:invalid_token]}
         error[:refreshable] = true if status[:can_refresh]
         # Log token validation errors for debugging
         Rails.logger.warn("Token validation failed: #{status[:error]} for path: #{request.path}")
@@ -85,7 +85,7 @@ class ApplicationController < ActionController::Base
         Rails.logger.debug("check_api_token: @api_user set: #{!!@api_user}, @api_device_id: #{@api_device_id}")
         # Log if device_id is missing but user is present (debugging Rails 7 upgrade)
         if @api_user && !@api_device_id
-          Rails.logger.warn("Device.check_token returned user but no device_id. Token: #{token[0..20]}..., Status keys: #{status.keys.inspect}")
+          Rails.logger.warn("Device.check_token returned user but no device_id. Token prefix: #{token[0..7]}..., Status keys: #{status.keys.inspect}")
         end
       end
       # TODO: timezone user setting
@@ -116,10 +116,10 @@ class ApplicationController < ActionController::Base
             @api_user = @linked_user
             PaperTrail.request.whodunnit = "user:#{@true_user.global_id}:as:#{@api_user.global_id}"
           else
-            api_error 400, {error: "Invalid masquerade attempt", token: token, user_id: as_user}
+            api_error 400, {error: "Invalid masquerade attempt", user_id: as_user}
           end
         else
-          api_error 400, {error: "Invalid masquerade attempt", token: token, user_id: as_user}
+          api_error 400, {error: "Invalid masquerade attempt", user_id: as_user}
         end
       end
     else

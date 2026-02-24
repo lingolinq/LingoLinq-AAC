@@ -14,7 +14,8 @@ class ApiCall < ActiveRecord::Base
       call.data ||= {}
       call.data['url'] = request.url
       call.data['method'] = request.method
-      call.data['access_token'] = token
+      call.data['access_token_prefix'] = token[0..7]
+      call.data['access_token_hash'] = Digest::SHA256.hexdigest(token)
       call.data['status'] = response.code
       call.data['time'] = time
       call.save

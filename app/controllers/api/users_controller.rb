@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
         users = lookup.where(:user_name => query)
         users = [lookup.find_by_global_id(query)].compact if users.count == 0 && query.match(/^\d+_\d+$/)
         if users.count == 0
-          users = lookup.where(["user_name ILIKE ?", "%#{query}%"]).order('user_name')
+          users = lookup.where(["user_name ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(query)}%"]).order('user_name')
         end
       end
     end

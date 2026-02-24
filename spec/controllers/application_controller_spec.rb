@@ -55,7 +55,7 @@ describe ApplicationController, :type => :controller do
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Invalid token')
-      expect(json['token']).to eq('abcdef')
+      expect(json['token']).to be_nil
     end
     
     it "should not error if no token parameter is sent" do

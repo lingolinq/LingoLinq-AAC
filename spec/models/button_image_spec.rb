@@ -315,7 +315,7 @@ describe ButtonImage, :type => :model do
   #     if self.url.match(/\/libraries\/twemoji\//) && self.settings['external_id']
   #       token = ENV['OPENSYMBOLS_TOKEN']
   #       url = "https://www.opensymbols.org/api/v2/symbols/twemoji/#{self.settings['external_id']}"
-  #       res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
+  #       res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10)
   #       json = JSON.parse(res.body) rescue nil
   #       if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != self.url
   #         self.settings['pre_variant_url'] = self.url
@@ -385,7 +385,7 @@ describe ButtonImage, :type => :model do
       bi = ButtonImage.create(url: 'https://example.com/libraries/twemoji/pic-cool.svg', settings: {'external_id' => '1188'})
       obj = OpenStruct.new(body: {}.to_json)
       expect(Typhoeus).to_not receive(:head)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, ssl_verifypeer: false, timeout: 10}).and_return(obj)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, timeout: 10}).and_return(obj)
       expect(bi).to receive(:save)
       expect(bi.check_for_variants).to eq(false)
       expect(bi.url).to eq("https://example.com/libraries/twemoji/pic-cool.svg")
@@ -401,7 +401,7 @@ describe ButtonImage, :type => :model do
         }
       }.to_json)
       expect(Typhoeus).to_not receive(:head)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, ssl_verifypeer: false, timeout: 10}).and_return(obj)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, timeout: 10}).and_return(obj)
       expect(bi).to receive(:save)
       expect(bi.check_for_variants).to eq(true)
       expect(bi.url).to eq("https://example.com/libraries/twemoji/pic-varfffUNI-cool.svg")
