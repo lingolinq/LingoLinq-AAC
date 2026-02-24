@@ -35,6 +35,11 @@ jobs:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingolinq_test
       REDIS_URL: redis://localhost:6379/
+      SECURE_ENCRYPTION_KEY: ${{ secrets.SECURE_ENCRYPTION_KEY }}
+      SECURE_NONCE_KEY: ${{ secrets.SECURE_NONCE_KEY }}
+      COOKIE_KEY: ${{ secrets.COOKIE_KEY }}
+      DEFAULT_EMAIL_FROM: ${{ secrets.DEFAULT_EMAIL_FROM }}
+      SYSTEM_ERROR_EMAIL: ${{ secrets.SYSTEM_ERROR_EMAIL }}
 
     steps:
       - name: Checkout repository
