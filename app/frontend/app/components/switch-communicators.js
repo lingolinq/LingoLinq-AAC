@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
 /**
@@ -80,16 +79,16 @@ export default Component.extend({
             _this.get('router').transitionTo(routeName);
           }
         }, function() {
-          modal.close();
-          modal.error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));
+          _this.get('modal').close();
+          _this.get('modal').error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));
         });
       } else if (this.get('model.modal')) {
         const _this = this;
         this.get('store').findRecord('user', board_for_user_id).then(function(u) {
-          modal.open(_this.get('model.modal.modal'), { user: u });
+          _this.get('modal').open(_this.get('model.modal.modal'), { user: u });
         }, function() {
-          modal.close();
-          modal.error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));
+          _this.get('modal').close();
+          _this.get('modal').error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));
         });
       } else if (this.get('model.eval')) {
         appState.set_speak_mode_user(board_for_user_id, false, false, 'obf/eval');
