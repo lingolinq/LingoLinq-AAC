@@ -21,6 +21,9 @@ setup(QUnit.assert);
 // Force-load all test modules before start(). The ember-cli-test-loader's loadTests()
 // only registers ~3 tests for unknown reasons (loader/context mismatch). Manually
 // requiring each *-test module ensures they execute and register their tests.
+//
+// TODO: Investigate root cause of ember-cli-test-loader not discovering all tests.
+// May be module naming, resolver config, or a loader/dependency mismatch.
 const req = (typeof window !== 'undefined' && window.requirejs) || (typeof self !== 'undefined' && self.requirejs);
 if (req && req.entries && typeof req === 'function') {
   const all = Object.keys(req.entries);
@@ -44,7 +47,7 @@ if (req && req.entries && typeof req === 'function') {
 // Log summary when run completes (browser console; Testem shows "X tests complete" in terminal)
 QUnit.on('runEnd', function(runEnd) {
   const c = runEnd.testCounts;
-  if (c.failed > 0 || c.total > 100) {
+  if (c.total > 0) {
     console.log('[TEST]', c.passed, 'passed,', c.failed, 'failed,', c.skipped, 'skipped,', c.todo, 'todo |', runEnd.runtime, 'ms');
   }
 });

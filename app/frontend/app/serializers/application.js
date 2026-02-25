@@ -20,6 +20,7 @@ export default DS.RESTSerializer.extend({
     // fetch-manager passes snapshot.id (e.g. 'self') and operation (e.g. 'updateRecord') to
     // normalizeResponse. For user 'self', snapshot.id is 'self'.
     // Pass a copy with id forced to 'self' so Ember Data never tries to update the RecordIdentifier.
+    // id.endsWith(':self') is safe: backend user IDs use global_id format (e.g. 1_42) and never end with ':self'.
     var userSelfRequestTypes = ['findRecord', 'updateRecord'];
     var idIndicatesSelf = id === 'self' || id === 'user:self' || (typeof id === 'string' && id.endsWith(':self'));
     if (primaryModelClass.modelName === 'user' &&

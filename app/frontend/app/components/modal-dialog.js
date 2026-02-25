@@ -145,7 +145,11 @@ export default Component.extend({
           if (action && typeof action === 'function') {
             action();
           } else {
-            modal.close();
+            try {
+              if (modal && typeof modal.close === 'function') {
+                modal.close();
+              }
+            } catch (e) { /* modal service unavailable during teardown */ }
           }
         };
         if (isBackdropClick) {

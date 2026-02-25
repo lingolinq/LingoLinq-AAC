@@ -1154,7 +1154,8 @@ export default Controller.extend({
           try {
             this.router.transitionTo(routeName);
           } catch(e) {
-            // urlFor succeeded but route actually needs params (e.g. edge case); use full from
+            // urlFor succeeded but route actually needs params (e.g. "More context objects"); use full from
+            console.warn('[APPLICATION] transitionTo(routeName) threw, using from_route fallback:', e.message || e);
             this.router.transitionTo.apply(this.router, from);
           }
         } else {
