@@ -35,9 +35,9 @@
               <ul>
               {{#each this.stats.popular_forks as |fork|}}
                 <li>
-                  {{#link-to "board" fork.key}}
+                  <LinkTo @route="board" @model={{fork.key}}>
                     {{fork.key}}
-                  {{/link-to}} - {{t "use" count=fork.uses key="n_uses" }}
+                  </LinkTo> - {{t "use" count=fork.uses key="n_uses" }}
                 </li>
               {{/each}}
               </ul>

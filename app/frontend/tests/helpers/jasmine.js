@@ -1,6 +1,7 @@
 /*jshint -W079 */
-// Use window.QUnit (from qunit-standalone.js) so tests register in the same instance Testem runs
-var QUnit = window.QUnit;
+// Must use the same QUnit instance as ember-qunit/test-helper so jasmine-style tests register
+// and run. window.QUnit (qunit-standalone.js) can be a different instance than the 'qunit' module.
+import * as QUnit from 'qunit';
 import { setupRenderingTest, setupTest, setupApplicationTest } from 'ember-qunit';
 import EmberObject from '@ember/object';
 import { run as emberRun } from '@ember/runloop';
@@ -92,7 +93,7 @@ var describe = function(name, lookup, callback) {
   }
   if(names.length === 0) {
     QUnit.module(name, function(hooks) {
-      // setupTest(hooks);
+      setupTest(hooks);
       add_test();
     });
   } else {

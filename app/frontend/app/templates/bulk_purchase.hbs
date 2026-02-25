@@ -61,9 +61,9 @@
           {{t "This gift code has not yet been redeemed." key="gift_still_active"}}
         {{else if gift.recipient}}
           {{t "This gift code has been redeemed by" key="gift_redeemed_by"}}
-          {{#link-to "user" gift.recipient.user_name}}
+          <LinkTo @route="user" @model={{gift.recipient.user_name}}>
             <b>{{gift.recipient.user_name}}</b>
-          {{/link-to}}{{t "." key="period"}}
+          </LinkTo>{{t "." key="period"}}
           {{#if gift.recipient.redeemed_at}}
               {{t "It was redeemed" key="it_was_redeemed"}}
               {{date gift.recipient.redeemed_at "day"}}
@@ -95,12 +95,12 @@
           {{#if code.redeemed}}
             <span style='text-decoration: line-through;'>{{code.code}}</span>
             <span class='text-muted'>
-              {{#link-to "user" code.receiver.user_name}}
+              <LinkTo @route="user" @model={{code.receiver.user_name}}>
                 {{#if code.receiver.avatar_url}}
                   <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' >
                 {{/if}}
                 {{code.receiver.user_name}}
-              {{/link-to}}
+              </LinkTo>
               {{t "redeemed" key="redeemed_lower"}}
               {{date code.redeemed_at "day"}}
             </span>
@@ -141,12 +141,12 @@
       {{#each gift.activations as |code|}}
         <li class='list-group-item'>
           <span class='text-muted'>
-            {{#link-to "user" code.receiver.user_name}}
+            <LinkTo @route="user" @model={{code.receiver.user_name}}>
               {{#if code.receiver.avatar_url}}
                 <img src={{code.receiver.avatar_url}} style='height: 20px; opacity: 0.5;' >
               {{/if}}
               {{code.receiver.user_name}}
-            {{/link-to}}
+            </LinkTo>
             {{t "redeemed" key="redeemed_lower"}}
             {{date code.activated_at "day"}}
           </span>

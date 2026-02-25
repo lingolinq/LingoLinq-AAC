@@ -13,7 +13,7 @@
       </span>
     {{else}}
       <span style='font-size: 14px;'>
-        {{#link-to "index"}}{{t "Back to the Dashboard" key="back_to_dashboard"}}{{/link-to}}
+        <LinkTo @route="index">{{t "Back to the Dashboard" key="back_to_dashboard"}}</LinkTo>
       </span>
     {{/if}}
     {{#if this.app_state.currentBoardState}}

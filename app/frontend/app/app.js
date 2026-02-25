@@ -44,8 +44,9 @@ setOnerror(function(err) {
       LingoLinq.track_error(JSON.stringify(err), false);
     }
   }
+  // MUST rethrow when testing - required for test framework validation (after logging)
   if(isTesting() || LingoLinq.testing) {
-    throw(err);
+    throw err;
   }
 });
 

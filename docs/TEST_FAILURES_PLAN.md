@@ -551,3 +551,26 @@ bundle exec rspec --order defined
 - **AUTH-DEBUG** and similar logging in `Device.check_token` and controllers can be removed or gated once auth is stable.
 - ~~Consider fixing `spec_helper` `fixture_path` deprecation~~ ✅ Fixed Feb 2026: use plural `fixture_paths` per Rails 7.1.
 - Run `ember test` for frontend tests; not covered by this plan.
+
+---
+
+## Ember Frontend Tests – Hang After Build (WSL2 / Headless)
+
+**Symptom:** `npm run test` or `ember test` completes the build, then hangs for hours (or until interrupted). No tests run.
+
+**Root cause:** The app uses deferred readiness: it defers boot until IndexedDB setup, language loading, and extras init complete. In headless Chromium (e.g. on WSL2), IndexedDB or capabilities setup can hang indefinitely, so the app never finishes booting and QUnit never starts.
+
+**Fix applied (test-helper.js):** Set `window.cough_drop_readiness = true` when `isTesting()` so the app skips deferred readiness and boots immediately in tests.
+
+**If tests still hang (headless) or only 2 modules appear:**
+1. **Recommended:** Run in server mode with manual browser (testem.js has `launch_in_dev: []`):
+   ```bash
+   cd app/frontend && npx ember test --server
+   ```
+   Then open `http://localhost:7357/tests/index.html` in your browser. Add `?hidepassed` to collapse passed tests. This avoids headless Chromium and uses your normal browser.
+
+2. **Verify test run:** Open DevTools Console (F12). When tests finish, look for `[TEST] Run complete: X tests total | Y passed, Z failed, ...` to confirm counts. Also `[TEST] Discovered N test modules` at startup – if N is low, the loader isn't finding modules.
+
+3. On WSL2, headless Chromium often hangs. Use manual browser (step 1) or run `npm run test` in CI/native Linux.
+
+4. Run backend tests only: `bundle exec rspec` (RSpec) does not depend on Ember.

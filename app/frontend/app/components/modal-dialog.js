@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
 import buttonTracker from '../utils/raw_events';
@@ -7,7 +8,7 @@ import { observer } from '@ember/object';
 
 export default Component.extend({
   didRender: function() {
-    if(!this || typeof this.get !== 'function') { return; }
+    if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
@@ -27,14 +28,18 @@ export default Component.extend({
         service.setComponent(this);
       }
     }
+    var el = this.get('element');
+    if (!el || this.isDestroyed || this.isDestroying) { return; }
     var height = $(window).height() - 50;
-    $(this.get('element')).find(".modal-content").css('maxHeight', height).css('overflow', 'auto');
+    $(el).find(".modal-content").css('maxHeight', height).css('overflow', 'auto');
   },
   willClearRender: function() {
     this.set('already_opened', false);
   },
   stretch: observer('stretch_ratio', 'desired_width', function() {
-    if(!this || typeof this.get !== 'function') { return; }
+    if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
+    var el = this.get('element');
+    if (!el) { return; }
     if(this.get('stretch_ratio')) {
       var height = $(window).height() - 50;
       var width = $(window).width();
@@ -42,21 +47,21 @@ export default Component.extend({
       if(modal_width > height * this.get('stretch_ratio') * 0.9) {
         modal_width = height * this.get('stretch_ratio') * 0.9;
       }
-      $(this.get('element')).find(".modal-dialog").css('width', modal_width);
+      $(el).find(".modal-dialog").css('width', modal_width);
     } else if(this.get('full_stretch')) {
       var height = $(window).height() - 50;
       var width = $(window).width();
       var modal_width = (width * 0.97);
-      $(this.get('element')).find(".modal-dialog").css('width', modal_width);
+      $(el).find(".modal-dialog").css('width', modal_width);
     } else if(this.get('desired_width')) {
       var width = $(window).width();
       var modal_width = (width * 0.9);
       if(this.get('desired_width') < modal_width) {
         modal_width = this.get('desired_width');
       }
-      $(this.get('element')).find(".modal-dialog").css('width', modal_width);
+      $(el).find(".modal-dialog").css('width', modal_width);
     } else {
-      $(this.get('element')).find(".modal-dialog").css('width', '');
+      $(el).find(".modal-dialog").css('width', '');
     }
   }),
   willDestroy: function() {
@@ -127,15 +132,30 @@ export default Component.extend({
       }
       
       // Close for backdrop clicks or explicit button calls
+      // Defer only for backdrop clicks to avoid tearing down during event handling
       if(isBackdropClick || isExplicitButtonCall) {
-        // Access closure action via get() - direct property access bypasses Ember's property system
-        var action = this.get('action');
-        if (action && typeof action === 'function') {
-          action();
+        var _this = this;
+        var doClose = function() {
+          var action = null;
+          try {
+            if (!_this.isDestroyed && !_this.isDestroying && _this.get) {
+              action = _this.get('action');
+            }
+          } catch (e) { /* component torn down */ }
+          if (action && typeof action === 'function') {
+            action();
+          } else {
+            try {
+              if (modal && typeof modal.close === 'function') {
+                modal.close();
+              }
+            } catch (e) { /* modal service unavailable during teardown */ }
+          }
+        };
+        if (isBackdropClick) {
+          runLater(doClose, 0);
         } else {
-          // Fallback: directly call modal.close() since all controllers use it
-          // This is more reliable than sendAction() which is deprecated
-          modal.close();
+          doClose();
         }
       }
       // If called from mouseUp/touchEnd but not a backdrop click, do nothing
