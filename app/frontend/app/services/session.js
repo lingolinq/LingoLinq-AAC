@@ -521,8 +521,8 @@ export default Service.extend({
   },
 
   alert: function(message) {
-    if(!isTesting()) {
-      alert(message);
+    if (!isTesting() && typeof window !== 'undefined') {
+      window.alert(message);
     }
   },
 

@@ -15,9 +15,9 @@
       <dt>{{t "Name:" key="name_colon"}}</dt>
         <dd>
           {{#if this.result.organization}}
-            {{#link-to "organization" this.result.target_id}}{{this.result.name}}{{/link-to}}
+            <LinkTo @route="organization" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
           {{else if this.result.supervisor}}
-            {{#link-to "user" this.result.target_id}}{{this.result.name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
           {{else}}
             {{this.result.name}}
           {{/if}}
@@ -30,9 +30,9 @@
       {{#if this.result.overrides.home_board_key}}
         <dt>{{t "Home Board:" key="home_board_colon"}}</dt>
           <dd>
-            {{#link-to "board" this.result.overrides.home_board_key}}
+            <LinkTo @route="board" @model={{this.result.overrides.home_board_key}}>
               {{this.result.overrides.home_board_key}}
-            {{/link-to}}
+            </LinkTo>
           </dd>
       {{/if}}
       {{#if this.result.overrides.locale}}
@@ -67,10 +67,10 @@
       <ul class='list-group'>
       {{#each this.result.users as |user|}}
         <li class='list-group-item'>
-          {{#link-to "user" user.id}}
+          <LinkTo @route="user" @model={{user.id}}>
             <img src={{user.avatar_url}} style='height: 30px; width: 30px; margin-right: 10px;' class='fit_image' >
             {{user.user_name}}
-          {{/link-to}}
+          </LinkTo>
         </li>
       {{/each}}
       </ul>

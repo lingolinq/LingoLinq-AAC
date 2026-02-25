@@ -6,10 +6,10 @@
           {{#if user.totals}}
             {{t "room activity" key="room_activity"}}
           {{else}}
-            {{#link-to "user" user.user_name}}
+            <LinkTo @route="user" @model={{user.user_name}}>
               <img src={{user.avatar_url}} class='fit_image' style="height: 30px; width: 30px;">
               {{user.user_name}}
-            {{/link-to}}
+            </LinkTo>
             {{#if user.goal}}
               <div style="position: absolute; bottom: 5px; left: 50px; color: #888; font-size: 10px; width: calc(100% - 50px); overflow: hidden; text-overflow: ellipsis;">
                 {{user.goal.summary}}

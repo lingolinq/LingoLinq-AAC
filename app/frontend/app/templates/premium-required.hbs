@@ -20,14 +20,14 @@
           {{/if}}
           {{t "If you need personal access to this feature, please" key="please_subscribe_a1"}}
           {{#if this.app_state.sessionUser.modeling_only}}
-            {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium supporter account" key="please_subscribe_a2"}}{{/link-to}}
+            <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium supporter account" key="please_subscribe_a2"}}</LinkTo>
           {{else}}
-            {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
+            <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium communicator account" key="please_subscribe_2"}}</LinkTo>
           {{/if}}
           {{t "to support this good cause." key="please_subscribe_3"}}
         {{else}}
           {{t "This user's premium access has ended. %app_name% is a powerful service that helps many users communicate. Please " key="please_subscribe_1"}}
-          {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium communicator account" key="please_subscribe_2"}}{{/link-to}}
+          <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium communicator account" key="please_subscribe_2"}}</LinkTo>
           {{t "to support this good cause." key="please_subscribe_3"}}
         {{/if}}
       </p>
@@ -44,7 +44,7 @@
       <p>
         {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have a paid communicator account. Please " key="purchase_subscription_1a"}}
         {{#if this.model.user_name}}
-          {{#link-to "user.subscription" this.model.user_name}}{{t "purchase a premium account" key="purchase_subscription_2"}}{{/link-to}}
+          <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
         {{else}}
           {{t "purchase a premium account" key="purchase_subscription_2"}}
         {{/if}}

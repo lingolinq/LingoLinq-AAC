@@ -130,7 +130,9 @@ export default Service.extend({
     // This prevents errors if window.persistence isn't ready yet
     var _this = this;
     runLater(function() {
-      _this._setupRefreshTimers();
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this._setupRefreshTimers();
+      }
     }, 0);
   },
 
@@ -184,7 +186,9 @@ export default Service.extend({
     this.set('button_list', []);
     // Defer stashes access until after service initialization is complete
     runLater(function() {
-      _this.set('stashes', _this.stashes);
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('stashes', _this.stashes);
+      }
     }, 0);
     this.set('geolocation', geolocation);
     this.set('installed_app', capabilities.installed_app);
@@ -204,6 +208,7 @@ export default Service.extend({
     var _this = this;
 
     capabilities.battery.listen(function(battery) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       battery.level = Math.round(battery.level * 100);
       if(battery.level != _this.get('battery.level') || battery.charging !== _this.get('battery.charging')) {
         _this.set('battery', battery);
@@ -232,6 +237,7 @@ export default Service.extend({
           }
         }
         var maybe_sound = function(type, attempt) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
           attempt = attempt || 0;
           if(_this.get('speak_mode') && _this.get('currentUser.preferences.battery_sounds')) {
             if(speecher.speaking) {
@@ -275,6 +281,7 @@ export default Service.extend({
                 if(!fulls.complete) {
                   fulls.complete = true; fulls.mostly = true; fulls.ready = true;
                   var remind = function() {
+                    if (_this.isDestroyed || _this.isDestroying) { return; }
                     // taper off reminders that the device is fully charged
                     if(_this.get('battery_fulls.complete') && battery.charging && battery.level == 100 && _this.get('battery_fulls.reminds') <= 3) {
                       maybe_sound('glug');
@@ -306,7 +313,9 @@ export default Service.extend({
       }
     });
     capabilities.ssid.listen(function(ssid) {
-      _this.set('current_ssid', ssid);
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('current_ssid', ssid);
+      }
     });
     capabilities.nfc.available().then(function(res) {
       if(res && res.background) {

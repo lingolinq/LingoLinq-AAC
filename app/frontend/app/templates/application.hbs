@@ -99,9 +99,9 @@
             </div>
           {{/if}}
         {{/unless}}
-        {{#with this.app_state.button_list as |button_list|}}
+        {{#let this.app_state.button_list as |button_list|}}
           {{button-list buttonList=button_list}}
-        {{/with}}
+        {{/let}}
       </a>
       {{#unless this.app_state.button_list}}
         {{#if this.app_state.currentUser.preferences.blank_status}}
@@ -225,7 +225,7 @@
             {{#if this.board.model.local_only}}
               {{this.app_state.current_board_user_name}} / 
             {{else}}
-              {{#link-to "user" this.app_state.current_board_user_name}}{{this.app_state.current_board_user_name}}{{/link-to}} /
+              <LinkTo @route="user" @model={{this.app_state.current_board_user_name}}>{{this.app_state.current_board_user_name}}</LinkTo> /
             {{/if}}
             {{this.app_state.current_board_name}}
           {{/if}}
@@ -260,9 +260,9 @@
               {{#if this.app_state.domain_settings.full_domain}}
                 {{#unless this.app_state.currentUser}}
                   <div class='signup_links'>
-                    {{#link-to "register"}}<span style='color: #444;'>{{t "2-Month Trial" key="two_month_trial"}}</span>{{/link-to}}
+                    <LinkTo @route="register"><span style='color: #444;'>{{t "2-Month Trial" key="two_month_trial"}}</span></LinkTo>
                     <span style='color: #aaa; padding: 0 5px;'> | </span>
-                    {{#link-to "gift_purchase"}}<span style='color: #444;'>{{t "Gift Purchase" key="gift_purchase"}}</span>{{/link-to}}
+                    <LinkTo @route="gift_purchase"><span style='color: #444;'>{{t "Gift Purchase" key="gift_purchase"}}</span></LinkTo>
                   </div>
                 {{/unless}}
               {{/if}}
@@ -639,7 +639,7 @@
                     {{#if this.board.model.local_only}}
                       {{#if this.board.model.editable_source_key}} 
                           <li role="presentation">
-                            {{#link-to "board" this.board.model.editable_source_key role="menuitem" tabindex="-1"}}{{t "Editable Version" key="editable_version"}}{{/link-to}}
+                            <LinkTo @route="board" @model={{this.board.model.editable_source_key}} role="menuitem" tabindex="-1">{{t "Editable Version" key="editable_version"}}</LinkTo>
                           </li>
                       {{/if}}
                     {{else}}
@@ -650,11 +650,11 @@
                           </li>
                         {{else if this.board.model.copy.key}}
                           <li role="presentation">
-                            {{#link-to "board" this.board.model.copy.key role="menuitem" tabindex="-1"}}{{t "View My Copy" key="view_my_copy"}}{{/link-to}}
+                            <LinkTo @route="board" @model={{this.board.model.copy.key}} role="menuitem" tabindex="-1">{{t "View My Copy" key="view_my_copy"}}</LinkTo>
                           </li>
                         {{else if this.board.model.original.key}}
                           <li role="presentation">
-                            {{#link-to "board" this.board.model.original.key role="menuitem" tabindex="-1"}}{{t "View Original" key="original_board"}}{{/link-to}}
+                            <LinkTo @route="board" @model={{this.board.model.original.key}} role="menuitem" tabindex="-1">{{t "View Original" key="original_board"}}</LinkTo>
                           </li>
                         {{/if}}
                       {{/if}}
@@ -830,12 +830,12 @@
               <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
               {{#unless this.app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
+                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
                 </li>
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
                 <li role="presentation">
-                  {{#link-to "user" this.app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
+                  <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
                 </li>
               {{/if}}
               {{#if (persistence-value 'syncing')}}
@@ -846,7 +846,7 @@
             {{else}}
               {{#unless this.app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
+                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
                 </li>
               {{/unless}}
             {{/if}}
@@ -951,19 +951,19 @@
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.session.isAuthenticated}}
               {{#unless this.app_state.speak_mode}}
-                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key="find_board"}}{{/link-to}}</li>
+                <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
                 {{#if this.app_state.currentUser.permissions.delete}}
                   <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
                 {{/if}}
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
-                <li>{{#link-to "user.preferences" this.app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
-                <li>{{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
+                <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+                <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                   {{#if this.app_state.currentUser.unread_messages}}
                     <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
                   {{/if}}
                   {{t "Messages" key="messages"}}
-                {{/link-to}}</li>
+                </LinkTo></li>
               {{/if}}
               {{#if this.session.as_user_id}}
                 <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
@@ -978,7 +978,7 @@
               {{#unless this.app_state.no_linky}}
                 {{#if this.app_state.domain_settings.full_domain}}
                   <li role="presentation">
-                    {{#link-to "register"}}{{t "Register" key="register"}}{{/link-to}}
+                    <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
                   </li>
                 {{/if}}
               {{/unless}}
@@ -1086,7 +1086,7 @@
         </span>
       {{else}}
         <span style='font-size: 14px;'>
-          {{#link-to "index"}}{{t "Back to the Dashboard" key="back_to_dashboard"}}{{/link-to}}
+          <LinkTo @route="index">{{t "Back to the Dashboard" key="back_to_dashboard"}}</LinkTo>
         </span>
       {{/if}}
       {{#if this.app_state.currentBoardState}}

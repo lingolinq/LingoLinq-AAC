@@ -84,7 +84,7 @@
                       <span class="text-muted" style="font-size: 12px;"> {{t "(pending approval)" key="pending_approval"}}</span>
                     {{/if}}
                   </div>
-                  {{#link-to "user" user.id}}{{user.user_name}}{{/link-to}}
+                  <LinkTo @route="user" @model={{user.id}}>{{user.user_name}}</LinkTo>
                   {{#if user.include_downstream}}
                     <span class="text-muted"> {{t "(includes downstream boards)" key="downstream"}}</span>
                   {{/if}}

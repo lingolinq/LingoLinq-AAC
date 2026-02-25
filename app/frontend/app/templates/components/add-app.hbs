@@ -25,9 +25,9 @@
           <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
         </a>
       {{/if}}
-      {{#link-to "download"}}
+      <LinkTo @route="download">
         <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;">
-      {{/link-to}}
+      </LinkTo>
     </div>
 
     {{t "You can also install the web version on mobile devices by hitting share or settings and selecting \"Add to Home Screen\"." key="add_to_home_screen"}}
