@@ -694,14 +694,14 @@ describe Stats do
       str = Stats.lam([s1, s2])
       expect(str).to match(/CAUTION/)
       lines = str.split(/\n/)
-      expect(lines[-8]).to eql("15:11:02 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-7]).to eql("15:11:02 SMP \"I \"")
-      expect(lines[-6]).to eql("15:11:04 SMP \"like \"")
-      expect(lines[-5]).to eql("15:11:12 SMP \"ok go \"")
-      expect(lines[-4]).to eql("15:11:22 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-3]).to eql("15:11:22 SMP \"do \"")
-      expect(lines[-2]).to eql("15:11:32 SMP \"you \"")
-      expect(lines[-1]).to eql("15:11:34 SMP \"too \"")
+      expect(lines[-8]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-7]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} SMP \"I \"")
+      expect(lines[-6]).to eql("#{Time.at(now - 8).strftime('%H:%M:%S')} SMP \"like \"")
+      expect(lines[-5]).to eql("#{Time.at(now).strftime('%H:%M:%S')} SMP \"ok go \"")
+      expect(lines[-4]).to eql("#{Time.at(now + 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now + 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-3]).to eql("#{Time.at(now + 10).strftime('%H:%M:%S')} SMP \"do \"")
+      expect(lines[-2]).to eql("#{Time.at(now + 20).strftime('%H:%M:%S')} SMP \"you \"")
+      expect(lines[-1]).to eql("#{Time.at(now + 22).strftime('%H:%M:%S')} SMP \"too \"")
     end
     
     it "should update the date correctly" do
@@ -717,11 +717,11 @@ describe Stats do
       str = Stats.lam([s1])
       expect(str).to match(/CAUTION/)
       lines = str.split(/\n/)
-      expect(lines[-5]).to eql("23:59:51 CTL *[YY-MM-DD=14-11-10]*")
-      expect(lines[-4]).to eql("23:59:51 SMP \"I \"")
-      expect(lines[-3]).to eql("23:59:53 SMP \"like \"")
-      expect(lines[-2]).to eql("00:00:01 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-1]).to eql("00:00:01 SMP \"ok go \"")
+      expect(lines[-5]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-4]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} SMP \"I \"")
+      expect(lines[-3]).to eql("#{Time.at(now - 8).strftime('%H:%M:%S')} SMP \"like \"")
+      expect(lines[-2]).to eql("#{Time.at(now).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now).strftime('%y-%m-%d')}]*")
+      expect(lines[-1]).to eql("#{Time.at(now).strftime('%H:%M:%S')} SMP \"ok go \"")
     end
     
     it "should include spelling events correctly" do
@@ -737,10 +737,10 @@ describe Stats do
       str = Stats.lam([s1])
       expect(str).to match(/CAUTION/)
       lines = str.split(/\n/)
-      expect(lines[-4]).to eql("15:11:02 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-3]).to eql("15:11:02 SPE \"d\"")
-      expect(lines[-2]).to eql("15:11:04 SPE \"o\"")
-      expect(lines[-1]).to eql("15:11:12 SPE \"g\"")
+      expect(lines[-4]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-3]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} SPE \"d\"")
+      expect(lines[-2]).to eql("#{Time.at(now - 8).strftime('%H:%M:%S')} SPE \"o\"")
+      expect(lines[-1]).to eql("#{Time.at(now).strftime('%H:%M:%S')} SPE \"g\"")
     end
     
     it "should include word completion events correctly" do
@@ -756,10 +756,10 @@ describe Stats do
       str = Stats.lam([s1])
       expect(str).to match(/CAUTION/)
       lines = str.split(/\n/)
-      expect(lines[-4]).to eql("15:11:02 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-3]).to eql("15:11:02 SPE \"d\"")
-      expect(lines[-2]).to eql("15:11:04 SPE \"o\"")
-      expect(lines[-1]).to eql("15:11:12 WPR \"dog \"")
+      expect(lines[-4]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-3]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} SPE \"d\"")
+      expect(lines[-2]).to eql("#{Time.at(now - 8).strftime('%H:%M:%S')} SPE \"o\"")
+      expect(lines[-1]).to eql("#{Time.at(now).strftime('%H:%M:%S')} WPR \"dog \"")
     end
     
     it "should ignore extra events" do
@@ -776,8 +776,8 @@ describe Stats do
       str = Stats.lam([s1])
       expect(str).to match(/CAUTION/)
       lines = str.split(/\n/)
-      expect(lines[-2]).to eql("15:11:02 CTL *[YY-MM-DD=14-11-11]*")
-      expect(lines[-1]).to eql("15:11:02 SMP \"cat \"")
+      expect(lines[-2]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(lines[-1]).to eql("#{Time.at(now - 10).strftime('%H:%M:%S')} SMP \"cat \"")
     end
   end
   
@@ -1008,7 +1008,7 @@ SOME SILLY GARBAGE
       expect(res[2]['timestamp']).to eq(Time.now.change(:hour => 18, :min => 1, :sec => 55).to_i)
       expect(res[3]['type']).to eq('button')
       expect(res[3]['button']['label']).to eq('somebody else')
-      expect(res[3]['timestamp']).to eq(1468396865)
+      expect(res[3]['timestamp']).to eq(Date.parse('16-07-13').to_time.change(:hour => 2, :min => 1, :sec => 5).to_i)
     end
   end
   
