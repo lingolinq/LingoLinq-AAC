@@ -152,6 +152,20 @@ describe Uploader do
   end
 
   describe "check_existing_upload" do
+    let(:upload_config) do
+      { access_key: 'test_key', secret: 'test_secret', bucket_name: 'test-bucket', upload_url: 'https://example.com/' }
+    end
+
+    before do
+      allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
+      @orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_CDN'] = 'https://example.com'
+    end
+
+    after do
+      ENV['UPLOADS_S3_CDN'] = @orig_cdn
+    end
+
     it "should return false without a path" do
       expect(Uploader.check_existing_upload(nil)).to eq({found: false})
     end
@@ -159,33 +173,20 @@ describe Uploader do
     it "should return false if the object is not found" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
-      expect(bucket).to  receive(:objects).and_raise("nope")
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
+      expect(bucket).to receive(:objects).and_return(bucket)
+      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
       expect(Uploader.check_existing_upload("a/b/c")).to eq({found: false})
     end
 
     it "should strip the leading slash" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
-    end
-
-    it "should strip the leading slash" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
       expect(bucket).to  receive(:objects).and_return(bucket)
       expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
@@ -194,24 +195,22 @@ describe Uploader do
     it "should return the found record" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
       expect(bucket).to  receive(:objects).and_return(bucket)
       expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
       expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
 
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "#{ENV['UPLOADS_S3_CDN']}/a/b/c"})
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
 
     it "should return expiration status" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
       expect(bucket).to  receive(:objects).and_return(bucket)
       expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
       expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.hours.from_now.iso8601}\""})
@@ -222,10 +221,9 @@ describe Uploader do
     it "should return mismatch status" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
       expect(bucket).to  receive(:objects).and_return(bucket)
       expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
       expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum2', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
@@ -236,15 +234,14 @@ describe Uploader do
     it "should return the found record if checksum matches" do
       service = OpenStruct.new
       bucket = OpenStruct.new
-      config = Uploader.remote_upload_config
-      expect(S3::Service).to receive(:new).with(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3).and_return(service)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
       expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with(config[:bucket_name]).and_return(bucket)
+      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
       expect(bucket).to  receive(:objects).and_return(bucket)
       expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
       expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
 
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "#{ENV['UPLOADS_S3_CDN']}/a/b/c"})
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
   end  
 
