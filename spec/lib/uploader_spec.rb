@@ -7,6 +7,7 @@ describe Uploader do
       Uploader.remote_upload("bacon", "/hat", "hat/beret")
     end
     it "should fail gracefully if the file is not found" do
+      allow(Uploader).to receive(:remote_upload_params).and_return(upload_url: 'https://example.com/', upload_params: {})
       expect(Uploader.remote_upload("bacon", "/hat", "hat/beret")).to eq(nil)
     end
     
