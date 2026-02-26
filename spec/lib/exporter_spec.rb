@@ -242,7 +242,7 @@ describe Exporter do
       u = User.create
       d = Device.create(user: u)
       s = LogSession.create()
-      ts = Time.parse('Apr 7, 2017').to_i
+      ts = Time.utc(2017, 4, 7, 6, 0, 0).to_i
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.6'})
@@ -587,7 +587,7 @@ describe Exporter do
       u = User.create
       d = Device.create(user: u)
       s = LogSession.create()
-      ts = Time.parse('Apr 7, 2017').to_i
+      ts = Time.utc(2017, 4, 7, 6, 0, 0).to_i
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.6'})

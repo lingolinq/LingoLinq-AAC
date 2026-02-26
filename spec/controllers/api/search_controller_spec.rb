@@ -559,57 +559,62 @@ describe Api::SearchController, :type => :controller do
       get :audio, params: {text: 'asdf'}
     end
 
-    it "should use the token if there is one" do
-      expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=#{ENV['GOOGLE_TTS_TOKEN']}").and_return(OpenStruct.new({
-        headers: {
-          'Content-Type' => 'audio/mp3'
-        },
-        body: 'asdf'
-      }))
-      get :audio, params: {text: 'asdf', locale: 'fr'}
-    end
+    env_wrap('GOOGLE_TTS_TOKEN' => 'test_tts_key') do
+      it "should use the token if there is one" do
+        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
+          body: {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json
+        }))
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+          audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
+          input: {text: 'asdf'},
+          voice: {languageCode: 'fr', name: 'Bob'}
+        }.to_json, headers: {'Content-Type': 'application/json'}).and_return(OpenStruct.new({
+          headers: {'Content-Type' => 'audio/mp3'},
+          body: {audioContent: Base64.strict_encode64('asdf')}.to_json
+        }))
+        get :audio, params: {text: 'asdf', locale: 'fr'}
+        expect(response).to be_successful
+      end
 
-    it "should cache the voices list when retrieved" do
-      expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=#{ENV['GOOGLE_TTS_TOKEN']}").and_return(OpenStruct.new({
-        body: {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json
-      }))
-      expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}", body: {
-        audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
-        input: {text: 'asdf'},
-        voice: {languageCode: 'fr', name: 'Bob'}
-      }.to_json, headers: {'Content-Type': 'application/json'}).and_return(OpenStruct.new({
-        headers: {
-          'Content-Type' => 'audio/mp3'
-        },
-        body: 'asdf'
-      }))
-      fount_setex = false
-      expect(Permissions).to receive(:setex) do |a, b, c, d|
-        if b == 'google/voices/fr'
-          expect(a).to eq(RedisInit.permissions)
-          expect(b).to eq("google/voices/fr")
-          expect(c).to eq(72.hours.to_i)
-          fount_setex = true
-        end
-      end.at_least(1).times
-      get :audio, params: {text: 'asdf', locale: 'fr'}
-      expect(fount_setex).to eq(true)
-    end
+      it "should cache the voices list when retrieved" do
+        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
+          body: {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json
+        }))
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+          audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
+          input: {text: 'asdf'},
+          voice: {languageCode: 'fr', name: 'Bob'}
+        }.to_json, headers: {'Content-Type': 'application/json'}).and_return(OpenStruct.new({
+          headers: {'Content-Type' => 'audio/mp3'},
+          body: {audioContent: Base64.strict_encode64('asdf')}.to_json
+        }))
+        fount_setex = false
+        expect(Permissions).to receive(:setex) do |a, b, c, d|
+          if b == 'google/voices/fr'
+            expect(a).to eq(RedisInit.permissions)
+            expect(b).to eq("google/voices/fr")
+            expect(c).to eq(72.hours.to_i)
+            fount_setex = true
+          end
+        end.at_least(1).times
+        get :audio, params: {text: 'asdf', locale: 'fr'}
+        expect(fount_setex).to eq(true)
+      end
 
-    it "should use the cached voices list when available" do
-      RedisInit.permissions.setex("google/voices/fr", 10.seconds.to_i, {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json)
-      expect(Typhoeus).to_not receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=#{ENV['GOOGLE_TTS_TOKEN']}")
-      expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}", body: {
-        audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
-        input: {text: 'asdf'},
-        voice: {languageCode: 'fr', name: 'Bob'}
-      }.to_json, headers: {'Content-Type': 'application/json'}).and_return(OpenStruct.new({
-        headers: {
-          'Content-Type' => 'audio/mp3'
-        },
-        body: 'asdf'
-      }))
-      get :audio, params: {text: 'asdf', locale: 'fr'}
+      it "should use the cached voices list when available" do
+        RedisInit.permissions.setex("google/voices/fr", 10.seconds.to_i, {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json)
+        expect(Typhoeus).to_not receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key")
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+          audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
+          input: {text: 'asdf'},
+          voice: {languageCode: 'fr', name: 'Bob'}
+        }.to_json, headers: {'Content-Type': 'application/json'}).and_return(OpenStruct.new({
+          headers: {'Content-Type' => 'audio/mp3'},
+          body: {audioContent: Base64.strict_encode64('asdf')}.to_json
+        }))
+        get :audio, params: {text: 'asdf', locale: 'fr'}
+        expect(response).to be_successful
+      end
     end
 
     it "should use the irish voice service" do

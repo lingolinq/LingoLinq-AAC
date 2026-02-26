@@ -52,6 +52,15 @@ RSpec.configure do |config|
     ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs
     Time.zone = nil
     Worker.flush_queues
+    # When S3 credentials aren't configured (e.g. CI/GitHub Actions), stub remote_upload_params
+    # so tests that exercise upload JSON paths don't fail. In development with .env loaded,
+    # real credentials are used when available.
+    if ENV['AWS_SECRET'].to_s.blank?
+      allow(Uploader).to receive(:remote_upload_params).and_return(
+        upload_url: 'https://example.com/',
+        upload_params: {}
+      )
+    end
     RemoteAction.delete_all
     RedisInit.reset_queue_pressure_cache!
     PaperTrail.request.whodunnit = nil
