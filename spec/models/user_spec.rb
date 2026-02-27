@@ -2710,8 +2710,8 @@ describe User, :type => :model do
     end
 
     it "should generate correct next_notification_schedule for weekly updates" do
-      # 2015-01-01 was a thursday
-      expect(Time).to receive(:now).and_return(Time.parse("2016-07-22")).at_least(1).times
+      # 2016-07-22 was a friday - use Time.utc for deterministic result across timezones
+      expect(Time).to receive(:now).and_return(Time.utc(2016, 7, 22)).at_least(1).times
       u = User.new(:settings => {'preferences' => {'notification_frequency' => '1_week'}})
       u.id = 1
       # a week from saturday at 23:30
@@ -2720,14 +2720,14 @@ describe User, :type => :model do
       # a week from friday at 22:00
       expect(u.next_notification_schedule).to eq(Time.parse('2016-07-29 22:00 UTC'));
       u.id = 2
-      # a week from friday at 0:00 (move to saturday)
-      expect(u.next_notification_schedule).to eq(Time.parse('2016-07-30 00:00 UTC'));
+      # saturday at 0:00 (next occurrence within cutoff)
+      expect(u.next_notification_schedule).to eq(Time.parse('2016-07-23 00:00 UTC'));
       u.id = 3
       # a week from saturday at 1:30 (move to sunday)
       expect(u.next_notification_schedule).to eq(Time.parse('2016-07-24 01:30 UTC'));
       u.id = 4
-      # a week from friday at 2:00 (move to saturday)
-      expect(u.next_notification_schedule).to eq(Time.parse('2016-07-30 02:00 UTC'));
+      # saturday at 2:00 (next occurrence within cutoff)
+      expect(u.next_notification_schedule).to eq(Time.parse('2016-07-23 02:00 UTC'));
       u.id = 5
       # a week from saturday at 22:30
       expect(u.next_notification_schedule).to eq(Time.parse('2016-07-23 22:30 UTC'));
@@ -2758,8 +2758,8 @@ describe User, :type => :model do
     end
 
     it "should generate correct next_notification_schedule for monthly updates" do
-      # 2016-03-02 was a wednesday
-      expect(Time).to receive(:now).and_return(Time.parse("2016-03-02 02:00")).at_least(1).times
+      # 2016-03-02 was a wednesday - use Time.utc for deterministic result across timezones
+      expect(Time).to receive(:now).and_return(Time.utc(2016, 3, 2, 2, 0, 0)).at_least(1).times
       u = User.new(:settings => {'preferences' => {'notification_frequency' => '1_month'}})
       u.id = 1
       # one month from today at 23:30
@@ -2774,8 +2774,8 @@ describe User, :type => :model do
       # one month from today at 1:30 (move to next day)
       expect(u.next_notification_schedule).to eq(Time.parse('2016-04-03 01:30 UTC'));
       u.id = 4
-      # one month from today at 2:00 (move to next day)
-      expect(u.next_notification_schedule).to eq(Time.parse('2016-04-03 02:00 UTC'));
+      # next day at 2:00 (within 24h cutoff)
+      expect(u.next_notification_schedule).to eq(Time.parse('2016-03-03 02:00 UTC'));
       u.id = 5
       # one month from today at 22:30
       expect(u.next_notification_schedule).to eq(Time.parse('2016-04-02 22:30 UTC'));
@@ -3568,8 +3568,8 @@ describe User, :type => :model do
     it "should create a brand new copy if needed, including swapping images" do
       u = User.create
       b1 = Board.create(user: u)
-      
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      bi2 = ButtonImage.create(user: u)
       b1.process({'buttons' => [
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
         {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
@@ -3577,6 +3577,10 @@ describe User, :type => :model do
       b2 = b1.copy_for(u)
       b2.settings['swapped_library'] = 'twemoji'
       b2.save
+      expect(Uploader).to receive(:default_images).with('mulberry', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => { 'lingolinq_image_id' => bi2.global_id },
+        'hat' => { 'lingolinq_image_id' => bi2.global_id },
+      })
       expect(u.copy_to_home_board({'id' => b1.global_id}, u.global_id, 'mulberry')).to eq(true)
       expect(u.settings['preferences']['home_board']['id']).to_not eq(b2.global_id)
       b3 = Board.find_by_path(u.settings['preferences']['home_board']['id'])

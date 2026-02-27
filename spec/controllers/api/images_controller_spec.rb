@@ -7,15 +7,17 @@ describe Api::ImagesController, :type => :controller do
       assert_missing_token
     end
     
-    it "should create an image based on the passer parameters" do
-      token_user
-      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.png"
-      post :create, params: {:image => {'url' => url, 'content_type' => 'image/png'}}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['image']['id']).not_to eq(nil)
-      expect(json['image']['url']).to match(/bacon\.png$/)
-      expect(json['meta']).to eq(nil)
+    env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
+      it "should create an image based on the passer parameters" do
+        token_user
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/bacon.png"
+        post :create, params: {:image => {'url' => url, 'content_type' => 'image/png'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['image']['id']).not_to eq(nil)
+        expect(json['image']['url']).to match(/bacon\.png$/)
+        expect(json['meta']).to eq(nil)
+      end
     end
     
     it "should return meta (upload information) for pending images" do

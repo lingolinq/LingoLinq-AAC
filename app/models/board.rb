@@ -449,6 +449,8 @@ class Board < ActiveRecord::Base
         found_locales[self.settings['locale'].split(/-|_/)[0]] = true
       end
     end
+    # Ensure public boards have at least one BoardLocale for search (e.g. 'en')
+    found_locales['en'] = true if self.fully_listed? && found_locales.empty?
     locales.each do |locale|
       next unless locale
       found_locales[locale] = true

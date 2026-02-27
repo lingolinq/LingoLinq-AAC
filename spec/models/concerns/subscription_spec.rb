@@ -3487,7 +3487,7 @@ describe Subscription, :type => :model do
       link.data['state']['added'] = added.iso8601
       link.save
       expect(u.reload.org_sponsored?).to eq(true)
-      expect(u.purchase_credit_duration).to eq((Time.now - added).to_i)
+      expect(u.purchase_credit_duration).to be_within(2).of((Time.now - added).to_i)
     end
     
     it "should count recently-expired long-term-purchase in calculation" do

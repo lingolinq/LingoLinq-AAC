@@ -259,6 +259,9 @@ describe Api::BoardsController, :type => :controller do
       b2.generate_stats
       b2.save
       expect(BoardLocale.count).to eq(2)
+      BoardLocale.where(board_id: [b.id, b2.id]).find_each do |bl|
+        ActiveRecord::Base.connection.execute("UPDATE board_locales SET tsv_search_string = to_tsvector('simple', coalesce(search_string, '')) WHERE id = #{bl.id}")
+      end
       get :index, params: {:q => "two"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -444,6 +447,9 @@ describe Api::BoardsController, :type => :controller do
       bl3 = BoardLocale.create(board_id: b1.id, popularity: 1, home_popularity: 1, locale: 'es', search_string: "whatever cheese is good for you")
       bl4 = BoardLocale.create(board_id: b2.id, popularity: 1, home_popularity: 1, locale: 'es', search_string: "this is the best frog I have ever eaten with cheese")
       Board.where(id: b2.id).update_all(home_popularity: 5)
+      [bl1, bl2, bl3, bl4].each do |bl|
+        ActiveRecord::Base.connection.execute("UPDATE board_locales SET tsv_search_string = to_tsvector('simple', coalesce(search_string, '')) WHERE id = #{bl.id}")
+      end
 
       get :index, params: {public: true, locale: 'en-GB', q: 'cheese', sort: 'popularity'}
       json = assert_success_json
@@ -481,6 +487,9 @@ describe Api::BoardsController, :type => :controller do
       bl3 = BoardLocale.create(board_id: b1.id, popularity: 200, home_popularity: 1, locale: 'es', search_string: "whatever cheese is good for you cheese cheese")
       bl4 = BoardLocale.create(board_id: b2.id, popularity: 1, home_popularity: 1, locale: 'es', search_string: "this is the best frog I have ever eaten with cheese")
       Board.where(id: b2.id).update_all(home_popularity: 5)
+      [bl1, bl2, bl3, bl4].each do |bl|
+        ActiveRecord::Base.connection.execute("UPDATE board_locales SET tsv_search_string = to_tsvector('simple', coalesce(search_string, '')) WHERE id = #{bl.id}")
+      end
 
       get :index, params: {public: true, locale: 'en-GB', q: 'cheese', sort: 'popularity'}
       json = assert_success_json

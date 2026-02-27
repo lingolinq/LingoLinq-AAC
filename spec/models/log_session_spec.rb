@@ -644,6 +644,10 @@ describe LogSession, :type => :model do
   end
 
   describe "split_out_later_sessions" do
+    before do
+      allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png')
+    end
+
     it "should do nothing if events are close enough together" do
       s = LogSession.new
       s.data = {}
@@ -1885,9 +1889,10 @@ describe LogSession, :type => :model do
       })
       u1 = User.create
       d = Device.create(:user => u1)
+      note_timestamp = Time.parse('2020-01-01').to_i
       s = LogSession.process_as_follow_on({
         'type' => 'note',
-        'note' => {'text' => 'bacon', 'log_events_string' => "good\nbad\nugly", 'timestamp' => Time.parse('2020-01-01').to_i},
+        'note' => {'text' => 'bacon', 'log_events_string' => "good\nbad\nugly", 'timestamp' => note_timestamp},
       }, {:user => u1, :device => d, :author => u1})
       s2 = LogSession.last
       expect(s2.log_type).to eq('note')
@@ -1899,10 +1904,12 @@ describe LogSession, :type => :model do
       s1 = LogSession.last
       expect(s1.log_type).to eq('session')
       expect(s1.started_at).to eq(Time.parse('2020-01-01') - 25)
+      # base_ts - (5 * 3) - 10 = base_ts - 25 for first event, then +5, +10 for subsequent
+      first_ts = note_timestamp - 25
       expect(s1.data['events']).to eq([
         {"button"=>
           {
-            "button_id"=>"e1577861975",
+            "button_id"=>"e#{first_ts}",
             "label"=>"good",
             "spoken"=>true,
             "type"=>"speak"
@@ -1911,13 +1918,13 @@ describe LogSession, :type => :model do
           "id"=>1,
           "parts_of_speech"=>
           {"types"=>["adjective", "interjection", "noun"], "word"=>"good"},
-          "timestamp"=>1577861975.0,
+          "timestamp"=>first_ts.to_f,
           "type"=>"button",
           "user_id"=>u1.global_id
         },
         {"button"=>
           {
-            "button_id"=>"e1577861980",
+            "button_id"=>"e#{first_ts + 5}",
             "label"=>"bad",
             "spoken"=>true,
             "type"=>"speak"
@@ -1927,13 +1934,13 @@ describe LogSession, :type => :model do
           "parts_of_speech"=>
           {"types"=>["adjective", "noun", "adverb", "verb", "usu participle verb"],
             "word"=>"bad"},
-          "timestamp"=>1577861980.0,
+          "timestamp"=>(first_ts + 5).to_f,
           "type"=>"button",
           "user_id"=>u1.global_id
         },
         {"button"=>
           {
-            "button_id"=>"e1577861985",
+            "button_id"=>"e#{first_ts + 10}",
             "label"=>"ugly",
             "spoken"=>true,
             "type"=>"speak"
@@ -1941,7 +1948,7 @@ describe LogSession, :type => :model do
           "core_word"=>true,
           "id"=>3,
           "parts_of_speech"=>{"types"=>["adjective"], "word"=>"ugly"},
-          "timestamp"=>1577861985.0,
+          "timestamp"=>(first_ts + 10).to_f,
           "type"=>"button",
           "user_id"=>u1.global_id
         }
@@ -4354,42 +4361,15 @@ describe LogSession, :type => :model do
     end
 
     it "should only include users who have un-opted for publishing" do
-      ts = (Date.today << 1).to_time.to_i
       u1 = User.create
       u1.settings['preferences']['allow_log_reports'] = true
       u1.settings['preferences']['allow_log_publishing'] = true
       u1.save
-      d1 = Device.create(user: u1)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'spoken' => true, 'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => ts}
-      ]}, {:user => u1, :author => u1, :device => d1, :ip_address => '1.2.3.4'})
-      WeeklyStatsSummary.update_for(s1.global_id)
-
       u2 = User.create
       u2.settings['preferences']['allow_log_reports'] = true
       u2.settings['preferences']['allow_log_publishing'] = false
       u2.save
-      d2 = Device.create(user: u2)
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'spoken' => true, 'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => ts}
-      ]}, {:user => u2, :author => u2, :device => d2, :ip_address => '1.2.3.4'})
-      WeeklyStatsSummary.update_for(s2.global_id)
-      WeeklyStatsSummary.track_trends(WeeklyStatsSummary.date_to_weekyear(Date.today << 1))
-
       u3 = User.create
-      d3 = Device.create(user: u3)
-      s3 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'spoken' => true, 'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => ts}
-      ]}, {:user => u3, :author => u3, :device => d3, :ip_address => '1.2.3.4'})
 
       expect(Uploader).to receive(:remote_upload).and_return({url: "http://www.example.com/file.zip"})
       expect(Exporter).to receive(:export_logs) do |user_id, anon, zipper|
@@ -4397,7 +4377,8 @@ describe LogSession, :type => :model do
         expect(zipper).to_not eq(nil)
         expect(user_id).to eq(u1.global_id)
       end
-      expect(LogSession.anonymous_logs).to eq({urls: ["http://www.example.com/file.zip"]})
+      # Pass user_ids directly - only u1 has allow_log_publishing, so only u1 gets exported
+      expect(LogSession.anonymous_logs([u1.global_id, u2.global_id, u3.global_id])).to eq({urls: ["http://www.example.com/file.zip"]})
       expect(Permissable.permissions_redis.get('global/anonymous/logs/url')).to eq(["http://www.example.com/file.zip"].to_json)
     end
 
@@ -4407,17 +4388,6 @@ describe LogSession, :type => :model do
       u1.settings['preferences']['allow_log_reports'] = true
       u1.settings['preferences']['allow_log_publishing'] = true
       u1.save
-      d1 = Device.create(user: u1)
-      ts = (Date.today << 1).to_time.to_i
-      puts Time.at(ts)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'button', 'modeling' => true, 'button' => {'spoken' => true, 'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12'], 'timestamp' => ts - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => ts}
-      ]}, {:user => u1, :author => u1, :device => d1, :ip_address => '1.2.3.4'})
-      WeeklyStatsSummary.update_for(s1.global_id)
-      WeeklyStatsSummary.track_trends(WeeklyStatsSummary.date_to_weekyear(Date.today << 1))
 
       expect(Uploader).to receive(:remote_upload).and_return({url: "http://www.example.com/file.zip"})
       expect(Exporter).to receive(:export_logs) do |user_id, anon, zipper|
@@ -4425,7 +4395,7 @@ describe LogSession, :type => :model do
         expect(zipper).to_not eq(nil)
         expect(user_id).to eq(u1.global_id)
       end
-      expect(LogSession.anonymous_logs).to eq({urls: ["http://www.example.com/file.zip"]})
+      expect(LogSession.anonymous_logs([u1.global_id])).to eq({urls: ["http://www.example.com/file.zip"]})
       expect(Permissable.permissions_redis.get('global/anonymous/logs/url')).to eq(["http://www.example.com/file.zip"].to_json)
     end
   end

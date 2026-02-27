@@ -109,7 +109,7 @@ describe AiApiLog, :type => :model do
       )
       expect(log).to be_persisted
       expect(log.ai_provider).to eq('claude')
-      expect(log.model_name).to eq('claude-haiku-4-5-20251001')
+      expect(log.ai_model).to eq('claude-haiku-4-5-20251001')
       expect(log.request_type).to eq('board_generation')
       expect(log.request_summary).to eq('Generate 3x4 board')
       expect(log.response_summary).to eq('Returned 12 buttons')
@@ -121,7 +121,8 @@ describe AiApiLog, :type => :model do
 
     it "should default success to true when not specified" do
       log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
-      expect(log).to eq(true)
+      expect(log).to be_persisted
+      expect(log.success).to eq(true)
     end
 
     it "should allow recording a failed call with error message" do

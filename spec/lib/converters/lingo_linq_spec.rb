@@ -1103,6 +1103,10 @@ describe Converters::LingoLinq do
   end
   
   describe "from_external" do
+    before do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+    end
+
     it "should process multiple actions" do
       u = User.create
       json = {

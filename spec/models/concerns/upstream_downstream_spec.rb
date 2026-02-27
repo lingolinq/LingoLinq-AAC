@@ -293,6 +293,7 @@ describe UpstreamDownstream, :type => :model do
       RemoteAction.process_all
       Worker.process_queues
       Worker.process_queues
+      Worker.process_queues
       expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b3.settings['total_buttons']).to eq(0)
       expect(b3.settings['unlinked_buttons']).to eq(0)
