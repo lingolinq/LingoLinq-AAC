@@ -19,23 +19,27 @@ export default Component.extend({
   
   init() {
     this._super(...arguments);
-    // Get options from service or passed model
-    const modal = this.get('modal');
-    const template = 'supervision-settings';
-    const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) || 
-                    (modal && modal.settingsFor && modal.settingsFor[template]) ||
-                    this.get('model') || {};
-    
-    // Initialize add_supervisee_hit property
     this.set('add_supervisee_hit', false);
-    
-    // Set model from options.user (as per original controller)
-    if (options.user) {
-      this.set('model', options.user);
-      this.get('model').reload();
-      this.set('model.load_all_connections', true);
+
+    if (this.get('inline')) {
+      const model = this.get('model');
+      if (model && model.reload) {
+        model.reload();
+        this.set('model.load_all_connections', true);
+      }
     } else {
-      this.set('model', options);
+      const modal = this.get('modal');
+      const template = 'supervision-settings';
+      const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
+                      (modal && modal.settingsFor && modal.settingsFor[template]) ||
+                      this.get('model') || {};
+      if (options.user) {
+        this.set('model', options.user);
+        this.get('model').reload();
+        this.set('model.load_all_connections', true);
+      } else {
+        this.set('model', options);
+      }
     }
   },
   

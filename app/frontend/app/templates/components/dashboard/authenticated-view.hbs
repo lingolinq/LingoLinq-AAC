@@ -1,38 +1,38 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}} {{if this.app_state.pastelMode "ll-bento-app-shell--pastel"}} {{if this.app_state.goldMode "ll-bento-app-shell--gold"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
   <div class="ll-bento-device-frame ll-bento-device-frame--wide {{if (is-equal this.sectionBorderMode "off") "ll-bento-device-frame--no-section-border"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-device-frame--section-border-thick"}} {{if this.demoMainContentBg "ll-bento-device-frame--demo-bg"}}" style={{this.demoMainContentBgStyle}}>
-    <header class="ll-bento-topbar {{if this.app_state.midDayMode "ll-bento-topbar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-topbar--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-topbar--default"}}">
-      <div class="ll-bento-topbar__section ll-bento-topbar__brand">
+    <header class="ll-bento-bar {{if this.app_state.midDayMode "ll-bento-bar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-bar--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-bar--default"}}">
+      <div class="ll-bento-bar__section ll-bento-bar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
           <span class="ll-bento-brand__logo-wrap" aria-hidden="true">
             <img src={{path "images/icon-house-balanced.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
           </span>
           <span class="ll-bento-brand__name">{{t "%app_name%" key="app_name"}}</span>
-          <span class="ll-bento-topbar__brand-sep" aria-hidden="true">·</span>
-          <span class="ll-bento-topbar__brand-home">{{t "Home" key="home"}}</span>
+          <span class="ll-bento-bar__brand-sep" aria-hidden="true">·</span>
+          <span class="ll-bento-bar__brand-home">{{t "Home Page" key="home_page"}}</span>
         </a>
       </div>
-      <div class="ll-bento-topbar__section ll-bento-topbar__welcome">
-        <span class="ll-bento-topbar-welcome" aria-hidden="true">
-          <span class="ll-bento-topbar-welcome__label">{{t "It's great to see you" key="welcome"}}</span>
+      <div class="ll-bento-bar__section ll-bento-bar__welcome">
+        <span class="ll-bento-bar-welcome" aria-hidden="true">
+          <span class="ll-bento-bar-welcome__label">{{t "It's great to see you" key="welcome"}}</span>
           {{#if this.app_state.currentUser.permissions.delete}}
-            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-topbar-welcome__link"><span class="ll-bento-topbar-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
+            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-bar-welcome__link"><span class="ll-bento-bar-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
           {{else}}
-            <span class="ll-bento-topbar-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
+            <span class="ll-bento-bar-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
           {{/if}}
           {{#if this.app_state.show_index_celebration}}
-            <span class="ll-bento-topbar-welcome__celebration-icon" aria-hidden="true" title={{t "Welcome!" key="welcome_exclaim"}}>
+            <span class="ll-bento-bar-welcome__celebration-icon" aria-hidden="true" title={{t "Welcome!" key="welcome_exclaim"}}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 21l2-6 4 2-2 4-4-0z"/><path d="M19 21l2-6-4 2 2 4 4 0z"/></svg>
             </span>
           {{/if}}
         </span>
       </div>
       {{#if this.app_state.defaultMode}}
-        <div class="ll-bento-topbar__section ll-bento-topbar__demo-colors" role="group" aria-label={{t "Demo content background" key="demo_content_background"}}>
+        <div class="ll-bento-bar__section ll-bento-bar__demo-colors" role="group" aria-label={{t "Demo content background" key="demo_content_background"}}>
           <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy" title={{t "Navy" key="navy_color"}} aria-label={{t "Navy" key="navy_color"}} {{action "setDemoMainContentBg" "#1B365D"}}></button>
           <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy-light" title={{t "Medium gray" key="medium_gray"}} aria-label={{t "Medium gray" key="medium_gray"}} {{action "setDemoMainContentBg" "#C6CDD7"}}></button>
           <button type="button" class="ll-bento-demo-color ll-bento-demo-color--tab-light" title={{t "Light teal" key="light_teal"}} aria-label={{t "Light teal" key="light_teal"}} {{action "setDemoMainContentBg" "#E9F9F8"}}></button>
@@ -44,7 +44,7 @@
           </button>
         </div>
       {{/if}}
-      <div class="ll-bento-topbar__section ll-bento-topbar__actions">
+      <div class="ll-bento-bar__section ll-bento-bar__actions">
         <a href="#" class="ll-bento-icon-btn ll-bento-icon-btn--refresh" {{action "reload"}} role="button" aria-label={{t "Reload" key="reload"}} title={{t "Reload" key="reload"}}>
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
         </a>
@@ -60,7 +60,8 @@
       </div>
     </header>
     <div class="row ll-bento-main-content">
-<div class='col col-12' id="new_right">
+<div class='col col-12' id="bento-main">
+  <div class="ll-bento-span">
   <div class="ll-bento-tabs" role="tablist" aria-label={{t "Home filters" key="home_filters"}}>
     <button class="ll-bento-tab {{if this.index_nav.main "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.main "true" "false"}} type="button" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</button>
     {{#unless this.app_state.currentUser.modeling_only}}
@@ -71,7 +72,7 @@
     <button class="ll-bento-tab {{if this.index_nav.boards "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.boards "true" "false"}} type="button" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</button>
     {{#unless this.app_state.currentUser.supporter_role}}
       {{#unless this.app_state.currentUser.modeling_only}}
-        <button class="ll-bento-tab" role="tab" type="button" {{action "manage_supervisors"}}>{{t "Supervisors" key="supervisors"}}</button>
+        <button class="ll-bento-tab {{if this.index_nav.supervisors "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.supervisors "true" "false"}} type="button" {{action "set_index_nav" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button>
       {{/unless}}
     {{/unless}}
     {{#unless this.app_state.currentUser.modeling_only}}
@@ -87,7 +88,9 @@
           </span>
         {{/if}}
       </button>
+      <button id='nav_logging' class="ll-bento-tab {{if this.index_nav.logging "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.logging "true" "false"}} type="button" {{action "set_index_nav" "logging"}}>{{t "Logging" key="logging"}}</button>
     {{/unless}}
+  </div>
   </div>
   {{#if this.index_nav.main}}
     {{#if this.blank_slate}}
@@ -704,6 +707,60 @@
           </div>
         {{/if}}
       {{/if}}
+    {{else if this.index_nav.supervisors}}
+      <div class="col-xs-12 ll-bento-supervision-inline-wrap">
+        {{supervision-settings inline=true model=this.app_state.currentUser}}
+      </div>
+    {{else if this.index_nav.logging}}
+      <div class='col-md-8 col-md-offset-2 col-xs-12'>
+        {{#if this.app_state.currentUser.supporter_role}}
+          <h4>{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h4>
+        {{else}}
+          <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
+        {{/if}}
+        <div style="margin-left: 20px;">
+          {{#if this.logs.loading}}
+            <p>{{t "Loading..." key="loading"}}</p>
+          {{else if this.logs.error}}
+            <p>{{t "Failed to load" key="failed_to_load"}}</p>
+          {{else if this.logs}}
+            {{#each this.logs as |log|}}
+              <p>
+                <span title={{date log.started_at}}>
+                  {{date_ago log.started_at}}
+                </span>
+                {{#link-to "user.log" log.user.user_name log.id}}
+                  {{#if log.assessment}}
+                    {{t "assessment" key="assessment"}}
+                  {{else}}
+                    {{t "button" count=log.button_count key="button_count"}}
+                  {{/if}}
+                {{/link-to}}
+                {{#if this.app_state.currentUser.supporter_role}}
+                  <span> -
+                    {{#link-to "user" log.user.user_name}}
+                      {{log.user.user_name}}
+                    {{/link-to}}
+                  </span>
+                {{/if}}
+                <br>
+                <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
+              </p>
+            {{/each}}
+          {{else}}
+            {{#if this.show_sessions_explanation}}
+              <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
+            {{else}}
+              <p>
+                {{t "No sessions currently available" key="no_sessions_found"}}
+                <a href="#" {{action "show_explanation" "sessions"}}>
+                  <span class='glyphicon glyphicon-info-sign'></span>
+                </a>
+              </p>
+            {{/if}}
+          {{/if}}
+        </div>
+      </div>
     {{else if this.index_nav.updates}}
       <div class='col-md-8 col-md-offset-2 col-xs-12'>
         {{#if this.device.needs_install_reminder}}
@@ -839,101 +896,6 @@
     {{/if}}
   </div>
   </div>
-  <nav class="ll-bento-dock" aria-label={{t "Primary" key="primary"}}>
-    {{#unless this.app_state.currentUser.supporter_role}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <button class="ll-bento-dock__item ll-bento-dock__supervisor" type="button" {{action "manage_supervisors"}}>
-          <span class="ll-bento-dock__supervisor-label">{{t "Supervisors" key="supervisors"}}</span>
-          <span class="ll-bento-dock__label">
-            {{#if this.app_state.currentUser.supervisor_names}}
-              {{this.app_state.currentUser.supervisor_names}}
-            {{else}}
-              {{t "No Supervisors" key="no_supervisors"}}
-            {{/if}}
-          </span>
-        </button>
-      {{else}}
-        <button class="ll-bento-dock__item {{if this.index_nav.main "ll-bento-dock__item--active"}}" type="button" {{action "set_index_nav" "main"}}>
-          <span class="ll-bento-dock__label">{{t "Actions" key="actions"}}</span>
-        </button>
-      {{/unless}}
-    {{else}}
-      <button class="ll-bento-dock__item {{if this.index_nav.main "ll-bento-dock__item--active"}}" type="button" {{action "set_index_nav" "main"}}>
-        <span class="ll-bento-dock__label">{{t "Actions" key="actions"}}</span>
-      </button>
-    {{/unless}}
-    {{#unless this.app_state.currentUser.modeling_only}}
-      {{#if this.app_state.currentUser}}
-        <div class="ll-bento-dock__item ll-bento-dock__logging">
-          <button type="button" class="ll-bento-dock__logging-btn" {{action "session_select"}}>
-            <span class="ll-bento-dock__supervisor-label">{{t "Logging" key="logging"}}</span>
-            <span class="ll-bento-dock__label">
-              {{#unless this.app_state.currentUser.supporter_role}}
-                {{#if this.app_state.currentUser.preferences.logging}}
-                  {{#if this.app_state.currentUser.preferences.geo_logging}}
-                    {{t "fully enabled" key="fully_enabled"}}
-                  {{else}}
-                    {{t "enabled (no geo)" key="logging_no_geo_is_enabled"}}
-                  {{/if}}
-                {{else}}
-                  {{t "disabled" key="logging_is_disabled"}}
-                {{/if}}
-              {{else}}
-                {{#if this.allow_logs}}
-                  {{#if this.logs.[0]}}
-                    {{t "Last Log" key="latest_session"}} {{date_ago this.logs.[0].started_at}}
-                  {{else if this.logs.loading}}
-                    {{t "Loading..." key="loading"}}
-                  {{else}}
-                    {{t "No session data" key="no_session_data"}}
-                  {{/if}}
-                {{else}}
-                  {{t "No session data" key="no_session_data"}}
-                {{/if}}
-              {{/unless}}
-            </span>
-          </button>
-          {{#if this.allow_logs}}
-            <span class="ll-bento-dock__logging-sep">·</span>
-            <span class="ll-bento-dock__logging-last">
-              <span class="ll-bento-dock__logging-last-label">{{t "Last Log" key="latest_session"}}</span>
-              {{#if this.logs.loading}}
-                {{t "Loading..." key="loading"}}
-              {{else if this.logs.error}}
-                {{t "Failed to load" key="failed_to_load"}}
-              {{else if this.logs.[0]}}
-                {{#link-to "user.log" this.logs.[0].user.user_name this.logs.[0].id class="ll-bento-dock__logging-link"}}
-                  {{date_ago this.logs.[0].started_at}}
-                  {{#if this.logs.[0].assessment}}
-                    {{t "assessment" key="assessment"}}
-                  {{else}}
-                    {{t "button" count=this.logs.[0].button_count key="button_count"}}
-                  {{/if}}
-                {{/link-to}}
-              {{else}}
-                {{t "No recent sessions" key="no_recent_sessions"}}
-              {{/if}}
-            </span>
-          {{/if}}
-        </div>
-      {{else}}
-        <button class="ll-bento-dock__item {{if this.index_nav.boards "ll-bento-dock__item--active"}}" type="button" {{action "set_index_nav" "boards"}}>
-          <span class="ll-bento-dock__label">{{t "Boards" key="boards"}}</span>
-        </button>
-      {{/if}}
-    {{else}}
-      <button class="ll-bento-dock__item {{if this.index_nav.boards "ll-bento-dock__item--active"}}" type="button" {{action "set_index_nav" "boards"}}>
-        <span class="ll-bento-dock__label">{{t "Boards" key="boards"}}</span>
-      </button>
-    {{/unless}}
-    {{#if this.app_state.currentUser.permissions.delete}}
-      <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="ll-bento-dock__cta">
-        {{t "Upgrade" key="upgrade"}}
-      </LinkTo>
-    {{else}}
-      <span class="ll-bento-dock__cta" style="opacity: 0.7;">{{t "Upgrade" key="upgrade"}}</span>
-    {{/if}}
-  </nav>
 </div>
 </div>
 </div>

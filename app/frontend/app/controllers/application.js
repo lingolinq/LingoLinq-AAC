@@ -1652,5 +1652,11 @@ export default Controller.extend({
       }
       return res;
     }
-  )
+  ),
+  /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
+  showBentoPageWithFooter: computed('footer', 'appState.index_or_for_schools_view', 'appState.current_route', function() {
+    return this.get('footer') &&
+      this.appState.get('index_or_for_schools_view') &&
+      this.appState.get('current_route') !== 'for-schools';
+  })
 });

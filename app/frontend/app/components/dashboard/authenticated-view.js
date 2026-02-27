@@ -496,6 +496,12 @@ export default Component.extend({
       }
     }
   }),
+  showSupervisorsWhenRequested: observer('appState.requestedSupervisorsView', function() {
+    if(this.appState.get('requestedSupervisorsView')) {
+      this.appState.set('requestedSupervisorsView', false);
+      this.send('set_index_nav', 'supervisors');
+    }
+  }),
   rating_allowed: computed('appState.sessionUser', function() {
     if(capabilities.installed_app && capabilities.mobile && capabilities.subsystem != 'Kindle') {
       var progress = this.appState.get('sessionUser.preferences.progress') || {};
@@ -631,7 +637,7 @@ export default Component.extend({
       this.set('selected', selected);
     },
     set_index_nav: function(nav) {
-      if(nav == 'main' || nav == 'supervisees') {
+      if(nav == 'main' || nav == 'supervisees' || nav == 'supervisors') {
         var u = this.appState.get('currentUser');
         // Ensure preferences and preferences.device exist before setting nested value
         var preferences = u.get('preferences') || {};
@@ -679,13 +685,13 @@ export default Component.extend({
       this.appState.set('index_view', false);
     },
     manage_supervisors: function() {
-      modal.open('supervision-settings', {user: this.appState.get('currentUser')});
+      this.send('set_index_nav', 'supervisors');
     },
     session_select: function() {
       if(!this.appState.get('currentUser.preferences.logging')) {
         this.send('load_reports');
       } else {
-        this.send('set_index_nav', 'updates');
+        this.send('set_index_nav', 'logging');
       }
     },
     sync_details: function() {

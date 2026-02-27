@@ -9,26 +9,21 @@ task "extras:copy_terms" => :environment do
 end
 
 task "extras:generate_favicon" do
-  # Pastel favicon
-  logo = './public/images/pastel-logo.png'
+  logo = './public/images/logo-big.png'
   raise "Source logo not found: #{logo}" unless File.exist?(logo)
+  # Pastel favicon set
   { 16 => 16, 32 => 32 }.each do |canvas, scale|
     out = "./public/images/favicon-pastel-#{canvas}.png"
     system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
     raise "ImageMagick failed to create #{out}" unless $?.success?
   end
-  # Cool blue favicon
-  cool_logo = './public/images/cool-blue-logo.png'
-  if File.exist?(cool_logo)
-    { 16 => 16, 32 => 32 }.each do |canvas, scale|
-      out = "./public/images/favicon-cool-blue-#{canvas}.png"
-      system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{cool_logo} -resize #{scale}x \\) -gravity center -composite #{out}")
-      raise "ImageMagick failed to create #{out}" unless $?.success?
-    end
-    puts "Generated favicon-pastel-*.png and favicon-cool-blue-*.png"
-  else
-    puts "Generated favicon-pastel-16.png and favicon-pastel-32.png"
+  # Cool blue favicon set (same source logo)
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-cool-blue-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
   end
+  puts "Generated favicon-pastel-*.png and favicon-cool-blue-*.png"
 end
 
 task "extras:assert_js" do

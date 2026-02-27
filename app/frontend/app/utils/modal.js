@@ -56,6 +56,23 @@ var modal = EmberObject.extend({
     this.route = null;
   },
   open: function(template, options) {
+    // On dashboard (index route), show supervision content inline in bento instead of popup
+    if (template === 'supervision-settings' && this.route) {
+      try {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var appState = owner.lookup('service:app-state');
+          var router = owner.lookup('router:main');
+          if (appState && router && router.get('currentRouteName') === 'index') {
+            appState.set('requestedSupervisorsView', true);
+            return RSVP.resolve();
+          }
+        }
+      } catch (e) {
+        // fall through to open modal
+      }
+    }
+
     var service = this._getService();
     var outlet = template;
     var render_template = template;

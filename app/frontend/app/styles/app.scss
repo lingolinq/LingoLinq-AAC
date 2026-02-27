@@ -17,6 +17,12 @@
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
 
+/* Standard app layout (bento page with bottom navbar) – used for padding and fixed bars */
+:root {
+  --topbar-height: 80px;
+  --bottombar-height: 84px;
+}
+
 @font-face{
   font-family:'OpenDyslexic';
   src:url(../fonts/OpenDyslexicAlta-Regular.otf) format('opentype');
@@ -34,27 +40,263 @@
   overflow: hidden; /* Windows-only quirk causes extra scrollbars without this, if you 
                       change, make sure to test sidebar and modal.highlight */
 }
-/* When page-footer is present: flex column so content can extend flush to footer */
+/* Bento page: standard app layout – .app (fixed inset) + .topbar/.bottombar fixed, .main scrolls with padding */
 #within_ember:has(.page-footer) {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow: hidden;
+  background: transparent;
 }
+/* Scot's landing page only: allow full-page vertical scroll (override bento lock), no horizontal overflow */
+#within_ember.for-schools-route {
+  position: static;
+  overflow-x: hidden;
+  overflow-y: visible;
+  display: block;
+  min-height: 100%;
+}
+/* Only #content grows; other direct children do not take flex space */
+#within_ember:has(.page-footer) > *:not(#content) {
+  flex: 0 0 auto;
+}
+#within_ember:has(.page-footer) > header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-height);
+  z-index: 1000;
+}
+#within_ember:has(.page-footer) .page-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--bottombar-height);
+  z-index: 1000;
+}
+/* Scot's landing page only: footer at end of page (override fixed so it scrolls with content) */
+#within_ember.for-schools-route .page-footer {
+  position: static !important;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  height: auto;
+  min-height: var(--bottombar-height);
+}
+/* Content area: cap height so it ends above the fixed footer (footer is out-of-flow so doesn’t reserve space) */
 #within_ember:has(.page-footer) #content.index.with_user {
   flex: 1 1 auto;
+  min-height: calc(100vh - var(--topbar-height) - var(--bottombar-height));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: var(--topbar-height);
+  padding-bottom: var(--bottombar-height);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
+              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
+              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
+              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+}
+/* Light mode: shell bg uses active pill gradient (7eb8e0 → 3a6bc7). */
+#within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
+#within_ember.bento-page-with-footer.bento-default-mode-active #content.index.with_user {
+  background: linear-gradient(135deg, rgba(126, 184, 224, 0.35) 0%, rgba(58, 107, 199, 0.3) 100%);
+}
+/* Gold mode: top-down gradient – blue, gold (subtle), green (subtle). */
+#within_ember.bento-gold-mode-active:has(.page-footer) #content.index.with_user,
+#within_ember.bento-page-with-footer.bento-gold-mode-active #content.index.with_user {
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
+}
+/* #index_view fills #content so shell can stretch to full height; grows when content overflows so #content scrolls */
+#within_ember:has(.page-footer) #content.index.with_user #index_view,
+#within_ember.bento-page-with-footer #content #index_view {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding-top: 0;
+  margin-top: 0;
 }
-#within_ember:has(.page-footer) #content.index.with_user #index_view {
+/* Shell flex/layout overrides are in app.scss after the base .ll-bento-app-shell block (so one clear winning rule, no !important). */
+#within_ember:has(.page-footer) #content.index.with_user .ll-bento-app-shell .ll-bento-device-frame,
+#within_ember.bento-page-with-footer #content .ll-bento-app-shell .ll-bento-device-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-self: center;
+  width: 100%;
+  max-width: 1200px;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+#within_ember:has(.page-footer) #content.index.with_user .ll-bento-device-frame > .row,
+#within_ember.bento-page-with-footer #content .ll-bento-device-frame > .row {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Bento page with footer: full-height chain so #within_ember has a definite height for flex children.
+   Industry standard: html/body/wrapper height: 100%, overflow: hidden so only the main (#content) scrolls.
+   !important so these win over later generic html, body { overflow: auto } and any other overrides. */
+html:has(#within_ember.bento-page-with-footer) {
+  height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  max-width: 100%;
+}
+body:has(#within_ember.bento-page-with-footer) {
+  height: 100% !important;
+  min-height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  max-width: 100%;
+}
+#ember-application-root:has(#within_ember.bento-page-with-footer) {
+  height: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* #within_ember = flex container (like body in sticky-footer pattern); must have definite height so flex: 1 on #content works */
+#within_ember.bento-page-with-footer {
+  position: static;
+  overflow-x: hidden;
+  overflow-y: visible !important; /* only #content scrolls; avoid being overridden to auto */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+}
+/* #content = main (industry standard: only scroll container; flex-grow 1, min-height 0 so it can shrink and scroll).
+   Target #content whenever parent has bento-page-with-footer (do not require .index) so we always override UA display: block. */
+#within_ember.bento-page-with-footer #content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding-top: var(--topbar-height);
+  padding-bottom: 0 !important; /* beat :has(.page-footer) #content.index.with_user which sets padding-bottom: var(--bottombar-height) */
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+/* Same layout when #content also has .index.with_user (for any rules that key off the more specific selector). */
+#within_ember.bento-page-with-footer #content.index.with_user {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding-top: var(--topbar-height);
+  padding-bottom: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+/* Main area: at least viewport minus footer height; grows when content overflows */
+#within_ember.bento-page-with-footer .bento-page-main {
+  flex: 1 1 auto;
+  min-height: calc(100vh - var(--bottombar-height));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+#within_ember.bento-page-with-footer .bento-page-main > *:not(#content) {
+  flex: 0 0 auto;
+}
+#within_ember.bento-page-with-footer .bento-page-main #content.index.with_user {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: var(--topbar-height);
+  padding-bottom: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: visible;
+}
+/* Ember outlet wrapper: when it wraps #index_view, keep it in the flex chain. When empty or a ghost sibling (no #index_view inside), collapse it so it doesn't split space with #index_view. */
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view,
+#within_ember.bento-page-with-footer #content > .ember-view {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-#within_ember:has(.page-footer) #content.index.with_user .ll-bento-app-shell {
+#within_ember.bento-page-with-footer #content > .ember-view:empty,
+#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)),
+#within_ember:has(.page-footer) #content > .ember-view:empty,
+#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)) {
+  flex: 0 0 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+}
+/* #index_view as direct child of #content (outlet may render with or without .ember-view wrapper). */
+#within_ember.bento-page-with-footer #content > #index_view,
+#within_ember:has(.page-footer) #content > #index_view {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#within_ember.bento-page-with-footer #content.index.with_user #index_view {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#within_ember.bento-page-with-footer #content.index.with_user .ll-bento-app-shell .ll-bento-device-frame {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-self: stretch !important;
+}
+#within_ember.bento-page-with-footer #content.index.with_user .ll-bento-device-frame > .row {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+/* Footer: fixed height, at bottom of flex */
+#within_ember.bento-page-with-footer .page-footer {
+  position: static !important;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  flex: 0 0 var(--bottombar-height);
+  height: var(--bottombar-height);
+  min-height: var(--bottombar-height);
+}
+
+/* Authenticated-view main content column fills row so shell stretches to footer */
+#within_ember:has(.page-footer) #content.index.with_user .ll-bento-device-frame > .row.ll-bento-main-content > .col,
+#within_ember.bento-page-with-footer #content .ll-bento-device-frame > .row.ll-bento-main-content > .col {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Authenticated-view main content: fit content height (no fixed height); overflow-x hidden to avoid horizontal scroll */
+#content.index.with_user .ll-bento-device-frame > .row,
+#within_ember.bento-page-with-footer #content .ll-bento-device-frame > .row {
+  overflow-x: hidden;
 }
 
 /* Sticky top navbar on every page (main, stacked-spaces, for-schools, etc.) – match HTML mockup */
@@ -528,6 +770,10 @@ header .btn {
   #header_search .header-search-icon {
     pointer-events: none;
   }
+  #header_search .header-search-btn,
+  #header_search .header-search-icon {
+    color: #3a6bc7;
+  }
   .header-index-with-dark-toggle & #header_search {
     margin-left: 18px;
   }
@@ -723,6 +969,11 @@ h1 a:hover {
   text-decoration: none;
   color: inherit;
 }
+/* Remove browser focus outline that can appear as white squiggly ring around the logo */
+.nav-header__logo-link:focus,
+.nav-header__logo-link:focus-visible {
+  outline: none;
+}
 .nav-header__logo {
   display: inline-block;
   vertical-align: middle;
@@ -730,6 +981,13 @@ h1 a:hover {
 .nav-header__app-name {
   display: inline-block;
   vertical-align: middle;
+}
+/* Lingo and Linq brand colors in nav header */
+#nav_header .nav-header__app-name-lingo {
+  color: #f5c23b;
+}
+#nav_header .nav-header__app-name-linq {
+  color: #7eb8e0;
 }
 h1 a img,
 .nav-header__logo img {
@@ -894,21 +1152,22 @@ h2 {
     }
   }
 }
-/* Applied in: page-footer component, footer templates */
+/* Applied in: page-footer component, footer templates – fixed height so it doesn’t stretch */
 footer,
 .page-footer {
   clear: both;
   padding: 28px 20px 20px 20px;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 0 0 auto;
+  flex-shrink: 0;
   box-sizing: border-box;
 }
 footer .wide_links,
 .page-footer .wide_links {
   display: flex;
   align-items: center;
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
 }
 footer .wide_links .row,
@@ -956,9 +1215,15 @@ footer .skinny_links {
   display: none;
 }
 .page-footer__app-name {
-  color: var(--fs-dark-teal, #2A9D8F);
   padding-right: 10px;
   font-size: 1.2em;
+}
+/* Bottom navbar LingoLinq brand colors (footer only) */
+.page-footer .page-footer__app-name .nav-header__app-name-lingo {
+  color: #f5c23b;
+}
+.page-footer .page-footer__app-name .nav-header__app-name-linq {
+  color: #3a6bc7;
 }
 footer a,
 .page-footer a {
@@ -2872,8 +3137,47 @@ body > .popover.bottom {
   width: -webkit-calc(100% - 60px);
   width: calc(100% - 60px);
 }
-html, body {
+/* Default: allow page scroll. Do not apply when bento footer layout is active (so full-height chain rules can take effect). */
+html:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))),
+body:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))) {
   overflow: auto;
+}
+/* Reset page scrolling when bento page with footer is shown (:has(.page-footer) path).
+   Ember mount (#ember-application-root) must also fill viewport so the fixed #within_ember has a full-height chain.
+   !important on html/body so they win over later generic html, body { overflow: auto }. */
+html:has(#within_ember:has(.page-footer)),
+body:has(#within_ember:has(.page-footer)) {
+  height: 100% !important;
+  overflow: hidden !important;
+  margin: 0;
+}
+#ember-application-root:has(#within_ember:has(.page-footer)) {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+}
+/* Scot's landing page only: restore document scroll. Split so each element only gets the reset when its selector matches (grouped selector can otherwise let the rule apply to html when only body/root match). */
+html:has(#within_ember.for-schools-route) {
+  height: auto;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+  max-width: 100%;
+}
+body:has(#within_ember.for-schools-route) {
+  height: auto;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+  max-width: 100%;
+}
+#ember-application-root:has(#within_ember.for-schools-route) {
+  height: auto;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+  max-width: 100%;
+}
+#within_ember.for-schools-route #content {
+  overflow-x: hidden;
+  max-width: 100%;
 }
 body.pretty_loader {
   overflow: hidden;
@@ -3487,54 +3791,10 @@ $nav_extras: #eee;
     color: #666;  
   }
 }
-/* #new_right - Applied in: dashboard/authenticated-view.hbs (line 312) - right column of dashboard
-   Note: Custom #new_right styles below are commented out; uses default col styling */
-// #new_right {
-//   width: 80% !important;
-//   margin-right: -20px;
-//   background: #fff;
-//   // background: rgb(244, 246, 248);
-// /*  overflow: auto; */
-//   height: calc(100vh - 150px); 
-//   margin: -10px -10px -10px 10px; 
-//   padding: 0 0 10px 0;
-//   box-shadow: inset 0 7px 10px -5px #888, inset 9px 0 10px -5px #888;
-//   margin-left: 0;
-//   padding-left: 10px;
-//   width: calc(75% + 10px);
-//   > .big_buttons {
-//     overflow: auto;
-//     padding-top: 10px;
-//     height: calc(100vh - 150px); 
-//   }
-//   .main {
-//     margin-top: 5px;
-//   }
-//   .main.short_list {
-//     margin-top: 50px;
-//   }
-//   #nav_primary {
-//   }
-//   #nav_secondary {
-//     border-color: #9b962e; 
-//     background: $nav_secondary;
-//   }
-//   #nav_tertiary {
-//     background: $nav_tertiary;
-//     border-color: #56b700;
-//     &.bottom_row {
-//       border-color: #ad7332;
-//       background: $nav_secondary_bottom_row;
-//     }
-//     &.middle_row {
-//       border-color: #692693;
-//       background: $nav_secondary_middle_row;
-//     }
-//   }
-//   #nav_extras {
-//     background: #eee;
-//   }
-// }
+/* #bento-main - Applied in: dashboard/authenticated-view.hbs - main content column of bento dashboard */
+#bento-main {
+  padding-top: 16px;
+}
 
 .new_pills {
   font-size: 20px;
@@ -3554,24 +3814,6 @@ $nav_extras: #eee;
     background: transparent;
   }
 }
-// #new_right .big_buttons > .col-xs-12 {
-//   position: relative;
-//   left: 20px;
-//   right: 90px;
-//   width: auto;
-//   text-align: center;
-// }
-// #new_right .big_buttons > .col-xs-12.new_pills_wrapper {
-//   position: absolute;
-//   top: -40px;
-//   z-index: 1000;
-// }
-// #new_right .new_pills {
-//   display: inline-flex;
-//   align-items: center;
-//   justify-content: center;
-//   margin: 0 auto;
-// }
 /* Applied in: dashboard/authenticated-view.hbs - board grid items */
 .simple_board_holder {
   padding: 5px;
@@ -6225,7 +6467,7 @@ body:-ms-fullscreen {
     .col:first-child {
       border-bottom-width: 20px;
 }
-/* Applied in: dashboard/authenticated-view.hbs - nav pills in new_right */
+/* Applied in: dashboard/authenticated-view.hbs - nav pills in #bento-main */
 .new_pills {
       li a {
         color: #fff;
@@ -6305,7 +6547,7 @@ body:-ms-fullscreen {
   //     display: block;
   //   }
   // }
-  // #new_right {
+  // #bento-main {
   //   height: auto;
   //   margin-left: -15px;
   //   padding-right: 10px;
@@ -6441,7 +6683,7 @@ body:-ms-fullscreen {
   // #grid_selection {
   //   padding-left: 10px;
   // }
-  // #new_right {
+  // #bento-main {
   //   width: calc(66.666667% + 10px);
   // }
   // #new_left {
@@ -6451,14 +6693,14 @@ body:-ms-fullscreen {
   // }
 }
 @media (max-height: 650px) {
-  // #new_right {
+  // #bento-main {
   //   .main.short_list {
   //     margin-top: 10px;
   //   }
   // }
 }
 @media (min-width: 992px) {
-  // #new_right {
+  // #bento-main {
   //   width: calc(75% + 10px);
   // }
   // #new_left {
@@ -6467,7 +6709,7 @@ body:-ms-fullscreen {
   //   }
   // }
   @media (min-height: 590px) {
-    // #new_right {
+    // #bento-main {
     //   .main.short_list {
     //     margin-top: 75px;
     //     .big_button {
@@ -6540,7 +6782,7 @@ body:-ms-fullscreen {
     // }
   }
   @media (min-height: 660px) {
-    // #new_right {
+    // #bento-main {
     //   .main.short_list {
     //     margin-top: calc((100vh - 150px - 325px - 25px) / 2);
     //     .big_button {
@@ -6558,7 +6800,7 @@ body:-ms-fullscreen {
     // }
   }
   @media (min-height: 800px) {
-    // #new_right {
+    // #bento-main {
     //   .main.short_list {
     //     margin-top: calc((100vh - 150px - 435px - 25px) / 2);
     //     .big_button {
@@ -6592,7 +6834,7 @@ body:-ms-fullscreen {
     #nav_updates .label {
       display: none;
     }
-    // #new_right {
+    // #bento-main {
     //   width: calc(66.666667% + 10px);
     // }
   }
@@ -6610,7 +6852,7 @@ body:-ms-fullscreen {
 }
 
 /* Dashboard refresh styles to match reference */
-// #new_right {
+// #bento-main {
 //   /* height: auto;
 //   overflow: visible;
 //   padding-left: 0 !important;
@@ -6763,7 +7005,7 @@ body:-ms-fullscreen {
 //   }
 // }
 
-// #new_right {
+// #bento-main {
 //   background-image: url("../images/Textured_bg.png");
 //   background-size: cover;
 //   background-position: center;
@@ -6929,17 +7171,33 @@ body:-ms-fullscreen {
                                        inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --ll-bento-material-counter-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.035);
 
-  min-height: 100%;
   display: grid;
   place-items: center;
   padding: 24px;
   position: relative;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: radial-gradient(1400px 900px at 10% 10%, rgba(207, 214, 230, 0.5) 0%, transparent 50%),
-              radial-gradient(1200px 800px at 90% 30%, rgba(203, 223, 230, 0.4) 0%, transparent 55%),
-              radial-gradient(1200px 800px at 40% 100%, rgba(230, 221, 223, 0.35) 0%, transparent 50%),
-              var(--ll-bento-bg);
+  background: transparent; /* gradient on #content fills the content viewport */
+}
+
+/* Shell fills height only when NOT in footer layout (avoids min-height in cascade when bento-page-with-footer or :has(.page-footer)). */
+#within_ember:not(.bento-page-with-footer):not(:has(.page-footer)) .ll-bento-app-shell {
+  min-height: 100% !important;
+}
+
+/* Bento page with footer: override grid so app shell is flex; min-height: 0 so shell can shrink in flex chain. */
+#within_ember.bento-page-with-footer #content .ll-bento-app-shell,
+#within_ember:has(.page-footer) #content.index.with_user .ll-bento-app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0 !important; /* override base .ll-bento-app-shell min-height: 100% !important so shell can shrink in flex chain */
+  align-items: stretch;
+  place-items: unset;
+  justify-content: flex-start;
+  width: 100%;
+  padding-top: 32px;
+  margin-top: 0;
 }
 
 /* Decorative blurred orbs in background */
@@ -7016,11 +7274,14 @@ body:-ms-fullscreen {
 .ll-bento-device-frame {
   width: min(480px, 96vw);
   border-radius: 36px;
-  padding: 16px 16px 14px;
+  padding: 16px 16px 0;
 
   &--wide {
     width: 100%;
     max-width: 1200px;
+    overflow: clip;
+    overflow-clip-margin: 20px;
+    padding-bottom: 0;
   }
 
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.52) 0%, rgba(252, 253, 255, 0.45) 100%);
@@ -7031,20 +7292,34 @@ body:-ms-fullscreen {
   position: relative;
 }
 
+/* Main content: overflow visible so bar can overflow into frame's overflow-clip-margin. */
+.ll-bento-main-content {
+  overflow: visible;
+}
+
+/* Scroll lives inside the frame so content is clipped to rounded bottom. */
+.ll-bento-main-content > .col {
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-bottom-left-radius: 36px;
+  border-bottom-right-radius: 36px;
+}
+
 /* Top bar - brand, welcome, getting started, search, profile */
-.ll-bento-topbar {
+.ll-bento-bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 28px 16px;
-  min-height: 60px;
+  padding: 24px 28px 12px;
+  min-height: 90px;
   margin-top: -16px;
   margin-left: -16px;
   margin-right: -16px;
   border-radius: 36px 36px 0 0;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(248, 250, 253, 0.36) 100%);
-  border-bottom: 1px solid rgba(30, 36, 48, 0.06);
+  border-bottom: 1px solid #1b2a4a;
   backdrop-filter: blur(var(--ll-bento-material-blur));
   -webkit-backdrop-filter: blur(var(--ll-bento-material-blur));
   transform: translateZ(0);
@@ -7054,7 +7329,7 @@ body:-ms-fullscreen {
               var(--ll-bento-material-counter-shadow);
 }
 
-.ll-bento-topbar__section {
+.ll-bento-bar__section {
   display: flex;
   align-items: center;
   flex: 1;
@@ -7062,7 +7337,7 @@ body:-ms-fullscreen {
   padding: 0 4px;
 }
 
-.ll-bento-topbar__brand {
+.ll-bento-bar__brand {
   justify-content: flex-start;
   gap: 10px;
   flex: 0 0 auto;
@@ -7094,7 +7369,7 @@ body:-ms-fullscreen {
   }
 }
 
-.ll-bento-topbar__brand-sep {
+.ll-bento-bar__brand-sep {
   color: inherit;
   opacity: 0.7;
   font-size: 14px;
@@ -7102,19 +7377,23 @@ body:-ms-fullscreen {
   margin: 0 2px;
 }
 
-.ll-bento-topbar__brand-home {
+.ll-bento-bar__brand-home {
   font-size: 14px;
   font-weight: 600;
-  color: inherit;
+  color: #3A6BC7;
 }
 
-.ll-bento-topbar__welcome {
+.ll-bento-bar__welcome {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   justify-content: center;
-  flex: 3 1 0;
+  flex: 0 0 auto;
   min-width: 0;
+  pointer-events: auto;
 }
 
-.ll-bento-topbar-welcome {
+.ll-bento-bar-welcome {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -7123,43 +7402,43 @@ body:-ms-fullscreen {
   color: rgba(31, 42, 68, 0.9);
 }
 
-.ll-bento-topbar-welcome__label {
+.ll-bento-bar-welcome__label {
   font-weight: 500;
   color: rgba(31, 42, 68, 0.8);
 }
 
-.ll-bento-topbar-welcome__link {
+.ll-bento-bar-welcome__link {
   color: var(--fs-dark-teal, #2A9D8F);
   text-decoration: none;
   font-weight: 600;
 }
 
-.ll-bento-topbar-welcome__link:hover {
+.ll-bento-bar-welcome__link:hover {
   color: #238a7e;
   text-decoration: underline;
 }
 
-.ll-bento-topbar-welcome__badge {
+.ll-bento-bar-welcome__badge {
   color: var(--fs-dark-teal, #2A9D8F);
   font-weight: 600;
 }
 
-.ll-bento-topbar-welcome__celebration-icon {
+.ll-bento-bar-welcome__celebration-icon {
   display: inline-flex;
   color: #2A9D8F;
 }
 
-.ll-bento-topbar-welcome__celebration-icon svg {
+.ll-bento-bar-welcome__celebration-icon svg {
   display: block;
 }
 
-.ll-bento-topbar__search {
+.ll-bento-bar__search {
   justify-content: flex-end;
   flex: 0.5 1 0;
   min-width: 0;
 }
 
-.ll-bento-topbar__actions {
+.ll-bento-bar__actions {
   justify-content: flex-end;
   gap: 16px;
   flex: 0 0 auto;
@@ -7167,11 +7446,16 @@ body:-ms-fullscreen {
 }
 
 /* Topbar icon buttons: same light bg as brand, white hover */
-.ll-bento-topbar .ll-bento-icon-btn {
+.ll-bento-bar .ll-bento-icon-btn {
   background: rgba(225, 228, 238, 0.98);
 }
-.ll-bento-topbar .ll-bento-icon-btn:hover {
+.ll-bento-bar .ll-bento-icon-btn:hover {
   background: #fff;
+}
+/* Refresh button icon (top arrow) uses brand green in all themes */
+.ll-bento-bar .ll-bento-icon-btn--refresh .glyphicon,
+.ll-bento-bar .ll-bento-icon-btn--refresh .glyphicon-refresh {
+  color: #3d7a5c !important;
 }
 
 .ll-bento-dark-toggle {
@@ -7223,12 +7507,30 @@ body:-ms-fullscreen {
   isolation: isolate;
 }
 
+/* Light mode only: navigation bar (logo, Scot’s landing page link) – medium-dark blue to fit light scheme */
+#within_ember.bento-light-mode-active > header.header-index-with-dark-toggle {
+  background: #4A7BA7 !important;
+  background-color: #4A7BA7 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  opacity: 1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  isolation: isolate;
+}
+
 .header-index-with-dark-toggle h1 a,
 .header-index-with-dark-toggle h1 .nav-header__logo-link,
 .header-index-with-dark-toggle h1 .nav-header__app-name-link,
 .header-index-with-dark-toggle h1 a span,
 .header-index-with-dark-toggle h1 .nav-header__app-name {
   color: rgba(255, 255, 255, 0.95);
+}
+/* Lingo/Linq brand colors on dark nav header */
+.header-index-with-dark-toggle #nav_header .nav-header__app-name-lingo {
+  color: #f5c23b;
+}
+.header-index-with-dark-toggle #nav_header .nav-header__app-name-linq {
+  color: #7eb8e0;
 }
 
 .header-index-with-dark-toggle h1 a:hover,
@@ -7241,6 +7543,12 @@ body:-ms-fullscreen {
 .header-index-with-dark-toggle h1 .nav-header__logo img {
   height: 72px;
   width: 118px;
+}
+
+/* Pastel logo at 35% of default size (only when pastel/light theme) */
+.header-index-with-dark-toggle .nav-header__logo img.nav-header__logo-img--pastel {
+  width: 41px;
+  height: 25px;
 }
 
 /* Index navbar: center logo + name vertically, pair name closer to logo */
@@ -7277,12 +7585,13 @@ body:-ms-fullscreen {
 .header-index-with-dark-toggle #header_search .form-control::placeholder {
   color: rgba(255, 255, 255, 0.6);
 }
-.header-index-with-dark-toggle #header_search .header-search-btn {
-  color: rgba(255, 255, 255, 0.98);
+.header-index-with-dark-toggle #header_search .header-search-btn,
+.header-index-with-dark-toggle #header_search .header-search-icon {
+  color: #3a6bc7;
 }
 .header-index-with-dark-toggle #header_search .header-search-btn:hover {
   background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  color: #3a6bc7;
 }
 
 /* Identity button - modern pill style (index/for-schools view) */
@@ -7355,7 +7664,7 @@ body:-ms-fullscreen {
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
-  background-color: #1B365D;
+  background-color: #1B2A4A;
 }
 
 /* Welcome username centered on main navbar (authenticated index/for-schools only) */
@@ -7444,10 +7753,10 @@ body:-ms-fullscreen {
 }
 /* Username: coral 50% lighter, 10% darker – slightly reduced contrast */
 #nav_header #org_name .nav-header__user-name {
-  color: rgba(229, 162, 144, 0.92);
+  color: #e8cb7e;
 }
 .header-index-with-dark-toggle #nav_header #org_name .nav-header__user-name {
-  color: rgba(229, 162, 144, 0.92) !important;
+  color: #e8cb7e !important;
 }
 
 /* Help link on main navbar – visible and matches other nav links */
@@ -7476,6 +7785,52 @@ body:-ms-fullscreen {
 }
 .header-index-with-dark-toggle .ll-bento-help-btn--nav .ll-bento-help-btn__label {
   white-space: nowrap;
+}
+
+/* Upgrade button in header (moved from dock) – right of Help */
+.ll-bento-upgrade-btn--nav {
+  margin-left: 12px;
+  vertical-align: middle;
+  text-decoration: none;
+}
+.ll-bento-upgrade-btn--nav:hover {
+  text-decoration: none;
+}
+/* Upgrade in header: same light pill on dark nav in every color scheme */
+.header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav {
+  color: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+/* Apply same nav Upgrade styling in all themes (override theme dock CTA colors) */
+.ll-bento-app-shell--pastel .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav,
+.ll-bento-app-shell--coolBlue .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav,
+.ll-bento-app-shell--midday .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav,
+.ll-bento-app-shell--dark .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav,
+.ll-bento-app-shell--default .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav,
+.ll-bento-app-shell--gold .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav {
+  color: rgba(255, 255, 255, 0.98);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.ll-bento-app-shell--pastel .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover,
+.ll-bento-app-shell--coolBlue .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover,
+.ll-bento-app-shell--midday .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover,
+.ll-bento-app-shell--dark .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover,
+.ll-bento-app-shell--default .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover,
+.ll-bento-app-shell--gold .header-index-with-dark-toggle #identity .ll-bento-upgrade-btn--nav:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
 .identity-for-schools-link-wrap {
@@ -7531,20 +7886,20 @@ body:-ms-fullscreen {
 .for-schools-nav__cta {
   font-size: 15px;
   font-weight: 600;
-  color: white;
-  background: var(--fs-coral, #FF6B47);
+  color: #1B2A4A;
+  background: #D4A84B;
   padding: 10px 20px;
   border-radius: 999px;
   text-decoration: none;
   border: none;
-  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.3);
+  box-shadow: 0 4px 14px rgba(212, 168, 75, 0.35);
   transition: all 0.25s ease;
 }
 .for-schools-nav__cta:hover {
-  background: #e8573a;
-  color: white;
+  background: #c4973f;
+  color: #1B2A4A;
   text-decoration: none;
-  box-shadow: 0 6px 20px rgba(255, 107, 71, 0.4);
+  box-shadow: 0 6px 20px rgba(212, 168, 75, 0.45);
   transform: translateY(-1px);
 }
 
@@ -7655,18 +8010,18 @@ body:-ms-fullscreen {
   margin-top: 16px;
   font-size: 1.125rem;
   font-weight: 600;
-  color: white;
-  background: var(--fs-coral, #FF6B47);
+  color: #1B2A4A;
+  background: #D4A84B;
   padding: 14px 20px;
   border-radius: 12px;
   text-align: center;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(255, 107, 71, 0.3);
+  box-shadow: 0 4px 14px rgba(212, 168, 75, 0.35);
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .for-schools-nav-drawer__cta:hover {
-  background: #e8573a;
-  color: white;
+  background: #c4973f;
+  color: #1B2A4A;
   text-decoration: none;
 }
 
@@ -7714,6 +8069,21 @@ body:-ms-fullscreen {
   background: rgba(255, 255, 255, 1);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transform: translateY(-1px);
+}
+
+/* Single light gray demo circle on bento bar – opens theme/demo picker */
+.ll-bento-demo-toggle__circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ll-bento-demo-toggle__svg {
+  display: block;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.15));
+  transition: filter 0.2s ease;
+}
+.bento-dark-toggle-wrap .ll-bento-demo-toggle:hover .ll-bento-demo-toggle__svg {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.2)) brightness(1.08);
 }
 
 .ll-bento-dark-toggle__moon-svg {
@@ -7864,6 +8234,10 @@ body:-ms-fullscreen {
 
 #within_ember.bento-cool-blue-mode-active .ll-bento-theme-picker__option--active .ll-bento-theme-picker__icon {
   color: #2C3E63;
+}
+
+#within_ember.bento-pastel-mode-active .ll-bento-theme-picker__option--active .ll-bento-theme-picker__icon {
+  color: #3D8C6E;
 }
 
 .ll-bento-brand__name {
@@ -8101,6 +8475,13 @@ body:-ms-fullscreen {
       font-size: 14px;
       line-height: 1.4;
       text-align: right;
+      color: #3D7A5C;
+    }
+  }
+
+  &__stage {
+    .ll-bento-getting-started--main & {
+      color: #3D7A5C;
     }
   }
 
@@ -8111,7 +8492,7 @@ body:-ms-fullscreen {
     min-width: 260px;
     text-align: center;
     border-radius: 999px;
-    background: linear-gradient(135deg, rgba(100, 185, 188, 0.96) 0%, rgba(220, 248, 252, 0.85) 50%, rgba(130, 175, 220, 0.92) 100%);
+    background: #64b9bc;
     color: rgba(15, 20, 30, 0.98);
     font-size: 14px;
     font-weight: 600;
@@ -8236,7 +8617,7 @@ body:-ms-fullscreen {
     min-width: 260px;
     text-align: center;
     border-radius: 999px;
-    background: linear-gradient(135deg, rgba(100, 185, 188, 0.96) 0%, rgba(220, 248, 252, 0.85) 50%, rgba(130, 175, 220, 0.92) 100%);
+    background: #64b9bc;
     color: rgba(15, 20, 30, 0.98);
     font-size: 14px;
     font-weight: 600;
@@ -8425,11 +8806,24 @@ body:-ms-fullscreen {
   padding-top: 10px;
 }
 
+/* Wrapper for tabs + single underline that pulls them together */
+.ll-bento-span {
+  margin: 0 var(--ll-bento-content-inset) 14px;
+  border-bottom: 1px solid #3A6BC7;
+}
+
 .ll-bento-tabs {
   display: flex;
   justify-content: center;
   gap: 10px;
-  padding: 8px var(--ll-bento-content-inset) 14px;
+  padding: 10px 24px 12px;
+  margin: 0 0 14px 0;
+  background: linear-gradient(135deg, rgba(255, 252, 250, 0.38) 0%, rgba(248, 250, 253, 0.32) 100%);
+  border-radius: var(--ll-bento-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 16px rgba(19, 29, 56, 0.04),
+              var(--ll-bento-material-inner-highlight),
+              var(--ll-bento-material-counter-shadow);
 }
 
 .ll-bento-tab {
@@ -8571,7 +8965,7 @@ body:-ms-fullscreen {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 0 var(--ll-bento-content-inset) 78px; /* space for dock */
+  padding: 0 var(--ll-bento-content-inset) 0;
 }
 
 /* Boards section - home board card wrapper (full width of bento-content) */
@@ -8583,9 +8977,13 @@ body:-ms-fullscreen {
 /* Browse Boards - same styling as home board card / Getting Started for consistency */
 .ll-bento-browse-boards {
   width: 100%;
-  margin: 0 var(--ll-bento-content-inset) 14px;
+  margin: 0 var(--ll-bento-content-inset) 4px;
   padding: 24px 28px;
   box-sizing: border-box;
+  /* Tighter spacing before board grid (with .ll-bento-content gap) */
+  + div {
+    margin-top: -10px;
+  }
   background: linear-gradient(135deg, rgba(255, 252, 250, 0.38) 0%, rgba(248, 250, 253, 0.32) 100%);
   border-radius: var(--ll-bento-radius-xl);
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -8742,7 +9140,7 @@ body:-ms-fullscreen {
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: var(--ll-bento-muted);
+  color: #3D7A5C;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0 0 10px 0;
@@ -8950,8 +9348,9 @@ body:-ms-fullscreen {
     border: 1px solid rgba(210, 214, 224, 0.5);
 
     &--speak {
-      background: var(--ll-bento-icon-gloss), rgba(225, 242, 235, 0.85);
-      border-color: rgba(195, 225, 215, 0.5);
+      /* Much lighter tint of active action button color #3D7A5C */
+      background: var(--ll-bento-icon-gloss), rgba(61, 122, 92, 0.14);
+      border-color: rgba(61, 122, 92, 0.28);
     }
 
     &--reports {
@@ -8970,8 +9369,9 @@ body:-ms-fullscreen {
     }
 
     &--extras {
-      background: var(--ll-bento-icon-gloss), rgba(245, 232, 238, 0.85);
-      border-color: rgba(230, 210, 220, 0.5);
+      /* Lighter tint of Lingo gold – more gold, less orange */
+      background: var(--ll-bento-icon-gloss), rgba(218, 198, 115, 0.26);
+      border-color: rgba(218, 198, 115, 0.45);
     }
 
     &--green-yellow {
@@ -9046,7 +9446,10 @@ body:-ms-fullscreen {
 
   &__action-btn {
     flex-shrink: 0;
-    padding: 10px 20px;
+    min-width: 100px;
+    width: 100px;
+    box-sizing: border-box;
+    padding: 10px 16px;
     border-radius: 999px;
     font-size: 14px;
     font-weight: 600;
@@ -9058,6 +9461,10 @@ body:-ms-fullscreen {
     outline: 2px solid transparent;
     outline-offset: 2px;
     transition: transform 0.25s var(--ll-bento-ease-in-out), box-shadow 0.25s var(--ll-bento-ease-in-out), outline-color 0.2s var(--ll-bento-ease-out);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 
     &:active {
       transform: translateY(1px);
@@ -9198,13 +9605,17 @@ body:-ms-fullscreen {
   }
 }
 
-/* Bottom dock - primary navigation bar */
+/* Bottom dock - primary navigation bar; fixed height so it never stretches */
 .ll-bento-dock {
   position: absolute;
   left: calc(15px + var(--ll-bento-content-inset)); /* Bootstrap col padding + content inset to align with tabs */
   right: calc(15px + var(--ll-bento-content-inset));
   bottom: 12px;
-  height: 58px;
+  height: 58px !important;
+  min-height: 58px !important;
+  max-height: 58px !important;
+  flex-shrink: 0;
+  box-sizing: border-box;
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(248, 250, 253, 0.32) 100%);
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -9221,6 +9632,7 @@ body:-ms-fullscreen {
   justify-content: space-evenly;
   gap: 12px;
   padding: 8px 16px;
+  overflow: hidden;
 }
 
 .ll-bento-dock__item {
@@ -9438,14 +9850,14 @@ body:-ms-fullscreen {
   }
 }
 
-/* Main section lighter than topbar for contrast (like dark mode) */
+/* Main section lighter than bento bar for contrast (like dark mode) */
 .ll-bento-app-shell--midday .ll-bento-device-frame {
   background: linear-gradient(135deg, rgba(145, 158, 175, 0.92) 0%, rgba(135, 148, 165, 0.88) 100%);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Topbar modifier: applied directly on element when mid-day mode */
-.ll-bento-topbar.ll-bento-topbar--midday {
+.ll-bento-bar.ll-bento-bar--midday {
   background: #1B365D !important;
   border-bottom: 1px solid #2A9D8F;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2),
@@ -9454,27 +9866,29 @@ body:-ms-fullscreen {
               inset 0 -1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-brand-link,
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-brand__name,
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar__brand-sep,
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar__brand-home {
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-brand-link,
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-brand__name,
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar__brand-sep {
   color: #1B365D;
 }
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar__brand-home {
+  color: #7eb8e0;
+}
 
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome {
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome {
   color: rgba(232, 236, 242, 0.95);
 }
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__label {
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome__label {
   color: rgba(232, 236, 242, 0.85);
 }
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__link,
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__badge {
-  color: var(--fs-teal, #4ECDC4);
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome__link,
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome__badge {
+  color: #e8cb7e;
 }
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__link:hover {
-  color: #5ed9d1;
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome__link:hover {
+  color: #f0d89e;
 }
-.ll-bento-topbar.ll-bento-topbar--midday .ll-bento-topbar-welcome__celebration-icon {
+.ll-bento-bar.ll-bento-bar--midday .ll-bento-bar-welcome__celebration-icon {
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -9533,13 +9947,13 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--midday .ll-bento-home-board-card__btn {
-  background: linear-gradient(135deg, rgba(78, 165, 168, 0.75) 0%, rgba(100, 180, 200, 0.6) 50%, rgba(90, 140, 180, 0.7) 100%);
+  background: #4ea5a8;
   border-color: rgba(120, 200, 210, 0.4);
   color: rgba(15, 25, 35, 0.98);
 }
 
 .ll-bento-app-shell--midday .ll-bento-getting-started__btn {
-  background: linear-gradient(135deg, rgba(78, 165, 168, 0.75) 0%, rgba(100, 180, 200, 0.6) 50%, rgba(90, 140, 180, 0.7) 100%);
+  background: #4ea5a8;
   border-color: rgba(120, 200, 210, 0.4);
   color: rgba(15, 25, 35, 0.98);
 }
@@ -9596,6 +10010,11 @@ body:-ms-fullscreen {
   background: rgba(200, 212, 228, 0.85);
   border-color: rgba(255, 255, 255, 0.2);
 }
+.ll-bento-app-shell--midday .ll-bento-tabs {
+  background: rgba(200, 212, 228, 0.85);
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: var(--ll-bento-radius-md);
+}
 
 .ll-bento-app-shell--midday .ll-bento-progress {
   background: rgba(255, 255, 255, 0.45);
@@ -9608,10 +10027,10 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--midday .ll-bento-brand-link {
   background: rgba(212, 222, 238, 0.95);
 }
-.ll-bento-app-shell--midday .ll-bento-topbar .ll-bento-icon-btn {
+.ll-bento-app-shell--midday .ll-bento-bar .ll-bento-icon-btn {
   background: rgba(212, 222, 238, 0.95);
 }
-.ll-bento-app-shell--midday .ll-bento-topbar .ll-bento-icon-btn:hover {
+.ll-bento-app-shell--midday .ll-bento-bar .ll-bento-icon-btn:hover {
   background: #fff;
 }
 .ll-bento-app-shell--midday .ll-bento-brand-link:hover {
@@ -9639,7 +10058,7 @@ body:-ms-fullscreen {
 }
 
 /* Dock - icy blue light gray; Upgrade and active item keep their styling */
-/* Dock matches topbar silver gradient */
+/* Dock matches bento bar silver gradient */
 .ll-bento-app-shell--midday .ll-bento-dock {
   background: #1B365D;
   border-color: rgba(255, 255, 255, 0.15);
@@ -9658,8 +10077,9 @@ body:-ms-fullscreen {
   border-color: rgba(120, 180, 255, 0.25);
 }
 
-.ll-bento-app-shell--midday .ll-bento-section-label {
-  color: rgba(30, 36, 48, 0.62);
+.ll-bento-app-shell--midday .ll-bento-section-label,
+.ll-bento-app-shell--midday .ll-bento-getting-started__stage {
+  color: var(--ll-bento-muted);
 }
 .ll-bento-app-shell--midday .ll-bento-section-group {
   background: linear-gradient(135deg, rgba(200, 212, 228, 0.35) 0%, rgba(188, 200, 218, 0.28) 100%);
@@ -9836,7 +10256,7 @@ body:-ms-fullscreen {
   background: #8a929c;
 }
 
-/* Navbar matches bento topbar (ll-bento-topbar--midday) only when NOT index/for-schools navbar */
+/* Navbar matches bento bar (ll-bento-bar--midday) only when NOT index/for-schools navbar */
 #within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%);
   border-bottom: 1px solid #2A9D8F;
@@ -9914,7 +10334,7 @@ body:-ms-fullscreen {
   color: rgba(27, 54, 93, 0.95);
 }
 
-/* Bottom navbar matches topbar silver gradient */
+/* Bottom navbar matches bento bar silver gradient */
 #within_ember.bento-midday-mode-active .page-footer,
 #within_ember.bento-midday-mode-active footer {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%);
@@ -9976,8 +10396,8 @@ body:-ms-fullscreen {
   border-color: rgba(166, 176, 223, 0.35);
 }
 
-.ll-bento-app-shell--coolBlue .ll-bento-topbar,
-.ll-bento-topbar.ll-bento-topbar--coolBlue {
+.ll-bento-app-shell--coolBlue .ll-bento-bar,
+.ll-bento-bar.ll-bento-bar--coolBlue {
   background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%) !important; /* same as Help me setup my account button */
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -9985,48 +10405,48 @@ body:-ms-fullscreen {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
               inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-/* Cool blue topbar: brand, welcome, actions sections transparent; brand link matches active action button */
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__welcome,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__actions {
+/* Cool blue bento bar: brand, welcome, actions sections transparent; brand link matches active action button */
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar__brand,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar__welcome,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar__actions {
   background: transparent;
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-brand-link {
   background: linear-gradient(135deg, #657588 0%, #4C5B7A 100%);
   border-color: rgba(74, 93, 115, 0.5);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link:hover {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-brand-link:hover {
   background: linear-gradient(135deg, #728399 0%, #5a6a85 100%);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand-link,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-brand__name,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand-sep,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar__brand-home {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-brand-link,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-brand__name,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar__brand-sep,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar__brand-home {
   color: rgba(255, 255, 255, 0.98);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__label {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome__label {
   color: rgba(232, 236, 242, 0.95);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__link,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__badge {
-  color: var(--fs-teal, #4ECDC4);
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome__link,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome__badge {
+  color: #e8cb7e;
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__link:hover {
-  color: #5ed9d1;
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome__link:hover {
+  color: #f0d89e;
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-topbar-welcome__celebration-icon {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-bar-welcome__celebration-icon {
   color: rgba(255, 255, 255, 0.9);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-search {
   background: rgba(74, 93, 115, 0.5);
   border-color: rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.95);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search__input {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-search__input {
   color: rgba(255, 255, 255, 0.95);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search__input::placeholder {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-search__input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
@@ -10085,13 +10505,13 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-home-board-card__btn {
-  background: linear-gradient(135deg, #4A5D73 0%, #2C3E63 100%);
+  background: #3d4f63;
   border-color: rgba(74, 93, 115, 0.4);
   color: #ffffff;
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-getting-started__btn {
-  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%);
+  background: #2C3E63;
   border-color: rgba(74, 93, 115, 0.5);
   color: #ffffff;
 }
@@ -10149,6 +10569,11 @@ body:-ms-fullscreen {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(126, 147, 168, 0.25);
 }
+.ll-bento-app-shell--coolBlue .ll-bento-tabs {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(126, 147, 168, 0.25);
+  border-radius: var(--ll-bento-radius-md);
+}
 
 .ll-bento-app-shell--coolBlue .ll-bento-progress {
   background: rgba(126, 147, 168, 0.2);
@@ -10161,21 +10586,21 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--coolBlue .ll-bento-brand-link {
   background: rgba(233, 238, 244, 0.98);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-icon-btn {
   background: rgba(74, 93, 115, 0.6);
   border-color: rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.95);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-icon-btn:hover {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-icon-btn:hover {
   background: rgba(101, 117, 136, 0.8);
   color: #fff;
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-search:hover {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-search:hover {
   background: rgba(74, 93, 115, 0.6);
   border-color: rgba(255, 255, 255, 0.2);
 }
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-help-btn .ll-bento-help-btn__icon,
-.ll-bento-app-shell--coolBlue .ll-bento-topbar .ll-bento-help-btn .ll-bento-help-btn__label {
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-help-btn .ll-bento-help-btn__icon,
+.ll-bento-app-shell--coolBlue .ll-bento-bar .ll-bento-help-btn .ll-bento-help-btn__label {
   color: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -10197,7 +10622,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-dock {
-  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%); /* same as topbar / Help me setup button */
+  background: linear-gradient(135deg, #2C3E63 0%, #1F2A44 100%); /* same as bento bar / Help me setup button */
   border-color: rgba(255, 255, 255, 0.12);
 }
 
@@ -10212,7 +10637,7 @@ body:-ms-fullscreen {
 }
 
 .ll-bento-app-shell--coolBlue .ll-bento-section-label {
-  color: rgba(74, 93, 115, 0.9);
+  color: #3D7A5C;
 }
 .ll-bento-app-shell--coolBlue .ll-bento-section-group {
   background: transparent;
@@ -10388,6 +10813,342 @@ body:-ms-fullscreen {
   color: rgba(31, 42, 68, 0.98);
 }
 
+/* Pastel theme – shell and bento bar use light (default) mode colors; content keeps pastel palette */
+.ll-bento-app-shell--pastel {
+  color: rgba(27, 42, 74, 0.95);
+  transition: background 0.4s var(--ll-bento-ease-in-out), color 0.3s ease;
+  --ll-bento-bg: #FDFAF6;
+  --ll-bento-ink: #1B2A4A;
+  --ll-bento-muted: rgba(27, 42, 74, 0.7);
+  --ll-bento-primary-1: #3D8C6E;
+  --ll-bento-functional-green: #3D8C6E;
+  --ll-bento-functional-coral: #D4A84B;
+  font-family: "Atkinson Hyperlegible", "Open Sans", Calibri, sans-serif;
+  /* Light mode shell background */
+  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
+              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
+              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
+              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+}
+
+.ll-bento-app-shell--pastel .ll-bento-bg-orbs {
+  opacity: 0;
+}
+
+.ll-bento-app-shell--pastel .ll-bento-device-frame {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Pastel bento bar: same as light (default) – white background, dark text */
+.ll-bento-app-shell--pastel .ll-bento-bar,
+.ll-bento-bar.ll-bento-bar--pastel {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  border-bottom: 1px solid #1b2a4a;
+  font-family: "Lexend", "Nunito Sans", Calibri, sans-serif;
+}
+
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar__brand,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar__welcome,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar__actions {
+  background: transparent;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-brand-link {
+  background: rgba(225, 228, 238, 0.98);
+  border-color: rgba(30, 36, 48, 0.12);
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-brand-link:hover {
+  background: #fff;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-brand-link,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar__brand-sep,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar__brand-home,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-brand__name {
+  color: #1e2430;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome__label {
+  color: rgba(31, 42, 68, 0.8);
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome__link,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome__badge {
+  color: var(--fs-dark-teal, #2A9D8F);
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome__link:hover {
+  color: #238a7e;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-bar-welcome__celebration-icon {
+  color: #2A9D8F;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-search {
+  background: rgba(225, 228, 238, 0.98);
+  border-color: rgba(30, 36, 48, 0.12);
+  color: #1e2430;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-search__input {
+  color: #1e2430;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-search__input::placeholder {
+  color: rgba(30, 36, 48, 0.5);
+}
+.ll-bento-app-shell--pastel .ll-bento-welcome__label {
+  color: rgba(27, 42, 74, 0.9);
+}
+.ll-bento-app-shell--pastel .ll-bento-welcome__badge {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.4);
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-welcome__link:hover .ll-bento-welcome__badge {
+  background: #F0EBE3;
+  border-color: rgba(126, 184, 224, 0.5);
+}
+.ll-bento-app-shell--pastel .ll-bento-search {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.3);
+}
+.ll-bento-app-shell--pastel .ll-bento-help-btn__icon {
+  color: rgba(27, 42, 74, 0.9) !important;
+}
+.ll-bento-app-shell--pastel .ll-bento-help-btn:hover .ll-bento-help-btn__icon {
+  color: rgba(27, 42, 74, 0.95) !important;
+}
+.ll-bento-app-shell--pastel .ll-bento-search__input {
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-search__input::placeholder {
+  color: rgba(61, 140, 110, 0.6);
+}
+.ll-bento-app-shell--pastel .ll-bento-icon-btn {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.3);
+  color: rgba(27, 42, 74, 0.9);
+}
+.ll-bento-app-shell--pastel .ll-bento-tabs {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-radius: var(--ll-bento-radius-md);
+}
+.ll-bento-app-shell--pastel .ll-bento-tab:not(.ll-bento-tab--active) {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.3);
+  color: #1b2a4a;
+}
+.ll-bento-app-shell--pastel .ll-bento-tab--active {
+  background: #7EB8E0;
+  border-color: rgba(126, 184, 224, 0.5);
+  color: #fff;
+  box-shadow: none;
+}
+.ll-bento-app-shell--pastel .ll-bento-home-board-card__btn {
+  background: #3A6BC7;
+  border-color: rgba(58, 107, 199, 0.4);
+  color: #fff;
+  box-shadow: none;
+}
+.ll-bento-app-shell--pastel .ll-bento-getting-started__btn {
+  background: #3A6BC7;
+  border-color: rgba(58, 107, 199, 0.5);
+  color: #fff;
+  box-shadow: none;
+}
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main:active .ll-bento-getting-started__btn,
+.ll-bento-app-shell--pastel .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn,
+.ll-bento-app-shell--pastel .ll-bento-home-board-card:active .ll-bento-home-board-card__btn {
+  box-shadow: none;
+}
+.ll-bento-app-shell--pastel .ll-bento-browse-boards {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.25);
+}
+.ll-bento-app-shell--pastel .ll-bento-home-board-card,
+.ll-bento-app-shell--pastel .ll-bento-hero-card,
+.ll-bento-app-shell--pastel .ll-bento-action-card,
+.ll-bento-app-shell--pastel .ll-bento-card,
+.ll-bento-app-shell--pastel .ll-bento-extras-expanded,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main {
+  background: #eaf2fb;
+  border-color: rgba(126, 184, 224, 0.25);
+}
+.ll-bento-app-shell--pastel .ll-bento-progress {
+  background: rgba(126, 184, 224, 0.2);
+}
+.ll-bento-app-shell--pastel .ll-bento-progress__fill {
+  background: #7EB8E0;
+}
+.ll-bento-app-shell--pastel .ll-bento-brand-link {
+  background: #F0EBE3;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-icon-btn {
+  background: rgba(225, 228, 238, 0.98);
+  border-color: rgba(30, 36, 48, 0.12);
+  color: #1e2430;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-icon-btn:hover {
+  background: #fff;
+  color: #1e2430;
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-search:hover {
+  background: #fff;
+  border-color: rgba(30, 36, 48, 0.18);
+}
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-help-btn .ll-bento-help-btn__icon,
+.ll-bento-app-shell--pastel .ll-bento-bar .ll-bento-help-btn .ll-bento-help-btn__label {
+  color: #1e2430 !important;
+}
+.ll-bento-app-shell--pastel .ll-bento-tab:hover:not(.ll-bento-tab--active) {
+  background: #F0EBE3;
+  border-color: rgba(126, 184, 224, 0.4);
+}
+.ll-bento-app-shell--pastel .nav.nav-pills:not(.nav-stacked) li:not(.active) a {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.3);
+  color: #1b2a4a;
+}
+.ll-bento-app-shell--pastel .nav.nav-pills:not(.nav-stacked) li.active a {
+  background: #3D8C6E;
+  border-color: rgba(126, 184, 224, 0.4);
+  color: #fff;
+}
+.ll-bento-app-shell--pastel .ll-bento-home-board-card:hover,
+.ll-bento-app-shell--pastel .ll-bento-hero-card:hover,
+.ll-bento-app-shell--pastel .ll-bento-action-card:hover,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main:hover {
+  background: #dce8f5;
+  border-color: rgba(126, 184, 224, 0.35);
+}
+.ll-bento-app-shell--pastel .ll-bento-dock {
+  background: #1B2A4A;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.ll-bento-app-shell--pastel .ll-bento-dock__item:not(.ll-bento-dock__item--active) {
+  color: rgba(253, 250, 246, 0.9);
+}
+.ll-bento-app-shell--pastel .ll-bento-dock__item--active {
+  background: #3D8C6E;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.ll-bento-app-shell--pastel .ll-bento-section-label {
+  color: #3D7A5C;
+}
+.ll-bento-app-shell--pastel .ll-bento-section-group {
+  background: transparent;
+  border-left-color: rgba(126, 184, 224, 0.6);
+}
+.ll-bento-app-shell--pastel .ll-bento-actions .ll-bento-section-group:first-child {
+  background: #eaf2fb;
+  border: 1px solid rgba(126, 184, 224, 0.4);
+  border-left-width: 0;
+}
+.ll-bento-app-shell--pastel .ll-bento-browse-boards .ll-bento-section-group {
+  background: transparent;
+}
+.ll-bento-app-shell--pastel .ll-bento-extras-expanded {
+  background: #eaf2fb;
+}
+.ll-bento-app-shell--pastel .ll-bento-action-card--extras-expanded {
+  background: #eaf2fb;
+}
+.ll-bento-app-shell--pastel .ll-bento-dock__cta {
+  background: #e8cb7e;
+  border-color: rgba(212, 168, 75, 0.5);
+  color: #1B2A4A;
+}
+.ll-bento-app-shell--pastel .ll-bento-dock__label,
+.ll-bento-app-shell--pastel .ll-bento-dock__supervisor-label,
+.ll-bento-app-shell--pastel .ll-bento-dock__logging-sep,
+.ll-bento-app-shell--pastel .ll-bento-dock__logging-last,
+.ll-bento-app-shell--pastel .ll-bento-dock__logging-last-label {
+  color: rgba(253, 250, 246, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-dock__item--active .ll-bento-dock__label {
+  color: rgba(255, 255, 255, 0.95);
+}
+.ll-bento-app-shell--pastel h4,
+.ll-bento-app-shell--pastel .ll-bento-home-board-card__title,
+.ll-bento-app-shell--pastel .ll-bento-hero-card__title,
+.ll-bento-app-shell--pastel .ll-bento-action-card__title,
+.ll-bento-app-shell--pastel .ll-bento-action-card__glyph,
+.ll-bento-app-shell--pastel .ll-bento-feature__title,
+.ll-bento-app-shell--pastel .ll-bento-card__title {
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-home-board-card .ll-bento-home-board-card__title,
+.ll-bento-app-shell--pastel .ll-bento-home-board-card .ll-bento-home-board-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main .ll-bento-getting-started__title,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main .ll-bento-getting-started__hint,
+.ll-bento-app-shell--pastel .ll-bento-hero-card .ll-bento-hero-card__title,
+.ll-bento-app-shell--pastel .ll-bento-hero-card .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-action-card .ll-bento-action-card__title,
+.ll-bento-app-shell--pastel .ll-bento-action-card .ll-bento-action-card__sub,
+.ll-bento-app-shell--pastel .ll-bento-action-card .ll-bento-action-card__meta,
+.ll-bento-app-shell--pastel .ll-bento-card .ll-bento-card__title,
+.ll-bento-app-shell--pastel .ll-bento-card .ll-bento-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-feature__title,
+.ll-bento-app-shell--pastel .ll-bento-feature__sub {
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-home-board-card .ll-bento-home-board-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-getting-started--main .ll-bento-getting-started__hint,
+.ll-bento-app-shell--pastel .ll-bento-hero-card .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-action-card .ll-bento-action-card__meta,
+.ll-bento-app-shell--pastel .ll-bento-card .ll-bento-card__subtitle,
+.ll-bento-app-shell--pastel .ll-bento-feature__sub {
+  color: rgba(61, 140, 110, 0.85);
+}
+.ll-bento-app-shell--pastel .ll-bento-action-card .ll-bento-action-card__sub {
+  color: #1b2a4a;
+}
+.ll-bento-app-shell--pastel .simple_board_icon {
+  background: rgba(253, 250, 246, 0.9);
+  border-color: rgba(126, 184, 224, 0.25);
+}
+.ll-bento-app-shell--pastel .simple_board_icon .name,
+.ll-bento-app-shell--pastel .simple_board_icon .author,
+.ll-bento-app-shell--pastel .ll-bento-action-card__action-btn {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.35);
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .big_button_holder .btn {
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .simple_board_icon .author {
+  color: rgba(61, 140, 110, 0.85);
+}
+.ll-bento-app-shell--pastel a {
+  color: #3D8C6E;
+}
+.ll-bento-app-shell--pastel a:hover {
+  color: #1B2A4A;
+}
+.ll-bento-app-shell--pastel .ll-bento-brand-link,
+.ll-bento-app-shell--pastel .ll-bento-welcome__link {
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .ll-bento-brand-link:hover,
+.ll-bento-app-shell--pastel .ll-bento-welcome__link:hover {
+  color: #1B2A4A;
+}
+.ll-bento-app-shell--pastel .btn-default {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(126, 184, 224, 0.35);
+  color: rgba(27, 42, 74, 0.95);
+}
+.ll-bento-app-shell--pastel .btn-default:hover {
+  background: #F0EBE3;
+  border-color: rgba(126, 184, 224, 0.45);
+  color: rgba(27, 42, 74, 0.98);
+}
+.ll-bento-app-shell--pastel .ll-bento-section-group,
+.ll-bento-app-shell--pastel .ll-bento-extras-expanded {
+  border-left-width: 0;
+  padding-left: 20px;
+}
+
 #within_ember.bento-cool-blue-mode-active {
   background: #E9EEF4;
 }
@@ -10487,6 +11248,116 @@ body:-ms-fullscreen {
   color: rgba(74, 93, 115, 0.8);
 }
 
+/* Pastel theme – Navy #1B2A4A, Gold #D4A84B, Emerald #3D8C6E, Sky Blue #7EB8E0, Warm White #FDFAF6, Warm Sand #F0EBE3 (landing page palette) */
+#within_ember.bento-pastel-mode-active > header.header-index-with-dark-toggle {
+  background: #1B2A4A !important;
+  background-color: #1B2A4A !important;
+  border-bottom-color: #3D8C6E;
+}
+
+#within_ember.bento-pastel-mode-active {
+  background: #FDFAF6;
+}
+
+#within_ember.bento-pastel-mode-active #index_view {
+  background: #FDFAF6;
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) {
+  background: #1B2A4A;
+  border-bottom: 1px solid #1B2A4A;
+}
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) h1 a,
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #board_id,
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #org_name,
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .user_name {
+  color: rgba(27, 42, 74, 0.95);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity_button {
+  background: #FDFAF6;
+  border: 1px solid rgba(61, 140, 110, 0.35);
+  color: rgba(27, 42, 74, 0.95);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity_button:hover,
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity_button:focus {
+  background: #F0EBE3;
+  border-color: rgba(61, 140, 110, 0.45);
+  color: rgba(27, 42, 74, 0.98);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .identity-for-schools-link {
+  color: rgba(27, 42, 74, 0.9);
+}
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .identity-for-schools-link:hover {
+  color: rgba(27, 42, 74, 1);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
+  background: rgba(253, 250, 246, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(27, 42, 74, 0.95);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 42, 74, 0.98);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
+  background: rgba(253, 250, 246, 0.95);
+  border-color: rgba(61, 140, 110, 0.35);
+  color: rgba(27, 42, 74, 0.95);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
+  background: #F0EBE3;
+  border-color: rgba(61, 140, 110, 0.45);
+  color: rgba(27, 42, 74, 0.98);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
+  background: rgba(253, 250, 246, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: rgba(61, 140, 110, 0.9);
+}
+
+#within_ember.bento-pastel-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: rgba(27, 42, 74, 0.95);
+}
+
+#within_ember.bento-pastel-mode-active .page-footer,
+#within_ember.bento-pastel-mode-active footer {
+  background: rgba(253, 250, 246, 0.95);
+  border-top: 1px solid rgba(126, 184, 224, 0.35);
+  color: rgba(27, 42, 74, 0.9);
+}
+
+#within_ember.bento-pastel-mode-active .page-footer a,
+#within_ember.bento-pastel-mode-active footer a {
+  color: #3D8C6E;
+}
+
+#within_ember.bento-pastel-mode-active .page-footer a:hover,
+#within_ember.bento-pastel-mode-active footer a:hover {
+  color: #1B2A4A;
+}
+
+#within_ember.bento-pastel-mode-active .page-footer .text-muted,
+#within_ember.bento-pastel-mode-active footer .text-muted {
+  color: rgba(61, 140, 110, 0.8);
+}
+
 /* Dark mode - medium dark theme (applies only to main bento dashboard) */
 .ll-bento-app-shell--dark {
   color: #e8ecf2;
@@ -10534,7 +11405,7 @@ body:-ms-fullscreen {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-.ll-bento-app-shell--dark .ll-bento-topbar {
+.ll-bento-app-shell--dark .ll-bento-bar {
   background: #172E4F !important; /* navy 15% darker */
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -10545,21 +11416,25 @@ body:-ms-fullscreen {
               var(--ll-bento-material-counter-shadow);
 }
 
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome {
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome {
   color: rgba(232, 236, 242, 0.95);
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome__label {
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome__label {
   color: rgba(232, 236, 242, 0.85);
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome__link,
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome__badge {
-  color: var(--fs-dark-teal, #2A9D8F);
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome__link,
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome__badge {
+  color: #e8cb7e;
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome__link:hover {
-  color: #34b5a5;
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome__link:hover {
+  color: #f0d89e;
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-topbar-welcome__celebration-icon {
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar-welcome__celebration-icon {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-bar__brand-home {
+  color: #7eb8e0;
 }
 
 .ll-bento-app-shell--dark .ll-bento-welcome__label {
@@ -10600,10 +11475,10 @@ body:-ms-fullscreen {
 .ll-bento-app-shell--dark .ll-bento-brand-link {
   background: rgba(85, 100, 120, 0.9);
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-icon-btn {
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-icon-btn {
   background: rgba(85, 100, 120, 0.9);
 }
-.ll-bento-app-shell--dark .ll-bento-topbar .ll-bento-icon-btn:hover {
+.ll-bento-app-shell--dark .ll-bento-bar .ll-bento-icon-btn:hover {
   background: #fff;
 }
 .ll-bento-app-shell--dark .ll-bento-brand-link:hover {
@@ -10635,7 +11510,7 @@ body:-ms-fullscreen {
   color: rgba(230, 236, 242, 0.9) !important;
 }
 
-/* Navbar matches bento topbar (dark) only when NOT index/for-schools navbar */
+/* Navbar matches bento bar (dark) only when NOT index/for-schools navbar */
 #within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%);
   border-bottom: 1px solid #2A9D8F;
@@ -10739,7 +11614,21 @@ body:-ms-fullscreen {
 #within_ember.bento-dark-mode-active footer .wide_links > .row > div > span:first-child {
   color: rgba(230, 236, 242, 0.85);
 }
+#within_ember.bento-dark-mode-active .page-footer .page-footer__app-name .nav-header__app-name-lingo {
+  color: #f5c23b;
+}
+#within_ember.bento-dark-mode-active .page-footer .page-footer__app-name .nav-header__app-name-linq {
+  color: #3a6bc7;
+}
 
+.ll-bento-app-shell--dark .ll-bento-tabs {
+  background: linear-gradient(135deg, rgba(65, 78, 95, 0.45) 0%, rgba(55, 68, 85, 0.38) 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+              var(--ll-bento-material-inner-highlight),
+              var(--ll-bento-material-counter-shadow);
+  border-radius: var(--ll-bento-radius-md);
+}
 .ll-bento-app-shell--dark .ll-bento-tab {
   background: linear-gradient(135deg, rgba(65, 78, 95, 0.9) 0%, rgba(55, 68, 85, 0.85) 100%);
   border-color: rgba(255, 255, 255, 0.12);
@@ -10914,8 +11803,9 @@ body:-ms-fullscreen {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.ll-bento-app-shell--dark .ll-bento-section-label {
-  color: rgba(255, 255, 255, 0.88);
+.ll-bento-app-shell--dark .ll-bento-section-label,
+.ll-bento-app-shell--dark .ll-bento-getting-started__stage {
+  color: var(--ll-bento-muted);
 }
 .ll-bento-app-shell--dark .ll-bento-section-group {
   border-left-color: rgba(78, 205, 196, 0.6);
@@ -11097,16 +11987,31 @@ body:-ms-fullscreen {
 /* Default theme – style guide colors and typography
    Teal #4ECDC4 (accent), Dark Teal #2A9D8F (accessible), White #FFFFFF, Light Gray #F0F0F0, Coral #FF6B47
    Typography: Lexend (headings), Atkinson Hyperlegible (body), Source Code Pro (data) */
-.ll-bento-app-shell--default {
+.ll-bento-app-shell--default,
+.ll-bento-app-shell--gold {
   --ll-bento-bg: #FFFFFF;
   --ll-bento-ink: #1e2430;
   --ll-bento-muted: rgba(30, 36, 48, 0.7);
-  --ll-bento-primary-1: #4ECDC4;
-  --ll-bento-functional-green: #2A9D8F;
-  --ll-bento-functional-coral: #FF6B47;
   font-family: "Atkinson Hyperlegible", "Open Sans", Calibri, sans-serif;
   background: #FFFFFF;
   color: var(--ll-bento-ink);
+}
+
+/* Light mode (default) – brand palette */
+.ll-bento-app-shell--default {
+  --ll-bento-primary-1: #3d7a5c;
+  --ll-bento-primary-2: #7eb8e0;
+  --ll-bento-primary-3: #3a6bc7;
+  --ll-bento-secondary: #eaf2fb;
+  --ll-bento-functional-green: #3d7a5c;
+  --ll-bento-functional-coral: #d4a84b;
+}
+
+/* Gold theme – teal/coral accent */
+.ll-bento-app-shell--gold {
+  --ll-bento-primary-1: #4ECDC4;
+  --ll-bento-functional-green: #2A9D8F;
+  --ll-bento-functional-coral: #FF6B47;
 }
 
 /* #index_view only exists when the index route is active (template in app/templates/index.hbs).
@@ -11117,30 +12022,49 @@ body:-ms-fullscreen {
   background: #FFFFFF;
 }
 
-.ll-bento-app-shell--default .ll-bento-bg-orbs {
+#within_ember.bento-gold-mode-active #index_view {
+  background: #FFFFFF;
+}
+
+.ll-bento-app-shell--default .ll-bento-bg-orbs, .ll-bento-app-shell--gold .ll-bento-bg-orbs,
+.ll-bento-app-shell--gold .ll-bento-bg-orbs {
   opacity: 0;
 }
 
-/* Default shell: subtle multi-tone gradient – light navy, very light coral, and teal for professional differentiation. */
+/* Default shell: active pill gradient (7eb8e0 → 3a6bc7). */
 .ll-bento-app-shell--default {
-  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
-              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
-              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
-              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+  background: linear-gradient(135deg, rgba(126, 184, 224, 0.35) 0%, rgba(58, 107, 199, 0.3) 100%);
+}
+/* Gold shell: top-down gradient – blue, gold (subtle), green (subtle). */
+.ll-bento-app-shell--gold {
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
 }
 
-.ll-bento-app-shell--default .ll-bento-device-frame {
+.ll-bento-app-shell--default .ll-bento-device-frame, .ll-bento-app-shell--gold .ll-bento-device-frame,
+.ll-bento-app-shell--gold .ll-bento-device-frame {
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-.ll-bento-app-shell--default .ll-bento-topbar {
+.ll-bento-app-shell--default .ll-bento-bar, .ll-bento-app-shell--gold .ll-bento-bar,
+.ll-bento-app-shell--gold .ll-bento-bar {
   background: #FFFFFF;
-  border-bottom: 1px solid #F0F0F0;
+  border-bottom: 1px solid #1b2a4a;
   font-family: "Lexend", "Nunito Sans", Calibri, sans-serif;
 }
 
-/* Demo: color circles on topbar (default theme only) – change ll-bento-main-content bg for client preview */
-.ll-bento-topbar--default .ll-bento-topbar__demo-colors {
+.ll-bento-app-shell--gold .ll-bento-bar .ll-bento-bar-welcome__badge,
+.ll-bento-app-shell--gold .ll-bento-bar .ll-bento-bar-welcome__link {
+  color: #3D7A5C;
+}
+.ll-bento-app-shell--gold .ll-bento-bar .ll-bento-bar-welcome__link:hover {
+  color: #2d5a45;
+}
+
+/* Demo: color circles on bento bar (default theme only) – change ll-bento-main-content bg for client preview */
+.ll-bento-bar--default .ll-bento-bar__demo-colors {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -11212,8 +12136,9 @@ body:-ms-fullscreen {
   padding-left: 20px;
 }
 
-.ll-bento-app-shell--default .ll-bento-section-group,
-.ll-bento-app-shell--default .ll-bento-extras-expanded {
+.ll-bento-app-shell--default .ll-bento-section-group, .ll-bento-app-shell--gold .ll-bento-section-group,
+.ll-bento-app-shell--default .ll-bento-extras-expanded,
+.ll-bento-app-shell--gold .ll-bento-extras-expanded {
   background: #F0F0F0;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-left: 4px solid rgba(42, 157, 143, 0.55);
@@ -11221,22 +12146,24 @@ body:-ms-fullscreen {
 }
 
 /* Default theme: when border toggle is off, remove teal left bar on all section groups (including Primary actions and filter) */
-.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-section-group,
-.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-extras-expanded {
+.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-section-group, .ll-bento-app-shell--gold .ll-bento-device-frame--no-section-border .ll-bento-section-group,
+.ll-bento-app-shell--default .ll-bento-device-frame--no-section-border .ll-bento-extras-expanded,
+.ll-bento-app-shell--gold .ll-bento-device-frame--no-section-border .ll-bento-extras-expanded {
   border-left-width: 0;
   border-left-color: transparent;
   padding-left: 20px;
 }
 
 /* Default theme: thick border = 4px + 20px fill to the right (24px total teal strip) */
-.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-section-group,
-.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-extras-expanded {
+.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-section-group, .ll-bento-app-shell--gold .ll-bento-device-frame--section-border-thick .ll-bento-section-group,
+.ll-bento-app-shell--default .ll-bento-device-frame--section-border-thick .ll-bento-extras-expanded,
+.ll-bento-app-shell--gold .ll-bento-device-frame--section-border-thick .ll-bento-extras-expanded {
   border-left-width: 24px;
   border-left-color: rgba(42, 157, 143, 0.55);
   padding-left: 24px;
 }
 
-.ll-bento-app-shell--default .ll-bento-actions .ll-bento-section-group:first-child {
+.ll-bento-app-shell--default .ll-bento-actions .ll-bento-section-group:first-child , .ll-bento-app-shell--gold .ll-bento-actions .ll-bento-section-group:first-child{
   background: linear-gradient(to bottom,
     #E8EBED 0%,
     rgba(27, 54, 93, 0.06) 12%,
@@ -11254,89 +12181,108 @@ body:-ms-fullscreen {
   -webkit-backdrop-filter: none;
 }
 
-.ll-bento-app-shell--default .ll-bento-device-frame--demo-bg .ll-bento-actions .ll-bento-section-group:first-child {
+.ll-bento-app-shell--default .ll-bento-device-frame--demo-bg .ll-bento-actions .ll-bento-section-group:first-child , .ll-bento-app-shell--gold .ll-bento-device-frame--demo-bg .ll-bento-actions .ll-bento-section-group:first-child{
   background: #E8EBED;
 }
 
-.ll-bento-app-shell--default .ll-bento-getting-started--main {
+.ll-bento-app-shell--default .ll-bento-getting-started--main , .ll-bento-app-shell--gold .ll-bento-getting-started--main{
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.ll-bento-app-shell--default .ll-bento-getting-started--main:hover {
+.ll-bento-app-shell--default .ll-bento-getting-started--main:hover , .ll-bento-app-shell--gold .ll-bento-getting-started--main:hover{
   background: #F0F0F0;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
 }
 
-.ll-bento-app-shell--default .ll-bento-home-board-card {
+.ll-bento-app-shell--default .ll-bento-home-board-card , .ll-bento-app-shell--gold .ll-bento-home-board-card{
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.ll-bento-app-shell--default .ll-bento-home-board-card:hover {
+.ll-bento-app-shell--default .ll-bento-home-board-card:hover , .ll-bento-app-shell--gold .ll-bento-home-board-card:hover{
   background: #F0F0F0;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
 }
 
-.ll-bento-app-shell--default .ll-bento-browse-boards {
+.ll-bento-app-shell--default .ll-bento-browse-boards , .ll-bento-app-shell--gold .ll-bento-browse-boards{
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.ll-bento-app-shell--default .ll-bento-browse-boards:hover {
+.ll-bento-app-shell--default .ll-bento-browse-boards:hover , .ll-bento-app-shell--gold .ll-bento-browse-boards:hover{
   background: #F0F0F0;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.05);
 }
 
-.ll-bento-app-shell--default .ll-bento-browse-boards__icon {
+.ll-bento-app-shell--default .ll-bento-browse-boards__icon , .ll-bento-app-shell--gold .ll-bento-browse-boards__icon{
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(78, 205, 196, 0.15);
   border-color: rgba(78, 205, 196, 0.3);
 }
 
-.ll-bento-app-shell--default .ll-bento-getting-started__btn {
-  background: #2A9D8F;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
-}
-
-.ll-bento-app-shell--default .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn {
-  background: #238a7e;
-  box-shadow: 0 4px 10px rgba(42, 157, 143, 0.25);
-}
-
+/* Light mode (default): Help me… buttons – solid #3D7A5C, no box-shadow */
+.ll-bento-app-shell--default .ll-bento-getting-started__btn,
 .ll-bento-app-shell--default .ll-bento-home-board-card__btn {
+  background: #3D7A5C;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(255, 255, 255, 0.98);
+  box-shadow: none;
+}
+.ll-bento-app-shell--default .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn,
+.ll-bento-app-shell--default .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn {
+  background: #357a52;
+  box-shadow: none;
+}
+
+.ll-bento-app-shell--gold .ll-bento-getting-started__btn,
+.ll-bento-app-shell--gold .ll-bento-home-board-card__btn {
   background: #2A9D8F;
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: rgba(255, 255, 255, 0.98);
   box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
 }
-
-.ll-bento-app-shell--default .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn {
+.ll-bento-app-shell--gold .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn,
+.ll-bento-app-shell--gold .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn {
   background: #238a7e;
   box-shadow: 0 4px 10px rgba(42, 157, 143, 0.25);
+}
+
+/* Gold theme: Help me… buttons use #3A6BC7 */
+.ll-bento-app-shell--gold .ll-bento-getting-started__btn,
+.ll-bento-app-shell--gold .ll-bento-home-board-card__btn {
+  background: #3A6BC7;
+  border-color: rgba(58, 107, 199, 0.4);
+  color: #fff;
+  box-shadow: none;
+}
+.ll-bento-app-shell--gold .ll-bento-getting-started--main:hover .ll-bento-getting-started__btn,
+.ll-bento-app-shell--gold .ll-bento-getting-started--main:active .ll-bento-getting-started__btn,
+.ll-bento-app-shell--gold .ll-bento-home-board-card:hover .ll-bento-home-board-card__btn,
+.ll-bento-app-shell--gold .ll-bento-home-board-card:active .ll-bento-home-board-card__btn {
+  background: #345bb0;
+  box-shadow: none;
 }
 
 /* Lifted card shadows – action cards and hero card look elevated off the page */
-.ll-bento-app-shell--default .ll-bento-hero-card {
+.ll-bento-app-shell--default .ll-bento-hero-card , .ll-bento-app-shell--gold .ll-bento-hero-card{
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04),
               0 8px 24px rgba(0, 0, 0, 0.06),
               0 20px 48px rgba(0, 0, 0, 0.06);
 }
 
-.ll-bento-app-shell--default .ll-bento-hero-card:hover {
+.ll-bento-app-shell--default .ll-bento-hero-card:hover , .ll-bento-app-shell--gold .ll-bento-hero-card:hover{
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
               0 12px 32px rgba(0, 0, 0, 0.08),
               0 28px 56px rgba(0, 0, 0, 0.07);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card,
-.ll-bento-app-shell--default .ll-bento-action-card--extras-expanded {
+.ll-bento-app-shell--default .ll-bento-action-card, .ll-bento-app-shell--gold .ll-bento-action-card,
+.ll-bento-app-shell--default .ll-bento-action-card--extras-expanded , .ll-bento-app-shell--gold .ll-bento-action-card--extras-expanded{
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04),
@@ -11344,140 +12290,169 @@ body:-ms-fullscreen {
               0 14px 40px rgba(0, 0, 0, 0.05);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card:hover {
+.ll-bento-app-shell--default .ll-bento-action-card:hover , .ll-bento-app-shell--gold .ll-bento-action-card:hover{
   background: #F0F0F0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
               0 10px 28px rgba(0, 0, 0, 0.08),
               0 20px 48px rgba(0, 0, 0, 0.06);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon {
+.ll-bento-app-shell--default .ll-bento-action-card__icon , .ll-bento-app-shell--gold .ll-bento-action-card__icon{
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--speak {
-  background: rgba(78, 205, 196, 0.2);
-  border-color: rgba(78, 205, 196, 0.35);
+.ll-bento-app-shell--default .ll-bento-action-card__icon--speak , .ll-bento-app-shell--gold .ll-bento-action-card__icon--speak{
+  /* Much lighter tint of active action button color #3D7A5C */
+  background: rgba(61, 122, 92, 0.14);
+  border-color: rgba(61, 122, 92, 0.28);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--reports {
+.ll-bento-app-shell--default .ll-bento-action-card__icon--reports , .ll-bento-app-shell--gold .ll-bento-action-card__icon--reports{
   background: rgba(78, 205, 196, 0.15);
   border-color: rgba(78, 205, 196, 0.3);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--ideas,
-.ll-bento-app-shell--default .ll-bento-action-card__icon--modeling {
+.ll-bento-app-shell--default .ll-bento-action-card__icon--ideas, .ll-bento-app-shell--gold .ll-bento-action-card__icon--ideas,
+.ll-bento-app-shell--default .ll-bento-action-card__icon--modeling , .ll-bento-app-shell--gold .ll-bento-action-card__icon--modeling{
   background: rgba(78, 205, 196, 0.12);
   border-color: rgba(78, 205, 196, 0.25);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--extras {
-  background: rgba(255, 107, 71, 0.12);
-  border-color: rgba(255, 107, 71, 0.25);
+.ll-bento-app-shell--default .ll-bento-action-card__icon--extras , .ll-bento-app-shell--gold .ll-bento-action-card__icon--extras{
+  /* Lighter tint of Lingo gold – more gold, less orange */
+  background: rgba(218, 198, 115, 0.26);
+  border-color: rgba(218, 198, 115, 0.45);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--green-yellow {
+.ll-bento-app-shell--default .ll-bento-action-card__icon--green-yellow , .ll-bento-app-shell--gold .ll-bento-action-card__icon--green-yellow{
   background: rgba(78, 205, 196, 0.1);
   border-color: rgba(78, 205, 196, 0.2);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__icon--account {
+.ll-bento-app-shell--default .ll-bento-action-card__icon--account , .ll-bento-app-shell--gold .ll-bento-action-card__icon--account{
   background: #F0F0F0;
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--speak,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--reports,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--ideas,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--modeling,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--extras,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--account,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--green-yellow,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--suggested,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--mine,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--community,
-.ll-bento-app-shell--default .ll-bento-action-card__action-btn--recent {
-  background: #D8D8D8; /* style guide light gray #F0F0F0 at 10% darker */
-  border: 1px solid rgba(0, 0, 0, 0.08);
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--speak, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--speak,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--reports, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--reports,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--ideas, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--ideas,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--modeling, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--modeling,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--extras, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--extras,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--account, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--account,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--green-yellow, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--green-yellow,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--suggested, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--suggested,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--mine, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--mine,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--community, .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--community,
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--recent , .ll-bento-app-shell--gold .ll-bento-action-card__action-btn--recent{
+  background: #E2EBE7; /* #3D7A5C at 85% lighter */
+  border: 1px solid rgba(61, 122, 92, 0.35);
   color: var(--ll-bento-ink);
 }
+/* Speak mode = main action: 20% darker than default action button */
+.ll-bento-app-shell--default .ll-bento-action-card__action-btn--speak,
+.ll-bento-app-shell--gold .ll-bento-action-card__action-btn--speak {
+  background: color.adjust(#E2EBE7, $lightness: -20%);
+  border-color: rgba(61, 122, 92, 0.5);
+}
+/* Gold mode: speak button bg #357a5c at 50% lighter. */
+.ll-bento-app-shell--gold .ll-bento-action-card__action-btn--speak {
+  background: color.adjust(#357a5c, $lightness: 50%);
+}
 
-.ll-bento-app-shell--default .ll-bento-hero-card__btn {
+.ll-bento-app-shell--default .ll-bento-hero-card__btn , .ll-bento-app-shell--gold .ll-bento-hero-card__btn{
   background: #2A9D8F;
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: rgba(255, 255, 255, 0.98);
   box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
 }
 
-.ll-bento-app-shell--default .ll-bento-btn--primary {
+.ll-bento-app-shell--default .ll-bento-btn--primary , .ll-bento-app-shell--gold .ll-bento-btn--primary{
   background: #2A9D8F;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
   color: rgba(255, 255, 255, 0.98);
 }
 
-.ll-bento-app-shell--default .nav.nav-pills:not(.nav-stacked) li a {
+.ll-bento-app-shell--default .nav.nav-pills:not(.nav-stacked) li a , .ll-bento-app-shell--gold .nav.nav-pills:not(.nav-stacked) li a{
   background: #FFFFFF;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.ll-bento-app-shell--default .nav.nav-pills:not(.nav-stacked) li.active a {
+.ll-bento-app-shell--default .nav.nav-pills:not(.nav-stacked) li.active a , .ll-bento-app-shell--gold .nav.nav-pills:not(.nav-stacked) li.active a{
   background: #2A9D8F;
   border-color: rgba(0, 0, 0, 0.08);
   color: rgba(255, 255, 255, 0.98);
   box-shadow: 0 2px 6px rgba(42, 157, 143, 0.2);
 }
 
-.ll-bento-app-shell--default .ll-bento-dock {
+.ll-bento-app-shell--default .ll-bento-dock , .ll-bento-app-shell--gold .ll-bento-dock{
   background: #FFFFFF;
   border-color: rgba(0, 0, 0, 0.06);
 }
 
-.ll-bento-app-shell--default .ll-bento-dock__cta {
+.ll-bento-app-shell--default .ll-bento-dock__cta , .ll-bento-app-shell--gold .ll-bento-dock__cta{
   background: #FF6B47;
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: rgba(255, 255, 255, 0.98);
 }
 
-.ll-bento-app-shell--default .ll-bento-dock__cta:hover {
+.ll-bento-app-shell--default .ll-bento-dock__cta:hover , .ll-bento-app-shell--gold .ll-bento-dock__cta:hover{
   background: #e8573a;
 }
 
-.ll-bento-app-shell--default .ll-bento-tab {
+.ll-bento-app-shell--default .ll-bento-tabs , .ll-bento-app-shell--gold .ll-bento-tabs{
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-radius: var(--ll-bento-radius-md);
+}
+.ll-bento-app-shell--default .ll-bento-tab , .ll-bento-app-shell--gold .ll-bento-tab{
   background: #F0F0F0;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   color: var(--ll-bento-ink);
 }
 
-.ll-bento-app-shell--default .ll-bento-tab:hover:not(.ll-bento-tab--active) {
+.ll-bento-app-shell--default .ll-bento-tab:hover:not(.ll-bento-tab--active) , .ll-bento-app-shell--gold .ll-bento-tab:hover:not(.ll-bento-tab--active){
   background: #e8e8e8;
   border-color: rgba(0, 0, 0, 0.1);
 }
 
-.ll-bento-app-shell--default .ll-bento-tab--active {
-  background: #95CEC7; /* #2A9D8F at 50% lighter */
-  border-color: rgba(0, 0, 0, 0.08);
-  color: rgba(30, 36, 48, 0.95);
+.ll-bento-app-shell--default .ll-bento-tab--active , .ll-bento-app-shell--gold .ll-bento-tab--active{
+  background: #7EB8E0;
+  border-color: rgba(126, 184, 224, 0.5);
+  color: #fff;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
+/* Light mode: replace purplish pill colors with 3a6bc7 (darker) and 7eb8e0 (lighter) */
+.ll-bento-app-shell--default .ll-bento-browse-boards__pills li a:hover {
+  border-color: rgba(126, 184, 224, 0.5);
+}
+.ll-bento-app-shell--default .ll-bento-browse-boards__pills li.active a {
+  background: linear-gradient(135deg, rgba(126, 184, 224, 0.35) 0%, rgba(58, 107, 199, 0.3) 100%);
+  border-color: rgba(58, 107, 199, 0.6);
+  box-shadow: 0 4px 12px rgba(58, 107, 199, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
 /* Default theme – headings use Lexend */
-.ll-bento-app-shell--default .ll-bento-getting-started__title,
-.ll-bento-app-shell--default .ll-bento-hero-card__title,
-.ll-bento-app-shell--default .ll-bento-action-card__title,
-.ll-bento-app-shell--default .ll-bento-section-label,
-.ll-bento-app-shell--default .ll-bento-brand__name {
+.ll-bento-app-shell--default .ll-bento-getting-started__title, .ll-bento-app-shell--gold .ll-bento-getting-started__title,
+.ll-bento-app-shell--default .ll-bento-hero-card__title, .ll-bento-app-shell--gold .ll-bento-hero-card__title,
+.ll-bento-app-shell--default .ll-bento-action-card__title, .ll-bento-app-shell--gold .ll-bento-action-card__title,
+.ll-bento-app-shell--default .ll-bento-section-label, .ll-bento-app-shell--gold .ll-bento-section-label,
+.ll-bento-app-shell--default .ll-bento-brand__name , .ll-bento-app-shell--gold .ll-bento-brand__name{
   font-family: "Lexend", "Nunito Sans", Calibri, sans-serif;
   font-weight: 700;
 }
 
-.ll-bento-app-shell--default .ll-bento-getting-started__hint,
-.ll-bento-app-shell--default .ll-bento-hero-card__subtitle,
-.ll-bento-app-shell--default .ll-bento-action-card__sub,
-.ll-bento-app-shell--default .ll-bento-action-card__meta {
+.ll-bento-app-shell--default .ll-bento-getting-started__hint, .ll-bento-app-shell--gold .ll-bento-getting-started__hint,
+.ll-bento-app-shell--default .ll-bento-hero-card__subtitle, .ll-bento-app-shell--gold .ll-bento-hero-card__subtitle,
+.ll-bento-app-shell--default .ll-bento-action-card__sub, .ll-bento-app-shell--gold .ll-bento-action-card__sub,
+.ll-bento-app-shell--default .ll-bento-action-card__meta , .ll-bento-app-shell--gold .ll-bento-action-card__meta{
   font-family: "Lexend", "Nunito Sans", Calibri, sans-serif;
   font-weight: 500;
 }
@@ -11518,6 +12493,9 @@ body:-ms-fullscreen {
   --fs-radius-lg: 20px;
   --fs-content-width: min(80vw, 1400px);
 
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
   padding-left: 0;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   color: var(--fs-text);
@@ -11546,12 +12524,117 @@ body:-ms-fullscreen {
   }
 }
 
-/* Hero */
+/* Palette toggle – Scot's Landing Page only */
+.for-schools-palette-toggle-wrap {
+  position: fixed;
+  top: 88px;
+  right: 24px;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.for-schools-palette-toggle {
+  padding: 10px 18px;
+  border-radius: 50px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  cursor: pointer;
+  border: 2px solid var(--fs-navy);
+  background: var(--fs-white);
+  color: var(--fs-navy);
+  box-shadow: var(--fs-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.for-schools-palette-toggle:hover {
+  background: var(--fs-navy);
+  color: var(--fs-white);
+}
+
+/* Scot's alternate palette (Navy, Royal Blue, Sky Blue, Gold, Emerald) */
+.for-schools-page--scot-palette {
+  --fs-navy: #1B2A4A;
+  --fs-coral: #3A6BC7;
+  --fs-teal: #7EB8E0;
+  --fs-dark-teal: #3D8C6E;
+  --fs-gold: #f5c23b;
+  --fs-text: #1B2A4A;
+  --fs-shadow-sm: 0 1px 3px rgba(27, 42, 74, 0.08);
+  --fs-shadow-md: 0 4px 16px rgba(27, 42, 74, 0.10);
+  --fs-shadow-lg: 0 8px 32px rgba(27, 42, 74, 0.12);
+}
+
+.for-schools-page--scot-palette .for-schools-hero-highlight {
+  color: var(--fs-gold);
+}
+
+@media (min-width: 901px) {
+  .for-schools-page--scot-palette .for-schools-hero-highlight {
+    background: linear-gradient(120deg, var(--fs-gold) 0%, #f7d04d 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* Get Started Free button (nav + drawer) use Scot's gold when Scot's palette is active */
+#within_ember:has(.for-schools-page--scot-palette) .for-schools-nav__cta {
+  background: #f5c23b;
+  box-shadow: 0 4px 14px rgba(245, 194, 59, 0.35);
+}
+#within_ember:has(.for-schools-page--scot-palette) .for-schools-nav__cta:hover {
+  background: #e4b028;
+  box-shadow: 0 6px 20px rgba(245, 194, 59, 0.45);
+}
+#within_ember:has(.for-schools-page--scot-palette) .for-schools-nav-drawer__cta {
+  background: #f5c23b;
+  box-shadow: 0 4px 14px rgba(245, 194, 59, 0.35);
+}
+#within_ember:has(.for-schools-page--scot-palette) .for-schools-nav-drawer__cta:hover {
+  background: #e4b028;
+}
+
+.for-schools-page--scot-palette .for-schools-btn-coral:hover {
+  background: #2d5ab0;
+  box-shadow: 0 6px 20px rgba(58, 107, 199, 0.4);
+}
+
+.for-schools-page--scot-palette .for-schools-btn-coral {
+  box-shadow: 0 4px 14px rgba(58, 107, 199, 0.3);
+}
+
+.for-schools-page--scot-palette .for-schools-cta {
+  background: linear-gradient(135deg, var(--fs-navy) 0%, #243556 100%);
+}
+
+.for-schools-page--scot-palette .for-schools-badge-icon-teal {
+  background: rgba(61, 140, 110, 0.15);
+  color: var(--fs-dark-teal);
+}
+
+.for-schools-page--scot-palette .for-schools-badge-icon-coral {
+  background: rgba(58, 107, 199, 0.12);
+  color: var(--fs-coral);
+}
+
+.for-schools-page--scot-palette .for-schools-a11y-note {
+  background: rgba(61, 140, 110, 0.08);
+  border-color: rgba(61, 140, 110, 0.2);
+}
+
+.for-schools-page--scot-palette .for-schools-a11y-icon {
+  background: rgba(61, 140, 110, 0.12);
+}
+
+/* Hero – clip horizontal overflow from ::before/::after so no page-level scrollbar */
 .for-schools-hero {
   padding: calc(0.7 * (20px + 10rem)) calc(0.9 * (20px + 25rem)) calc(0.7 * (20px + 10rem)) 22.5rem;
   background: linear-gradient(165deg, var(--fs-white) 0%, #F7FAFE 40%, #EDF6FF 100%);
   position: relative;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .for-schools-hero::before {
@@ -13689,3 +14772,4 @@ body:-ms-fullscreen {
   .ll-pos--left { left: 26px; }
   .ll-dock { max-width: 640px; margin: 0 auto; left: 0; right: 0; }
 }
+

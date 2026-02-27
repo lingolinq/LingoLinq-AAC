@@ -2,7 +2,7 @@
   <div class="wide_links">
     <div class="row">
       <div class='col-sm-6'>
-        <span class="page-footer__app-name">{{t "%app_name%" key="app_name"}}</span>
+        <span class="page-footer__app-name"><span class="nav-header__app-name-lingo">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-linq">{{t "Linq" key="app_name_linq"}}</span></span>
         {{#unless this.app_state.no_linky}}
           {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
@@ -22,7 +22,7 @@
           <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
         <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/icon-language.png"}} style='height: 76px; margin: -37px 0 -39px;' alt="Language">
+          <img src={{path "images/icon-language-new2.png"}} style='height: 46px; margin: -23px 0 -24px;' alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
       </div>
@@ -72,7 +72,7 @@
         </li>
         <li>
           <a href='#' {{action "language"}}>
-            <img src={{path "images/icon-language.png"}} style='height: 50px; margin: -22px 0 -28px;' alt="Language">
+            <img src={{path "images/icon-language-new2.png"}} style='height: 30px; margin: -13px 0 -17px;' alt="Language">
             {{this.app_state.current_locale_string}}
           </a>
         </li>

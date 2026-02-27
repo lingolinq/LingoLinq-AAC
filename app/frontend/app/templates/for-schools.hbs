@@ -1,4 +1,14 @@
-<div class="for-schools-page">
+<div class="for-schools-page {{if this.scotPalette "for-schools-page--scot-palette"}}">
+  {{! Palette toggle – only on this page }}
+  <div class="for-schools-palette-toggle-wrap">
+    <button type="button" class="for-schools-palette-toggle" {{action "toggleScotPalette"}} aria-pressed={{this.scotPalette}} title={{if this.scotPalette (t "Switch to default palette" key="for_schools_switch_default_palette") (t "Switch to Scot's palette" key="for_schools_switch_scot_palette")}}>
+      {{#if this.scotPalette}}
+        {{t "Default palette" key="for_schools_palette_default"}}
+      {{else}}
+        {{t "Scot's palette" key="for_schools_palette_scot"}}
+      {{/if}}
+    </button>
+  </div>
   {{! Hero }}
   <section class="for-schools-hero">
     <div class="for-schools-hero-inner">

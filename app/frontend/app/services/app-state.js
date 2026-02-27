@@ -202,7 +202,7 @@ export default Service.extend({
       if (storedTheme === 'flat') {
         theme = 'default';
         try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'default') {
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'default' || storedTheme === 'pastel' || storedTheme === 'gold') {
         theme = storedTheme;
       } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
@@ -630,20 +630,21 @@ export default Service.extend({
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
+      // footer was showing up too quickly and looking weird when the rest of the page hadn't
+      // re-rendered yet. Set footer in the same run as index_view so showBentoPageWithFooter
+      // is true when the template re-renders and #within_ember gets bento-page-with-footer.
+      if(!_this.get('currentBoardState')) {
+        try {
+          _this.controller.set('footer', true);
+          if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+            _this.controller.set('setup_footer', false);
+            _this.controller.set('simple_board_header', false);
+            _this.set('setup_user', null);
+            _this.controller.set('setup_user_id', null);
+          }
+        } catch(e) { }
+      }
     });
-    // footer was showing up too quickly and looking weird when the rest of the page hadn't
-    // re-rendered yet.
-    if(!this.get('currentBoardState')) {
-      try {
-        this.controller.set('footer', true);
-        if(this.get('to_target') && this.get('to_target') != 'setup' && this.get('to_target') != 'home-boards') {
-          this.controller.set('setup_footer', false);
-          this.controller.set('simple_board_header', false);
-          this.set('setup_user', null);
-          this.controller.set('setup_user_id', null);
-        }
-      } catch(e) { }
-    }
     if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
         window.top.location.replace(window.location);
@@ -695,6 +696,12 @@ export default Service.extend({
   }),
   lightMode: computed('themeMode', function() {
     return this.get('themeMode') === 'light';
+  }),
+  pastelMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'pastel';
+  }),
+  goldMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'gold';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -3859,7 +3866,7 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'default'];
+    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'default', 'pastel', 'gold'];
     var current = this.get('themeMode') || 'default';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];
