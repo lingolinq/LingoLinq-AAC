@@ -1884,7 +1884,7 @@ export default Service.extend({
         has_currentUser: !!this.get('currentUser'),
         currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
       });
-      this.notifyPropertyChange("currentUser");
+      runNext(this, function() { this.notifyPropertyChange("currentUser"); });
     }
     if(this.get('currentUser')) {
       this.set('currentUser.load_all_connections', true);
