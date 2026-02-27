@@ -625,6 +625,7 @@ module Uploader
         res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", timeout: 5)
         results = JSON.parse(res.body) rescue []
         results.each do |result|
+          next unless result.is_a?(Hash)
           if result['extension']
             type = MIME::Types.type_for(result['extension'])[0]
             result['content_type'] = type.content_type

@@ -1561,12 +1561,14 @@ describe BoardDownstreamButtonSet, :type => :model do
       expect(b).to receive(:board_downstream_button_set).and_return(bs)
       expect(u).to receive(:private_viewable_board_ids).and_return(['1', '2'])
       expect(bs).to receive(:detach_extra_data).at_least(1).times
+      allow(Uploader).to receive(:check_existing_upload).and_return({})
       expect(Uploader).to_not receive(:remote_upload)
       expect(RemoteAction.count).to eq(2)
       ra = RemoteAction.create(path: "#{b.global_id}::#{u.global_id}", action: "upload_extra_data", act_at: 5.minutes.from_now)
       expect(BoardDownstreamButtonSet.generate_for(b.global_id, u.global_id)).to eq({state: 'uploaded', success: true, url: "#{ENV['UPLOADS_S3_CDN']}/#{bs.data['remote_paths'][hash]['path']}"})
       expect(RemoteAction.count).to eq(4)
-      ra = RemoteAction.all[-2]
+      ra = RemoteAction.find_by(path: "#{b.global_id}::#{u.global_id}", action: 'upload_extra_data')
+      expect(ra).to_not eq(nil)
       expect(ra.path).to eq("#{b.global_id}::#{u.global_id}")
       expect(ra.action).to eq("upload_extra_data")
       expect(ra.act_at).to be > 4.minutes.from_now

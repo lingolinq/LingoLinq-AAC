@@ -5219,6 +5219,7 @@ describe Board, :type => :model do
     it "should recurse to downstream boards" do
       u = User.create
       bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u)
       b2 = Board.create(user: u)
       b1.process({'buttons' => [
@@ -5242,6 +5243,7 @@ describe Board, :type => :model do
       u = User.create
       u2 = User.create
       bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u, public: true)
       b2 = Board.create(user: u2, public: true)
       b3 = Board.create(user: u2, public: true)
@@ -5265,6 +5267,7 @@ describe Board, :type => :model do
     it "should not get stuck in an infinite loop with circular references" do
       u = User.create
       bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u)
       b2 = Board.create(user: u)
       b1.process({'buttons' => [

@@ -55,6 +55,7 @@ describe Uploader do
     it "should return existing url if the checksum matches" do
       f = Tempfile.new("stash")
       expect(Uploader).to receive(:check_existing_upload).with("a/b/c", "chksum").and_return({url: "https://a.b.c/file.txt"})
+      expect(Uploader).to receive(:remote_touch).with("a/b/c").and_return(true)
       expect(Uploader.remote_upload("a/b/c", f.path, "text/plaintext", "chksum")).to eq({:path=>"a/b/c", :url=>"https://a.b.c/file.txt"})
     end
 
@@ -121,6 +122,7 @@ describe Uploader do
       expect(RemoteAction.count).to eq(2)
       f = Tempfile.new("stash")
       expect(Uploader).to receive(:check_existing_upload).with("a/b/c", "chksum").and_return({url: "https://a.b.c/file.txt"})
+      expect(Uploader).to receive(:remote_touch).with("a/b/c").and_return(true)
       expect(Uploader.remote_upload("a/b/c", f.path, "text/plaintext", "chksum")).to eq({:path=>"a/b/c", :url=>"https://a.b.c/file.txt"})
       expect(RemoteAction.count).to eq(0)
     end

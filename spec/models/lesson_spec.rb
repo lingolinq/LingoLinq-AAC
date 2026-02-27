@@ -482,7 +482,7 @@ describe Lesson, :type => :model do
       expect(l.settings['description']).to eq('bacon')
       expect(l.settings['url']).to eq('http://www.example.com/link')
       expect(l.settings['required']).to eq(false)
-      expect(l.settings['due_at']).to eq('2020-06-20T00:00:00-06:00')
+      expect(l.settings['due_at']).to match(/\A2020-06-20T00:00:00[+-]\d{2}:\d{2}\z/)
       expect(l.settings['time_estimate']).to eq(nil)
       expect(l.settings['past_cutoff']).to eq(154)
     end

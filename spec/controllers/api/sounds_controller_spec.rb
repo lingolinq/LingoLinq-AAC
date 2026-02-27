@@ -7,15 +7,17 @@ describe Api::SoundsController, :type => :controller do
       assert_missing_token
     end
     
-    it "should create a sound based on the passer parameters" do
-      token_user
-      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.mp3"
-      post :create, params: {:sound => {'url' => url, 'content_type' => 'audio/mp3'}}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['sound']['id']).not_to eq(nil)
-      expect(json['sound']['url']).to match(/bacon\.mp3$/)
-      expect(json['meta']).to eq(nil)
+    env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
+      it "should create a sound based on the passer parameters" do
+        token_user
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/bacon.mp3"
+        post :create, params: {:sound => {'url' => url, 'content_type' => 'audio/mp3'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['sound']['id']).not_to eq(nil)
+        expect(json['sound']['url']).to match(/bacon\.mp3$/)
+        expect(json['meta']).to eq(nil)
+      end
     end
     
     it "should return meta (upload information) for pending sounds" do
@@ -41,20 +43,22 @@ describe Api::SoundsController, :type => :controller do
       expect(json['errors']).to eq(["bacon"])
     end
 
-    it "should allow creating sounds on behalf of a supervisee" do
-      token_user
-      u = User.create
-      User.link_supervisor_to_user(@user, u)
-      url = "https://#{ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'}.s3.amazonaws.com/bacon.mp3"
-      post :create, params: {:sound => {'user_id' => u.global_id, 'url' => url, 'content_type' => 'audio/mp3'}}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['sound']['id']).not_to eq(nil)
-      expect(json['sound']['url']).to match(/bacon\.mp3$/)
-      expect(json['meta']).to eq(nil)
-      bs = ButtonSound.find_by_global_id(json['sound']['id'])
-      expect(bs).to_not eq(nil)
-      expect(bs.user).to eq(u)
+    env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
+      it "should allow creating sounds on behalf of a supervisee" do
+        token_user
+        u = User.create
+        User.link_supervisor_to_user(@user, u)
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/bacon.mp3"
+        post :create, params: {:sound => {'user_id' => u.global_id, 'url' => url, 'content_type' => 'audio/mp3'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['sound']['id']).not_to eq(nil)
+        expect(json['sound']['url']).to match(/bacon\.mp3$/)
+        expect(json['meta']).to eq(nil)
+        bs = ButtonSound.find_by_global_id(json['sound']['id'])
+        expect(bs).to_not eq(nil)
+        expect(bs.user).to eq(u)
+      end
     end
     
     it "should not allow creating sounds for someone who is not a supervisee" do
