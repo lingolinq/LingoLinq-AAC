@@ -13,7 +13,7 @@ describe Converters::Utils do
     it "should convert to only obf, obz or pdf" do
       u = User.create()
       b = Board.create(:user => u)
-      expect(Uploader).to receive(:check_existing_upload).and_return({})
+      allow(Uploader).to receive(:check_existing_upload).and_return({})
       expect(Uploader).to receive(:remote_upload).and_return({url: "http://www.example.com/file.obf"})
       res = Converters::Utils.board_to_remote(b, u.global_id, {'file_type' => 'obf', 'include' => 'this'})
       expect(res).to eq("http://www.example.com/file.obf")

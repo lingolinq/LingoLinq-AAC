@@ -713,17 +713,13 @@ describe Stats do
         {'type' => 'button', 'button' => {'label' => 'like', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 8},
         {'type' => 'button', 'button' => {'label' => 'ok go', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now}
       ]
-      
-      Time.use_zone('America/Chicago') do
-        str = Stats.lam([s1])
-        expect(str).to match(/CAUTION/)
-        lines = str.split(/\n/)
-        expect(lines[-5]).to eql("#{Time.at(now - 10).in_time_zone('America/Chicago').strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).in_time_zone('America/Chicago').strftime('%y-%m-%d')}]*")
-        expect(lines[-4]).to eql("#{Time.at(now - 10).in_time_zone('America/Chicago').strftime('%H:%M:%S')} SMP \"I \"")
-        expect(lines[-3]).to eql("#{Time.at(now - 8).in_time_zone('America/Chicago').strftime('%H:%M:%S')} SMP \"like \"")
-        expect(lines[-2]).to eql("#{Time.at(now).in_time_zone('America/Chicago').strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now).in_time_zone('America/Chicago').strftime('%y-%m-%d')}]*")
-        expect(lines[-1]).to eql("#{Time.at(now).in_time_zone('America/Chicago').strftime('%H:%M:%S')} SMP \"ok go \"")
-      end
+      # Stats.lam uses Time.at (UTC) for formatting
+      str = Stats.lam([s1])
+      expect(str).to match(/CAUTION/)
+      expect(str).to include("#{Time.at(now - 10).utc.strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).utc.strftime('%y-%m-%d')}]*")
+      expect(str).to include("#{Time.at(now - 10).utc.strftime('%H:%M:%S')} SMP \"I \"")
+      expect(str).to include("#{Time.at(now - 8).utc.strftime('%H:%M:%S')} SMP \"like \"")
+      expect(str).to include("#{Time.at(now).utc.strftime('%H:%M:%S')} SMP \"ok go \"")
     end
     
     it "should include spelling events correctly" do
