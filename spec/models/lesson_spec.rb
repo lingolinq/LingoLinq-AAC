@@ -466,15 +466,17 @@ describe Lesson, :type => :model do
     it "should parse parameters" do
       l = Lesson.create
       u = User.create
-      l.process({
-        'title' => 'cheddar',
-        'description' => 'bacon',
-        'url' => 'http://www.example.com/link',
-        'required' => 'false',
-        'due_at' => "June 20, 2020",
-        'time_estimate' => 'bacon',
-        'past_cutoff' => '154'
-      }, {'author' => u})
+      Time.use_zone('America/Denver') do
+        l.process({
+          'title' => 'cheddar',
+          'description' => 'bacon',
+          'url' => 'http://www.example.com/link',
+          'required' => 'false',
+          'due_at' => "June 20, 2020",
+          'time_estimate' => 'bacon',
+          'past_cutoff' => '154'
+        }, {'author' => u})
+      end
       expect(l.settings['author_id']).to eq(u.global_id)
       expect(l.settings['title']).to eq('cheddar')
       expect(l.settings['description']).to eq('bacon')

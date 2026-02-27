@@ -4970,6 +4970,7 @@ describe Board, :type => :model do
   end
 
   describe "swap_images" do
+    env_wrap('OPENSYMBOLS_TOKEN' => 'test_token') do
     it "should skip for various reasons" do
       u1 = User.create
       u2 = User.create
@@ -4982,6 +4983,7 @@ describe Board, :type => :model do
       expect(b.swap_images('pcs', u1, [], u1.id, [], [])).to eq({done: true, id: b.global_id, swapped: false, reason: 'not authorized to access premium library'})
       u1.settings['extras_disabled'] = false
       expect(b.swap_images('pcs', u1, [], u1.id, [], [])).to eq({done: true, id: b.global_id, library: 'pcs', board_ids: [], updated: [b.global_id], visited: [b.global_id]})
+    end
     end
 
     it "should not swap images if there were previously no images on the button" do

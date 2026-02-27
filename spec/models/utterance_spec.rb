@@ -275,6 +275,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+45558675309,+79876543,+45551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should allow sending an sms message to a user contact" do
         u = User.create
         d = Device.create(user: u)
@@ -305,6 +306,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+15558675309,+79876543,+15551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should send sms to a user contact with one of the specified originators" do
         u = User.create
         d = Device.create(user: u)
@@ -518,6 +520,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+45558675309,+79876543,+45551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should send a text message to a user" do
         u = User.create
         u.settings['cell_phone'] = '123456'
@@ -590,6 +593,7 @@ describe Utterance, :type => :model do
     end
 
     it "should allow sending an email to a user contact" do
+      allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png')
       u = User.create
       Device.create(user: u)
       u.settings['email'] = 'bob@example.com'

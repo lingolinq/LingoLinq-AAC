@@ -246,6 +246,21 @@ describe Uploader do
   end  
 
   describe "remote_upload_params" do
+    let(:upload_config) do
+      {
+        upload_url: 'https://test-bucket.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: 'test-bucket',
+        static_bucket_name: 'static-bucket'
+      }
+    end
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
+    end
+
     it "should generate signed upload parameters" do
       res = Uploader.remote_upload_params("downloads/file.png", "image/png")
       expect(res[:upload_url]).to eq(Uploader.remote_upload_config[:upload_url])
@@ -326,7 +341,9 @@ describe Uploader do
   describe "valid_remote_url?" do
     it "should return true only for known URLs" do
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
       orig_opensymbols = ENV['OPENSYMBOLS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
       ENV['OPENSYMBOLS_S3_BUCKET'] = ENV['OPENSYMBOLS_S3_BUCKET'] || 'opensymbols'
       begin
         opensymbols_bucket = ENV['OPENSYMBOLS_S3_BUCKET']
@@ -338,11 +355,12 @@ describe Uploader do
         expect(Uploader.valid_remote_url?("https://#{opensymbols_bucket}.s3.amazonaws.com2/hat.png")).to eq(false)
         expect(Uploader.valid_remote_url?("https://images.com/cow.png")).to eq(false)
       ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
         ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
       end
     end
   end  
-  
+
   describe "remote_remove" do
     it "should raise error on unexpected path" do
       expect{ Uploader.remote_remove("https://www.google.com/bacon") }.to raise_error("scary delete, not a path I'm comfortable deleting: https://www.google.com/bacon")
@@ -1551,9 +1569,15 @@ describe Uploader do
     
     it "should add urls to the zip" do
       zipper = TestZipper.new
+      hash = Digest::MD5.hexdigest([
+        { 'name' => 'file.png', 'url' => 'http://www.example.com/pic.png' },
+        { 'name' => 'file2.png', 'data' => 'data:image/png;base64,R0lGODdh' }
+      ].to_json)
+      key = GoSecure.sha512(hash, 'url_list')
+      expect(Uploader).to receive(:check_existing_upload).with("downloads/#{key}/zippy.zip").and_return({ found: false })
       expect(OBF::Utils).to receive(:build_zip).and_yield(zipper)
-      expect(Uploader).to receive(:remote_upload).and_return({url: 'http://www.example.com/import.zip'})
-      expect(OBF::Utils).to receive(:get_url).with('http://www.example.com/pic.png').and_return({'data' => 'data:image/png;base64,R0lGODdh'})
+      expect(Uploader).to receive(:remote_upload).and_return({ url: 'http://www.example.com/import.zip' })
+      expect(OBF::Utils).to receive(:get_url).with('http://www.example.com/pic.png').and_return({ 'data' => 'data:image/png;base64,R0lGODdh' })
       res = Uploader.generate_zip([
         {
           'name' => 'file.png',
