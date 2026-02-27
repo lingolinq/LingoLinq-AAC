@@ -1,0 +1,878 @@
+﻿commit 0154fce6f0fa3a1c54894433fd0efbc38a3ce670
+Author: Scot Wahlquist <scotwahlquist@gmail.com>
+Date:   Mon Feb 23 02:33:12 2026 -0700
+
+    Add compliance infrastructure, AI audit logging, and audit orchestration system
+    
+    - Add PiiScrubber module for de-identifying user data before AI API calls
+    - Add AiApiLog model + migration for audit trail of all AI API usage
+    - Integrate PiiScrubber into AiBoardGenerator with full audit logging
+    - Add AI feature flags with org-level opt-out for FERPA/HIPAA compliance
+    - Add COMPLIANCE.md documenting data flows, BAA status, security zones
+    - Add audit orchestration: 7 skills, 7 subagents, 2 workflows
+    - Move generated reports into audit-reports/ directory
+    - Document orchestration system in CLAUDE.md
+    
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+diff --git a/audit-reports/ember-audit-2026-02-21.json b/audit-reports/ember-audit-2026-02-21.json
+new file mode 100644
+index 000000000..7a95512ce
+--- /dev/null
++++ b/audit-reports/ember-audit-2026-02-21.json
+@@ -0,0 +1,461 @@
++{
++  "domain": "ember",
++  "audit_date": "2026-02-21",
++  "auditor": "ember-auditor-agent",
++  "project": "LingoLinq-AAC",
++  "frontend_path": "app/frontend/",
++  "findings": [
++    {
++      "id": "E001",
++      "severity": "critical",
++      "category": "deprecation",
++      "title": "Massive this.get() usage across codebase",
++      "description": "Found 6,779 occurrences of this.get() across 398 files. In Ember 3.28+ and Ember 4.x, this.get() on native classes is deprecated in favor of direct property access (this.propertyName). This is the single largest migration blocker.",
++      "file": "app/frontend/app/ (398 files)",
++      "line": null,
++      "recommendation": "Use the ember-no-get-codemod to batch-convert this.get('foo') to this.foo. Priority files: app-state.js (366 occurrences), persistence.js (76), user model (35+). Run: npx ember-no-get-codemod app/"
++    },
++    {
++      "id": "E002",
++      "severity": "critical",
++      "category": "deprecation",
++      "title": "Massive this.set() usage across codebase",
++      "description": "Found 4,327 occurrences of this.set() across hundreds of files. In Ember 4.x, this.set() is removed in favor of @tracked properties with direct assignment. Must be addressed alongside component modernization.",
++      "file": "app/frontend/app/ (widespread)",
++      "line": null,
++      "recommendation": "Convert to @tracked properties with native setters. This requires converting classic components to Glimmer components first. Use ember-tracked-codemod for automated conversion."
++    },
++    {
++      "id": "E003",
++      "severity": "critical",
++      "category": "deprecation",
++      "title": "2,572 {{action}} helper usages in templates",
++      "description": "The {{action}} helper is deprecated in Ember 3.28+ and removed in 4.x. Found 2,572 occurrences across templates. Must be replaced with @action decorator + {{on}} modifier or {{fn}} helper.",
++      "file": "app/frontend/app/templates/ (widespread)",
++      "line": null,
++      "recommendation": "Replace {{action 'foo'}} with {{on 'click' this.foo}} and add @action decorator to the method. For components, use {{fn this.foo arg}} for argument passing."
++    },
++    {
++      "id": "E004",
++      "severity": "critical",
++      "category": "architecture",
++      "title": "100% classic components (215 components, 0 Glimmer)",
++      "description": "All 215 components use Component.extend() classic pattern. Zero Glimmer components found. Zero @tracked or @action decorators in components. The app is still entirely pre-Octane despite declaring 'octane' edition in package.json.",
++      "file": "app/frontend/app/components/ (215 files)",
++      "line": null,
++      "recommendation": "Begin incremental migration to Glimmer components starting with leaf components (components with no child components). Use the ember-component-codemod. Priority: simple UI components like confirm-*, badge-*, stats/* first."
++    },
++    {
++      "id": "E005",
++      "severity": "critical",
++      "category": "deprecation",
++      "title": "1,375 computed() property usages",
++      "description": "Found 1,375 computed() property declarations across the codebase. These need to be replaced with @tracked properties and getters. Key hotspots: user/preferences controller (172), eval.js (128), sidebar-button-settings.js (97), badge.js (76), button.js (73).",
++      "file": "app/frontend/app/ (210 files)",
++      "line": null,
++      "recommendation": "Replace computed('dep1', 'dep2', function() {...}) with get propertyName() { return ...; } backed by @tracked dependencies. Convert in batches by module."
++    },
++    {
++      "id": "E006",
++      "severity": "high",
++      "category": "deprecation",
++      "title": "75 sendAction() calls still present",
++      "description": "sendAction was deprecated in Ember 3.4 and will be removed in 4.x. Found 75 occurrences across 21 files including critical components: button-listener.js (16), board-icon.js (5), subscription-form.js (8), grid-listener.js (6).",
++      "file": "app/frontend/app/components/ (21 files)",
++      "line": null,
++      "recommendation": "Replace this.sendAction('actionName') with calling the passed action directly: this.actionName() or this.args.actionName(). This is part of the closure actions migration."
++    },
++    {
++      "id": "E007",
++      "severity": "high",
++      "category": "deprecation",
++      "title": "37 files still use 'import Ember from ember' barrel import",
++      "description": "Found 37 files importing from the Ember global barrel import. This has been deprecated since Ember 3.x. All imports should use specific module paths like '@ember/object', '@ember/service', etc.",
++      "file": "app/frontend/app/ (37 files)",
++      "line": null,
++      "recommendation": "Run ember-modules-codemod to convert 'import Ember from ember' to specific module imports. Files include: app.js, i18n.js, all helper files, router.js, multiple services."
++    },
++    {
++      "id": "E008",
++      "severity": "high",
++      "category": "architecture",
++      "title": "188 controllers still in use (heavy controller dependency)",
++      "description": "Found 188 controller files with 180 using Controller.extend(). Controllers are discouraged in Ember Octane in favor of component state. Many controllers contain complex computed property chains (e.g., user/preferences: 172 computed, sidebar-button-settings: 97, organization/reports: 36).",
++      "file": "app/frontend/app/controllers/ (188 files)",
++      "line": null,
++      "recommendation": "Gradually migrate controller logic into route-level components. Start with simple controllers that only pass data. Complex controllers like button-settings.js and user/preferences.js should be refactored last."
++    },
++    {
++      "id": "E009",
++      "severity": "high",
++      "category": "architecture",
++      "title": "All 210 component templates use separated template pattern",
++      "description": "Found 210 component templates in app/templates/components/ (old pattern) and 0 co-located templates in app/components/ (Octane pattern). Template-only components declared in package.json but not utilized due to classic Component.extend() pattern.",
++      "file": "app/frontend/app/templates/components/ (210 files)",
++      "line": null,
++      "recommendation": "Move templates to co-located positions (next to their .js file in app/components/) as part of Octane migration. The ember-template-colocation-migrator tool can automate this."
++    },
++    {
++      "id": "E010",
++      "severity": "high",
++      "category": "deprecation",
++      "title": "102 lifecycle hook usages (didInsertElement, willDestroyElement, etc.)",
++      "description": "Found 102 occurrences of classic lifecycle hooks across 89 component files. Hooks like didInsertElement, willDestroyElement, didRender, willRender, and didReceiveAttrs must be replaced with Ember modifiers in Glimmer components.",
++      "file": "app/frontend/app/components/ (89 files)",
++      "line": null,
++      "recommendation": "Replace didInsertElement with {{did-insert}} modifier, willDestroyElement with {{will-destroy}}, and didReceiveAttrs with regular getters. Install ember-render-modifiers addon."
++    },
++    {
++      "id": "E011",
++      "severity": "high",
++      "category": "compatibility",
++      "title": "Bower dependency on 9 packages including Bootstrap and jQuery plugins",
++      "description": "bower.json declares 9 runtime dependencies (moment ~2.9.0, tinycolor, jquery-minicolors, bootstrap ~3.3.2, recordrtc, IndexedDBShim, wordcloud2.js, hammer-time, qrcode-js). Bower has been deprecated since 2017 and is incompatible with modern Ember build pipelines.",
++      "file": "app/frontend/bower.json",
++      "line": null,
++      "recommendation": "Migrate all bower dependencies to npm packages. Replace app.import() calls in ember-cli-build.js with npm imports. moment -> luxon or date-fns, bootstrap 3 -> bootstrap 5 or tailwind, jquery-minicolors -> native color input."
++    },
++    {
++      "id": "E012",
++      "severity": "high",
++      "category": "performance",
++      "title": "Asset fingerprinting and JS minification disabled",
++      "description": "ember-cli-build.js has fingerprint.enabled: false and minifyJS.enabled: false. This means production builds serve unfingerprinted, unminified assets, harming cache performance and increasing bundle size.",
++      "file": "app/frontend/ember-cli-build.js",
++      "line": "16-19",
++      "recommendation": "Enable fingerprinting and minification for production: fingerprint: { enabled: process.env.EMBER_ENV === 'production' }, remove the minifyJS override."
++    },
++    {
++      "id": "E013",
++      "severity": "high",
++      "category": "performance",
++      "title": "Source maps disabled entirely",
++      "description": "ember-cli-build.js sets sourcemaps.enabled: false. This makes debugging production issues extremely difficult and prevents proper error tracking in tools like Sentry.",
++      "file": "app/frontend/ember-cli-build.js",
++      "line": "6-8",
++      "recommendation": "Enable source maps at least for development: sourcemaps: { enabled: process.env.EMBER_ENV !== 'production' }. Consider hidden source maps for production."
++    },
++    {
++      "id": "E014",
++      "severity": "high",
++      "category": "testing",
++      "title": "Near-zero test coverage: only 3 test assertions in 102 test files",
++      "description": "Found 102 test files but only 3 actual test() calls (in 1 file). The only integration test is login-test.js. Zero unit tests, zero acceptance tests with actual test assertions. The test infrastructure exists but is essentially empty.",
++      "file": "app/frontend/tests/",
++      "line": null,
++      "recommendation": "This is critical for an AAC app where regressions can block user communication. Prioritize: 1) Component rendering tests for board-canvas, button-listener, grid-listener. 2) Integration tests for board navigation flow. 3) Accessibility tests using ember-a11y-testing."
++    },
++    {
++      "id": "E015",
++      "severity": "high",
++      "category": "compatibility",
++      "title": "jQuery integration disabled but 97 jQuery usages remain",
++      "description": "optional-features.json correctly sets jquery-integration: false, but the app still has @ember/jquery and jquery as devDependencies. Found 97 files importing or using jQuery patterns (this.$(), Ember.$, import jQuery). These are inconsistent with the opt-out.",
++      "file": "app/frontend/config/optional-features.json + app/frontend/app/ (97 files)",
++      "line": null,
++      "recommendation": "Replace all jQuery DOM operations with native DOM APIs (document.querySelector, element.addEventListener). Remove @ember/jquery and jquery from package.json after migration."
++    },
++    {
++      "id": "E016",
++      "severity": "medium",
++      "category": "deprecation",
++      "title": "48 transitionToRoute/replaceRoute calls in controllers",
++      "description": "Found 48 occurrences of transitionToRoute or replaceRoute across 32 files. These are deprecated in Ember 3.28 in favor of the RouterService (this.router.transitionTo / this.router.replaceWith).",
++      "file": "app/frontend/app/controllers/ and app/frontend/app/routes/ (32 files)",
++      "line": null,
++      "recommendation": "Inject the router service and replace this.transitionToRoute('route') with this.router.transitionTo('route') and this.replaceRoute with this.router.replaceWith."
++    },
++    {
++      "id": "E017",
++      "severity": "medium",
++      "category": "compatibility",
++      "title": "ember-cli-eslint deprecated (replaced by eslint directly)",
++      "description": "The project uses ember-cli-eslint@5.1.0 which has been deprecated. Modern Ember projects run ESLint directly. Also, eslint@5.16.0 is very outdated (current is 9.x).",
++      "file": "app/frontend/package.json",
++      "line": "34",
++      "recommendation": "Remove ember-cli-eslint, upgrade eslint to v8+, install @ember/eslint-plugin, and configure eslint.config.js for flat config."
++    },
++    {
++      "id": "E018",
++      "severity": "medium",
++      "category": "compatibility",
++      "title": "ember-cli-template-lint outdated",
++      "description": "ember-cli-template-lint@2.0.2 is outdated. Modern Ember uses ember-template-lint directly (v5+) with updated rules for Octane patterns.",
++      "file": "app/frontend/package.json",
++      "line": "39",
++      "recommendation": "Replace ember-cli-template-lint with ember-template-lint@5+ and configure .template-lintrc.js with Octane-aware rules."
++    },
++    {
++      "id": "E019",
++      "severity": "medium",
++      "category": "compatibility",
++      "title": "eslint-plugin-ember@6.2.0 is severely outdated",
++      "description": "eslint-plugin-ember@6.2.0 is from 2019. Current is v12+. Missing all Octane-era lint rules like no-classic-components, no-computed-properties-in-native-classes, no-get, no-mixins, etc.",
++      "file": "app/frontend/package.json",
++      "line": "50",
++      "recommendation": "Upgrade to eslint-plugin-ember@12+ to get Octane migration lint rules that will catch deprecated patterns automatically."
++    },
++    {
++      "id": "E020",
++      "severity": "medium",
++      "category": "compatibility",
++      "title": "qunit-dom@0.8.4 severely outdated",
++      "description": "qunit-dom@0.8.4 is from 2018. Current is v3+. Missing modern assertion helpers that would improve test readability and AAC-critical accessibility assertions.",
++      "file": "app/frontend/package.json",
++      "line": "59",
++      "recommendation": "Upgrade to qunit-dom@3+ for improved assertions including hasAria(), hasAttribute(), isVisible() which are critical for AAC accessibility testing."
++    },
++    {
++      "id": "E021",
++      "severity": "medium",
++      "category": "accessibility",
++      "title": "Limited ARIA coverage: 322 aria/role attributes across 79 template files",
++      "description": "Found 322 aria-*/role= attributes across 79 of 447 template files (17.7% of templates). Given this is an AAC communication platform where users rely on assistive technology, ARIA coverage should approach 100% for interactive elements. Only 74 tabindex attributes found.",
++      "file": "app/frontend/app/templates/ (79 of 447 files)",
++      "line": null,
++      "recommendation": "Audit all interactive templates for ARIA compliance. Key areas: board/index.hbs (communication board), button.hbs, button-listener, grid-listener. Add aria-labels to all buttons and interactive elements. Install ember-a11y-testing for automated checks."
++    },
++    {
++      "id": "E022",
++      "severity": "medium",
++      "category": "accessibility",
++      "title": "Limited keyboard/focus management (25 occurrences across 17 files)",
++      "description": "Found only 25 focus management patterns (focusIn, focusOut, focus(), keyDown, keyUp, keyPress) across 17 files. For AAC users who may use switch scanning, eye tracking, or keyboard-only access, comprehensive keyboard navigation is essential. scanner.js has 4 occurrences but needs more.",
++      "file": "app/frontend/app/ (17 files)",
++      "line": null,
++      "recommendation": "Implement comprehensive keyboard navigation for the communication board. Ensure all modal dialogs trap focus. Add keyboard shortcuts for common AAC actions. Test with screen readers (NVDA/JAWS/VoiceOver)."
++    },
++    {
++      "id": "E023",
++      "severity": "medium",
++      "category": "accessibility",
++      "title": "173 alt attribute usages but potential gaps in image accessibility",
++      "description": "Found 173 alt= attribute usages across 48 template files. While alt text is present in many places, an AAC app with symbol-based communication needs alt text on every image/symbol for screen reader users to understand button content.",
++      "file": "app/frontend/app/templates/ (48 files)",
++      "line": null,
++      "recommendation": "Ensure every <img> tag and symbol icon has meaningful alt text. For AAC board buttons, the alt text should match the button label. Use aria-label for non-image interactive elements."
++    },
++    {
++      "id": "E024",
++      "severity": "medium",
++      "category": "i18n",
++      "title": "Custom i18n system (not ember-intl) with 2,212 i18n.t() calls and 7,646 {{t}} usages",
++      "description": "The app uses a custom i18n.js utility (2,175 lines) rather than the standard ember-intl addon. While functional, with 2,212 i18n.t() calls in JS and 7,646 {{t}} helper usages in templates, this custom system lacks pluralization rules, ICU message format, lazy loading, and locale fallback chains.",
++      "file": "app/frontend/app/utils/i18n.js",
++      "line": null,
++      "recommendation": "Consider migrating to ember-intl for proper ICU message format support, pluralization, and locale management. The custom i18n.t(key, default) pattern can be incrementally migrated."
++    },
++    {
++      "id": "E025",
++      "severity": "medium",
++      "category": "i18n",
++      "title": "Hardcoded user-facing strings in templates",
++      "description": "Spot-check found hardcoded English strings in multiple template files (254+ occurrences of capitalized quoted strings in templates). While the {{t}} helper is widely used (7,646 calls), many templates still contain untranslated text.",
++      "file": "app/frontend/app/templates/ (multiple files)",
++      "line": null,
++      "recommendation": "Run a comprehensive scan for untranslated strings. Wrap all remaining hardcoded user-facing text in {{t 'key' 'default'}} calls. Focus on: button-settings-help.hbs (12), copy-board.hbs (38), brief.hbs (95)."
++    },
++    {
++      "id": "E026",
++      "severity": "medium",
++      "category": "architecture",
++      "title": "1 Mixin usage found in application route",
++      "description": "Found Mixin reference in app/routes/application.js (commented out ApplicationRouteMixin). No active mixin files in app/mixins/ directory. This is positive - mixins are deprecated in Ember Octane.",
++      "file": "app/frontend/app/routes/application.js",
++      "line": "17",
++      "recommendation": "No action needed - mixin has already been removed. Ensure no mixins are reintroduced."
++    },
++    {
++      "id": "E027",
++      "severity": "medium",
++      "category": "performance",
++      "title": "Babel polyfill included by default increasing bundle size",
++      "description": "ember-cli-build.js enables includePolyfill: true for ember-cli-babel. With modern browser targets (Node >= 18 requirement), most polyfills are unnecessary and increase bundle size significantly.",
++      "file": "app/frontend/ember-cli-build.js",
++      "line": "22",
++      "recommendation": "Set includePolyfill: false and configure targets.js to specify minimum browser versions. Use @babel/preset-env with useBuiltIns: 'usage' for targeted polyfilling."
++    },
++    {
++      "id": "E028",
++      "severity": "medium",
++      "category": "performance",
++      "title": "No code splitting or route-based lazy loading",
++      "description": "The ember-cli-build.js shows no code splitting configuration. All 216 components, 188 controllers, 447 templates, and bower vendor libraries are loaded upfront. For AAC users on slow connections or limited devices, this is a significant performance concern.",
++      "file": "app/frontend/ember-cli-build.js",
++      "line": null,
++      "recommendation": "Implement route-based code splitting with ember-engines or embroider. Lazy-load stats components, organization admin pages, and setup wizards. This can reduce initial load by 40-60%."
++    },
++    {
++      "id": "E029",
++      "severity": "low",
++      "category": "compatibility",
++      "title": "ember-welcome-page included in devDependencies",
++      "description": "ember-welcome-page@4.0.0 is a scaffolding artifact that shows a welcome screen when no index route is defined. While harmless as a devDependency, it adds unnecessary weight.",
++      "file": "app/frontend/package.json",
++      "line": "48",
++      "recommendation": "Remove ember-welcome-page from package.json."
++    },
++    {
++      "id": "E030",
++      "severity": "low",
++      "category": "compatibility",
++      "title": "ember-maybe-import-regenerator@0.1.6 likely unnecessary",
++      "description": "This addon was needed for async/await support in older Ember versions. With ember-cli-babel@7.26.6 and modern targets, regenerator-runtime is included automatically when needed.",
++      "file": "app/frontend/package.json",
++      "line": "44",
++      "recommendation": "Remove ember-maybe-import-regenerator from package.json."
++    },
++    {
++      "id": "E031",
++      "severity": "low",
++      "category": "architecture",
++      "title": "Duplicate template structure (modals/ and components/ templates)",
++      "description": "Templates exist in both app/templates/ route-level and app/templates/components/ with many apparent duplicates (modals/valet-mode.hbs + components/valet-mode.hbs, etc.). This suggests a controller+modal pattern that should be refactored.",
++      "file": "app/frontend/app/templates/",
++      "line": null,
++      "recommendation": "Consolidate modal templates. Use a single modal component pattern rather than controller+template pairs. Consider ember-modal-dialog or a custom modal service."
++    },
++    {
++      "id": "E032",
++      "severity": "info",
++      "category": "architecture",
++      "title": "Octane edition declared but not implemented",
++      "description": "package.json declares 'ember.edition: octane' and optional-features.json correctly sets template-only-glimmer-components: true and application-template-wrapper: false. However, the codebase is entirely pre-Octane. The edition flag enables Octane linting warnings but the code has not been migrated.",
++      "file": "app/frontend/package.json",
++      "line": "68-70",
++      "recommendation": "This is actually a positive setup - the edition flag and optional-features are correct for Octane. Now the code needs to catch up to the declared edition."
++    },
++    {
++      "id": "E033",
++      "severity": "info",
++      "category": "architecture",
++      "title": "Custom ESLint plugin (eslint-plugin-lingolinq) in use",
++      "description": "The project has a custom ESLint plugin at app/frontend/eslint-plugin-lingolinq/ suggesting project-specific linting rules are in place.",
++      "file": "app/frontend/eslint-plugin-lingolinq/",
++      "line": null,
++      "recommendation": "Ensure custom ESLint rules are updated to account for Octane patterns as the migration proceeds."
++    },
++    {
++      "id": "E034",
++      "severity": "info",
++      "category": "architecture",
++      "title": "Large utility layer with 32 utility files",
++      "description": "Found 32 utility files in app/utils/ including large files like i18n.js (2,175 lines), eval.js, edit_manager.js, button.js. These form a significant part of the app's logic layer outside the standard Ember patterns.",
++      "file": "app/frontend/app/utils/ (32 files)",
++      "line": null,
++      "recommendation": "Consider refactoring large utilities into services for better testability and dependency injection. Priority: i18n.js -> i18n service, edit_manager.js -> editing service."
++    },
++    {
++      "id": "E035",
++      "severity": "high",
++      "category": "compatibility",
++      "title": "ember-export-application-global still present",
++      "description": "ember-export-application-global@2.0.0 exports the app to the window global. This is a legacy pattern that interferes with tree-shaking and is removed in Ember 4.x.",
++      "file": "app/frontend/package.json",
++      "line": "42",
++      "recommendation": "Remove ember-export-application-global. If global access is needed for debugging, use Ember Inspector instead. Check for any code relying on window.LingoLinq and refactor."
++    },
++    {
++      "id": "E036",
++      "severity": "medium",
++      "category": "deprecation",
++      "title": "107 files use Ember.run/runloop imports mixed with direct Ember import",
++      "description": "Found 107 files using Ember.run or importing from @ember/runloop. While the module import pattern is correct, many files mix both the barrel Ember import and specific module imports.",
++      "file": "app/frontend/app/ (107 files)",
++      "line": null,
++      "recommendation": "Consolidate all runloop usage to import from '@ember/runloop'. Replace Ember.run.later with import { later } from '@ember/runloop'."
++    }
++  ],
++  "metrics": {
++    "ember_version": "3.28.0",
++    "ember_data_version": "3.28.0",
++    "ember_cli_version": "3.28.0",
++    "edition_declared": "octane",
++    "addon_count": 22,
++    "total_js_files_in_app": 545,
++    "component_js_files": 216,
++    "component_template_files": 210,
++    "route_template_files": 237,
++    "total_template_files": 447,
++    "controller_files": 188,
++    "route_files": 57,
++    "model_files": 22,
++    "service_files": 6,
++    "utility_files": 32,
++    "helper_files": 18,
++    "adapter_files": 2,
++    "classic_components": 215,
++    "glimmer_components": 0,
++    "octane_decorators_used": 44,
++    "deprecated_patterns_count": {
++      "this_get": 6779,
++      "this_set": 4327,
++      "action_helper": 2572,
++      "computed_properties": 1375,
++      "sendAction": 75,
++      "transitionToRoute_replaceRoute": 48,
++      "lifecycle_hooks": 102,
++      "import_ember_barrel": 37,
++      "jquery_usage": 97,
++      "ember_run_patterns": 107,
++      "total": 15519
++    },
++    "test_files": 102,
++    "test_assertions": 3,
++    "integration_tests": 1,
++    "unit_tests": 0,
++    "acceptance_tests": 0,
++    "skipped_tests": 0,
++    "i18n_t_calls_in_js": 2212,
++    "i18n_t_helper_in_templates": 7646,
++    "i18n_coverage": "~75% (estimated based on hardcoded string analysis)",
++    "aria_role_attributes": 322,
++    "tabindex_attributes": 74,
++    "alt_attributes": 173,
++    "focus_management_patterns": 25,
++    "templates_with_aria": "79 of 447 (17.7%)",
++    "bower_dependencies": 9,
++    "fingerprinting_enabled": false,
++    "minification_enabled": false,
++    "sourcemaps_enabled": false,
++    "code_splitting": false,
++    "jquery_integration_disabled": true,
++    "template_only_glimmer": true,
++    "application_template_wrapper": false
++  },
++  "migration_readiness": {
++    "ember_3_28_status": "Installed but not leveraged",
++    "ember_4_x_blockers": [
++      "6,779 this.get() calls",
++      "4,327 this.set() calls",
++      "2,572 {{action}} helper usages",
++      "1,375 computed property declarations",
++      "215 classic components (0 Glimmer)",
++      "75 sendAction() calls",
++      "37 barrel Ember imports",
++      "9 Bower dependencies",
++      "ember-export-application-global dependency"
++    ],
++    "estimated_effort": "6-9 months for full Octane migration at current codebase size",
++    "recommended_migration_order": [
++      "Phase 1: Tooling (1-2 weeks) - Upgrade ESLint, ember-template-lint, qunit-dom",
++      "Phase 2: Low-hanging fruit (2-4 weeks) - Barrel imports, transitionToRoute, Ember.run",
++      "Phase 3: Bower elimination (2-3 weeks) - Move to npm packages",
++      "Phase 4: this.get/set codemod (2-3 weeks) - Automated with manual review",
++      "Phase 5: Component migration (8-12 weeks) - Classic to Glimmer, batch by category",
++      "Phase 6: Controller reduction (4-6 weeks) - Move logic to components",
++      "Phase 7: {{action}} to {{on}} migration (3-4 weeks) - Template updates",
++      "Phase 8: Test coverage (ongoing) - Minimum 60% coverage target"
++    ]
++  },
++  "score": 22,
++  "score_breakdown": {
++    "deprecation_compliance": "5/30 - 15,519 deprecated patterns, only optional-features configured correctly",
++    "addon_compatibility": "10/15 - Ember 3.28 addons mostly compatible, but bower/eslint/qunit outdated",
++    "component_architecture": "0/15 - Zero Glimmer components, all classic",
++    "testing": "1/15 - Near-zero test coverage, test infrastructure exists but empty",
++    "accessibility": "4/10 - Some ARIA present but inadequate for AAC platform",
++    "i18n": "6/10 - Custom system works, 75% coverage, but missing ember-intl features",
++    "performance": "1/5 - No fingerprinting, no minification, no code splitting, polyfill bloat"
++  }
++}
+
+commit 25c9306ad4be9c543ce9e18c6f5542dd0fd06957
+Author: swahlquist <scotwahlquist@gmail.com>
+Date:   Tue Feb 10 13:29:55 2026 -0700
+
+    Modal refactor: convert to component-based modals with modal-container
+    
+    Complete modal system overhaul converting outlet-based modals to
+    component-based pattern. This is the net result of Melissa's modal
+    refactor branch merged with integration fixes, squashed into a
+    single clean commit.
+    
+    Changes include:
+    - Add modal-container component for centralized modal rendering
+    - Convert 40+ modals from outlet to component pattern
+    - Update modal.js utility for component-based opening/closing
+    - Add new components: button-settings, add-tool, assessment-settings
+    - Fix sendAction deprecations in modal components
+    - Update application.hbs and application.js for new modal flow
+    - Update adapter and app.js for compatibility
+    - Add/update component tests
+    
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+diff --git a/app/frontend/app/templates/components/assessment-settings.hbs b/app/frontend/app/templates/components/assessment-settings.hbs
+new file mode 100644
+index 000000000..023d039b2
+--- /dev/null
++++ b/app/frontend/app/templates/components/assessment-settings.hbs
+@@ -0,0 +1,127 @@
++{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
++  <div class="modal-header">
++    <button type="button" class="close" {{action "close"}}>&times;</button>
++    <h3>
++      {{t "Eval Settings" key="assessment_settings"}}
++    </h3>
++  </div>
++  <div class="modal-body">
++    <form class="form-horizontal">
++      <div class='form-group'>
++        <label class='control-label col-sm-3'>{{t "For" key="for"}}</label>
++        <div class='col-sm-6'>
++          {{#if this.settings.saved}}
++            <b>{{this.settings.user_name}}</b>
++          {{else if this.settings}}
++            {{user-select select_id="for_user_id" selection=this.settings.for_user.user_id action=(action (mut this.settings.for_user.user_id)) }}
++          {{/if}}
++        </div>
++      </div>
++      <div class='form-group'>
++        <label class='control-label col-sm-3'>{{t "Title" key="title"}}</label>
++        <div class='col-sm-6'>
++          <Input type="text" @value={{this.settings.name}} class="form-control" placeholder={{this.name_placeholder}} />
++        </div>
++      </div>
++      {{#unless this.save_option}}
++        <div class='form-group'>
++          <label class='control-label col-sm-3'>{{t "Prompt Symbol(s)" key="prompt_symbols"}}</label>
++          <div class='col-sm-6'>
++            {{bound-select select_class="form-control" select_id="default_symbols" content=this.symbol_libraries selection=this.settings.default_library action=(action (mut this.settings.default_library)) }}
++          </div>
++        </div>
++        <div class='form-group'>
++          <label class='control-label col-sm-3'>{{t "Search Target" key="search_target"}}</label>
++          <div class='col-sm-6'>
++            <span class="dropdown" style="display: inline-block; width: 100%;">
++              <button class='btn btn-default symbol_target small' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
++                <span class='text'>
++                  {{#each this.current_option.images as |url|}}
++                    <img src={{url}} >
++                  {{/each}}
++                  {{this.current_option.label}}
++                </span>
++                <span class='caret' style='position: absolute; right: 5px; top: 15px;'></span>
++              </button>
++              <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 225px; overflow: auto;'>
++                {{#each this.symbol_options as |option|}}
++                  <li role="presentation">
++                    <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose" option.id}}>
++                      {{#each option.images as |url|}}
++                        <img src={{url}} >
++                      {{/each}}
++                      {{option.label}}
++                    </a>
++                  </li>
++                {{/each}}
++              </ul>
++            </span>
++          </div>
++        </div>
++        <div class='form-group'>
++          <label for="prompts" class="col-sm-3 control-label">{{t "Audible Prompt" key="audible_prompt"}}</label>
++          <div class="col-sm-9">
++            <div class="checkbox big_checkbox">
++              <label id='prompts'>
++                <Input @type="checkbox" @checked={{this.settings.prompts}} />
++                {{t "Speak prompts out loud" key="speak_prompts_out_loud"}}
++              </label>
++            </div>
++          </div>
++        </div>
++        {{#if this.settings.prompts}}
++          <div class='form-group'>
++            <label class='control-label col-sm-3'>{{t "Prompt Delay" key="prompt_delay"}}</label>
++            <div class='col-sm-3'>
++              <Input type="text" @value={{this.settings.prompts_delay}} class="form-control" placeholder="no delay" />
++            </div>
++            <div class='col-sm-3'>
++              <p class='form-control-static'>
++                {{t "milliseconds" key="milliseconds"}}
++              </p>
++            </div>
++          </div>
++        {{/if}}
++        <div class='form-group'>
++          <label for="chimes" class="col-sm-3 control-label">{{t "Chime" key="chime"}}</label>
++          <div class="col-sm-9">
++            <div class="checkbox big_checkbox">
++              <label id='chimes'>
++                <Input @type="checkbox" @checked={{this.settings.chimes}} />
++                {{t "Play a sound on correct actions" key="play_sound_on_success"}}
++              </label>
++            </div>
++          </div>
++        </div>
++      {{/unless}}
++      <div class='form-group'>
++        <label class='control-label col-sm-3'>{{t "Notes" key="notes"}}</label>
++        <div class='col-sm-9'>
++          <Textarea @value={{this.settings.accommodations}} class="form-control" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} />
++        </div>
++        <div class='col-sm-9 col-sm-offset-3' style='margin-top: 10px;'>
++          <Textarea @value={{this.settings.notes}} class="form-control" placeholder="additional notes" rows={{4}} />
++        </div>
++      </div>
++    </form>
++  </div>
++  <div class='modal-footer'>
++    {{#if this.aborting}}
++      <p class='text-danger'>{{t "Are you sure you want to abort? All changed will be lost." key="confirm_abort"}}</p>
++      <button class='btn btn-default btn-lg' {{action "abort" true}}>{{t "Abort" key="abort"}}</button>
++      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
++    {{else}}
++      <button class='btn btn-primary btn-lg' {{action "confirm"}}>
++        {{#if this.save_option}}
++          {{t "Save" key="save"}}
++        {{else}}
++          {{t "Update" key="update"}}
++        {{/if}}
++      </button>
++      {{#if this.save_option}}
++        <button class='btn btn-default btn-lg' {{action "abort"}}>{{t "Abort" key="abort"}}</button>
++      {{/if}}
++      <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
++    {{/if}}
++  </div>
++{{/modal-dialog}}
+diff --git a/app/frontend/app/templates/components/button-stash.hbs b/app/frontend/app/templates/components/button-stash.hbs
+new file mode 100644
+index 000000000..200f0c9fc
+--- /dev/null
++++ b/app/frontend/app/templates/components/button-stash.hbs
+@@ -0,0 +1,59 @@
++{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
++  <div class="modal-body">
++    {{#if this.button_stashes}}
++      <p>
++      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
++      </p>
++      {{#each this.button_stashes as |button|}}
++          <span class="stash_button_container" {{action "pickButton" button}}>
++            <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
++              {{#if button.pending}}
++                <div class="pending">
++                  <img src={{path "images/spinner.gif"}} draggable='false' >
++                </div>
++              {{/if}}
++              <div class={{button.action_class}}>
++                <span class="action">
++                  <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
++                </span>
++              </div>
++              <span class='img_holder' style={{button.image_holder_style}}>
++                {{#unless this.appState.currentUser.hide_symbols}}
++                  {{#unless button.board.text_only}}
++                    {{#unless button.text_only}}
++                      <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
++                    {{/unless}}
++                  {{/unless}}
++                {{/unless}}
++              </span>
++              <div class={{if button.text_only this.text_only_button_symbol_class this.button_symbol_class}}>
++                {{#if this.editModeNormalText}}
++                  {{#if button.sound}}
++                    <div class="sound_container">
++                      <span class="glyphicon glyphicon-volume-up"></span>
++                    </div>
++                  {{/if}}
++                  {{label-field value=button.label class="button-label" placeholder="enter label"}}
++                  {{#if button.levels_list}}
++                    <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
++                  {{/if}}
++                {{else}}
++                  {{#unless button.hide_label}}
++                    <span class="button-label">{{button.label}}</span>
++                  {{/unless}}
++                {{/if}}
++              </div>
++            </a>
++          </span>
++        {{/each}}
++      <div style="clear: left;"></div>
++    {{else}}
++      <p>
++      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
++      </p>
++    {{/if}}
++  </div>
++  <div class="modal-footer">
++    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
++  </div>
++{{/modal-dialog}}
+diff --git a/app/frontend/app/templates/components/user-status.hbs b/app/frontend/app/templates/components/user-status.hbs
+new file mode 100644
+index 000000000..03c814d4c
+--- /dev/null
++++ b/app/frontend/app/templates/components/user-status.hbs
+@@ -0,0 +1,88 @@
++{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
++  <div class="modal-header">
++    <button type="button" class="close" {{action "close"}}>&times;</button>
++    <h3>
++      <img src={{this.model.user.avatar_url}} style='height: 50px;'>
++      {{t "Progress for %{un}" un=this.model.user.user_name key="progress_for_user"}}
++    </h3>
++  </div>
++  <div class="modal-body">
++    <div style='margin: 0 20px;'>
++      <div style='margin: 30px 0px; font-size: 24px;'>
++        <span class={{this.state_class}}></span>
++        {{this.state}}
++        {{#if this.model.user.org_status.note}}
++          <div style='margin-top: 10px; font-size: 16px;'>
++            <p><em>{{this.model.user.org_status.note}}</em></p>
++          </div>
++        {{/if}}
++        {{#if this.model.user.org_status.date}}
++          <div style='margin-top: 10px; font-size: 14px; color: #888;'>
++            <p>{{t "Last updated" key="last_updated"}} {{date_ago this.model.user.org_status.date "day"}}</p>
++          </div>
++        {{/if}}
++      </div>
++      {{#if this.editing}}
++        <form class="form-horizontal" {{action "nothing" on="submit"}}>
++          <div class="form-group">
++            <label for="status" class="col-sm-3 control-label">{{t "Status" key="status"}}</label>
++            <div class="col-sm-9">
++              <span class="dropdown" style="display: inline-block; width: 100%;">
++                <button class='btn btn-default' id='status' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
++                  <span class='text'>
++                    <span class={{this.current_status.glyph}}></span>
++                    {{this.current_status.label}}
++                  </span>
++                  <span class='caret' style='position: absolute; right: 5px; top: 15px;'></span>
++                </button>
++                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 180px; overflow: auto; max-width: 100%;'>
++                  {{#each this.statuses as |option|}}
++                    <li role="presentation">
++                      <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose" option.id}}>
++                        <span class={{option.glyph}}></span>
++                        {{option.label}}
++                      </a>
++                    </li>
++                  {{/each}}
++                </ul>
++              </span>
++            </div>
++          </div>
++          <div class="form-group">
++            <label class="col-sm-3 control-label" for="notes">
++              {{t "Notes" key="notes"}}
++            </label>
++            <div class="col-sm-9">
++              <Textarea @value={{this.status_note}} id="notes" class="form-control" placeholder="brief note related to this status" rows={{3}} />
++            </div>
++          </div>
++        </form>
++
++      {{else}}
++        <div>
++          <button class='btn btn-default' {{action "edit"}}>{{t "Update Progress" key="update_state"}}</button>
++        </div>
++      {{/if}}
++    </div>
++  </div>
++  <div class="modal-footer">
++    {{#if this.editing}}
++      <button class='btn btn-lg btn-primary' {{action "update"}} disabled={{this.save_status.loading}}>
++        {{#if this.save_status.loading}}
++          {{t "Updating" key="updating"}}
++        {{else if this.save_status.error}}
++          {{t "Update Failed" key="update_failed"}}
++        {{else}}
++          {{t "Update" key="update"}}
++        {{/if}}
++      </button>
++    {{/if}}
++    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>
++      {{#if this.editing}}
++        {{t "Cancel" key="cancel"}}
++      {{else}}
++        {{t "Close" key="close"}}
++      {{/if}}
++    </a>
++  </div>
++{{/modal-dialog}}
+
+commit 10827b1fc8c2405bd982ce763cc1d64bedb5dc82
+Author: MelissaOneil <melissah29@gmail.com>
+Date:   Fri Feb 6 13:25:09 2026 -0700
+
+    Phase 2 modals: button-stash, board-copies, switch-communicators, record-note, sync-details; fix boards_controller board_params fallback
+    
+    - Add component + template for button-stash, board-copies, switch-communicators, record-note, sync-details
+    - Register all five in convertedModals (modal.js x2, modal-container.js, application.js) and modal-container.hbs
+    - api/boards_controller: use board_params consistently for parent_board_id and Board.process_new so fallback (params['board']) is applied when processed_params['board'] is missing
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+diff --git a/app/frontend/app/templates/components/button-stash.hbs b/app/frontend/app/templates/components/button-stash.hbs
+new file mode 100644
+index 000000000..200f0c9fc
+--- /dev/null
++++ b/app/frontend/app/templates/components/button-stash.hbs
+@@ -0,0 +1,59 @@
++{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
++  <div class="modal-body">
++    {{#if this.button_stashes}}
++      <p>
++      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
++      </p>
++      {{#each this.button_stashes as |button|}}
++          <span class="stash_button_container" {{action "pickButton" button}}>
++            <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
++              {{#if button.pending}}
++                <div class="pending">
++                  <img src={{path "images/spinner.gif"}} draggable='false' >
++                </div>
++              {{/if}}
++              <div class={{button.action_class}}>
++                <span class="action">
++                  <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
++                </span>
++              </div>
++              <span class='img_holder' style={{button.image_holder_style}}>
++                {{#unless this.appState.currentUser.hide_symbols}}
++                  {{#unless button.board.text_only}}
++                    {{#unless button.text_only}}
++                      <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
++                    {{/unless}}
++                  {{/unless}}
++                {{/unless}}
++              </span>
++              <div class={{if button.text_only this.text_only_button_symbol_class this.button_symbol_class}}>
++                {{#if this.editModeNormalText}}
++                  {{#if button.sound}}
++                    <div class="sound_container">
++                      <span class="glyphicon glyphicon-volume-up"></span>
++                    </div>
++                  {{/if}}
++                  {{label-field value=button.label class="button-label" placeholder="enter label"}}
++                  {{#if button.levels_list}}
++                    <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
++                  {{/if}}
++                {{else}}
++                  {{#unless button.hide_label}}
++                    <span class="button-label">{{button.label}}</span>
++                  {{/unless}}
++                {{/if}}
++              </div>
++            </a>
++          </span>
++        {{/each}}
++      <div style="clear: left;"></div>
++    {{else}}
++      <p>
++      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
++      </p>
++    {{/if}}
++  </div>
++  <div class="modal-footer">
++    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
++  </div>
++{{/modal-dialog}}

@@ -17,12 +17,22 @@ export default Component.extend({
       if (opening && typeof opening === 'function') {
         opening();
       }
-      // Note: Removed sendAction fallback as it's deprecated and broken in Ember 3.28
+      
+      // Accessibility: Focus first tabbable element or the modal itself
+      runLater(() => {
+        if (this.element) {
+          const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
+          if (tabbable.length > 0) {
+            tabbable[0].focus();
+          } else {
+            $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
+          }
+        }
+      }, 100);
     }
     this.set('auto_close', !!modal.auto_close);
     if(modal.last_any_template != 'highlight' && modal.last_any_template != 'highlight-secondary') {
       modal.component = this;
-      // Also set component in service if available
       var service = modal._getService();
       if (service) {
         service.setComponent(this);
@@ -36,6 +46,39 @@ export default Component.extend({
   willClearRender: function() {
     this.set('already_opened', false);
   },
+  
+  keyDown(event) {
+    // Escape key
+    if (event.keyCode === 27) {
+      if (this.get('uncloseable')) { return; }
+      this.send('close', event);
+      return;
+    }
+
+    // Tab key trapping
+    if (event.keyCode === 9) {
+      const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
+      if (tabbable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = tabbable[0];
+      const last = tabbable[tabbable.length - 1];
+
+      if (event.shiftKey) {
+        if (document.activeElement === first) {
+          last.focus();
+          event.preventDefault();
+        }
+      } else {
+        if (document.activeElement === last) {
+          first.focus();
+          event.preventDefault();
+        }
+      }
+    }
+  },
+
   stretch: observer('stretch_ratio', 'desired_width', function() {
     if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
     var el = this.get('element');
@@ -68,15 +111,12 @@ export default Component.extend({
     if(!this.get('already_closed')) {
       this.set('already_closed', true);
       try {
-        // Access closure action via get() - direct property access bypasses Ember's property system
         var closing = this.get('closing');
         if (closing && typeof closing === 'function') {
           closing();
         }
-        // Note: Removed sendAction fallback as it's deprecated and broken in Ember 3.28
       } catch(e) { }
     }
-    // Clear modal component reference when component is destroyed to prevent null reference errors
     if(modal.component === this) {
       modal.component = null;
     }
@@ -85,11 +125,6 @@ export default Component.extend({
     this.send('close', event);
   },
   mouseUp: function(event) {
-    // on iOS (probably just UIWebView) this phantom
-    // click event get triggered. If you tap & release 
-    // really fast then tap somewhere else, right after
-    // touchstart a click gets triggered at the location
-    // you hit and released before.
     var ignore = false;
     var now = (new Date()).getTime();
     event.handled_at = now;
@@ -99,8 +134,6 @@ export default Component.extend({
         event.fake_event = true;
       }
     } else if(event.clientX == 0 && event.clientY == 0) {
-      // on window blur if the focus is on a dropdown,
-      // it seems to trigger a phantom mouseup event
       ignore = true;
     }
     if(this.last_started_on_modal) {
@@ -116,23 +149,16 @@ export default Component.extend({
   actions: {
     close: function(event) {
       if(!this || typeof this.get !== 'function') { return; }
-      // Close on backdrop clicks (event.target has 'modal' class) or explicit button calls
-      // The mouseUp/touchEnd handlers only call this for backdrop clicks (they filter first)
-      // Buttons with {{action "close"}} explicitly call this, so we allow those too
       var isBackdropClick = event && event.target && $(event.target).hasClass('modal');
-      // Explicit calls from buttons will have event.type === 'click' and target won't be modal
-      var isExplicitButtonCall = event && event.type === 'click' && !isBackdropClick;
+      var isExplicitButtonCall = event && (event.type === 'click' || event.type === 'keydown') && !isBackdropClick;
       
       if(isBackdropClick) {
         try {
           event.preventDefault();
         } catch(e) { }
-        console.log('close from backdrop click');
         buttonTracker.ignoreUp = true;
       }
       
-      // Close for backdrop clicks or explicit button calls
-      // Defer only for backdrop clicks to avoid tearing down during event handling
       if(isBackdropClick || isExplicitButtonCall) {
         var _this = this;
         var doClose = function() {
@@ -141,7 +167,7 @@ export default Component.extend({
             if (!_this.isDestroyed && !_this.isDestroying && _this.get) {
               action = _this.get('action');
             }
-          } catch (e) { /* component torn down */ }
+          } catch (e) { }
           if (action && typeof action === 'function') {
             action();
           } else {
@@ -149,7 +175,7 @@ export default Component.extend({
               if (modal && typeof modal.close === 'function') {
                 modal.close();
               }
-            } catch (e) { /* modal service unavailable during teardown */ }
+            } catch (e) { }
           }
         };
         if (isBackdropClick) {
@@ -158,19 +184,13 @@ export default Component.extend({
           doClose();
         }
       }
-      // If called from mouseUp/touchEnd but not a backdrop click, do nothing
-      // This prevents accidental closes when clicking inside modal content
     },
     any_select: function(e) {
       if(!this) { return; }
       if(e && e.type == 'select' && e.target && e.target.closest('.auto_focus') != null) {
-        // auto-focus should not disable inactivity_timeout
       } else {
         modal.cancel_auto_close();
       }
     }
   }
 });
-
-
-
