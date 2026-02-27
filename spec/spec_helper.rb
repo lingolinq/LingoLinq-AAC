@@ -66,7 +66,7 @@ RSpec.configure do |config|
     PaperTrail.request.whodunnit = nil
     RedisInit.cache_token = "#{rand(999)}.#{Time.now.to_f}"
     ENV['REMOTE_EXTRA_DATA'] = nil
-    ENV['APP_NAME'] = "MyCoolApp"
+    ENV['APP_NAME'] = "LingoLinq"
     Permissable.set_redis(RedisInit.permissions, RedisInit.cache_token)
     RedisInit.default.del('domain_org_ids')
     Board.last_scheduled_stamp = nil

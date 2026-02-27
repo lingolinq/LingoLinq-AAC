@@ -1868,6 +1868,7 @@ export default Service.extend({
     if(this.get('speak_mode') && this.get('speakModeUser')) {
       this.set('currentUser', this.get('speakModeUser'));
       console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser');
+      this.notifyPropertyChange("currentUser");
     } else {
       var user = this.get('sessionUser');
       console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
@@ -1882,6 +1883,7 @@ export default Service.extend({
       console.log('[APP-STATE] set_current_user: currentUser set', {
         has_currentUser: !!this.get('currentUser'),
         currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
+      this.notifyPropertyChange("currentUser");
       });
     }
     if(this.get('currentUser')) {

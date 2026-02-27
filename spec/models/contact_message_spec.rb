@@ -304,7 +304,7 @@ describe ContactMessage, :type => :model do
         'ticket' => {
           'requester' => {'name' => 'asdf@example.com', 'email' => 'asdf@example.com'},
           'subject' => "Ahem",
-          'comment' => {'html_body' => "<i>Source App: MyCoolApp</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Unnamed Organization (premium), Unnamed Organization (premium), Unnamed Organization"},
+          'comment' => {'html_body' => "<i>Source App: LingoLinq</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Unnamed Organization (premium), Unnamed Organization (premium), Unnamed Organization"},
           'email_ccs' => [
             {'user_name' => o1.settings['name'], 'user_email' => 'org1@example.com', 'action' => 'put'},
             {'user_name' => o2.settings['name'], 'user_email' => 'org2@example.com', 'action' => 'put'},
@@ -361,7 +361,7 @@ describe ContactMessage, :type => :model do
         'ticket' => {
           'requester' => {'name' => 'asdf@example.com', 'email' => 'asdf@example.com'},
           'subject' => "Ahem",
-          'comment' => {'html_body' => "<i>Source App: MyCoolApp</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Unnamed Organization (premium)"},
+          'comment' => {'html_body' => "<i>Source App: LingoLinq</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Unnamed Organization (premium)"},
           'email_ccs' => [
             {'user_name' => o1.settings['name'], 'user_email' => 'org1@example.com', 'action' => 'put'},
             {'user_name' => o2.settings['name'], 'user_email' => 'org2@example.com', 'action' => 'put'},
@@ -420,7 +420,7 @@ describe ContactMessage, :type => :model do
         'ticket' => {
           'requester' => {'name' => 'asdf@example.com', 'email' => 'asdf@example.com'},
           'subject' => "Ahem",
-          'comment' => {'html_body' => "<i>Source App: MyCoolApp</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Origami (premium)"},
+          'comment' => {'html_body' => "<i>Source App: LingoLinq</i><br/>asdf<br/><br/><span style='font-style: italic;'>no IP address found<br/>no app version found<br/>no user agent found</span><br/>Origami (premium)"},
           'email_ccs' => [
             {'user_name' => o1.settings['name'], 'user_email' => 'org1@example.com', 'action' => 'put'},
             {'user_name' => o2.settings['name'], 'user_email' => 'org2@example.com', 'action' => 'put'},

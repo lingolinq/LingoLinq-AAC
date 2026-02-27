@@ -1,7 +1,7 @@
 class BoardsController < ApplicationController
   def index
     @meta_record = OpenStruct.new
-    @meta_record.title = "MyCoolApp - Every voice should be heard"
+    @meta_record.title = "LingoLinq - Every voice should be heard"
     @meta_record.summary = "Let's help those with complex communication needs make their voices heard, using good technology that actually makes things easier and supports everyone in helping the individual succeed."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = @domain_overrides['settings']['app_name']
@@ -18,8 +18,8 @@ class BoardsController < ApplicationController
   
   def about
     @meta_record = OpenStruct.new
-    @meta_record.title = "About MyCoolApp"
-    @meta_record.summary = "Why \"MyCoolApp\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.title = "About LingoLinq"
+    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"

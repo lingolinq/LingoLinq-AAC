@@ -3,7 +3,7 @@ class AiApiLog < ApplicationRecord
   validates :ai_provider, presence: true
   validates :request_type, presence: true
   validates :ai_provider, inclusion: {
-    in: %w[openai claude gemini azure_openai anthropic],
+    in: %w[claude],
     allow_blank: false,
     message: "%{value} is not a recognized AI provider"
   }
@@ -20,8 +20,8 @@ class AiApiLog < ApplicationRecord
   #
   # Example:
   #   AiApiLog.log_ai_call(
-  #     provider: 'openai',
-  #     model: 'gpt-4o-mini',
+  #     provider: 'claude',
+  #     model: 'claude-haiku-4-5-20251001',
   #     type: 'board_generation',
   #     user: current_user,
   #     organization: current_org,
@@ -71,7 +71,7 @@ class AiApiLog < ApplicationRecord
   #   AiApiLog.compliance_report(30.days.ago, Time.current)
   #   # => {
   #   #   total_calls: 1542,
-  #   #   calls_by_provider: { "openai" => 800, "claude" => 742 },
+  #   #   calls_by_provider: { "claude" => 1542 },
   #   #   calls_by_type: { "board_generation" => 500, ... },
   #   #   calls_with_pii_detected: 23,
   #   #   unique_users: 89,
