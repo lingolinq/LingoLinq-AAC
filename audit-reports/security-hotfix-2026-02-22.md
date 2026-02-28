@@ -137,7 +137,7 @@
 
 ### Days 4-5 — Medium priority and hardening
 
-- [ ] **SEC-036**: Validate CDWEBSOCKET_URL for `wss://`
+- [ ] **SEC-036**: Validate LLWEBSOCKET_URL for `wss://`
 - [ ] **SEC-043**: Require `https://` for webhook callbacks
 - [ ] **SEC-027**: Remove Bower; replace moment/bootstrap with modern alternatives
 - [ ] **SEC-046..048**: Remove rack-offline, update ttfunk/pdf-core
