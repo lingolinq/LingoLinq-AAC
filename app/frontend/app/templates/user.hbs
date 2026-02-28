@@ -28,6 +28,9 @@
       <li role="presentation">
         {{#link-to "user.recordings" this.model.user_name}}{{t "recordings" key="recordings_lower"}}{{/link-to}}
       </li>
+      <li role="presentation">
+        {{#link-to "speech"}}{{t "speech" key="speech_lower"}}{{/link-to}}
+      </li>
       {{#if this.model.permissions.edit}}
         <li role="presentation">
           {{#link-to "user.edit" this.model.user_name}}{{t "profile" key="profile_lower"}}{{/link-to}}
@@ -73,6 +76,9 @@
       <div class="text-muted" title={{date this.model.last_access}}>{{t "used" key="used"}} {{date_ago this.model.last_access "day"}}</div>
     {{/if}}
   </div>
+    <div style="margin-bottom: 10px;">
+      <LinkTo @route="speech" class="btn btn-default" style="width: 100%;">🗣️ {{t "speech" key="speech_lower"}}</LinkTo>
+    </div>
     {{#if this.model.permissions.supervise}}
       <div class="btn-group-vertical" style="width: 100%;">
         <!-- TODO: since we're not using ids these won't add 'active' class until clicked. need workaround -->
