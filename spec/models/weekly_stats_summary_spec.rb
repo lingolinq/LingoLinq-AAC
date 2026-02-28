@@ -411,13 +411,14 @@ describe WeeklyStatsSummary, :type => :model do
     it "should include goal data" do
       u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
       ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
+      mid_week = Time.at(ts).utc.iso8601
       tg = UserGoal.create(template: true, global: true, settings: {'summary' => 'template goal'})
       g1 = UserGoal.create(:user => u, active: true, settings: {'summary' => 'good goal', 'started_at' => (2.weeks.ago.beginning_of_week(:sunday) + 4.days).iso8601})
       g2 = UserGoal.create(:user => u, active: true, settings: {'template_id' => tg.global_id, 'summary' => 'temp goal', 'started_at' => (1.week.ago.beginning_of_week(:sunday) + 4.days).iso8601})
       g3 = UserGoal.create(:user => u, settings: {'summary' => 'old goal', 'started_at' => 6.hours.ago.iso8601, 'ended_at' => (2.hours.ago.beginning_of_week(:sunday) + 4.days).iso8601})
       g4 = UserGoal.create(:user => u, settings: {'summary' => 'really old goal', 'started_at' => 6.weeks.ago.iso8601, 'ended_at' => (2.weeks.ago.beginning_of_week(:sunday) + 4.days).iso8601})
-      b1 = UserBadge.create(user: u, user_goal: g2, level: 1, earned: true)
-      b2 = UserBadge.create(user: u, user_goal: tg, level: 2, earned: true)
+      b1 = UserBadge.create(user: u, user_goal: g2, level: 1, earned: true, data: {'earn_recorded' => mid_week})
+      b2 = UserBadge.create(user: u, user_goal: tg, level: 2, earned: true, data: {'earn_recorded' => mid_week})
 
       d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [
@@ -576,14 +577,15 @@ describe WeeklyStatsSummary, :type => :model do
     
     it 'should include goals data' do
       ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
+      mid_week = Time.at(ts).utc.iso8601
       u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
       tg = UserGoal.create(template: true, global: true, settings: {'summary' => 'template goal'})
       g1 = UserGoal.create(:user => u, active: true, settings: {'summary' => 'good goal', 'started_at' => (2.weeks.ago.beginning_of_week(:sunday) + 4.day).iso8601})
       g2 = UserGoal.create(:user => u, active: true, settings: {'template_id' => tg.global_id, 'summary' => 'temp goal', 'started_at' => (1.week.ago.beginning_of_week(:sunday) + 4.days).iso8601})
       g3 = UserGoal.create(:user => u, settings: {'summary' => 'old goal', 'started_at' => 6.hours.ago.iso8601, 'ended_at' => (2.hours.ago.beginning_of_week(:sunday) + 4.days).iso8601})
       g4 = UserGoal.create(:user => u, settings: {'summary' => 'really old goal', 'started_at' => 6.weeks.ago.iso8601, 'ended_at' => (2.weeks.ago.beginning_of_week(:sunday) + 4.days).iso8601})
-      b1 = UserBadge.create(user: u, user_goal: g2, level: 1, earned: true)
-      b2 = UserBadge.create(user: u, user_goal: tg, level: 2, earned: true)
+      b1 = UserBadge.create(user: u, user_goal: g2, level: 1, earned: true, data: {'earn_recorded' => mid_week})
+      b2 = UserBadge.create(user: u, user_goal: tg, level: 2, earned: true, data: {'earn_recorded' => mid_week})
 
       d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [
