@@ -14847,3 +14847,1044 @@ body:-ms-fullscreen {
   .ll-dock { max-width: 640px; margin: 0 auto; left: 0; right: 0; }
 }
 
+// =============================================================================
+// AAC SPEECH PAGE — Design Tokens
+// _variables.scss
+// =============================================================================
+
+// Base Palette
+// Sage (primary green — calming, nature-forward)
+$color-sage:           #7BAE8C;
+$color-sage-light:     #A8C8B0;
+$color-sage-pale:      #E8F2EB;
+$color-sage-dark:      #4E8060;
+
+// Slate (secondary blue-grey — clinical, trustworthy)
+$color-slate:          #5A7A8A;
+$color-slate-light:    #8FAAB8;
+$color-slate-pale:     #E6EFF3;
+$color-slate-dark:     #3A5565;
+
+// Sand (accent — warm, welcoming)
+$color-sand:           #C9A882;
+$color-sand-light:     #E0C9A8;
+$color-sand-pale:      #FAF5EE;
+$color-sand-dark:      #A07850;
+
+// Neutrals
+$color-warm-white:     #FAFAF7;
+$color-cream:          #F4F1EB;
+$color-linen:          #EDE9E0;
+$color-linen-dark:     #D8D2C5;
+
+// Ink scale
+$color-ink:            #2C3E35;
+$color-ink-mid:        #4A5E54;
+$color-ink-soft:       #7A8E84;
+$color-ink-ghost:      #B4C2BB;
+
+// Semantic Aliases
+$color-primary:        $color-sage;
+$color-primary-light:  $color-sage-light;
+$color-primary-pale:   $color-sage-pale;
+$color-primary-dark:   $color-sage-dark;
+
+$color-secondary:      $color-slate;
+$color-secondary-light:$color-slate-light;
+$color-secondary-pale: $color-slate-pale;
+$color-secondary-dark: $color-slate-dark;
+
+$color-accent:         $color-sand;
+$color-accent-light:   $color-sand-light;
+$color-accent-pale:    $color-sand-pale;
+$color-accent-dark:    $color-sand-dark;
+
+$color-background:     $color-warm-white;
+$color-surface:        $color-cream;
+$color-border:         $color-linen;
+$color-border-strong:  $color-linen-dark;
+
+$color-text:           $color-ink;
+$color-text-mid:       $color-ink-mid;
+$color-text-muted:     $color-ink-soft;
+$color-text-ghost:     $color-ink-ghost;
+
+// AAC Symbol Category Colors
+$cat-people-base:      #7BAE8C;
+$cat-people-bg:        #E8F2EB;
+$cat-people-text:      #4A8C60;
+
+$cat-actions-base:     #6B95B8;
+$cat-actions-bg:       #E3EEF6;
+$cat-actions-text:     #3A6A8A;
+
+$cat-feelings-base:    #C98B8B;
+$cat-feelings-bg:      #F5E8E8;
+$cat-feelings-text:    #9A5050;
+
+$cat-food-base:        #C9A858;
+$cat-food-bg:          #F6F0DC;
+$cat-food-text:        #8A6A20;
+
+$cat-places-base:      #8B95C9;
+$cat-places-bg:        #ECEEF8;
+$cat-places-text:      #5060A0;
+
+$cat-objects-base:     #95B8C9;
+$cat-objects-bg:       #E5EFF3;
+$cat-objects-text:     #386A80;
+
+$cat-descriptors-base: #B89BC9;
+$cat-descriptors-bg:   #F3EEF8;
+$cat-descriptors-text: #7050A0;
+
+$cat-social-base:      #C9B88B;
+$cat-social-bg:        #F5F0E3;
+$cat-social-text:      #806830;
+
+// Map for iteration
+$categories: (
+  'people':      ($cat-people-base,      $cat-people-bg,      $cat-people-text),
+  'actions':     ($cat-actions-base,     $cat-actions-bg,     $cat-actions-text),
+  'feelings':    ($cat-feelings-base,    $cat-feelings-bg,    $cat-feelings-text),
+  'food':        ($cat-food-base,        $cat-food-bg,        $cat-food-text),
+  'places':      ($cat-places-base,      $cat-places-bg,      $cat-places-text),
+  'objects':     ($cat-objects-base,     $cat-objects-bg,     $cat-objects-text),
+  'descriptors': ($cat-descriptors-base, $cat-descriptors-bg, $cat-descriptors-text),
+  'social':      ($cat-social-base,      $cat-social-bg,      $cat-social-text),
+);
+
+// Typography
+$aac-font-display:   'DM Serif Display', Georgia, serif;
+$aac-font-body:      'Nunito', 'Segoe UI', sans-serif;
+
+$aac-font-size-xs:   11px;
+$aac-font-size-sm:   13px;
+$aac-font-size-base: 15px;
+$aac-font-size-md:   18px;
+$aac-font-size-lg:   22px;
+$aac-font-size-xl:   26px;
+$aac-font-size-2xl:  32px;
+
+$aac-font-weight-light:   300;
+$aac-font-weight-regular: 400;
+$aac-font-weight-semi:    600;
+$aac-font-weight-bold:    700;
+$aac-font-weight-black:   800;
+
+$aac-line-height-tight: 1.2;
+$aac-line-height-base:  1.5;
+$aac-line-height-loose: 1.7;
+
+$aac-letter-spacing-tight:  -0.01em;
+$aac-letter-spacing-base:    0.01em;
+$aac-letter-spacing-wide:    0.06em;
+$aac-letter-spacing-wider:   0.12em;
+
+// Spacing
+$aac-spacing-2:  2px;
+$aac-spacing-4:  4px;
+$aac-spacing-6:  6px;
+$aac-spacing-8:  8px;
+$aac-spacing-10: 10px;
+$aac-spacing-12: 12px;
+$aac-spacing-14: 14px;
+$aac-spacing-16: 16px;
+$aac-spacing-20: 20px;
+$aac-spacing-24: 24px;
+$aac-spacing-28: 28px;
+$aac-spacing-32: 32px;
+$aac-spacing-40: 40px;
+$aac-spacing-48: 48px;
+$aac-spacing-64: 64px;
+
+// Border Radius
+$aac-radius-sm:     6px;
+$aac-radius-md:     10px;
+$aac-radius-lg:     14px;
+$aac-radius-xl:     16px;
+$aac-radius-2xl:    20px;
+$aac-radius-pill:   999px;
+$aac-radius-circle: 50%;
+
+// Shadows
+$aac-shadow-sm:    0 1px 4px rgba($color-ink, 0.06);
+$aac-shadow-md:    0 4px 12px rgba($color-ink, 0.08);
+$aac-shadow-lg:    0 8px 24px rgba($color-ink, 0.10);
+$aac-shadow-xl:    0 16px 40px rgba($color-ink, 0.12);
+$aac-shadow-focus: 0 0 0 3px rgba($color-sage, 0.35);
+
+// Layout
+$aac-topbar-height: 64px;
+$aac-sidebar-width: 220px;
+$aac-panel-width:   300px;
+
+$aac-breakpoint-sm: 640px;
+$aac-breakpoint-md: 768px;
+$aac-breakpoint-lg: 1024px;
+$aac-breakpoint-xl: 1280px;
+
+// Transitions
+$aac-transition-fast: 0.12s ease;
+$aac-transition-base: 0.18s ease;
+$aac-transition-slow: 0.30s ease;
+
+// Z-index Scale
+$aac-z-base:     1;
+$aac-z-dropdown: 100;
+$aac-z-modal:    200;
+$aac-z-toast:    300;
+$aac-z-topbar:   400;
+
+// =============================================================================
+// AAC SPEECH PAGE — Mixins
+// _mixins.scss
+// =============================================================================
+
+@mixin aac-respond-to($bp) {
+  @if $bp == 'sm'  { @media (max-width: #{$aac-breakpoint-sm})  { @content; } }
+  @if $bp == 'md'  { @media (max-width: #{$aac-breakpoint-md})  { @content; } }
+  @if $bp == 'lg'  { @media (max-width: #{$aac-breakpoint-lg})  { @content; } }
+  @if $bp == 'xl'  { @media (max-width: #{$aac-breakpoint-xl})  { @content; } }
+  @if $bp == 'md+' { @media (min-width: #{$aac-breakpoint-md})  { @content; } }
+  @if $bp == 'lg+' { @media (min-width: #{$aac-breakpoint-lg})  { @content; } }
+}
+
+@mixin aac-font-display($size: $aac-font-size-xl, $weight: $aac-font-weight-regular) {
+  font-family: $aac-font-display;
+  font-size: $size;
+  font-weight: $weight;
+  line-height: $aac-line-height-tight;
+}
+
+@mixin aac-font-body($size: $aac-font-size-base, $weight: $aac-font-weight-regular) {
+  font-family: $aac-font-body;
+  font-size: $size;
+  font-weight: $weight;
+  line-height: $aac-line-height-base;
+}
+
+@mixin aac-label-caps {
+  font-family: $aac-font-body;
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-black;
+  letter-spacing: $aac-letter-spacing-wider;
+  text-transform: uppercase;
+}
+
+@mixin aac-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin aac-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin aac-flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin aac-surface($bg: white, $border: true) {
+  background: $bg;
+  border-radius: $aac-radius-lg;
+  @if $border {
+    border: 1px solid $color-border;
+  }
+}
+
+@mixin aac-card-hover {
+  transition: transform $aac-transition-base, box-shadow $aac-transition-base, border-color $aac-transition-base;
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: $aac-shadow-lg;
+    border-color: $color-text-ghost;
+  }
+  &:active {
+    transform: scale(0.97);
+    box-shadow: $aac-shadow-sm;
+  }
+}
+
+@mixin aac-focus-ring($color: $color-sage) {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($color, 0.4);
+  }
+}
+
+@mixin aac-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@mixin aac-btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $aac-spacing-8;
+  font-family: $aac-font-body;
+  font-weight: $aac-font-weight-bold;
+  border: none;
+  cursor: pointer;
+  border-radius: $aac-radius-md;
+  transition: background $aac-transition-fast, transform $aac-transition-fast, box-shadow $aac-transition-fast;
+  user-select: none;
+
+  &:active { transform: scale(0.97); }
+  @include aac-focus-ring;
+}
+
+@mixin aac-btn-primary {
+  @include aac-btn-base;
+  background: $color-primary;
+  color: white;
+  padding: $aac-spacing-10 $aac-spacing-20;
+  font-size: $aac-font-size-sm;
+
+  &:hover { background: $color-primary-light; }
+  &:disabled {
+    background: $color-text-ghost;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+@mixin aac-btn-secondary {
+  @include aac-btn-base;
+  background: transparent;
+  color: $color-text-mid;
+  border: 1.5px solid $color-border-strong;
+  padding: $aac-spacing-8 $aac-spacing-14;
+  font-size: $aac-font-size-sm;
+
+  &:hover {
+    background: $color-surface;
+    border-color: $color-text-ghost;
+    color: $color-text;
+  }
+}
+
+@mixin aac-btn-ghost {
+  @include aac-btn-base;
+  background: rgba(white, 0.08);
+  color: $color-text-ghost;
+  border: 1.5px solid rgba(white, 0.15);
+  padding: $aac-spacing-8 $aac-spacing-14;
+  font-size: $aac-font-size-sm;
+
+  &:hover {
+    background: rgba(white, 0.14);
+    color: white;
+  }
+}
+
+@mixin aac-custom-scrollbar($width: 6px, $color: $color-text-ghost) {
+  &::-webkit-scrollbar         { width: $width; }
+  &::-webkit-scrollbar-track   { background: transparent; }
+  &::-webkit-scrollbar-thumb   { background: $color; border-radius: $aac-radius-pill; }
+}
+
+@mixin aac-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin aac-progress-bar($color: $color-primary, $height: 8px) {
+  height: $height;
+  background: $color-border;
+  border-radius: $aac-radius-pill;
+  overflow: hidden;
+
+  .progress__fill {
+    height: 100%;
+    background: $color;
+    border-radius: $aac-radius-pill;
+    transition: width 0.6s ease;
+  }
+}
+
+// =============================================================================
+// AAC SPEECH PAGE — Base & Reset
+// _base.scss
+// =============================================================================
+
+.app-shell {
+  @include aac-font-body($aac-font-size-base, $aac-font-weight-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  @include aac-custom-scrollbar;
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: $aac-font-display;
+    font-weight: $aac-font-weight-regular;
+    line-height: $aac-line-height-tight;
+    color: $color-text;
+  }
+
+  h1 { font-size: $aac-font-size-2xl; }
+  h2 { font-size: $aac-font-size-xl; }
+  h3 { font-size: $aac-font-size-lg; }
+  h4 { font-size: $aac-font-size-md; }
+  h5 { font-size: $aac-font-size-base; }
+  h6 { font-size: $aac-font-size-sm; }
+
+  p {
+    line-height: $aac-line-height-loose;
+    color: $color-text-mid;
+  }
+}
+
+.aac-section-label {
+  @include aac-label-caps;
+  color: $color-text-ghost;
+  margin-bottom: $aac-spacing-4;
+}
+
+// =============================================================================
+// AAC SPEECH PAGE — App Shell Layout
+// components/_app-shell.scss
+// =============================================================================
+
+.app-shell {
+  display: grid;
+  grid-template-rows: $aac-topbar-height 1fr;
+  grid-template-columns: $aac-sidebar-width 1fr $aac-panel-width;
+  grid-template-areas:
+    "topbar  topbar  topbar"
+    "sidebar main    panel";
+  height: 100vh;
+  overflow: hidden;
+
+  @include aac-respond-to('lg') {
+    grid-template-columns: $aac-sidebar-width 1fr;
+    grid-template-areas:
+      "topbar  topbar"
+      "sidebar main";
+
+    .app-panel { display: none; }
+  }
+
+  @include aac-respond-to('md') {
+    grid-template-columns: 1fr;
+    grid-template-rows: $aac-topbar-height 1fr;
+    grid-template-areas:
+      "topbar"
+      "main";
+
+    .app-sidebar { display: none; }
+  }
+}
+
+.app-topbar {
+  grid-area: topbar;
+  background: $color-ink;
+  @include aac-flex-start;
+  padding: 0 $aac-spacing-24;
+  gap: $aac-spacing-20;
+  border-bottom: 2px solid $color-ink-mid;
+  z-index: $aac-z-topbar;
+}
+
+.topbar__logo {
+  @include aac-font-display($aac-font-size-lg);
+  color: $color-sage-light;
+  letter-spacing: $aac-letter-spacing-base;
+  flex-shrink: 0;
+
+  span {
+    color: $color-sand-light;
+    font-style: italic;
+  }
+}
+
+.topbar__search {
+  flex: 1;
+  max-width: 400px;
+  background: rgba(white, 0.08);
+  border: 1px solid rgba(white, 0.15);
+  border-radius: $aac-radius-md;
+  padding: $aac-spacing-8 $aac-spacing-16;
+  color: white;
+  font-size: $aac-font-size-sm;
+  outline: none;
+  transition: background $aac-transition-fast;
+
+  &::placeholder { color: $color-ink-ghost; }
+  &:focus { background: rgba(white, 0.12); }
+}
+
+.topbar__right {
+  margin-left: auto;
+  @include aac-flex-start;
+  gap: $aac-spacing-12;
+}
+
+.topbar__badge {
+  background: $color-sand;
+  color: $color-ink;
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-black;
+  padding: $aac-spacing-4 $aac-spacing-10;
+  border-radius: $aac-radius-pill;
+  letter-spacing: $aac-letter-spacing-wide;
+}
+
+.topbar__badge--non-clinical {
+  background: $color-sage;
+  color: white;
+}
+
+.topbar__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: $aac-radius-circle;
+  background: linear-gradient(135deg, $color-sage, $color-slate);
+  @include aac-flex-center;
+  color: white;
+  font-weight: $aac-font-weight-bold;
+  font-size: $aac-font-size-sm;
+  cursor: pointer;
+  transition: opacity $aac-transition-fast;
+
+  &:hover { opacity: 0.85; }
+}
+
+.app-sidebar {
+  grid-area: sidebar;
+  background: $color-surface;
+  border-right: 1px solid $color-border;
+  padding: $aac-spacing-20 $aac-spacing-12;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-6;
+  @include aac-custom-scrollbar;
+}
+
+.sidebar__section-label {
+  @include aac-label-caps;
+  color: $color-text-ghost;
+  padding: $aac-spacing-10 $aac-spacing-12 $aac-spacing-4;
+  margin-top: $aac-spacing-8;
+
+  &:first-child { margin-top: 0; }
+}
+
+.nav-item {
+  @include aac-flex-start;
+  gap: $aac-spacing-10;
+  padding: $aac-spacing-10 $aac-spacing-14;
+  border-radius: $aac-radius-md;
+  cursor: pointer;
+  font-size: $aac-font-size-sm;
+  font-weight: $aac-font-weight-semi;
+  color: $color-text-mid;
+  border: 1.5px solid transparent;
+  transition: all $aac-transition-base;
+  user-select: none;
+
+  &:hover {
+    background: $color-border;
+    color: $color-text;
+  }
+
+  &.active {
+    background: $color-sage-pale;
+    color: $color-sage;
+    border-color: $color-sage-light;
+  }
+
+  @include aac-focus-ring;
+}
+
+.nav-item__icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.app-main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: $aac-spacing-28;
+  background: $color-background;
+  @include aac-custom-scrollbar;
+}
+
+.main__title {
+  @include aac-font-display($aac-font-size-xl);
+  color: $color-text;
+  margin-bottom: $aac-spacing-6;
+}
+
+.main__subtitle {
+  font-size: $aac-font-size-sm;
+  color: $color-text-muted;
+  margin-bottom: $aac-spacing-24;
+}
+
+.app-panel {
+  grid-area: panel;
+  background: $color-surface;
+  border-left: 1px solid $color-border;
+  padding: $aac-spacing-24 $aac-spacing-20;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-20;
+  @include aac-custom-scrollbar;
+}
+
+.panel-card {
+  @include aac-surface(white);
+  padding: $aac-spacing-16;
+
+  &__title {
+    @include aac-label-caps;
+    color: $color-text-muted;
+    margin-bottom: $aac-spacing-12;
+  }
+}
+
+// =============================================================================
+// AAC SPEECH PAGE — Phrase Bar
+// components/_phrase-bar.scss
+// =============================================================================
+
+.phrase-bar {
+  background: $color-ink;
+  border-radius: $aac-radius-xl;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  @include aac-flex-start;
+  gap: $aac-spacing-14;
+  margin-bottom: $aac-spacing-24;
+  min-height: 64px;
+  box-shadow: $aac-shadow-md;
+}
+
+.phrase-bar__tokens {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $aac-spacing-6;
+  align-items: center;
+}
+
+.phrase-bar__placeholder {
+  font-size: $aac-font-size-md;
+  color: $color-ink-soft;
+  font-style: italic;
+  font-weight: $aac-font-weight-light;
+}
+
+.phrase-token {
+  display: inline-flex;
+  align-items: center;
+  gap: $aac-spacing-4;
+  padding: $aac-spacing-4 $aac-spacing-10;
+  border-radius: $aac-radius-sm;
+  font-size: $aac-font-size-md;
+  font-weight: $aac-font-weight-semi;
+  color: white;
+  cursor: pointer;
+  transition: opacity $aac-transition-fast;
+  position: relative;
+
+  &:hover {
+    opacity: 0.8;
+
+    .phrase-token__remove { opacity: 1; }
+  }
+}
+
+.phrase-token__remove {
+  opacity: 0;
+  font-size: $aac-font-size-xs;
+  color: rgba(white, 0.7);
+  transition: opacity $aac-transition-fast;
+  cursor: pointer;
+  padding: 0 $aac-spacing-2;
+
+  &:hover { color: white; }
+}
+
+@each $name, $vals in $categories {
+  .phrase-token--#{$name} {
+    color: lighten(nth($vals, 1), 20%);
+  }
+}
+
+.phrase-bar__actions {
+  display: flex;
+  gap: $aac-spacing-8;
+  flex-shrink: 0;
+}
+
+.btn-speak {
+  @include aac-btn-primary;
+  padding: $aac-spacing-10 $aac-spacing-20;
+  font-size: $aac-font-size-sm;
+  border-radius: $aac-radius-md;
+
+  &--large {
+    padding: $aac-spacing-14 $aac-spacing-28;
+    font-size: $aac-font-size-base;
+    border-radius: $aac-radius-lg;
+  }
+}
+
+.btn-clear {
+  @include aac-btn-ghost;
+  padding: $aac-spacing-8 $aac-spacing-14;
+}
+
+.btn-backspace {
+  @include aac-btn-ghost;
+  padding: $aac-spacing-8 $aac-spacing-12;
+  border-radius: $aac-radius-md;
+}
+
+// =============================================================================
+// AAC SPEECH PAGE — Symbol Board
+// components/_symbol-board.scss
+// =============================================================================
+
+.category-row {
+  display: flex;
+  gap: $aac-spacing-8;
+  flex-wrap: wrap;
+  margin-bottom: $aac-spacing-24;
+}
+
+.cat-chip {
+  padding: $aac-spacing-6 $aac-spacing-16;
+  border-radius: $aac-radius-pill;
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-bold;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all $aac-transition-base;
+  opacity: 0.72;
+  user-select: none;
+
+  &:hover,
+  &.active {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  &.all {
+    background: $color-ink;
+    color: white;
+    opacity: 1;
+
+    &:hover { background: $color-ink-mid; }
+  }
+
+  @include aac-focus-ring;
+}
+
+@each $name, $vals in $categories {
+  .cat-chip.#{$name} {
+    background:   nth($vals, 2);
+    color:        nth($vals, 3);
+    border-color: nth($vals, 1);
+  }
+}
+
+.quick-row {
+  display: flex;
+  gap: $aac-spacing-8;
+  flex-wrap: wrap;
+  margin-bottom: $aac-spacing-24;
+}
+
+.quick-btn {
+  @include aac-btn-secondary;
+  border-radius: $aac-radius-md;
+  font-size: $aac-font-size-sm;
+
+  &:hover {
+    background: $color-sage-pale;
+    border-color: $color-sage-light;
+    color: $color-sage;
+  }
+}
+
+.symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: $aac-spacing-14;
+  margin-bottom: $aac-spacing-32;
+
+  @include aac-respond-to('sm') {
+    grid-template-columns: repeat(3, 1fr);
+    gap: $aac-spacing-10;
+  }
+}
+
+.symbol-card {
+  background: white;
+  border-radius: $aac-radius-xl;
+  padding: $aac-spacing-16 $aac-spacing-12 $aac-spacing-12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $aac-spacing-10;
+  cursor: pointer;
+  border: 2px solid $color-border;
+  position: relative;
+  overflow: hidden;
+  @include aac-card-hover;
+  @include aac-focus-ring;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+  }
+}
+
+@each $name, $vals in $categories {
+  .symbol-card--#{$name} {
+    &::before { background: nth($vals, 1); }
+
+    .symbol-card__icon-wrap { background: nth($vals, 2); }
+
+    &:hover { border-color: lighten(nth($vals, 1), 18%); }
+  }
+}
+
+.symbol-card__icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: $aac-radius-lg;
+  @include aac-flex-center;
+  font-size: 32px;
+  flex-shrink: 0;
+  transition: transform $aac-transition-fast;
+
+  .symbol-card:hover & { transform: scale(1.06); }
+}
+
+.symbol-card__icon-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.symbol-card__label {
+  font-size: $aac-font-size-sm;
+  font-weight: $aac-font-weight-bold;
+  color: $color-text;
+  text-align: center;
+  line-height: $aac-line-height-tight;
+  @include aac-truncate;
+  max-width: 100%;
+}
+
+.symbol-card--sm {
+  padding: $aac-spacing-10 $aac-spacing-8 $aac-spacing-8;
+  gap: $aac-spacing-6;
+
+  .symbol-card__icon-wrap {
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+  }
+
+  .symbol-card__label { font-size: $aac-font-size-xs; }
+}
+
+.symbol-card--lg {
+  padding: $aac-spacing-24 $aac-spacing-20 $aac-spacing-16;
+  gap: $aac-spacing-14;
+
+  .symbol-card__icon-wrap {
+    width: 80px;
+    height: 80px;
+    font-size: 44px;
+    border-radius: $aac-radius-xl;
+  }
+
+  .symbol-card__label { font-size: $aac-font-size-base; }
+}
+
+.symbol-card--skeleton {
+  background: $color-linen;
+  animation: aac-skeleton-pulse 1.4s ease-in-out infinite;
+  height: 140px;
+  pointer-events: none;
+
+  &::before { display: none; }
+}
+
+@keyframes aac-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+.symbol-grid__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: $aac-spacing-48 $aac-spacing-24;
+  color: $color-text-muted;
+
+  p { margin-bottom: $aac-spacing-12; }
+
+  button {
+    @include aac-btn-secondary;
+  }
+}
+
+// =============================================================================
+// AAC SPEECH PAGE — Panel Components
+// components/_panel.scss
+// =============================================================================
+
+.recent-phrase-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-phrase {
+  @include aac-flex-start;
+  gap: $aac-spacing-10;
+  padding: $aac-spacing-8 0;
+  border-bottom: 1px solid $color-border;
+  cursor: pointer;
+  transition: padding-left $aac-transition-base;
+
+  &:last-child { border-bottom: none; }
+  &:hover      { padding-left: $aac-spacing-4; }
+}
+
+.recent-phrase__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: $aac-radius-circle;
+  background: $color-sage-light;
+  flex-shrink: 0;
+}
+
+.recent-phrase__text {
+  font-size: $aac-font-size-sm;
+  font-weight: $aac-font-weight-semi;
+  color: $color-text-mid;
+  @include aac-truncate;
+}
+
+.recent-phrase__time {
+  margin-left: auto;
+  font-size: $aac-font-size-xs;
+  color: $color-text-ghost;
+  flex-shrink: 0;
+}
+
+.progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-12;
+}
+
+.progress-item {}
+
+.progress-item__header {
+  @include aac-flex-between;
+  margin-bottom: $aac-spacing-4;
+}
+
+.progress-item__label {
+  font-size: $aac-font-size-sm;
+  font-weight: $aac-font-weight-bold;
+  color: $color-text-mid;
+}
+
+.progress-item__value {
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-bold;
+  color: $color-text-ghost;
+}
+
+.progress-bar {
+  height: 8px;
+  background: $color-border;
+  border-radius: $aac-radius-pill;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  border-radius: $aac-radius-pill;
+  transition: width 0.6s ease;
+}
+
+@each $name, $vals in $categories {
+  .progress-bar__fill--#{$name} { background: nth($vals, 1); }
+}
+
+.progress-bar__fill--primary { background: $color-primary; }
+.progress-bar__fill--accent  { background: $color-accent; }
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.schedule-item {
+  display: flex;
+  gap: $aac-spacing-12;
+  align-items: flex-start;
+  padding: $aac-spacing-10 0;
+  border-bottom: 1px solid $color-border;
+
+  &:last-child { border-bottom: none; }
+}
+
+.schedule-item__time {
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-black;
+  color: $color-text-ghost;
+  width: 44px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.schedule-item__content {}
+
+.schedule-item__label {
+  font-size: $aac-font-size-sm;
+  font-weight: $aac-font-weight-semi;
+  color: $color-text-mid;
+  margin-bottom: $aac-spacing-4;
+}
+
+.schedule-tag {
+  display: inline-block;
+  font-size: $aac-font-size-xs;
+  font-weight: $aac-font-weight-bold;
+  padding: $aac-spacing-2 $aac-spacing-8;
+  border-radius: $aac-spacing-6;
+  letter-spacing: $aac-letter-spacing-wide;
+}
+
+.schedule-tag--clinical { background: $cat-people-bg;      color: $cat-people-text; }
+.schedule-tag--practice { background: $cat-actions-bg;     color: $cat-actions-text; }
+.schedule-tag--social   { background: $cat-descriptors-bg; color: $cat-descriptors-text; }
+

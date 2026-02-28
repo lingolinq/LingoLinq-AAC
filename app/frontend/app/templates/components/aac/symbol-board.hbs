@@ -1,0 +1,67 @@
+{{!-- =============================================================================
+  VoiceReach AAC — Symbol Board Template
+  app/templates/components/aac/symbol-board.hbs
+============================================================================= --}}
+
+<div class="symbol-board" ...attributes>
+
+  {{!-- Quick Phrases --}}
+  <div class="quick-row" role="toolbar" aria-label="Quick phrases">
+    {{#each this.quickPhrases as |phrase|}}
+      <button
+        type="button"
+        class="quick-btn"
+        aria-label="Say: {{phrase.label}}"
+        {{on "click" (fn this.addQuickPhrase phrase)}}
+      >
+        {{phrase.emoji}} {{phrase.label}}
+      </button>
+    {{/each}}
+  </div>
+
+  {{!-- Category Filter --}}
+  <div class="category-row" role="tablist" aria-label="Symbol categories">
+    {{#each this.categories as |cat|}}
+      <button
+        type="button"
+        role="tab"
+        class="cat-chip {{cat.id}} {{if (eq this.activeCategory cat.id) 'active'}}"
+        aria-selected={{eq this.activeCategory cat.id}}
+        aria-controls="symbol-grid"
+        {{on "click" (fn this.selectCategory cat.id)}}
+      >
+        {{#if cat.emoji}}{{cat.emoji}} {{/if}}{{cat.label}}
+      </button>
+    {{/each}}
+  </div>
+
+  {{!-- Symbol Grid --}}
+  <div
+    id="symbol-grid"
+    class="symbol-grid"
+    role="grid"
+    aria-label="{{if (eq this.activeCategory 'all') 'All symbols' (concat this.activeCategory ' symbols')}}"
+  >
+    {{#if this.isLoading}}
+      {{!-- Loading skeletons --}}
+      {{#each (array 1 2 3 4 5 6 7 8) as |_|}}
+        <div class="symbol-card symbol-card--skeleton" aria-hidden="true"></div>
+      {{/each}}
+
+    {{else if this.hasResults}}
+      {{#each this.filteredSymbols as |symbol|}}
+        <Aac::SymbolCard
+          @symbol={{symbol}}
+          @onSelect={{this.addSymbolToPhrase}}
+        />
+      {{/each}}
+
+    {{else}}
+      <div class="symbol-grid__empty" role="status">
+        <p>No symbols found for <strong>{{this.searchQuery}}</strong></p>
+        <button type="button" {{on "click" this.clearSearch}}>Clear search</button>
+      </div>
+    {{/if}}
+  </div>
+
+</div>

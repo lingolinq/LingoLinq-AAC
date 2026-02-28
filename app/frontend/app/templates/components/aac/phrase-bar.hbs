@@ -1,0 +1,63 @@
+{{!-- =============================================================================
+  VoiceReach AAC — Phrase Bar Template
+  app/templates/components/aac/phrase-bar.hbs
+============================================================================= --}}
+
+<div class="phrase-bar" role="region" aria-label="Phrase builder" aria-live="polite">
+
+  {{!-- Token display --}}
+  <div class="phrase-bar__tokens">
+    {{#if this.hasTokens}}
+      {{#each this.tokens as |token|}}
+        <span
+          class="phrase-token phrase-token--{{token.category}}"
+          role="button"
+          tabindex="0"
+          aria-label="Remove {{token.label}}"
+          {{on "click" (fn this.removeToken token)}}
+        >
+          {{token.label}}
+          <span class="phrase-token__remove" aria-hidden="true">✕</span>
+        </span>
+      {{/each}}
+    {{else}}
+      <span class="phrase-bar__placeholder" aria-label="Phrase bar is empty">
+        Tap symbols to build your message…
+      </span>
+    {{/if}}
+  </div>
+
+  {{!-- Actions --}}
+  <div class="phrase-bar__actions">
+    {{#if this.hasTokens}}
+      <button
+        type="button"
+        class="btn-backspace"
+        aria-label="Remove last word"
+        {{on "click" this.backspace}}
+      >
+        ⌫
+      </button>
+
+      <button
+        type="button"
+        class="btn-clear"
+        aria-label="Clear all"
+        {{on "click" this.clearPhrase}}
+      >
+        ✕ Clear
+      </button>
+    {{/if}}
+
+    <button
+      type="button"
+      class="btn-speak {{if this.isSpeaking 'btn-speak--speaking'}}"
+      disabled={{and (not this.hasTokens) (not this.isSpeaking)}}
+      aria-label="Speak phrase: {{this.phraseText}}"
+      {{on "click" this.speak}}
+    >
+      {{if this.isSpeaking "🔊 Speaking…" "🔊 Speak"}}
+    </button>
+  </div>
+
+</div>
