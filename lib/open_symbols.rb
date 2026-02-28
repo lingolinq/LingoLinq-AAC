@@ -46,7 +46,6 @@ module OpenSymbols
           url,
           params: params,
           headers: { 'Authorization' => "Bearer #{token}" },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -60,7 +59,6 @@ module OpenSymbols
             url,
             params: params,
             headers: { 'Authorization' => "Bearer #{token}" },
-            ssl_verifypeer: false,
             timeout: 10
           )
         end
@@ -82,58 +80,41 @@ module OpenSymbols
       end
     end
 
-    # Get default symbols for a list of queries
-    # @param library [String] the repository key (e.g., 'opensymbols', 'mulberry')
+    # Get default symbols for a list of queries.
+    # Uses bulk /defaults endpoint for specific repos (single request) or
+    # per-word search for the 'opensymbols' meta-repo (no bulk endpoint).
+    # @param library [String] the repository key (e.g., 'opensymbols', 'arasaac')
     # @param queries [Array<String>] list of terms to search for
     # @param locale [String] locale code
     # @return [Hash] mapping of query to symbol object
     def defaults(library, queries, locale)
       return {} if queries.blank?
-      
-      token = access_token
-      return {} unless token
-      
-      url = "https://www.opensymbols.org/api/v2/repositories/#{library}/defaults"
-      
-      begin
-        response = Typhoeus.post(
-          url,
-          body: {
-            words: queries,
-            locale: locale
-          },
-          headers: { 'Authorization' => "Bearer #{token}" },
-          ssl_verifypeer: false,
-          timeout: 30
-        )
-        
-        if response.code == 401
-          clear_token_cache
-          token = generate_new_token
-          return {} unless token
-          
-          response = Typhoeus.post(
-            url,
-            body: {
-              words: queries,
-              locale: locale
-            },
-            headers: { 'Authorization' => "Bearer #{token}" },
-            ssl_verifypeer: false,
-            timeout: 30
-          )
+      library = 'opensymbols' if library == 'original'
+      words = queries.compact.reject(&:blank?)
+      return {} if words.blank?
+
+      # Map library to repo/favor params
+      repo = nil
+      favor = nil
+      case library
+      when 'opensymbols'
+        # No bulk endpoint for meta-repo; fall back to per-word search
+      when 'tawasol'
+        favor = 'tawasol'
+      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
+        repo = library
+      end
+
+      if repo
+        fetch_defaults_bulk(repo, words, locale)
+      else
+        # opensymbols or tawasol: no bulk endpoint, search each word
+        results = {}
+        words.each do |word|
+          symbols = search(word, locale: locale, repo: repo, favor: favor)
+          results[word] = symbols.first if symbols.any?
         end
-        
-        if response.success?
-          raw_results = JSON.parse(response.body) rescue {}
-          transform_defaults_results(raw_results)
-        else
-          Rails.logger.error "OpenSymbols Defaults API error: #{response.code} - #{response.body}"
-          {}
-        end
-      rescue => e
-        Rails.logger.error "OpenSymbols Defaults API exception: #{e.message}"
-        {}
+        results
       end
     end
     
@@ -143,9 +124,11 @@ module OpenSymbols
       repo = nil
       favor = nil
       
-      # Map library names to OpenSymbols repo keys
+      # Map library names to OpenSymbols repo keys.
+      # 'original' means "keep the board's original symbols" and isn't a
+      # valid repo, so treat it like 'opensymbols' (search all).
       case library
-      when 'opensymbols'
+      when 'opensymbols', 'original'
         # No specific repo, search all
       when 'tawasol'
         favor = 'tawasol'
@@ -232,7 +215,6 @@ module OpenSymbols
         response = Typhoeus.post(
           "https://www.opensymbols.org/api/v2/token",
           body: { secret: secret },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -285,6 +267,39 @@ module OpenSymbols
       end
     end
     
+    def fetch_defaults_bulk(repo, words, locale)
+      token = access_token
+      return {} unless token
+
+      url = "https://www.opensymbols.org/api/v2/repositories/#{repo}/defaults"
+      body = { words: words, allow_search: true, locale: locale }.to_json
+      headers = { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }
+
+      begin
+        response = Typhoeus.post(url, body: body, headers: headers, timeout: 10)
+
+        if response.code == 401
+          clear_token_cache
+          token = generate_new_token
+          return {} unless token
+          response = Typhoeus.post(url, body: body, headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }, timeout: 10)
+        end
+
+        if response.code == 429
+          Rails.logger.warn 'OpenSymbols API throttled'
+          return {}
+        end
+
+        return {} unless response.success?
+
+        raw = JSON.parse(response.body)
+        transform_defaults_results(raw.is_a?(Hash) ? raw : {})
+      rescue => e
+        Rails.logger.error "OpenSymbols Defaults API exception: #{e.message}"
+        {}
+      end
+    end
+
     # Transform defaults API response to LingoLinq format
     # The defaults endpoint returns {word => symbol_object}
     # We preserve the hash structure but transform each symbol_object

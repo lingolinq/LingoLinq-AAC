@@ -1,17 +1,9 @@
 @use "sass:color";
 
-/* ==========================================================================
-   APP.SCSS - STYLE REFERENCE
-   This file contains all application styles. Comments above each section
-   indicate where the selectors are applied in the project (templates, components).
-   Key files: application.hbs, index.hbs, dashboard/authenticated-view.hbs,
-   dashboard/unauthenticated-view.hbs, board templates, utterance.hbs
-   ========================================================================== */
-
-/* ==========================================================================
-   GLOBAL RESET & FONTS
-   Applied: Global (all pages)
-   ========================================================================== */
+// LingoLinq brand colors
+$brand-navy: #120380;
+$brand-teal: #4DB8C4;
+$brand-coral: #FF6B4A;
 
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
@@ -1278,14 +1270,14 @@ footer a:hover,
 .skinny_bio {
   display: none;
   .btn {
-    display: block; 
-    margin: -10px -5px 0; 
-    padding: 5px 10px; 
-    text-align: left; 
-    border-radius: 0; 
-    border-bottom: 1px solid #ccc; 
+    display: block;
+    margin: -10px -5px 0;
+    padding: 5px 10px;
+    text-align: left;
+    border-radius: 0;
+    border-bottom: 1px solid #ccc;
     font-size: 25px;
-    background-color: #49c7e8;
+    background-color: $brand-teal;
     color: #fff;
     .text-muted {
       color: #eee;
@@ -3197,21 +3189,23 @@ body.pretty_loader {
     color: rgba(255, 255, 255, 0.9) !important;
   }
 }
+// Ensure no colored borders appear outside the dashboard (e.g. speak mode boards)
+#content.with_user:not(.index) {
+  border-top: none;
+  border-bottom: none;
+}
 /* Applied in: Index route when logged in - content_class adds index + with_user */
 #content.index.with_user {
   background-color: #fff;
   border-top: none;
   border-bottom: none;
   .main_columns {
-    background-image: url('../images/orange.png');
-    background-size: 33%;
-    background-position: center;
-    background-repeat: repeat-y;
+    background-image: none;
     margin: -10px -20px;
     padding: 10px 5px;
   }
   .middle_column {
-    background: rgba(255, 255, 255, 0.8);
+    background: transparent;
     margin-left: 5px;
     margin-right: 5px;
   }
@@ -3743,6 +3737,19 @@ body.pretty_loader #loading_box {
   }
   
 }
+#new_left {
+  background: #eee;
+  margin: -10px 0 -10px -5px;
+  padding: 10px 0;
+  border-right: 1px solid #ddd;
+  height: calc(100vh - 150px);
+  overflow: auto;
+  .expand {
+    display: none;
+  }
+}
+
+
 $nav_primary: #337ab7;
 $nav_secondary: #fffbbc;
 $nav_secondary_bottom_row: #ffd7a8;
@@ -3791,18 +3798,76 @@ $nav_extras: #eee;
     color: #666;  
   }
 }
+#new_right {
+  position: relative;
+  width: 80% !important;
+  margin-right: -20px;
+  background: #fff;
+/*  overflow: auto; */
+  height: calc(100vh - 150px);
+  margin: -10px -10px -10px 10px;
+  padding: 0 0 10px 0;
+  border-left: 1px solid #ddd;
+  margin-left: 0;
+  padding-left: 10px;
+  width: calc(75% + 10px);
+  > .big_buttons {
+    overflow: auto;
+    padding-top: 10px;
+    height: calc(100vh - 150px);
+  }
+  .main {
+    margin-top: 5px;
+  }
+  .main.short_list {
+    margin-top: 50px;
+  }
+  #nav_primary {
+    border-left-color: $brand-navy;
+    background: #fff;
+    color: $brand-navy;
+    border-color: #e2e5ea;
+    border-left: 4px solid $brand-navy;
+  }
+  #nav_secondary {
+    border-color: #e2e5ea;
+    border-left: 4px solid $brand-teal;
+    background: #fff;
+  }
+  #nav_tertiary {
+    background: #fff;
+    border-color: #e2e5ea;
+    border-left: 4px solid #8b5cf6;
+    &.bottom_row {
+      border-left-color: $brand-coral;
+      background: #fff;
+    }
+    &.middle_row {
+      border-left-color: #8b5cf6;
+      background: #fff;
+    }
+  }
+  #nav_extras {
+    background: #fff;
+    border-color: #e2e5ea;
+    border-left: 4px solid #94a3b8;
+  }
+}
 /* #bento-main - Applied in: dashboard/authenticated-view.hbs - main content column of bento dashboard */
 #bento-main {
   padding-top: 16px;
 }
 
 .new_pills {
-  font-size: 20px;
+  font-size: 18px;
   li a {
-    color: #444;
-    height: 40px;
-    line-height: 18px;
+    color: rgba(255, 255, 255, 0.8);
+    height: 44px;
+    line-height: 22px;
     border-radius: 0;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    padding: 11px 18px;
   }
   li.active a, li.active a:focus {
     background: #fff;
@@ -3811,7 +3876,8 @@ $nav_extras: #eee;
     border-top-right-radius: 10px;
   }
   li:hover a {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 }
 /* Applied in: dashboard/authenticated-view.hbs - board grid items */
@@ -3955,21 +4021,29 @@ $nav_extras: #eee;
 /* Applied in: dashboard/authenticated-view.hbs - main action buttons grid */
 .big_buttons {
   .big_button_holder {
-    padding-left: 5px;
-    padding-right: 5px;
-    margin-bottom: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-bottom: 12px;
   }
   .big_button {
     width: 100%;
-    border-radius: 20px;
-    border-width: 5px;
-    font-size: 25px;
+    border-radius: 12px;
+    border: 1px solid #e2e5ea;
+    border-left: 4px solid $brand-navy;
+    font-size: 22px;
     overflow: hidden;
     padding: 20px 0;
     max-height: 300px;
     //height: 100px;
     outline: none;
     line-height: 25px;
+    background: #fff;
+    color: #2d3748;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    &:hover {
+      border-left-color: $brand-teal;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
     img {
       width: 100%;
       height: 110px;
@@ -3977,22 +4051,23 @@ $nav_extras: #eee;
       object-position: center;
       display: block;
       margin-bottom: 0px;
-      margin-top: -10px
+      margin-top: -10px;
+      opacity: 0.85;
     }
     > .glyphicon {
-      display: block; 
-      font-size: 100px; 
+      display: block;
+      font-size: 100px;
       margin-bottom: 20px;
+      color: $brand-navy;
+      opacity: 0.7;
     }
     &.middle_row {
-      border-color: #9b962e;
-      background: #fffbbc;
-      border-color: #692693; 
-      background: rgb(234, 200, 255);
+      border-left-color: #8b5cf6;
+      background: #fff;
     }
     &.bottom_row {
-      border-color: #ad7332;
-      background: #ffd7a8;
+      border-left-color: $brand-coral;
+      background: #fff;
     }
   }
   .button_row_wrap {
@@ -6466,14 +6541,13 @@ body:-ms-fullscreen {
   #content.index.with_user.new_index .main_columns {
     .col:first-child {
       border-bottom-width: 20px;
-}
-/* Applied in: dashboard/authenticated-view.hbs - nav pills in #bento-main */
-.new_pills {
+    }
+    .new_pills {
       li a {
-        color: #fff;
+        color: rgba(255, 255, 255, 0.8);
       }
       li.active a, li:focus a {
-        color: #222;
+        color: #fff;
       }
     }
   }

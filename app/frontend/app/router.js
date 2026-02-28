@@ -1,6 +1,6 @@
 import { on } from '@ember/object/evented';
-import Ember from 'ember';
 import EmberRouter from '@ember/routing/router';
+import { isTesting } from '@ember/debug';
 import config from './config/environment';
 import capabilities from './utils/capabilities';
 
@@ -26,8 +26,7 @@ const Router = EmberRouter.extend({
   
   init() {
     this._super(...arguments);
-    // Check Ember.testing at runtime to satisfy ESLint
-    if (Ember.testing) {
+    if (isTesting()) {
       this.location = 'none';
     }
   }

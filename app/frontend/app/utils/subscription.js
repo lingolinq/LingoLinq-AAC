@@ -670,6 +670,8 @@ var Subscription = EmberObject.extend({
   })
 });
 
+var update_classes_observer = observer.apply(null, obs_properties.concat([obs_func]));
+
 Subscription.reopenClass({
   obs_func: obs_func,
   obs_properties: obs_properties,

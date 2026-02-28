@@ -4,21 +4,25 @@ import $ from 'jquery';
 import { observer } from '@ember/object';
 
 export default TextField.extend({
-  becomeFocused: function() {
-    if(!capabilities.mobile || this.get('force')) {
+  becomeFocused: function () {
+    if (!capabilities.mobile || this.get('force')) {
       this.element.classList.add('auto_focus');
       $(this.element).focus().select();
     }
   }.on('didInsertElement'),
-  focusOut: function() {
-    this.sendAction();
+  focusOut: function () {
+    if (this.action) {
+      this.action();
+    }
   },
-  keyDown: function(event) {
-    if(event.keyCode == 13 || event.code == "Enter") {
+  keyDown: function (event) {
+    if (event.keyCode == 13 || event.code == "Enter") {
       event.preventDefault();
       event.stopPropagation();
-      if(this.get('select')) {
-        this.sendAction('select');
+      if (this.get('select')) {
+        if (this.select) {
+          this.select();
+        }
       }
     }
   }

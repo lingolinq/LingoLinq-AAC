@@ -578,7 +578,7 @@
       </div>
     {{/if}}
   {{else if this.model.integrationOrWebhookAction}}
-    {{#if has_supervisees}}
+    {{#if this.has_supervisees}}
       <div class="form-group">
         <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
         <div class="col-sm-10">
@@ -1231,7 +1231,7 @@
             {{t "Visibility" key="visibility"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Show Button" key="never_show_button"}}
             {{else}}
               {{t "Always Show Button" key="always_show_button"}}
@@ -1240,13 +1240,13 @@
           </div>
         </div>
       {{/if}}
-      {{#if level_overrides.link_disabled}}
+      {{#if this.level_overrides.link_disabled}}
         <div class='form-group'>
           <label class='col-sm-offset-2 col-sm-4'>
             {{t "Links" key="links"}}
           </label>
           <div class='col-sm-6'>
-            {{#if level_overrides.hidden.set_true}}
+            {{#if this.level_overrides.hidden.set_true}}
               {{t "Never Disable Link" key="never_disable_link"}}
             {{else}}
               {{t "Always Disable Link" key="always_disable_link"}}
@@ -1257,7 +1257,7 @@
       {{/if}}
       <div class='form-group'>
         <label for='hidden_level' class='col-sm-offset-2 col-sm-4'>
-          {{#if level_overrides.hidden}}
+          {{#if this.level_overrides.hidden}}
             <s>{{t "Hide Until Level" key="hide_until_level"}}</s>
           {{else}}
             {{t "Hide Until Level" key="hide_until_level"}}
@@ -1267,10 +1267,10 @@
             {{bound-select select_class="form-control" select_id="hidden_level" content=this.board_levels selection=this.model.hidden_level action=(action "updateModelHiddenLevel") }}
         </div>
       </div>
-      {{#unless model.talkAction}}
+      {{#unless this.model.talkAction}}
         <div class='form-group'>
           <label for='link_disabled_level' class='col-sm-offset-2 col-sm-4'>
-            {{#if level_overrides.link_disabled}}
+            {{#if this.level_overrides.link_disabled}}
               <s>{{t "Disable Link Until Level" key="disable_link_until_level"}}</s>
             {{else}}
               {{t "Disable Link Until Level" key="disable_link_until_level"}}

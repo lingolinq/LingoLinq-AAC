@@ -181,21 +181,21 @@ LingoLinq.Log = DS.Model.extend({
     while(date <= today) {
       var str = date.format('YYYY-MM-DD');
       var day = daily.find(finder);
-      day = day || {date: str, activity: htmlSafe('none')};
+      day = day || {date: str, activity: 'none'};
       if(day.activity_level == 1) {
-        day.activity = htmlSafe('light');
+        day.activity = 'light';
       } else if(day.activity_level == 2) {
-        day.activity = htmlSafe('light-moderate');
+        day.activity = 'light-moderate';
       } else if(day.activity_level == 3) {
-        day.activity = htmlSafe('moderate');
+        day.activity = 'moderate';
       } else if(day.activity_level == 4) {
-        day.activity = htmlSafe('moderate-active');
+        day.activity = 'moderate-active';
       } else if(day.activity_level == 5) {
-        day.activity = htmlSafe('active');
+        day.activity = 'active';
       } else if(day.active === false) {
-        day.activity = htmlSafe('light');
+        day.activity = 'light';
       } else if(day.active === true) {
-        day.activity = htmlSafe('active');
+        day.activity = 'active';
       }
       res.push(day);
       date = date.add(1, 'day');
@@ -203,7 +203,7 @@ LingoLinq.Log = DS.Model.extend({
     res = res.slice(-90);
     var pct = Math.round(1 / res.length * 1000) / 10;
     res.forEach(function(d) {
-      d.display_style = htmlSafe('width: ' + pct + '%;');
+      d.display_style_props = { width: pct + '%' };
     });
     return res;
   }),

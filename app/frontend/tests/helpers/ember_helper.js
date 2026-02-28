@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import Test from 'ember-testing';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import LingoLinq from '../../app';
@@ -22,7 +22,7 @@ import session from '../../utils/session';
 import buttonTracker from '../../utils/raw_events';
 import ApplicationAdapter from 'frontend/adapters/application';
 // import startApp from '../helpers/start-app';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import TestAdapter from '@ember/test/adapter';
 import { inspect } from '@ember/debug';
@@ -32,23 +32,23 @@ window.user_preferences = {"device":{"voice":{"pitch":1,"volume":1},"button_spac
 
 /**
   @class JasmineAdapter
-  @namespace Ember.Test
+  @namespace Test
   v 0.1
 */
-Ember.Test.JasmineAdapter = TestAdapter.extend({
+var JasmineAdapter = TestAdapter.extend({
   asyncRunning: false,
 
   asyncStart: function() {
-    Ember.Test.adapter.asyncRunning = true;
-    waitsFor(Ember.Test.adapter.asyncComplete);
+    testAdapter.asyncRunning = true;
+    waitsFor(function() { return testAdapter.asyncComplete(); });
   },
 
   asyncComplete: function() {
-    return !Ember.Test.adapter.asyncRunning;
+    return !testAdapter.asyncRunning;
   },
 
   asyncEnd: function() {
-    Ember.Test.adapter.asyncRunning = false;
+    testAdapter.asyncRunning = false;
   },
 
   exception: function(error) {
@@ -57,7 +57,8 @@ Ember.Test.JasmineAdapter = TestAdapter.extend({
   }
 });
 
-Ember.Test.adapter = Ember.Test.JasmineAdapter.create();
+var testAdapter = JasmineAdapter.create();
+Test.adapter = testAdapter;
 
 LingoLinq.testing = true;
 
@@ -304,7 +305,7 @@ function queue_promise(promise) {
   return defer.promise;
 }
 function wait(callback) {
-  emberRun.later(callback, 10);
+  runLater(callback, 10);
 }
 
 function easyPromise() {
@@ -425,8 +426,11 @@ ApplicationAdapter.reopen({
 
 var App;
 beforeEach(function() {
-  stub(session, 'reload', function() {
-    session.reloaded = true;
+  if (!LingoLinq.session) {
+    LingoLinq.session = EmberObject.create({});
+  }
+  stub(LingoLinq.session, 'reload', function() {
+    LingoLinq.session.reloaded = true;
   });
   LingoLinq.ignore_filesystem = true;
   capabilities.dbman = capabilities.dbman || capabilities.original_dbman;
@@ -441,7 +445,9 @@ beforeEach(function() {
   persistence.known_missing = null;
   persistence.sync_actions = null;
   stashes.set('online', true);
-  app_state.reset();
+  if (app_state.reset) {
+    app_state.reset();
+  }
   LingoLinq.store = this.owner && this.owner.lookup('service:store');
   LingoLinq.all_wait = false;
 });

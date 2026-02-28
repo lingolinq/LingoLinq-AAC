@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Route from '@ember/routing/route';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
@@ -564,9 +564,6 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
-    if(transition.to_route === 'board.index' || transition.to_route === 'board') {
-      console.log('[BOARD-DEBUG] app-state global_transition', { to_route: transition.to_route, from_route: transition.from_route });
-    }
     var route = this.get('route');
     var from_url = null;
     if(route && typeof route.get === 'function') {
@@ -769,7 +766,6 @@ export default Service.extend({
     }
   },
   jump_to_board: function(new_state, old_state) {
-    console.log('[BOARD-DEBUG] app-state.jump_to_board entry', { newKey: new_state && new_state.key, source: new_state && new_state.source, oldKey: old_state && old_state.key });
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -822,9 +818,7 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          console.log('[BOARD-DEBUG] app-state calling router.transitionTo', { route: 'board', key: new_state.key });
           router.transitionTo('board', new_state.key);
-          console.log('[BOARD-DEBUG] app-state router.transitionTo returned (async transition started)');
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -839,16 +833,11 @@ export default Service.extend({
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
         var currentKey = _this.get('currentBoardState.key');
-        if(check.attempts <= 3 || check.attempts % 5 === 0 || check.attempts > 18) {
-          console.log('[BOARD-DEBUG] app-state check attempt', check.attempts, { currentKey: currentKey, expectedKey: new_state.key, match: currentKey === new_state.key });
-        }
         if(currentKey == new_state.key) {
-          console.log('[BOARD-DEBUG] app-state currentBoardState matched, resolving');
           buttonTracker.transitioning = false;
           resolve();
         } else {
           if(check.attempts > 20) {
-            console.warn('[BOARD-DEBUG] app-state check timeout after 20 attempts', { currentKey: currentKey, expectedKey: new_state.key });
             buttonTracker.transitioning = false;
             reject({error: 'not loaded'});
           } else {
@@ -2352,7 +2341,7 @@ export default Service.extend({
         }
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
-        capabilities.fullscreen(false);
+        var fullscreenPromise = capabilities.fullscreen(false);
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
@@ -2377,6 +2366,25 @@ export default Service.extend({
           this.stashes.persist('referenced_speak_mode_user_id', null);
           if(LingoLinq.Board) {
             LingoLinq.Board.clear_fast_html();
+          }
+          // Schedule a re-render after fullscreen exit so layout reflects the new
+          // viewport. capabilities.fullscreen(false) returns a promise that resolves
+          // once we're out of fullscreen; we use runNext after that to allow one
+          // layout frame before processButtons.
+          var _controller = editManager.controller;
+          var doProcessButtons = function() {
+            runNext(function() {
+              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
+                _controller.processButtons();
+              }
+            });
+          };
+          if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {
+            fullscreenPromise.then(doProcessButtons, function() {
+              runLater(doProcessButtons, 200);
+            });
+          } else {
+            runLater(doProcessButtons, 600);
           }
         }
       }
@@ -2993,7 +3001,7 @@ export default Service.extend({
     }
   }),
   testing: computed(function() {
-    return Ember.testing;
+    return isTesting();
   }),
   logging_paused: computed('stashes.logging_paused_at', function() {
     return !!this.stashes.get('logging_paused_at');

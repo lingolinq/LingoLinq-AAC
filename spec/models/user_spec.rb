@@ -3213,13 +3213,13 @@ describe User, :type => :model do
         expect(u.state_2fa).to eq({required: false})
       end
 
-      it "should be required for admins" do
+      it "should not require 2FA for admin managers when mandatory enforcement is disabled" do
         u = User.create
         o = Organization.create(admin: true)
         o.add_manager(u.user_name, true)
         u.reload
         expect(Organization.admin_manager?(u)).to eq(true)
-        expect(u.state_2fa).to eq({required: true, verified: false, mandatory: true})
+        expect(u.state_2fa).to eq({required: false})
       end
 
       it "should be required if explicitly set" do

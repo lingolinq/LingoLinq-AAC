@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Service from '@ember/service';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -374,7 +374,7 @@ var persistence = Service.extend({
       if(_this.stashes.get('allow_local_filesystem_request') == false) {
         capabilities.storage.already_limited_size = true;      
       }
-      if(_this.stashes.get_object('just_logged_in', false) && _this.stashes.get('auth_settings') && !Ember.testing) {
+      if(_this.stashes.get_object('just_logged_in', false) && _this.stashes.get('auth_settings') && !isTesting()) {
         _this.stashes.persist_object('just_logged_in', null, false);
         runLater(function() {
           _this.check_for_needs_sync(true);
@@ -3931,7 +3931,7 @@ var persistence = Service.extend({
       if(_this.stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
       // if last 2 sync attempts failed, last_sync_at should be set to prevent repeated attempts
       var synced = _this.get('last_sync_at') || 0;
-      var syncable = _this.get('online') && !Ember.testing && !_this.get('syncing');
+      var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
       // default to checking every 5 minutes
       var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
       interval = interval + (0.2 * interval * Math.random()); // jitter
@@ -3940,7 +3940,7 @@ var persistence = Service.extend({
         syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
       }
       var now = (new Date()).getTime() / 1000;
-      if(!Ember.testing && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+      if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
         // on mobile, don't auto-sync until 30 seconds after bootup, unless it's never been synced
         // NOTE: the db is keyed to the user, so you'll always have a user-specific last_sync_at
         return false;
@@ -3992,7 +3992,7 @@ var persistence = Service.extend({
             _this.set('last_sync_stamp_check', (new Date()).getTime());
             // TODO: if error implies no connection, consider marking as offline and checking for stamp more frequently
             if(err && err.result && err.result.invalid_token) {
-              if(_this.stashes && _this.stashes.get && _this.stashes.get('auth_settings') && !Ember.testing) {
+              if(_this.stashes && _this.stashes.get && _this.stashes.get('auth_settings') && !isTesting()) {
                 if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
                   LingoLinq.session.check_token(false);
                 }
@@ -4031,7 +4031,7 @@ var persistence = Service.extend({
       var synced = _this.get('last_sync_at') || 0;
       var now = (new Date()).getTime() / 1000;
       // if we haven't synced in 14 days, remind to sync
-      if(synced > 0 && (now - synced) > (14 * 24 * 60 * 60) && !Ember.testing) {
+      if(synced > 0 && (now - synced) > (14 * 24 * 60 * 60) && !isTesting()) {
         _this.set('sync_reminder', true);
       } else {
         _this.set('sync_reminder', false);

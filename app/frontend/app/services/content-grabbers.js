@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
@@ -1543,6 +1543,9 @@ var pictureGrabber = EmberObject.extend({
 var videoGrabber = EmberObject.extend({
   setup: function(controller) {
     var _this = this;
+    if (!controller || controller.isDestroyed || controller.isDestroying) {
+      return;
+    }
     this.controller = controller;
     _this.controller.addObserver('video_preview', _this, _this.default_video_preview_license);
   },
@@ -2218,13 +2221,13 @@ var soundGrabber = EmberObject.extend({
     }
     if(action == 'start' && mr && mr.state == 'inactive') {
       var _this = this;
-      var delay = Ember.testing ? 0 : 500;
+      var delay = isTesting() ? 0 : 500;
       var start = function() {
         _this.controller.set('sound_recording.blob', null);
         _this.controller.set('sound_recording.recording', true);
         mr.start(60000);
       };
-      if(Ember.testing) {
+      if(isTesting()) {
         start();
       } else {
         runLater(start, 500);

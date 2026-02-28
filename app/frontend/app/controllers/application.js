@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Controller from '@ember/controller';
+import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
@@ -68,7 +68,7 @@ export default Controller.extend({
     }
   },
   updateTitle: function(str) {
-    if(!Ember.testing) {
+    if(!isTesting()) {
       if(str) {
         document.title = str + " - " + LingoLinq.app_name;
       } else {
@@ -439,15 +439,6 @@ export default Controller.extend({
         }
       }
     },
-    speakMenuSelect: function(event) {
-      var modalService = this.modalService || this.get && this.get('modalService');
-      if (modalService && modalService.get('currentTemplate') === 'speak-menu') {
-        var component = modalService.get('currentComponent');
-        if (component && typeof component.send === 'function') {
-          component.send('button_event', 'speakMenuSelect', event && event.button_id, event);
-        }
-      }
-    },
     toggle_home_lock: function() {
       this.appState.toggle_home_lock();
     },
@@ -533,7 +524,6 @@ export default Controller.extend({
       }
     },
     jump: function(path, source, board) {
-      console.log('[BOARD-DEBUG] application.jump', { path: path, source: source, boardId: board && board.id, boardKey: board && board.key });
       if(this.stashes.get('sticky_board') && this.appState.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else {
@@ -1270,7 +1260,7 @@ export default Controller.extend({
       done = true;
       _this._activateButtonWithOptions(button, options);
     };
-    var timeout = runLater(runActivation, 1500);
+    var timeout = runLater(runActivation, 300);
     p.then(function() {
       runCancel(timeout);
       runActivation();
@@ -1358,9 +1348,9 @@ export default Controller.extend({
     _this.appState.activate_button(button, obj);
   },
   background_class: computed(
-    'this.appState.speak_mode',
-    'this.appState.currentUser.preferences.board_background',
-    'this.appState.currentUser.preferences.dim_header',
+    'appState.speak_mode',
+    'appState.currentUser.preferences.board_background',
+    'appState.currentUser.preferences.dim_header',
     'board.model.dim_header',
     function() {
       var res = "";
@@ -1384,8 +1374,8 @@ export default Controller.extend({
     utterance.set_and_say_buttons(buttons);
   },
   few_supervisees: computed(
-    'this.appState.currentUser.supervisees',
-    'this.appState.currentBoardState.key',
+    'appState.currentUser.supervisees',
+    'appState.currentBoardState.key',
     function() {
       var max_to_show = 2;
       var sups = this.appState.get('currentUser.supervisees') || [];
@@ -1433,7 +1423,6 @@ export default Controller.extend({
     }
   },
   jumpToBoard: function(new_state, old_state) {
-    console.log('[BOARD-DEBUG] application.jumpToBoard', { key: new_state && new_state.key, oldKey: old_state && old_state.key });
     this.appState.jump_to_board(new_state, old_state);
   },
   backOneBoard: function(opts) {
@@ -1603,11 +1592,11 @@ export default Controller.extend({
     return res;
   }),
   content_class: computed(
-    'this.appState.sidebar_visible',
-    'this.appState.index_view',
-    'this.appState.current_route',
+    'appState.sidebar_visible',
+    'appState.index_view',
+    'appState.current_route',
     'session.isAuthenticated',
-    'this.appState.currentUser.preferences.new_index',
+    'appState.currentUser.preferences.new_index',
     function() {
       var res = "";
       if(this.appState.get('sidebar_visible')) {

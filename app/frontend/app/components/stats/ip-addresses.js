@@ -26,7 +26,9 @@ export default Component.extend({
   }),
   actions: {
     filter: function(ip) {
-      this.sendAction('filter', 'location', ip.id);
+      if (this.filter) {
+        this.filter('location', ip.id);
+      }
     }
   }
 });

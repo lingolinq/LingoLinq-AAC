@@ -65,70 +65,72 @@ LingoLinq::Application.routes.draw do
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
-  # Skip Rack::Offline during build (assets:precompile, extras:copy_terms) since
-  # asset_path requires precompiled assets which don't exist yet.
+  # Skip Rack::Offline when assets aren't available (workers, cron jobs, build steps).
+  # ENV guard provides explicit skip; rescue catches any remaining cases.
   unless ENV['SKIP_OFFLINE_MANIFEST']
-    # if Rails.env.production?
-    offline = Rack::Offline.configure :cache_interval => 120 do
-      cache ActionController::Base.helpers.asset_path("application.css")
-      cache ActionController::Base.helpers.asset_path("application.js")
-      cache "/fonts/glyphicons-halflings-regular.eot"
-      cache "/fonts/glyphicons-halflings-regular.svg"
-      cache "/fonts/glyphicons-halflings-regular.ttf"
-      cache "/fonts/glyphicons-halflings-regular.woff"
-      cache "/fonts/OpenDyslexicAlta-Regular.otf"
-      cache "/fonts/ArchitectsDaughter.ttf"
-      cache "/images/star.png"
-      cache "/images/logo-small.png"
-      cache "/images/logo-big.png"
-      cache "/images/star_gray.png"
-      cache "/images/folder.png"
-      cache "/images/folder_home.png"
-      cache "/images/folder_integration.png"
-      cache "/images/spinner.gif"
-      cache "/images/talk.png"
-      cache "/images/link.png"
-      cache "/images/video.svg"
-      cache "/images/app.png"
-      cache "/images/orange.png"
-      cache "/images/preview.png"
-      cache "/images/stats.png"
-      cache "/images/microphone.svg"
-      cache "/images/upload.svg"
-      cache "/images/camera.svg"
-      cache "/images/delete.svg"
-      cache "/images/square.svg"
-      cache "/images/modeling_ideas.svg"
-      cache "/images/bar_chart.svg"
-      cache "/images/eye.svg"
-      cache "/images/cursor.png"
-      cache "/images/extras.svg"
-      cache "/images/blank.gif"
-      cache "/images/cc.png"
-      cache "/images/pd.png"
-      cache "/images/unknown_action.png"
-      cache "/images/settings.png"
-      cache "/images/jquery.minicolors.png"
-      cache "/images/web_version.svg"
-      cache "/images/ios_app_store.svg"
-      cache "/images/google_play.png"
-      cache "/images/amazon.png"
-      cache "/images/faces.png"
-      cache "/images/clock.png"
-      cache "/images/error.png"
-      cache "/images/check.png"
-      cache "/images/action.png"
-      cache "/offline"
-      # cache other assets
+    begin
+      offline = Rack::Offline.configure :cache_interval => 120 do
+        cache ActionController::Base.helpers.asset_path("application.css")
+        cache ActionController::Base.helpers.asset_path("application.js")
+        cache "/fonts/glyphicons-halflings-regular.eot"
+        cache "/fonts/glyphicons-halflings-regular.svg"
+        cache "/fonts/glyphicons-halflings-regular.ttf"
+        cache "/fonts/glyphicons-halflings-regular.woff"
+        cache "/fonts/OpenDyslexicAlta-Regular.otf"
+        cache "/fonts/ArchitectsDaughter.ttf"
+        cache "/images/star.png"
+        cache "/images/logo-small.png"
+        cache "/images/logo-big.png"
+        cache "/images/star_gray.png"
+        cache "/images/folder.png"
+        cache "/images/folder_home.png"
+        cache "/images/folder_integration.png"
+        cache "/images/spinner.gif"
+        cache "/images/talk.png"
+        cache "/images/link.png"
+        cache "/images/video.svg"
+        cache "/images/app.png"
+        cache "/images/orange.png"
+        cache "/images/preview.png"
+        cache "/images/stats.png"
+        cache "/images/microphone.svg"
+        cache "/images/upload.svg"
+        cache "/images/camera.svg"
+        cache "/images/delete.svg"
+        cache "/images/square.svg"
+        cache "/images/modeling_ideas.svg"
+        cache "/images/bar_chart.svg"
+        cache "/images/eye.svg"
+        cache "/images/cursor.png"
+        cache "/images/extras.svg"
+        cache "/images/blank.gif"
+        cache "/images/cc.png"
+        cache "/images/pd.png"
+        cache "/images/unknown_action.png"
+        cache "/images/settings.png"
+        cache "/images/jquery.minicolors.png"
+        cache "/images/web_version.svg"
+        cache "/images/ios_app_store.svg"
+        cache "/images/google_play.png"
+        cache "/images/amazon.png"
+        cache "/images/faces.png"
+        cache "/images/clock.png"
+        cache "/images/error.png"
+        cache "/images/check.png"
+        cache "/images/action.png"
+        cache "/offline"
+        # cache other assets
 
-      fallback({"/" => "/offline"})
-      fallback({"/oauth2/" => "/404"})
-      fallback({"/api/" => "/offline.json"})
+        fallback({"/" => "/offline"})
+        fallback({"/oauth2/" => "/404"})
+        fallback({"/api/" => "/offline.json"})
 
-      network "*"  
+        network "*"
+      end
+      get "/application.manifest" => offline
+    rescue Sprockets::Rails::Helper::AssetNotFound
+      Rails.logger.warn 'Skipping offline manifest route: assets not available (expected for workers/cron jobs)'
     end
-    get "/application.manifest" => offline  
-    # end
   end
   
   get 'profile' => ember_handler

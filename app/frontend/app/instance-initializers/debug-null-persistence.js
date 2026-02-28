@@ -6,7 +6,7 @@
  * board.js using _this.persistence). Remove this file after confirming the
  * error is gone.
  */
-import Ember from 'ember';
+import { getOnerror, setOnerror } from '@ember/-internals/error-handling';
 
 export default {
   name: 'debug-null-persistence',
@@ -21,15 +21,15 @@ export default {
     }
 
     // Ember catches run-loop errors first; hook in so we see the tag
-    if (typeof Ember !== 'undefined' && Ember.onerror) {
-      var prevEmberOnerror = Ember.onerror;
-      Ember.onerror = function(error) {
+    var prevEmberOnerror = getOnerror();
+    if (prevEmberOnerror) {
+      setOnerror(function(error) {
         var msg = (error && error.message) || String(error);
         if (isPersistenceNullError(msg)) {
           logPersistenceNullError(msg, error);
         }
         return prevEmberOnerror ? prevEmberOnerror.call(this, error) : false;
-      };
+      });
     }
 
     if (typeof window !== 'undefined') {

@@ -193,7 +193,9 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.12 with Ember Data for models
+**Framework:** Ember.js 3.28 with Ember Data for models
+
+**jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 
 **Offline Support:** IndexedDB (web) or SQLite (mobile) via `dbman.js` abstraction layer
 
@@ -255,6 +257,15 @@ rake extras:desktop
 - **All other strings:** ALWAYS use single quotes `'string'`
 - This convention is CRITICAL - i18n generator depends on it
 
+**Deprecations:**
+- NEVER suppress or hide deprecations. Fix the root cause instead.
+- Do not use `registerDeprecationHandler` to silence warnings.
+- When addressing Ember deprecations, migrate to the recommended APIs (e.g. `observer()` instead of `.observes()`, `isTesting()` from `@ember/debug` instead of `Ember.testing`).
+
+**Functionality and styling:**
+- Do NOT remove or change functionality when refactoring.
+- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
+
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
 - Templates: `{{t "displayed text" key='translation_key'}}`
@@ -287,19 +298,14 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js (managed via nvm):
-  - Default: Node 20 (for newer tools, deployment)
-  - Frontend: Node 18 (for Ember 3.12)
-  - Automatic switching configured via `.nvmrc` files
+- Node.js 20 (managed via nvm)
 - Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
 **Node Version Management:**
-- Root `/.nvmrc`: Node 20 (default)
-- `app/frontend/.nvmrc`: Node 18 (Ember requirement)
-- `foreman start` automatically handles version switching in Procfile
-- For manual work: `cd app/frontend && nvm use` to switch to Node 18
+- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 20
+- `bin/ember-server` uses nvm to ensure Node 20 for the frontend dev server
 
 **Environment variables:**
 - Copy `.env.example` to `.env`
