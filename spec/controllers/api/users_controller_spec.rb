@@ -2608,6 +2608,16 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "GET ws_settings" do
+    before do
+      @orig_verifier = ENV['LLWEBSOCKET_SHARED_VERIFIER']
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = 'test_websocket_verifier'
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = @orig_verifier
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       get 'ws_settings', params: {user_id: ''}
       assert_missing_token
@@ -2741,6 +2751,16 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "GET ws_lookup" do
+    before do
+      @orig_verifier = ENV['LLWEBSOCKET_SHARED_VERIFIER']
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = 'test_websocket_verifier'
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = @orig_verifier
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       get 'ws_lookup', params: {user_id: ''}
       assert_missing_token
@@ -2824,6 +2844,13 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "POST ws_encrypt" do
+    before do
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       post 'ws_encrypt', params: {user_id: 'whatever'}
       assert_missing_token
@@ -2857,6 +2884,13 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "POST ws_decrypt" do
+    before do
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       post 'ws_decrypt', params: {user_id: 'whatever'}
       assert_missing_token
