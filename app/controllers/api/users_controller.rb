@@ -69,8 +69,13 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
+    return api_error(400, {error: 'text required'}) if params['text'].blank?
     str, iv = params['text'].split(/\$/)
-    user_id, text = GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2) rescue nil
+    user_id, text = begin
+      GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && text
     return api_error(400, {error: 'user_id mismatch'}) unless user_id == user.global_id
     render json: {decoded: text, user_id: user.global_id}    
@@ -78,9 +83,13 @@ class Api::UsersController < ApplicationController
 
   def ws_lookup
     obfuscated_user_id = params['user_id']
-    return api_error(400, {error: 'user_id required'}) unless !obfuscated_user_id.blank?
+    return api_error(400, {error: 'user_id required'}) if obfuscated_user_id.blank?
     str, iv = obfuscated_user_id.sub(/^me\$/, '').split(/\$/)
-    user_id, device_id = GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./) rescue nil
+    user_id, device_id = begin
+      GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && device_id
     user = User.find_by_path(user_id)
     return unless exists?(user, user_id)
