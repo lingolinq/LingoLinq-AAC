@@ -129,10 +129,16 @@ import app_state from './app_state';
   capabilities.device_id = function() {
     var device_id = extras.get_stashes().get_raw('lingolinqDeviceId');
     if(!device_id) {
-      // http://cordova.apache.org/docs/en/6.x/reference/cordova-plugin-device/index.html#deviceuuid
-      device_id = (window.device && window.device.uuid) || ((new Date()).getTime() + Math.random()).toString();
-      var readable = capabilities.readable_device_name;
-      device_id = device_id + " " + readable;
+      // Try to migrate from legacy device id key, if present, to preserve continuity
+      var legacy_device_id = extras.get_stashes().get_raw('coughDropDeviceId');
+      if(legacy_device_id) {
+        device_id = legacy_device_id;
+      } else {
+        // http://cordova.apache.org/docs/en/6.x/reference/cordova-plugin-device/index.html#deviceuuid
+        device_id = (window.device && window.device.uuid) || ((new Date()).getTime() + Math.random()).toString();
+        var readable = capabilities.readable_device_name;
+        device_id = device_id + " " + readable;
+      }
     }
     extras.get_stashes().persist_raw('lingolinqDeviceId', device_id);
     return device_id;
