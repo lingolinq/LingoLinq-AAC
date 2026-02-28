@@ -2608,6 +2608,16 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "GET ws_settings" do
+    before do
+      @orig_verifier = ENV['LLWEBSOCKET_SHARED_VERIFIER']
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = 'test_websocket_verifier'
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = @orig_verifier
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       get 'ws_settings', params: {user_id: ''}
       assert_missing_token
@@ -2636,7 +2646,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
       expect(json['supervisees']).to eq(nil)
     end
 
@@ -2652,7 +2662,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
       expect(json['supervisees'].length).to eq(1)
       expect(json['supervisees'][0]['user_id']).to eq(u.global_id)
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
@@ -2674,7 +2684,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
       expect(json['supervisees']).to eq(nil)
     end
 
@@ -2693,7 +2703,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
       expect(json['supervisees']).to eq(nil)
     end
 
@@ -2714,7 +2724,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
       expect(json['supervisees'].length).to eq(1)
       expect(json['supervisees'][0]['user_id']).to eq(u2.global_id)
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
@@ -2730,7 +2740,7 @@ describe Api::UsersController, :type => :controller do
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
-      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30])
+      expect(code).to eq(GoSecure.sha512("#{json['ws_user_id']}:#{json['my_device_id']}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30])
 
       get 'ws_settings', params: {user_id: 'self'}
       json2 = assert_success_json
@@ -2741,6 +2751,16 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "GET ws_lookup" do
+    before do
+      @orig_verifier = ENV['LLWEBSOCKET_SHARED_VERIFIER']
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = 'test_websocket_verifier'
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_SHARED_VERIFIER'] = @orig_verifier
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       get 'ws_lookup', params: {user_id: ''}
       assert_missing_token
@@ -2760,7 +2780,7 @@ describe Api::UsersController, :type => :controller do
 
     it 'should error on invalid user_id' do
       token_user
-      str = GoSecure.encrypt("bad_user.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("bad_user.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: str}
       assert_not_found('bad_user')
     end
@@ -2768,7 +2788,7 @@ describe Api::UsersController, :type => :controller do
     it 'should require authorization' do
       token_user
       u = User.create
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: str}
       assert_unauthorized
     end
@@ -2777,7 +2797,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(u, @user)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: str}
       json = assert_success_json
       expect(json['user_id']).to eq(u.global_id)
@@ -2790,7 +2810,7 @@ describe Api::UsersController, :type => :controller do
       u = User.create
       o = Organization.create(:admin => true, :settings => {'total_licenses' => 1})
       o.add_manager(u.user_name, true)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: str}
       json = assert_success_json
       expect(json['user_id']).to eq(u.global_id)
@@ -2802,7 +2822,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: str}
       json = assert_success_json
       expect(json['user_id']).to eq(u.global_id)
@@ -2814,7 +2834,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       get 'ws_lookup', params: {user_id: "me$#{str}"}
       json = assert_success_json
       expect(json['user_id']).to eq(u.global_id)
@@ -2824,6 +2844,13 @@ describe Api::UsersController, :type => :controller do
   end
 
   describe "POST ws_encrypt" do
+    before do
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       post 'ws_encrypt', params: {user_id: 'whatever'}
       assert_missing_token
@@ -2850,13 +2877,20 @@ describe Api::UsersController, :type => :controller do
       json = assert_success_json
       expect(json['user_id']).to eq(u.global_id)
       str, iv = json['encoded'].split(/\$/)
-      user_id, text = GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
+      user_id, text = GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
       expect(user_id).to eq(u.global_id)
       expect(text).to eq("something cool")
     end
   end
 
   describe "POST ws_decrypt" do
+    before do
+      @orig_key = ENV['LLWEBSOCKET_ENCRYPTION_KEY']
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = 'test_websocket_encryption_key'
+    end
+    after do
+      ENV['LLWEBSOCKET_ENCRYPTION_KEY'] = @orig_key
+    end
     it 'should require authentication' do
       post 'ws_decrypt', params: {user_id: 'whatever'}
       assert_missing_token
@@ -2879,7 +2913,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      str = GoSecure.encrypt("bad_user.bacon", 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("bad_user.bacon", 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       post 'ws_decrypt', params: {user_id: u.global_id, text: str}
       assert_error('user_id mismatch')
     end
@@ -2888,7 +2922,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       post 'ws_decrypt', params: {user_id: u.global_id, text: str}
       json = assert_success_json
       expect(json['decoded']).to eq('bacon')
@@ -2898,7 +2932,7 @@ describe Api::UsersController, :type => :controller do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u)
-      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+      str = GoSecure.encrypt("#{u.global_id}.bacon", 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
       post 'ws_decrypt', params: {user_id: u.global_id, text: "aasdsf"}
       assert_error('invalid decryption')
     end

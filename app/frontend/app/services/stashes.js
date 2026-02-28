@@ -31,7 +31,7 @@ export default Service.extend({
 
   setup: function() {
     this.memory_stash = memory_stash;
-    this.prefix = 'cdStash-';
+    this.prefix = 'lingolinqStash-';
     try {
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);
@@ -351,10 +351,15 @@ export default Service.extend({
   },
 
   get_db_key: function(persist) {
-    var key = this.get_raw('cd_db_key');
+    var key = this.get_raw('ll_db_key');
+    // Migration: fall back to legacy key for existing users
+    if(!key) { key = this.get_raw('cd_db_key'); }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
-      this.persist_raw('cd_db_key', key);
+      this.persist_raw('ll_db_key', key);
+      if(this.get_raw('cd_db_key')) {
+        try { localStorage.removeItem('cd_db_key'); } catch(e) { }
+      }
     }
     return key
   },

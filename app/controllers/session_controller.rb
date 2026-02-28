@@ -598,7 +598,7 @@ class SessionController < ApplicationController
           avatar_image_url: (valid ? @api_user.generated_avatar_url : nil),
           scopes: device && device.permission_scopes,
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations,
         }
         if params['2fa_code']
@@ -664,7 +664,7 @@ class SessionController < ApplicationController
         json = {
           authenticated: false, 
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations
         }
       end
@@ -680,7 +680,7 @@ class SessionController < ApplicationController
         error: error_message,
         error_status: error_status,
         sale: nil,
-        ws_url: ENV['CDWEBSOCKET_URL'],
+        ws_url: ENV['LLWEBSOCKET_URL'],
         global_integrations: []
       }
     end

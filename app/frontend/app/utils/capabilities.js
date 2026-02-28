@@ -2399,7 +2399,7 @@ var capabilities;
   };
   capabilities.delete_database = function() {
     return capabilities.dbman.delete_database(capabilities.db_name).then(function() {
-      stashes.persist_raw('cd_db_key', '');
+      stashes.persist_raw('ll_db_key', '');
       stashes.db_settings(capabilities);
     });
   };

@@ -22,7 +22,7 @@ if(!window.stashes || typeof window.stashes.get !== 'function') {
   window.stashes = {
     // Safe placeholder properties
     memory_stash: memory_stash,
-    prefix: 'cdStash-',
+    prefix: 'lingolinqStash-',
     auth_settings: null,
     enabled: false,
     online: navigator.onLine !== false,
@@ -86,7 +86,7 @@ var stashes = EmberObject.extend({
   },
   setup: function() {
     stashes.memory_stash = memory_stash;
-    stashes.prefix = 'cdStash-';
+    stashes.prefix = 'lingolinqStash-';
     try {
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);
@@ -354,10 +354,15 @@ var stashes = EmberObject.extend({
     }
   },
   get_db_key: function(persist) {
-    var key = stashes.get_raw('cd_db_key');
+    var key = stashes.get_raw('ll_db_key');
+    // Migration: fall back to legacy key for existing users
+    if(!key) { key = stashes.get_raw('cd_db_key'); }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
-      stashes.persist_raw('cd_db_key', key);
+      stashes.persist_raw('ll_db_key', key);
+      if(stashes.get_raw('cd_db_key')) {
+        try { localStorage.removeItem('cd_db_key'); } catch(e) { }
+      }
     }
     return key
   },

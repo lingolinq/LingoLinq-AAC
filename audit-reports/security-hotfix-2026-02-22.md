@@ -56,7 +56,7 @@
 | SEC-033 | ssl | spec/**/*.rb | - | 30+ test expectations codify `ssl_verifypeer: false` behavior | Update tests when fixing SSL-001..004 |
 | SEC-034 | ssl | render.yaml | - | No `healthCheckPath` configured for web service | Add `healthCheckPath: /api/v1/health` |
 | SEC-035 | ssl | render.yaml / database.yml | - | No explicit `sslmode` for PostgreSQL connection | Add `?sslmode=require` to DATABASE_URL |
-| SEC-036 | ssl | session_controller.rb | 601 | `CDWEBSOCKET_URL` not validated for `wss://` protocol | Add server-side `wss://` validation |
+| SEC-036 | ssl | session_controller.rb | 601 | `LLWEBSOCKET_URL` not validated for `wss://` protocol | Add server-side `wss://` validation |
 | SEC-037 | cve | app/frontend/package.json | 63 | ember-cli-update ^0.48.2 in dependencies — should be devDependencies | Move to devDependencies |
 | SEC-038 | cve | app/frontend (npm) | - | @babel/runtime < 7.26.10 — RegExp complexity (CVSS 6.2) | Requires ember-cli upgrade |
 | SEC-039 | cve | app/frontend (npm) | - | ajv < 6.12.3 — prototype pollution + ReDoS | Requires ember-cli upgrade |
@@ -137,7 +137,7 @@
 
 ### Days 4-5 — Medium priority and hardening
 
-- [ ] **SEC-036**: Validate CDWEBSOCKET_URL for `wss://`
+- [ ] **SEC-036**: Validate LLWEBSOCKET_URL for `wss://`
 - [ ] **SEC-043**: Require `https://` for webhook callbacks
 - [ ] **SEC-027**: Remove Bower; replace moment/bootstrap with modern alternatives
 - [ ] **SEC-046..048**: Remove rack-offline, update ttfunk/pdf-core

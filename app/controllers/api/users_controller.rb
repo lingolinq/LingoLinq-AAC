@@ -61,7 +61,7 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
-    str = GoSecure.encrypt("#{params['user_id']}.#{params['text']}", 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+    str = GoSecure.encrypt("#{params['user_id']}.#{params['text']}", 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
     render json: {encoded: str, user_id: user.global_id}
   end
 
@@ -69,8 +69,13 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
+    return api_error(400, {error: 'text required'}) if params['text'].blank?
     str, iv = params['text'].split(/\$/)
-    user_id, text = GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2) rescue nil
+    user_id, text = begin
+      GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && text
     return api_error(400, {error: 'user_id mismatch'}) unless user_id == user.global_id
     render json: {decoded: text, user_id: user.global_id}    
@@ -78,9 +83,13 @@ class Api::UsersController < ApplicationController
 
   def ws_lookup
     obfuscated_user_id = params['user_id']
-    return api_error(400, {error: 'user_id required'}) unless !obfuscated_user_id.blank?
+    return api_error(400, {error: 'user_id required'}) if obfuscated_user_id.blank?
     str, iv = obfuscated_user_id.sub(/^me\$/, '').split(/\$/)
-    user_id, device_id = GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).split(/\./) rescue nil
+    user_id, device_id = begin
+      GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && device_id
     user = User.find_by_path(user_id)
     return unless exists?(user, user_id)
@@ -111,14 +120,14 @@ class Api::UsersController < ApplicationController
     # We manually set the IV so that device_id remains consistent across 
     # page reloads, and doesn't imply multiple devices to the websocket service
     iv = Digest::SHA2.hexdigest("user_settings_iv_for_" + (@token || @api_user.global_id))[0, 16]
-    device_id = GoSecure.encrypt("#{@api_user.global_id}.#{@api_device_id}", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY'], iv).map(&:strip).join('$')
+    device_id = GoSecure.encrypt("#{@api_user.global_id}.#{@api_device_id}", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY'], iv).map(&:strip).join('$')
     ts = Time.now.to_i
     if user.global_id == @api_user.global_id
       res[:my_device_id] = "me$#{device_id}"
     else
       res[:my_device_id] = device_id
     end
-    code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30]
+    code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
     res[:verifier] = "#{code}:#{ts}"
     if user.supporter_role?
       sups = user.supervisees
@@ -131,7 +140,7 @@ class Api::UsersController < ApplicationController
           }
           if user.global_id == @api_user.global_id
             sup[:my_device_id] = device_id
-            code = GoSecure.sha512("#{ws_user_id}:#{device_id}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30]
+            code = GoSecure.sha512("#{ws_user_id}:#{device_id}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
             sup[:verifier] = "#{code}:#{ts}"
           end
           sup
