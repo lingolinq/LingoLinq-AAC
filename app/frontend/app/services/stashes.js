@@ -352,9 +352,14 @@ export default Service.extend({
 
   get_db_key: function(persist) {
     var key = this.get_raw('ll_db_key');
+    // Migration: fall back to legacy key for existing users
+    if(!key) { key = this.get_raw('cd_db_key'); }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
       this.persist_raw('ll_db_key', key);
+      if(this.get_raw('cd_db_key')) {
+        try { localStorage.removeItem('cd_db_key'); } catch(e) { }
+      }
     }
     return key
   },
