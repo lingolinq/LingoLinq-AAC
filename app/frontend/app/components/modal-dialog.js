@@ -20,13 +20,12 @@ export default Component.extend({
       
       // Accessibility: Focus first tabbable element or the modal itself
       runLater(() => {
-        if (this.element) {
-          const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
-          if (tabbable.length > 0) {
-            tabbable[0].focus();
-          } else {
-            $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
-          }
+        if (this.isDestroyed || this.isDestroying || !this.element) { return; }
+        const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
+        if (tabbable.length > 0) {
+          tabbable[0].focus();
+        } else {
+          $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
         }
       }, 100);
     }
@@ -48,6 +47,7 @@ export default Component.extend({
   },
   
   keyDown(event) {
+    if (this.isDestroyed || this.isDestroying || !this.element) { return; }
     // Escape key
     if (event.keyCode === 27) {
       if (this.get('uncloseable')) { return; }

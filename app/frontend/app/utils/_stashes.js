@@ -22,7 +22,7 @@ if(!window.stashes || typeof window.stashes.get !== 'function') {
   window.stashes = {
     // Safe placeholder properties
     memory_stash: memory_stash,
-    prefix: 'cdStash-',
+    prefix: 'lingolinqStash-',
     auth_settings: null,
     enabled: false,
     online: navigator.onLine !== false,
@@ -86,7 +86,7 @@ var stashes = EmberObject.extend({
   },
   setup: function() {
     stashes.memory_stash = memory_stash;
-    stashes.prefix = 'cdStash-';
+    stashes.prefix = 'lingolinqStash-';
     try {
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);

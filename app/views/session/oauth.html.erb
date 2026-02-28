@@ -135,7 +135,7 @@
   
   var auth = null;
   try {
-    auth = JSON.parse(localStorage['cdStash-auth_settings']);
+    auth = JSON.parse(localStorage['lingolinqStash-auth_settings']);
     <% if @access_token %>
       auth = <%= {access_token: @access_token, user_name: @user_name}.to_json.html_safe %>;
     <% end %>

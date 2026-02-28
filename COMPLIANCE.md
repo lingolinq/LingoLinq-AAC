@@ -529,7 +529,7 @@ Full scan report: `audit-reports/security-hotfix-2026-02-22.md`
 | High | Replace sassc-rails with dartsass-rails (archived Oct 2025) | No security patches for build tool | Q1 2026 |
 | High | Replace legacy `s3` gem with `aws-sdk-s3` | Unmaintained dependency | Q1 2026 |
 | Medium | Add `sslmode=require` to PostgreSQL connection | DB traffic could theoretically be unencrypted | Q1 2026 |
-| Medium | Validate `CDWEBSOCKET_URL` for `wss://` protocol | Misconfiguration could expose WebSocket traffic | Q1 2026 |
+| Medium | Validate `LLWEBSOCKET_URL` for `wss://` protocol | Misconfiguration could expose WebSocket traffic | Q1 2026 |
 | Medium | Require `https://` for webhook callbacks | Webhook payloads could be sent over HTTP | Q1 2026 |
 | Low | Audit CoughDrop-era gems (go_secure, permissable-coughdrop, boy_band) | Limited community security review | Q2 2026 |
 | Ongoing | Ember → React incremental migration | Resolves ~180 build-time npm vulnerabilities permanently | 2026 |
