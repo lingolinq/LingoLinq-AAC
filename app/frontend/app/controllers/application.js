@@ -379,6 +379,10 @@ export default Controller.extend({
     closeForSchoolsNav: function() {
       this.set('forSchoolsNavOpen', false);
     },
+    showFeatures: function() {
+      this.set('forSchoolsNavOpen', false);
+      modal.open('fs-features-modal');
+    },
     goToStackedSpaces: function() {
       this.set('showThemePicker', false);
       this.router.transitionTo('stacked-spaces');

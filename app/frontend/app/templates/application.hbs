@@ -707,19 +707,19 @@
               <span class="for-schools-nav-hamburger__bar"></span>
             </button>
             <nav class="for-schools-nav for-schools-nav--desktop" aria-label={{t "Main" key="main"}}>
-              <a href="#features" class="for-schools-nav__link">{{t "Features" key="for_schools_footer_features"}}</a>
-              <LinkTo @route="for-schools" class="for-schools-nav__link">{{t "For Schools" key="for_schools_nav_for_schools"}}</LinkTo>
+              <a href="#" class="for-schools-nav__link" {{action "showFeatures"}}>{{t "Features" key="for_schools_footer_features"}}</a>
               <LinkTo @route="pricing" class="for-schools-nav__link">{{t "Pricing" key="for_schools_footer_pricing"}}</LinkTo>
               <LinkTo @route="about" class="for-schools-nav__link">{{t "About" key="about"}}</LinkTo>
+              <LinkTo @route="for-schools-alt" class="for-schools-nav__compare-link">{{t "Compact Layout →" key="for_schools_alt_view_link"}}</LinkTo>
               <LinkTo @route="register" class="for-schools-nav__cta">{{t "Get Started Free" key="for_schools_get_started_free"}}</LinkTo>
             </nav>
             <div class="for-schools-nav-drawer" role="dialog" aria-label={{t "Main" key="main"}} aria-hidden={{unless this.forSchoolsNavOpen "true"}}>
               <div class="for-schools-nav-drawer__backdrop" {{action "closeForSchoolsNav"}} role="button" aria-label={{t "Close" key="close"}}></div>
               <div class="for-schools-nav-drawer__panel">
-                <a href="#features" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "Features" key="for_schools_footer_features"}}</a>
-                <LinkTo @route="for-schools" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "For Schools" key="for_schools_nav_for_schools"}}</LinkTo>
+                <a href="#" class="for-schools-nav-drawer__link" {{action "showFeatures"}}>{{t "Features" key="for_schools_footer_features"}}</a>
                 <LinkTo @route="pricing" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "Pricing" key="for_schools_footer_pricing"}}</LinkTo>
                 <LinkTo @route="about" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "About" key="about"}}</LinkTo>
+                <LinkTo @route="for-schools-alt" class="for-schools-nav-drawer__compare-link" {{action "closeForSchoolsNav"}}>{{t "Compact Layout →" key="for_schools_alt_view_link"}}</LinkTo>
                 <LinkTo @route="register" class="for-schools-nav-drawer__cta" {{action "closeForSchoolsNav"}}>{{t "Get Started Free" key="for_schools_get_started_free"}}</LinkTo>
               </div>
             </div>

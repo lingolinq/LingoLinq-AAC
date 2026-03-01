@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="chatGrad" cx="42%" cy="35%" r="65%">
+      <stop offset="0%"   stop-color="#eaf2fb"/>
+      <stop offset="100%" stop-color="#7eb8e0"/>
+    </radialGradient>
+  </defs>
+  <!-- Bubble body -->
+  <path
+    d="M18,8 L82,8 Q92,8 92,18 L92,58 Q92,68 82,68 L54,68 L42,88 L38,68 L18,68 Q8,68 8,58 L8,18 Q8,8 18,8 Z"
+    fill="url(#chatGrad)"
+  />
+</svg>

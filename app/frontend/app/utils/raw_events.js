@@ -412,6 +412,11 @@ var buttonTracker = EmberObject.extend({
         return;
       }
 
+      // allow for-schools nav links to propagate so Ember actions run
+      if($(event.target).closest('.for-schools-nav, .for-schools-nav-drawer__panel, .for-schools-nav-hamburger').length > 0) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       // if no recent mouseup or touchend, then we can assume

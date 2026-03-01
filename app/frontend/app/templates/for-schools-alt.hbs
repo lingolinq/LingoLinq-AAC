@@ -11,10 +11,9 @@
       <LinkTo @route="index" class="fsa-logo">Lingo<span>Linq</span></LinkTo>
 
       <div class="fsa-topbar-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
-        <a href="#fsa-features" class="fsa-topbar-link" role="menuitem">{{t "Features" key='fsa_nav_features'}}</a>
-        <a href="#fsa-stats"    class="fsa-topbar-link" role="menuitem">{{t "Impact"   key='fsa_nav_impact'}}</a>
-        <a href="#fsa-cta"      class="fsa-topbar-link" role="menuitem">{{t "Pricing"  key='fsa_nav_pricing'}}</a>
-        <a href="#fsa-footer"   class="fsa-topbar-link" role="menuitem">{{t "Company"  key='fsa_nav_company'}}</a>
+        <a href="#" class="fsa-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+        <LinkTo @route="pricing" class="fsa-topbar-link" role="menuitem">{{t "Pricing"  key='fsa_nav_pricing'}}</LinkTo>
+        <LinkTo @route="about" class="fsa-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
       </div>
 
       <div class="fsa-topbar-right">
@@ -22,46 +21,6 @@
         <LinkTo @route="register" class="fsa-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
       </div>
     </nav>
-
-    {{!-- ======== SIDEBAR ======== --}}
-    <aside class="fsa-sidebar" role="navigation" aria-label={{t "Sections" key='fsa_sections'}}>
-
-      <div class="fsa-sidebar-label">{{t "On this page" key='fsa_on_this_page'}}</div>
-
-      <a href="#fsa-hero"     class="fsa-nav-item fsa-active" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">🚀</span>{{t "Overview" key='fsa_nav_overview'}}
-      </a>
-      <a href="#fsa-stats" class="fsa-nav-item" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">📈</span>{{t "Impact" key='fsa_nav_impact'}}
-      </a>
-      <a href="#fsa-features" class="fsa-nav-item" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">✨</span>{{t "Features" key='fsa_features_label'}}
-      </a>
-      <a href="#fsa-demo"  class="fsa-nav-item" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">🖥️</span>{{t "Live Demo" key='fsa_nav_demo'}}
-      </a>
-      <a href="#fsa-testimonial" class="fsa-nav-item" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">💬</span>{{t "Testimonial" key='fsa_nav_testimonial'}}
-      </a>
-      <a href="#fsa-cta"  class="fsa-nav-item" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">🎯</span>{{t "Get Started" key='fsa_nav_get_started'}}
-      </a>
-
-      <div class="fsa-sidebar-label fsa-sidebar-label--lower">{{t "Quick links" key='fsa_quick_links'}}</div>
-
-      <a href="https://github.com/LingoLinq" class="fsa-nav-item" target="_blank" rel="noopener noreferrer" role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">🔓</span>{{t "Open Source" key='fsa_open_source'}}
-      </a>
-      <a href="#" class="fsa-nav-item" {{action "support"}} role="menuitem">
-        <span class="fsa-nav-icon" aria-hidden="true">🆘</span>{{t "Help Center" key='fsa_help_center'}}
-      </a>
-
-      <div class="fsa-sidebar-badges">
-        <span class="fsa-badge fsa-badge--wcag">{{t "WCAG 2.1 AA" key='fsa_wcag_badge'}}</span>
-        <span class="fsa-badge fsa-badge--oss">{{t "Open Source" key='fsa_oss_badge'}}</span>
-      </div>
-
-    </aside>
 
     {{!-- ======== MAIN CONTENT ======== --}}
     <main class="fsa-main" id="fsa-main" role="main">
@@ -75,7 +34,23 @@
               {{t "for" key='for_lower'}} <span class="fsa-hero-highlight">{{t "every student" key='for_schools_hero_highlight'}}</span>
             </h1>
           </div>
-          <p class="fsa-hero-subtitle">{{t "LingoLinq is the AI-powered AAC platform that gives students a voice, saves therapists hours each week, and gives districts the management tools they've been asking for. Cloud-based. Open source. Built for real classrooms." key='for_schools_hero_subtitle'}}</p>
+          <p class="fsa-hero-subtitle">
+            {{t "LingoLinq is the AI-powered AAC platform that gives students a voice, saves therapists hours each week, and gives districts the management tools they've been asking for." key='for_schools_hero_subtitle_main'}}
+          </p>
+          <div class="fsa-hero-badges">
+            <div class="fsa-hero-badge">
+              <span class="fsa-hero-badge-icon fsa-hero-badge-icon--cloud" aria-hidden="true">☁</span>
+              <span class="fsa-hero-badge-label">{{t "Cloud-based" key='for_schools_hero_cloud'}}</span>
+            </div>
+            <div class="fsa-hero-badge">
+              <span class="fsa-hero-badge-icon fsa-hero-badge-icon--oss" aria-hidden="true">&lt;/&gt;</span>
+              <span class="fsa-hero-badge-label">{{t "Open source" key='for_schools_hero_oss'}}</span>
+            </div>
+            <div class="fsa-hero-badge">
+              <span class="fsa-hero-badge-icon fsa-hero-badge-icon--school" aria-hidden="true">🏫</span>
+              <span class="fsa-hero-badge-label">{{t "Built for real classrooms" key='for_schools_hero_classrooms'}}</span>
+            </div>
+          </div>
           <div class="fsa-hero-actions">
             <LinkTo @route="register" class="fsa-btn fsa-btn--primary">{{t "Try LingoLinq Free" key='for_schools_try_free'}} →</LinkTo>
             <a href="#fsa-demo" class="fsa-btn fsa-btn--ghost">{{t "Watch Demo" key='for_schools_watch_demo'}}</a>
@@ -149,8 +124,8 @@
       {{!-- ── Features ── --}}
       <section id="fsa-features" class="fsa-section">
         <div class="fsa-section-header">
-          <div class="fsa-section-eyebrow">{{t "Why LingoLinq" key='for_schools_why_label'}}</div>
-          <h2 class="fsa-section-title">{{t "Built for how schools actually work" key='for_schools_features_title'}}</h2>
+          <span class="fsa-section-eyebrow-badge">{{t "Why LingoLinq" key='for_schools_why_label'}}</span>
+          <h2 class="fsa-section-title">{{t "Built for how schools" key='for_schools_features_title_1'}} <em>{{t "actually" key='for_schools_features_title_em'}}</em> {{t "work" key='for_schools_features_title_2'}}</h2>
           <p class="fsa-section-subtitle">{{t "Traditional AAC tools weren't designed for modern classrooms. We built LingoLinq from the ground up for the cloud era." key='for_schools_features_subtitle'}}</p>
         </div>
         <div class="fsa-feature-grid">
@@ -187,11 +162,52 @@
         </div>
       </section>
 
-      {{!-- ── A11y note ── --}}
-      <div class="fsa-a11y-bar">
-        <span class="fsa-a11y-icon" aria-hidden="true">♿</span>
-        <p><strong>{{t "Accessibility-first design." key='accessibility_first'}}</strong> {{t "This site meets WCAG 2.1 AA standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website. Need accommodations?" key='for_schools_a11y_note'}} <a href="#" {{action "support"}}>{{t "Let us know." key='for_schools_a11y_let_us_know'}}</a></p>
-      </div>
+      {{!-- ── Details Row ── --}}
+      <section class="fsa-details-row">
+
+        {{!-- 1. Accessibility first --}}
+        <div class="fsa-details-card fsa-details-card--a11y">
+          <span class="fsa-details-eyebrow"><span class="fsa-details-eyebrow-icon" aria-hidden="true">♿</span> {{t "Accessibility-first design" key='accessibility_first'}}</span>
+          <p>{{t "This site meets" key='for_schools_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='for_schools_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website. Need accommodations?" key='for_schools_a11y_standards'}} <a href="#" {{action "support"}}>{{t "Let us know." key='for_schools_a11y_let_us_know'}}</a></p>
+        </div>
+
+        {{!-- 2. Included in every plan --}}
+        <div class="fsa-details-card fsa-details-card--plan">
+          <span class="fsa-details-eyebrow"><span class="fsa-details-eyebrow-icon" aria-hidden="true">✦</span> {{t "Included in every plan" key='fsa_included_plan'}}</span>
+          <ul class="fsa-checklist">
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "AI board generation" key='fsa_check_ai'}}</li>
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "10+ language support" key='fsa_check_langs'}}</li>
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "Family companion access" key='fsa_check_family'}}</li>
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "IEP-ready analytics" key='fsa_check_iep'}}</li>
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "Works offline" key='fsa_check_offline'}}</li>
+            <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</li>
+          </ul>
+        </div>
+
+        {{!-- 3. What educators say --}}
+        <div id="fsa-testimonial" class="fsa-details-card fsa-details-card--testimonial">
+          <span class="fsa-details-eyebrow"><span class="fsa-details-eyebrow-icon" aria-hidden="true">💬</span> {{t "What educators say" key='fsa_what_educators_say'}}</span>
+          <blockquote class="fsa-testimonial-quote">
+            "{{t "LingoLinq changed how our entire district approaches AAC. The AI board generation alone saved our team dozens of hours in the first month, and the families love being able to access boards at home without buying expensive apps." key='for_schools_testimonial'}}"
+          </blockquote>
+          <div class="fsa-testimonial-author">{{t "Sarah Chen, M.S., CCC-SLP" key='for_schools_testimonial_author'}}</div>
+          <div class="fsa-testimonial-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key='for_schools_testimonial_role'}}</div>
+        </div>
+
+        {{!-- 4. Ready to start? --}}
+        <div id="fsa-cta" class="fsa-details-card fsa-details-card--cta">
+          <div class="fsa-details-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</div>
+          <h3 class="fsa-cta-title">{{t "Give every student a voice" key='for_schools_cta_title'}}</h3>
+          <p class="fsa-cta-body">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='for_schools_cta_subtitle'}}</p>
+          <div class="fsa-cta-actions">
+            <LinkTo @route="register" class="fsa-btn fsa-btn--primary fsa-btn--full">{{t "Start Free Today" key='for_schools_cta_start'}}</LinkTo>
+            <LinkTo @route="contact" class="fsa-btn fsa-btn--outline fsa-btn--full">{{t "Schedule a District Demo" key='for_schools_cta_demo'}}</LinkTo>
+          </div>
+        </div>
+
+      </section>
+
+      <hr class="fsa-divider" aria-hidden="true">
 
       {{!-- ── Footer ── --}}
       <footer id="fsa-footer" class="fsa-footer">
@@ -199,7 +215,7 @@
           <div class="fsa-footer-brand">
             <LinkTo @route="index" class="fsa-footer-logo">
               <img src={{path "images/logo-big.png"}} alt="" class="fsa-footer-logo-img" aria-hidden="true">
-              <span class="fsa-footer-logo-text">{{t "%app_name%" key='app_name'}}</span>
+              Lingo<span>Linq</span>
             </LinkTo>
             <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key='for_schools_footer_tagline'}}</p>
           </div>
@@ -235,45 +251,6 @@
       </footer>
 
     </main>
-
-    {{!-- ======== RIGHT PANEL ======== --}}
-    <aside class="fsa-panel" role="complementary" aria-label={{t "Testimonial and CTA" key='fsa_panel_label'}}>
-
-      {{!-- Testimonial --}}
-      <div id="fsa-testimonial" class="fsa-panel-card fsa-panel-card--testimonial">
-        <div class="fsa-panel-card-eyebrow">{{t "What educators say" key='fsa_what_educators_say'}}</div>
-        <blockquote class="fsa-testimonial-quote">
-          "{{t "LingoLinq changed how our entire district approaches AAC. The AI board generation alone saved our team dozens of hours in the first month, and the families love being able to access boards at home without buying expensive apps." key='for_schools_testimonial'}}"
-        </blockquote>
-        <div class="fsa-testimonial-author">{{t "Sarah Chen, M.S., CCC-SLP" key='for_schools_testimonial_author'}}</div>
-        <div class="fsa-testimonial-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key='for_schools_testimonial_role'}}</div>
-      </div>
-
-      {{!-- CTA card --}}
-      <div id="fsa-cta" class="fsa-panel-card fsa-panel-card--cta">
-        <div class="fsa-panel-card-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</div>
-        <h3 class="fsa-cta-title">{{t "Give every student a voice" key='for_schools_cta_title'}}</h3>
-        <p class="fsa-cta-body">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='for_schools_cta_subtitle'}}</p>
-        <div class="fsa-cta-actions">
-          <LinkTo @route="register" class="fsa-btn fsa-btn--primary fsa-btn--full">{{t "Start Free Today" key='for_schools_cta_start'}}</LinkTo>
-          <LinkTo @route="contact" class="fsa-btn fsa-btn--outline fsa-btn--full">{{t "Schedule a District Demo" key='for_schools_cta_demo'}}</LinkTo>
-        </div>
-      </div>
-
-      {{!-- Quick feature checklist --}}
-      <div class="fsa-panel-card">
-        <div class="fsa-panel-card-eyebrow">{{t "Included in every plan" key='fsa_included_plan'}}</div>
-        <ul class="fsa-checklist">
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "AI board generation" key='fsa_check_ai'}}</li>
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "10+ language support" key='fsa_check_langs'}}</li>
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "Family companion access" key='fsa_check_family'}}</li>
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "IEP-ready analytics" key='fsa_check_iep'}}</li>
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "Works offline" key='fsa_check_offline'}}</li>
-          <li><span class="fsa-check" aria-hidden="true">✓</span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</li>
-        </ul>
-      </div>
-
-    </aside>
 
   </div>
 </div>
