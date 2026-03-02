@@ -2093,8 +2093,8 @@ export default Service.extend({
     });
     return res;
   }),
-  index_or_for_schools_view: computed('index_view', 'current_route', function() {
-    return this.get('index_view') || this.get('current_route') === 'for-schools' || this.get('current_route') === 'stacked-spaces';
+  index_or_landing_view: computed('index_view', 'current_route', function() {
+    return this.get('index_view') || this.get('current_route') === 'landing' || this.get('current_route') === 'stacked-spaces';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -3896,7 +3896,7 @@ export default Service.extend({
       var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
       if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
       var base = rootURL + 'images/';
-      var faviconHref = base + 'logo-big.png?v=2';
+      var faviconHref = base + 'logo-big-blue-gold.png?v=3';
       for (var i = 0; i < links.length; i++) {
         var href = links[i].getAttribute('href') || '';
         if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('favicon-cool-blue') !== -1 || href.indexOf('logo-big') !== -1) {

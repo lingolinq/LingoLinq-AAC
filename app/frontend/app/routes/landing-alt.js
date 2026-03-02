@@ -7,7 +7,7 @@ export default Route.extend({
     window.scrollTo(0, 0);
     var controller = this.controllerFor('application');
     if(controller && controller.updateTitle) {
-      controller.updateTitle(i18n.t('for_schools_alt', "Scot's Design — Modern"));
+      controller.updateTitle(i18n.t('landing_alt', "Scot's Design — Modern"));
     }
   }
 });

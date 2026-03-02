@@ -42,7 +42,8 @@ export default Controller.extend({
     return name === 'stacked-spaces' || current === 'stacked-spaces';
   }),
 
-  forSchoolsNavOpen: false,
+  landingNavOpen: false,
+  useAltLanding: false,
 
   init() {
     this._super(...arguments);
@@ -373,15 +374,18 @@ export default Controller.extend({
     closeThemePicker: function() {
       this.set('showThemePicker', false);
     },
-    toggleForSchoolsNav: function() {
-      this.set('forSchoolsNavOpen', !this.get('forSchoolsNavOpen'));
+    toggleLandingNav: function() {
+      this.set('landingNavOpen', !this.get('landingNavOpen'));
     },
-    closeForSchoolsNav: function() {
-      this.set('forSchoolsNavOpen', false);
+    closeLandingNav: function() {
+      this.set('landingNavOpen', false);
     },
     showFeatures: function() {
-      this.set('forSchoolsNavOpen', false);
-      modal.open('fs-features-modal');
+      this.set('landingNavOpen', false);
+      modal.open('landing-features-modal');
+    },
+    toggleAltLanding: function() {
+      this.toggleProperty('useAltLanding');
     },
     goToStackedSpaces: function() {
       this.set('showThemePicker', false);
@@ -1607,7 +1611,7 @@ export default Controller.extend({
         res = res + "with_sidebar ";
       }
       var route = this.appState.get('current_route');
-      if(this.appState.get('index_view') || route === 'for-schools' || route === 'stacked-spaces') {
+      if(this.appState.get('index_view') || route === 'landing' || route === 'stacked-spaces') {
         res = res + "index ";
       }
       if(this.get('session.isAuthenticated')) {
@@ -1624,8 +1628,8 @@ export default Controller.extend({
       if(route === 'stacked-spaces') {
         res = res + "stacked_spaces ";
       }
-      if(route === 'for-schools') {
-        res = res + "for_schools ";
+      if(route === 'landing') {
+        res = res + "landing ";
       }
       return res;
     }
@@ -1647,9 +1651,9 @@ export default Controller.extend({
     }
   ),
   /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
-  showBentoPageWithFooter: computed('footer', 'appState.index_or_for_schools_view', 'appState.current_route', function() {
+  showBentoPageWithFooter: computed('footer', 'appState.index_or_landing_view', 'appState.current_route', function() {
     return this.get('footer') &&
-      this.appState.get('index_or_for_schools_view') &&
-      this.appState.get('current_route') !== 'for-schools';
+      this.appState.get('index_or_landing_view') &&
+      this.appState.get('current_route') !== 'landing';
   })
 });

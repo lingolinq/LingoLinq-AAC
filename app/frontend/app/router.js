@@ -47,8 +47,8 @@ Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
   this.route('about', { path: '/about' });
-  this.route('for-schools', { path: '/for-schools' });
-  this.route('for-schools-alt', { path: '/for-schools-alt' });
+  this.route('landing', { path: '/landing' });
+  this.route('landing-alt', { path: '/landing-alt' });
   this.route('stacked-spaces', { path: '/stacked-spaces' });
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });

@@ -1,15 +1,15 @@
-import Controller from '@ember/controller';
+import Component from '@ember/component';
 import modal from '../utils/modal';
 
-export default Controller.extend({
+export default Component.extend({
+  tagName: '',
   activeFont: null,
-
   actions: {
     support() {
       // placeholder for support/help action
     },
     showFeatures() {
-      modal.open('la-features-modal');
+      modal.open('landing-features-modal');
     },
     toggleFont(fontName) {
       var _this = this;

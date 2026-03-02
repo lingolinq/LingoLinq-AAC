@@ -709,7 +709,7 @@ Subscription.reopenClass({
       if(window.StripeCheckout && window.stripe_public_key) {
         Subscription.handler = window.StripeCheckout.configure({
           key: window.stripe_public_key,
-          image: '/images/logo-big.png',
+          image: '/images/logo-big-blue-gold.png',
           opened: function() {
           },
           closed: function() {

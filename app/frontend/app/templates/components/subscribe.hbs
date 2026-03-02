@@ -3,7 +3,7 @@
     <button type="button" class="subscribe-trial-btn" {{action "really_subscription_skip"}}>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
     <div class="subscribe-modal-header__title-wrap">
       {{#unless this.model.user.really_expired}}
-        <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/logo-big.png")}} class="subscribe-modal-header__logo" alt="">
+        <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} class="subscribe-modal-header__logo" alt="">
       {{/unless}}
       {{#if this.model.user.really_expired}}
         <h3>{{t "Purchase Update" key="subscription_update"}}</h3>

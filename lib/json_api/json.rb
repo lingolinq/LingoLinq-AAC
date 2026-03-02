@@ -116,7 +116,7 @@ module JsonApi::Json
       'settings' => {
         'app_name' => ENV['APP_NAME'] || "LingoLinq",
         'company_name' => ENV['COMPANY_NAME'] || "Someone",
-        'logo_url' => "/images/logo-big.png",
+        'logo_url' => "/images/logo-big-blue-gold.png",
         'ios_store_url' => ENV['IOS_STORE_URL'],
         'play_store_url' => ENV['PLAY_STORE_URL'],
         'kindle_store_url' => ENV['KINDLE_STORE_URL'],

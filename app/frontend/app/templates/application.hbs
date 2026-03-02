@@ -1,6 +1,6 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_for_schools_view "index-or-for-schools-view"}} {{if (is-equal this.app_state.current_route "for-schools") "for-schools-route"}} {{if (is-equal this.app_state.current_route "stacked-spaces") "stacked-spaces-route"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "for-schools-alt") "for-schools-alt-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.coolBlueMode) "bento-cool-blue-mode-active"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}} {{if (is-equal this.app_state.current_route "stacked-spaces") "stacked-spaces-route"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.coolBlueMode) "bento-cool-blue-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-<header class="{{this.header_class}} {{if (and this.app_state.index_or_for_schools_view this.app_state.currentUser) "header-index-with-dark-toggle"}}">
+<header class="{{this.header_class}} {{if (and this.app_state.index_or_landing_view this.app_state.currentUser) "header-index-with-dark-toggle"}} {{unless this.session.isAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
     <span id="speak">
@@ -61,7 +61,7 @@
         {{#unless this.app_state.button_list}}
           {{#if this.app_state.embedded}}
             <div style='float: left; margin: 5px; opacity: 0.7;'>
-              <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq" style='width: 20px;'>
+              <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} alt="LingoLinq" style='width: 20px;'>
               {{t "Powered by %app_name%" key="powered_by_app"}}
             </div>
           {{else if this.app_state.currentUser.preferences.blank_status}}
@@ -175,7 +175,7 @@
       {{#unless this.app_state.speak_mode}}
         {{#unless this.app_state.edit_mode}}
           {{#unless this.app_state.embedded}}
-            {{#unless this.app_state.index_or_for_schools_view}}
+            {{#unless this.app_state.index_or_landing_view}}
               <span style='float: right;' class='not_pretty_skinny'>
                 <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
               </span>
@@ -185,8 +185,8 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser.single_org.image_url}}
-      {{#if this.app_state.index_or_for_schools_view}}
-        {{#unless (is-equal this.app_state.current_route "for-schools")}}
+      {{#if this.app_state.index_or_landing_view}}
+        {{#unless (is-equal this.app_state.current_route "landing")}}
           <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} onerror="this.style.display='none';">
         {{/unless}}
       {{/if}}
@@ -196,13 +196,11 @@
       <span class="nav-header__brand">
         <a href="#" {{action "index"}} class="nav-header__logo-link">
           <span class="nav-header__logo">
-            <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
+            <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} alt="LingoLinq">
           </span>
         </a>
         <a href="#" {{action "index"}} class="nav-header__app-name-link">
-          <span class="nav-header__app-name">
-            {{t "%app_name%" key="app_name"}}
-          </span>
+          <span class="nav-header__app-name"><span class="nav-header__app-name-primary">Lingo</span> <span class="nav-header__app-name-accent">Linq</span></span>
         </a>
       </span>
     </h1>
@@ -247,8 +245,8 @@
         </span>
       {{/unless}}
     {{else if this.app_state.currentUser.single_org}}
-      {{#unless this.app_state.index_or_for_schools_view}}
-        {{#unless (is-equal this.app_state.current_route "for-schools")}}
+      {{#unless this.app_state.index_or_landing_view}}
+        {{#unless (is-equal this.app_state.current_route "landing")}}
           <div id='org_name'>
             {{this.app_state.currentUser.single_org.name}}
             <span class="nav-header__org-sep" aria-hidden="true"> · </span>
@@ -258,7 +256,8 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.empty_header}}
-      {{#unless (is-equal this.app_state.current_route "for-schools")}}
+      {{#if this.session.isAuthenticated}}
+      {{#unless (is-equal this.app_state.current_route "landing")}}
         {{#if (persistence-online)}}
           {{#unless this.app_state.super_no_linky}}
             {{#if this.allow_search}}
@@ -274,22 +273,21 @@
           {{/unless}}
         {{/if}}
       {{/unless}}
+      {{/if}}
     {{/if}}
     {{#unless this.session.isAuthenticated}}
       {{#unless this.app_state.installed_app}}
         {{#unless this.app_state.embedded}}
-          {{#unless this.app_state.currentBoardState}}
-            {{#unless this.app_state.no_linky}}
-              {{#if this.app_state.domain_settings.full_domain}}
-                {{#unless this.app_state.currentUser}}
-                  <div class='signup_links'>
-                    {{#link-to "register"}}<span style='color: #444;'>{{t "2-Month Trial" key="two_month_trial"}}</span>{{/link-to}}
-                    <span style='color: #aaa; padding: 0 5px;'> | </span>
-                    {{#link-to "gift_purchase"}}<span style='color: #444;'>{{t "Gift Purchase" key="gift_purchase"}}</span>{{/link-to}}
-                  </div>
-                {{/unless}}
-              {{/if}}
-            {{/unless}}
+          {{#unless this.app_state.no_linky}}
+            <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
+              <a href="#" class="la-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+              <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
+              <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
+              <a href="#" class="la-topbar-alt-link" role="menuitem" {{action "toggleAltLanding"}}>{{if this.useAltLanding (t "Classic" key='fsa_nav_classic') (t "Alt" key='fsa_nav_alt')}}</a>
+            </div>
+            <div class="la-topbar-right header-unauth-right">
+              <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
+            </div>
           {{/unless}}
         {{/unless}}
       {{/unless}}
@@ -697,41 +695,41 @@
     {{/if}}
     </span>
   {{/if}}
-    <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if (and this.app_state.index_or_for_schools_view this.app_state.currentUser) "identity-with-dark-toggle"}}">
-      {{#if (and this.app_state.index_or_for_schools_view this.app_state.currentUser)}}
-        {{#if (is-equal this.app_state.current_route "for-schools")}}
-          <span class="identity-for-schools-link-wrap identity-for-schools-link-wrap--for-schools {{if this.forSchoolsNavOpen "for-schools-nav-open"}}">
-            <button type="button" class="for-schools-nav-hamburger" aria-label={{t "Menu" key="menu"}} aria-expanded={{this.forSchoolsNavOpen}} {{action "toggleForSchoolsNav"}}>
-              <span class="for-schools-nav-hamburger__bar"></span>
-              <span class="for-schools-nav-hamburger__bar"></span>
-              <span class="for-schools-nav-hamburger__bar"></span>
+    <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if (and this.app_state.index_or_landing_view this.app_state.currentUser) "identity-with-dark-toggle"}}">
+      {{#if (and this.app_state.index_or_landing_view this.app_state.currentUser)}}
+        {{#if (is-equal this.app_state.current_route "landing")}}
+          <span class="identity-landing-link-wrap identity-landing-link-wrap--landing {{if this.landingNavOpen "landing-nav-open"}}">
+            <button type="button" class="landing-nav-hamburger" aria-label={{t "Menu" key="menu"}} aria-expanded={{this.landingNavOpen}} {{action "toggleLandingNav"}}>
+              <span class="landing-nav-hamburger__bar"></span>
+              <span class="landing-nav-hamburger__bar"></span>
+              <span class="landing-nav-hamburger__bar"></span>
             </button>
-            <nav class="for-schools-nav for-schools-nav--desktop" aria-label={{t "Main" key="main"}}>
-              <a href="#" class="for-schools-nav__link" {{action "showFeatures"}}>{{t "Features" key="for_schools_footer_features"}}</a>
-              <LinkTo @route="pricing" class="for-schools-nav__link">{{t "Pricing" key="for_schools_footer_pricing"}}</LinkTo>
-              <LinkTo @route="about" class="for-schools-nav__link">{{t "About" key="about"}}</LinkTo>
-              <LinkTo @route="for-schools-alt" class="for-schools-nav__compare-link">{{t "Compact Layout →" key="for_schools_alt_view_link"}}</LinkTo>
-              <LinkTo @route="register" class="for-schools-nav__cta">{{t "Get Started Free" key="for_schools_get_started_free"}}</LinkTo>
+            <nav class="landing-nav landing-nav--desktop" aria-label={{t "Main" key="main"}}>
+              <a href="#" class="landing-nav__link" {{action "showFeatures"}}>{{t "Features" key="landing_footer_features"}}</a>
+              <LinkTo @route="pricing" class="landing-nav__link">{{t "Pricing" key="landing_footer_pricing"}}</LinkTo>
+              <LinkTo @route="about" class="landing-nav__link">{{t "About" key="about"}}</LinkTo>
+              <LinkTo @route="landing-alt" class="landing-nav__compare-link">{{t "Modern Layout →" key="landing_alt_view_link"}}</LinkTo>
+              <LinkTo @route="register" class="landing-nav__cta">{{t "Get Started Free" key="landing_get_started_free"}}</LinkTo>
             </nav>
-            <div class="for-schools-nav-drawer" role="dialog" aria-label={{t "Main" key="main"}} aria-hidden={{unless this.forSchoolsNavOpen "true"}}>
-              <div class="for-schools-nav-drawer__backdrop" {{action "closeForSchoolsNav"}} role="button" aria-label={{t "Close" key="close"}}></div>
-              <div class="for-schools-nav-drawer__panel">
-                <a href="#" class="for-schools-nav-drawer__link" {{action "showFeatures"}}>{{t "Features" key="for_schools_footer_features"}}</a>
-                <LinkTo @route="pricing" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "Pricing" key="for_schools_footer_pricing"}}</LinkTo>
-                <LinkTo @route="about" class="for-schools-nav-drawer__link" {{action "closeForSchoolsNav"}}>{{t "About" key="about"}}</LinkTo>
-                <LinkTo @route="for-schools-alt" class="for-schools-nav-drawer__compare-link" {{action "closeForSchoolsNav"}}>{{t "Compact Layout →" key="for_schools_alt_view_link"}}</LinkTo>
-                <LinkTo @route="register" class="for-schools-nav-drawer__cta" {{action "closeForSchoolsNav"}}>{{t "Get Started Free" key="for_schools_get_started_free"}}</LinkTo>
+            <div class="landing-nav-drawer" role="dialog" aria-label={{t "Main" key="main"}} aria-hidden={{unless this.landingNavOpen "true"}}>
+              <div class="landing-nav-drawer__backdrop" {{action "closeLandingNav"}} role="button" aria-label={{t "Close" key="close"}}></div>
+              <div class="landing-nav-drawer__panel">
+                <a href="#" class="landing-nav-drawer__link" {{action "showFeatures"}}>{{t "Features" key="landing_footer_features"}}</a>
+                <LinkTo @route="pricing" class="landing-nav-drawer__link" {{action "closeLandingNav"}}>{{t "Pricing" key="landing_footer_pricing"}}</LinkTo>
+                <LinkTo @route="about" class="landing-nav-drawer__link" {{action "closeLandingNav"}}>{{t "About" key="about"}}</LinkTo>
+                <LinkTo @route="landing-alt" class="landing-nav-drawer__compare-link" {{action "closeLandingNav"}}>{{t "Modern Layout →" key="landing_alt_view_link"}}</LinkTo>
+                <LinkTo @route="register" class="landing-nav-drawer__cta" {{action "closeLandingNav"}}>{{t "Get Started Free" key="landing_get_started_free"}}</LinkTo>
               </div>
             </div>
           </span>
         {{else if (is-equal this.app_state.current_route "stacked-spaces")}}
           {{! Back arrow only in header-nav-bar below }}
         {{else}}
-          <span class="identity-for-schools-link-wrap">
-            <LinkTo @route="for-schools" class="identity-for-schools-link"><span class="glyphicon glyphicon-pencil"></span> {{t "Scot's Landing Page" key="for_schools"}}</LinkTo>
+          <span class="identity-landing-link-wrap">
+            <LinkTo @route="landing" class="identity-landing-link"><span class="glyphicon glyphicon-pencil"></span> {{t "Scot's Landing Page" key="landing"}}</LinkTo>
           </span>
         {{/if}}
-        {{#unless (is-equal this.app_state.current_route "for-schools")}}
+        {{#unless (is-equal this.app_state.current_route "landing")}}
           {{#unless this.app_state.eval_mode}}
             <a href="#" class="ll-bento-help-btn ll-bento-help-btn--nav" {{action "support"}} role="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}}>
               <span class="ll-bento-help-btn__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
@@ -778,7 +776,7 @@
         </span>
         {{/unless}}
       {{/if}}
-      {{#unless (is-equal this.app_state.current_route "for-schools")}}
+      {{#unless (is-equal this.app_state.current_route "landing")}}
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
         <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
@@ -817,23 +815,11 @@
             {{else}}
               <span class='status unread'></span>
             {{/if}}
-          {{else}}
-            <img src={{path "images/settings.png"}} style="opacity: 0.7; height: 25px; margin: -12px 3px -10px -25px;">
           {{/if}}
-          {{#if this.session.isAuthenticated}}
-            {{#unless this.app_state.currentUser.preferences.new_index}}
-              <span class="user_name">
-                {{this.app_state.currentUser.user_name}}
-              </span>
-            {{/unless}}
-          {{else}}
-            <span class="user_name">
-              {{t "Not signed in" key="not_signed_in"}}
-            </span>
-          {{/if}}
+          {{t "Sign In" key="login"}}
           <span class="caret"></span>
         </a>
-        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: inherit; text-align: left;">
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
           {{#if this.app_state.speak_mode}}
             {{#if this.app_state.currentBoardState.id}}
               {{#if this.simple_board_header}}
@@ -932,9 +918,9 @@
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.session.isAuthenticated}}
               <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
-              {{#unless this.app_state.index_or_for_schools_view}}
+              {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
@@ -948,9 +934,9 @@
                 </li>
               {{/if}}
             {{else}}
-              {{#unless this.app_state.index_or_for_schools_view}}
+              {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Dashboard" key="dashboard"}}{{/link-to}}
+                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
                 </li>
               {{/unless}}
             {{/if}}

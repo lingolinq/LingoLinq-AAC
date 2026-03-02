@@ -1,0 +1,309 @@
+{{!-- =============================================================================
+  Scot's Design — Modern Layout (landing-alt-page component)
+  Same content as landing; redesigned in the speech-page app-shell style.
+============================================================================= --}}
+
+<div class="la-wrapper {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
+  <div class="app-shell">
+
+    {{!-- ======== TOPBAR ======== --}}
+    <nav class="la-topbar" aria-label={{t "Site navigation" key='fsa_site_navigation'}}>
+      <LinkTo @route="index" class="la-logo"><img src={{path "images/logo-big-blue-gold.png"}} alt="" class="la-logo-img" aria-hidden="true">Lingo<span>Linq</span></LinkTo>
+
+      <div class="la-topbar-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
+        <a href="#" class="la-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+        <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing"  key='fsa_nav_pricing'}}</LinkTo>
+        <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
+      </div>
+
+      <div class="la-topbar-right">
+        <div class="la-font-toggles" role="group" aria-label={{t "Font options" key='fsa_font_options'}}>
+          <button
+            type="button"
+            class="la-font-toggle {{if (is-equal this.activeFont "atkinson") "la-font-toggle--active"}}"
+            aria-pressed={{if (is-equal this.activeFont "atkinson") "true" "false"}}
+            aria-label={{t "Toggle Atkinson Hyperlegible font" key='fsa_toggle_atkinson'}}
+            title={{t "Atkinson Hyperlegible" key='fsa_font_atkinson'}}
+            {{action "toggleFont" "atkinson"}}
+          >
+            <span class="la-font-toggle-letter la-font-toggle-letter--atkinson" aria-hidden="true">A</span>
+          </button>
+          <button
+            type="button"
+            class="la-font-toggle {{if (is-equal this.activeFont "lexend") "la-font-toggle--active"}}"
+            aria-pressed={{if (is-equal this.activeFont "lexend") "true" "false"}}
+            aria-label={{t "Toggle Lexend font" key='fsa_toggle_lexend'}}
+            title={{t "Lexend" key='fsa_font_lexend'}}
+            {{action "toggleFont" "lexend"}}
+          >
+            <span class="la-font-toggle-letter la-font-toggle-letter--lexend" aria-hidden="true">L</span>
+          </button>
+        </div>
+        <LinkTo @route="landing" class="la-topbar-compare-link">← {{t "Classic view" key='fsa_classic_view'}}</LinkTo>
+        <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
+        <LinkTo @route="login" class="la-topbar-login">{{t "Sign In" key='login'}}</LinkTo>
+      </div>
+    </nav>
+
+    {{!-- ======== MAIN CONTENT ======== --}}
+    <main class="la-main" id="la-main" role="main">
+
+      {{!-- ── Hero ── --}}
+      <section id="la-hero" class="la-hero-card">
+        <div class="la-hero-text">
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">
+              {{t "Communication access" key='communication_access'}}<br>
+              {{t "for" key='for_lower'}} <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
+            </h1>
+          </div>
+          <p class="la-hero-subtitle">
+            {{t "LingoLinq is an AI-powered AAC platform that gives students a voice." key='landing_hero_subtitle_line1'}}<br>
+            {{t "It saves therapists hours each week and gives districts the management tools they've been asking for." key='landing_hero_subtitle_line2'}}
+          </p>
+          <div class="la-hero-badges">
+            <div class="la-hero-badge">
+              <span class="la-hero-badge-icon la-hero-badge-icon--cloud" aria-hidden="true">☁</span>
+              <span class="la-hero-badge-label">{{t "Cloud-based" key='landing_hero_cloud'}}</span>
+            </div>
+            <div class="la-hero-badge">
+              <span class="la-hero-badge-icon la-hero-badge-icon--oss" aria-hidden="true">&lt;/&gt;</span>
+              <span class="la-hero-badge-label">{{t "Open source" key='landing_hero_oss'}}</span>
+            </div>
+            <div class="la-hero-badge">
+              <span class="la-hero-badge-icon la-hero-badge-icon--school" aria-hidden="true">🏫</span>
+              <span class="la-hero-badge-label">{{t "Built for real classrooms" key='landing_hero_classrooms'}}</span>
+            </div>
+          </div>
+          <div class="la-hero-actions">
+            <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
+            <a href="#la-demo" class="la-btn la-btn--ghost">{{t "Watch Demo" key='landing_watch_demo'}}</a>
+          </div>
+        </div>
+
+        <div class="la-hero-mockup-wrap">
+          <div class="la-floating-chip la-floating-chip--tl">
+            <div class="la-chip-icon la-chip-icon--teal">🌐</div>
+            <div>
+              <div class="la-chip-title">{{t "AI Language Support" key='landing_ai_language_support'}}</div>
+              <div class="la-chip-sub">{{t "10+ languages" key='landing_10_plus_languages'}}</div>
+            </div>
+          </div>
+
+          <div class="la-floating-chip la-floating-chip--br">
+            <div class="la-chip-icon la-chip-icon--coral">⚡</div>
+            <div>
+              <div class="la-chip-title">{{t "Setup in Minutes" key='landing_setup_minutes'}}</div>
+              <div class="la-chip-sub">{{t "No hardware needed" key='landing_no_hardware'}}</div>
+            </div>
+          </div>
+
+          <div class="la-mockup">
+            <div class="la-mockup-bar">
+              <div class="la-mockup-dot la-mockup-dot--r"></div>
+              <div class="la-mockup-dot la-mockup-dot--y"></div>
+              <div class="la-mockup-dot la-mockup-dot--g"></div>
+              <span class="la-mockup-url">app.lingolinq.org</span>
+            </div>
+            <div class="la-mockup-screen">
+              <div class="la-mockup-grid">
+                <div class="la-aac-btn la-aac-btn--c1"><span class="la-aac-icon">😊</span>feel</div>
+                <div class="la-aac-btn la-aac-btn--c2"><span class="la-aac-icon">🍎</span>eat</div>
+                <div class="la-aac-btn la-aac-btn--c3"><span class="la-aac-icon">🏠</span>go</div>
+                <div class="la-aac-btn la-aac-btn--c4"><span class="la-aac-icon">👋</span>hi</div>
+                <div class="la-aac-btn la-aac-btn--c5"><span class="la-aac-icon">❓</span>want</div>
+                <div class="la-aac-btn la-aac-btn--c6"><span class="la-aac-icon">🎮</span>play</div>
+                <div class="la-aac-btn la-aac-btn--c7"><span class="la-aac-icon">📚</span>read</div>
+                <div class="la-aac-btn la-aac-btn--c8"><span class="la-aac-icon">💬</span>more</div>
+              </div>
+              <div class="la-mockup-sentence">
+                <span class="la-mockup-sentence-text">{{t "I want to play" key='landing_mockup_sentence'}}</span>
+                <span class="la-mockup-speak">{{t "Speak" key='landing_mockup_speak'}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {{!-- ── Stats Strip ── --}}
+      <section id="la-stats" class="la-stats-strip">
+        <div class="la-stat-cell">
+          <div class="la-stat-number">{{t "100M+" key='landing_stat_100m'}}</div>
+          <div class="la-stat-label">{{t "People who could benefit from AAC" key='landing_stat_100m_label'}}</div>
+        </div>
+        <div class="la-stat-cell">
+          <div class="la-stat-number">{{t "~4M" key='landing_stat_4m'}}</div>
+          <div class="la-stat-label">{{t "Currently using AAC tools" key='landing_stat_4m_label'}}</div>
+        </div>
+        <div class="la-stat-cell">
+          <div class="la-stat-number">{{t "5-10 hrs" key='landing_stat_hours'}}</div>
+          <div class="la-stat-label">{{t "Saved per SLP per week" key='landing_stat_hours_label'}}</div>
+        </div>
+        <div class="la-stat-cell">
+          <div class="la-stat-number">{{t "90%" key='landing_stat_90'}}</div>
+          <div class="la-stat-label">{{t "Cost reduction vs. dedicated devices" key='landing_stat_90_label'}}</div>
+        </div>
+      </section>
+
+      {{!-- ── Features ── --}}
+      <section id="la-features" class="la-section">
+        <div class="la-section-header">
+          <span class="la-section-eyebrow-badge">{{t "Why LingoLinq" key='landing_why_label'}}</span>
+          <h2 class="la-section-title">{{t "Built for how schools" key='landing_features_title_1'}}<br><em>{{t "actually" key='landing_features_title_em'}}</em> {{t "work" key='landing_features_title_2'}}</h2>
+          <p class="la-section-subtitle">{{t "Traditional AAC tools weren't designed for modern classrooms. We built LingoLinq from the ground up for the cloud era." key='landing_features_subtitle'}}</p>
+        </div>
+        <div class="la-feature-grid">
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--coral">🤖</div>
+            <h3>{{t "AI-Powered Board Generation" key='landing_feature_ai_title'}}</h3>
+            <p>{{t "Create complete communication boards in minutes instead of hours." key='landing_feature_ai_desc'}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--teal">🌍</div>
+            <h3>{{t "Multilingual from Day One" key='landing_feature_multilingual_title'}}</h3>
+            <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar inflection, not just word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--navy">🏫</div>
+            <h3>{{t "District-Wide Management" key='landing_feature_district_title'}}</h3>
+            <p>{{t "Google Classroom-style dashboard for managing students, therapists, and devices across your entire district from one screen." key='landing_feature_district_desc'}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--teal">☁️</div>
+            <h3>{{t "Cloud-Native, Any Device" key='landing_feature_cloud_title'}}</h3>
+            <p>{{t "Works on tablets, phones, laptops, and smartboards. Edit boards from your desk. Students access them from anywhere." key='landing_feature_cloud_desc'}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--coral">📊</div>
+            <h3>{{t "Real Analytics for IEPs" key='landing_feature_analytics_title'}}</h3>
+            <p>{{t "Track vocabulary growth, usage patterns, and communication attempts. Generate reports that map directly to IEP goals." key='landing_feature_analytics_desc'}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--navy">👨‍👩‍👧</div>
+            <h3>{{t "Family Access Built In" key='landing_feature_family_title'}}</h3>
+            <p>{{t "Parents and caregivers get free companion access. Same boards, same vocabulary, school to home. No extra cost." key='landing_feature_family_desc'}}</p>
+          </div>
+        </div>
+      </section>
+
+      {{!-- ── Included in Every Plan ── --}}
+      <section class="la-plan-section">
+        <div class="la-plan-layout">
+          <div class="la-plan-text">
+            <span class="la-section-eyebrow-badge">{{t "Included in every plan" key='fsa_included_plan'}}</span>
+            <h2 class="la-plan-title">{{t "Everything you need," key='fsa_plan_title_1'}} <em>{{t "nothing you don't" key='fsa_plan_title_2'}}</em></h2>
+            <p class="la-plan-subtitle">{{t "Every LingoLinq plan includes robust features with options to upgrade at any time." key='fsa_plan_subtitle'}}</p>
+          </div>
+          <ul class="la-plan-grid">
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "AI board generation" key='fsa_check_ai'}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "10+ language support" key='fsa_check_langs'}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Family companion access" key='fsa_check_family'}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "IEP-ready analytics" key='fsa_check_iep'}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Works offline" key='fsa_check_offline'}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      {{!-- ── What Educators Say ── --}}
+      <section id="la-testimonial" class="la-testimonial-section">
+        <span class="la-section-eyebrow-badge">{{t "What educators say" key='fsa_what_educators_say'}}</span>
+        <blockquote class="la-testimonial-display">
+          <span class="la-testimonial-mark" aria-hidden="true">&ldquo;</span>
+          <p class="la-testimonial-display-text">{{t "LingoLinq changed how our entire district approaches AAC. The AI board generation alone saved our team dozens of hours in the first month, and the families love being able to access boards at home without buying expensive apps." key='landing_testimonial'}}</p>
+        </blockquote>
+        <div class="la-testimonial-attribution">
+          <div class="la-testimonial-author-name">{{t "Sarah Chen, M.S., CCC-SLP" key='landing_testimonial_author'}}</div>
+          <div class="la-testimonial-author-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key='landing_testimonial_role'}}</div>
+        </div>
+      </section>
+
+      {{!-- ── Accessibility Statement ── --}}
+      <section class="la-a11y-statement">
+        <div class="la-a11y-statement-inner">
+          <span class="la-a11y-statement-icon" aria-hidden="true">♿</span>
+          <div class="la-a11y-statement-content">
+            <span class="la-section-eyebrow-badge">{{t "Accessibility First" key='accessibility_first'}}</span>
+            <p>{{t "This site meets" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website. Need accommodations?" key='landing_a11y_standards'}} <LinkTo @route="contact" class="la-a11y-statement-link">{{t "Let us know." key='landing_a11y_let_us_know'}}</LinkTo></p>
+          </div>
+        </div>
+      </section>
+
+      {{!-- ── Ready to Start ── --}}
+      <section id="la-cta" class="la-cta-section">
+        <div class="la-cta-inner">
+          <span class="la-cta-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</span>
+          <h2 class="la-cta-headline">{{t "Give every student a voice" key='landing_cta_title'}}</h2>
+          <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='landing_cta_subtitle'}}</p>
+          <div class="la-cta-buttons">
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
+            <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Schedule a District Demo" key='landing_cta_demo'}}</LinkTo>
+          </div>
+        </div>
+      </section>
+
+      <hr class="la-divider" aria-hidden="true">
+
+      {{!-- ── Footer ── --}}
+      <footer id="la-footer" class="la-footer">
+        <div class="la-footer-inner">
+          <div class="la-footer-brand">
+            <LinkTo @route="index" class="la-footer-logo">
+              <img src={{path "images/logo-big-blue-gold.png"}} alt="" class="la-footer-logo-img" aria-hidden="true">
+              Lingo<span>Linq</span>
+            </LinkTo>
+            <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key='landing_footer_tagline'}}</p>
+          </div>
+          <div class="la-footer-col">
+            <h4>{{t "Product" key='landing_footer_product'}}</h4>
+            <a href="#la-features">{{t "Features" key='landing_footer_features'}}</a>
+            <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
+            <LinkTo @route="landing">{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
+            <LinkTo @route="index">{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
+          </div>
+          <div class="la-footer-col">
+            <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
+            <LinkTo @route="intro">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+            <a href="#" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</a>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key='landing_footer_api'}}</a>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key='landing_footer_oss'}}</a>
+          </div>
+          <div class="la-footer-col">
+            <h4>{{t "Company" key='landing_footer_company'}}</h4>
+            <LinkTo @route="about">{{t "About Us" key='landing_footer_about'}}</LinkTo>
+            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Blog" key='landing_footer_blog'}}</a>
+            <LinkTo @route="contact">{{t "Contact" key='landing_footer_contact'}}</LinkTo>
+            <a href="#" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
+          </div>
+        </div>
+        <div class="la-footer-bottom">
+          <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
+          <div class="la-footer-bottom-badges">
+            <span class="la-badge la-badge--wcag">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
+            <span class="la-badge la-badge--oss">{{t "Open Source" key='landing_oss_badge'}}</span>
+          </div>
+        </div>
+      </footer>
+
+    </main>
+
+  </div>
+</div>

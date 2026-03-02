@@ -34,7 +34,7 @@ describe JsonApi::UserVersion do
     expect(json['created']).to eq(v.created_at.iso8601)
     expect(json['modifier']).to eq({
       'description' => "LingoLinq Admin",
-      'image' => "https://www.mylingolinq.com/images/logo-big.png"
+      'image' => "https://www.mylingolinq.com/images/logo-big-blue-gold.png"
     })
   end
 

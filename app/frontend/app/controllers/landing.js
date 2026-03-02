@@ -7,7 +7,7 @@ export default Controller.extend({
       // placeholder for support/help action
     },
     showFeatures() {
-      modal.open('fs-features-modal');
+      modal.open('landing-features-modal');
     }
   }
 });

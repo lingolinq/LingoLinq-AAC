@@ -8,7 +8,7 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     var modal = this.get('modal');
-    var template = 'fsa-features-modal';
+    var template = 'la-features-modal';
     var options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
                   (modal && modal.settingsFor && modal.settingsFor[template]) ||
                   this.get('model') || {};

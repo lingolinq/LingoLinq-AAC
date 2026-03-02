@@ -285,7 +285,7 @@ LingoLinq.board_categories = [
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
 LingoLinq.registrationTypes = [
-  {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
   {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},

@@ -7,7 +7,7 @@ export default Route.extend({
     window.scrollTo(0, 0);
     var controller = this.controllerFor('application');
     if(controller && controller.updateTitle) {
-      controller.updateTitle(i18n.t('for_schools', "Scot's Design"));
+      controller.updateTitle(i18n.t('landing', "Scot's Design"));
     }
   }
 });

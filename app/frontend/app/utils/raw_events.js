@@ -412,8 +412,8 @@ var buttonTracker = EmberObject.extend({
         return;
       }
 
-      // allow for-schools nav links to propagate so Ember actions run
-      if($(event.target).closest('.for-schools-nav, .for-schools-nav-drawer__panel, .for-schools-nav-hamburger').length > 0) {
+      // allow landing nav links to propagate so Ember actions run
+      if($(event.target).closest('.landing-nav, .landing-nav-drawer__panel, .landing-nav-hamburger').length > 0) {
         return;
       }
 

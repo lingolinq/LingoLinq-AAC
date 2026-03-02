@@ -8,7 +8,7 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     var modal = this.get('modal');
-    var template = 'fs-features-modal';
+    var template = 'landing-features-modal';
     var options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
                   (modal && modal.settingsFor && modal.settingsFor[template]) ||
                   this.get('model') || {};

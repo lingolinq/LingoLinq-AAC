@@ -1,7 +1,8 @@
-import Controller from '@ember/controller';
+import Component from '@ember/component';
 import modal from '../utils/modal';
 
-export default Controller.extend({
+export default Component.extend({
+  tagName: '',
   activeFont: null,
 
   actions: {

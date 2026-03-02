@@ -34,6 +34,7 @@ export default Route.extend({
   },
   setupController: function(controller, model) {
     var _this = this;
+
     controller.set('user', this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
     LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
