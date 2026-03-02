@@ -5,7 +5,7 @@ class UserGoal < ActiveRecord::Base
   include GlobalId
   include SecureSerialize
 
-  belongs_to :user
+  belongs_to :user, optional: true  # template_header goals can exist without a user
   before_save :generate_defaults
   after_save :check_set_as_primary
   after_save :update_template_header

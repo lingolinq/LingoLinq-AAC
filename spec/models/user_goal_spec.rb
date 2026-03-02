@@ -616,11 +616,12 @@ describe UserGoal, type: :model do
     end
     
     it "should return concrete time if goal_advances_at is set" do
+      expected_time = Time.parse('Jan 1, 2015')
       g = UserGoal.new(:settings => {
         'next_template_id' => '123',
-        'goal_advances_at' => Time.parse('Jan 1, 2015').iso8601
+        'goal_advances_at' => expected_time.iso8601
       })
-      expect(g.calculate_advancement.to_i).to eq(1420095600)
+      expect(g.calculate_advancement.to_i).to eq(expected_time.to_i)
     end
   end
   

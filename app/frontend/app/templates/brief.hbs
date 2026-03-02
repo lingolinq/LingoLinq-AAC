@@ -14,9 +14,9 @@
         </button>
       {{/unless}}
       <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-        {{#with this.app_state.button_list as |button_list|}}
+        {{#let this.app_state.button_list as |button_list|}}
           {{button-list buttonList=button_list}}
-        {{/with}}
+        {{/let}}
       </a>
       <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
       <button class="btn btn-default access skinnier" {{action "backspace"}}>
@@ -51,7 +51,7 @@
 
           {{/if}}
 
-          {{#link-to "user" this.app_state.current_board_user_name}}{{this.app_state.current_board_user_name}}{{/link-to}} /
+          <LinkTo @route="user" @model={{this.app_state.current_board_user_name}}>{{this.app_state.current_board_user_name}}</LinkTo> /
           {{this.app_state.current_board_name}}
         </span>
       {{/unless}}
@@ -299,16 +299,16 @@
               <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
               {{#unless this.app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
+                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
                 </li>
               {{/unless}}
               <li role="presentation">
-                {{#link-to "user" this.app_state.currentUser.user_name}}{{t "My Account" key="my_account"}}{{/link-to}}
+                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
               </li>
             {{else}}
               {{#unless this.app_state.index_view}}
                 <li role="presentation">
-                  {{#link-to "index"}}{{t "Home" key="home"}}{{/link-to}}
+                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
                 </li>
               {{/unless}}
             {{/if}}
@@ -339,16 +339,16 @@
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.session.isAuthenticated}}
               {{#unless this.app_state.speak_mode}}
-                <li>{{#link-to "search" "any" "_"}}{{t "Find Board" key="find_board"}}{{/link-to}}</li>
+                <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
                 <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
               {{/unless}}
-              <li>{{#link-to "user.preferences" this.app_state.currentUser.user_name}}{{t "Preferences" key="preferences"}}{{/link-to}}</li>
-              <li>{{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
+              <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+              <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                 {{#if this.app_state.currentUser.unread_messages}}
                   <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
                 {{/if}}
                 {{t "Messages" key="messages"}}
-              {{/link-to}}</li>
+              </LinkTo></li>
               {{#if this.session.as_user_id}}
                 <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
@@ -361,7 +361,7 @@
               </li>
               {{#if this.app_state.domain_settings.full_domain}}
                 <li role="presentation">
-                  {{#link-to "register"}}{{t "Register" key="register"}}{{/link-to}}
+                  <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
                 </li>
               {{/if}}
             {{/if}}
@@ -426,11 +426,11 @@
           {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
-          {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}} <span class='text-muted'>|</span>
+          <LinkTo @route="about">{{t "About" key="about"}}</LinkTo> <span class='text-muted'>|</span>
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                {{#link-to "pricing"}}{{t "Pricing" key="pricing"}}{{/link-to}} <span class='text-muted'>|</span>
+                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
@@ -439,15 +439,15 @@
           {{/if}}
           {{#unless this.app_state.installed_app}}
             <span class='text-muted'>|</span>
-            {{#link-to "contact"}}{{t "Contact Us" key="contact"}}{{/link-to}}
+            <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
           {{/unless}}
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
           {{#unless this.app_state.installed_app}}
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+            <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
           {{/unless}}
-          {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}} <span class='text-muted'>|</span>
-          {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
+          <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
+          <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
         </div>
         {{#if (persistence-online)}}
           <div class='col-sm-2'>
@@ -476,7 +476,7 @@
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Web Site" key="web_site"}}</a>
           </li>
           <li>
-            {{#link-to "about"}}{{t "About" key="about"}}{{/link-to}}
+            <LinkTo @route="about">{{t "About" key="about"}}</LinkTo>
           </li>
           {{#if this.app_state.domain_settings.support_url}}
             <li>
@@ -484,10 +484,10 @@
             </li>
           {{/if}}
           <li>
-            {{#link-to "privacy"}}{{t "Privacy" key="privacy"}}{{/link-to}}
+            <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo>
           </li>
           <li>
-            {{#link-to "terms"}}{{t "Terms" key="terms"}}{{/link-to}}
+            <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
           </li>
         {{#if (persistence-online)}}
           <li>

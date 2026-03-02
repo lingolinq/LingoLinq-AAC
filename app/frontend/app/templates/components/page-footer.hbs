@@ -26,6 +26,13 @@
           {{this.app_state.current_locale_string}}
         </a>
       </div>
+      <div class='col-sm-4' style="text-align: right;">
+        {{#unless this.app_state.installed_app}}
+          <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener noreferrer">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+        {{/unless}}
+        <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
+        <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
+      </div>
       {{#if (persistence-online)}}
         {{#unless this.app_state.no_linky}}
           <div class='col-sm-2 page-footer__right-icons'>

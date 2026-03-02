@@ -8,7 +8,7 @@
         {{#if this.model.show_history}}
           {{outlet}}
         {{else if this.model.error.key}}
-          <p>{{#link-to "board.history" this.model.error.id}}{{t "Review the edit history for this board." key="review_edit_history"}}{{/link-to}}</p>
+          <p><LinkTo @route="board.history" @model={{this.model.error.id}}>{{t "Review the edit history for this board." key="review_edit_history"}}</LinkTo></p>
         {{/if}}
       {{else if this.model.error.never_existed}}
         <p>{{t "It looks like this board doesn't exist. Please check the link that brought you here to make sure it's correct." key="board_doesnt_exist"}}</p>

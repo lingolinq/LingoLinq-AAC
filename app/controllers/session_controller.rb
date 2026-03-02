@@ -76,7 +76,7 @@ class SessionController < ApplicationController
         if config['redirect_uri'] == DeveloperKey.oob_uri
           redirect_to oauth_local_url(:error => 'access_denied')
         else
-          redirect_to paramified_redirect + "error=access_denied"
+          redirect_to paramified_redirect + "error=access_denied", allow_other_host: true
         end
         return
       end
@@ -150,7 +150,7 @@ class SessionController < ApplicationController
       elsif config['redirect_uri'] == DeveloperKey.oob_uri
         redirect_to oauth_local_url(:code => params['code'])
       else
-        redirect_to paramified_redirect + "code=#{params['code']}"
+        redirect_to paramified_redirect + "code=#{params['code']}", allow_other_host: true
       end
     end
   end
@@ -348,7 +348,7 @@ class SessionController < ApplicationController
 
     request = OneLogin::RubySaml::Authrequest.new
     settings = saml_settings(org, code)
-    redirect_to(request.create(settings, :RelayState => code))
+    redirect_to(request.create(settings, :RelayState => code), allow_other_host: true)
   end
 
   def saml_consume
@@ -480,7 +480,7 @@ class SessionController < ApplicationController
     # Generate a response to the IdP.
     logout_request_id = logout_request.id
     logout_response = OneLogin::RubySaml::SloLogoutresponse.new.create(settings, logout_request_id, nil, :RelayState => params[:RelayState])
-    redirect_to logout_response
+    redirect_to logout_response, allow_other_host: true
   end
 
   def token_wait
@@ -598,7 +598,7 @@ class SessionController < ApplicationController
           avatar_image_url: (valid ? @api_user.generated_avatar_url : nil),
           scopes: device && device.permission_scopes,
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations,
         }
         if params['2fa_code']
@@ -664,7 +664,7 @@ class SessionController < ApplicationController
         json = {
           authenticated: false, 
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations
         }
       end
@@ -680,7 +680,7 @@ class SessionController < ApplicationController
         error: error_message,
         error_status: error_status,
         sale: nil,
-        ws_url: ENV['CDWEBSOCKET_URL'],
+        ws_url: ENV['LLWEBSOCKET_URL'],
         global_integrations: []
       }
     end

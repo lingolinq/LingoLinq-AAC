@@ -138,13 +138,15 @@ describe BoardsController, :type => :controller do
     it "should render templates, right now it's rendering empty string in tests"
     
     it "should load the utterance record" do
-      u = Utterance.create(:data => {:sentence => "ok guys"})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:sentence => "ok guys"})
       get :utterance, params: {:id => u.global_id}
 #      response.should be_success
     end
     
     it "should set a meta attribute" do
-      u = Utterance.create(:data => {:sentence => "ok guys"})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:sentence => "ok guys"})
       meta = u.meta_record
       expect_any_instance_of(Utterance).to receive(:meta_record).and_return(meta)
       get :utterance, params: {:id => u.global_id}

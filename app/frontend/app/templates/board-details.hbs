@@ -25,7 +25,7 @@
       {{#if this.model.parent_board_key}}
         <dt>{{t "Copied From" key="copied_from"}}</dt>
         <dd>
-          {{#link-to "board" this.model.parent_board_key}}{{this.model.parent_board_key}}{{/link-to}}
+          <LinkTo @route="board" @model={{this.model.parent_board_key}}>{{this.model.parent_board_key}}</LinkTo>
         </dd>
       {{/if}}
       <dt>{{t "Public" key="public"}}</dt>
@@ -87,7 +87,7 @@
           </dd>
         <dt>{{t "Revisions" key="revisions"}}</dt>
           <dd>
-            {{#link-to "board.history" this.model.key}}{{t "see board edit history" key="see_history"}}{{/link-to}}
+            <LinkTo @route="board.history" @model={{this.model.key}}>{{t "see board edit history" key="see_history"}}</LinkTo>
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>

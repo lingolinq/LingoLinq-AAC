@@ -117,7 +117,8 @@ describe Flusher do
     it "should call flush_record" do
       u = User.create
       b = Board.create(:user => u)
-      expect(Flusher).to receive(:flush_record).with(b, b.id, b.class.to_s)
+      allow(Flusher).to receive(:flush_record)
+      expect(Flusher).to receive(:flush_record).with(b, b.id, "Board")
       Flusher.flush_board(b.global_id, b.key)
     end
     

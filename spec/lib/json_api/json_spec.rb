@@ -82,7 +82,8 @@ describe JsonApi::Json do
         expect(args[:b]).to eq(1)
         expect(args[:page_results]).to_not eq(nil)
       end.and_return({:a => 1})
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(organization: o)
       expect(JsonApi::Unit).to receive(:build_json){|unit, args|
         expect(unit).to eq(ou)
         expect(args[:page_data]).to eq({:a => 1})
@@ -178,7 +179,7 @@ describe JsonApi::Json do
       host = JsonApi::Json.load_domain('bacon.net')
       expect(host).to_not eq(nil)
       expect(host['host']).to eq('bacon.net')
-      expect(host['settings']['app_name']).to eq('MyCoolApp')
+      expect(host['settings']['app_name']).to eq('LingoLinq')
     end
 
     it 'should clear old domains' do
@@ -217,7 +218,7 @@ describe JsonApi::Json do
     it 'should return default values' do
       default = JsonApi::Json.default_domain
       expect(default['css']).to eq(nil)
-      expect(default['settings']['app_name']).to eq('MyCoolApp')
+      expect(default['settings']['app_name']).to eq('LingoLinq')
       expect(default['settings']['company_name']).to eq('Someone')
       expect(default['settings']['full_domain']).to eq(true)
     end

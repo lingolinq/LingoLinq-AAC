@@ -15,7 +15,7 @@
 - ✅ **Compatible with Ember 3.28** (target)
 
 ### Recommendation
-- **Node 18 is fine** for Phase 3 (3.20 → 3.24 → 3.28)
+- **Node 20 is used** for Phase 3 (3.20 → 3.24 → 3.28)
 - **Node 20 LTS** would be better for future-proofing, but not required
 - **Consider upgrading to Node 20** after Phase 3 is complete
 

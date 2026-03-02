@@ -48,7 +48,7 @@ var $board_canvas = null;
 var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
-  if(!buttonTracker.appState) { return; }
+  if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
@@ -523,7 +523,7 @@ var buttonTracker = EmberObject.extend({
   },
   // used for handling dragging, scanning selection
   touch_continue: function(event) {
-    if(!buttonTracker.appState) { return; }
+    if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TCONT", event); }
     var $hover_button = $(event.target).closest('.hover_button');
     if((event.type == 'touchstart' || event.type == 'mousedown') && $hover_button.length) {
@@ -596,7 +596,7 @@ var buttonTracker = EmberObject.extend({
       }
       if(priors[0] != window.screenInnerOffsetX || priors[1] != window.screenInnerOffsetY) {
         var stashes = (this && this.stashes) || window.stashes;
-        if (stashes && typeof stashes.persist === 'function') {
+        if (stashes && typeof stashes.persist === 'function' && !stashes.isDestroyed && !stashes.isDestroying) {
           stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
           stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
         }

@@ -55,7 +55,7 @@ describe ApplicationController, :type => :controller do
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Invalid token')
-      expect(json['token']).to eq('abcdef')
+      expect(json['token']).to be_nil
     end
     
     it "should not error if no token parameter is sent" do
@@ -446,7 +446,7 @@ describe ApplicationController, :type => :controller do
       get :index
       expect(assigns[:domain_overrides]).to_not eq(nil)
       expect(assigns[:domain_overrides]['host']).to eq('test.host')
-      expect(assigns[:domain_overrides]['settings']['app_name']).to eq('MyCoolApp')
+      expect(assigns[:domain_overrides]['settings']['app_name']).to eq('LingoLinq')
       expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Someone')
     end
 

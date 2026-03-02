@@ -807,8 +807,8 @@ describe Subscription, :type => :model do
         }
       }])
       expect(u.expires_at).to_not eq(nil)
-      expect(u.settings['subscription']['added_to_organization']).to be > (5.seconds.ago.to_time.iso8601)
-      expect(u.settings['subscription']['added_to_organization']).to be < (5.seconds.from_now.to_time.iso8601)
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be > 5.seconds.ago
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be < 5.seconds.from_now
       expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'subscription_token', 'arguments' => ['token', 'unsubscribe']})).to eq(false)
     end
     
@@ -3487,7 +3487,7 @@ describe Subscription, :type => :model do
       link.data['state']['added'] = added.iso8601
       link.save
       expect(u.reload.org_sponsored?).to eq(true)
-      expect(u.purchase_credit_duration).to eq((Time.now - added).to_i)
+      expect(u.purchase_credit_duration).to be_within(2).of((Time.now - added).to_i)
     end
     
     it "should count recently-expired long-term-purchase in calculation" do

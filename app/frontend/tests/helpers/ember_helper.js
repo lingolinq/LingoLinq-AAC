@@ -1,3 +1,4 @@
+/* global QUnit */
 import Test from 'ember-testing';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
@@ -445,10 +446,36 @@ beforeEach(function() {
   persistence.known_missing = null;
   persistence.sync_actions = null;
   stashes.set('online', true);
+  if (this.owner) {
+    LingoLinq.store = this.owner.lookup('service:store');
+    LingoLinq.appState = this.owner.lookup('service:app-state');
+    // Prime ContentGrabbers so window.cg is set before tests that need it run
+    this.owner.lookup('service:content-grabbers');
+    var owner = this.owner;
+    var moduleName = (typeof QUnit !== 'undefined' && QUnit.config && QUnit.config.currentModule) ? QUnit.config.currentModule.name : null;
+    this.subject = function(componentNameOrAttrs, attrs) {
+      var componentName;
+      var actualAttrs;
+      if (typeof componentNameOrAttrs === 'string') {
+        componentName = componentNameOrAttrs;
+        actualAttrs = attrs || {};
+      } else {
+        componentName = moduleName;
+        actualAttrs = componentNameOrAttrs || {};
+      }
+      if (!componentName) {
+        throw new Error('subject: No component name. Pass it explicitly: this.subject("component-name")');
+      }
+      var factory = owner.factoryFor('component:' + componentName);
+      if (!factory) {
+        throw new Error('subject: Component "component:' + componentName + '" not found. Try this.subject("' + componentName + '") or check the component is registered.');
+      }
+      return factory.create(actualAttrs);
+    };
+  }
   if (app_state.reset) {
     app_state.reset();
   }
-  LingoLinq.store = this.owner && this.owner.lookup('service:store');
   LingoLinq.all_wait = false;
 });
 
@@ -466,18 +493,8 @@ afterEach(function() {
   queryLog.real_lookup = false;
   $.ajax.metas = [];
   buttonTracker.scanning_enabled = false;
-  var ready = false;
-  setTimeout(function() {
-    ready = true;
-  }, 1);
-  waitsFor(function() {
-    return ready;
-  });
-  runs(function() {
-    if(LingoLinq.app && LingoLinq.app.destroy) {
-      emberRun(LingoLinq.app, LingoLinq.app.destroy);
-    }
-  });
+  // Previously: waitsFor/runs delayed LingoLinq.app.destroy. We no longer destroy
+  // (all tests share the app). Run sync to avoid hangs from the waitsFor/runs pattern.
 });
 
 afterEach(function() {

@@ -12,7 +12,7 @@ describe AdminMailer, :type => :mailer do
       })
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
       m = AdminMailer.message_sent(m.global_id)
-      expect(m.subject).to eq('MyCoolApp - "Contact Us" Message Received')
+      expect(m.subject).to eq('LingoLinq - "Contact Us" Message Received')
       expect(m.to).to eq(['asdf@example.com'])
     end
 
@@ -42,7 +42,7 @@ describe AdminMailer, :type => :mailer do
       })
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
       m = AdminMailer.message_sent(m.global_id)
-      expect(m.subject).to eq('MyCoolApp - "Contact Us" Message Received')
+      expect(m.subject).to eq('LingoLinq - "Contact Us" Message Received')
       expect(m.to).to eq(['asdf@example.com'])
       html = message_body(m, :html)
       expect(html).to match(/Subject: asdf/)
@@ -57,7 +57,7 @@ describe AdminMailer, :type => :mailer do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
       m = AdminMailer.opt_out(u.global_id, nil)
-      expect(m.subject).to eq('MyCoolApp - "Opt-Out" Requested')
+      expect(m.subject).to eq('LingoLinq - "Opt-Out" Requested')
       expect(m.to).to eq(['asdf@example.com'])
     end
     
@@ -65,7 +65,7 @@ describe AdminMailer, :type => :mailer do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
       m = AdminMailer.opt_out(u.global_id, 'bacon')
-      expect(m.subject).to eq('MyCoolApp - "Opt-Out" Requested')
+      expect(m.subject).to eq('LingoLinq - "Opt-Out" Requested')
       expect(m.to).to eq(['asdf@example.com'])
 
       html = m.body

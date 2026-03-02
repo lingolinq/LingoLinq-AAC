@@ -1,0 +1,233 @@
+{
+  "skill": "security-hotfix",
+  "date": "2026-02-22",
+  "status": "FAIL",
+  "critical_count": 14,
+  "high_count": 16,
+  "medium_count": 11,
+  "low_count": 7,
+  "info_count": 5,
+  "total_findings": 53,
+  "remediation_days": 5,
+  "summary": "14 critical findings: nokogiri SAML bypass CVE, 11 disabled SSL verification instances across 4 files, 8 critical npm CVEs (mostly via ember-cli-update). SQL injection posture is good — only 2 medium-risk patterns in non-user-facing code. Ember 3.28 EOL drives 180+ of 213 npm vulnerabilities.",
+  "findings": [
+    {
+      "id": "SEC-001",
+      "severity": "critical",
+      "category": "cve",
+      "title": "nokogiri 1.19.0 — CVE-2025-30206 SAML auth bypass",
+      "file": "Gemfile.lock",
+      "line": 260,
+      "recommendation": "bundle update nokogiri (>= 1.19.1)",
+      "evidence": "nokogiri (1.19.0-aarch64-linux-gnu)"
+    },
+    {
+      "id": "SEC-002",
+      "severity": "critical",
+      "category": "ssl",
+      "title": "ssl_verifypeer => false on 3 Typhoeus calls",
+      "file": "lib/uploader.rb",
+      "line": 417,
+      "recommendation": "Remove :ssl_verifypeer => false from lines 417, 534, 624",
+      "evidence": "ssl_verifypeer => false"
+    },
+    {
+      "id": "SEC-003",
+      "severity": "critical",
+      "category": "ssl",
+      "title": "ssl_verifypeer: false on 5 calls including token exchange",
+      "file": "lib/open_symbols.rb",
+      "line": 49,
+      "recommendation": "Remove ssl_verifypeer: false from lines 49, 63, 106, 122, 235",
+      "evidence": "ssl_verifypeer: false"
+    },
+    {
+      "id": "SEC-004",
+      "severity": "critical",
+      "category": "ssl",
+      "title": "ssl_verifypeer => false on OpenSymbols API call",
+      "file": "app/models/button_image.rb",
+      "line": 226,
+      "recommendation": "Remove :ssl_verifypeer => false",
+      "evidence": "ssl_verifypeer => false"
+    },
+    {
+      "id": "SEC-005",
+      "severity": "critical",
+      "category": "ssl",
+      "title": "ssl_verifypeer => false on OpenSymbols search",
+      "file": "app/models/board.rb",
+      "line": 1313,
+      "recommendation": "Remove :ssl_verifypeer => false",
+      "evidence": "ssl_verifypeer => false"
+    },
+    {
+      "id": "SEC-006",
+      "severity": "critical",
+      "category": "cve",
+      "title": "babel-traverse — arbitrary code execution (CVSS 9.4)",
+      "file": "app/frontend/package.json",
+      "line": 30,
+      "recommendation": "Requires ember-cli upgrade to >= 6.x",
+      "evidence": "ember-cli: ~3.28.0"
+    },
+    {
+      "id": "SEC-007",
+      "severity": "critical",
+      "category": "cve",
+      "title": "lodash >= 4.17.11 — 5 prototype pollution CVEs (CVSS 9.1)",
+      "file": "app/frontend/package.json",
+      "line": 55,
+      "recommendation": "Pin to ^4.17.21",
+      "evidence": "lodash: >=4.17.11"
+    },
+    {
+      "id": "SEC-008",
+      "severity": "critical",
+      "category": "cve",
+      "title": "deep-extend — prototype pollution (CVSS 9.8)",
+      "file": "app/frontend/package.json",
+      "line": 63,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "ember-cli-update: ^0.48.2 (in dependencies)"
+    },
+    {
+      "id": "SEC-009",
+      "severity": "critical",
+      "category": "cve",
+      "title": "git-diff-apply — OS command injection (CVSS 9.8)",
+      "file": "app/frontend/package.json",
+      "line": 63,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "transitive via ember-cli-update"
+    },
+    {
+      "id": "SEC-010",
+      "severity": "critical",
+      "category": "cve",
+      "title": "json-schema — prototype pollution (CVSS 9.8)",
+      "file": "app/frontend/package.json",
+      "line": 63,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "transitive via ember-cli-update"
+    },
+    {
+      "id": "SEC-011",
+      "severity": "critical",
+      "category": "cve",
+      "title": "minimist — prototype pollution (CVSS 9.8)",
+      "file": "app/frontend/package.json",
+      "line": null,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "transitive via ember-cli-update"
+    },
+    {
+      "id": "SEC-012",
+      "severity": "critical",
+      "category": "cve",
+      "title": "rfc6902 — prototype pollution (CVSS 9.8)",
+      "file": "app/frontend/package.json",
+      "line": null,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "transitive via ember-cli-update"
+    },
+    {
+      "id": "SEC-013",
+      "severity": "critical",
+      "category": "cve",
+      "title": "form-data — unsafe random boundary",
+      "file": "app/frontend/package.json",
+      "line": null,
+      "recommendation": "Remove ember-cli-update from dependencies",
+      "evidence": "transitive via ember-cli-update"
+    },
+    {
+      "id": "SEC-014",
+      "severity": "critical",
+      "category": "cve",
+      "title": "ember-cli-update in dependencies (not devDependencies)",
+      "file": "app/frontend/package.json",
+      "line": 63,
+      "recommendation": "Move to devDependencies or remove entirely",
+      "evidence": "ember-cli-update: ^0.48.2"
+    },
+    {
+      "id": "SEC-015",
+      "severity": "high",
+      "category": "ssl",
+      "title": "Giphy API called over plaintext http://",
+      "file": "lib/uploader.rb",
+      "line": 569,
+      "recommendation": "Change http://api.giphy.com to https://api.giphy.com",
+      "evidence": "http://api.giphy.com/v1/gifs/search"
+    },
+    {
+      "id": "SEC-016",
+      "severity": "high",
+      "category": "cve",
+      "title": "coffee-rails 5.0.0 — abandoned since 2017",
+      "file": "Gemfile",
+      "line": 38,
+      "recommendation": "Remove; migrate .coffee files to ES6",
+      "evidence": "gem 'coffee-rails'"
+    },
+    {
+      "id": "SEC-017",
+      "severity": "high",
+      "category": "cve",
+      "title": "sassc 2.4.0 — archived Oct 2025",
+      "file": "Gemfile",
+      "line": 32,
+      "recommendation": "Migrate to dartsass-rails",
+      "evidence": "gem 'sass-rails', '~> 6.0'"
+    },
+    {
+      "id": "SEC-018",
+      "severity": "high",
+      "category": "cve",
+      "title": "Ember 3.28 EOL — 180+ transitive npm vulnerabilities",
+      "file": "app/frontend/package.json",
+      "line": 30,
+      "recommendation": "Plan Ember 5.x migration",
+      "evidence": "ember-cli: ~3.28.0, ember-source: ~3.28.0"
+    },
+    {
+      "id": "SEC-031",
+      "severity": "medium",
+      "category": "sql-injection",
+      "title": "String interpolation in HAVING clause",
+      "file": "lib/worker.rb",
+      "line": 40,
+      "recommendation": "Use having('COUNT(user_id) > ?', cutoff)",
+      "evidence": "having(\"COUNT(user_id) > #{cutoff}\")"
+    },
+    {
+      "id": "SEC-035",
+      "severity": "medium",
+      "category": "ssl",
+      "title": "No explicit sslmode for PostgreSQL connection",
+      "file": "config/database.yml",
+      "line": 23,
+      "recommendation": "Add ?sslmode=require to DATABASE_URL",
+      "evidence": "url: <%= ENV['DATABASE_URL'] %>"
+    },
+    {
+      "id": "SEC-042",
+      "severity": "low",
+      "category": "sql-injection",
+      "title": "String interpolation in WHERE (internal method)",
+      "file": "app/models/board_downstream_button_set.rb",
+      "line": 690,
+      "recommendation": "Use where('id > ?', start_id)",
+      "evidence": "where(\"id > #{start_id}\")"
+    }
+  ],
+  "recommended_order": [
+    "SEC-001", "SEC-002", "SEC-003", "SEC-004", "SEC-005",
+    "SEC-007", "SEC-014", "SEC-015",
+    "SEC-016", "SEC-017", "SEC-028", "SEC-031", "SEC-042",
+    "SEC-035", "SEC-034", "SEC-050",
+    "SEC-036", "SEC-043", "SEC-027",
+    "SEC-018"
+  ]
+}

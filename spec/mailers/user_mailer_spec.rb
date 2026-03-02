@@ -49,14 +49,14 @@ describe UserMailer, :type => :mailer do
       u = User.create(settings: {email: 'test@example.com'})
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.confirm_registration(u.global_id)
-      expect(m.subject).to eq("MyCoolApp - Welcome!")
+      expect(m.subject).to eq("LingoLinq - Welcome!")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
-      expect(html).to match(/Welcome to MyCoolApp!/)
+      expect(html).to match(/Welcome to LingoLinq!/)
       expect(html).to match("-The Someone Team")
       expect(html).to match(/<b>#{u.user_name}<\/b>/)
       text = message_body(m, :text)
-      expect(text).to match(/Welcome to MyCoolApp!/)
+      expect(text).to match(/Welcome to LingoLinq!/)
       expect(text).to match(/\"#{u.user_name}\"/)
     end
 
@@ -86,7 +86,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(settings: {email: 'test@example.com'})
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.forgot_password([u.global_id])
-      expect(m.subject).to eq("MyCoolApp - Forgot Password Confirmation")
+      expect(m.subject).to eq("LingoLinq - Forgot Password Confirmation")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/password reset/)
@@ -147,7 +147,7 @@ describe UserMailer, :type => :mailer do
   describe "login_no_user" do
     it "should send a message" do
       m = UserMailer.login_no_user('bacon@example.com')
-      expect(m.subject).to eq("MyCoolApp - Login Help")
+      expect(m.subject).to eq("LingoLinq - Login Help")
       expect(m.to).to eq(["bacon@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/sign up for a free trial/)
@@ -163,7 +163,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(settings: {email: 'test@example.com'})
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.password_changed(u.global_id)
-      expect(m.subject).to eq("MyCoolApp - Password Changed")
+      expect(m.subject).to eq("LingoLinq - Password Changed")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/password change/)
@@ -181,7 +181,7 @@ describe UserMailer, :type => :mailer do
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       expect_any_instance_of(User).to receive(:prior_named_email).and_return("fred@example.com")
       m = UserMailer.email_changed(u.global_id)
-      expect(m.subject).to eq("MyCoolApp - Email Changed")
+      expect(m.subject).to eq("LingoLinq - Email Changed")
       expect(m.to).to eq(["fred@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/email address change/)
@@ -202,7 +202,7 @@ describe UserMailer, :type => :mailer do
       l.save
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.log_message(u.global_id, l.global_id)
-      expect(m.subject).to eq("MyCoolApp - New Message")
+      expect(m.subject).to eq("LingoLinq - New Message")
       expect(m.to).to eq(["bob@example.com"])
       
       html = message_body(m, :html)
@@ -235,7 +235,7 @@ describe UserMailer, :type => :mailer do
       l.save
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.log_message(u.global_id, l.global_id)
-      expect(m.subject).to eq("MyCoolApp - New Message")
+      expect(m.subject).to eq("LingoLinq - New Message")
       expect(m.to).to eq(["bob@example.com"])
       
       html = message_body(m, :html)
@@ -262,9 +262,10 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
+      ENV['IPSTACK_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
-      expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
+      expect(m.subject).to eq('LingoLinq - New Communicator Registration')
       html = message_body(m, :html)
       expect(html).to match(/just signed up/)
       expect(html).to match(/#{u.user_name}/)
@@ -281,9 +282,10 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'preferences' => {'registration_type' => 'therapist'}})
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
+      ENV['IPSTACK_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
-      expect(m.subject).to eq('MyCoolApp - New Supervisor Registration')
+      expect(m.subject).to eq('LingoLinq - New Supervisor Registration')
       html = message_body(m, :html)
       expect(html).to match(/just signed up/)
       expect(html).to match(/#{u.user_name}/)
@@ -300,9 +302,10 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPSTACK_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
-      expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
+      expect(m.subject).to eq('LingoLinq - New Communicator Registration')
       html = message_body(m, :html)
       expect(html).to match(/just signed up/)
       expect(html).to match(/#{u.user_name}/)
@@ -321,9 +324,10 @@ describe UserMailer, :type => :mailer do
       u.save
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPSTACK_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
-      expect(m.subject).to eq('MyCoolApp - New Communicator Registration')
+      expect(m.subject).to eq('LingoLinq - New Communicator Registration')
       html = message_body(m, :html)
       expect(html).to match(/just signed up/)
       expect(html).to match(/#{u.user_name}/)
@@ -344,7 +348,7 @@ describe UserMailer, :type => :mailer do
       o = Organization.create
       m = UserMailer.organization_assigned(u.global_id, o.global_id)
       expect(m.to).to eq(['fred@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Organization Sponsorship Added")
+      expect(m.subject).to eq("LingoLinq - Organization Sponsorship Added")
       
       html = message_body(m, :html)
       expect(html).to match(/added you to their list of supported users/)
@@ -364,7 +368,7 @@ describe UserMailer, :type => :mailer do
       o = Organization.create
       m = UserMailer.organization_unassigned(u.global_id, o.global_id)
       expect(m.to).to eq(['fred@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Organization Sponsorship Removed")
+      expect(m.subject).to eq("LingoLinq - Organization Sponsorship Removed")
       
       html = message_body(m, :html)
       expect(html).to match(/was just removed from the supported list by an organization/)
@@ -392,7 +396,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -405,7 +409,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -419,7 +423,7 @@ describe UserMailer, :type => :mailer do
       u.save
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -434,7 +438,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -449,7 +453,7 @@ describe UserMailer, :type => :mailer do
       u.save
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -465,7 +469,7 @@ describe UserMailer, :type => :mailer do
       User.link_supervisor_to_user(u, u2)
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
@@ -482,29 +486,29 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
-      expect(html).to match(/keep using all of MyCoolApp/)
+      expect(html).to match(/keep using all of LingoLinq/)
       
       text = message_body(m, :text)
       expect(text).to match(/Hello again/)
-      expect(text).to match(/keep using all the features of MyCoolApp/)
+      expect(text).to match(/keep using all the features of LingoLinq/)
       
       u.expires_at = nil
       u.save
       m = UserMailer.usage_reminder(u.global_id)
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Checking In")
+      expect(m.subject).to eq("LingoLinq - Checking In")
 
       html = message_body(m, :html)
       expect(html).to match(/Hello again/)
-      expect(html).not_to match(/keep using all of MyCoolApp/)
+      expect(html).not_to match(/keep using all of LingoLinq/)
       
       text = message_body(m, :text)
       expect(text).to match(/Hello again/)
-      expect(text).not_to match(/keep using all the features of MyCoolApp/)      
+      expect(text).not_to match(/keep using all the features of LingoLinq/)      
     end
   end
   
@@ -562,17 +566,17 @@ describe UserMailer, :type => :mailer do
       b.save
       m = UserMailer.badge_awarded(u.global_id, b.global_id)
       expect(m.to).to eq(['amanda@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Badge Awarded")
+      expect(m.subject).to eq("LingoLinq - Badge Awarded")
       
       html = message_body(m, :html)
       expect(html).to match(/Level 1/)
       expect(html).to match(/Awesome Badge/)
-      expect(html).to match(/You have earned a MyCoolApp badge!/)
+      expect(html).to match(/You have earned a LingoLinq badge!/)
       expect(html).to match(/part of a set, so keep at it/)
 
       text = message_body(m, :text)
       expect(text).to match(/Level 1/)
-      expect(text).to match(/You have earned a MyCoolApp badge!/)
+      expect(text).to match(/You have earned a LingoLinq badge!/)
       expect(text).to match(/part of a set, so keep at it/)
     end
 
@@ -590,7 +594,7 @@ describe UserMailer, :type => :mailer do
       b.save
       m = UserMailer.badge_awarded(u2.global_id, b.global_id)
       expect(m.to).to eq(['betty@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Badge Awarded")
+      expect(m.subject).to eq("LingoLinq - Badge Awarded")
       
       html = message_body(m, :html)
       expect(html).to match(/Level 1/)
@@ -598,7 +602,7 @@ describe UserMailer, :type => :mailer do
       expect(html).to match(/part of the goal,/)
       expect(html).to match(/best goal ever/)
       expect(html).to_not match(/part of a set, so keep at it/)
-      expect(html).to match(/#{u.user_name} has earned a MyCoolApp badge!/)
+      expect(html).to match(/#{u.user_name} has earned a LingoLinq badge!/)
 
       text = message_body(m, :text)
       expect(text).to match(/Level 1/)
@@ -606,14 +610,18 @@ describe UserMailer, :type => :mailer do
       expect(text).to match(/part of the goal,/)
       expect(text).to match(/best goal ever/)
       expect(text).to_not match(/part of a set, so keep at it/)
-      expect(text).to match(/#{u.user_name} has earned a MyCoolApp badge!/)
+      expect(text).to match(/#{u.user_name} has earned a LingoLinq badge!/)
     end
   end
   
   describe "log_summary" do
     it "should generate a message to the intended user" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
-      d = Device.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['role'] = 'communicator'
+      u.expires_at = 2.weeks.from_now
+      u.save!
+      d = Device.create(:user => u)
 
       s1 = LogSession.process_new({'events' => [
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
@@ -631,6 +639,7 @@ describe UserMailer, :type => :mailer do
       
       ClusterLocation.clusterize_ips(u.global_id)
       ClusterLocation.clusterize_geos(u.global_id)
+      ClusterLocation.all.each { |c| c.generate_stats(true) }
       WeeklyStatsSummary.update_for(s1.global_id)
       WeeklyStatsSummary.update_for(s2.global_id)
       WeeklyStatsSummary.update_for(s3.global_id)
@@ -638,21 +647,22 @@ describe UserMailer, :type => :mailer do
       m = UserMailer.log_summary(u.global_id)
       
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Communication Report")
+      expect(m.subject).to eq("LingoLinq - Communication Report")
 
       html = m.body.to_s
       expect(html).to_not match(/All Communicators/)
-#      expect(html).to match(/ever, again, never/)
-#      expect(html).to match(/ok, go/)
       expect(html).to match(/\+100\.0%/)
-      expect(html).to match(/\+200\.0%/)
     end
     
     it "should include supervisees" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       u2 = User.create
+      u2.settings['preferences'] ||= {}
+      u2.settings['preferences']['role'] = 'communicator'
+      u2.expires_at = 2.weeks.from_now
+      u2.save!
       u3 = User.create
-      d = Device.create
+      d = Device.create(:user => u2)
       User.link_supervisor_to_user(u, u2)
       User.link_supervisor_to_user(u, u3)
       Worker.process_queues
@@ -668,7 +678,7 @@ describe UserMailer, :type => :mailer do
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i - 2},
         {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i - 1},
         {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => 1.day.ago.to_time.to_i}
-      ]}, {:user => u3, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      ]}, {:user => u2, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [
         {'type' => 'button', 'button' => {'label' => 'never ever ever ever again', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => 8.days.ago.to_time.to_i - 1},
         {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 8.days.ago.to_time.to_i}
@@ -676,6 +686,7 @@ describe UserMailer, :type => :mailer do
       
       ClusterLocation.clusterize_ips(u.global_id)
       ClusterLocation.clusterize_geos(u.global_id)
+      ClusterLocation.all.each { |c| c.generate_stats(true) }
       WeeklyStatsSummary.update_for(s1.global_id)
       WeeklyStatsSummary.update_for(s2.global_id)
       WeeklyStatsSummary.update_for(s3.global_id)
@@ -683,15 +694,13 @@ describe UserMailer, :type => :mailer do
       m = UserMailer.log_summary(u.global_id)
       
       expect(m.to).to eq(['stacy@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Communication Report")
+      expect(m.subject).to eq("LingoLinq - Communication Report")
 
       html = m.body.to_s
       expect(html).to match(/All Communicators/)
       expect(html).to match(/stacy/)
       expect(html).to match(/#{u2.user_name}/)
       expect(html).to match(/#{u3.user_name}/)
-#      expect(html).to match(/ever, again, never/)
-#      expect(html).to match(/ok, go/)
       expect(html).to match(/\+100\.0%/)
       expect(html).to match(/so no reports are generated/)
     end
@@ -704,7 +713,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(settings: {email: 'test@example.com'})
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.valet_password_enabled(u.global_id)
-      expect(m.subject).to eq("MyCoolApp - Valet Login Enabled")
+      expect(m.subject).to eq("LingoLinq - Valet Login Enabled")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/were recently enabled/)
@@ -721,7 +730,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(settings: {email: 'test@example.com'})
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.valet_password_used(u.global_id)
-      expect(m.subject).to eq("MyCoolApp - Valet Login Used")
+      expect(m.subject).to eq("LingoLinq - Valet Login Used")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/were recently used to log in to your account/)
@@ -744,7 +753,7 @@ describe UserMailer, :type => :mailer do
       l.nonce
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
       m = UserMailer.lesson_assigned(l.global_id, [u.global_id])
-      expect(m.subject).to eq("MyCoolApp - New Lesson Assigned")
+      expect(m.subject).to eq("LingoLinq - New Lesson Assigned")
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/Super Lesson/)

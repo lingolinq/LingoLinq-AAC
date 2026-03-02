@@ -142,7 +142,7 @@
 ### Data Flow
 
 1. **Login**: `login-form` → `session.confirm_authentication` → `stashes.persist_object('auth_settings', ...)` + `capabilities.access_token = token`
-2. **Post-login flush**: `stashes.flush(null, 'auth_')` preserves auth in IndexedDB; does not remove `cdStash-auth_settings` from localStorage
+2. **Post-login flush**: `stashes.flush(null, 'auth_')` preserves auth in IndexedDB; does not remove `lingolinqStash-auth_settings` from localStorage
 3. **Token for API**: `extras` ajax interceptor uses: `capabilities.access_token` → `LingoLinq.session.get('access_token')` → `stashes.get_object('auth_settings', true)`
 4. **Restore**: `session.restore()` reads `stashes.get_object('auth_settings', true)` and syncs to `capabilities.access_token`
 

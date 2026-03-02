@@ -307,7 +307,7 @@ export default Component.extend({
         if(token && capabilities.sync_access_token) {
           capabilities.sync_access_token();
         }
-        _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['cdStash-auth_settings'] });
+        _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['lingolinqStash-auth_settings'] });
         _this.set('logging_in', false);
         _this.set('login_followup', false);
         _this.set('login_single_assertion', false);

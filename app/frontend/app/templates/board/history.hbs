@@ -3,9 +3,9 @@
   <ul class='list-unstyled' style='margin-left: 30px;'>
     {{#each this.possible_upstream_boards as |board|}}
       <li>
-        {{#link-to "board" board.key}}
+        <LinkTo @route="board" @model={{board.key}}>
           {{board.key}}
-        {{/link-to}}
+        </LinkTo>
       </li>
     {{/each}}
   </ul>

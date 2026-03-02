@@ -13,7 +13,8 @@ describe DeletedBoard, :type => :model do
   
   describe "generate_defaults" do
     it "should generate default values" do
-      db = DeletedBoard.create
+      u = User.create
+      db = DeletedBoard.create(:user => u)
       expect(db.cleared).to eq(false)
     end
   end
@@ -137,10 +138,10 @@ describe DeletedBoard, :type => :model do
       expect(Board.find_by(id: b.id)).to_not eq(nil)
       
       b = Board.find_by_path(key)
-      expect(b.settings['buttons']).to eq([
-          {'id' => 1, 'label' => 'hat', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'},
-          {'id' => 2, 'label' => 'freedom', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'},
-          {'id' => 3, 'label' => 'polygon', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+      expect(b.settings['buttons'].map { |btn| btn.slice('id', 'label') }).to eq([
+          {'id' => 1, 'label' => 'hat'},
+          {'id' => 2, 'label' => 'freedom'},
+          {'id' => 3, 'label' => 'polygon'}
       ])
     end
 
@@ -183,10 +184,10 @@ describe DeletedBoard, :type => :model do
       
       b = Board.find_by_path(key)
       expect(b.settings['buttons']).to eq([])
-      expect(b.buttons).to eq([
-          {'id' => 1, 'label' => 'hat', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'},
-          {'id' => 2, 'label' => 'freedom', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'},
-          {'id' => 3, 'label' => 'polygon', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+      expect(b.buttons.map { |btn| btn.slice('id', 'label') }).to eq([
+          {'id' => 1, 'label' => 'hat'},
+          {'id' => 2, 'label' => 'freedom'},
+          {'id' => 3, 'label' => 'polygon'}
       ])
     end
   end

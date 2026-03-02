@@ -5,8 +5,8 @@ class ProfileTemplate < ApplicationRecord
 
   include SecureSerialize
   protect_global_id
-  belongs_to :user
-  belongs_to :organization
+  belongs_to :user, optional: true      # default/public templates may have no creator
+  belongs_to :organization, optional: true  # default templates not tied to org
 
 
   has_paper_trail :only => [:settings, :profile_id],

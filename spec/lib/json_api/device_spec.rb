@@ -10,14 +10,14 @@ describe JsonApi::Device do
   describe "build_json" do
     it "should not include unlisted settings" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       d.settings['hat'] = 'black'
       expect(JsonApi::Device.build_json(d).keys).not_to be_include('hat')
     end
     
     it "should return appropriate attributes" do
       u = User.create
-      d = Device.create(:settings => {'name' => 'cool device', 'app_version' => 'asdf'})
+      d = Device.create(:user => u, :settings => {'name' => 'cool device', 'app_version' => 'asdf'})
       expect(JsonApi::Device.build_json(d)).to eq({
         'id' => d.global_id,
         'name' => 'cool device',

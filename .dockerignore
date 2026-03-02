@@ -1,0 +1,16 @@
+.git
+.bundle
+.claude
+.cursor
+.devcontainer
+log/*
+tmp/*
+!tmp/keep
+node_modules
+app/frontend/node_modules
+app/frontend/dist
+app/frontend/bower_components
+public/assets
+storage/*
+.env
+.env.test

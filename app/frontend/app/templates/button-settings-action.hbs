@@ -55,7 +55,7 @@
                   <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
-                {{#with this.confirm_found_board as |board|}}
+                {{#let this.confirm_found_board as |board|}}
                   <div class="col-sm-4">
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
@@ -120,7 +120,7 @@
                                share with them? -->
                     <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key="copy_this_board"}}</button>
                   </div>
-                {{/with}}
+                {{/let}}
               {{/if}}
             </div>
           {{else}}

@@ -24,9 +24,9 @@
       </li>
       <li class={{if this.model.progress.home_board_set "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{this.home_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        {{#link-to "home-boards"}}
+        <LinkTo @route="home-boards">
           {{t "Pick a home board" key="pick_a_home_board"}}
-        {{/link-to}}
+        </LinkTo>
         <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if this.model.progress.home_board_set}}
@@ -54,9 +54,9 @@
       </li>
       <li class={{if this.model.progress.preferences_edited "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{this.preferences_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        {{#link-to "user.preferences" this.appState.currentUser.user_name}}
+        <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>
           {{t "Configure your board preferences" key="configure_your_board_preferences"}}
-        {{/link-to}}
+        </LinkTo>
         <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if this.model.progress.preferences_edited}}
@@ -69,9 +69,9 @@
       </li>
       <li class={{if this.model.progress.profile_edited "text-muted"}} style='margin-bottom: 20px;'>
         <span class={{this.profile_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        {{#link-to "user.edit" this.appState.currentUser.user_name}}
+        <LinkTo @route="user.edit" @model={{this.appState.currentUser.user_name}}>
           {{t "Update your profile" key="update_your_profile"}}
-        {{/link-to}}
+        </LinkTo>
         <br>
         <span class="text-muted" style="font-size: 12px;">
         {{#if this.model.progress.profile_edited}}
@@ -85,9 +85,9 @@
       {{#if this.appState.feature_flags.subscriptions}}
         <li class={{if this.model.progress.subscription_set "text-muted"}} style='margin-bottom: 20px;'>
           <span class={{this.subscription_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-          {{#link-to "user.subscription" this.appState.currentUser.user_name}}
+          <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>
             {{t "Set up a subscription" key="pick_subscription"}}
-          {{/link-to}}
+          </LinkTo>
           <br>
           <span class="text-muted" style="font-size: 12px;">
           {{#if this.model.progress.subscription_set}}

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2023_10_30_173246) do
+ActiveRecord::Schema[7.2].define(version: 2026_02_24_181933) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -21,6 +21,34 @@ ActiveRecord::Schema[7.2].define(version: 2023_10_30_173246) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["code_hash"], name: "index_activation_codes_on_code_hash", unique: true
+  end
+
+  create_table "ai_api_logs", id: :serial, force: :cascade do |t|
+    t.string "ai_provider", null: false
+    t.string "ai_model"
+    t.string "request_type", null: false
+    t.string "request_payload_hash"
+    t.text "request_summary"
+    t.text "response_summary"
+    t.integer "tokens_sent"
+    t.integer "tokens_received"
+    t.integer "duration_ms"
+    t.string "user_global_id"
+    t.string "organization_global_id"
+    t.boolean "pii_detected", default: false
+    t.text "pii_findings"
+    t.boolean "success", default: true
+    t.text "error_message"
+    t.string "ip_address"
+    t.string "feature_flag"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["ai_provider", "created_at"], name: "index_ai_api_logs_on_provider_and_created_at"
+    t.index ["ai_provider"], name: "index_ai_api_logs_on_ai_provider"
+    t.index ["created_at"], name: "index_ai_api_logs_on_created_at"
+    t.index ["organization_global_id"], name: "index_ai_api_logs_on_organization_global_id"
+    t.index ["request_type"], name: "index_ai_api_logs_on_request_type"
+    t.index ["user_global_id"], name: "index_ai_api_logs_on_user_global_id"
   end
 
   create_table "api_calls", id: :serial, force: :cascade do |t|

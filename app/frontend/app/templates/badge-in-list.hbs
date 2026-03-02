@@ -10,9 +10,9 @@
   {{/if}}
   <div style='height: 30px; overflow: hidden; line-height: 14px;'>
     {{#if badge.global}}
-      {{#link-to "goals.goal" badge.goal_id}}{{badge.name}}{{/link-to}}
+      <LinkTo @route="goals.goal" @model={{badge.goal_id}}>{{badge.name}}</LinkTo>
     {{else}}
-      {{#link-to "user.goal" this.model.user_name badge.goal_id}}{{badge.name}}{{/link-to}}
+      <LinkTo @route="user.goal" @models={{array this.model.user_name badge.goal_id}}>{{badge.name}}</LinkTo>
     {{/if}}
   </div>
 </div>

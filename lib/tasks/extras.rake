@@ -359,7 +359,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
     match = str.match(/window\.app_version\s+=\s+\"([0-9\.]+\w*)\";/)
     version = match && match[1]
     message = "New version deployed to servers (#{version})"
-    message += "\n<https://github.com/LingoLinq/lingolinq/blob/master/CHANGELOG.md|change notes> | <https://github.com/LingoLinq/lingolinq/commits/master|detailed log>"
+    message += "\n<https://github.com/swahlquist/LingoLinq-AAC/lingolinq/blob/master/CHANGELOG.md|change notes> | <https://github.com/swahlquist/LingoLinq-AAC/lingolinq/commits/master|detailed log>"
   end
   json = {"username": "deploy-bot", "icon_emoji": ":cuttlefish:", "text":message}
   `curl -X POST -H 'Content-type: application/json' --data '#{json.to_json}' #{ENV['SLACK_NOTIFICATION_URL']}`
