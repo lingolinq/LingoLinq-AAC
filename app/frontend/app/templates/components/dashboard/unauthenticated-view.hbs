@@ -9,7 +9,7 @@
     {{/if}}
   {{/unless}}
   <div style="margin-bottom: 30px;">
-    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} style="width: 100px;" alt="Logo">
+    {{app-logo}}
   </div>
   <h2>{{t "Communication is for everyone. %app_name%" key="communication_is_for_everyone"}}
     <span id="header_line_2">{{t "empowers people to make their voices heard." key="empowers_hearing"}}</span>

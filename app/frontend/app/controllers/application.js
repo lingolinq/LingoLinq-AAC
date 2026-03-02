@@ -36,6 +36,10 @@ export default Controller.extend({
   board: inject('board.index'),
   session: session,
 
+  isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', function() {
+    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
+  }),
+
   isStackedSpacesRoute: computed('router.currentRouteName', 'appState.current_route', function() {
     var name = this.router && this.router.currentRouteName;
     var current = this.appState && this.appState.get('current_route');
@@ -51,12 +55,7 @@ export default Controller.extend({
     var owner = getOwner(this);
     var sessionService = owner.lookup('lingolinq:session');
     if(sessionService) {
-      // Use defineProperty to set it without triggering read-only error
-      Object.defineProperty(this, 'session', {
-        value: sessionService,
-        writable: false,
-        configurable: true
-      });
+      this.set('session', sessionService);
     }
     // Explicit lookup of extras (fixing implicit injection deprecation)
     var extras = owner.lookup('lingolinq:extras');

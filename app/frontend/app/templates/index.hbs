@@ -12,7 +12,7 @@
     {{else}}
       {{! Show login form as fallback when no user and not full_domain }}
       <div style="text-align: center; margin-bottom: 30px;">
-        <img src={{if this.logoUrl this.logoUrl (path "images/logo-big-blue-gold.png")}} style="width: 100px;">
+        {{app-logo}}
       </div>
       {{login-form}}
     {{/if}}
@@ -20,7 +20,7 @@
   {{#if this.app_state.login_modal}}
     <div id="login_overlay">
       <div style="text-align: center; margin-bottom: 30px;">
-        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} style="width: 100px;">
+        {{app-logo}}
       </div>
       {{#unless this.app_state.no_linky}}
         {{#if this.app_state.domain_settings.full_domain}}
@@ -38,7 +38,7 @@
   {{! Show login form while app_state is initializing }}
   <div id="index_view" class="row" style='touch-action: manipulation;'>
     <div style="text-align: center; margin-bottom: 30px;">
-      <img src={{path "images/logo-big-blue-gold.png"}} style="width: 100px;">
+      {{app-logo}}
     </div>
     {{login-form}}
   </div>

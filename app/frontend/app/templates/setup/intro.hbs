@@ -1,6 +1,6 @@
 <div class='col-sm-6 col-sm-offset-3'>
   <h4>{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</h4>
-  <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;' >
+  <span style='float: left; margin-right: 10px; margin-bottom: 5px;'>{{app-logo size="sm"}}</span>
   <p class='prompt'>{{t "Thanks for signing up for %app_name%! We're excited you're here and hope %app_name% makes a difference for you. If you're new to %app_name%, this walkthrough will help you get started." key="intro_1"}}</p>
   {{#if this.app_state.auto_start}}
     <div style='margin-bottom: 40px;'>

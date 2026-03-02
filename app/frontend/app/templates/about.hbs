@@ -1,99 +1,258 @@
-<div class="row">
-  <div class="col-sm-8 col-sm-offset-2">
-    <h2>{{t "Every voice should be heard" key="every_voice_should_be_heard"}}</h2>
-    <p><strong>{{t "Some people are hard to hear" key="some_hard_to_hear"}}</strong>
-    {{t "-- through no fault of their own. Many people need the assistance of technology in order for their voices to be heard. Unfortunately, a lot of that technology is hard to use, is hard to configure, and is crazy expensive. %app_name% is a new AAC app that tries to fix that." key="want_to_fix_that"}}
-    </p>
-    <p>
-    {{t "Why \"%app_name%\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. They're cheap and nobody looks at you weird when you use them. We want to help get AAC to that same point by providing affordable, approachable, simple solutions to complex communication needs that work for everyday use." key="why_cough_drop"}}
-    </p>
-    <h3>{{t "Learn as You Go" key="learn_as_you_go"}}</h3>
-    <p>{{t "If you're new to the world of augmentative communication, just about every part of it feels intimidating. How could you possibly know the right words and symbols to pick for an individual's personal needs (and wants, and hopes, and wishes). Not to worry, we work with many different specialists to provide well-researched templates that will get you started. And just as importantly, we provide training resources for parents, caregivers, siblings... everyone involved in supporting an individual deserves to know what's going on and how exactly they can help the communication strategies be successful." key="learn_as_you_go_content_1"}}</p>
+<div class="la-wrapper la-wrapper--about">
+  <div class="app-shell">
+    <main class="la-main" role="main">
 
-    <h3>{{t "Work Offline" key="work_offline"}}</h3>
-    <p>{{t "Gathering data and working across devices is great, but there are still plenty of places where you won't have a good Wi-fi connection. %app_name% stores a user's boards and logs on each device so the user can communicate offline with no interrupts. Everything syncs back up the next time there is an internet connection." key="offline_content_1"}}</p>
-
-    <h3>{{t "Personalization and Sync" key="personalization"}}</h3>
-    <p>{{t "Being tied to a single device is risky, especially when you've added lots of your own pictures or moved picture symbols around for personal use. Not only can you possibly lose your data and configuration, but if a screen cracks or a battery dies, you're out of luck until it can be replaced. %app_name% works across multiple devices and keeps content in sync for you so you don't have to worry." key="personalization_content_1"}}</p>
-
-    <h3>{{t "Create, Share and Reuse" key="create_share"}}</h3>
-    <p>{{t "Nobody wants to start from scratch when creating a set of communication boards. %app_name% lets you easily discover and personalize communication boards created by others. And %app_name% encourages open licenses of content and symbols, so you don't have to wonder if you're breaking copyright somewhere on accident." key="create_share_content_1"}}</p>
-    <p>{{t "%app_name% is committed to making boards open and reusable. So much so that we started <a href='https://www.openboardformat.org'>the OpenBoards initiative</a> to work toward a standard file format for importing and exporting boards across all apps and devices, and we use that format as our native import/export format. When we have the freedom to build off of each other's ideas and successes regardless of where they came from, everyone wins." key="open_board_support"}}</p>
-
-    <h3>{{t "Team Coordination" key="coordination"}}</h3>
-    <p>{{t "Having to take an individual's communication device away from them in order to program it is a terrible thing, it takes away their voice. %app_name% lets therapists, specialists, parents and other team members modify the communication set and even log session notes and messages in a place where everyone can benefit from them." key="coordination_content_1"}}</p>
-
-    <h3>{{t "Insights" key="insights"}}</h3>
-    <p>{{t "Sometimes it's really hard to know what's working and what's not. Augmentative communication is an ongoing process of modifying and introducing vocabulary, and without good reports it's difficult to be sure what needs to change. %app_name% can log all communications and provide insightful reports based on time, location and vocabulary that makes it clearer for everyone just where to focus their efforts for the best results." key="insights_content_1"}}</p>
-
-    <h3>{{t "Security" key="security"}}</h3>
-    <p>{{t "%app_name% provides secure communication and storage of all boards, logs and user information. We do not share private information like user data, private boards and usage logs without explicit permission. We take user privacy extremely seriously because, at the end of the day, what we're talking about is potentially recording everything an individual ever says. That kind of information deserves to be protected." key="security_content_1"}}</p>
-
-    <h3>{{t "Open Source" key="open_source"}}</h3>
-    <p>{{t "Most AAC systems are built on proprietary technology, which means you don't really know how secure they are, it's easier to get locked in and forced into their way of doing things. <a href='https://github.com/swahlquist/LingoLinq-AAC' target='_blank' rel='noopener'>%app_name% is open source</a> and built with an open mindset, so you can see for yourself what goes into the system, and you always have easy access and exports for all your data." key="open_source_content_1"}}</p>
-
-    <h4 style="margin-top: 50px;">{{t "App Details" key="app_details"}}</h4>
-    <p>
-      <span class="text-muted" style="margin-left: 20px; font-size: 12px;">
-        {{t "app version:" key="version_colon"}} {{this.app_state.version}}
-      </span>
-    </p>
-    <p>
-      <span class="text-muted" style="margin-left: 20px; font-size: 12px;">
-        {{t "recognized device:" key="recognized_device_colon"}} {{this.app_state.device_name}}
-      </span>
-    </p>
-
-    <h4 style="margin-top: 20px;">{{t "Attributions" key="attributions"}}</h4>
-    <p>
-      <span class="text-muted" style="margin-left: 20px; font-size: 12px;"><a class="text-muted" target="_blank" href="https://www.flickr.com/photos/56155476@N08/6659988251/in/photostream/" style="text-decoration: underline;" rel="noopener">splash page photo</a> by Lexie Flickinger / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by/2.0/" rel="noopener">CC By</a></span>
-    </p>
-    <p>
-      <span class="text-muted" style="margin-left: 20px; font-size: 12px;"><a class="text-muted" target="_blank" href="http://aactext.org/imagine/" style="text-decoration: underline;" rel="noopener">keyboard suggestion word file</a> by <a class="text-muted" href="http://aactext.org/imagine/" target="_blank" rel="noopener">aactext.org</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nd/3.0/" rel="noopener">CC By-ND</a></span>
-    </p>
-    <p>
-      <span class="text-muted" style="display: inline-block; margin-left: 20px; font-size: 12px;">
-        board icon suggestions and icons by<br>
-        <span style="display: inline-block; margin-left: 20px;">
-          <a class="text-muted" href="https://mulberrysymbols.org/" target="_blank" rel="noopener">Paxtoncrafts Charitable Trust</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-sa/2.0/uk" rel="noopener">CC By-SA</a><br>
-          <a class="text-muted" href="http://www.catedu.es/arasaac/condiciones_uso.php" target="_blank" rel="noopener">Sergio Palao</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="noopener">CC By-NC-SA, used with permission</a>
-          <a class="text-muted" href="https://thenounproject.com/sherrera" target="_blank" rel="noopener">Silvia Herrera</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc/3.0/" rel="noopener">CC By</a>
-          <a class="text-muted" href="https://thenounproject.com/hayley.warren.3726" target="_blank" rel="noopener">Hayley Warren</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc/3.0/" rel="noopener">CC By-SA</a>
-          <a class="text-muted" href="https://thenounproject.com/Fhlcreative" target="_blank" rel="noopener">Phil Goodwin</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc/3.0/" rel="noopener">CC By-SA</a>
-          <a class="text-muted" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Tweitter Emoji</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC By</a>
+      {{!-- ── Hero Intro ── --}}
+      <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
+        <span class="la-section-eyebrow-badge" style="margin-bottom: 1rem;">
+          {{t "About" key="about"}} <span style="color: #2a5aa8;">Lingo</span><span style="color: #3a6bc7; font-style: italic;">Linq</span>
         </span>
-      </span>
-    </p>
-    <p>
-      <span class="text-muted" style="display: inline-block; margin-left: 20px; font-size: 12px;">
-        word libraries provided by<br>
-        <span style="display: inline-block; margin-left: 20px;">
-          <a class="text-muted" href="https://icon.shef.ac.uk/Moby/mpos.html" target="_blank" rel="noopener">Moby word list</a><br>
-          <a class="text-muted" href="https://words.bighugelabs.com" target="_blank" rel="noopener">Thesaurus service provided by words.bighugelabs.com</a>
-        </span>
-      </span>
-    </p>
-    <p>
-      <span class="text-muted" style="display: inline-block; margin-left: 20px; font-size: 12px;">
-        symbol sets by<br>
-        <span style="display: inline-block; margin-left: 20px;">
-          <a class="text-muted" href="https://www.opensymbols.org" target="_blank" rel="noopener">OpenSymbols</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by/3.0" rel="noopener">CC By</a><br>
-          <a class="text-muted" href="http://arasaac.org/condiciones_uso.php" target="_blank" rel="noopener">Sergio Palao, ARASAAC</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="noopener">CC By-NC-SA, used with permission</a><br>
-          <a class="text-muted" href="https://mulberrysymbols.org/" target="_blank" rel="noopener">Paxtoncrafts Charitable Trust</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-sa/2.0/uk" rel="noopener">CC By-SA</a><br>
-          <a class="text-muted" href="#" target="_blank" rel="noopener">LanguageCraft</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/3.0/" rel="noopener">CC By-NC-SA, used with permission</a><br>
-          <a class="text-muted" href="https://www.sclera.be/en/picto/overview" target="_blank" rel="noopener">Sclera</a> / <a class="text-muted" target="_blank" href="https://creativecommons.org/licenses/by-nc/2.0/" rel="noopener">CC By-NC, used with permission</a><br>
-          etc.
-        </span>
-      </span>
-    </p>
-    <p>
-      <span class="text-muted" style="display: inline-block; margin-left: 20px; font-size: 12px;">
-        typefaces by<br>
-        <span style="display: inline-block; margin-left: 20px;">
-          <a class="text-muted" href="https://opendyslexic.org/legal/" target="_blank" rel="noopener">OpenDyslexic by Bitstream, Inc.</a><br>
-          <a class="text-muted" href="https://kimberlygeswein.com" target="_blank" rel="noopener">Architect's Daughter by Kimberly Geswein</a> / <a class="text-muted" href="https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL" target="_blank" rel="noopener">OFL</a>
-        </span>
-      </span>
-    </p>
+        <div class="la-hero-title-wrap">
+          <h1 class="la-hero-title">
+            {{t "Every voice should be" key="every_voice_should_be"}} <em>{{t "heard" key="heard"}}</em>
+          </h1>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+        <div class="la-about-glass-grid">
+          <div class="la-about-glass-card">
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon" aria-hidden="true">💬</span>
+              <h3 class="la-about-glass-card__title">{{t "The Challenge" key="about_the_challenge"}}</h3>
+            </div>
+            <p class="la-about-glass-card__text">
+              {{t "Some people need help being heard -- and the tools out there? Often clunky, confusing, and way too expensive." key="the_challenge_text"}} <strong class="la-challenge-cta">{{t "We're here to change that." key="the_challenge_cta"}}</strong>
+            </p>
+          </div>
+
+          <div class="la-about-glass-card">
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon" aria-hidden="true">🔗</span>
+              <h3 class="la-about-glass-card__title">{{t "Our Mission" key="about_our_mission"}}</h3>
+            </div>
+            <p class="la-about-glass-card__text">
+              {{t "LingoLinq means linking language to the people who need it most. Everyone deserves a voice that's easy to use, affordable, and just works." key="our_mission_text"}} <strong class="la-challenge-cta">{{t "That's what LingoLinq is all about." key="our_mission_closer"}}</strong>
+            </p>
+          </div>
+
+          <div class="la-about-glass-card la-about-glass-card--cta">
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon" aria-hidden="true">🚀</span>
+              <h3 class="la-about-glass-card__title">{{t "Get Started" key="about_get_started"}}</h3>
+            </div>
+            <p class="la-about-glass-card__text">
+              {{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong>
+            </p>
+            <div class="la-hero-actions" style="justify-content: center; margin-top: 1.25rem;">
+              <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
+              <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {{!-- ── Features ── --}}
+      <section class="la-section">
+        <div class="la-section-header">
+          <span class="la-section-eyebrow-badge">{{t "What We Offer" key="about_what_we_offer"}}</span>
+          <h2 class="la-section-title">{{t "Built around" key="about_features_title_1"}} <em>{{t "what matters" key="about_features_title_2"}}</em></h2>
+        </div>
+        <div class="la-feature-grid">
+          {{#expandable-card
+            icon="📖"
+            iconClass="la-feature-icon--teal"
+            titleText="Learn as You Go"
+            titleKey="learn_as_you_go"
+            catchphraseText="Expert-designed templates and training so you never start from scratch."
+            catchphraseKey="learn_as_you_go_catchphrase"
+          }}
+            <p>{{t "If you're new to the world of augmentative communication, just about every part of it feels intimidating. How could you possibly know the right words and symbols to pick for an individual's personal needs (and wants, and hopes, and wishes). Not to worry, we work with many different specialists to provide well-researched templates that will get you started. And just as importantly, we provide training resources for parents, caregivers, siblings... everyone involved in supporting an individual deserves to know what's going on and how exactly they can help the communication strategies be successful." key="learn_as_you_go_content_1"}}</p>
+          {{/expandable-card}}
+
+          {{#expandable-card
+            icon="☁️"
+            iconClass="la-feature-icon--coral"
+            titleText="Work Offline"
+            titleKey="work_offline"
+            catchphraseText="Communicate anywhere -- boards and logs sync when you reconnect."
+            catchphraseKey="work_offline_catchphrase"
+          }}
+            <p>{{t "Gathering data and working across devices is great, but there are still plenty of places where you won't have a good Wi-fi connection. %app_name% stores a user's boards and logs on each device so the user can communicate offline with no interrupts. Everything syncs back up the next time there is an internet connection." key="offline_content_1"}}</p>
+          {{/expandable-card}}
+
+          {{#expandable-card
+            icon="🔄"
+            iconClass="la-feature-icon--navy"
+            titleText="Personalization and Sync"
+            titleKey="personalization"
+            catchphraseText="Your setup follows you across every device, always up to date."
+            catchphraseKey="personalization_catchphrase"
+          }}
+            <p>{{t "Being tied to a single device is risky, especially when you've added lots of your own pictures or moved picture symbols around for personal use. Not only can you possibly lose your data and configuration, but if a screen cracks or a battery dies, you're out of luck until it can be replaced. %app_name% works across multiple devices and keeps content in sync for you so you don't have to worry." key="personalization_content_1"}}</p>
+          {{/expandable-card}}
+
+          {{#expandable-card
+            icon="🤝"
+            iconClass="la-feature-icon--coral"
+            titleText="Create, Share and Reuse"
+            titleKey="create_share"
+            catchphraseText="Discover boards, share openly, and build on each other's work."
+            catchphraseKey="create_share_catchphrase"
+          }}
+            <p>{{t "Nobody wants to start from scratch when creating a set of communication boards. %app_name% lets you easily discover and personalize communication boards created by others. And %app_name% encourages open licenses of content and symbols, so you don't have to wonder if you're breaking copyright somewhere on accident." key="create_share_content_1"}}</p>
+            <p>{{t "%app_name% is committed to making boards open and reusable. So much so that we started <a href='https://www.openboardformat.org'>the OpenBoards initiative</a> to work toward a standard file format for importing and exporting boards across all apps and devices, and we use that format as our native import/export format. When we have the freedom to build off of each other's ideas and successes regardless of where they came from, everyone wins." key="open_board_support"}}</p>
+          {{/expandable-card}}
+
+          {{#expandable-card
+            icon="👥"
+            iconClass="la-feature-icon--teal"
+            titleText="Team Coordination"
+            titleKey="coordination"
+            catchphraseText="Therapists and families collaborate without taking the device away."
+            catchphraseKey="coordination_catchphrase"
+          }}
+            <p>{{t "Having to take an individual's communication device away from them in order to program it is a terrible thing, it takes away their voice. %app_name% lets therapists, specialists, parents and other team members modify the communication set and even log session notes and messages in a place where everyone can benefit from them." key="coordination_content_1"}}</p>
+          {{/expandable-card}}
+
+          {{#expandable-card
+            icon="📊"
+            iconClass="la-feature-icon--navy"
+            titleText="Insights"
+            titleKey="insights"
+            catchphraseText="Clear reports that show what's working and where to focus next."
+            catchphraseKey="insights_catchphrase"
+          }}
+            <p>{{t "Sometimes it's really hard to know what's working and what's not. Augmentative communication is an ongoing process of modifying and introducing vocabulary, and without good reports it's difficult to be sure what needs to change. %app_name% can log all communications and provide insightful reports based on time, location and vocabulary that makes it clearer for everyone just where to focus their efforts for the best results." key="insights_content_1"}}</p>
+          {{/expandable-card}}
+        </div>
+      </section>
+
+      {{!-- ── Security & Open Source ── --}}
+      <section class="la-plan-section">
+        <div class="la-plan-layout">
+          <div class="la-plan-text">
+            <span class="la-section-eyebrow-badge">{{t "Trust & Transparency" key="about_trust_transparency"}}</span>
+            <h2 class="la-plan-title">{{t "Your data deserves" key="about_security_title_1"}}<br><em>{{t "real protection" key="about_security_title_2"}}</em></h2>
+            <p class="la-plan-subtitle">{{t "We're talking about someone's voice -- potentially everything they ever say. That's deeply personal, and we treat it that way. Your data is encrypted, never shared without permission, and always yours to export." key="trust_transparency_text"}}</p>
+          </div>
+          <ul class="la-plan-grid">
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Encrypted data storage" key="about_check_encrypted"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "No sharing without permission" key="about_check_no_sharing"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Open source codebase" key="about_check_open_source"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Easy data export" key="about_check_export"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Open Board Format standard" key="about_check_obf"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Privacy-first design" key="about_check_privacy"}}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="la-a11y-statement">
+        <div class="la-a11y-statement-inner">
+          <div class="la-a11y-statement-header">
+            <span class="la-a11y-statement-icon" aria-hidden="true">&lt;/&gt;</span>
+            <span class="la-section-eyebrow-badge">{{t "Open Source" key="open_source"}}</span>
+          </div>
+          <div class="la-a11y-statement-content">
+            <p>{{t "Proprietary AAC tools lock you in and hide how they work. <a href='https://github.com/swahlquist/LingoLinq-AAC' target='_blank' rel='noopener'>%app_name% is open source</a> — inspect the code, export your data anytime, and never worry about vendor lock-in." key="open_source_content_concise"}}</p>
+          </div>
+        </div>
+      </section>
+
+      {{!-- ── CTA ── --}}
+      <section class="la-cta-section">
+        <div class="la-cta-inner">
+          <span class="la-section-eyebrow-badge">{{t "Ready to start?" key="fsa_ready_to_start"}}</span>
+          <h2 class="la-cta-headline">{{t "Give every student a voice" key="landing_cta_title"}}</h2>
+          <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
+          <div class="la-cta-buttons">
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
+            <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
+          </div>
+        </div>
+      </section>
+
+      <hr class="la-divider" aria-hidden="true">
+
+      {{!-- ── Attributions ── --}}
+      <section class="la-attr-section">
+        <div class="la-attr-header">
+          <span class="la-section-eyebrow-badge">{{t "Attributions" key="attributions"}}</span>
+          <p class="la-attr-meta">
+            {{t "app version:" key="version_colon"}} {{this.app_state.version}}
+            &middot;
+            {{t "recognized device:" key="recognized_device_colon"}} {{this.app_state.device_name}}
+          </p>
+        </div>
+
+        <div class="la-attr-grid">
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Photography" key="about_attr_photography"}}</h4>
+            <p class="la-attr-card__body"><a href="https://www.flickr.com/photos/56155476@N08/6659988251/in/photostream/" target="_blank" rel="noopener">splash page photo</a> by Lexie Flickinger / <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC By</a></p>
+          </div>
+
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Keyboard Data" key="about_attr_keyboard"}}</h4>
+            <p class="la-attr-card__body"><a href="http://aactext.org/imagine/" target="_blank" rel="noopener">keyboard suggestion word file</a> by <a href="http://aactext.org/imagine/" target="_blank" rel="noopener">aactext.org</a> / <a href="https://creativecommons.org/licenses/by-nd/3.0/" target="_blank" rel="noopener">CC By-ND</a></p>
+          </div>
+
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Board Icons & Suggestions" key="about_attr_icons"}}</h4>
+            <p class="la-attr-card__body">
+              <a href="https://mulberrysymbols.org/" target="_blank" rel="noopener">Paxtoncrafts Charitable Trust</a> / <a href="https://creativecommons.org/licenses/by-sa/2.0/uk" target="_blank" rel="noopener">CC By-SA</a><br>
+              <a href="http://www.catedu.es/arasaac/condiciones_uso.php" target="_blank" rel="noopener">Sergio Palao</a> / <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank" rel="noopener">CC By-NC-SA</a><br>
+              <a href="https://thenounproject.com/sherrera" target="_blank" rel="noopener">Silvia Herrera</a> / <a href="https://creativecommons.org/licenses/by-nc/3.0/" target="_blank" rel="noopener">CC By</a><br>
+              <a href="https://thenounproject.com/hayley.warren.3726" target="_blank" rel="noopener">Hayley Warren</a> / <a href="https://creativecommons.org/licenses/by-nc/3.0/" target="_blank" rel="noopener">CC By-SA</a><br>
+              <a href="https://thenounproject.com/Fhlcreative" target="_blank" rel="noopener">Phil Goodwin</a> / <a href="https://creativecommons.org/licenses/by-nc/3.0/" target="_blank" rel="noopener">CC By-SA</a><br>
+              <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twitter Emoji</a> / <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC By</a>
+            </p>
+          </div>
+
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Symbol Sets" key="about_attr_symbols"}}</h4>
+            <p class="la-attr-card__body">
+              <a href="https://www.opensymbols.org" target="_blank" rel="noopener">OpenSymbols</a> / <a href="https://creativecommons.org/licenses/by/3.0" target="_blank" rel="noopener">CC By</a><br>
+              <a href="http://arasaac.org/condiciones_uso.php" target="_blank" rel="noopener">Sergio Palao, ARASAAC</a> / <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank" rel="noopener">CC By-NC-SA</a><br>
+              <a href="https://mulberrysymbols.org/" target="_blank" rel="noopener">Paxtoncrafts Charitable Trust</a> / <a href="https://creativecommons.org/licenses/by-sa/2.0/uk" target="_blank" rel="noopener">CC By-SA</a><br>
+              <a href="#" target="_blank" rel="noopener">LanguageCraft</a> / <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank" rel="noopener">CC By-NC-SA</a><br>
+              <a href="https://www.sclera.be/en/picto/overview" target="_blank" rel="noopener">Sclera</a> / <a href="https://creativecommons.org/licenses/by-nc/2.0/" target="_blank" rel="noopener">CC By-NC</a>
+            </p>
+          </div>
+
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Word Libraries" key="about_attr_words"}}</h4>
+            <p class="la-attr-card__body">
+              <a href="https://icon.shef.ac.uk/Moby/mpos.html" target="_blank" rel="noopener">Moby word list</a><br>
+              <a href="https://words.bighugelabs.com" target="_blank" rel="noopener">words.bighugelabs.com</a>
+            </p>
+          </div>
+
+          <div class="la-attr-card">
+            <h4 class="la-attr-card__title">{{t "Typefaces" key="about_attr_typefaces"}}</h4>
+            <p class="la-attr-card__body">
+              <a href="https://opendyslexic.org/legal/" target="_blank" rel="noopener">OpenDyslexic by Bitstream, Inc.</a><br>
+              <a href="https://kimberlygeswein.com" target="_blank" rel="noopener">Architect's Daughter by Kimberly Geswein</a> / <a href="https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL" target="_blank" rel="noopener">OFL</a>
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 </div>

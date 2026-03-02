@@ -1,43 +1,4 @@
 <div class="landing-page landing-page--scot-palette {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
-  {{! Topbar }}
-  <nav class="la-topbar" aria-label={{t "Site navigation" key='fsa_site_navigation'}}>
-    <LinkTo @route="index" class="la-logo"><img src={{path "images/logo-big-blue-gold.png"}} alt="" class="la-logo-img" aria-hidden="true">Lingo<span>Linq</span></LinkTo>
-
-    <div class="la-topbar-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
-      <a href="#" class="la-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
-      <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
-      <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
-    </div>
-
-    <div class="la-topbar-right">
-      <div class="la-font-toggles" role="group" aria-label={{t "Font options" key='fsa_font_options'}}>
-        <button
-          type="button"
-          class="la-font-toggle {{if (is-equal this.activeFont "atkinson") "la-font-toggle--active"}}"
-          aria-pressed={{if (is-equal this.activeFont "atkinson") "true" "false"}}
-          aria-label={{t "Toggle Atkinson Hyperlegible font" key='fsa_toggle_atkinson'}}
-          title={{t "Atkinson Hyperlegible" key='fsa_font_atkinson'}}
-          {{action "toggleFont" "atkinson"}}
-        >
-          <span class="la-font-toggle-letter la-font-toggle-letter--atkinson" aria-hidden="true">A</span>
-        </button>
-        <button
-          type="button"
-          class="la-font-toggle {{if (is-equal this.activeFont "lexend") "la-font-toggle--active"}}"
-          aria-pressed={{if (is-equal this.activeFont "lexend") "true" "false"}}
-          aria-label={{t "Toggle Lexend font" key='fsa_toggle_lexend'}}
-          title={{t "Lexend" key='fsa_font_lexend'}}
-          {{action "toggleFont" "lexend"}}
-        >
-          <span class="la-font-toggle-letter la-font-toggle-letter--lexend" aria-hidden="true">L</span>
-        </button>
-      </div>
-      <LinkTo @route="landing-alt" class="la-topbar-compare-link">{{t "Modern Layout →" key="landing_alt_view_link"}}</LinkTo>
-      <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
-      <LinkTo @route="login" class="la-topbar-login">{{t "Sign In" key='login'}}</LinkTo>
-    </div>
-  </nav>
-
   {{! Hero }}
   <section class="landing-hero">
     <div class="landing-hero-inner">
@@ -209,10 +170,7 @@
   <footer class="landing-footer">
     <div class="landing-footer-inner">
       <div class="landing-footer-brand">
-        <LinkTo @route="index" class="landing-footer-logo">
-          <img src={{path "images/logo-big-blue-gold.png"}} alt="" class="landing-footer-logo-img" aria-hidden="true">
-          <span class="landing-footer-logo-text">{{t "%app_name%" key="app_name"}}</span>
-        </LinkTo>
+        {{app-logo linkRoute="index" class="landing-footer-logo" imgClass="landing-footer-logo-img" showName=true imgAlt="" ariaHiddenImg=true}}
         <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key="landing_footer_tagline"}}</p>
       </div>
       <div class="landing-footer-col">

@@ -19,7 +19,7 @@ class BoardsController < ApplicationController
   def about
     @meta_record = OpenStruct.new
     @meta_record.title = "About LingoLinq"
-    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.summary = "Why \"LingoLinq\"? The name LingoLinq comes from linking language to the people who need it most. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"

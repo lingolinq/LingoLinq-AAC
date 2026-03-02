@@ -1,0 +1,37 @@
+{{#if this.hasLinkRoute}}
+  <LinkTo @route={{this.linkRoute}} class={{@class}}>
+    {{#if this.isShowImage}}
+      <img
+        src={{if this.logoUrl this.logoUrl (path "images/logo-big-blue-gold.png")}}
+        style={{this.imgStyle}}
+        class={{@imgClass}}
+        alt={{this.resolvedImgAlt}}
+        aria-hidden={{if @ariaHiddenImg "true"}}
+      >
+    {{/if}}
+    {{#if this.isShowName}}
+      {{#if this.isBrandedName}}
+        Lingo<span>Linq</span>
+      {{else}}
+        <span class="app-logo__name">{{t "%app_name%" key='app_name'}}</span>
+      {{/if}}
+    {{/if}}
+  </LinkTo>
+{{else}}
+  {{#if this.isShowImage}}
+    <img
+      src={{if this.logoUrl this.logoUrl (path "images/logo-big-blue-gold.png")}}
+      style={{this.imgStyle}}
+      class={{@imgClass}}
+      alt={{this.resolvedImgAlt}}
+      aria-hidden={{if @ariaHiddenImg "true"}}
+    >
+  {{/if}}
+  {{#if this.isShowName}}
+    {{#if this.isBrandedName}}
+      Lingo<span>Linq</span>
+    {{else}}
+      <span class="app-logo__name">{{t "%app_name%" key='app_name'}}</span>
+    {{/if}}
+  {{/if}}
+{{/if}}
