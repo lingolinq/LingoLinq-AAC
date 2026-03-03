@@ -2364,7 +2364,7 @@ var capabilities;
       if(!db_key || db_key.match(/^db2/)) {
         db_key = "db";
       }
-      var key = "coughDropStorage::" + (db_id || "__") + "===" + db_key;
+      var key = "lingolinqStorage::" + (db_id || "__") + "===" + db_key;
       capabilities.db_name = key;
   
   
