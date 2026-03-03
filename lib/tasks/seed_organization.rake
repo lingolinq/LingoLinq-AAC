@@ -14,12 +14,12 @@ namespace :db do
     )
   end
 
-  desc "Verify or set password for a user (e.g. sampleorganization_manager_2). Usage: rake db:verify_user_password USER_NAME=sampleorganization_manager_2 PASSWORD=password123"
+  desc "Verify or set password for a user (e.g. sampleorganization_manager_2). Usage: rake db:verify_user_password USER_NAME=sampleorganization_manager_2 PASSWORD=<password>"
   task verify_user_password: :environment do
     user_name = ENV['USER_NAME']
-    password = ENV['PASSWORD'] || 'password123'
-    unless user_name
-      puts "Usage: rake db:verify_user_password USER_NAME=sampleorganization_manager_2 [PASSWORD=password123]"
+    password = ENV['PASSWORD']
+    unless user_name && password
+      puts "Usage: rake db:verify_user_password USER_NAME=sampleorganization_manager_2 PASSWORD=<password>"
       exit 1
     end
     user = User.find_by(user_name: user_name)
