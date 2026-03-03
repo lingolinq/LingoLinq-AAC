@@ -36,15 +36,16 @@ export default Controller.extend({
   }),
   ordered_buttons: null,
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
-    console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') });
-    if(!this || typeof this.get !== 'function' || !this.appState) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); return; }
-    if(!this.get('model')) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); return; }
+    var _vb = (window.LingoLinq || {}).verboseDebug;
+    if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') }); }
+    if(!this || typeof this.get !== 'function' || !this.appState) { if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no this/appState)'); } return; }
+    if(!this.get('model')) { if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() early return (no model - route likely torn down)'); } return; }
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
-    console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying');
+    if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying'); }
     editManager.process_for_displaying(ignore_fast_html);
-    console.log('[BOARD-DEBUG] board/index processButtons() done');
+    if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() done'); }
   }),
   check_for_share_approval: observer(
     'model.id',

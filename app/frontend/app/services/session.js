@@ -196,13 +196,16 @@ export default Service.extend({
     }
     
     var onlineStatus = this.persistence ? this.persistence.get('online') : false;
+    var _vb = (window.LingoLinq || {}).verboseDebug;
 
-    console.log('[check_token] Starting token check', {
-      url: url,
-      online: onlineStatus,
-      has_token: !!store_data.access_token,
-      token_preview: store_data.access_token ? store_data.access_token.substring(0, 10) + '...' : 'none'
-    });
+    if (_vb) {
+      console.log('[check_token] Starting token check', {
+        url: url,
+        online: onlineStatus,
+        has_token: !!store_data.access_token,
+        token_preview: store_data.access_token ? store_data.access_token.substring(0, 10) + '...' : 'none'
+      });
+    }
     
     var _this = this;
     if(!this.persistence) {
@@ -212,15 +215,18 @@ export default Service.extend({
       type: 'GET'
     }).then(function(data) {
       if(!_this) { return RSVP.resolve({ success: false }); }
-      console.log('[check_token] Token check succeeded', {
-        authenticated: data.authenticated,
-        has_user_name: !!data.user_name,
-        user_id: data.user_id,
-        has_meta_fakeXHR: !!(data.meta && data.meta.fakeXHR),
-        has_fakeXHR: !!data.fakeXHR,
-        browserToken_in_meta: !!(data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken),
-        browserToken_in_fakeXHR: !!(data.fakeXHR && data.fakeXHR.browserToken)
-      });
+      var _vb = (window.LingoLinq || {}).verboseDebug;
+      if (_vb) {
+        console.log('[check_token] Token check succeeded', {
+          authenticated: data.authenticated,
+          has_user_name: !!data.user_name,
+          user_id: data.user_id,
+          has_meta_fakeXHR: !!(data.meta && data.meta.fakeXHR),
+          has_fakeXHR: !!data.fakeXHR,
+          browserToken_in_meta: !!(data.meta && data.meta.fakeXHR && data.meta.fakeXHR.browserToken),
+          browserToken_in_fakeXHR: !!(data.fakeXHR && data.fakeXHR.browserToken)
+        });
+      }
       // TODO: what happens if the session token gets invalidated mid-session (i.e. without reload?)
       // TODO: if expired, then re-submit with the refresh token
       if(data.authenticated === false) {
@@ -273,15 +279,17 @@ export default Service.extend({
       try {
         browserToken = _this.persistence.getBrowserToken();
       } catch(e) {
-        console.warn('[check_token] Error getting browserToken:', e);
+        if ((window.LingoLinq || {}).verboseDebug) { console.warn('[check_token] Error getting browserToken:', e); }
       }
       
       return RSVP.resolve({success: true, browserToken: browserToken});
     }, function(data) {
       if(!_this) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
+      var _vb = (window.LingoLinq || {}).verboseDebug;
       
-      console.log('[check_token] Token check failed', {
+      if (_vb) {
+        console.log('[check_token] Token check failed', {
         error_data: data,
         fakeXHR: data && data.fakeXHR ? {
           status: data.fakeXHR.status,
@@ -289,10 +297,11 @@ export default Service.extend({
         } : null,
         result: data && data.result,
         online: onlineStatus
-      });
+        });
+      }
       
       if(!onlineStatus) {
-        console.log('[check_token] Already marked as offline, returning success: false');
+        if (_vb) { console.log('[check_token] Already marked as offline, returning success: false'); }
         return {success: false};
       }
       
@@ -304,28 +313,30 @@ export default Service.extend({
       if(data && data.result) {
         var result = data.result;
         if(result.invalid_token || result.error === 'Invalid token' || result.error === 'Expired token') {
-          console.warn('[check_token] Token is invalid or expired', {
-            invalid_token: result.invalid_token,
-            error: result.error
-          });
+          if (_vb) {
+            console.warn('[check_token] Token is invalid or expired', {
+              invalid_token: result.invalid_token,
+              error: result.error
+            });
+          }
           _this.set('invalid_token', true);
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
           }
         } else if(result.error === 'Token needs refresh') {
-          console.warn('[check_token] Token needs refresh');
+          if (_vb) { console.warn('[check_token] Token needs refresh'); }
           _this.set('invalid_token', true);
           // Could implement token refresh logic here in the future
         }
       }
       if(data && data.result && data.result.error == "not online") {
-        console.log('[check_token] Error indicates not online');
+        if (_vb) { console.log('[check_token] Error indicates not online'); }
         return {success: false};
       }
       
       if(!data && !onlineStatus) {
-        console.log('[check_token] No data and not online');
+        if (_vb) { console.log('[check_token] No data and not online'); }
         return {success: false};
       }
       // Check for network/connection errors
@@ -334,23 +345,23 @@ export default Service.extend({
         // Status 0 typically means network error (CORS, connection refused, etc.)
         if(data.fakeXHR.status === 0 || data.fakeXHR.status === undefined) {
           isNetworkError = true;
-          console.log('[check_token] Detected network error: status is 0 or undefined');
+          if (_vb) { console.log('[check_token] Detected network error: status is 0 or undefined'); }
         } else {
-          console.log('[check_token] HTTP error status:', data.fakeXHR.status);
+          if (_vb) { console.log('[check_token] HTTP error status:', data.fakeXHR.status); }
         }
       } else if(!data || (data.status === 0)) {
         // No response or status 0 indicates network error
         isNetworkError = true;
-        console.log('[check_token] Detected network error: no data or status 0');
+        if (_vb) { console.log('[check_token] Detected network error: no data or status 0'); }
       }
       
       // If it's a network error and we thought we were online, mark as offline
       if(isNetworkError && onlineStatus) {
-        console.log('[check_token] Network error detected, marking as offline');
+        if (_vb) { console.log('[check_token] Network error detected, marking as offline'); }
          try {
            _this.persistence.set('online', false);
          } catch(e) {
-           console.warn('[check_token] Error setting online to false:', e);
+           if (_vb) { console.warn('[check_token] Error setting online to false:', e); }
          }
       }
       
@@ -362,11 +373,11 @@ export default Service.extend({
       try {
         browserTokenForResult = _this.persistence.getBrowserToken();
       } catch(e) {
-        console.warn('[check_token] Error getting browserToken for result:', e);
+        if (_vb) { console.warn('[check_token] Error getting browserToken for result:', e); }
       }
       
       var result = {success: false, browserToken: browserTokenForResult, networkError: isNetworkError};
-      console.log('[check_token] Returning result:', result);
+      if (_vb) { console.log('[check_token] Returning result:', result); }
       return RSVP.resolve(result);
     });
   },
@@ -406,9 +417,10 @@ export default Service.extend({
 
   restore: function(force_check_for_token) {
     if(!this.stashes.get('enabled')) { return {}; }
+    var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
       var prior = sessionStorage.getItem('lingolinq_login_debug');
-      if(prior) {
+      if(prior && _vb) {
         var arr = JSON.parse(prior);
         console.log('[LOGIN-DEBUG] Prior page log:', arr);
       }
@@ -416,7 +428,7 @@ export default Service.extend({
     console.debug('LINGOLINQ: restoring session data');
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
-    console.log('[session.restore] auth from stashes', { has_token: !!store_data.access_token, user_name: store_data.user_name });
+    if (_vb) { console.log('[session.restore] auth from stashes', { has_token: !!store_data.access_token, user_name: store_data.user_name }); }
 
     // Ensure tokens logic works safely
     if(this.persistence && !this.persistence.tokens) {
@@ -426,10 +438,12 @@ export default Service.extend({
     // Sync capabilities.access_token from restored auth_settings
     if(capabilities && store_data.access_token) {
       if(capabilities.access_token !== store_data.access_token) {
-        console.log('[session.restore] Updating capabilities.access_token from restored session', {
-          old_token_preview: capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none',
-          new_token_preview: store_data.access_token.substring(0, 10) + '...'
-        });
+        if (_vb) {
+          console.log('[session.restore] Updating capabilities.access_token from restored session', {
+            old_token_preview: capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none',
+            new_token_preview: store_data.access_token.substring(0, 10) + '...'
+          });
+        }
         capabilities.access_token = store_data.access_token;
       }
       // Also call sync function if it exists (from capabilities.init)

@@ -27,7 +27,7 @@ var loaded = (new Date()).getTime() / 1000;
 // This ensures any code that runs before the service initializes has a safe placeholder
 // The placeholder will be replaced by the real service instance when it initializes
 if(!window.persistence || typeof window.persistence.get !== 'function') {
-  if (!isTesting() && typeof window.Testem === 'undefined') { console.log('[PERSISTENCE MODULE] Setting early window.persistence placeholder'); }
+  if (!isTesting() && typeof window.Testem === 'undefined' && (window.LingoLinq || {}).verboseDebug) { console.log('[PERSISTENCE MODULE] Setting early window.persistence placeholder'); }
   window.persistence = {
     // Safe placeholder properties
     online: navigator.onLine !== false,

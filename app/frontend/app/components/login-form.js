@@ -19,7 +19,9 @@ function _loginDebug(msg, data) {
   var entry = { t: Date.now(), msg: msg, data: data || {} };
   _loginDebugLog.push(entry);
   try { sessionStorage.setItem('lingolinq_login_debug', JSON.stringify(_loginDebugLog.slice(-50))); } catch (e) {}
-  console.log('[LOGIN-DEBUG]', msg, data);
+  if ((typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.verboseDebug)) {
+    console.log('[LOGIN-DEBUG]', msg, data);
+  }
 }
 
 export default Component.extend({
@@ -290,11 +292,31 @@ export default Component.extend({
       var saved_token = auth_settings.access_token;
       var saved_user_name = auth_settings.user_name;
       var saved_user_id = auth_settings.user_id;
-      
+
+      // Restore session early so if we transition before wait completes (e.g. fallback timeout),
+      // the index route will see isAuthenticated/access_token and load the user correctly
+      if(saved_token) {
+        capabilities.access_token = saved_token;
+        if(capabilities.sync_access_token) { capabilities.sync_access_token(); }
+        _this.session.set('isAuthenticated', true);
+        _this.session.set('access_token', saved_token);
+        _this.session.set('user_name', saved_user_name);
+        _this.session.set('user_id', saved_user_id);
+      }
+
       if(reload) {
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
+      }
+      // When reload is false: we're showing "Trust this device" / "Shared device" UI.
+      // Don't run the wait chain - it would clear login_followup and set logged_in,
+      // replacing the buttons with "Success! One Moment..." without ever transitioning.
+      if(!reload) {
+        _loginDebug('login_success: reload=false, showing follow-up UI (Trust device / Shared device)');
+        _this.set('logging_in', false);
+        _this.appState.set('logging_in', false);
+        return;
       }
       // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {
@@ -334,32 +356,28 @@ export default Component.extend({
             }
           });
         } else {
-          // Web: wait for stashes flush AND user fetch before transitioning
-          // so navbar shows signed-in state (sessionUser/currentUser) without page refresh
-          var transitionDone = false;
-          var transitionToDashboard = function() {
-            if(transitionDone || _this.isDestroyed || _this.isDestroying) { return; }
-            transitionDone = true;
+          // Web: use full page reload after login (same approach as installed app).
+          // Client-side transition was unreliable: on index route transitionTo('index') is a no-op,
+          // and the dashboard only shows when appState.currentUser is set by refresh_session_user.
+          // A reload guarantees session restore from localStorage and clean dashboard load.
+          var reloadDone = false;
+          var doReload = function() {
+            if(reloadDone || _this.isDestroyed || _this.isDestroying) { return; }
+            reloadDone = true;
             if(_this.get('return')) {
-              location.reload();
               _this.session.set('return', true);
-            } else {
-              _loginDebug('Web: transitioning to index (no reload)');
-              _this.router.transitionTo('index');
             }
+            _loginDebug('Web: reloading to dashboard');
+            location.assign('/');
           };
-          wait.then(transitionToDashboard, function(err) {
+          wait.then(doReload, function(err) {
             if(_this.isDestroyed || _this.isDestroying) { return; }
-            console.warn('[login_success] User fetch failed, transitioning anyway', err);
-            transitionToDashboard();
+            console.warn('[login_success] User fetch failed, reloading anyway', err);
+            doReload();
           });
-          // Fallback: if promises hang (e.g. slow API, IndexedDB), transition after 5s
-          runLater(function() {
-            if(!transitionDone && _this.get('logged_in')) {
-              console.warn('[login_success] Fallback: transitioning after timeout');
-              transitionToDashboard();
-            }
-          }, 5000);
+          // Fallback: if wait hangs (e.g. slow API, IndexedDB), reload after 6s
+          var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
+          RSVP.race([wait, timeoutPromise]).then(doReload, function() { doReload(); });
         }
       }
     },
