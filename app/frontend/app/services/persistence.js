@@ -55,7 +55,6 @@ var persistence = Service.extend({
 
 
   init() {
-    this._super(...arguments);
     window.persistence = this;
     var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
