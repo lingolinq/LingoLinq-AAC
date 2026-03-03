@@ -17308,7 +17308,16 @@ $aac-z-topbar:   400;
 
   // CTA buttons inside about hero
   .la-hero-card .la-btn--primary {
-    box-shadow: 0 4px 12px rgba(58, 107, 199, 0.25);
+    background: #4a7ad4;
+    border-color: #4a7ad4;
+    filter: brightness(1.12);
+    box-shadow: 0 6px 20px rgba(58, 107, 199, 0.55), 0 2px 5px rgba(0, 0, 0, 0.15);
+
+    &:hover {
+      filter: brightness(0.92);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(58, 107, 199, 0.65), 0 3px 8px rgba(0, 0, 0, 0.18);
+    }
   }
 
   .la-hero-card .la-btn--ghost {
@@ -17870,33 +17879,78 @@ $la-white:     #FFFFFF;
   grid-area: main;
   overflow-y: auto;
   padding: $aac-spacing-48 $aac-spacing-28;
-  background:
-    // near hero — cool teal wash, upper right
-    radial-gradient(ellipse 70% 35% at 80% 5%, rgba(78, 205, 196, 0.07) 0%, transparent 70%),
-    // near hero — warm glow, upper left
-    radial-gradient(ellipse 55% 30% at 15% 8%, rgba(245, 194, 59, 0.05) 0%, transparent 60%),
-    // mid-page — soft blue field
-    radial-gradient(ellipse 90% 25% at 50% 45%, rgba(58, 107, 199, 0.035) 0%, transparent 70%),
-    // lower-page — warm temperature shift
-    radial-gradient(ellipse 80% 30% at 30% 80%, rgba(237, 233, 224, 0.5) 0%, transparent 70%),
-    // lower-page — faint teal echo
-    radial-gradient(ellipse 50% 20% at 75% 90%, rgba(78, 205, 196, 0.03) 0%, transparent 70%),
-    // base — very subtle warm-to-cool vertical wash
-    linear-gradient(180deg, #FFFFFF 0%, #FAFBFD 35%, #F8F7F4 70%, #F5F4F1 100%);
+  background: #F3F1ED;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: $aac-spacing-48;
 }
 
+// ── Background orbs — subtle colored circles like authenticated light mode ──
+.la-bg-orbs {
+  position: absolute;
+  inset: -80px;
+  pointer-events: none;
+  filter: blur(60px);
+  opacity: 0.7;
+  z-index: 0;
+}
+
+.la-bg-orb {
+  position: absolute;
+  border-radius: 999px;
+  transform: translateZ(0);
+
+  // blue — top right near hero
+  &--a {
+    width: 500px;
+    height: 500px;
+    right: 5%;
+    top: 3%;
+    background: radial-gradient(circle at 30% 30%, rgba(58, 107, 199, 0.30), transparent 58%),
+                radial-gradient(circle at 70% 70%, rgba(100, 140, 220, 0.22), transparent 60%);
+  }
+
+  // gold — upper left
+  &--b {
+    width: 420px;
+    height: 420px;
+    left: 4%;
+    top: 8%;
+    background: radial-gradient(circle at 35% 35%, rgba(245, 194, 59, 0.25), transparent 60%),
+                radial-gradient(circle at 70% 70%, rgba(230, 180, 80, 0.18), transparent 58%);
+  }
+
+  // coral — mid-page left
+  &--c {
+    width: 480px;
+    height: 480px;
+    left: 15%;
+    top: 45%;
+    background: radial-gradient(circle at 35% 35%, rgba(212, 85, 59, 0.22), transparent 58%),
+                radial-gradient(circle at 70% 70%, rgba(245, 140, 100, 0.16), transparent 60%);
+  }
+
+  // blue — lower right
+  &--d {
+    width: 540px;
+    height: 540px;
+    right: 8%;
+    bottom: 10%;
+    background: radial-gradient(circle at 30% 30%, rgba(58, 107, 199, 0.20), transparent 58%),
+                radial-gradient(circle at 70% 70%, rgba(140, 170, 230, 0.15), transparent 60%);
+  }
+}
+
 // ── Hero card ────────────────────────────────────────────────────────────────
 .la-hero-card {
-  margin-top: 10rem;
-  background: $color-ink;
+  margin-top: 7rem;
+  background: #2d3f5e;
   border-radius: calc(#{$aac-radius-xl} - 3px);
   padding: $aac-spacing-48 $aac-spacing-40 $aac-spacing-40;
   display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: $aac-spacing-32;
+  grid-template-columns: 1fr 1fr;
+  gap: $aac-spacing-24;
   align-items: center;
   position: relative;
   z-index: 1;
@@ -17912,7 +17966,7 @@ $la-white:     #FFFFFF;
     width: 480px;
     height: 480px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba($la-coral, 0.05) 0%, transparent 50%);
+    background: radial-gradient(circle, rgba($la-coral, 0.10) 0%, transparent 50%);
     pointer-events: none;
   }
 
@@ -17925,20 +17979,20 @@ $la-white:     #FFFFFF;
     width: 420px;
     height: 420px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba($la-teal, 0.04) 0%, transparent 50%);
+    background: radial-gradient(circle, rgba($la-teal, 0.08) 0%, transparent 50%);
     pointer-events: none;
   }
 
   .la-section-eyebrow-badge {
-    color: rgba(20, 127, 130, 1);
-    background: rgba(20, 127, 130, 0.12);
-    border-color: rgba(20, 127, 130, 0.3);
+    color: #5cc5c8;
+    background: rgba(92, 197, 200, 0.12);
+    border-color: rgba(92, 197, 200, 0.3);
   }
 }
 
 .la-hero-text {
   padding-left: 1rem;
-  padding-right: 5rem;
+  padding-right: 1rem;
 }
 
 .la-hero-eyebrow {
@@ -17958,7 +18012,7 @@ $la-white:     #FFFFFF;
   font-family: $aac-font-display;
   font-size: 54px;
   font-weight: $aac-font-weight-black;
-  color: #3a6bc7;
+  color: #ffffff;
   line-height: 1.05;
   letter-spacing: -0.035em;
   font-kerning: normal;
@@ -17987,7 +18041,7 @@ $la-white:     #FFFFFF;
 .la-wrapper .la-hero-subtitle {
   font-size: 18px;
   font-weight: 400;
-  color: rgba(white, 0.85);
+  color: rgba(white, 0.92);
   line-height: 1.75;
   letter-spacing: 0.005em;
   margin: 0 0 $aac-spacing-20;
@@ -18007,16 +18061,16 @@ $la-white:     #FFFFFF;
   align-items: center;
   gap: $aac-spacing-8;
   padding: 6px $aac-spacing-16 6px 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: $aac-radius-pill;
-  opacity: 0.7;
+  opacity: 0.85;
   box-shadow: none;
   transition: background 0.2s ease, opacity 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    opacity: 0.85;
+    background: rgba(255, 255, 255, 0.14);
+    opacity: 1;
   }
 }
 
@@ -18051,7 +18105,7 @@ $la-white:     #FFFFFF;
 .la-hero-badge-label {
   font-size: 14px;
   font-weight: $aac-font-weight-medium;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.88);
   letter-spacing: 0.01em;
 }
 
@@ -18124,12 +18178,28 @@ $la-white:     #FFFFFF;
   &.la-btn--full { width: 100%; }
 }
 
+// Hero primary button: bright by default, lift + glow on hover
+.la-hero-card .la-btn--primary {
+  background: #4a7ad4;
+  border-color: #4a7ad4;
+  filter: brightness(1.12);
+  box-shadow: 0 6px 20px rgba(58, 107, 199, 0.55), 0 2px 5px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    filter: brightness(1.12);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 36px rgba(58, 107, 199, 0.7), 0 4px 12px rgba(58, 107, 199, 0.35), 0 0 0 6px rgba(58, 107, 199, 0.15);
+  }
+}
+
 // ── Hero mockup ──────────────────────────────────────────────────────────────
 .la-hero-mockup-wrap {
   position: relative;
   flex-shrink: 0;
   display: flex;
   justify-content: center;
+  transform: scale(1.1);
+  transform-origin: center center;
 }
 
 @keyframes la-float {
@@ -18151,14 +18221,14 @@ $la-white:     #FFFFFF;
   will-change: transform;
 
   &.la-floating-chip--tl {
-    top: -18px;
-    right: -10px;
+    top: -4px;
+    right: 10px;
     animation: la-float 4s ease-in-out infinite;
   }
 
   &.la-floating-chip--br {
-    bottom: -14px;
-    left: -16px;
+    bottom: 4px;
+    left: 6px;
     animation: la-float 4.5s ease-in-out infinite 1.5s;
   }
 }
@@ -18289,7 +18359,7 @@ $la-white:     #FFFFFF;
 }
 
 .la-mockup-bar {
-  background: $color-ink;
+  background: #4A6FA8;
   display: flex;
   align-items: center;
   gap: 10px; /* 8 × 1.2 */
@@ -18309,6 +18379,7 @@ $la-white:     #FFFFFF;
 .la-mockup-url {
   font-size: 17px; /* 14 × 1.2 */
   color: rgba(white, 0.5);
+  font-weight: 700;
   margin-left: $aac-spacing-6;
   font-family: $aac-font-body;
 }
@@ -18358,15 +18429,15 @@ $la-white:     #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: $color-ink;
+  background: #E8E8E8;
   border-radius: 11px; /* 9 × 1.2 */
   padding: 12px 18px; /* 10×1.2, 15×1.2 */
 }
 
 .la-mockup-sentence-text {
   font-size: 17px; /* 14 × 1.2 */
-  font-weight: 700;
-  color: white;
+  font-weight: 500;
+  color: $color-ink;
   font-family: $aac-font-body;
   flex: 1;
   text-align: right;
@@ -18376,7 +18447,7 @@ $la-white:     #FFFFFF;
 .la-mockup-speak {
   font-size: 14px; /* 12 × 1.2 */
   font-weight: 900;
-  background: #3a6bc7;
+  background: #5A83C3;
   color: white;
   padding: 6px 14px; /* 5×1.2, 12×1.2 */
   border-radius: 36px; /* 30 × 1.2 */
@@ -18389,19 +18460,27 @@ $la-white:     #FFFFFF;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: $aac-spacing-20 $aac-spacing-40;
-  margin-top: $aac-spacing-12;
+  gap: $aac-spacing-20 $aac-spacing-24;
+  margin-top: -2rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
   align-items: flex-start;
-  padding-bottom: $aac-spacing-16;
+  padding: $aac-spacing-24 $aac-spacing-32;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: $aac-radius-xl;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 1;
 }
 
 .la-stat-cell {
-  background: rgba(255, 255, 255, 0.72);
+  background: #ffffff;
   border-radius: 18px;
-  border: none;
-  padding: $aac-spacing-20 $aac-spacing-20;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: $aac-spacing-24 $aac-spacing-20;
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   flex: 1 1 0;
   min-width: 154px;
   max-width: 242px;
@@ -18428,7 +18507,7 @@ $la-white:     #FFFFFF;
   font-family: $aac-font-display;
   font-size: $aac-font-size-2xl;
   font-weight: $aac-font-weight-black;
-  color: $la-navy;
+  color: #2a5aa8;
   letter-spacing: -0.02em;
   font-kerning: normal;
   margin-bottom: $aac-spacing-4;
@@ -18440,8 +18519,43 @@ $la-white:     #FFFFFF;
   line-height: 1.6;
 }
 
+.la-scroll-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $aac-spacing-6;
+  padding: $aac-spacing-8 0;
+}
+
+.la-scroll-hint__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(20, 127, 130, 0.08);
+  border: 1px solid rgba(20, 127, 130, 0.18);
+  color: #147f82;
+  font-size: 18px;
+  animation: la-bounce 2s ease-in-out infinite;
+}
+
+.la-scroll-hint__label {
+  font-size: 13px;
+  font-weight: $aac-font-weight-semi;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(20, 127, 130, 0.65);
+}
+
+@keyframes la-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(4px); }
+}
+
 #la-features {
-  border-top: 1px solid rgba(0, 0, 0, 0.15);
+  border-top: 1px solid rgba(0, 0, 0, 0.10);
   padding-top: $aac-spacing-32;
 }
 
@@ -18463,6 +18577,7 @@ $la-white:     #FFFFFF;
     0 16px 32px -8px rgba(0, 0, 0, 0.08),
     0 32px 64px -16px rgba(0, 0, 0, 0.06);
   position: relative;
+  z-index: 1;
   overflow: hidden;
   contain: paint; // limit repaint area during scroll
 
@@ -19573,6 +19688,7 @@ $la-white:     #FFFFFF;
   .la-hero-card {
     grid-template-columns: 1fr;
     padding: $aac-spacing-32 $aac-spacing-28;
+    text-align: center;
   }
 
   .la-hero-text {
@@ -19584,10 +19700,35 @@ $la-white:     #FFFFFF;
     font-size: 36px;
   }
 
+  .la-wrapper .la-hero-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .la-hero-badges {
+    justify-content: center;
+  }
+
+  .la-hero-actions {
+    justify-content: center;
+  }
+
   .la-hero-mockup-wrap {
     justify-content: center;
-    max-width: 480px;
-    margin: 0 auto;
+    max-width: 400px;
+    margin: $aac-spacing-16 auto 0;
+  }
+
+  .la-floating-chip {
+    &.la-floating-chip--tl {
+      top: -10px;
+      right: -6px;
+    }
+
+    &.la-floating-chip--br {
+      bottom: -10px;
+      left: -6px;
+    }
   }
 }
 
@@ -19625,7 +19766,7 @@ $la-white:     #FFFFFF;
   }
 
   .la-hero-mockup-wrap {
-    max-width: 420px;
+    max-width: 360px;
   }
 
   // Stats: relax to 2x2
