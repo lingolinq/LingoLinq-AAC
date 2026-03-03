@@ -368,8 +368,7 @@ export default Component.extend({
               _this.session.set('return', true);
             }
             _loginDebug('Web: reloading to dashboard');
-            location.href = '/';
-            location.reload();
+            location.assign('/');
           };
           wait.then(doReload, function(err) {
             if(_this.isDestroyed || _this.isDestroying) { return; }
