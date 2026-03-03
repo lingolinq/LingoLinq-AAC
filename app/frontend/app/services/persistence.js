@@ -55,64 +55,25 @@ var persistence = Service.extend({
 
 
   init() {
+    this._super(...arguments);
     window.persistence = this;
     var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
-      var initStack = new Error().stack;
       if (_vb) {
+        var initStack = new Error().stack;
         console.log('[PERSISTENCE INIT] ========== init() START ==========');
-        console.log('[PERSISTENCE INIT] this:', this);
-        console.log('[PERSISTENCE INIT] this type:', typeof this);
-        console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
-        console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
-        console.log('[PERSISTENCE INIT] stashes:', this.stashes);
-        console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
-        console.log('[PERSISTENCE INIT] Call stack:', initStack.split('\n').slice(0, 15).join('\n'));
+        console.log('[PERSISTENCE INIT] stashes:', this.stashes, 'stashes type:', typeof this.stashes);
+        console.log('[PERSISTENCE INIT] Call stack:', initStack.split('\n').slice(0, 10).join('\n'));
       }
       
-      // Fix stashes injection BEFORE calling _super() to prevent computed property evaluation errors
-      // If this.stashes is a class (not an instance), use window.stashes or lookup the service
+      // Fix stashes injection if container returned class instead of instance (rare; 00-eager-stashes initializer prevents this)
       if(this.stashes && typeof this.stashes.create === 'function') {
-        // this.stashes is a class, not an instance - fix it before _super() is called
-        if (_vb) { console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Fixing before _super()...'); }
-        // Try to get the instance from the owner first (but don't use this.get() before _super())
-        try {
-          var owner = (this.constructor && this.constructor.owner) || (this.owner);
-          if(owner && typeof owner.lookup === 'function') {
-            var stashesService = owner.lookup('service:stashes');
-            if(stashesService && typeof stashesService.get === 'function') {
-              if (_vb) { console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup (before _super)'); }
-              this.stashes = stashesService;
-            }
-          }
-        } catch(e) {
-          if (_vb) { console.warn('[PERSISTENCE INIT] Error looking up stashes service (before _super):', e); }
-        }
-      }
-      
-      this._super(...arguments);
-      
-      if (_vb) {
-        console.log('[PERSISTENCE INIT] ========== after _super ==========');
-        console.log('[PERSISTENCE INIT] this:', this);
-        console.log('[PERSISTENCE INIT] this type:', typeof this);
-        console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
-        console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
-        console.log('[PERSISTENCE INIT] stashes:', this.stashes);
-        console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
-      }
-      
-      // Fix stashes injection - if this.stashes is a class (not an instance), use window.stashes
-      if(this.stashes && typeof this.stashes.create === 'function') {
-        // this.stashes is a class, not an instance - use window.stashes instead
-        if (_vb) { console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Using window.stashes as fallback.'); }
-        // Try to get the instance from the owner first
+        if (_vb) { console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Looking up instance.'); }
         try {
           var owner = this.get('owner') || (this.constructor && this.constructor.owner);
           if(owner && typeof owner.lookup === 'function') {
             var stashesService = owner.lookup('service:stashes');
             if(stashesService && typeof stashesService.get === 'function') {
-              if (_vb) { console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup'); }
               this.stashes = stashesService;
             }
           }
