@@ -31,11 +31,11 @@ namespace :db do
     puts "User: #{user.user_name} (id: #{user.global_id})"
     puts "Has password set: #{has_password}"
     if has_password && user.valid_password?(password)
-      puts "Password verification: OK (#{password})"
+      puts "Password verification: OK"
     elsif has_password
-      puts "Password verification: FAILED (user has a password but '#{password}' is incorrect)"
+      puts "Password verification: FAILED (user has a password but the provided password is incorrect)"
     else
-      puts "Setting password to '#{password}'..."
+      puts "Setting password..."
       user.generate_password(password)
       user.save!
       puts "Password set successfully."
