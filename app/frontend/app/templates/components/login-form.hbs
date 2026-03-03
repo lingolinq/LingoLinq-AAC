@@ -43,7 +43,7 @@
         </div>
       </button>
     {{else if this.stashes.enabled}}
-      <form {{action "authenticate" on="submit"}} autocomplete="off" class="form-horizontal" id="login_form">
+      <form {{action "authenticate" on="submit"}} class="form-horizontal" id="login_form">
           {{#unless this.prompt}}
           {{#unless this.force_logout}}
             {{#if this.app_state.feature_flags.emergency_boards}}
@@ -54,10 +54,10 @@
           {{/unless}}
         {{/unless}}
         <div class="form-group">
-          {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username"}}
+          {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
         </div>
         <div class="form-group">
-          <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" />
+          <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>
