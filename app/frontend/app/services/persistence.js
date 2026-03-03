@@ -57,63 +57,68 @@ var persistence = Service.extend({
   init() {
     this._super(...arguments);
     window.persistence = this;
+    var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
       var initStack = new Error().stack;
-      console.log('[PERSISTENCE INIT] ========== init() START ==========');
-      console.log('[PERSISTENCE INIT] this:', this);
-      console.log('[PERSISTENCE INIT] this type:', typeof this);
-      console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
-      console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
-      console.log('[PERSISTENCE INIT] stashes:', this.stashes);
-      console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
-      console.log('[PERSISTENCE INIT] Call stack:', initStack.split('\n').slice(0, 15).join('\n'));
+      if (_vb) {
+        console.log('[PERSISTENCE INIT] ========== init() START ==========');
+        console.log('[PERSISTENCE INIT] this:', this);
+        console.log('[PERSISTENCE INIT] this type:', typeof this);
+        console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
+        console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
+        console.log('[PERSISTENCE INIT] stashes:', this.stashes);
+        console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
+        console.log('[PERSISTENCE INIT] Call stack:', initStack.split('\n').slice(0, 15).join('\n'));
+      }
       
       // Fix stashes injection BEFORE calling _super() to prevent computed property evaluation errors
       // If this.stashes is a class (not an instance), use window.stashes or lookup the service
       if(this.stashes && typeof this.stashes.create === 'function') {
         // this.stashes is a class, not an instance - fix it before _super() is called
-        console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Fixing before _super()...');
+        if (_vb) { console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Fixing before _super()...'); }
         // Try to get the instance from the owner first (but don't use this.get() before _super())
         try {
           var owner = (this.constructor && this.constructor.owner) || (this.owner);
           if(owner && typeof owner.lookup === 'function') {
             var stashesService = owner.lookup('service:stashes');
             if(stashesService && typeof stashesService.get === 'function') {
-              console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup (before _super)');
+              if (_vb) { console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup (before _super)'); }
               this.stashes = stashesService;
             }
           }
         } catch(e) {
-          console.warn('[PERSISTENCE INIT] Error looking up stashes service (before _super):', e);
+          if (_vb) { console.warn('[PERSISTENCE INIT] Error looking up stashes service (before _super):', e); }
         }
       }
       
       this._super(...arguments);
       
-      console.log('[PERSISTENCE INIT] ========== after _super ==========');
-      console.log('[PERSISTENCE INIT] this:', this);
-      console.log('[PERSISTENCE INIT] this type:', typeof this);
-      console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
-      console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
-      console.log('[PERSISTENCE INIT] stashes:', this.stashes);
-      console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
+      if (_vb) {
+        console.log('[PERSISTENCE INIT] ========== after _super ==========');
+        console.log('[PERSISTENCE INIT] this:', this);
+        console.log('[PERSISTENCE INIT] this type:', typeof this);
+        console.log('[PERSISTENCE INIT] has get:', typeof (this && this.get));
+        console.log('[PERSISTENCE INIT] has set:', typeof (this && this.set));
+        console.log('[PERSISTENCE INIT] stashes:', this.stashes);
+        console.log('[PERSISTENCE INIT] stashes type:', typeof this.stashes);
+      }
       
       // Fix stashes injection - if this.stashes is a class (not an instance), use window.stashes
       if(this.stashes && typeof this.stashes.create === 'function') {
         // this.stashes is a class, not an instance - use window.stashes instead
-        console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Using window.stashes as fallback.');
+        if (_vb) { console.warn('[PERSISTENCE INIT] WARNING: this.stashes is a class, not an instance. Using window.stashes as fallback.'); }
         // Try to get the instance from the owner first
         try {
           var owner = this.get('owner') || (this.constructor && this.constructor.owner);
           if(owner && typeof owner.lookup === 'function') {
             var stashesService = owner.lookup('service:stashes');
             if(stashesService && typeof stashesService.get === 'function') {
-              console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup');
+              if (_vb) { console.log('[PERSISTENCE INIT] Found stashes service via owner.lookup'); }
               this.stashes = stashesService;
             }
           }
         } catch(e) {
-          console.warn('[PERSISTENCE INIT] Error looking up stashes service:', e);
+          if (_vb) { console.warn('[PERSISTENCE INIT] Error looking up stashes service:', e); }
         }
       }
       
@@ -122,9 +127,9 @@ var persistence = Service.extend({
       // Using a direct property assignment to avoid triggering observers
       try {
         this.online = navigator.onLine !== false;
-        console.log('[PERSISTENCE INIT] online set to:', this.online);
+        if (_vb) { console.log('[PERSISTENCE INIT] online set to:', this.online); }
       } catch(e) {
-        console.warn('[PERSISTENCE INIT] Could not set online:', e);
+        if (_vb) { console.warn('[PERSISTENCE INIT] Could not set online:', e); }
       }
       
       // TEMPORARILY DISABLED: Don't set properties in init to avoid triggering computed properties
@@ -164,8 +169,10 @@ var persistence = Service.extend({
         }
       }, 0);
       */
-      console.log('[PERSISTENCE INIT] Skipping setup() call to prevent observer firing');
-      console.log('[PERSISTENCE INIT] ========== init() END ==========');
+      if (_vb) {
+        console.log('[PERSISTENCE INIT] Skipping setup() call to prevent observer firing');
+        console.log('[PERSISTENCE INIT] ========== init() END ==========');
+      }
     } catch(e) {
       console.error('[PERSISTENCE DEBUG] CRITICAL ERROR in init():', e, e.stack);
       // Log critical error
@@ -984,16 +991,18 @@ var persistence = Service.extend({
    */
   setBrowserToken: function(token) {
     if(!token || token === 'none' || token === '') {
-      console.warn('[this.setBrowserToken] Attempted to set invalid browserToken', token);
+      if ((window.LingoLinq || {}).verboseDebug) { console.warn('[this.setBrowserToken] Attempted to set invalid browserToken', token); }
       return;
     }
     
     var old_token = this.get('browserToken');
     if(old_token !== token) {
-      console.log('[this.setBrowserToken] Updating browserToken', {
-        old_token_preview: old_token ? old_token.substring(0, 20) + '...' : 'none',
-        new_token_preview: token.substring(0, 20) + '...'
-      });
+      if ((window.LingoLinq || {}).verboseDebug) {
+        console.log('[this.setBrowserToken] Updating browserToken', {
+          old_token_preview: old_token ? old_token.substring(0, 20) + '...' : 'none',
+          new_token_preview: token.substring(0, 20) + '...'
+        });
+      }
       
       // Store in persistence (primary)
       this.set('browserToken', token);
@@ -1885,46 +1894,51 @@ var persistence = Service.extend({
   */
   syncing: computed('sync_status', function() {
     // Defensive: wrap entire function to catch any errors
+    var _vb = (window.LingoLinq || {}).verboseDebug;
     try {
       var computedStack = new Error().stack;
-      console.log('[PERSISTENCE COMPUTED] syncing() called', {
-        this: this,
-        thisType: typeof this,
-        hasGet: typeof (this && this.get),
-        stack: computedStack.split('\n').slice(0, 10).join('\n')
-      });
+      if (_vb) {
+        console.log('[PERSISTENCE COMPUTED] syncing() called', {
+          this: this,
+          thisType: typeof this,
+          hasGet: typeof (this && this.get),
+          stack: computedStack.split('\n').slice(0, 10).join('\n')
+        });
+      }
       // Check this at the very start, before any operations
       if(typeof this === 'undefined' || this === null) {
-        console.warn('[PERSISTENCE COMPUTED] syncing: this is undefined/null');
+        if (_vb) { console.warn('[PERSISTENCE COMPUTED] syncing: this is undefined/null'); }
         return false;
       }
       var _this = this;
       // Double-check _this is valid before using it
       if(!_this || typeof _this !== 'object') {
-        console.warn('[PERSISTENCE COMPUTED] syncing: this is invalid, trying window.persistence');
+        if (_vb) { console.warn('[PERSISTENCE COMPUTED] syncing: this is invalid, trying window.persistence'); }
         _this = window.persistence;
         if(!_this || typeof _this !== 'object') {
-          console.warn('[PERSISTENCE COMPUTED] syncing: window.persistence also invalid');
+          if (_vb) { console.warn('[PERSISTENCE COMPUTED] syncing: window.persistence also invalid'); }
           return false;
         }
       }
       // Check if get method exists before calling it
       if(typeof _this.get !== 'function') {
-        console.error('[PERSISTENCE COMPUTED] syncing: _this.get is not a function!', {
-          _this: _this,
-          _thisType: typeof _this,
-          hasGet: typeof _this.get,
-          getValue: _this.get
-        });
+        if (_vb) {
+          console.error('[PERSISTENCE COMPUTED] syncing: _this.get is not a function!', {
+            _this: _this,
+            _thisType: typeof _this,
+            hasGet: typeof _this.get,
+            getValue: _this.get
+          });
+        }
         return false;
       }
       // Safely get sync_status
       var syncStatus = _this.get('sync_status');
       var result = syncStatus == 'syncing';
-      console.log('[PERSISTENCE COMPUTED] syncing: result', result, 'syncStatus:', syncStatus);
+      if (_vb) { console.log('[PERSISTENCE COMPUTED] syncing: result', result, 'syncStatus:', syncStatus); }
       return result;
     } catch(e) {
-      console.error('[PERSISTENCE COMPUTED] ERROR in syncing computed:', e, e.stack);
+      if (_vb) { console.error('[PERSISTENCE COMPUTED] ERROR in syncing computed:', e, e.stack); }
       return false;
     }
   }),

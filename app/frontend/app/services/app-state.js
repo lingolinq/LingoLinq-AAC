@@ -375,9 +375,10 @@ export default Service.extend({
       // the app will force a logout unexpectedly.
       var find_user = function(last_try) {
         var find = LingoLinq.store.findRecord('user', 'self');
+        var _vb = (window.LingoLinq || {}).verboseDebug;
 
         find.then(function(user) {
-          console.log("user initialization working..");
+          if (_vb) { console.log("user initialization working.."); }
           try {
             if (user && typeof user.get === 'function') {
               try {
@@ -414,17 +415,21 @@ export default Service.extend({
             // console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
             valid_user = LingoLinq.store.findRecord('user', _this.session.get('as_user_id'));
           }
-          console.log('[APP-STATE] find_user: about to call valid_user.then()', {
-            valid_user_type: typeof valid_user,
-            is_promise: valid_user && typeof valid_user.then === 'function',
-            valid_user: valid_user
-          });
+          if (_vb) {
+            console.log('[APP-STATE] find_user: about to call valid_user.then()', {
+              valid_user_type: typeof valid_user,
+              is_promise: valid_user && typeof valid_user.then === 'function',
+              valid_user: valid_user
+            });
+          }
           valid_user.then(function(user) {
-            console.log('[APP-STATE] find_user: valid_user.then() called', {
+            if (_vb) {
+              console.log('[APP-STATE] find_user: valid_user.then() called', {
               has_user: !!user,
               user_type: typeof user,
               user_id: user && user.get ? user.get('id') : 'no get method'
-            });
+              });
+            }
             try {
               if(!user.get('fresh') && _this.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
@@ -439,10 +444,12 @@ export default Service.extend({
             if(_this.session) {
               user.set('modeling_session', _this.session.get('modeling_session'));
             }
-            console.log('[APP-STATE] find_user: setting sessionUser', {
-              has_user: !!user,
-              user_id: user ? user.get('id') : null
-            });
+            if (_vb) {
+              console.log('[APP-STATE] find_user: setting sessionUser', {
+                has_user: !!user,
+                user_id: user ? user.get('id') : null
+              });
+            }
             LingoLinq.appState.set('sessionUser', user);
             
             // Manually trigger the observer to ensure currentUser is set
@@ -454,10 +461,12 @@ export default Service.extend({
                 user.save().then(null, function() { });
               }
               LingoLinq.appState.set('currentUser', user);
-              console.log('[APP-STATE] find_user: manually set currentUser', {
-                has_currentUser: !!LingoLinq.appState.get('currentUser'),
-                currentUser_id: LingoLinq.appState.get('currentUser') ? LingoLinq.appState.get('currentUser.id') : null
-              });
+              if (_vb) {
+                console.log('[APP-STATE] find_user: manually set currentUser', {
+                  has_currentUser: !!LingoLinq.appState.get('currentUser'),
+                  currentUser_id: LingoLinq.appState.get('currentUser') ? LingoLinq.appState.get('currentUser.id') : null
+                });
+              }
             }
             } catch(e) {
               console.error('[APP-STATE] find_user: error in valid_user.then() callback', e, e.stack);
@@ -1859,31 +1868,38 @@ export default Service.extend({
   },
   set_current_user: observer('sessionUser', 'speak_mode', 'speakModeUser', function() {
     this.did_set_current_user = true;
-    console.log('[APP-STATE] set_current_user observer fired', {
-      has_sessionUser: !!this.get('sessionUser'),
-      sessionUser_id: this.get('sessionUser') ? this.get('sessionUser.id') : null,
-      speak_mode: this.get('speak_mode'),
-      has_speakModeUser: !!this.get('speakModeUser')
-    });
+    var _vb = (window.LingoLinq || {}).verboseDebug;
+    if (_vb) {
+      console.log('[APP-STATE] set_current_user observer fired', {
+        has_sessionUser: !!this.get('sessionUser'),
+        sessionUser_id: this.get('sessionUser') ? this.get('sessionUser.id') : null,
+        speak_mode: this.get('speak_mode'),
+        has_speakModeUser: !!this.get('speakModeUser')
+      });
+    }
     if(this.get('speak_mode') && this.get('speakModeUser')) {
       this.set('currentUser', this.get('speakModeUser'));
-      console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser');
+      if (_vb) { console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser'); }
       this.notifyPropertyChange("currentUser");
     } else {
       var user = this.get('sessionUser');
-      console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
-        has_user: !!user,
-        user_id: user ? user.get('id') : null
-      });
+      if (_vb) {
+        console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
+          has_user: !!user,
+          user_id: user ? user.get('id') : null
+        });
+      }
       if(user && user.get && !user.get('preferences.progress.app_added') && (navigator.standalone || (capabilities.installed_app && capabilities.mobile))) {
         user.set('preferences.progress.app_added', true);
         user.save().then(null, function() { });
       }
       this.set('currentUser', user);
-      console.log('[APP-STATE] set_current_user: currentUser set', {
-        has_currentUser: !!this.get('currentUser'),
-        currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
-      });
+      if (_vb) {
+        console.log('[APP-STATE] set_current_user: currentUser set', {
+          has_currentUser: !!this.get('currentUser'),
+          currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
+        });
+      }
       runNext(this, () => this.notifyPropertyChange("currentUser"));
     }
     if(this.get('currentUser')) {

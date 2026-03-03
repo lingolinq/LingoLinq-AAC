@@ -19,7 +19,9 @@ function _loginDebug(msg, data) {
   var entry = { t: Date.now(), msg: msg, data: data || {} };
   _loginDebugLog.push(entry);
   try { sessionStorage.setItem('lingolinq_login_debug', JSON.stringify(_loginDebugLog.slice(-50))); } catch (e) {}
-  console.log('[LOGIN-DEBUG]', msg, data);
+  if ((typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.verboseDebug)) {
+    console.log('[LOGIN-DEBUG]', msg, data);
+  }
 }
 
 export default Component.extend({
