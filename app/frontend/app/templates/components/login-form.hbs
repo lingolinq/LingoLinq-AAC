@@ -43,6 +43,7 @@
       </button>
     {{else if this.stashes.enabled}}
       <h2>{{t "Sign In to %app_name%" key="sign_in_to_app"}}</h2>
+      <div class="login-card__divider" aria-hidden="true"></div>
       <form {{action "authenticate" on="submit"}} autocomplete="off" id="login_form">
           {{#unless this.prompt}}
           {{#unless this.force_logout}}
@@ -75,8 +76,6 @@
           <div class="login-error">
             {{ this.login_error }}
           </div>
-        {{else}}
-          <div class="login-privacy-note"><em style={{safe-style (if this.first_login "color: #ba4a59;" "color: #888")}}>{{t "Remember: all boards and reports may contain user data, and should be kept private and treated with respect." key="private_data_reminder"}}</em></div>
         {{/if}}
         <div class="form-group">
           <button type="submit" class='login-btn' disabled={{this.noSubmit}}>

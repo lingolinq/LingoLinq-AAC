@@ -2,48 +2,22 @@
   <div class="app-shell">
     <main class="la-main" role="main">
 
-      {{!-- ── Hero Section ── --}}
-      <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
-        <span class="la-section-eyebrow-badge" style="margin-bottom: 1rem;">
-          {{t "Pricing" key="pricing"}}
-        </span>
-        <div class="la-hero-title-wrap">
-          <h1 class="la-hero-title">
-            {{t "Simple, honest" key="pricing_hero_title_1"}} <em>{{t "pricing" key="pricing_hero_title_2"}}</em>
-          </h1>
-        </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
-        <p class="la-pricing-hero-subtitle">
-          {{t "We want %app_name% to be accessible to as many people as possible, so we offer multiple purchasing options. Start with a free 2-month trial, then choose the plan that works best for you." key="pricing_hero_subtitle"}}
-        </p>
-      </section>
-
-      {{!-- ── Full Comparison Table ── --}}
-      <section class="la-plan-section">
-        <div class="la-plan-text la-plan-text--centered">
-          <span class="la-section-eyebrow-badge">{{t "Full Comparison" key="pricing_full_comparison_badge"}}</span>
-          <h2 class="la-plan-title">{{t "Compare plans in" key="pricing_compare_title_1"}} <em>{{t "detail" key="pricing_compare_title_2"}}</em></h2>
-          <p class="la-plan-subtitle">
-            {{t "Your free trial lasts two months—no strings attached. When you're ready, choose a monthly plan for flexibility or save with a lifetime license. We want to make sure there's an option that works for you." key="multiple_pricing_options"}}
-          </p>
-          {{#if this.show_bulk_purchase}}
-            <p class="la-plan-subtitle" style="margin-top: 1rem;">
-              {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
-            </p>
-          {{/if}}
-        </div>
-        <div class="la-pricing-table-wrap la-pricing-table-wrap--full">
-          {{subscription-form subscription=this.subscription pricing_only=true subscription_success="subscription_success"}}
-        </div>
-      </section>
-
-      {{!-- ── Pricing Preview Cards ── --}}
+      {{!-- ── Pricing (header + plan cards) ── --}}
       <section class="la-section">
-        <div class="la-section-header">
-          <span class="la-section-eyebrow-badge">{{t "Plans" key="pricing_plans_badge"}}</span>
-          <h2 class="la-section-title">{{t "Choose your" key="pricing_choose_your"}} <em>{{t "plan" key="pricing_plan_em"}}</em></h2>
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge">
+            {{t "Pricing" key="pricing"}}
+          </span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">
+              {{t "Simple, honest" key="pricing_hero_title_1"}} <em>{{t "pricing" key="pricing_hero_title_2"}}</em>
+            </h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle">
+            {{t "We believe everyone deserves access to great communication tools. Start with a free 2-month trial—no credit card required—then choose the plan that fits your needs." key="pricing_hero_subtitle"}}
+          </p>
         </div>
-        <hr class="la-section-divider" aria-hidden="true">
         <div class="la-pricing-preview-grid">
 
           {{!-- Communicator --}}
@@ -58,7 +32,7 @@
                   {{#if this.subscription.app_pricing_override}}
                     {{this.subscription.long_term_app_price}}
                   {{else}}
-                    <span class="la-pricing-card__currency">US$</span>295
+                    <span class="la-pricing-card__currency">US$</span>495
                   {{/if}}
                 </span>
                 <span class="la-pricing-card__term">{{t "lifetime purchase" key="lifetime_purchase"}}</span>
@@ -70,7 +44,7 @@
                     {{#if this.subscription.app_pricing_override}}
                       {{this.subscription.monthly_app_price}}
                     {{else}}
-                      <span class="la-pricing-card__currency">US$</span>9
+                      <span class="la-pricing-card__currency">US$</span>19
                     {{/if}}
                   </span>
                   <span class="la-pricing-card__term">{{t "per month" key="per_month_lower"}}</span>
@@ -80,7 +54,6 @@
             <p class="la-about-glass-card__text">
               {{t "Full communication system for one user across multiple devices, with premium voices, reports, and modeling tools." key="pricing_communicator_summary"}}
             </p>
-            <LinkTo @route="register" class="la-btn la-btn--primary la-pricing-card__btn">{{t "Select this Plan" key="select_this_plan"}} &rarr;</LinkTo>
           </div>
 
           {{!-- Supporter --}}
@@ -95,16 +68,15 @@
                   {{#if this.subscription.app_pricing_override}}
                     {{this.subscription.supporter_app_price}}
                   {{else}}
-                    <span class="la-pricing-card__currency">US$</span>25
+                    <span class="la-pricing-card__currency">US$</span>30
                   {{/if}}
                 </span>
-                <span class="la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+                <span class="la-pricing-card__term">{{t "per month" key="per_month_lower"}}</span>
               </div>
             </div>
             <p class="la-about-glass-card__text">
               {{t "For therapists, parents, and supporters. Edit boards, track usage, get alerts, and support communicators." key="pricing_supporter_summary"}}
             </p>
-            <LinkTo @route="register" class="la-btn la-btn--primary la-pricing-card__btn">{{t "Select this Plan" key="select_this_plan"}} &rarr;</LinkTo>
           </div>
 
           {{!-- Eval --}}
@@ -119,19 +91,26 @@
                   {{#if this.subscription.app_pricing_override}}
                     {{this.subscription.eval_app_price}}
                   {{else}}
-                    <span class="la-pricing-card__currency">US$</span>25
+                    <span class="la-pricing-card__currency">US$</span>30
                   {{/if}}
                 </span>
-                <span class="la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+                <span class="la-pricing-card__term">{{t "per month" key="per_month_lower"}}</span>
               </div>
             </div>
             <p class="la-about-glass-card__text">
               {{t "For loaner and evaluation devices. Full communication on a single device with cloud extras reset after every eval." key="pricing_eval_summary"}}
             </p>
-            <LinkTo @route="register" class="la-btn la-btn--primary la-pricing-card__btn">{{t "Select this Plan" key="select_this_plan"}} &rarr;</LinkTo>
           </div>
 
         </div>
+        {{#if this.app_state.domain_settings.full_domain}}
+          <div class="la-pricing-actions" style="margin-top: 2rem;">
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
+            {{#unless this.subscription.app_pricing_override}}
+              <LinkTo @route="gift_purchase" class="la-btn la-btn--badge la-btn--lg">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
+            {{/unless}}
+          </div>
+        {{/if}}
         <div class="la-cta-buttons" style="margin-top: 2rem; text-align: center;">
           <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
           <LinkTo @route="contact" class="la-btn la-btn--badge la-btn--lg">{{t "Contact Us" key="contact_us"}}</LinkTo>

@@ -1,5 +1,12 @@
 <div class="login-page-bg">
-<div class="login-page">
-  {{login-form identification=this.login_id password=this.login_password tmp_token=this.tmp_token}}
-</div>
+  {{!-- Same background orbs as landing-alt --}}
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="login-page">
+    {{login-form identification=this.login_id password=this.login_password tmp_token=this.tmp_token}}
+  </div>
 </div>

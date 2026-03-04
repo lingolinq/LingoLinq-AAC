@@ -1,7 +1,14 @@
 <div class="login-page-bg">
-<div class="login-page">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="login-page">
   <div class="login-card">
     <h2>{{t "Login Help" key="login_help"}}</h2>
+    <div class="login-card__divider" aria-hidden="true"></div>
     <form {{action "submitKey" on="submit"}}>
       {{#if this.response.email_sent}}
         <div class="form-group">
@@ -13,7 +20,7 @@
       {{else}}
         <div class="form-group">
           <p>
-            {{t "If you're unsure how to log in, please enter your email address and we'll send you instructions for how to access the app on your device." key="password_alternate_prompt"}}
+            {{t "For login help, enter your email below and we'll send you instructions to get back into your account—usually within a few minutes." key="password_alternate_prompt"}}
           </p>
         </div>
         <div class="form-group">

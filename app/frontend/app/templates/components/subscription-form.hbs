@@ -346,9 +346,6 @@
     {{/if}}
     {{#if this.pricing_only}}
       {{#unless this.show_bulk_purchase}}
-        <p class="la-pricing-trial-hint">
-          {{t "Or start with a 2-month free trial and make sure it works for you." key="after_free_trial"}}
-        </p>
         {{#if this.show_expiration_notes}}
           <p class="explanation" style="margin-top: 10px;">
             {{t "We don't want to shut off anyone's voice, even if funding unexpectedly becomes an issue down the line. When a user's subscription expires %app_name% will still work as a communication system but premium features like reporting and video notes will be disabled." key="expiration_notes_pre"}}
@@ -359,14 +356,6 @@
           </p>
         {{/if}}
       {{/unless}}
-      {{#if this.app_state.domain_settings.full_domain}}
-        <div class="la-pricing-actions">
-          <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
-          {{#unless this.subscription.app_pricing_override}}
-            <LinkTo @route="gift_purchase" class="la-btn la-btn--badge la-btn--lg">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
-          {{/unless}}
-        </div>
-      {{/if}}
     {{else}}
       <div class="form-group">
         <div class="col-sm-12 subscription-activate-row" style='margin-top: 20px;'>

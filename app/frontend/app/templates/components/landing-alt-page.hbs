@@ -5,6 +5,13 @@
 
 <div class="la-wrapper {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
   <div class="app-shell">
+    {{!-- Background color orbs (authenticated light-mode style) — behind main content --}}
+    <div class="la-bg-orbs" aria-hidden="true">
+      <span class="la-bg-orb la-bg-orb--a"></span>
+      <span class="la-bg-orb la-bg-orb--b"></span>
+      <span class="la-bg-orb la-bg-orb--c"></span>
+      <span class="la-bg-orb la-bg-orb--d"></span>
+    </div>
 
     {{!-- ======== MAIN CONTENT ======== --}}
     <main class="la-main" id="la-main" role="main">
@@ -232,7 +239,7 @@
           </div>
           <div class="la-footer-col">
             <h4>{{t "Product" key='landing_footer_product'}}</h4>
-            <a href="#la-features">{{t "Features" key='landing_footer_features'}}</a>
+            <a href="#" {{action "showFeatures"}}>{{t "Features" key='landing_footer_features'}}</a>
             <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
             <LinkTo @route="landing">{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
             <LinkTo @route="index">{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
@@ -262,6 +269,11 @@
       </footer>
 
     </main>
+
+    {{!-- Bottom navbar (same as app footer), sticky at bottom when this view is shown --}}
+    <div class="la-page-footer-wrap">
+      {{page-footer support=(action "applicationSupport") language=(action "applicationLanguage")}}
+    </div>
 
   </div>
 </div>

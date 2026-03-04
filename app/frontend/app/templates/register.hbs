@@ -1,11 +1,15 @@
 <div class="register-page-bg">
-<div class="register-page">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="register-page">
   <div class="register-card">
     {{#if this.stashes.enabled}}
       <h2>{{t "Create a %app_name% Account" key="create_app_account"}}</h2>
-      <p class="register-subtitle">
-        {{t "Ready to try %app_name% out for yourself? Every user gets 2 months free to play around and see if the app is going to work for them, no credit card required!" key="ready_to_try_app"}}
-      </p>
+      <div class="register-card__divider" aria-hidden="true"></div>
       <form novalidate {{action "saveProfile" on="submit"}}>
       {{#if this.start_code_ref}}
         <div class="register-invite">
@@ -119,6 +123,7 @@
       </form>
     {{else}}
       <h2>{{t "Can't Register" key="cant_register"}}</h2>
+      <div class="register-card__divider" aria-hidden="true"></div>
       <p>
         <span class="glyphicon glyphicon-exclamation-sign"></span>
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}

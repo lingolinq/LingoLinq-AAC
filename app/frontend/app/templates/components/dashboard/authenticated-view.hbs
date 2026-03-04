@@ -1,11 +1,11 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.coolBlueMode "ll-bento-app-shell--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}} {{if this.app_state.pastelMode "ll-bento-app-shell--pastel"}} {{if this.app_state.goldMode "ll-bento-app-shell--gold"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}} {{if this.app_state.pastelMode "ll-bento-app-shell--pastel"}} {{if this.app_state.goldMode "ll-bento-app-shell--gold"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
     <span class="ll-bento-orb ll-bento-orb--c"></span>
   </div>
   <div class="ll-bento-device-frame ll-bento-device-frame--wide {{if (is-equal this.sectionBorderMode "off") "ll-bento-device-frame--no-section-border"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-device-frame--section-border-thick"}} {{if this.demoMainContentBg "ll-bento-device-frame--demo-bg"}}" style={{this.demoMainContentBgStyle}}>
-    <header class="ll-bento-bar {{if this.app_state.midDayMode "ll-bento-bar--midday"}} {{if this.app_state.coolBlueMode "ll-bento-bar--coolBlue"}} {{if this.app_state.defaultMode "ll-bento-bar--default"}}">
+    <header class="ll-bento-bar {{if this.app_state.midDayMode "ll-bento-bar--midday"}} {{if this.app_state.defaultMode "ll-bento-bar--default"}}">
       <div class="ll-bento-bar__section ll-bento-bar__brand">
         <a href="#" class="ll-bento-brand-link" {{action "index"}}>
           <span class="ll-bento-brand__logo-wrap" aria-hidden="true">

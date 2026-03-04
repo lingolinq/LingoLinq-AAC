@@ -22,13 +22,13 @@
           <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
         <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/icon-language-new2.png"}} style='height: 46px; margin: -23px 0 -24px;'>
+          <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
       </div>
       <div class='col-sm-4' style="text-align: right;">
         {{#unless this.app_state.installed_app}}
-          <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+          <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
         {{/unless}}
         <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
         <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
@@ -72,7 +72,7 @@
         </li>
         <li>
           <a href='#' {{action "language"}}>
-            <img src={{path "images/icon-language-new2.png"}} style='height: 30px; margin: -13px 0 -17px;'>
+            <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon page-footer__language-icon--dropdown" alt="Language">
             {{this.app_state.current_locale_string}}
           </a>
         </li>

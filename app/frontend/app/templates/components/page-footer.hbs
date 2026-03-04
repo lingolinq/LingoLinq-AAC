@@ -21,17 +21,6 @@
           <span class='text-muted'>|</span>
           <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
         {{/unless}}
-        <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/icon-language-new2.png"}} style='height: 46px; margin: -23px 0 -24px;' alt="Language">
-          {{this.app_state.current_locale_string}}
-        </a>
-      </div>
-      <div class='col-sm-4' style="text-align: right;">
-        {{#unless this.app_state.installed_app}}
-          <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener noreferrer">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
-        {{/unless}}
-        <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
-        <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
       </div>
       {{#if (persistence-online)}}
         {{#unless this.app_state.no_linky}}
@@ -52,8 +41,12 @@
         {{/unless}}
       {{/if}}
       <div class='col-sm-4 page-footer__right-links' style="text-align: right;">
+        <a href='#' {{action "language"}} style='margin-right: 10px;'>
+          <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
+          {{this.app_state.current_locale_string}}
+        </a>
         {{#unless this.app_state.installed_app}}
-          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
         {{/unless}}
         <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
         <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
@@ -79,7 +72,7 @@
         </li>
         <li>
           <a href='#' {{action "language"}}>
-            <img src={{path "images/icon-language-new2.png"}} style='height: 30px; margin: -13px 0 -17px;' alt="Language">
+            <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon page-footer__language-icon--dropdown" alt="Language">
             {{this.app_state.current_locale_string}}
           </a>
         </li>

@@ -199,14 +199,17 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: default (initial) | light | midDay | coolBlue | dark - persisted in localStorage
+    // Bento dashboard theme: default (initial) | light | midDay | dark - persisted in localStorage
     var theme = 'default';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
       if (storedTheme === 'flat') {
         theme = 'default';
         try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'coolBlue' || storedTheme === 'dark' || storedTheme === 'default' || storedTheme === 'pastel' || storedTheme === 'gold') {
+      } else if (storedTheme === 'coolBlue') {
+        theme = 'default';
+        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default' || storedTheme === 'pastel' || storedTheme === 'gold') {
         theme = storedTheme;
       } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
@@ -636,18 +639,13 @@ export default Service.extend({
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
-      // footer was showing up too quickly and looking weird when the rest of the page hadn't
-      // re-rendered yet. Set footer in the same run as index_view so showBentoPageWithFooter
-      // is true when the template re-renders and #within_ember gets bento-page-with-footer.
-      if(!_this.get('currentBoardState')) {
+      // footer is now a computed on application controller (from currentBoardState)
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
         try {
-          _this.controller.set('footer', true);
-          if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
-            _this.controller.set('setup_footer', false);
-            _this.controller.set('simple_board_header', false);
-            _this.set('setup_user', null);
-            _this.controller.set('setup_user_id', null);
-          }
+          _this.controller.set('setup_footer', false);
+          _this.controller.set('simple_board_header', false);
+          _this.set('setup_user', null);
+          _this.controller.set('setup_user_id', null);
         } catch(e) { }
       }
     });
@@ -693,9 +691,6 @@ export default Service.extend({
   }),
   midDayMode: computed('themeMode', function() {
     return this.get('themeMode') === 'midDay';
-  }),
-  coolBlueMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'coolBlue';
   }),
   defaultMode: computed('themeMode', function() {
     return this.get('themeMode') === 'default';
@@ -1976,9 +1971,7 @@ export default Service.extend({
       $('html,body').css('overflow', '');
     } else if(!this.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
-      try {
-        this.controller.set('footer', false);
-      } catch(e) { }
+      // footer is now a computed on application controller (from currentBoardState)
     }
   }),
   update_button_tracker: observer(
@@ -2105,7 +2098,7 @@ export default Service.extend({
     return res;
   }),
   index_or_landing_view: computed('index_view', 'current_route', function() {
-    return this.get('index_view') || this.get('current_route') === 'landing' || this.get('current_route') === 'stacked-spaces';
+    return this.get('index_view') || this.get('current_route') === 'landing' || this.get('current_route') === 'landing-alt' || this.get('current_route') === 'stacked-spaces';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -3885,7 +3878,7 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'coolBlue', 'default', 'pastel', 'gold'];
+    var modes = ['light', 'midDay', 'dark', 'default', 'pastel', 'gold'];
     var current = this.get('themeMode') || 'default';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];
@@ -3910,7 +3903,7 @@ export default Service.extend({
       var faviconHref = base + 'logo-big-blue-gold.png?v=3';
       for (var i = 0; i < links.length; i++) {
         var href = links[i].getAttribute('href') || '';
-        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('favicon-cool-blue') !== -1 || href.indexOf('logo-big') !== -1) {
+        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('logo-big') !== -1) {
           links[i].setAttribute('href', faviconHref);
         }
       }

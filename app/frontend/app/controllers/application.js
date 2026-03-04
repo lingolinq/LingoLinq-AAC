@@ -47,7 +47,12 @@ export default Controller.extend({
   }),
 
   landingNavOpen: false,
-  useAltLanding: false,
+  useAltLanding: true, // default unauthenticated view is landing-alt
+
+  /** Show page footer when not viewing a board (index, landing-alt, user routes, etc.). */
+  footer: computed('appState.currentBoardState', function() {
+    return !this.appState.get('currentBoardState');
+  }),
 
   init() {
     this._super(...arguments);
@@ -381,7 +386,7 @@ export default Controller.extend({
     },
     showFeatures: function() {
       this.set('landingNavOpen', false);
-      modal.open('landing-features-modal');
+      modal.open('la-features-modal');
     },
     toggleAltLanding: function() {
       this.toggleProperty('useAltLanding');

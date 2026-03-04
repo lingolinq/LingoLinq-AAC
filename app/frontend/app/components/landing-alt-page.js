@@ -9,6 +9,12 @@ export default Component.extend({
     support() {
       // placeholder for support/help action
     },
+    applicationSupport() {
+      modal.open('support');
+    },
+    applicationLanguage() {
+      modal.open('modals/choose-locale');
+    },
     showFeatures() {
       modal.open('la-features-modal');
     },

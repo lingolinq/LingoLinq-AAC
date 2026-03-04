@@ -4,7 +4,7 @@
 
       {{!-- ── Hero Intro ── --}}
       <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
-        <span class="la-section-eyebrow-badge" style="margin-bottom: 1rem;">
+        <span class="la-section-eyebrow-badge">
           {{t "About" key="about"}} <span style="color: #2a5aa8;">Lingo</span><span style="color: #3a6bc7; font-style: italic;">Linq</span>
         </span>
         <div class="la-hero-title-wrap">
@@ -55,6 +55,7 @@
         <div class="la-section-header">
           <span class="la-section-eyebrow-badge">{{t "What We Offer" key="about_what_we_offer"}}</span>
           <h2 class="la-section-title">{{t "Built around" key="about_features_title_1"}} <em>{{t "what matters" key="about_features_title_2"}}</em></h2>
+          <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
         <div class="la-feature-grid">
           {{#expandable-card
@@ -134,32 +135,34 @@
             <h2 class="la-plan-title">{{t "Your data deserves" key="about_security_title_1"}}<br><em>{{t "real protection" key="about_security_title_2"}}</em></h2>
             <p class="la-plan-subtitle">{{t "We're talking about someone's voice -- potentially everything they ever say. That's deeply personal, and we treat it that way. Your data is encrypted, never shared without permission, and always yours to export." key="trust_transparency_text"}}</p>
           </div>
-          <ul class="la-plan-grid">
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "Encrypted data storage" key="about_check_encrypted"}}</span>
-            </li>
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "No sharing without permission" key="about_check_no_sharing"}}</span>
-            </li>
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "Open source codebase" key="about_check_open_source"}}</span>
-            </li>
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "Easy data export" key="about_check_export"}}</span>
-            </li>
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "Open Board Format standard" key="about_check_obf"}}</span>
-            </li>
-            <li class="la-plan-item">
-              <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "Privacy-first design" key="about_check_privacy"}}</span>
-            </li>
-          </ul>
+          <div class="la-plan-grid-container">
+            <ul class="la-plan-grid">
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "Encrypted data storage" key="about_check_encrypted"}}</span>
+              </li>
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "No sharing without permission" key="about_check_no_sharing"}}</span>
+              </li>
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "Open source codebase" key="about_check_open_source"}}</span>
+              </li>
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "Easy data export" key="about_check_export"}}</span>
+              </li>
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "Open Board Format standard" key="about_check_obf"}}</span>
+              </li>
+              <li class="la-plan-item">
+                <span class="la-plan-check" aria-hidden="true">✓</span>
+                <span>{{t "Privacy-first design" key="about_check_privacy"}}</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -179,7 +182,8 @@
       <section class="la-cta-section">
         <div class="la-cta-inner">
           <span class="la-section-eyebrow-badge">{{t "Ready to start?" key="fsa_ready_to_start"}}</span>
-          <h2 class="la-cta-headline">{{t "Give every student a voice" key="landing_cta_title"}}</h2>
+          <h2 class="la-cta-headline">{{t "Give every student" key="landing_cta_title_1"}} <em>{{t "a voice" key="landing_cta_title_2"}}</em></h2>
+          <hr class="la-about-hero-separator" aria-hidden="true">
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
           <div class="la-cta-buttons">
             <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
