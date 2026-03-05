@@ -58,7 +58,7 @@ By only using the open API, the mobile apps can easily maintain feature parity
 
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
 in templates or modals and alerts, you will need to use the internationalization libraries
-in order to support locales. Do net ever add raw text strings to any user-facing
+in order to support locales. Do not ever add raw text strings to any user-facing
 resources, always use the i18n helpers. You can find examples of the helpers
 throughout the code, using
 commands such as `i18n.t('key', "string")` or `{{t "this is some test" key='key'}}`. Instructions for generating and processing string files is located in `/i18n_generator.rb`.
