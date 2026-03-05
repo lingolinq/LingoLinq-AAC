@@ -235,7 +235,7 @@ test on their own as well.
 ##### Translations
 
 See `i18n_generator.rb' for scripts to manage translation files. In controller code,
-use the`i18n` library for any user-facing strings, and in templates use the
+use the `i18n` library for any user-facing strings, and in templates use the
 `{{t }}` template helper for translations. The convention throughout the codebase
 should ALWAYS remain double-quotes for user-face strings, single-quotes for everything
 else. The generator libraries depend on this consistency, and it helps significantly
