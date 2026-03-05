@@ -6543,6 +6543,12 @@ form.row.subscription-form-with-cards {
   }
 }
 
+.subscription-form__premium-symbol-image {
+  float: left;
+  width: 60px;
+  margin-left: 20px;
+}
+
 /* la-* classes used in subscription-form: features list and sale badge */
 .subscription-form-cards .la-pricing-card__features {
   list-style: none;
@@ -17923,6 +17929,10 @@ $aac-z-topbar:   400;
   font-size: 16px;
   color: rgba(#3a4a5e, 0.6);
   padding: 0.25rem 0;
+}
+
+.price-strikethrough {
+  text-decoration: line-through;
 }
 
 .la-pricing-table-layout {

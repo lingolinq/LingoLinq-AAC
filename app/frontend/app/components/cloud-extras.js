@@ -20,8 +20,7 @@ export default Component.extend({
       this.get('modal').close();
     },
     opening() {
-      var component = this;
-      this.get('modal').setComponent(component);
+      this.get('modal').setComponent(this);
     },
     closing() {
     }

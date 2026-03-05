@@ -51,10 +51,10 @@
                     <span class="la-pricing-card__currency">US$</span>50
                   {{else if this.subscription.much_cheaper_offer}}
                     <span class="sale">{{t "sale! 50% off" key="save_50_percent"}}</span>
-                    <span style="text-decoration: line-through;">$295</span> <span class="la-pricing-card__currency">US$</span>145
+                    <span class="price-strikethrough">$295</span> <span class="la-pricing-card__currency">US$</span>145
                   {{else if this.subscription.cheaper_offer}}
                     <span class="sale">{{t "save 25%" key="save_25_percent"}}</span>
-                    <span style="text-decoration: line-through;">$295</span> <span class="la-pricing-card__currency">US$</span>150
+                    <span class="price-strikethrough">$295</span> <span class="la-pricing-card__currency">US$</span>150
                   {{else}}
                     <span class="la-pricing-card__currency">US$</span>295
                   {{/if}}
@@ -139,7 +139,7 @@
               <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
               <li>✔ {{t "Runs on one device" key="run_on_one_device"}}</li>
               <li>✔ {{t "Premium voices on request" key="premium_voices_on_request"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras reset per evaluation" key="for_supported_communicators2_suffix"}}</button></li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras reset per evaluation" key="eval_cloud_extras_reset"}}</button></li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
             <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
