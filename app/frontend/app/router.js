@@ -46,10 +46,10 @@ Router.reopen({
 Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
+  this.route('modern-dashboard', { path: '/modern-dashboard' });
   this.route('about', { path: '/about' });
   this.route('landing', { path: '/landing' });
   this.route('landing-alt', { path: '/landing-alt' });
-  this.route('stacked-spaces', { path: '/stacked-spaces' });
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });
   this.route('privacy', { path: '/privacy' });

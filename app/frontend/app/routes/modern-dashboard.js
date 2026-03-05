@@ -7,7 +7,7 @@ export default Route.extend({
     window.scrollTo(0, 0);
     var controller = this.controllerFor('application');
     if (controller && controller.updateTitle) {
-      controller.updateTitle(i18n.t('stacked_spaces', "Stacked Spaces"));
+      controller.updateTitle(i18n.t('modern_dashboard', "Modern Dashboard"));
     }
   }
 });

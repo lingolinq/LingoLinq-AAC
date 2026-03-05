@@ -199,22 +199,25 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: default (initial) | light | midDay | dark - persisted in localStorage
-    var theme = 'default';
+    // Bento dashboard theme: light | midDay | dark | default - persisted in localStorage (gold palette renamed to default)
+    var theme = 'light';
     try {
       var storedTheme = localStorage.getItem('ll_bento_theme_mode');
-      if (storedTheme === 'flat') {
+      if (storedTheme === 'flat' || storedTheme === 'pastel') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'gold') {
         theme = 'default';
         try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
       } else if (storedTheme === 'coolBlue') {
-        theme = 'default';
-        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default' || storedTheme === 'pastel' || storedTheme === 'gold') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default') {
         theme = storedTheme;
       } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
         theme = 'dark';
       }
-      // else: default (first visit or invalid stored value)
+      // else: light (first visit or invalid stored value)
     } catch (e) { /* ignore */ }
     this.set('themeMode', theme);
     this.updateFaviconForTheme(theme);
@@ -697,12 +700,6 @@ export default Service.extend({
   }),
   lightMode: computed('themeMode', function() {
     return this.get('themeMode') === 'light';
-  }),
-  pastelMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'pastel';
-  }),
-  goldMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'gold';
   }),
   h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
@@ -2098,7 +2095,8 @@ export default Service.extend({
     return res;
   }),
   index_or_landing_view: computed('index_view', 'current_route', function() {
-    return this.get('index_view') || this.get('current_route') === 'landing' || this.get('current_route') === 'landing-alt' || this.get('current_route') === 'stacked-spaces';
+    var route = this.get('current_route');
+    return this.get('index_view') || route === 'landing' || route === 'landing-alt' || route === 'modern-dashboard';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -3878,14 +3876,20 @@ export default Service.extend({
   },
 
   toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'default', 'pastel', 'gold'];
-    var current = this.get('themeMode') || 'default';
+    var modes = ['light', 'midDay', 'dark', 'default'];
+    var current = this.get('themeMode') || 'light';
     var idx = modes.indexOf(current);
     var next = modes[(idx + 1) % modes.length];
     this.setThemeMode(next);
   },
 
   setThemeMode: function(mode) {
+    // Pastel removed: treat as 'light'. Gold renamed to default: treat legacy 'gold' as 'default'
+    if (mode === 'pastel') {
+      mode = 'light';
+    } else if (mode === 'gold') {
+      mode = 'default';
+    }
     this.set('themeMode', mode);
     try {
       localStorage.setItem('ll_bento_theme_mode', mode);

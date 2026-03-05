@@ -55,17 +55,13 @@ export default Component.extend({
   }),
   blank_slate: computed(
     'appState.currentUser.preferences.progress',
-    'appState.currentUser.using_for_a_while',
     function() {
       var progress = this.appState.get('currentUser.preferences.progress');
-      // TODO: eventually this should go away, maybe after a few weeks of active use or something
+      // Only hide Getting Started when user has actually completed setup
       if(progress && progress.setup_done) {
         return null;
-      } else if(this.appState.get('currentUser.using_for_a_while')) {
-        return null;
-      } else {
-        return progress;
       }
+      return progress;
     }
   ),
   no_intro: computed(
