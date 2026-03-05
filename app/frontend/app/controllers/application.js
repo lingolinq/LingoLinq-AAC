@@ -40,12 +40,6 @@ export default Controller.extend({
     return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
   }),
 
-  isStackedSpacesRoute: computed('router.currentRouteName', 'appState.current_route', function() {
-    var name = this.router && this.router.currentRouteName;
-    var current = this.appState && this.appState.get('current_route');
-    return name === 'stacked-spaces' || current === 'stacked-spaces';
-  }),
-
   landingNavOpen: false,
   useAltLanding: true, // default unauthenticated view is landing-alt
 
@@ -362,6 +356,14 @@ export default Controller.extend({
     support: function() {
       modal.open('support');
     },
+    goUpgrade: function() {
+      var user = this.appState.get('currentUser');
+      if (user) {
+        modal.open('premium-required', { user_name: user.get('user_name'), user: user, remind_to_upgrade: true });
+      } else {
+        modal.open('premium-required', { remind_to_upgrade: true });
+      }
+    },
     toggleDarkMode: function() {
       this.appState.toggleDarkMode();
     },
@@ -371,9 +373,6 @@ export default Controller.extend({
     selectThemeMode: function(mode) {
       this.appState.setThemeMode(mode);
       this.set('showThemePicker', false);
-      if (this.appState.get('current_route') === 'stacked-spaces' && this.router && typeof this.router.transitionTo === 'function') {
-        this.router.transitionTo('index');
-      }
     },
     closeThemePicker: function() {
       this.set('showThemePicker', false);
@@ -390,10 +389,6 @@ export default Controller.extend({
     },
     toggleAltLanding: function() {
       this.toggleProperty('useAltLanding');
-    },
-    goToStackedSpaces: function() {
-      this.set('showThemePicker', false);
-      this.router.transitionTo('stacked-spaces');
     },
     language: function() {
       modal.open('modals/choose-locale');
@@ -1637,7 +1632,7 @@ export default Controller.extend({
         res = res + "with_sidebar ";
       }
       var route = this.appState.get('current_route');
-      if(this.appState.get('index_view') || route === 'landing' || route === 'stacked-spaces') {
+      if(this.appState.get('index_view') || route === 'landing' || route === 'modern-dashboard') {
         res = res + "index ";
       }
       if(this.get('session.isAuthenticated')) {
@@ -1651,9 +1646,6 @@ export default Controller.extend({
         res = res + "low_for_high_contrast ";
       }
       res = res + "new_index ";
-      if(route === 'stacked-spaces') {
-        res = res + "stacked_spaces ";
-      }
       if(route === 'landing') {
         res = res + "landing ";
       }

@@ -1,4 +1,4 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}} {{if this.app_state.pastelMode "ll-bento-app-shell--pastel"}} {{if this.app_state.goldMode "ll-bento-app-shell--gold"}}">
+<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}}">
   <div class="ll-bento-bg-orbs" aria-hidden="true">
     <span class="ll-bento-orb ll-bento-orb--a"></span>
     <span class="ll-bento-orb ll-bento-orb--b"></span>
@@ -600,6 +600,11 @@
           </div>
         {{/if}}
       {{else}}
+        <div class="ll-bento-boards-page">
+        <header class="ll-bento-boards-page__header">
+          <h1 class="ll-bento-boards-page__title">{{t "Boards" key="boards"}}</h1>
+          <p class="ll-bento-boards-page__subtitle">{{t "Browse, open, and manage your communication boards" key="boards_page_subtitle"}}</p>
+        </header>
         {{#unless this.home_board_or_supporter}}
           {{#unless this.app_state.currentUser.modeling_only}}
             {{#unless this.app_state.currentUser.preferences.home_board}}
@@ -617,115 +622,83 @@
           {{/unless}}
         {{/unless}}
         {{#if this.app_state.currentUser.preferences.home_board}}
-          <div class='col-xs-12' style='margin-bottom: 10px;'>
-            <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
-            {{t "current home board:" key="current_home_board"}}<br>
-            {{#if this.app_state.currentUser.preferences.home_board}}
-              <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}}>
-                <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-              </LinkTo>
-            {{else}}
-              <LinkTo @route="home-boards">
-                <span style='font-size: 20px;'>
+          <div class="ll-bento-current-home">
+            <span class="ll-bento-current-home__icon" aria-hidden="true">
+              <span class="glyphicon glyphicon-home"></span>
+            </span>
+            <div class="ll-bento-current-home__body">
+              <span class="ll-bento-current-home__label">{{t "current home board:" key="current_home_board"}}</span>
+              {{#if this.app_state.currentUser.preferences.home_board}}
+                <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="ll-bento-current-home__link">
+                  {{this.app_state.currentUser.preferences.home_board.key}}
+                </LinkTo>
+              {{else}}
+                <LinkTo @route="home-boards" class="ll-bento-current-home__link">
                   {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
-              </LinkTo>
-            {{/if}}
-            <div style='clear: left;'></div>
-          </div>
-        {{/if}}
-        <div class="ll-bento-browse-boards">
-          <div class="ll-bento-browse-boards__header">
-            <span class="ll-bento-browse-boards__icon" aria-hidden="true"><img src={{path "images/browse-boards-icon.svg"}} alt="" class="ll-bento-browse-boards__icon-img"></span>
-            <h4 class="ll-bento-browse-boards__title">{{t "Browse Boards" key="browse_boards"}}</h4>
-            <a href="#" class="ll-bento-search ll-bento-browse-boards__search" {{action "searchBoards"}} role="button" aria-label={{t "Search Boards" key="search_boards"}}>
-              <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
-              <span class="ll-bento-search__input">{{t "Search Boards" key="search_boards"}}</span>
-            </a>
-          </div>
-          <div class="ll-bento-section-group ll-bento-browse-boards__filter-group">
-            <span class="ll-bento-section-label">{{t "Filter" key="filter"}}</span>
-            <div class="ll-bento-filter-cards" role="group" aria-label={{t "Filter" key="filter"}}>
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.suggested_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "suggested"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--suggested">
-                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-star" aria-hidden="true"></span>
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Suggested" key="suggested"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "We think you'll like these" key="filter_suggested_sub"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--suggested">{{t "View" key="view"}}</span>
-              </a>
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.personal_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "personal"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--mine">
-                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-user" aria-hidden="true"></span>
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Mine" key="mine"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "The boards you've made" key="filter_mine_sub"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--mine">{{t "View" key="view"}}</span>
-              </a>
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.popular_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "popular"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--community">
-                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-globe" aria-hidden="true"></span>
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Community" key="community"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "Boards others have shared" key="filter_community_sub"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--community">{{t "View" key="view"}}</span>
-              </a>
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn {{if this.recent_selected "ll-bento-action-card--filter-active"}}" {{action "set_selected" "recent"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--recent">
-                  <span class="ll-bento-action-card__glyph glyphicon glyphicon-time" aria-hidden="true"></span>
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Recent" key="recent"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "Boards you've opened lately" key="filter_recent_sub"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--recent">{{t "View" key="view"}}</span>
-              </a>
+                </LinkTo>
+              {{/if}}
             </div>
           </div>
+        {{/if}}
+        <div class="ll-bento-boards-toolbar">
+          <a href="#" class="ll-bento-search ll-bento-boards-toolbar__search" {{action "searchBoards"}} role="button" aria-label={{t "Search Boards" key="search_boards"}}>
+            <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
+            <span class="ll-bento-search__input">{{t "Search Boards" key="search_boards"}}</span>
+          </a>
+          <nav class="ll-bento-filter-pills" role="group" aria-label={{t "Filter" key="filter"}}>
+            <a href="#" class="ll-bento-filter-pill {{if this.suggested_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "suggested"}}>
+              <span class="glyphicon glyphicon-star" aria-hidden="true"></span>
+              <span>{{t "Suggested" key="suggested"}}</span>
+            </a>
+            <a href="#" class="ll-bento-filter-pill {{if this.personal_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "personal"}}>
+              <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+              <span>{{t "Mine" key="mine"}}</span>
+            </a>
+            <a href="#" class="ll-bento-filter-pill {{if this.popular_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "popular"}}>
+              <span class="glyphicon glyphicon-globe" aria-hidden="true"></span>
+              <span>{{t "Community" key="community"}}</span>
+            </a>
+            <a href="#" class="ll-bento-filter-pill {{if this.recent_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "recent"}}>
+              <span class="glyphicon glyphicon-time" aria-hidden="true"></span>
+              <span>{{t "Recent" key="recent"}}</span>
+            </a>
+          </nav>
         </div>
-        <div style='clear: left;'></div>
         {{#if this.suggested_selected}}
           {{#unless this.app_state.currentUser.supporter_role}}
-            <div class="col-xs-12" style="margin-bottom: 10px;">
-              <LinkTo @route="home-boards">
-                <span>
-                <span class="glyphicon glyphicon-search"></span>
+            <div class="ll-bento-boards-page__home-cta">
+              <LinkTo @route="home-boards" class="ll-bento-boards-page__home-link">
+                <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
                 {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
               </LinkTo>
             </div>
           {{/unless}}
         {{/if}}
         {{#if this.current_boards}}
           {{#if this.current_boards.loading}}
-            <div class='col-sm-4'>{{t "Loading..." key="loading"}}</div>
+            <div class="ll-bento-board-grid__loading">{{t "Loading..." key="loading"}}</div>
           {{else if this.current_boards.error}}
-            <div class='col-sm-4'>{{t "Failed to load" key="failed_to_load"}}</div>
+            <div class="ll-bento-board-grid__error">{{t "Failed to load" key="failed_to_load"}}</div>
           {{else}}
-            {{#each this.current_boards as |board|}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                {{board-icon board=board localized=true allow_style=this.suggested_selected}}
-              </div>
-            {{/each}}
+            <div class="ll-bento-board-grid">
+              {{#each this.current_boards as |board|}}
+                <div class="ll-bento-board-grid__item">
+                  {{board-icon board=board localized=true allow_style=this.suggested_selected}}
+                </div>
+              {{/each}}
+            </div>
             {{#if this.personal_selected}}
-              <div class='col-xs-12'>
-                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn btn-default btn-lg thick_border">
+              <div class="ll-bento-boards-page__footer-cta">
+                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-boards-page__see-all">
                   {{t "See All My Boards" key="see_all_my_boards"}}
                 </LinkTo>
               </div>
             {{/if}}
           {{/if}}
         {{else}}
-          <div class="col-sm-4">
-            {{t "None found" key="none_found"}}
-          </div>
+          <div class="ll-bento-board-grid__empty">{{t "None found" key="none_found"}}</div>
         {{/if}}
+        </div>{{!-- /.ll-bento-boards-page --}}
       {{/if}}
     {{else if this.index_nav.supervisors}}
       <div class="col-xs-12 ll-bento-supervision-inline-wrap">
