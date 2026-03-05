@@ -90,7 +90,7 @@ is with a `.env` file:
 cp .env.example .env
 ```
 
-You'll need to uncomment (remove the "# " at the beinning of)
+You'll need to uncomment (remove the "# " at the beginning of)
 the first group of variables since they're required. For the `REDIS_URL` line,
 enter a valid redis url (default would be `REDIS_URL=redis://localhost:6379/`).
 Then update
