@@ -5,47 +5,48 @@
 
 <div class="la-wrapper {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
   <div class="app-shell">
-    {{!-- Background color orbs (authenticated light-mode style) — behind main content --}}
-    <div class="la-bg-orbs" aria-hidden="true">
-      <span class="la-bg-orb la-bg-orb--a"></span>
-      <span class="la-bg-orb la-bg-orb--b"></span>
-      <span class="la-bg-orb la-bg-orb--c"></span>
-      <span class="la-bg-orb la-bg-orb--d"></span>
-    </div>
-
     {{!-- ======== MAIN CONTENT ======== --}}
     <main class="la-main" id="la-main" role="main">
 
       {{!-- ── Hero ── --}}
       <section id="la-hero" class="la-hero-card">
+        <div class="la-hero-card-inner">
         <div class="la-hero-text">
-          <div class="la-hero-title-wrap">
-            <h1 class="la-hero-title">
-              {{t "Communication access" key='communication_access'}}<br>
-              {{t "for" key='for_lower'}} <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
-            </h1>
+          <div class="la-hero-headline-and-badges">
+          <div class="la-hero-section la-hero-headline">
+            <div class="la-hero-title-wrap">
+              <h1 class="la-hero-title">
+                <span class="la-hero-title-line1">{{t "Communication access" key='communication_access'}}</span><br>
+                <span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
+              </h1>
+            </div>
+            <p class="la-hero-subtitle">
+              {{t "LingoLinq is an AI-powered AAC platform that gives students a voice." key='landing_hero_subtitle_line1'}}<br>
+              {{t "It saves therapists hours each week and gives districts the management tools they've been asking for." key='landing_hero_subtitle_line2'}}
+            </p>
           </div>
-          <p class="la-hero-subtitle">
-            {{t "LingoLinq is an AI-powered AAC platform that gives students a voice." key='landing_hero_subtitle_line1'}}<br>
-            {{t "It saves therapists hours each week and gives districts the management tools they've been asking for." key='landing_hero_subtitle_line2'}}
-          </p>
+          <div class="la-hero-section la-hero-badges-section">
           <div class="la-hero-badges">
             <div class="la-hero-badge">
               <span class="la-hero-badge-icon la-hero-badge-icon--cloud" aria-hidden="true">☁</span>
               <span class="la-hero-badge-label">{{t "Cloud-based" key='landing_hero_cloud'}}</span>
             </div>
             <div class="la-hero-badge">
-              <span class="la-hero-badge-icon la-hero-badge-icon--oss" aria-hidden="true">&lt;/&gt;</span>
-              <span class="la-hero-badge-label">{{t "Open source" key='landing_hero_oss'}}</span>
+              <span class="la-hero-badge-icon la-hero-badge-icon--cost" aria-hidden="true">💰</span>
+              <span class="la-hero-badge-label">{{t "90% Lower Cost" key='landing_hero_lower_cost'}}</span>
             </div>
             <div class="la-hero-badge">
               <span class="la-hero-badge-icon la-hero-badge-icon--school" aria-hidden="true">🏫</span>
-              <span class="la-hero-badge-label">{{t "Built for real classrooms" key='landing_hero_classrooms'}}</span>
+              <span class="la-hero-badge-label">{{t "Built for Real Classrooms" key='landing_hero_classrooms'}}</span>
             </div>
           </div>
+          </div>
+          </div>
+          <div class="la-hero-section la-hero-actions-section">
           <div class="la-hero-actions">
             <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
             <a href="#la-demo" class="la-btn la-btn--ghost">{{t "Watch Demo" key='landing_watch_demo'}}</a>
+          </div>
           </div>
         </div>
 
@@ -91,25 +92,6 @@
             </div>
           </div>
         </div>
-      </section>
-
-      {{!-- ── Stats Strip ── --}}
-      <section id="la-stats" class="la-stats-strip">
-        <div class="la-stat-cell">
-          <div class="la-stat-number">{{t "100M+" key='landing_stat_100m'}}</div>
-          <div class="la-stat-label">{{t "People who could benefit from AAC" key='landing_stat_100m_label'}}</div>
-        </div>
-        <div class="la-stat-cell">
-          <div class="la-stat-number">{{t "~4M" key='landing_stat_4m'}}</div>
-          <div class="la-stat-label">{{t "Currently using AAC tools" key='landing_stat_4m_label'}}</div>
-        </div>
-        <div class="la-stat-cell">
-          <div class="la-stat-number">{{t "5-10 hrs" key='landing_stat_hours'}}</div>
-          <div class="la-stat-label">{{t "Saved per SLP per week" key='landing_stat_hours_label'}}</div>
-        </div>
-        <div class="la-stat-cell">
-          <div class="la-stat-number">{{t "90%" key='landing_stat_90'}}</div>
-          <div class="la-stat-label">{{t "Cost reduction vs. dedicated devices" key='landing_stat_90_label'}}</div>
         </div>
       </section>
 
@@ -154,8 +136,12 @@
         </div>
       </section>
 
+      <hr class="la-divider" aria-hidden="true">
+
+      {{!-- Parallax zone: from "Included in every plan" through footer --}}
+      <div class="la-parallax-zone">
       {{!-- ── Included in Every Plan ── --}}
-      <section class="la-plan-section">
+      <section id="la-plan" class="la-plan-section">
         <div class="la-plan-layout">
           <div class="la-plan-text">
             <span class="la-section-eyebrow-badge">{{t "Included in every plan" key='fsa_included_plan'}}</span>
@@ -191,6 +177,8 @@
         </div>
       </section>
 
+      <hr class="la-divider" aria-hidden="true">
+
       {{!-- ── What Educators Say ── --}}
       <section id="la-testimonial" class="la-testimonial-section">
         <span class="la-section-eyebrow-badge">{{t "What educators say" key='fsa_what_educators_say'}}</span>
@@ -204,16 +192,21 @@
         </div>
       </section>
 
+      <hr class="la-divider" aria-hidden="true">
+
       {{!-- ── Accessibility Statement ── --}}
-      <section class="la-a11y-statement">
-        <div class="la-a11y-statement-inner">
-          <span class="la-a11y-statement-icon" aria-hidden="true">♿</span>
-          <div class="la-a11y-statement-content">
-            <span class="la-section-eyebrow-badge">{{t "Accessibility First" key='accessibility_first'}}</span>
-            <p>{{t "This site meets" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website. Need accommodations?" key='landing_a11y_standards'}} <LinkTo @route="contact" class="la-a11y-statement-link">{{t "Let us know." key='landing_a11y_let_us_know'}}</LinkTo></p>
-          </div>
+      <section id="la-a11y" class="la-a11y-statement">
+        <span class="la-section-eyebrow-badge">{{t "Accessibility First" key='accessibility_first'}}</span>
+        <div class="la-a11y-display">
+          <p class="la-a11y-display-text">{{t "This site meets" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website." key='landing_a11y_standards'}}</p>
+        </div>
+        <div class="la-a11y-attribution">
+          <span class="la-a11y-badge">{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</span>
+          <span class="la-a11y-accommodations">{{t "Need accommodations?" key='landing_a11y_need'}} <LinkTo @route="contact" class="la-a11y-statement-link">{{t "Let us know." key='landing_a11y_let_us_know'}}</LinkTo></span>
         </div>
       </section>
+
+      <hr class="la-divider" aria-hidden="true">
 
       {{!-- ── Ready to Start ── --}}
       <section id="la-cta" class="la-cta-section">
@@ -228,13 +221,15 @@
         </div>
       </section>
 
+      </div>{{!-- /.la-parallax-zone --}}
+
       <hr class="la-divider" aria-hidden="true">
 
       {{!-- ── Footer ── --}}
       <footer id="la-footer" class="la-footer">
         <div class="la-footer-inner">
           <div class="la-footer-brand">
-            {{app-logo linkRoute="index" class="la-footer-logo" imgClass="la-footer-logo-img" showName=true nameStyle="branded" imgAlt="" ariaHiddenImg=true}}
+            {{app-logo linkRoute="index" class="la-footer-logo" imgClass="la-footer-logo-img" size="75px" showName=true nameStyle="branded" imgAlt="" ariaHiddenImg=true}}
             <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key='landing_footer_tagline'}}</p>
           </div>
           <div class="la-footer-col">
