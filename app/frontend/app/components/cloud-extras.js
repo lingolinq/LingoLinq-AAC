@@ -7,9 +7,9 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
-    var modal = this.get('modal');
-    var template = 'cloud-extras';
-    var options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
+    const modal = this.get('modal');
+    const template = 'cloud-extras';
+    const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
                   (modal && modal.settingsFor && modal.settingsFor[template]) ||
                   this.get('model') || {};
     this.set('model', options);
