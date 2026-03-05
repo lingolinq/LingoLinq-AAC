@@ -1,0 +1,46 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="cloud-extras-modal">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "LingoLinq Cloud Extras" key="cloud_extras_title"}}</span>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label="{{t "Close" key='close'}}">✕</button>
+    </div>
+    <div class="cloud-extras-modal__body">
+      <p class="cloud-extras-modal__intro">
+        {{t "LingoLinq goes beyond basic AAC features. Cloud Extras are built-in tools that help communication teams support growth, track progress, and stay connected." key="cloud_extras_intro"}}
+      </p>
+      <h3 class="cloud-extras-modal__features-heading">{{t "Included features:" key="cloud_extras_included_features"}}</h3>
+      <ul class="cloud-extras-modal__feature-list">
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Speech Logs" key="cloud_extras_speech_logs_title"}}</strong> – {{t "Track all spoken words to see vocabulary growth over time" key="cloud_extras_speech_logs_desc"}}
+        </li>
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Usage Reports" key="cloud_extras_usage_reports_title"}}</strong> – {{t "View most-used words, core vs fringe usage, time-of-day activity, heat maps, and more" key="cloud_extras_usage_reports_desc"}}
+        </li>
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Built-in AAC Evaluation Tool" key="cloud_extras_eval_tool_title"}}</strong> – {{t "Assess button size, layout, graphics, and system fit" key="cloud_extras_eval_tool_desc"}}
+        </li>
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Team Messaging" key="cloud_extras_team_messaging_title"}}</strong> – {{t "Secure communication between parents, teachers, and therapists" key="cloud_extras_team_messaging_desc"}}
+        </li>
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Goals & Badges" key="cloud_extras_goals_badges_title"}}</strong> – {{t "Set speech goals, track progress, and celebrate milestones" key="cloud_extras_goals_badges_desc"}}
+        </li>
+        <li>
+          <span class="cloud-extras-modal__check" aria-hidden="true">✓</span>
+          <strong>{{t "Location Insights (Optional)" key="cloud_extras_location_insights_title"}}</strong> – {{t "Understand communication patterns across home, school, or therapy settings" key="cloud_extras_location_insights_desc"}}
+        </li>
+      </ul>
+      <p class="cloud-extras-modal__evolving">
+        {{t "LingoLinq is always evolving — new Cloud Extras are added regularly." key="cloud_extras_evolving"}}
+      </p>
+      <p class="cloud-extras-modal__lifetime-note">
+        {{t "Lifetime Communicator purchases include 5 years of Cloud Extras at no additional cost." key="cloud_extras_lifetime_note"}}
+      </p>
+    </div>
+  </div>
+{{/modal-dialog}}

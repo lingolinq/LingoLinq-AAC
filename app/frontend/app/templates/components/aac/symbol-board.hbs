@@ -44,8 +44,8 @@
   >
     {{#if this.isLoading}}
       {{!-- Loading skeletons --}}
-      {{#each (array 1 2 3 4 5 6 7 8) as |_|}}
-        <div class="symbol-card symbol-card--skeleton" aria-hidden="true"></div>
+      {{#each (array 1 2 3 4 5 6 7 8) as |idx|}}
+        <div class="symbol-card symbol-card--skeleton" aria-hidden="true" data-skeleton-index={{idx}}></div>
       {{/each}}
 
     {{else if this.hasResults}}

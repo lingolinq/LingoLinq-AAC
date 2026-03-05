@@ -83,6 +83,61 @@ $brand-coral: #FF6B4A;
   height: auto;
   min-height: var(--bottombar-height);
 }
+/* Pricing page: same as landing – full-page scroll, footer at end of content */
+#within_ember.pricing-route {
+  position: static;
+  overflow-x: hidden;
+  overflow-y: visible;
+  display: block;
+  min-height: 100%;
+}
+#within_ember.pricing-route .page-footer {
+  position: static !important;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  height: auto;
+  min-height: var(--bottombar-height);
+}
+/* Pricing page: reserve space above footer when scrolled to bottom */
+.la-wrapper.la-wrapper--pricing .la-main {
+  padding-bottom: var(--bottombar-height, 60px);
+}
+/* Pricing page: bulk purchase link and explainer (below cards) */
+.la-pricing-bulk {
+  text-align: center;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.la-pricing-bulk-link {
+  color: var(--fs-dark-teal, #2A9D8F);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+
+  &:hover {
+    border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+  }
+}
+.la-pricing-bulk-explainer {
+  margin-top: 1rem;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #2c3e50;
+
+  a {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.12s ease;
+
+    &:hover {
+      border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+    }
+  }
+}
 /* Speech page mockup: hide the main app header and bottom navigation */
 #within_ember.speech-route > header,
 #within_ember.speech-route .page-footer,
@@ -6243,6 +6298,293 @@ table tr.long_delay td {
     a {
       color: #f5c23b;
     }
+  }
+}
+
+/* ── Subscription form card layout (replaces table on subscription-form) ── */
+form.row.subscription-form-with-cards {
+  width: 100%;
+  max-width: 960px;
+}
+
+.subscription-form-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  max-width: 100%;
+  width: 100%;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(27, 42, 74, 0.10), 0 0 0 1px rgba(27, 42, 74, 0.04);
+}
+
+.subscription-form-card {
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid #c5bfb3;
+
+  &:first-child {
+    border-left: none;
+  }
+}
+
+.subscription-form-card__header {
+  padding: 20px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+
+  &.subscription-table__communicator-header {
+    background: #2c5282;
+    font-size: 22px;
+  }
+
+  &.subscription-table__supporter-header {
+    background: color.adjust(#415a75, $lightness: 20%, $saturation: 12%);
+    font-size: 18px;
+  }
+
+  &.subscription-table__eval-header {
+    background: var(--fs-medium-gray, #6b7280);
+    font-size: 18px;
+  }
+}
+
+.subscription-form-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1b2a4a;
+
+  .subscription-form-card--communicator & {
+    background: rgba(44, 82, 130, 0.02);
+  }
+
+  .subscription-form-card--supporter & {
+    background: rgba(26, 122, 110, 0.04);
+  }
+
+  .subscription-form-card--eval & {
+    background: rgba(139, 111, 58, 0.04);
+  }
+}
+
+.subscription-form-card__description,
+.subscription-form-card__feature,
+.subscription-form-card__row {
+  padding: 12px 0;
+  border-bottom: 1px solid #EDE9E0;
+}
+
+.subscription-form-card__description.subscription-table__row--light-gray-bg,
+.subscription-form-card__feature.subscription-table__row--light-gray-bg,
+.subscription-form-card__row.subscription-table__row--light-gray-bg {
+  background: rgba(44, 82, 130, 0.03);
+}
+
+.subscription-form-card__pricing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid #EDE9E0;
+  position: relative;
+
+  .subscription-form-card__price-block {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .middle {
+    background: #fff;
+    padding: 6px 10px;
+    font-size: 18px;
+    color: #7A8E84;
+    font-weight: 500;
+    margin: 8px 0;
+  }
+
+  .sale {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #1b2a4a;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 0;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: -16px -20px 8px -20px;
+    padding: 6px 20px;
+  }
+}
+
+.subscription-form-card__feature-item {
+  margin-top: 8px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.subscription-form-card__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #EDE9E0;
+
+  .subscription-form-card--communicator & {
+    background: transparent;
+  }
+
+  .btn {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+.subscription-form-card__row.subscription-table__row--blue-bg {
+  background: rgba(44, 82, 130, 0.08);
+  border-bottom: 1px solid #EDE9E0;
+  padding: 12px 0;
+
+  a {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  a:hover {
+    border-bottom: 1px solid var(--fs-dark-teal, #2A9D8F);
+  }
+}
+
+.subscription-form-card__row.subscription-table__row--navy-bg {
+  background: #1B365D;
+  color: #fff;
+  border-bottom: none;
+  padding: 12px;
+  margin: 0 -20px -16px -20px;
+  border-radius: 0 0 20px 20px;
+
+  .subscription-form-card--supporter &,
+  .subscription-form-card--eval & {
+    border-radius: 0;
+  }
+
+  a {
+    color: #f5c23b;
+  }
+
+  .subscribe-trial-btn {
+    width: 100%;
+  }
+}
+
+.subscription-form-cards .subscription-table__cloud-extras-right a[href*='blog.mylingolinq.com'],
+.subscription-form-cards a[href*='blog.mylingolinq.com'] {
+  color: var(--fs-dark-teal, #2A9D8F);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+}
+
+.subscription-form-cards a[href*='blog.mylingolinq.com']:hover {
+  border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+}
+
+/* Cloud Extras modal trigger (replaces blog link) – match previous link appearance */
+.subscription-form__cloud-extras-link {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--fs-dark-teal, #2A9D8F);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+  }
+}
+
+/* la-* classes used in subscription-form: features list and sale badge */
+.subscription-form-cards .la-pricing-card__features {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #3a4a5e;
+
+  li {
+    padding: 0.35em 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  a {
+    color: var(--fs-dark-teal, #2A9D8F);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.12s ease;
+  }
+
+  a:hover {
+    border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+  }
+}
+
+.subscription-form-cards .la-pricing-card .sale {
+  display: block;
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  color: #1b2a4a;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* Stack cards on narrow viewports so the 3rd card is not cut off */
+.skinny_subscription .subscription-form-cards {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 960px) {
+  .subscription-form-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-form-card {
+    border-left: none;
+    border-top: 2px solid #c5bfb3;
+
+    &:first-child {
+      border-top: none;
+    }
+  }
+
+  .subscription-form-card:last-child .subscription-form-card__row.subscription-table__row--navy-bg {
+    border-radius: 0 0 20px 20px;
   }
 }
 
@@ -17323,8 +17665,43 @@ $aac-z-topbar:   400;
 }
 
 .la-wrapper.la-wrapper--pricing .la-pricing-hero-subtitle {
-  min-width: 748px; /* 10% wider than base 680px */
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Pricing page hero: responsive on narrow screens */
+@media (max-width: 768px) {
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+  .la-wrapper.la-wrapper--pricing .la-pricing-hero-subtitle {
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title-wrap {
+    padding-bottom: 1.5rem;
+  }
+}
+@media (max-width: 480px) {
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .la-wrapper.la-wrapper--pricing .la-pricing-hero-subtitle {
+    font-size: 15px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge {
+    margin-bottom: 1.5rem;
+  }
 }
 
 .la-pricing-preview-grid {
@@ -17333,6 +17710,16 @@ $aac-z-topbar:   400;
   gap: $aac-spacing-24;
   max-width: 960px;
   margin: 0 auto;
+}
+
+/* Stack pricing cards at 1000px so they don't get cut off on the right */
+@media (max-width: 1000px) {
+  .la-pricing-preview-grid,
+  .pricing-wrapper.la-pricing-preview-grid {
+    grid-template-columns: 1fr;
+    gap: $aac-spacing-16;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: $aac-breakpoint-md) {
@@ -17372,6 +17759,89 @@ $aac-z-topbar:   400;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* Pricing page card structure (pricing-wrapper / pricing-card) */
+.pricing-wrapper {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pricing-card {
+  position: relative;
+
+  .pricing-card__badge,
+  .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(20, 127, 130, 0.2);
+    color: #0e6669;
+  }
+
+  .plan-subtitle {
+    margin: 0 0 1rem;
+  }
+
+  .price-block {
+    &.single .price-option {
+      margin: 0 auto;
+    }
+  }
+
+  .or-divider {
+    margin: 0.5rem 0;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    text-align: left;
+    width: 100%;
+
+    li {
+      padding: 0.35em 0;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+  }
+
+  .cta {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 0.9;
+    }
+
+    &.primary {
+      background: var(--fs-dark-teal, #2A9D8F);
+      color: #fff;
+      border: none;
+    }
+
+    &.secondary {
+      background: transparent;
+      color: var(--fs-dark-teal, #2A9D8F);
+      border: 2px solid var(--fs-dark-teal, #2A9D8F);
+    }
+  }
 }
 
 .la-pricing-card__amount {
@@ -17547,7 +18017,13 @@ $aac-z-topbar:   400;
 }
 .la-wrapper.la-wrapper--pricing .la-section .la-section-header {
   margin-bottom: 0;
-  max-width: 748px; /* match subtitle min-width so it can center */
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 .la-wrapper.la-wrapper--pricing .la-section .la-pricing-preview-grid {
   margin-top: -2rem;
@@ -19794,6 +20270,118 @@ $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
   }
 }
 
+// ── Cloud Extras modal ───────────────────────────────────────────────────────
+.cloud-extras-modal {
+  border-radius: $aac-radius-xl;
+  overflow: hidden;
+  box-shadow: $aac-shadow-xl;
+  margin: -15px;
+  max-width: 520px;
+}
+
+.cloud-extras-modal .la-modal-header {
+  background: color.adjust(#dce1e9, $lightness: -10%);
+}
+.cloud-extras-modal .la-modal-header-label {
+  color: #2c3e50;
+}
+.cloud-extras-modal .la-modal-close {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.06);
+  color: #2c3e50;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #1b2a4a;
+  }
+}
+
+.cloud-extras-modal__body {
+  background: linear-gradient(180deg, rgba($la-teal, 0.12) 0%, rgba($la-teal, 0.04) 100%);
+  padding: $aac-spacing-24;
+}
+
+.cloud-extras-modal__intro {
+  margin: 0 0 $aac-spacing-16;
+  font-size: $aac-font-size-base;
+  line-height: 1.5;
+  color: #2c3e50;
+}
+
+.cloud-extras-modal__features-heading {
+  font-family: $aac-font-display;
+  font-size: 1rem;
+  font-weight: $aac-font-weight-black;
+  color: #1b2a4a;
+  margin: 0 0 $aac-spacing-12;
+}
+
+.cloud-extras-modal__feature-list {
+  list-style: none;
+  margin: 0 0 $aac-spacing-20;
+  padding: 0;
+}
+
+.cloud-extras-modal__feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: $aac-spacing-10;
+  margin-bottom: $aac-spacing-12;
+  font-size: $aac-font-size-base;
+  line-height: 1.45;
+  color: #2c3e50;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.cloud-extras-modal__check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba($la-teal, 0.2);
+  color: $la-teal;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.cloud-extras-modal__evolving,
+.cloud-extras-modal__lifetime-note {
+  margin: 0;
+  font-size: $aac-font-size-base;
+  line-height: 1.5;
+  color: #2c3e50;
+}
+
+.cloud-extras-modal__evolving {
+  margin-bottom: $aac-spacing-12;
+}
+
+.cloud-extras-modal__lifetime-note {
+  padding: $aac-spacing-12;
+  background: rgba($la-navy, 0.06);
+  border-radius: $aac-radius-md;
+  border-left: 3px solid $la-teal;
+}
+
+.modal-content:has(.cloud-extras-modal) {
+  background: none;
+  border: none;
+  box-shadow: none;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.modal-dialog:has(.cloud-extras-modal) {
+  width: 100%;
+  max-width: 520px;
+}
+
 // ── Support modal (matches contact / about / pricing styling; background like landing) ──
 .la-support-modal-wrap {
   border-radius: $aac-radius-xl;
@@ -20207,13 +20795,15 @@ $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
 @media (max-height: 1279px) {
   .modal:has(.la-features-modal-wrap),
   .modal:has(.landing-features-modal-wrap),
-  .modal:has(.la-support-modal-wrap) {
+  .modal:has(.la-support-modal-wrap),
+  .modal:has(.cloud-extras-modal) {
     overflow-y: auto;
   }
 
   .modal-dialog:has(.la-features-modal-wrap),
   .modal-dialog:has(.landing-features-modal-wrap),
-  .modal-dialog:has(.la-support-modal-wrap) {
+  .modal-dialog:has(.la-support-modal-wrap),
+  .modal-dialog:has(.cloud-extras-modal) {
     margin: 30px auto;
   }
 
