@@ -103,12 +103,36 @@ $brand-coral: #FF6B4A;
 .la-wrapper.la-wrapper--pricing .la-main {
   padding-bottom: var(--bottombar-height, 60px);
 }
-/* Pricing page: bulk purchase link and explainer (below cards) */
-.la-pricing-bulk {
+/* Pricing page: org management + bulk purchase above buttons, displayed horizontally */
+.la-pricing-extra-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 24px 32px;
+  margin-top: 2rem;
+}
+
+.la-pricing-extra-link {
   text-align: center;
-  max-width: 640px;
-  margin-left: auto;
-  margin-right: auto;
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+
+.la-pricing-org-management,
+.la-pricing-bulk {
+  p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #2c3e50;
+  }
+}
+
+.la-pricing-bulk {
+  .la-pricing-bulk-explainer {
+    margin-top: 0.5rem;
+  }
 }
 .la-pricing-bulk-link {
   color: var(--fs-dark-teal, #2A9D8F);
@@ -17706,26 +17730,42 @@ $aac-z-topbar:   400;
 
 .la-pricing-preview-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: $aac-spacing-24;
-  max-width: 960px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* Stack pricing cards at 1000px so they don't get cut off on the right */
-@media (max-width: 1000px) {
+/* 2 columns: first two cards in a row, third wraps and fills the next line */
+@media (max-width: $aac-breakpoint-lg) {
+  .la-pricing-preview-grid,
+  .pricing-wrapper.la-pricing-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $aac-spacing-20;
+    max-width: 100%;
+  }
+
+  /* 3rd card spans full row when it wraps, so it's wider than each of the first two */
+  .pricing-wrapper.la-pricing-preview-grid .pricing-card:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Stack all pricing cards on small screens */
+@media (max-width: $aac-breakpoint-md) {
   .la-pricing-preview-grid,
   .pricing-wrapper.la-pricing-preview-grid {
     grid-template-columns: 1fr;
     gap: $aac-spacing-16;
     max-width: 100%;
   }
-}
 
-@media (max-width: $aac-breakpoint-md) {
-  .la-pricing-preview-grid {
-    grid-template-columns: 1fr;
-    gap: $aac-spacing-16;
+  .pricing-wrapper.la-pricing-preview-grid .pricing-card:nth-child(3) {
+    grid-column: auto;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
   }
 }
 
@@ -17753,6 +17793,19 @@ $aac-z-topbar:   400;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   width: 100%;
+}
+
+/* Communicator card: two price options side by side with divider in the middle */
+.pricing-card--communicator .price-block:not(.single).la-pricing-card__prices {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: $aac-spacing-12;
+}
+
+.pricing-card--communicator .price-block:not(.single) .or-divider {
+  margin: 0;
 }
 
 .la-pricing-card__price-row {
@@ -17982,6 +18035,7 @@ $aac-z-topbar:   400;
 .la-wrapper.la-wrapper--pricing .la-section {
   margin-top: 8rem;
   margin-bottom: 0;
+  align-items: center;
 }
 
 // Pricing page: Plans section badge — larger bottom margin

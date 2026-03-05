@@ -74,7 +74,8 @@
               <li>✔ {{t "Premium voices & reporting" key="premium_voices_reporting"}}</li>
               <li>✔ {{t "Modeling ideas & usage insights" key="modeling_ideas_usage"}}</li>
               <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
-              <li>➕ {{t "Add LessonPix, SymbolStix & BoardMaker for $25" key="add_lessonpix_symbolstix"}}</li>
+              <li>✔ {{t "Free modeling-only accounts are available for supporting paid communicators" key="free_modeling_only_accounts_communicator"}}</li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
               <li>➕ {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}</li>
             </ul>
             <LinkTo @route="register" class="cta primary la-btn la-btn--primary">{{t "Start Communicator Plan" key="start_communicator_plan"}}</LinkTo>
@@ -108,6 +109,7 @@
               <li>✔ {{t "Modify linked communicator boards" key="modify_linked_communicator_boards"}}</li>
               <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
               <li>✔ {{t "Free modeling-only accounts available" key="free_modeling_only_available"}}</li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
             <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Get Supporter Access" key="get_supporter_access"}}</LinkTo>
           </div>
@@ -138,10 +140,32 @@
               <li>✔ {{t "Runs on one device" key="run_on_one_device"}}</li>
               <li>✔ {{t "Premium voices on request" key="premium_voices_on_request"}}</li>
               <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras reset per evaluation" key="for_supported_communicators2_suffix"}}</button></li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
             <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
           </div>
         </div>
+
+        {{!-- Org management + Bulk purchase: above buttons, displayed horizontally --}}
+        <div class="la-pricing-extra-links">
+          <div class="la-pricing-org-management la-pricing-extra-link">
+            <p>
+              {{t "User management tools are available for organizations." key="org_tools_available"}}
+              <LinkTo @route="contact" class="la-pricing-bulk-link">{{t "Contact us!" key="contact_us_excl"}}</LinkTo>
+            </p>
+          </div>
+          <div class="la-pricing-bulk la-pricing-extra-link">
+            <p>
+              <a href="#" {{action "show_bulk_purchase"}} class="la-pricing-bulk-link">{{t "Are you interested in a bulk purchase or PO/PCard purchase?" key="bulk_purchase_interested_question"}}</a>
+            </p>
+            {{#if this.show_bulk_purchase}}
+              <p class="la-pricing-bulk-explainer">
+                {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
+              </p>
+            {{/if}}
+          </div>
+        </div>
+
         {{#if this.app_state.domain_settings.full_domain}}
           <div class="la-pricing-actions" style="margin-top: 2rem;">
             <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
@@ -153,18 +177,6 @@
         <div class="la-cta-buttons" style="margin-top: 2rem; text-align: center;">
           <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
           <LinkTo @route="contact" class="la-btn la-btn--badge la-btn--lg">{{t "Contact Us" key="contact_us"}}</LinkTo>
-        </div>
-
-        {{!-- Bulk purchase: link and conditional paragraph (below cards, controller-driven) --}}
-        <div class="la-section la-pricing-bulk" style="margin-top: 2rem;">
-          <p>
-            <a href="#" {{action "show_bulk_purchase"}} class="la-pricing-bulk-link">{{t "Bulk Purchase, PO or PCard?" key="bulk_purchase_or_po"}}</a>
-          </p>
-          {{#if this.show_bulk_purchase}}
-            <p class="la-pricing-bulk-explainer">
-              {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
-            </p>
-          {{/if}}
         </div>
       </section>
 
