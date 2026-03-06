@@ -2,6 +2,9 @@
 <div id="audio"></div>
 <header class="{{this.header_class}} {{if this.showBentoStyleHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
+  {{#if this.isModernDashboardRoute}}
+    <AppNavbar />
+  {{else}}
   {{#if this.app_state.speak_mode}}
     <span id="speak">
       <span class="speak-header__home-marker">
@@ -1045,6 +1048,7 @@
       </span>
       {{/unless}}
     </span>
+  {{/if}}
   </div>
 </header>
 <div id="content" class={{this.content_class}}>

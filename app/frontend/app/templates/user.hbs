@@ -1,7 +1,20 @@
 <div class="md-user-layout hide_print">
+  {{#if (and this.from_dashboard (or (is-equal this.app_state.current_route "user.stats") (is-equal this.app_state.current_route "user.logs")))}}
+  <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+    <LinkTo @route="modern-dashboard" class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
+    <LinkTo @route="modern-dashboard.boards" class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
+    {{#if (is-equal this.app_state.current_route "user.stats")}}
+    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Reports" key="reports"}}</span>
+    {{else}}
+    <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash from_dashboard=1 highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
+    {{/if}}
+    <LinkTo @route="modern-dashboard.extras" class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
+    <LinkTo @route="modern-dashboard.supervisors" class="md-pillnav__pill">{{t "Supervisors" key="supervisors"}}</LinkTo>
+  </nav>
+  {{else}}
   <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
-    <LinkTo @route="user.index" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "summary" key="summary_lower"}}</LinkTo>
-    <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.stats') 'active'}}">{{t "reports" key="reports_lower"}}</LinkTo>
+    <LinkTo @route="user.index" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill">{{t "summary" key="summary_lower"}}</LinkTo>
+    <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash from_dashboard=null highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.stats') 'active'}}">{{t "reports" key="reports_lower"}}</LinkTo>
     <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "goals" key="goals_lower"}}</LinkTo>
     {{#if this.app_state.feature_flags.lessons}}
       {{#if this.model.organizations.length}}
@@ -17,13 +30,14 @@
         <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "billing" key="billing_lower"}}</LinkTo>
       {{/if}}
     {{/if}}
-    <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=null}} class="md-pillnav__pill">
+    <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type=null}} class="md-pillnav__pill">
       {{t "logs &amp; messages" key="logs_messages"}}
       {{#if this.app_state.currentUser.unread_messages}}
         <span class="md-pillnav__badge">{{this.app_state.currentUser.unread_messages}}</span>
       {{/if}}
     </LinkTo>
   </nav>
+  {{/if}}
 </div>
 
 <div class="md-user-outlet">

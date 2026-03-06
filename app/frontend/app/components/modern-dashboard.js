@@ -19,7 +19,7 @@ export default class ModernDashboardComponent extends Component {
     } else if (key === 'reports') {
       var u = this.appState.get('currentUser.user_name');
       if (u) {
-        this.router.transitionTo('user.stats', u);
+        this.router.transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } });
       }
     } else if (key === 'upgrade') {
       var user = this.appState.get('currentUser');

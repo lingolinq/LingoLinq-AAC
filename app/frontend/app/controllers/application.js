@@ -1690,5 +1690,10 @@ export default Controller.extend({
     var cu = this.appState.get('currentUser');
     return (this.appState.get('index_or_landing_view') && cu) ||
       (route === 'user.stats' && cu);
+  }),
+  /** True when current route is modern-dashboard or any nested route (e.g. modern-dashboard.index, modern-dashboard.boards). */
+  isModernDashboardRoute: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
   })
 });

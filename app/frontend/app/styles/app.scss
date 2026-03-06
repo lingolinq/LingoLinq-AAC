@@ -8094,6 +8094,249 @@ body:-ms-fullscreen {
   color: #3A6BC7;
 }
 
+/* Reusable app navbar: matches bento #inner_header / #nav_header (navy bar, not bento topbar) */
+.app-navbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--topbar-height);
+  padding-left: 16px;
+  padding-right: 16px;
+  background: #1B365D;
+  background-color: #1B365D;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* When navbar is inside main header (#inner_header), fill the bar and let navbar provide the look */
+#inner_header .app-navbar {
+  width: 100%;
+  box-sizing: border-box;
+}
+.header-index-with-dark-toggle #inner_header:has(.app-navbar) {
+  width: 100%;
+  min-width: 0;
+  background-color: transparent;
+}
+#within_ember > header.header-index-with-dark-toggle:has(.app-navbar) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+.app-navbar__inner {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+.app-navbar__nav-header {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.app-navbar #identity,
+.app-navbar .identity-with-dark-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Modern Dashboard link: same as .header-index-with-dark-toggle .ll-bento-help-btn--nav */
+.app-navbar .ll-bento-help-btn--nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  vertical-align: middle;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.9);
+  transition: color 0.2s ease;
+}
+.app-navbar .ll-bento-help-btn--nav:hover {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: none;
+}
+.app-navbar .ll-bento-help-btn--nav .ll-bento-help-btn__icon {
+  color: rgba(255, 255, 255, 0.9);
+  flex-shrink: 0;
+}
+.app-navbar .ll-bento-help-btn--nav:hover .ll-bento-help-btn__icon {
+  color: rgba(255, 255, 255, 1);
+}
+.app-navbar .ll-bento-help-btn--nav .ll-bento-help-btn__label {
+  white-space: nowrap;
+}
+.app-navbar .ll-bento-help-btn--nav-icon-only {
+  padding: 9px 12px;
+  margin-right: 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-navbar .ll-bento-help-btn--nav-icon-only .ll-bento-help-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+.app-navbar .ll-bento-help-btn--nav-icon-only:hover .ll-bento-help-btn__icon {
+  color: rgba(255, 255, 255, 1);
+}
+.app-navbar .ll-bento-help-btn--nav-icon-only .ll-bento-help-btn__nav-icon {
+  display: block;
+}
+
+/* Upgrade button: same as .header-index-with-dark-toggle #identity .md-pillnav__upgrade-nav */
+.app-navbar .md-pillnav__upgrade-nav {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(91, 141, 239, 0.35);
+  border: 1px solid rgba(91, 141, 239, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  margin-left: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.app-navbar .md-pillnav__upgrade-nav:hover,
+.app-navbar .md-pillnav__upgrade-nav:focus {
+  background: rgba(91, 141, 239, 0.5);
+  border-color: rgba(91, 141, 239, 0.65);
+  color: #fff;
+}
+.app-navbar .md-pillnav__upgrade-nav:active {
+  transform: scale(var(--md-tap, 0.98));
+}
+
+.app-navbar .header-unauth-nav {
+  flex: 1;
+  min-width: 0;
+}
+.app-navbar .header-unauth-right {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.app-navbar #header_search {
+  display: inline-block;
+  padding-left: 10px;
+  margin-left: 18px;
+}
+.app-navbar #header_search .form-control {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+}
+.app-navbar #header_search .form-control::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+.app-navbar .header-search-wrap {
+  position: relative;
+  display: inline-block;
+  width: 180px;
+}
+.app-navbar #header_search .header-search-input {
+  padding-right: 36px;
+  width: 100%;
+}
+.app-navbar #header_search .header-search-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 1;
+}
+.app-navbar #header_search .header-search-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.app-navbar #header_search .header-search-icon {
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.92);
+}
+.app-navbar__h1 {
+  margin: 0;
+  padding: 0;
+  height: var(--topbar-height);
+  display: inline-flex;
+  align-items: center;
+}
+/* Nav header brand inside app-navbar: same white text and logo as #nav_header */
+.app-navbar .nav-header__brand {
+  display: inline-flex;
+  align-items: center;
+  margin-top: -20px;
+  height: var(--topbar-height);
+  gap: 4px;
+}
+.app-navbar .nav-header__logo-link,
+.app-navbar .nav-header__app-name-link {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+.app-navbar .nav-header__logo-link:hover,
+.app-navbar .nav-header__app-name-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+.app-navbar .nav-header__logo-link:focus,
+.app-navbar .nav-header__logo-link:focus-visible {
+  outline: none;
+}
+.app-navbar .nav-header__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  width: auto;
+  max-height: calc(var(--topbar-height) - 8px);
+  vertical-align: middle;
+}
+.app-navbar .nav-header__logo img {
+  padding-top: 0;
+  width: auto;
+  height: 100%;
+  max-height: calc(var(--topbar-height) - 8px);
+  margin-top: 0;
+  margin-right: 4px;
+  object-fit: contain;
+}
+.app-navbar .nav-header__app-name {
+  display: inline-block;
+  vertical-align: middle;
+}
+.app-navbar .nav-header__app-name-lingo,
+.app-navbar .nav-header__app-name-linq,
+.app-navbar .nav-header__app-name-primary,
+.app-navbar .nav-header__app-name-accent {
+  color: #ffffff;
+  font-style: normal;
+}
+.app-navbar .nav-header__app-name-primary {
+  font-size: 110%;
+}
+
 .ll-bento-bar__welcome {
   position: absolute;
   left: 50%;
@@ -22059,11 +22302,15 @@ $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
   font-weight: 600;
   color: rgba(75, 78, 92, 0.85);
   position: relative;
-}
-.md-pillnav__pill:not(:first-child) {
+  cursor: pointer;
   margin-left: 2px;
   padding-left: 18px;
   border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+.md-pillnav__pill:first-child {
+  margin-left: 0;
+  padding-left: 16px;
+  border-left-color: transparent;
 }
 .md-pillnav__pill.is-active {
   background: linear-gradient(135deg, rgba(44, 183, 176, 0.95) 0%, rgba(58, 107, 199, 0.92) 100%);
@@ -22078,12 +22325,15 @@ $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
   padding-left: 16px;
 }
 .md-pillnav__pill:active { transform: scale(var(--md-tap)); }
+.md-pillnav__pill:hover:not(.is-active) {
+  color: rgba(75, 78, 92, 1);
+}
 /* LinkTo pills (user page): same look as button pills; Ember adds .active when current route */
 a.md-pillnav__pill {
   text-decoration: none;
   cursor: pointer;
 }
-a.md-pillnav__pill:hover {
+a.md-pillnav__pill:hover:not(.active) {
   color: rgba(75, 78, 92, 1);
 }
 a.md-pillnav__pill.active,
@@ -22632,6 +22882,26 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-strip__item:active { transform: scale(var(--md-tap)); }
 .md-strip__label { margin-top: 8px; font-weight: 800; color: rgba(17, 26, 46, 0.78); }
+
+/* Dashboard home only: Boards card – boards 10% smaller and 7% wider (not on Boards tab) */
+.md-grid--dashboard .md-card--boards .md-strip__item {
+  transform: scale(0.9);
+  min-width: 160.5px; /* 150 * 1.07 */
+}
+.md-grid--dashboard .md-card--boards .md-strip__item:active {
+  transform: scale(calc(0.9 * var(--md-tap)));
+}
+.md-grid--dashboard .md-card--boards .md-thumb {
+  height: 54px; /* 60 * 0.9 */
+  border-radius: 12px; /* 14 * 0.9 */
+}
+.md-grid--dashboard .md-card--boards .md-thumb__icon {
+  width: 32px; /* 36 * 0.9 */
+  height: 32px;
+}
+.md-grid--dashboard .md-card--boards .md-strip__label {
+  margin-top: 6px; /* 8 * 0.9 */
+}
 
 .md-thumb {
   height: 60px;

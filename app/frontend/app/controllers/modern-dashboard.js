@@ -64,7 +64,7 @@ export default Controller.extend({
   goTab(tab) {
     if (tab === 'reports') {
       var u = this.appState.get('currentUser.user_name');
-      if (u) { this.router.transitionTo('user.stats', u); }
+      if (u) { this.router.transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
       return;
     }
     if (tab === 'home') {
@@ -97,7 +97,7 @@ export default Controller.extend({
       this.router.transitionTo('modern-dashboard.supervisors');
     } else if (dest === 'reports') {
       var u = this.appState.get('currentUser.user_name');
-      if (u) { this.router.transitionTo('user.stats', u); }
+      if (u) { this.router.transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
     } else if (dest === 'extras') {
       this.router.transitionTo('modern-dashboard.extras');
     }

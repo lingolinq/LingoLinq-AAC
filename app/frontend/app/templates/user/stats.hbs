@@ -304,7 +304,7 @@
       </div>
       {{#unless this.usage_stats2}}
         <div class="md-stats-actions hide_print">
-          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash start=this.usage_stats.start_date_field end=this.usage_stats.end_date_field location_id=this.controller.location_id device_id=this.controller.device_id highlighted=null type="session"}} class="md-btn md-btn--ghost">
+          <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash start=this.usage_stats.start_date_field end=this.usage_stats.end_date_field location_id=this.controller.location_id device_id=this.controller.device_id highlighted=null type="session" from_dashboard=this.from_dashboard}} class="md-btn md-btn--ghost">
             {{t "Log Entries for this Report" key="log_entries_for_report"}}
           </LinkTo>
           {{#if this.model.permissions.edit}}

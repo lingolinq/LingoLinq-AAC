@@ -1,5 +1,5 @@
 <div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--board-view"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (is-equal this.activeTab "extras") "md-shell--extras-view"}} {{if (is-equal this.activeTab "supervisors") "md-shell--supervisor-view"}}">
-  {{!-- Primary Nav Pills --}}
+  {{!-- Primary Nav Pills (navbar is in application header when on modern-dashboard) --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
       {{t "Home" key="home"}}
