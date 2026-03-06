@@ -1,8 +1,10 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="board_drop">
+{{#modal-dialog standalone=this.standalone action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="board_drop {{if this.standalone 'new-board--modern'}}">
     <div class="modal-header">
+      {{#unless this.standalone}}
       <button type="button" class="close" {{action "close"}}>&times;</button>
+      {{/unless}}
       <h3>{{t "Create a New Board" key="create_a_new_board"}}</h3>
       <div class="create-board-actions">
         <span class="file_select_holder">
@@ -235,7 +237,7 @@
       </form>
     </div>
     <div class="modal-footer">
-      <button {{action "saveBoard"}} class="btn btn-primary" disabled={{this.status.saving}}>
+      <button {{action "saveBoard"}} class="btn btn-primary new-board__submit" disabled={{this.status.saving}}>
         {{#if this.status.saving}}
           {{t "Creating Board..." key="creating_board"}}
         {{else if this.status.error}}
@@ -244,7 +246,6 @@
           {{t "Create Board" key="create_board"}}
         {{/if}}
       </button>
-      <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

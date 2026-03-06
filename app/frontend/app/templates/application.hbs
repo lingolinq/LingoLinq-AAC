@@ -1,6 +1,6 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.useAltHeroColors "la-hero-colors-alt"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-<header class="{{this.header_class}} {{if (and this.app_state.index_or_landing_view this.app_state.currentUser) "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
+<header class="{{this.header_class}} {{if this.showBentoStyleHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
     <span id="speak">
@@ -175,7 +175,7 @@
       {{#unless this.app_state.speak_mode}}
         {{#unless this.app_state.edit_mode}}
           {{#unless this.app_state.embedded}}
-            {{#unless this.app_state.index_or_landing_view}}
+            {{#unless this.showBentoStyleHeader}}
               <span style='float: right;' class='not_pretty_skinny'>
                 <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
               </span>
@@ -185,7 +185,7 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser.single_org.image_url}}
-      {{#if this.app_state.index_or_landing_view}}
+      {{#if this.showBentoStyleHeader}}
         {{#unless (is-equal this.app_state.current_route "landing")}}
           <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} onerror="this.style.display='none';">
         {{/unless}}
@@ -245,7 +245,7 @@
         </span>
       {{/unless}}
     {{else if this.app_state.currentUser.single_org}}
-      {{#unless this.app_state.index_or_landing_view}}
+      {{#unless this.showBentoStyleHeader}}
         {{#unless (is-equal this.app_state.current_route "landing")}}
           <div id='org_name'>
             {{this.app_state.currentUser.single_org.name}}
@@ -285,6 +285,7 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
+              <button type="button" class="la-hero-color-toggle" aria-label={{t "Toggle hero and button colors" key="toggle_hero_colors"}} title={{t "Toggle hero and button colors" key="toggle_hero_colors"}} {{action "toggleHeroColors"}}>◐</button>
               <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
             </div>
           {{/unless}}
@@ -694,8 +695,8 @@
     {{/if}}
     </span>
   {{/if}}
-    <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if (and this.app_state.index_or_landing_view this.app_state.currentUser) "identity-with-dark-toggle"}}">
-      {{#if (and this.app_state.index_or_landing_view this.app_state.currentUser)}}
+    <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if this.showBentoStyleHeader "identity-with-dark-toggle"}}">
+      {{#if this.showBentoStyleHeader}}
         {{#unless this.app_state.eval_mode}}
             <LinkTo @route="modern-dashboard" class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
               <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>

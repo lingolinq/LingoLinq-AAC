@@ -1,8 +1,11 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
-  <div class='modeling_toggle'>
-    <a href='#' {{action "set_modeling" false}} class={{if this.usage_stats.modeling "" "active"}}>{{t "speech" key="speech_lower"}}</a>
-    <a href='#' {{action "set_modeling" true}} class={{if this.usage_stats.modeling "active"}}>{{t "modeling" key="modeling_lower"}}</a>
+  <div class="md-stats-modeling-toggle modeling_toggle{{if this.usage_stats.modeling " md-stats-modeling-toggle--modeling"}}" role="group" aria-label={{t "Speech or modeling data" key="speech_or_modeling_data"}}>
+    <span class="md-stats-modeling-toggle__slider" aria-hidden="true"></span>
+    <button type="button" class="md-stats-modeling-toggle__option{{unless this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{action "set_modeling" false}}>{{t "speech" key="speech_lower"}}</button>
+    <button type="button" class="md-stats-modeling-toggle__option{{if this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{action "set_modeling" true}}>{{t "modeling" key="modeling_lower"}}</button>
   </div>
-  <h3 style="margin-top: 0;">{{t "Word Usage" key="word_usage"}}</h3>
-  <div class="daily_stats" style="width: 100%; overflow: hidden; height: 320px;"></div>
+  <h3 class="md-stats-modeling-toggle__heading">{{t "Word Usage" key="word_usage"}}</h3>
+  <div class="md-stats-chart md-stats-chart--word-usage">
+    <div class="daily_stats" style="width: 100%; overflow: hidden; height: 320px;"></div>
+  </div>
 </div>

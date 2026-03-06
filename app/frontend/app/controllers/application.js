@@ -42,6 +42,7 @@ export default Controller.extend({
 
   landingNavOpen: false,
   useAltLanding: true, // default unauthenticated view is landing-alt
+  useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
 
   /** Show page footer when not viewing a board (index, landing-alt, user routes, etc.). */
   footer: computed('appState.currentBoardState', function() {
@@ -355,6 +356,9 @@ export default Controller.extend({
     },
     support: function() {
       modal.open('support');
+    },
+    toggleHeroColors: function() {
+      this.set('useAltHeroColors', !this.get('useAltHeroColors'));
     },
     goUpgrade: function() {
       var user = this.appState.get('currentUser');
@@ -1635,6 +1639,12 @@ export default Controller.extend({
       if(this.appState.get('index_view') || route === 'landing' || route === 'modern-dashboard') {
         res = res + "index ";
       }
+      if(route === 'modern-dashboard') {
+        res = res + "modern-dashboard ";
+      }
+      if(route === 'user.stats') {
+        res = res + "stats-page ";
+      }
       if(this.get('session.isAuthenticated')) {
         res = res + "with_user ";
       } else if(this.appState.get('domain_settings.full_domain')) {
@@ -1673,5 +1683,12 @@ export default Controller.extend({
     return this.get('footer') &&
       this.appState.get('index_or_landing_view') &&
       this.appState.get('current_route') !== 'landing';
+  }),
+  /** True when the top navbar should use bento styling and contents (index/landing or user.stats with currentUser). */
+  showBentoStyleHeader: computed('appState.index_or_landing_view', 'appState.current_route', 'appState.currentUser', function() {
+    var route = this.appState.get('current_route');
+    var cu = this.appState.get('currentUser');
+    return (this.appState.get('index_or_landing_view') && cu) ||
+      (route === 'user.stats' && cu);
   })
 });

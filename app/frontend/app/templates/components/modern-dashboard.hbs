@@ -1,4 +1,4 @@
-<div class="md-shell">
+<div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--board-view"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (is-equal this.activeTab "extras") "md-shell--extras-view"}} {{if (is-equal this.activeTab "supervisors") "md-shell--supervisor-view"}}">
   {{!-- Primary Nav Pills (main dashboard items) --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button
@@ -19,24 +19,32 @@
 
     <button
       type="button"
-      class="md-pillnav__pill {{if (is-equal this.activeTab "supervisors") "is-active"}}"
-      {{on "click" (fn this.goTab "supervisors")}}
-    >
-      {{t "Supervisors" key="supervisors"}}
-    </button>
-
-    <button
-      type="button"
       class="md-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}"
       {{on "click" (fn this.goTab "reports")}}
     >
       {{t "Reports" key="reports"}}
     </button>
+
+    <button
+      type="button"
+      class="md-pillnav__pill {{if (is-equal this.activeTab "extras") "is-active"}}"
+      {{on "click" (fn this.goTab "extras")}}
+    >
+      {{t "Extras" key="extras"}}
+    </button>
+
+    <button
+      type="button"
+      class="md-pillnav__pill {{if (is-equal this.activeTab "supervisors") "is-active"}}"
+      {{on "click" (fn this.goTab "supervisors")}}
+    >
+      {{t "Supervisors" key="supervisors"}}
+    </button>
   </nav>
 
   <main class="md-main">
     <header class="md-hero">
-      <h1 class="md-hero__title">{{t "Good afternoon, Scott!" key="md_hero_greeting"}}</h1>
+      <h1 class="md-hero__title">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</h1>
       <p class="md-hero__sub">{{t "Let's continue where you left off." key="md_hero_sub"}}</p>
     </header>
 
@@ -72,13 +80,41 @@
         <img src={{path "images/sound-waves.png"}} class="md-card__sound-waves" alt="" aria-hidden="true">
       </article>
 
+      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-card__head md-card__head--between">
+          <div>
+            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
+            <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
+          </div>
+        </div>
+
+        <div class="md-extrasRow">
+          <div class="md-extrasIcon" aria-hidden="true">
+            {{!-- Grid SVG (switch back by uncommenting and removing img):
+            <svg class="md-extrasIcon__svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="9" height="9" x="3" y="3" rx="2"/><rect width="9" height="9" x="12" y="3" rx="2"/><rect width="9" height="9" x="3" y="12" rx="2"/><rect width="9" height="9" x="12" y="12" rx="2"/></svg>
+            --}}
+            <img src={{path "images/icon-extras.png"}} class="md-extrasIcon__img" alt="" aria-hidden="true">
+          </div>
+          <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.goTab "extras")}}>
+            {{t "Explore Extras" key="explore_extras"}}
+          </button>
+        </div>
+        <img src={{path "images/extras-wave.png"}} class="md-card__extras-wave" alt="" aria-hidden="true">
+      </article>
+
       {{!-- Boards (with count + preview strip) --}}
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
-        <div class="md-card__head md-card__head--between">
+        <div class="md-card__head md-card__head--between {{if (and (is-equal this.activeTab "boards") this.showNewBoardForm) "md-card__head--center-back"}}">
           <div class="md-card__left">
             <div class="md-card__title">{{t "Boards" key="boards"}}</div>
             <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
+
+          {{#if (and (is-equal this.activeTab "boards") this.showNewBoardForm)}}
+          <button type="button" class="md-btn md-btn--primary" {{on "click" this.closeNewBoardForm}}>{{t "Back to Boards" key="back_to_boards"}}</button>
+          {{else}}
+          <button type="button" class="md-btn md-btn--primary" {{on "click" this.openNewBoardOnBoards}}>{{t "New Board" key="new_board"}}</button>
+          {{/if}}
 
           <div class="md-stat">
             <div class="md-stat__num">12</div>
@@ -90,38 +126,48 @@
           </div>
         </div>
 
+        {{#if (and (is-equal this.activeTab "boards") this.showNewBoardForm)}}
+        <div class="md-card__new-board-inline">
+          {{new-board standalone=true onClose=(fn this.closeNewBoardForm)}}
+        </div>
+        {{else}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           <button type="button" class="md-strip__item" role="listitem" {{on "click" (fn this.go "boards")}}>
-            <div class="md-thumb md-thumb--a" aria-hidden="true"></div>
+            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-chat.svg"}} class="md-thumb__icon" alt="">
+            </div>
             <div class="md-strip__label">{{t "Make Small Talk" key="make_small_talk"}}</div>
           </button>
 
           <button type="button" class="md-strip__item" role="listitem" {{on "click" (fn this.go "boards")}}>
-            <div class="md-thumb md-thumb--b" aria-hidden="true"></div>
+            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-getting-started.svg"}} class="md-thumb__icon" alt="">
+            </div>
             <div class="md-strip__label">{{t "Beginner Lessons" key="beginner_lessons"}}</div>
           </button>
 
           <button type="button" class="md-strip__item" role="listitem" {{on "click" (fn this.go "boards")}}>
-            <div class="md-thumb md-thumb--c" aria-hidden="true"></div>
+            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-sound.png"}} class="md-thumb__icon" alt="">
+            </div>
             <div class="md-strip__label">{{t "Conversation…" key="conversation_ellipsis"}}</div>
           </button>
 
-          <button type="button" class="md-strip__item md-strip__item--new" role="listitem" {{on "click" this.newBoard}}>
-            <div class="md-thumb md-thumb--new" aria-hidden="true">＋</div>
-            <div class="md-strip__label">{{t "New Board" key="new_board"}}</div>
-          </button>
         </div>
 
-        <button type="button" class="md-btn md-btn--ghost md-btn--wide" {{on "click" (fn this.go "boards")}}>
+        {{#unless (is-equal this.activeTab "boards")}}
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{on "click" (fn this.goTab "boards")}}>
           {{t "View All Boards →" key="view_all_boards"}}
         </button>
+        {{/unless}}
+        {{/if}}
       </article>
 
-      {{!-- Supervisors (simple list + "+6 others") --}}
+      {{!-- Supervisors: only when Supervisors tab is active --}}
+      {{#if (is-equal this.activeTab "supervisors")}}
       <article class="md-card md-card--sup" aria-label={{t "Supervisors" key="supervisors"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__title">{{t "Supervisors" key="supervisors"}}</div>
-          <button type="button" class="md-link" {{on "click" (fn this.go "supervisors")}}>{{t "See all →" key="see_all"}}</button>
         </div>
 
         <div class="md-people">
@@ -132,57 +178,58 @@
               <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
             </div>
           </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p1" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">Marcus Webb</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p3" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">Elena Torres</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p4" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">James Park</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p5" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">Yuki Tanaka</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p6" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">David Okonkwo</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p7" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">Rachel Green</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
+          <div class="md-person">
+            <div class="md-avatar md-avatar--p8" aria-hidden="true"></div>
+            <div class="md-person__meta">
+              <div class="md-person__name">Alex Rivera</div>
+              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            </div>
+          </div>
         </div>
       </article>
-
-      {{!-- Reports + Extras (small, lightweight cards) --}}
-      <article class="md-card md-card--reports" aria-label={{t "Reports" key="reports"}}>
-        <div class="md-card__head md-card__head--between">
-          <div>
-            <div class="md-card__title">{{t "Reports" key="reports"}}</div>
-            <div class="md-card__sub">{{t "Recent performance" key="recent_performance"}}</div>
-          </div>
-          <button type="button" class="md-link" {{on "click" (fn this.go "reports")}}>{{t "Open →" key="open"}}</button>
-        </div>
-
-        <div class="md-miniStats">
-          <div class="md-miniStat">
-            <div class="md-miniStat__num">1,230</div>
-            <div class="md-miniStat__label">{{t "Sessions" key="sessions"}}</div>
-          </div>
-          <div class="md-miniStat">
-            <div class="md-miniStat__num">285</div>
-            <div class="md-miniStat__label">{{t "Favorites" key="favorites"}}</div>
-          </div>
-        </div>
-
-        <div class="md-spark" aria-hidden="true"></div>
-      </article>
-
-      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
-        <div class="md-card__head md-card__head--between">
-          <div>
-            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
-            <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
-          </div>
-          <button type="button" class="md-link" {{on "click" (fn this.go "extras")}}>{{t "Open →" key="open"}}</button>
-        </div>
-
-        <div class="md-extrasRow">
-          <div class="md-extrasIcon" aria-hidden="true">
-            {{!-- Grid SVG (switch back by uncommenting and removing img):
-            <svg class="md-extrasIcon__svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="9" height="9" x="3" y="3" rx="2"/><rect width="9" height="9" x="12" y="3" rx="2"/><rect width="9" height="9" x="3" y="12" rx="2"/><rect width="9" height="9" x="12" y="12" rx="2"/></svg>
-            --}}
-            <img src={{path "images/icon-extras.png"}} class="md-extrasIcon__img" alt="" aria-hidden="true">
-          </div>
-          <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.go "extras")}}>
-            {{t "Explore Extras" key="explore_extras"}}
-          </button>
-        </div>
-        <span class="md-card__extras-waves-wrap">
-          <img src={{path "images/extras-waves.png"}} class="md-card__extras-waves" alt="" aria-hidden="true">
-        </span>
-      </article>
+      {{/if}}
     </section>
   </main>
 
@@ -200,16 +247,22 @@
       <span class="md-focusbar__text">{{t "Boards" key="boards"}}</span>
     </button>
 
-    <button class="md-focusbar__item {{if (is-equal this.activeTab "supervisors") "is-active"}}"
-      type="button" {{on "click" (fn this.goTab "supervisors")}}>
-      <span class="md-focusbar__icon" aria-hidden="true">👥</span>
-      <span class="md-focusbar__text">{{t "Supervisors" key="supervisors"}}</span>
-    </button>
-
     <button class="md-focusbar__item {{if (is-equal this.activeTab "reports") "is-active"}}"
       type="button" {{on "click" (fn this.goTab "reports")}}>
       <span class="md-focusbar__icon" aria-hidden="true">↗</span>
       <span class="md-focusbar__text">{{t "Reports" key="reports"}}</span>
+    </button>
+
+    <button class="md-focusbar__item {{if (is-equal this.activeTab "extras") "is-active"}}"
+      type="button" {{on "click" (fn this.goTab "extras")}}>
+      <span class="md-focusbar__icon" aria-hidden="true">◇</span>
+      <span class="md-focusbar__text">{{t "Extras" key="extras"}}</span>
+    </button>
+
+    <button class="md-focusbar__item {{if (is-equal this.activeTab "supervisors") "is-active"}}"
+      type="button" {{on "click" (fn this.goTab "supervisors")}}>
+      <span class="md-focusbar__icon" aria-hidden="true">👥</span>
+      <span class="md-focusbar__text">{{t "Supervisors" key="supervisors"}}</span>
     </button>
   </nav>
 

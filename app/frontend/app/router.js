@@ -46,7 +46,14 @@ Router.reopen({
 Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
-  this.route('modern-dashboard', { path: '/modern-dashboard' });
+  this.route('modern-dashboard', { path: '/modern-dashboard' }, function() {
+    this.route('index', { path: '/' });
+    this.route('boards', { path: '/boards' });
+    this.route('boards-new', { path: '/boards/new' });
+    this.route('extras', { path: '/extras' });
+    this.route('supervisors', { path: '/supervisors' });
+  });
+  this.route('create-board', { path: '/create-board' });
   this.route('about', { path: '/about' });
   this.route('landing', { path: '/landing' });
   this.route('landing-alt', { path: '/landing-alt' });

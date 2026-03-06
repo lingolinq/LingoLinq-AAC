@@ -124,17 +124,16 @@ export default Route.extend({
       // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
     });
 
-    this.router.on('routeDidChange', transition => {
-      // let { to: toRouteInfo, from: fromRouteInfo } = transition;
-      // console.log(`Transitioned from -> ${fromRouteInfo.name}`);
-      // console.log(`From QPs: ${JSON.stringify(fromRouteInfo.queryParams)}`);
-      // console.log(`From Params: ${JSON.stringify(fromRouteInfo.params)}`);
-      // console.log(`From ParamNames: ${fromRouteInfo.paramNames.join(', ')}`);
-      // console.log(`to -> ${toRouteInfo.name}`);
-      // console.log(`To QPs: ${JSON.stringify(toRouteInfo.queryParams)}`);
-      // console.log(`To Params: ${JSON.stringify(toRouteInfo.params)}`);
-      // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
-    });    
+    // When user clicks browser back and lands on modern-dashboard home, refresh so it defaults to home tab
+    window.addEventListener('popstate', function popstateHandler() {
+      runLater(function() {
+        var router = _this.router;
+        var name = router && router.currentRouteName;
+        if (name === 'modern-dashboard' || name === 'modern-dashboard.index') {
+          window.location.reload();
+        }
+      });
+    });
   },
   actions: {
     willTransition: function(transition) {

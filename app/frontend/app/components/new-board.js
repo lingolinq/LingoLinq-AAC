@@ -58,8 +58,8 @@ export default Component.extend({
     var pieces = locale.split(/_/);
     if(pieces[0]) { pieces[0] = pieces[0].toLowerCase(); }
     if(pieces[1]) { pieces[1] = pieces[1].toUpperCase(); }
-    locale = pieces[0] + "_" + pieces[1];
-    var locales = i18n.get('locales');
+    locale = pieces[0] + '_' + pieces[1];
+    var locales = (i18n.get && i18n.get('locales')) || {};
     if(locales[locale]) {
       this.set('model.locale', locale);
     } else {
@@ -74,13 +74,17 @@ export default Component.extend({
 
     // Initialize board categories
     var res = [];
-    LingoLinq.board_categories.forEach(function(c) {
+    var categories = LingoLinq.board_categories || [];
+    categories.forEach(function(c) {
       var cat = $.extend({}, c);
       res.push(cat);
     });
     this.set('board_categories', res);
 
-    this.set('has_supervisees', this.appState.get('sessionUser.supervisees.length') > 0 || this.appState.get('sessionUser.managed_orgs.length') > 0);
+    var sessionUser = this.appState.get('sessionUser');
+    var superviseesLen = (sessionUser && sessionUser.supervisees && sessionUser.supervisees.length) || 0;
+    var managedOrgsLen = (sessionUser && sessionUser.managed_orgs && sessionUser.managed_orgs.length) || 0;
+    this.set('has_supervisees', superviseesLen > 0 || managedOrgsLen > 0);
     
     // Initialize preview grid
     this.set('previewRows', this.get('model.grid.rows'));
@@ -206,17 +210,31 @@ export default Component.extend({
 
   actions: {
     close: function() {
-      this.get('modal').close();
+      if(this.get('standalone')) {
+        var onClose = this.get('onClose');
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        } else {
+          this.get('router').transitionTo('modern-dashboard');
+        }
+      } else {
+        this.get('modal').close();
+      }
     },
     importFromHtml: function() {
-      this.get('modal').close();
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
       modalUtil.open('import-from-html');
     },
     generateWithAi: function() {
-      this.get('modal').close();
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
       modalUtil.open('generate-board');
     },
     opening: function() {
+      if (this.get('standalone')) { return; }
       const component = this;
       this.get('modal').setComponent(component);
     },
