@@ -71,7 +71,7 @@ export default Component.extend({
         const _this = this;
         const routeName = this.get('model.route');
         if (!routeName) { return; }
-        // Routes with no dynamic segments (e.g. index) must not receive context—pass params for all others
+        // Treat the index route as having no dynamic segments, so do not pass context; pass params for all other routes
         const routeNeedsModel = routeName !== 'index';
         this.get('store').findRecord('user', board_for_user_id).then(function(u) {
           if (routeNeedsModel) {
