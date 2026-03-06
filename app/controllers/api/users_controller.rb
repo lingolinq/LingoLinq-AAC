@@ -73,7 +73,10 @@ class Api::UsersController < ApplicationController
     str, iv = params['text'].split(/\$/)
     user_id, text = begin
       GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
-    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+    rescue OpenSSL::Cipher::CipherError, ArgumentError
+      [nil, nil]
+    rescue StandardError => e
+      Rails.logger.warn("ws_decrypt: unexpected error #{e.class}: #{e.message}")
       [nil, nil]
     end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && text
@@ -87,7 +90,10 @@ class Api::UsersController < ApplicationController
     str, iv = obfuscated_user_id.sub(/^me\$/, '').split(/\$/)
     user_id, device_id = begin
       GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./)
-    rescue OpenSSL::Cipher::CipherError, ArgumentError, NoMethodError, TypeError
+    rescue OpenSSL::Cipher::CipherError, ArgumentError
+      [nil, nil]
+    rescue StandardError => e
+      Rails.logger.warn("ws_lookup: unexpected error #{e.class}: #{e.message}")
       [nil, nil]
     end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && device_id

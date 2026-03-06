@@ -19,11 +19,11 @@ setApplication(Application.create(config.APP));
 setup(QUnit.assert);
 
 // Force-load all test modules before start(). The ember-cli-test-loader's loadTests()
-// only registers ~3 tests for unknown reasons (loader/context mismatch). Manually
-// requiring each *-test module ensures they execute and register their tests.
+// only discovers ~3 modules due to AMD registration timing (test-helper.js executes
+// before the remaining test module factories are appended to requirejs.entries).
+// Manually requiring each *-test module ensures they execute and register their tests.
 //
-// TODO: Investigate root cause of ember-cli-test-loader not discovering all tests.
-// May be module naming, resolver config, or a loader/dependency mismatch.
+// See tests/README-test-loader.md for root cause analysis and potential fixes.
 const req = (typeof window !== 'undefined' && window.requirejs) || (typeof self !== 'undefined' && self.requirejs);
 if (req && req.entries && typeof req === 'function') {
   const all = Object.keys(req.entries);
