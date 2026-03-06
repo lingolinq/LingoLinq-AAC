@@ -321,8 +321,10 @@ export default Component.extend({
         _this.session.set('user_id', saved_user_id);
       }
 
-      if(window.navigator.splashscreen) {
-        window.navigator.splashscreen.show();
+      if(reload) {
+        if(window.navigator.splashscreen) {
+          window.navigator.splashscreen.show();
+        }
       }
       // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {

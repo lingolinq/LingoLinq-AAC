@@ -446,7 +446,6 @@ class Api::BoardsController < ApplicationController
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       elsif !allowed?(user, 'edit')
-        api_error(400, {error: "Not authorized", unauthorized: true}) unless performed?
         return
       else
         @board_user = user
