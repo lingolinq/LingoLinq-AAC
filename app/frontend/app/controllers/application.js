@@ -1138,29 +1138,8 @@ export default Controller.extend({
     back_to_from_route: function() {
       var from = this.appState.get('from_route');
       if(from && from.length && this.router) {
-        // Routes with no dynamic segments must not receive context objects (avoids "More context objects" error).
-        // Try urlFor to detect if route needs params; urlFor throws when required segments are missing.
-        // Fallback: if transitionTo(routeName) throws (e.g. "More context objects"), use full from array.
-        var routeName = from[0];
-        var routeNeedsParams = false;
-        if(routeName) {
-          try {
-            this.router.urlFor(routeName);
-          } catch(e) {
-            routeNeedsParams = true;
-          }
-        }
-        if(routeName && !routeNeedsParams) {
-          try {
-            this.router.transitionTo(routeName);
-          } catch(e) {
-            // urlFor succeeded but route actually needs params (e.g. "More context objects"); use full from
-            console.warn('[APPLICATION] transitionTo(routeName) threw, using from_route fallback:', e.message || e);
-            this.router.transitionTo.apply(this.router, from);
-          }
-        } else {
-          this.router.transitionTo.apply(this.router, from);
-        }
+        // from is [routeName, ...paramValues] from the previous transition; pass directly.
+        this.router.transitionTo.apply(this.router, from);
       } else {
         this.appState.return_to_index();
       }

@@ -41,18 +41,41 @@ if(window.cd_request_file_system) {
     return window.native_cd_request_file_system(type, size, success, error);
   }
 }
-// Note: webkitPersistentStorage/persistentStorage are deprecated in favor of navigator.storage.persist()
-// However, we still need these for queryUsageAndQuota and requestQuota until the File System API is fully migrated
-window.cd_persistent_storage = window.navigator.webkitPersistentStorage || window.navigator.persistentStorage;
-if(window.cd_persistent_storage) {
-  window.native_cd_persistent_storage = window.cd_persistent_storage;
-  window.cd_persistent_storage = {};
-  // to enable debugging
-  window.cd_persistent_storage.queryUsageAndQuota = function(success, error) {
-    return window.native_cd_persistent_storage.queryUsageAndQuota(success, error);
+// Prefer standardized navigator.storage (StorageManager API) over deprecated
+// webkitPersistentStorage/persistentStorage (StorageType.persistent).
+// navigator.storage.estimate() replaces queryUsageAndQuota, persist() replaces requestQuota.
+if(window.navigator.storage && window.navigator.storage.estimate && window.navigator.storage.persist) {
+  window.cd_persistent_storage = {
+    queryUsageAndQuota: function(success, error) {
+      window.navigator.storage.estimate().then(function(estimate) {
+        success(estimate.usage || 0, estimate.quota || 0);
+      }).catch(function(err) {
+        if(error) { error(err); }
+      });
+    },
+    requestQuota: function(size, success, error) {
+      window.navigator.storage.persist().then(function(granted) {
+        if(granted) {
+          success(size);
+        } else {
+          if(error) { error(new Error('Persistent storage not granted')); }
+        }
+      }).catch(function(err) {
+        if(error) { error(err); }
+      });
+    }
   };
-  window.cd_persistent_storage.requestQuota = function(size, success, error) {
-    return window.native_cd_persistent_storage.requestQuota(size, success, error);
+} else if(window.navigator.webkitPersistentStorage || window.navigator.persistentStorage) {
+  // Fallback for older browsers
+  window.cd_persistent_storage = window.navigator.webkitPersistentStorage || window.navigator.persistentStorage;
+  window.native_cd_persistent_storage = window.cd_persistent_storage;
+  window.cd_persistent_storage = {
+    queryUsageAndQuota: function(success, error) {
+      return window.native_cd_persistent_storage.queryUsageAndQuota(success, error);
+    },
+    requestQuota: function(size, success, error) {
+      return window.native_cd_persistent_storage.requestQuota(size, success, error);
+    }
   };
 }
 

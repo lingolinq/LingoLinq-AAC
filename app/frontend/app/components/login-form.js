@@ -293,6 +293,23 @@ export default Component.extend({
       var saved_user_name = auth_settings.user_name;
       var saved_user_id = auth_settings.user_id;
 
+      // When reload is false: we're showing "Trust this device" / "Shared device" UI.
+      // Restore session so API calls and navbar reflect authenticated state while the dialog is shown.
+      if(!reload) {
+        _loginDebug('login_success: reload=false, showing follow-up UI (Trust device / Shared device)');
+        if(saved_token) {
+          capabilities.access_token = saved_token;
+          if(capabilities.sync_access_token) { capabilities.sync_access_token(); }
+          _this.session.set('isAuthenticated', true);
+          _this.session.set('access_token', saved_token);
+          _this.session.set('user_name', saved_user_name);
+          _this.session.set('user_id', saved_user_id);
+        }
+        _this.set('logging_in', false);
+        _this.appState.set('logging_in', false);
+        return;
+      }
+
       // Restore session early so if we transition before wait completes (e.g. fallback timeout),
       // the index route will see isAuthenticated/access_token and load the user correctly
       if(saved_token) {
@@ -304,19 +321,8 @@ export default Component.extend({
         _this.session.set('user_id', saved_user_id);
       }
 
-      if(reload) {
-        if(window.navigator.splashscreen) {
-          window.navigator.splashscreen.show();
-        }
-      }
-      // When reload is false: we're showing "Trust this device" / "Shared device" UI.
-      // Don't run the wait chain - it would clear login_followup and set logged_in,
-      // replacing the buttons with "Success! One Moment..." without ever transitioning.
-      if(!reload) {
-        _loginDebug('login_success: reload=false, showing follow-up UI (Trust device / Shared device)');
-        _this.set('logging_in', false);
-        _this.appState.set('logging_in', false);
-        return;
+      if(window.navigator.splashscreen) {
+        window.navigator.splashscreen.show();
       }
       // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {

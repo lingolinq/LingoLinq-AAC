@@ -32,7 +32,21 @@ export default Service.extend({
   setup: function() {
     this.memory_stash = memory_stash;
     this.prefix = 'lingolinqStash-';
+    var legacyPrefix = 'cdStash-';
     try {
+      // Migrate keys from legacy prefix to new prefix (one-time for existing users)
+      var keysToMigrate = [];
+      for(var idx = 0, l = localStorage.length; idx < l; idx++) {
+        var k = localStorage.key(idx);
+        if(k && k.indexOf(legacyPrefix) === 0) { keysToMigrate.push(k); }
+      }
+      keysToMigrate.forEach(function(key) {
+        try {
+          var real_key = key.replace(legacyPrefix, '');
+          localStorage[this.prefix + real_key] = localStorage[key];
+          localStorage.removeItem(key);
+        } catch(e) { }
+      }.bind(this));
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);
         if(key && key.indexOf(this.prefix) === 0) {
@@ -352,8 +366,9 @@ export default Service.extend({
 
   get_db_key: function(persist) {
     var key = this.get_raw('ll_db_key');
-    // Migration: fall back to legacy key for existing users
+    // Migration: fall back to legacy keys for existing users
     if(!key) { key = this.get_raw('cd_db_key'); }
+    if(!key) { key = localStorage['cdStash-cd_db_key'] || localStorage['cdStash-ll_db_key']; }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
       this.persist_raw('ll_db_key', key);
