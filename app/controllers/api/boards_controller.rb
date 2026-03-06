@@ -445,11 +445,9 @@ class Api::BoardsController < ApplicationController
       if !user
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
-      elsif !allowed?(user, 'edit')
-        return
-      else
-        @board_user = user
       end
+      return unless allowed?(user, 'edit')
+      @board_user = user
     end
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if board_params['parent_board_id']
