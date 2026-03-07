@@ -1,4 +1,5 @@
 <div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--board-view"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (is-equal this.activeTab "extras") "md-shell--extras-view"}} {{if (is-equal this.activeTab "supervisors") "md-shell--supervisor-view"}}">
+  <div class="md-workspace">
   {{!-- Primary Nav Pills (main dashboard items) --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button
@@ -111,18 +112,14 @@
           </div>
 
           {{#if (and (is-equal this.activeTab "boards") this.showNewBoardForm)}}
-          <button type="button" class="md-btn md-btn--primary" {{on "click" this.closeNewBoardForm}}>{{t "Back to Boards" key="back_to_boards"}}</button>
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{on "click" this.closeNewBoardForm}}>{{t "Back to Boards" key="back_to_boards"}}</button>
           {{else}}
-          <button type="button" class="md-btn md-btn--primary" {{on "click" this.openNewBoardOnBoards}}>{{t "New Board" key="new_board"}}</button>
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{on "click" this.openNewBoardOnBoards}}>{{t "New Board" key="new_board"}}</button>
           {{/if}}
 
           <div class="md-stat">
+            <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
             <div class="md-stat__num">12</div>
-            <div class="md-stat__meta">
-              <div>{{t "Total Boards" key="total_boards"}}</div>
-              <div class="md-muted">{{t "8 Pinned" key="eight_pinned"}}</div>
-            </div>
-            <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon" alt="" aria-hidden="true">
           </div>
         </div>
 
@@ -265,6 +262,8 @@
       <span class="md-focusbar__text">{{t "Supervisors" key="supervisors"}}</span>
     </button>
   </nav>
+
+  </div>{{!-- .md-workspace --}}
 
   {{!-- Search Overlay --}}
   {{#if this.isSearchOpen}}

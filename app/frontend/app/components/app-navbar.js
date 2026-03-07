@@ -30,42 +30,25 @@ export default Component.extend({
     return app && !!app.get('isSessionAuthenticated');
   }),
 
+  /** True when current route is modern-dashboard or a child (e.g. modern-dashboard.boards). */
+  isOnModernDashboard: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
+  }),
+  /** Show Modern Dashboard link only on the authenticated view (index), not on modern-dashboard pages. Passed to AppNavbarAuthenticatedInner. */
+  showModernDashboardLink: computed('isOnModernDashboard', function() {
+    return !this.get('isOnModernDashboard');
+  }),
+
   actions: {
     index() {
       this.get('application').send('index');
-    },
-    support() {
-      this.get('application').send('support');
-    },
-    goUpgrade() {
-      this.get('application').send('goUpgrade');
-    },
-    toggleThemePicker() {
-      this.get('application').send('toggleThemePicker');
-    },
-    selectThemeMode(mode) {
-      this.get('application').send('selectThemeMode', mode);
-    },
-    closeThemePicker() {
-      this.get('application').send('closeThemePicker');
     },
     showFeatures() {
       this.get('application').send('showFeatures');
     },
     toggleHeroColors() {
       this.get('application').send('toggleHeroColors');
-    },
-    searchBoards() {
-      this.get('application').send('searchBoards');
-    },
-    newBoard() {
-      this.get('application').send('newBoard');
-    },
-    invalidateSession() {
-      this.get('application').send('invalidateSession');
-    },
-    updateSearchString(value) {
-      this.get('application').set('searchString', value);
     }
   }
 });

@@ -1674,5 +1674,9 @@ export default Controller.extend({
   isModernDashboardRoute: computed('appState.current_route', function() {
     var route = this.appState.get('current_route');
     return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
+  }),
+  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, user.stats, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. */
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', function() {
+    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute');
   })
 });

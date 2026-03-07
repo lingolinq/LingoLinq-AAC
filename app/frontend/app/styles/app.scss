@@ -345,6 +345,14 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
+
+/* When zoomed or viewport short: allow vertical scroll of modern dashboard content */
+#within_ember.bento-page-with-footer #content:has(.md-shell),
+#within_ember:has(.page-footer) #content:has(.md-shell) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
 #within_ember.bento-page-with-footer #content > .ember-view:empty,
 #within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)),
 #within_ember:has(.page-footer) #content > .ember-view:empty,
@@ -1197,17 +1205,17 @@ h1 a:hover {
 #nav_header h1 .nav-header__brand .nav-header__app-name {
   display: inline-block;
 }
-.app-navbar h1 .nav-header__brand {
+.app-navbar .app-navbar__brand .nav-header__brand {
   display: inline-flex;
 }
-.app-navbar h1 .nav-header__brand .nav-header__logo {
+.app-navbar .app-navbar__brand .nav-header__brand .nav-header__logo {
   display: inline-flex;
 }
-.app-navbar h1 .nav-header__brand .nav-header__app-name,
-.app-navbar h1 .nav-header__brand .nav-header__app-name span {
+.app-navbar .app-navbar__brand .nav-header__brand .nav-header__app-name,
+.app-navbar .app-navbar__brand .nav-header__brand .nav-header__app-name span {
   display: inline;
 }
-.app-navbar h1 .nav-header__brand .nav-header__app-name {
+.app-navbar .app-navbar__brand .nav-header__brand .nav-header__app-name {
   display: inline-block;
 }
 .nav-header__logo-link,
@@ -1434,8 +1442,10 @@ footer,
   flex: 0 0 auto;
   flex-shrink: 0;
   box-sizing: border-box;
-  background: #e5e7eb;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Language icon: 85% of original size (46px → 39px main bar, 30px → 26px dropdown) */
@@ -8287,9 +8297,12 @@ body:-ms-fullscreen {
   position: relative;
   display: flex;
   align-items: center;
-  height: var(--topbar-height);
+  min-height: var(--topbar-height);
+  padding-top: 2rem;
+  padding-bottom: 2rem;
   padding-left: 16px;
   padding-right: 16px;
+  box-sizing: border-box;
   background: #1B365D;
   background-color: #1B365D;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
@@ -8316,11 +8329,20 @@ body:-ms-fullscreen {
   min-width: 0;
   width: 100%;
 }
+/* Single baseline for authenticated nav inner (index + modern-dashboard). Content and styling shared; Modern Dashboard link shown only on index via @showModernDashboardLink. */
+.app-navbar .app-navbar-authenticated-inner {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
 .app-navbar__nav-header {
   display: flex;
   align-items: center;
   flex: 1;
   min-width: 0;
+  margin-right: 1.5rem;
 }
 .app-navbar #identity,
 .app-navbar .identity-with-dark-toggle {
@@ -8328,7 +8350,12 @@ body:-ms-fullscreen {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+}
+.app-navbar .bento-dark-toggle-wrap {
+  padding-left: 3rem;
+  margin-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* Modern Dashboard link: same as .header-index-with-dark-toggle .ll-bento-help-btn--nav */
@@ -8381,7 +8408,7 @@ body:-ms-fullscreen {
 
 /* Upgrade button: same as .header-index-with-dark-toggle #identity .md-pillnav__upgrade-nav */
 .app-navbar .md-pillnav__upgrade-nav {
-  padding: 10px 16px;
+  padding: 10px 16px 14px 16px;
   border-radius: 999px;
   background: rgba(91, 141, 239, 0.35);
   border: 1px solid rgba(91, 141, 239, 0.5);
@@ -8460,18 +8487,19 @@ body:-ms-fullscreen {
   pointer-events: none;
   color: rgba(255, 255, 255, 0.92);
 }
-.app-navbar__h1 {
+.app-navbar__brand {
   margin: 0;
   padding: 0;
   height: var(--topbar-height);
   display: inline-flex;
   align-items: center;
+  align-self: center;
 }
 /* Nav header brand inside app-navbar: same white text and logo as #nav_header */
-.app-navbar .nav-header__brand {
+.app-navbar .app-navbar__brand .nav-header__brand {
   display: inline-flex;
   align-items: center;
-  margin-top: -20px;
+  margin-top: 0;
   height: var(--topbar-height);
   gap: 4px;
 }
@@ -8481,12 +8509,12 @@ body:-ms-fullscreen {
   align-items: center;
   height: 100%;
   text-decoration: none;
-  color: inherit;
+  color: rgba(255, 255, 255, 0.95);
 }
 .app-navbar .nav-header__logo-link:hover,
 .app-navbar .nav-header__app-name-link:hover {
   text-decoration: none;
-  color: inherit;
+  color: rgba(255, 255, 255, 1);
 }
 .app-navbar .nav-header__logo-link:focus,
 .app-navbar .nav-header__logo-link:focus-visible {
@@ -8498,21 +8526,25 @@ body:-ms-fullscreen {
   justify-content: center;
   margin-top: 0;
   width: auto;
-  max-height: calc(var(--topbar-height) - 8px);
+  max-height: 90px; /* match logo img height (72px + 25%) */
   vertical-align: middle;
 }
 .app-navbar .nav-header__logo img {
   padding-top: 0;
-  width: auto;
-  height: 100%;
-  max-height: calc(var(--topbar-height) - 8px);
+  width: 148px;   /* 118px + 25% */
+  height: 90px;   /* 72px + 25% */
+  max-height: none;
   margin-top: 0;
-  margin-right: 4px;
+  margin-right: 0;
   object-fit: contain;
+}
+.app-navbar .nav-header__app-name-link {
+  margin-left: -24px;
 }
 .app-navbar .nav-header__app-name {
   display: inline-block;
   vertical-align: middle;
+  margin-left: 0;
 }
 .app-navbar .nav-header__app-name-lingo,
 .app-navbar .nav-header__app-name-linq,
@@ -8672,45 +8704,7 @@ body:-ms-fullscreen {
   isolation: isolate;
 }
 
-.header-index-with-dark-toggle h1 a,
-.header-index-with-dark-toggle h1 .nav-header__logo-link,
-.header-index-with-dark-toggle h1 .nav-header__app-name-link,
-.header-index-with-dark-toggle h1 a span,
-.header-index-with-dark-toggle h1 .nav-header__app-name {
-  color: rgba(255, 255, 255, 0.95);
-}
-/* Lingo/Linq: same color, not italic, for contrast on dark nav */
-.header-index-with-dark-toggle #nav_header .nav-header__app-name-lingo,
-.header-index-with-dark-toggle #nav_header .nav-header__app-name-primary,
-.header-index-with-dark-toggle #nav_header .nav-header__app-name-linq,
-.header-index-with-dark-toggle #nav_header .nav-header__app-name-accent {
-  color: color.adjust(#415a75, $lightness: 35%) !important;
-  font-style: normal;
-}
-
-.header-index-with-dark-toggle h1 a:hover,
-.header-index-with-dark-toggle h1 .nav-header__logo-link:hover,
-.header-index-with-dark-toggle h1 .nav-header__app-name-link:hover {
-  color: rgba(255, 255, 255, 1);
-}
-
-.header-index-with-dark-toggle h1 a img,
-.header-index-with-dark-toggle h1 .nav-header__logo img {
-  height: 72px;
-  width: 118px;
-}
-
-/* Index navbar: pair name closer to logo */
-.header-index-with-dark-toggle .nav-header__logo img {
-  margin-right: 0;
-  padding-top: 0;
-}
-.header-index-with-dark-toggle .nav-header__app-name-link {
-  margin-left: -14px;
-}
-.header-index-with-dark-toggle .nav-header__app-name {
-  margin-left: 0;
-}
+/* Brand/logo/app-name styling lives under .app-navbar (single source for both authenticated view and modern-dashboard). */
 
 /* Ensure light text on navy navbar overrides theme-specific colors */
 #within_ember .header-index-with-dark-toggle .identity-landing-link {
@@ -9078,7 +9072,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 /* Main navbar (index, landing): soft divider to the left of theme picker + identity */
 .header-index-with-dark-toggle .bento-dark-toggle-wrap {
   margin-left: 8px;
-  padding-left: 18px;
+  padding-left: 3rem;
   border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -9170,7 +9164,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 
 /* Upgrade pill in identity bar (right of Help) – light blue pill style */
 .header-index-with-dark-toggle #identity .md-pillnav__upgrade-nav {
-  padding: 10px 16px;
+  padding: 10px 16px 14px 16px;
   border-radius: 999px;
   background: rgba(91, 141, 239, 0.35);
   border: 1px solid rgba(91, 141, 239, 0.5);
@@ -19074,7 +19068,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .la-wrapper .la-hero-title {
-  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-family: 'DM Serif Display', Georgia, serif;
   font-size: clamp(2rem, 0.8rem + 3.47vw, 3.575rem);
   font-weight: 700;
   color: #ffffff;
@@ -19929,7 +19923,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-section-title {
-  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-family: 'DM Serif Display', Georgia, serif;
   font-size: 38px;
   font-weight: $aac-font-weight-black;
   color: $la-navy;
@@ -20507,7 +20501,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-plan-title {
-  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-family: 'DM Serif Display', Georgia, serif;
   font-size: 32px;
   font-weight: $aac-font-weight-bold;
   color: $la-navy;
@@ -20840,7 +20834,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-cta-headline {
-  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-family: 'DM Serif Display', Georgia, serif;
   font-size: 38px;
   font-weight: $aac-font-weight-black;
   color: white;
@@ -22933,6 +22927,11 @@ $la-mockup-blue-bg:    $cat-actions-bg;
       }
     }
   }
+
+  /* Sign In button: match inner header #identity .btn */
+  .login-btn:not(.login-btn--outline) {
+    background: #3a6bc7;
+  }
 }
 
 .login-btn {
@@ -22941,7 +22940,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: 13px 24px;
   border: none;
   border-radius: 50px;
-  background: color.adjust(#415a75, $lightness: 5%, $saturation: 12%); /* same as navbar sign-in / Ready to start CTA */
+  background: color.adjust(#415a75, $lightness: 5%, $saturation: 12%); /* fallback where not in .login-card */
   color: #fff;
   font-size: 16px;
   font-weight: 700;
@@ -23059,6 +23058,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 .md-shell {
   min-height: 100vh;
+  padding-top: 3rem;
   background:
     radial-gradient(1200px 600px at 20% 20%, rgba(44, 183, 176, 0.12), transparent 55%),
     radial-gradient(1200px 600px at 80% 15%, rgba(240, 106, 91, 0.10), transparent 60%),
@@ -23067,8 +23067,30 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   color: var(--md-ink);
 }
 
-.md-shell > .md-pillnav {
+.md-workspace {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 40px 40px calc(40px - 7rem) 40px;
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 2px 40px rgba(0, 0, 0, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.md-shell > .md-workspace {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.md-workspace > .md-pillnav {
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 .md-iconbtn {
@@ -23102,7 +23124,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 /* ---------- Pill Nav ---------- */
-/* Pill nav: rounded tray with gradient, active pill + text-only inactive + dividers, circular chevron */
+/* Pill nav: minimal rounded bar, simple active pill; aligned with dashboard card shadows */
 .md-pillnav {
   max-width: 1120px;
   margin: 42px auto 0;
@@ -23111,8 +23133,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   align-items: center;
   gap: 0;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 249, 252, 0.88));
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -23128,7 +23150,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   cursor: pointer;
   margin-left: 2px;
   padding-left: 18px;
-  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
 }
 .md-pillnav__pill:first-child {
   margin-left: 0;
@@ -23136,11 +23158,10 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   border-left-color: transparent;
 }
 .md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.95) 0%, rgba(58, 107, 199, 0.92) 100%);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.92) 0%, rgba(58, 107, 199, 0.9) 100%);
   color: #fff;
-  border: 1px solid rgba(44, 183, 176, 0.5);
-  box-shadow: 0 2px 10px rgba(44, 183, 176, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(44, 183, 176, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .md-pillnav__pill.is-active:not(:first-child) {
   border-left: none;
@@ -23161,11 +23182,10 @@ a.md-pillnav__pill:hover:not(.active) {
 }
 a.md-pillnav__pill.active,
 .md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.95) 0%, rgba(58, 107, 199, 0.92) 100%);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.92) 0%, rgba(58, 107, 199, 0.9) 100%);
   color: #fff;
-  border: 1px solid rgba(44, 183, 176, 0.5);
-  box-shadow: 0 2px 10px rgba(44, 183, 176, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(44, 183, 176, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 a.md-pillnav__pill.active:not(:first-child),
 .md-pillnav__pill.is-active:not(:first-child) {
@@ -23217,13 +23237,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   max-width: none;
   box-sizing: border-box;
 }
-/* User page: ensure active pill has teal/blue highlight (LinkTo adds .active) */
+/* User page: same minimal active pill (LinkTo adds .active) */
 .md-pillnav--user a.md-pillnav__pill.active {
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.95) 0%, rgba(58, 107, 199, 0.92) 100%);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.92) 0%, rgba(58, 107, 199, 0.9) 100%);
   color: #fff;
-  border: 1px solid rgba(44, 183, 176, 0.5);
-  box-shadow: 0 2px 10px rgba(44, 183, 176, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(44, 183, 176, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .md-pillnav--user a.md-pillnav__pill.active:not(:first-child) {
   border-left: none;
@@ -23323,13 +23342,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
 }
 
+.md-workspace > .md-main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .md-main {
   max-width: 1120px;
   margin: 0 auto;
   padding: 18px 16px 24px;
 }
 
-.md-hero { padding: 18px 2px 10px; }
+.md-hero { padding: 28px 2px 10px; }
 .md-hero__title {
   margin: 0;
   font-size: clamp(26px, 3vw, 40px);
@@ -23344,8 +23368,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* ---------- Grid ---------- */
 .md-grid {
   display: grid;
-  gap: 16px;
-  grid-template-columns: 1.12fr 1fr;
+  gap: 28px;
+  grid-template-columns: 1.3fr 1fr;
   grid-template-areas:
     "speak boards"
     "extras boards"
@@ -23354,12 +23378,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: start;
 }
 
+/* Boards card: same height as left column (top of speak to bottom of extras), shortened by 2rem */
+.md-card--boards {
+  align-self: stretch;
+  height: calc(100% - 2.5rem);
+  padding-right: calc(18px + 0.25rem);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 18px; /* same as extras card */
+}
+.md-card--boards .md-strip {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.md-card--boards .md-btn--wide {
+  margin-top: auto;
+}
+
 .md-card {
   position: relative;
   border-radius: var(--md-r-lg);
   background: var(--md-surface);
   border: 1px solid var(--md-line);
-  box-shadow: var(--md-shadow);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   padding: 18px;
 }
@@ -23398,13 +23439,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   position: absolute;
   top: 0rem;
   right: 0;
+  left: auto;
+  width: calc(52.48% + 0.375rem);
   height: auto;
-  max-height: 130px;
-  max-width: 69.3%;
+  max-height: 98.46px; /* 96.53 * 1.02 */
+  max-width: none;
   object-fit: contain;
   object-position: top right;
   pointer-events: none;
-  transform: scale(1.6335, 1.65);
+  transform: scale(1.237, 1.2495); /* 1.21275 * 1.02, 1.225 * 1.02 */
   transform-origin: top right;
   z-index: 0;
 }
@@ -23471,6 +23514,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-color: rgba(44, 183, 176, 0.18);
 }
 
+.md-btn--pill {
+  border-radius: 999px;
+  padding: calc(6px + 0.25rem) calc(12px + 0.25rem);
+  font-size: 0.9em;
+}
+.md-btn--primary.md-btn--pill {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: var(--md-ink);
+}
+.md-btn--primary.md-btn--pill:hover {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15));
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
 .md-btn--ghost {
   background: rgba(255, 255, 255, 0.62);
 }
@@ -23499,6 +23559,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
   transform: scale(1.4);
   transform-origin: center;
+  margin-left: -1rem;
 }
 
 .md-stat {
@@ -23511,7 +23572,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba(255, 255, 255, 0.65);
 }
 .md-card--boards .md-stat {
-  padding-right: 0;
+  padding: 10px 0.25rem 10px 12px;
 }
 
 /* Center "Back to Boards" button when new board form is open */
@@ -23682,6 +23743,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 .md-stat__num { font-weight: 950; font-size: 26px; line-height: 1; }
+.md-card--boards .md-stat__num {
+  font-size: 23.4px; /* 26 * 0.9 */
+  margin-left: -1rem;
+}
 .md-stat__meta { font-size: 13px; color: rgba(17, 26, 46, 0.78); }
 .md-stat__meta .md-muted { font-size: 12px; }
 
@@ -23697,14 +23762,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-width: 150px;
   scroll-snap-align: start;
   text-align: left;
-  padding: 12px 12px;
+  padding: 14px 12px; /* 12 * 1.2 */
   border-radius: 18px;
   border: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.70);
   box-shadow: var(--md-shadow-2);
 }
 .md-strip__item:active { transform: scale(var(--md-tap)); }
-.md-strip__label { margin-top: 8px; font-weight: 800; color: rgba(17, 26, 46, 0.78); }
+.md-strip__label { margin-top: 10px; font-weight: 800; color: rgba(17, 26, 46, 0.78); } /* 8 * 1.2 */
 
 /* Dashboard home only: Boards card – boards 10% smaller and 7% wider (not on Boards tab) */
 .md-grid--dashboard .md-card--boards .md-strip__item {
@@ -23715,19 +23780,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transform: scale(calc(0.9 * var(--md-tap)));
 }
 .md-grid--dashboard .md-card--boards .md-thumb {
-  height: 54px; /* 60 * 0.9 */
+  height: 65px; /* 54 * 1.2 */
   border-radius: 12px; /* 14 * 0.9 */
 }
 .md-grid--dashboard .md-card--boards .md-thumb__icon {
-  width: 32px; /* 36 * 0.9 */
-  height: 32px;
+  width: 38px; /* 32 * 1.2 */
+  height: 38px;
 }
 .md-grid--dashboard .md-card--boards .md-strip__label {
-  margin-top: 6px; /* 8 * 0.9 */
+  margin-top: 7px; /* 6 * 1.2 */
 }
 
 .md-thumb {
-  height: 60px;
+  height: 72px; /* 60 * 1.2 */
   border-radius: 14px;
   border: 1px solid rgba(17, 26, 46, 0.08);
   background: rgba(17, 26, 46, 0.05);
@@ -23737,8 +23802,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   place-items: center;
 }
 .md-thumb__icon {
-  width: 36px;
-  height: 36px;
+  width: 43px; /* 36 * 1.2 */
+  height: 43px;
   object-fit: contain;
 }
 .md-thumb--a { background: linear-gradient(135deg, rgba(44,183,176,0.18), rgba(255,255,255,0.0)); }
