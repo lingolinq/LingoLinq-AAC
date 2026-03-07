@@ -1533,8 +1533,7 @@ describe BoardDownstreamButtonSet, :type => :model do
       expect(RemoteAction.count).to eq(2)
       expect(BoardDownstreamButtonSet.generate_for(b.global_id, u.global_id)).to eq({state: 'uploaded', success: true, url: "#{ENV['UPLOADS_S3_CDN']}/#{bs.data['remote_paths'][hash]['path']}"})
       expect(RemoteAction.count).to eq(4)
-      ra = RemoteAction.find_by(path: "#{b.global_id}::#{u.global_id}", action: 'upload_extra_data')
-      expect(ra).to_not eq(nil)
+      ra = RemoteAction.find_by!(path: "#{b.global_id}::#{u.global_id}", action: 'upload_extra_data')
       expect(ra.path).to eq("#{b.global_id}::#{u.global_id}")
       expect(ra.action).to eq("upload_extra_data")
       expect(ra.act_at).to be > 4.minutes.from_now
@@ -1568,8 +1567,7 @@ describe BoardDownstreamButtonSet, :type => :model do
       ra = RemoteAction.create(path: "#{b.global_id}::#{u.global_id}", action: "upload_extra_data", act_at: 5.minutes.from_now)
       expect(BoardDownstreamButtonSet.generate_for(b.global_id, u.global_id)).to eq({state: 'uploaded', success: true, url: "#{ENV['UPLOADS_S3_CDN']}/#{bs.data['remote_paths'][hash]['path']}"})
       expect(RemoteAction.count).to eq(4)
-      ra = RemoteAction.find_by(path: "#{b.global_id}::#{u.global_id}", action: 'upload_extra_data')
-      expect(ra).to_not eq(nil)
+      ra = RemoteAction.find_by!(path: "#{b.global_id}::#{u.global_id}", action: 'upload_extra_data')
       expect(ra.path).to eq("#{b.global_id}::#{u.global_id}")
       expect(ra.action).to eq("upload_extra_data")
       expect(ra.act_at).to be > 4.minutes.from_now
