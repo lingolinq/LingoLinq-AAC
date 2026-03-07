@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
-import { set as emberSet, get as emberGet } from '@ember/object';
+import EmberObject from '@ember/object';
+import { computed, set as emberSet, get as emberGet } from '@ember/object';
 import modalUtil from '../utils/modal';
 import capabilities from '../utils/capabilities';
 
@@ -35,7 +35,8 @@ export default Component.extend({
       this.get('model').reload();
       this.set('model.load_all_connections', true);
     } else {
-      this.set('model', options);
+      // No user passed - use EmberObject so .get() works; plain {} would break model.get(), model.reload(), etc.
+      this.set('model', EmberObject.create(options));
     }
   },
   

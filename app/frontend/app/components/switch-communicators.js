@@ -71,8 +71,8 @@ export default Component.extend({
         const _this = this;
         const routeName = this.get('model.route');
         if (!routeName) { return; }
-        // Treat the index route as having no dynamic segments, so do not pass context; pass params for all other routes
-        const routeNeedsModel = routeName !== 'index';
+        // Only user.* routes have a :user_id dynamic segment; index, setup, etc. would throw "More context objects" if we pass user_name
+        const routeNeedsModel = routeName === 'user' || (typeof routeName === 'string' && routeName.startsWith('user.'));
         this.get('store').findRecord('user', board_for_user_id).then(function(u) {
           if (routeNeedsModel) {
             _this.get('router').transitionTo(routeName, u.get('user_name'));
