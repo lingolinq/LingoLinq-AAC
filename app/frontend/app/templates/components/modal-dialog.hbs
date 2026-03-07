@@ -1,3 +1,8 @@
+{{#if this.standalone}}
+  <div class="modal-content modal-content--standalone">
+    {{yield}}
+  </div>
+{{else}}
 <div class="modal fade in" style="display: block;" data-uncloseable={{this.uncloseable}} role="dialog" aria-modal="true">
   <div class="modal-dialog">
     {{#touch-listener select=(action "any_select")}}
@@ -7,3 +12,4 @@
     {{/touch-listener}}
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
+{{/if}}

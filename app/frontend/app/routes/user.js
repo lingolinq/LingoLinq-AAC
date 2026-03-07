@@ -7,6 +7,9 @@ export default Route.extend({
   router: service('router'),
   store: service('store'),
   persistence: service('persistence'),
+  queryParams: {
+    from_dashboard: { refreshModel: false }
+  },
   model: function(params) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque, 'cache' for the cache iframe) would

@@ -1634,12 +1634,13 @@ var editManager = EmberObject.extend({
   },
   process_for_displaying: function(ignore_fast_html) {
     if(!this) { return; }
-    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying start', { hasController: !!this.controller, hasBoard: !!(this.controller && this.controller.get('model')) });
+    var _vb = (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.verboseDebug);
+    if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying start', { hasController: !!this.controller, hasBoard: !!(this.controller && this.controller.get('model')) }); }
     LingoLinq.log.track('processing for displaying');
     var controller = this.controller;
-    if(!controller) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); return; }
+    if(!controller) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); } return; }
     var appState = this.appState || (typeof window !== 'undefined' && window.appState) || (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState);
-    if(!appState || (typeof appState.get !== 'function')) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); return; }
+    if(!appState || (typeof appState.get !== 'function')) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); } return; }
     var stashes = this.stashes;
     if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
@@ -1647,17 +1648,17 @@ var editManager = EmberObject.extend({
     }
     var board = controller.get('model');
     if(!board) {
-      console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no board)');
+      if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no board)'); }
       if (this.controller === controller) { this.controller = null; }
       return;
     }
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
-    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons');
+    if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons'); }
     var buttons = board.contextualized_buttons(appState.get('label_locale'), appState.get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, appState.get('inflection_shift'));
     var preferred_symbols = appState.get('referenced_user.preferences.preferred_symbols') || 'original';
     var grid = board.get('grid');
-    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying got buttons and grid', { buttonsLength: buttons && buttons.length, hasGrid: !!grid });
+    if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying got buttons and grid', { buttonsLength: buttons && buttons.length, hasGrid: !!grid }); }
     if(!grid) { return; }
     var allButtonsReady = true;
     var _this = this;
@@ -1714,7 +1715,7 @@ var editManager = EmberObject.extend({
     var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
     var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
     if(appState.get('speak_mode')) {
-      console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') });
+      if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();
       if(!ignore_fast_html && board.get('fast_html') 
             && board.get('fast_html.width') == controller.get('width') 
@@ -1728,14 +1729,14 @@ var editManager = EmberObject.extend({
             && board.get('fast_html.symbols') == appState.get('referenced_user.preferences.preferred_symbols') 
             && board.get('focus_id') == board.get('fast_html.focus_id')) {
         LingoLinq.log.track('already have fast render');
-        console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)');
+        if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)'); }
         resume_scanning();
         return;
       } else {
         board.set('fast_html', null);
         board.add_classes();
         LingoLinq.log.track('trying fast render');
-        console.log('[BOARD-DEBUG] edit_manager.process_for_displaying calling render_fast_html');
+        if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying calling render_fast_html'); }
         var fast = board.render_fast_html({
           label_locale: appState.get('label_locale'),
           height: controller.get('height'),
@@ -1757,7 +1758,7 @@ var editManager = EmberObject.extend({
             board.set_fast_html(fast);
           // }
           // TODO: this repeats too many times
-          console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)');
+          if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)'); }
           resume_scanning();
           return;
         }
@@ -1766,12 +1767,12 @@ var editManager = EmberObject.extend({
 
     // build the ordered grid
     // TODO: work without ordered grid (i.e. scene displays)
-    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying building grid (before find_content_locally)');
+    if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying building grid (before find_content_locally)'); }
     LingoLinq.log.track('finding content locally');
     var prefetch = board.find_content_locally().then(null, function(err) {
       return RSVP.resolve();
     });
-    console.log('[BOARD-DEBUG] edit_manager.process_for_displaying sync path done (prefetch.then scheduled)');
+    if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying sync path done (prefetch.then scheduled)'); }
 
     buttons.forEach(function(btn) {
       if(btn.no_skin && btn.image_id) {

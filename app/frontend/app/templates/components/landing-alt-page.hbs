@@ -9,15 +9,16 @@
     <main class="la-main" id="la-main" role="main">
 
       {{!-- ── Hero ── --}}
-      <section id="la-hero" class="la-hero-card">
+      <section id="la-hero" class="la-hero-card hero-background">
+        <div class="hero-container">
         <div class="la-hero-card-inner">
         <div class="la-hero-text">
           <div class="la-hero-headline-and-badges">
           <div class="la-hero-section la-hero-headline">
             <div class="la-hero-title-wrap">
               <h1 class="la-hero-title">
-                <span class="la-hero-title-line1">{{t "Communication access" key='communication_access'}}</span><br>
-                <span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
+                <span class="la-hero-title-line1">{{t "Communication" key='communication'}}</span><br>
+                <span class="la-hero-title-line1">{{t "access" key='access'}}</span> <span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
               </h1>
             </div>
             <p class="la-hero-subtitle">
@@ -32,7 +33,7 @@
               <span class="la-hero-badge-label">{{t "Cloud-based" key='landing_hero_cloud'}}</span>
             </div>
             <div class="la-hero-badge">
-              <span class="la-hero-badge-icon la-hero-badge-icon--cost" aria-hidden="true">💰</span>
+              <span class="la-hero-badge-icon la-hero-badge-icon--cost" aria-hidden="true">💲</span>
               <span class="la-hero-badge-label">{{t "90% Lower Cost" key='landing_hero_lower_cost'}}</span>
             </div>
             <div class="la-hero-badge">
@@ -93,6 +94,7 @@
           </div>
         </div>
         </div>
+        </div>
       </section>
 
       {{!-- ── Features ── --}}
@@ -111,27 +113,27 @@
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--teal">🌍</div>
             <h3>{{t "Multilingual from Day One" key='landing_feature_multilingual_title'}}</h3>
-            <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar inflection, not just word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
+            <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar — not word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--navy">🏫</div>
             <h3>{{t "District-Wide Management" key='landing_feature_district_title'}}</h3>
-            <p>{{t "Google Classroom-style dashboard for managing students, therapists, and devices across your entire district from one screen." key='landing_feature_district_desc'}}</p>
+            <p>{{t "Google Classroom-style dashboard: manage students, therapists, and devices across your district from one screen." key='landing_feature_district_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--teal">☁️</div>
             <h3>{{t "Cloud-Native, Any Device" key='landing_feature_cloud_title'}}</h3>
-            <p>{{t "Works on tablets, phones, laptops, and smartboards. Edit boards from your desk. Students access them from anywhere." key='landing_feature_cloud_desc'}}</p>
+            <p>{{t "Works on tablets, phones, laptops, and smartboards. Edit from your desk; students access from anywhere." key='landing_feature_cloud_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--coral">📊</div>
             <h3>{{t "Real Analytics for IEPs" key='landing_feature_analytics_title'}}</h3>
-            <p>{{t "Track vocabulary growth, usage patterns, and communication attempts. Generate reports that map directly to IEP goals." key='landing_feature_analytics_desc'}}</p>
+            <p>{{t "Track vocabulary growth, usage, and communication attempts. Reports map directly to IEP goals." key='landing_feature_analytics_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--navy">👨‍👩‍👧</div>
             <h3>{{t "Family Access Built In" key='landing_feature_family_title'}}</h3>
-            <p>{{t "Parents and caregivers get free companion access. Same boards, same vocabulary, school to home. No extra cost." key='landing_feature_family_desc'}}</p>
+            <p>{{t "Parents and caregivers get free companion access. Same boards, school to home — no extra cost." key='landing_feature_family_desc'}}</p>
           </div>
         </div>
       </section>
@@ -142,6 +144,8 @@
       <div class="la-parallax-zone">
       {{!-- ── Included in Every Plan ── --}}
       <section id="la-plan" class="la-plan-section">
+        <div class="la-parallax-card-outer">
+        <div class="la-parallax-card-inner">
         <div class="la-plan-layout">
           <div class="la-plan-text">
             <span class="la-section-eyebrow-badge">{{t "Included in every plan" key='fsa_included_plan'}}</span>
@@ -175,12 +179,16 @@
             </li>
           </ul>
         </div>
+        </div>
+        </div>
       </section>
 
       <hr class="la-divider" aria-hidden="true">
 
       {{!-- ── What Educators Say ── --}}
       <section id="la-testimonial" class="la-testimonial-section">
+        <div class="la-parallax-card-outer">
+        <div class="la-parallax-card-inner">
         <span class="la-section-eyebrow-badge">{{t "What educators say" key='fsa_what_educators_say'}}</span>
         <blockquote class="la-testimonial-display">
           <span class="la-testimonial-mark" aria-hidden="true">&ldquo;</span>
@@ -190,19 +198,29 @@
           <div class="la-testimonial-author-name">{{t "Sarah Chen, M.S., CCC-SLP" key='landing_testimonial_author'}}</div>
           <div class="la-testimonial-author-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key='landing_testimonial_role'}}</div>
         </div>
+        </div>
+        </div>
       </section>
 
       <hr class="la-divider" aria-hidden="true">
 
       {{!-- ── Accessibility Statement ── --}}
       <section id="la-a11y" class="la-a11y-statement">
-        <span class="la-section-eyebrow-badge">{{t "Accessibility-first design." key='accessibility_first'}}</span>
+        <div class="la-parallax-card-outer">
+        <div class="la-parallax-card-inner">
+        <span class="la-section-eyebrow-badge">{{t "Accessibility First" key='accessibility_first'}}</span>
         <div class="la-a11y-display">
           <p class="la-a11y-display-text">{{t "This site meets" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website." key='landing_a11y_standards'}}</p>
         </div>
+        <ul class="la-a11y-trust-badges" aria-label="{{t "Accessibility highlights" key='landing_a11y_highlights_label'}}">
+          <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</span></li>
+          <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "Accessible typography" key='landing_a11y_typography'}}</span></li>
+          <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "Designed for neurodivergent users" key='landing_a11y_neurodivergent'}}</span></li>
+        </ul>
         <div class="la-a11y-attribution">
-          <span class="la-a11y-badge">{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</span>
           <span class="la-a11y-accommodations">{{t "Need accommodations?" key='landing_a11y_need'}} <LinkTo @route="contact" class="la-a11y-statement-link">{{t "Let us know." key='landing_a11y_let_us_know'}}</LinkTo></span>
+        </div>
+        </div>
         </div>
       </section>
 
@@ -216,7 +234,7 @@
           <span class="la-cta-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</span>
           <h2 class="la-cta-headline">{{t "Give every student a voice" key='landing_cta_title_alt'}}</h2>
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='landing_cta_subtitle'}}</p>
-          <div class="la-cta-buttons">
+          <div id="la-cta-buttons" class="la-cta-buttons">
             <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
             <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Schedule a District Demo" key='landing_cta_demo'}}</LinkTo>
           </div>

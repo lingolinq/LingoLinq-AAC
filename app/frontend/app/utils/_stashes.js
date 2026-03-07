@@ -18,7 +18,7 @@ var stash_capabilities = null;
 // CRITICAL: Set window.stashes EARLY at module load time
 // This ensures any code that runs before the service initializes has a safe placeholder
 if(!window.stashes || typeof window.stashes.get !== 'function') {
-  if (!isTesting() && typeof window.Testem === 'undefined') { console.log('[STASHES MODULE] Setting early window.stashes placeholder'); }
+  if (!isTesting() && typeof window.Testem === 'undefined' && (window.LingoLinq || {}).verboseDebug) { console.log('[STASHES MODULE] Setting early window.stashes placeholder'); }
   window.stashes = {
     // Safe placeholder properties
     memory_stash: memory_stash,

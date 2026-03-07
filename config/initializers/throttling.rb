@@ -2,8 +2,9 @@ require 'rack/attack'
 
 module Throttling
   NORMAL_CUTOFF = 150
-  TOKEN_CUTOFF = 20
-  PROTECTED_CUTOFF = 10
+  # Relax limits in development to avoid 429 during login testing; test env keeps strict limits for specs
+  TOKEN_CUTOFF = Rails.env.development? ? 200 : 20
+  PROTECTED_CUTOFF = Rails.env.development? ? 100 : 10
   class LingoLinq::Application < Rails::Application
     uri = RedisInit.redis_uri
     unless ENV['SKIP_VALIDATIONS']

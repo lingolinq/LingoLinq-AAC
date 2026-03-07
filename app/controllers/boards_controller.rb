@@ -110,13 +110,20 @@ class BoardsController < ApplicationController
     render :layout => false
   end
 
+  ICON_REDIRECT_ALLOWED_HOSTS = [
+    'opensymbols.s3.amazonaws.com',
+    /\.s3\.amazonaws\.com\z/,
+    /\.s3\.[a-z0-9-]+\.amazonaws\.com\z/,
+    'lessonpix.com',
+    'www.lessonpix.com'
+  ].freeze
+
   def icon
     board = Board.find_by_path(params['id'])
-    if board
-      redirect_to board.icon_url_or_fallback, allow_other_host: true
-    else
-      redirect_to Board::DEFAULT_ICON, allow_other_host: true
-    end
+    url = board ? board.icon_url_or_fallback : Board::DEFAULT_ICON
+    host = URI.parse(url).host rescue nil
+    allowed = host && (request.host == host || ICON_REDIRECT_ALLOWED_HOSTS.any? { |h| h.is_a?(Regexp) ? host.match?(h) : host == h })
+    redirect_to allowed ? url : Board::DEFAULT_ICON, allow_other_host: true
   end
   
   def utterance

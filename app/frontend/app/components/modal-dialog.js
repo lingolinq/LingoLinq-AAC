@@ -9,6 +9,14 @@ import { observer } from '@ember/object';
 export default Component.extend({
   didRender: function() {
     if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
+    if (this.get('standalone')) {
+      var el = this.get('element');
+      if (el && !this.isDestroyed && !this.isDestroying) {
+        var height = $(window).height() - 50;
+        $(el).find('.modal-content--standalone').css('maxHeight', height).css('overflow', 'auto');
+      }
+      return;
+    }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);

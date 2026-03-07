@@ -14,6 +14,8 @@ export default Route.extend({
   },
   setupController: function(controller, model) {
     controller.set('model', model);
+    var userController = this.controllerFor('user');
+    controller.set('from_dashboard', userController.get('from_dashboard'));
     if(model.get('preferences.logging')) {
       controller.load_charts();
       controller.load_core();

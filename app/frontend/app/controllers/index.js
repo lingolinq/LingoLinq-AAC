@@ -18,7 +18,7 @@ export default Controller.extend({
     var appState = this.get('appState');
     if (!appState) { return false; }
     var currentUser = appState.get('currentUser');
-    console.log('[INDEX CONTROLLER] hasCurrentUser computed:', currentUser ? 'has user' : 'no user');
+    if ((window.LingoLinq || {}).verboseDebug) { console.log('[INDEX CONTROLLER] hasCurrentUser computed:', currentUser ? 'has user' : 'no user'); }
     return !!currentUser;
   }),
   
@@ -40,15 +40,16 @@ export default Controller.extend({
   
   init() {
     this._super(...arguments);
+    var _vb = (window.LingoLinq || {}).verboseDebug;
     // Debug: verify service injection
     if (!this.appState) {
       console.error('[INDEX CONTROLLER] appState service not injected!');
-    } else {
+    } else if (_vb) {
       console.log('[INDEX CONTROLLER] appState service injected:', typeof this.appState);
     }
     if (!this.app_state) {
       console.error('[INDEX CONTROLLER] app_state alias not working!');
-    } else {
+    } else if (_vb) {
       console.log('[INDEX CONTROLLER] app_state alias working:', typeof this.app_state);
     }
     
@@ -57,12 +58,14 @@ export default Controller.extend({
     if (this.appState) {
       // Use Ember's observer pattern to monitor currentUser changes
       this.appState.addObserver('currentUser', function() {
-        console.log('[INDEX CONTROLLER] currentUser changed:', _this.appState.get('currentUser') ? 'has user' : 'no user');
+        if (_vb) { console.log('[INDEX CONTROLLER] currentUser changed:', _this.appState.get('currentUser') ? 'has user' : 'no user'); }
         // Force recomputation of hasCurrentUser
         _this.notifyPropertyChange('hasCurrentUser');
       });
-      console.log('[INDEX CONTROLLER] Initial currentUser:', this.appState.get('currentUser') ? 'has user' : 'no user');
-      console.log('[INDEX CONTROLLER] Initial sessionUser:', this.appState.get('sessionUser') ? 'has user' : 'no user');
+      if (_vb) {
+        console.log('[INDEX CONTROLLER] Initial currentUser:', this.appState.get('currentUser') ? 'has user' : 'no user');
+        console.log('[INDEX CONTROLLER] Initial sessionUser:', this.appState.get('sessionUser') ? 'has user' : 'no user');
+      }
     }
   },
   

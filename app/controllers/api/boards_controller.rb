@@ -444,15 +444,10 @@ class Api::BoardsController < ApplicationController
       user = User.find_by_path(board_params['for_user_id'])
       if !user
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
-        # This preserves the previous fail-safe behavior where invalid for_user_id would cause failure
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
-      elsif !allowed?(user, 'edit')
-        # User exists but current user lacks edit permission. allowed? renders api_error(400, {...})
-        # before returning false, so we return here to avoid double-render.
-        return
-      else
-        @board_user = user
       end
+      return unless allowed?(user, 'edit')
+      @board_user = user
     end
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if board_params['parent_board_id']

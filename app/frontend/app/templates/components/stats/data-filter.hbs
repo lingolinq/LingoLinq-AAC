@@ -1,67 +1,78 @@
-<div class={{this.elem_class}} style={{this.elem_style}}>
+<div class="md-stats-filter {{this.elem_class}}" style={{this.elem_style}}>
   {{#if this.usage_stats}}
-    <form class="form-inline" style={{this.inner_elem_style}}>
-      <div class="form-group">
-        {{bound-select select_class="form-control" select_id="filter" content=this.filter_list selection=this.usage_stats.filter action=(action (mut this.usage_stats.filter)) }}
+    <form class="md-stats-filter__form form-inline" style={{this.inner_elem_style}}>
+      <div class="md-stats-filter__row md-stats-filter__row--period-actions">
+        <div class="form-group md-stats-filter__period-wrap">
+          {{#unless this.side_by_side}}
+            <label class="md-stats-filter__label" for="report-period-filter">{{t "Report period" key="report_period"}}</label>
+          {{/unless}}
+          {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side}}
+        </div>
+        {{#unless this.side_by_side}}
+          {{#if this.usage_stats.custom_filter}}
+            {{#unless this.customFilterPendingApply}}
+              <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+            {{/unless}}
+          {{else}}
+            <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+          {{/if}}
+        {{else}}
+          <button type="button" {{action "clear_side"}} class="md-btn md-btn--ghost md-stats-filter__clear" aria-label={{t "Remove this period" key="hide_this_side"}}><span class="md-stats-filter__clear-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="md-stats-filter__clear-svg"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span><span class="md-stats-filter__clear-label">{{if this.right_side (t "Period 2" key="period_2") (t "Period 1" key="period_1")}}</span></button>
+        {{/unless}}
       </div>
       {{#if this.usage_stats.custom_filter}}
         {{#if this.usage_stats.device_id}}
           <div class="form-group">
-            <a href="#" {{action "update_filter" "device"}} class='btn btn-default'>
+            <button type="button" {{action "update_filter" "device"}} class="btn btn-default md-stats-filter__chip">
               {{this.usage_stats.device_name}}
               <span class="glyphicon glyphicon-remove"></span>
-            </a>
+            </button>
           </div>
         {{/if}}
         {{#if this.usage_stats.location_id}}
           <div class="form-group">
-            <a href="#" {{action "update_filter" "location"}} class='btn btn-default'>
+            <button type="button" {{action "update_filter" "location"}} class="btn btn-default md-stats-filter__chip">
               {{this.usage_stats.location_name}}
               <span class="glyphicon glyphicon-remove"></span>
-            </a>
+            </button>
           </div>
         {{/if}}
-        <span style="white-space: nowrap;">
+        <span class="md-stats-filter__dates">
         <div class="form-group">
           <Input @type="date" @value={{this.usage_stats.start_date_field}} class="form-control" />
         </div>
-          &nbsp;{{t "to" key="to"}}&nbsp;
+          <span class="md-stats-filter__to">{{t "to" key="to"}}</span>
         <div class="form-group">
           <Input @type="date" @value={{this.usage_stats.end_date_field}} class="form-control" />
         </div>
         </span>
+        <button type="button" {{action "applyCustomFilter"}} class="md-btn md-btn--primary md-stats-filter__apply">{{t "Apply" key="apply_report"}}</button>
       {{else if this.usage_stats.show_filtered_snapshot}}
-        <span class='text-muted'>
+        <span class="text-muted">
           {{#if this.usage_stats.device_id}}
-            <div class="form-group well" style='padding: 0 10px;'>
+            <div class="form-group well md-stats-filter__well">
               {{this.usage_stats.device_name}}
             </div>
           {{/if}}
           {{#if this.usage_stats.location_id}}
-            <div class="form-group well" style='padding: 0 10px;'>
+            <div class="form-group well md-stats-filter__well">
               {{this.usage_stats.location_name}}
             </div>
           {{/if}}
-          <span style="white-space: nowrap;">
-          <div class="form-group well" style='padding: 0 10px;'>
+          <span class="md-stats-filter__dates">
+          <div class="form-group well md-stats-filter__well">
             {{this.usage_stats.start_date_field}}
           </div>
-            &nbsp;{{t "to" key="to"}}&nbsp;
-          <div class="form-group well" style='padding: 0 10px;'>
+            <span class="md-stats-filter__to">{{t "to" key="to"}}</span>
+          <div class="form-group well md-stats-filter__well">
             {{this.usage_stats.end_date_field}}
           </div>
           </span>
         </span>
       {{/if}}
-      <button type="button" {{action "update_filter" "date"}} class="btn btn-default">{{t "Go" key="go"}}</button>
-      {{#unless this.side_by_side}}
-        <span style="margin-left: 10px;" class="hidden-xs">
-          <a href="#" {{action "compare_to"}}>{{t "compare to..." key="compare_to_ellipsis"}}</a>
-        </span>
-      {{/unless}}
     </form>
-    {{#if this.side_by_side}}
-      <a href="#" {{action "clear_side"}}>{{t "hide this side" key="hide_this_side"}}</a>
+    {{#if (and this.side_by_side this.status this.status.no_data)}}
+      <p class="md-stats-load-status__no-data">{{t "No data available" key="no_data_available"}}</p>
     {{/if}}
   {{/if}}
 </div>

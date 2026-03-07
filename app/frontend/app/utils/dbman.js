@@ -559,7 +559,7 @@ var dbman = {
                     var count = res.target.result.length;
                     for(var idx = 0; idx < count; idx++) {
                       var str = res.target.result[idx];
-                      if(str && str.match(/^coughDropStorage/)) {
+                      if (typeof str === 'string' && (str.indexOf('lingolinqStorage') === 0 || str.indexOf('openAACStorage') === 0)) {
                         dbman.delete_database(str);
                       }
                     }

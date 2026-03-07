@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { scheduleOnce } from '@ember/runloop';
 import modal from '../utils/modal';
 
 export default Component.extend({
@@ -6,11 +7,13 @@ export default Component.extend({
   activeFont: null,
   _featuresObserver: null,
   _planObserver: null,
+  _ctaSectionObserver: null,
 
   didInsertElement() {
     this._super(...arguments);
     this._setupFeaturesScrollObserver();
     this._setupPlanScrollObserver();
+    scheduleOnce('afterRender', this, this._setupCtaSectionScrollObserver);
   },
 
   willDestroyElement() {
@@ -28,6 +31,13 @@ export default Component.extend({
         this._planObserver.unobserve(planEl);
       }
       this._planObserver = null;
+    }
+    if (this._ctaSectionObserver) {
+      var ctaEl = document.getElementById('la-cta');
+      if (ctaEl) {
+        this._ctaSectionObserver.unobserve(ctaEl);
+      }
+      this._ctaSectionObserver = null;
     }
   },
 
@@ -67,6 +77,33 @@ export default Component.extend({
     );
     observer.observe(el);
     this._featuresObserver = observer;
+  },
+
+  _setupCtaSectionScrollObserver() {
+    var section = document.getElementById('la-cta');
+    if (!section || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    // Scroll container is .la-wrapper (overflow-y: auto), not viewport or #la-main
+    var scrollRoot = section.closest('.la-wrapper') || null;
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('la-cta-visible');
+          } else {
+            entry.target.classList.remove('la-cta-visible');
+          }
+        });
+      },
+      {
+        root: scrollRoot,
+        rootMargin: '0px 0px -40px 0px',
+        threshold: 0.15
+      }
+    );
+    observer.observe(section);
+    this._ctaSectionObserver = observer;
   },
 
   actions: {

@@ -10,6 +10,7 @@ export default class ModernDashboardComponent extends Component {
 
   @tracked activeTab = 'home';
   @tracked isSearchOpen = false;
+  @tracked showNewBoardForm = false;
 
   @action
   go(key) {
@@ -18,7 +19,7 @@ export default class ModernDashboardComponent extends Component {
     } else if (key === 'reports') {
       var u = this.appState.get('currentUser.user_name');
       if (u) {
-        this.router.transitionTo('user.stats', u);
+        this.router.transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } });
       }
     } else if (key === 'upgrade') {
       var user = this.appState.get('currentUser');
@@ -35,6 +36,9 @@ export default class ModernDashboardComponent extends Component {
   @action
   goTab(key) {
     this.activeTab = key;
+    if (key === 'extras' || key === 'boards' || key === 'home') {
+      return;
+    }
     this.go(key);
   }
 
@@ -82,5 +86,16 @@ export default class ModernDashboardComponent extends Component {
   goAndCloseSearch(key) {
     this.closeSearch();
     this.go(key);
+  }
+
+  @action
+  openNewBoardOnBoards() {
+    this.activeTab = 'boards';
+    this.showNewBoardForm = true;
+  }
+
+  @action
+  closeNewBoardForm() {
+    this.showNewBoardForm = false;
   }
 }

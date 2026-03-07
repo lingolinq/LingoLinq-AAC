@@ -1,0 +1,133 @@
+<div class="app-navbar__inner">
+  {{#if (has-block)}}
+    {{yield}}
+  {{else if this.isAuthenticated}}
+    {{!-- Bento inner_header: nav_header (brand + search) + identity --}}
+    <span class="app-navbar__nav-header">
+      <h1 class="app-navbar__h1">
+        <span class="nav-header__brand">
+          <LinkTo @route="index" class="nav-header__logo-link">
+            <span class="nav-header__logo">
+              <img src={{path "images/logo-big-blue-gold.png"}} alt={{t "%app_name%" key="app_name"}}>
+            </span>
+          </LinkTo>
+          <LinkTo @route="index" class="nav-header__app-name-link">
+            <span class="nav-header__app-name"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></span>
+          </LinkTo>
+        </span>
+      </h1>
+      {{#if this.appState.empty_header}}
+        {{#if (persistence-online)}}
+          {{#unless this.appState.super_no_linky}}
+            {{#if this.application.allow_search}}
+              <form id="header_search" {{action "searchBoards" on="submit"}}>
+                <div class="header-search-wrap">
+                  <Input @type="text" @value={{this.application.searchString}} @input={{action "updateSearchString" value="target.value"}} @enter={{action "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
+                  <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
+                    <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  </button>
+                </div>
+              </form>
+            {{/if}}
+          {{/unless}}
+        {{/if}}
+      {{/if}}
+    </span>
+    <span id="identity" class="advanced_selection identity-with-dark-toggle">
+      <LinkTo @route="modern-dashboard" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
+        <span class="ll-bento-help-btn__icon" aria-hidden="true">
+          <svg class="ll-bento-help-btn__nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </span>
+      </LinkTo>
+      <button class="md-iconbtn md-iconbtn--identity" type="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}} {{action "support"}}>
+        ?
+        <span class="md-iconbtn__label">{{t "Help" key="help"}}</span>
+      </button>
+      <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
+        {{t "Upgrade" key="upgrade"}}
+      </button>
+      <span class="bento-dark-toggle-wrap ll-bento-theme-picker-wrap" style="display: inline-block; position: relative;">
+        {{#if this.application.showThemePicker}}
+          <div class="ll-bento-theme-picker-backdrop" {{action "closeThemePicker"}} role="button" aria-label={{t "Close" key="close"}}></div>
+          <div class="ll-bento-theme-picker ll-bento-theme-picker--open" role="dialog" aria-label={{t "Choose theme" key="choose_theme"}}>
+            <div class="ll-bento-theme-picker__row">
+              <div class="ll-bento-theme-picker__options">
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "light") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "light"}} title={{t "Light" key="light"}} aria-pressed={{is-equal this.appState.themeMode "light"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad-picker" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
+                </button>
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "midDay") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "midDay"}} title={{t "Midday" key="midday"}} aria-pressed={{is-equal this.appState.themeMode "midDay"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__midday-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-eclipse-sun-picker" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#ffe082"/><stop offset="25%" stop-color="#ffc107"/><stop offset="50%" stop-color="#ff8f00"/><stop offset="75%" stop-color="#e65100"/><stop offset="100%" stop-color="#bf360c"/></radialGradient><radialGradient id="ll-eclipse-moon-picker" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-eclipse-sun-picker)" fill-rule="evenodd" d="M20 12L15.7 10.5 17.66 6.34 13.5 8.3 12 4 10.5 8.3 6.34 6.34 8.3 10.5 4 12 8.3 13.5 6.34 17.66 10.5 15.7 12 20 13.5 15.7 17.66 17.66 15.7 13.5 20 12z" clip-rule="evenodd"/><circle cx="15" cy="12" r="5.5" fill="url(#ll-eclipse-moon-picker)"/></svg></span>
+                </button>
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "dark") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "dark"}} title={{t "Dark" key="dark"}} aria-pressed={{is-equal this.appState.themeMode "dark"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><defs><radialGradient id="ll-moon-grad-picker" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad-picker)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg></span>
+                </button>
+                <button type="button" class="ll-bento-theme-picker__option {{if (is-equal this.appState.themeMode "default") "ll-bento-theme-picker__option--active"}}" {{action "selectThemeMode" "default"}} title={{t "Default" key="default_theme"}} aria-pressed={{is-equal this.appState.themeMode "default"}}>
+                  <span class="ll-bento-theme-picker__icon" aria-hidden="true"><svg class="ll-bento-theme-picker__gold-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-gold-grad-picker" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="50%" stop-color="#F0F0F0"/><stop offset="100%" stop-color="#FF6B47"/></linearGradient></defs><path fill="url(#ll-gold-grad-picker)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+        <button type="button" class="ll-bento-dark-toggle ll-bento-dark-toggle--header" {{action "toggleThemePicker"}} aria-label={{t "Toggle theme" key="toggle_theme"}} title={{t "Toggle theme" key="toggle_theme"}} aria-expanded={{this.application.showThemePicker}} aria-haspopup="dialog">
+          <span class="ll-bento-dark-toggle__icon" aria-hidden="true">{{#if this.appState.darkMode}}<svg class="ll-bento-dark-toggle__moon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-moon-grad" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-moon-grad)" fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd"/></svg>{{else if this.appState.midDayMode}}<svg class="ll-bento-dark-toggle__midday-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><radialGradient id="ll-eclipse-sun" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#ffe082"/><stop offset="25%" stop-color="#ffc107"/><stop offset="50%" stop-color="#ff8f00"/><stop offset="75%" stop-color="#e65100"/><stop offset="100%" stop-color="#bf360c"/></radialGradient><radialGradient id="ll-eclipse-moon" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#d4dce8"/><stop offset="50%" stop-color="#a8b4c8"/><stop offset="100%" stop-color="#64748b"/></radialGradient></defs><path fill="url(#ll-eclipse-sun)" fill-rule="evenodd" d="M20 12L15.7 10.5 17.66 6.34 13.5 8.3 12 4 10.5 8.3 6.34 6.34 8.3 10.5 4 12 8.3 13.5 6.34 17.66 10.5 15.7 12 20 13.5 15.7 17.66 17.66 15.7 13.5 20 12z" clip-rule="evenodd"/><circle cx="15" cy="12" r="5.5" fill="url(#ll-eclipse-moon)"/></svg>{{else if this.appState.defaultMode}}<svg class="ll-bento-theme-picker__default-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-default-grad-header" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4ECDC4"/><stop offset="50%" stop-color="#F0F0F0"/><stop offset="100%" stop-color="#FF6B47"/></linearGradient></defs><path fill="url(#ll-default-grad-header)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else if this.appState.coolBlueMode}}<svg class="ll-bento-dark-toggle__cool-blue-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-cool-blue-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2C3E63"/><stop offset="50%" stop-color="#4A5D73"/><stop offset="100%" stop-color="#7E93A8"/></linearGradient></defs><path fill="url(#ll-cool-blue-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{else}}<svg class="ll-bento-dark-toggle__light-teal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36"><defs><linearGradient id="ll-light-teal-grad" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#64b9bc"/><stop offset="100%" stop-color="#82afdc"/></linearGradient></defs><path fill="url(#ll-light-teal-grad)" fill-rule="evenodd" d="M12 4.5L19.5 12 12 19.5 4.5 12 12 4.5z" clip-rule="evenodd"/></svg>{{/if}}</span>
+        </button>
+      </span>
+      <span style="display: inline-block;" class="dropdown">
+        <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
+          <span class="user_holder">
+            <img src={{this.appState.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
+          </span>
+          {{#if this.application.session.invalid_token}}
+            <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
+          {{else if (persistence-value "syncing")}}
+            <span class="spinning unread">
+              <span class="glyphicon glyphicon-refresh" style="z-index: 2;"></span>
+              <span class="glyphicon glyphicon-refresh" style="color: #fff; position: absolute; left: 2px; top: 2px;"></span>
+            </span>
+          {{else if (persistence-value "app_needs_update")}}
+            <span class="label label-danger unread">{{t "!" key="exclaim"}}</span>
+          {{else if this.appState.currentUser.unread_messages}}
+            <span class="label label-danger unread">{{this.appState.currentUser.unread_messages}}</span>
+          {{else}}
+            <span class="status unread"></span>
+          {{/if}}
+          <span class="caret"></span>
+        </a>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
+          <li class="dropdown-header">{{this.appState.currentUser.name}}</li>
+          <li role="presentation">
+            <LinkTo @route="user" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
+          </li>
+          <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
+          {{#if this.appState.currentUser.permissions.delete}}
+            <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
+          {{/if}}
+          <li><LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+          <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note"}}>
+            {{#if this.appState.currentUser.unread_messages}}
+              <span class="label label-danger" style="border-radius: 5px;">{{this.appState.currentUser.unread_messages}}</span>
+            {{/if}}
+            {{t "Messages" key="messages"}}
+          </LinkTo></li>
+          <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
+        </ul>
+      </span>
+    </span>
+  {{else}}
+    {{!-- Unauthenticated: landing-alt style (Features, Pricing, About, Try Free, hero toggle) --}}
+    {{#unless this.appState.installed_app}}
+      {{#unless this.appState.embedded}}
+        {{#unless this.appState.no_linky}}
+          <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key="fsa_page_sections"}}>
+            <a href="#" class="la-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key="fsa_nav_features"}}</a>
+            <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo>
+            <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key="fsa_nav_about"}}</LinkTo>
+          </div>
+          <div class="la-topbar-right header-unauth-right">
+            <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
+          </div>
+        {{/unless}}
+      {{/unless}}
+    {{/unless}}
+  {{/if}}
+</div>
