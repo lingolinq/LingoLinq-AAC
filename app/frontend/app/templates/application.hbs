@@ -288,9 +288,6 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
-              <button class="la-container-toggle" type="button" title="Toggle hero glass panel" onclick="var el=document.querySelector('.hero-container');if(el){el.classList.toggle('hero-container--hidden');this.classList.toggle('la-container-toggle--off');}">
-                <span class="la-container-toggle-dot"></span>
-              </button>
               <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
               <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{action "toggleLandingNav"}}>
                 <span class="la-topbar-hamburger__bar"></span>
