@@ -861,19 +861,13 @@ var editManager = EmberObject.extend({
     return final;
   },
   /**
-   * Renders the inflection overlay as a 3x3 grid of buttons around the pressed button.
-   * Creates #overlay_container (div with .overlay .board classes), appends to document.body.
-   * REFACTOR NOTE: This is imperative DOM - uses elem.getBoundingClientRect(), creates
-   * .overlay_button elements with select_callback. raw_events element_release invokes
-   * select_callback on overlay_button clicks. Preserve #overlay_container id and
-   * .overlay_button class when refactoring board display layers.
-   */
-  /**
    * Renders the inflections overlay as a 3x3 grid of options around the pressed button.
-   * Creates #overlay_container, appends to document.body. Overlay buttons use .overlay_button
-   * class and select_callback; raw_events.element_release invokes select_callback on tap.
-   * REFACTOR NOTE: Board display changes must ensure button DOM (or synthetic_button_elem_for_overlay)
-   * provides getBoundingClientRect, getElementsByClassName('symbol'), getElementsByClassName('button-label-holder').
+   * Creates #overlay_container (div with .overlay .board classes), appends to document.body.
+   * Uses elem.getBoundingClientRect() for positioning; creates .overlay_button elements with
+   * select_callback. raw_events.element_release invokes select_callback on overlay_button taps.
+   * REFACTOR NOTE: Preserve #overlay_container id and .overlay_button class. Button DOM (or
+   * synthetic_button_elem_for_overlay) must provide getBoundingClientRect(),
+   * getElementsByClassName('symbol'), getElementsByClassName('button-label-holder').
    */
   overlay_grid: function(grid, elem, event) {
     // TODO: log the overlay being opened somewhere
