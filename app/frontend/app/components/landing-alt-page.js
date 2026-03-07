@@ -5,6 +5,7 @@ import modal from '../utils/modal';
 export default Component.extend({
   tagName: '',
   activeFont: null,
+  heroContainerHidden: false,
   _featuresObserver: null,
   _planObserver: null,
   _ctaSectionObserver: null,
@@ -126,6 +127,9 @@ export default Component.extend({
       } else {
         _this.set('activeFont', fontName);
       }
+    },
+    toggleHeroContainer() {
+      this.toggleProperty('heroContainerHidden');
     }
   }
 });

@@ -1,8 +1,8 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-<header class="{{this.header_class}} {{if this.showBentoStyleHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
+<header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
-  {{#if this.isModernDashboardRoute}}
+  {{#if this.useAppNavbarInHeader}}
     <AppNavbar />
   {{else}}
   {{#if this.app_state.speak_mode}}
@@ -289,7 +289,27 @@
             </div>
             <div class="la-topbar-right header-unauth-right">
               <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
+              <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{action "toggleLandingNav"}}>
+                <span class="la-topbar-hamburger__bar"></span>
+                <span class="la-topbar-hamburger__bar"></span>
+                <span class="la-topbar-hamburger__bar"></span>
+              </button>
             </div>
+            {{#if this.landingNavOpen}}
+              <div class="la-mobile-drawer">
+                <div class="la-mobile-drawer__backdrop" {{action "closeLandingNav"}}></div>
+                <div class="la-mobile-drawer__panel">
+                  <button class="la-mobile-drawer__close" type="button" aria-label={{t "Close menu" key='fsa_close_menu'}} {{action "closeLandingNav"}}>&times;</button>
+                  <a href="#" class="la-mobile-drawer__link" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+                  <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
+                  <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
+                  <div class="la-mobile-drawer__divider"></div>
+                  <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Sign In" key='login'}}</LinkTo>
+                  <LinkTo @route="register" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Register" key='register'}}</LinkTo>
+                  <LinkTo @route="register" class="la-mobile-drawer__cta" {{action "closeLandingNav"}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
+                </div>
+              </div>
+            {{/if}}
           {{/unless}}
         {{/unless}}
       {{/unless}}

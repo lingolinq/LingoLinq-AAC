@@ -21,26 +21,27 @@
                 <span class="la-hero-title-line1">{{t "access" key='access'}}</span> <span class="la-hero-title-line1">{{t "for" key='for_lower'}}</span> <span class="la-hero-highlight">{{t "every student" key='landing_hero_highlight'}}</span>
               </h1>
             </div>
+          </div>
+          <div class="la-hero-subtitle-badges-wrap">
             <p class="la-hero-subtitle">
-              {{t "LingoLinq is an AI-powered AAC platform that gives students a voice." key='landing_hero_subtitle_line1'}}<br>
-              {{t "It saves therapists hours each week and gives districts the management tools they've been asking for." key='landing_hero_subtitle_line2'}}
+              {{t "LingoLinq is an AI-powered AAC platform that gives students a voice." key='landing_hero_subtitle_line1'}} {{t "It saves therapists hours each week and gives districts the management tools they've been asking for." key='landing_hero_subtitle_line2'}}
             </p>
-          </div>
-          <div class="la-hero-section la-hero-badges-section">
-          <div class="la-hero-badges">
-            <div class="la-hero-badge">
-              <span class="la-hero-badge-icon la-hero-badge-icon--cloud" aria-hidden="true">☁</span>
-              <span class="la-hero-badge-label">{{t "Cloud-based" key='landing_hero_cloud'}}</span>
+            <div class="la-hero-section la-hero-badges-section">
+              <div class="la-hero-badges">
+                <div class="la-hero-badge">
+                  <span class="la-hero-badge-icon la-hero-badge-icon--cloud" aria-hidden="true">☁</span>
+                  <span class="la-hero-badge-label">{{t "Cloud-based" key='landing_hero_cloud'}}</span>
+                </div>
+                <div class="la-hero-badge">
+                  <span class="la-hero-badge-icon la-hero-badge-icon--cost" aria-hidden="true">💲</span>
+                  <span class="la-hero-badge-label">{{t "90% Lower Cost" key='landing_hero_lower_cost'}}</span>
+                </div>
+                <div class="la-hero-badge">
+                  <span class="la-hero-badge-icon la-hero-badge-icon--school" aria-hidden="true">🎓</span>
+                  <span class="la-hero-badge-label">{{t "Real Classrooms" key='landing_hero_classrooms'}}</span>
+                </div>
+              </div>
             </div>
-            <div class="la-hero-badge">
-              <span class="la-hero-badge-icon la-hero-badge-icon--cost" aria-hidden="true">💲</span>
-              <span class="la-hero-badge-label">{{t "90% Lower Cost" key='landing_hero_lower_cost'}}</span>
-            </div>
-            <div class="la-hero-badge">
-              <span class="la-hero-badge-icon la-hero-badge-icon--school" aria-hidden="true">🏫</span>
-              <span class="la-hero-badge-label">{{t "Built for Real Classrooms" key='landing_hero_classrooms'}}</span>
-            </div>
-          </div>
           </div>
           </div>
           <div class="la-hero-section la-hero-actions-section">
@@ -118,7 +119,7 @@
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--navy">🏫</div>
             <h3>{{t "District-Wide Management" key='landing_feature_district_title'}}</h3>
-            <p>{{t "Google Classroom-style dashboard: manage students, therapists, and devices across your district from one screen." key='landing_feature_district_desc'}}</p>
+            <p>{{t "Google Classroom-style dashboard: manage students, therapists, and devices from one screen." key='landing_feature_district_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--teal">☁️</div>
@@ -232,7 +233,7 @@
       <section id="la-cta" class="la-cta-section">
         <div class="la-cta-inner">
           <span class="la-cta-eyebrow">{{t "Ready to start?" key='fsa_ready_to_start'}}</span>
-          <h2 class="la-cta-headline">{{t "Give every student a voice" key='landing_cta_title_alt'}}</h2>
+          <h2 class="la-cta-headline">{{t "Give every student" key='landing_cta_title_1'}} <em>{{t "a voice" key='landing_cta_title_2'}}</em></h2>
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='landing_cta_subtitle'}}</p>
           <div id="la-cta-buttons" class="la-cta-buttons">
             <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
