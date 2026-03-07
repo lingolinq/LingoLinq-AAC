@@ -92,4 +92,4 @@ jobs:
 
       - name: Run Ember tests (Chrome Headless)
         working-directory: app/frontend
-        run: npx ember test
+        run: npx ember test -T 60 -T 60 -T 60 -T 60
