@@ -1121,7 +1121,7 @@ class User < ActiveRecord::Base
       end
     end
     
-    if params['supervisee_code']
+    if params['supervisee_code'].present?
       if !self.id
         add_processing_error("can't modify supervisees on create") 
         return false
@@ -1161,7 +1161,7 @@ class User < ActiveRecord::Base
         Rails.logger.error("Error processing supervisee_code for user #{self.global_id}: #{e.message}")
       end
     end
-    if params['supervisor_key']
+    if params['supervisor_key'].present?
       if !self.id
         add_processing_error("can't modify supervisors on create") 
         return false

@@ -109,7 +109,7 @@ describe("capabilities", function() {
         var db_req = { };
         var attempt = 0;
         var deleted_databases = [];
-        var other = "coughDropStorage::bacon===abcdefg";
+        var other = "lingolinqStorage::bacon===abcdefg";
         var db_key = null;
         stub(capabilities, 'db', undefined);
         stub(capabilities.idb, 'open', function(key, revision) {

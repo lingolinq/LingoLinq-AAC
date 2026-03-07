@@ -66,7 +66,7 @@ class ApplicationController < ActionController::Base
     end
     @token = token
     if token
-      Rails.logger.debug("check_api_token: Token found for path #{request.path}, token prefix: #{token[0..7]}...") unless Rails.env.production?
+      Rails.logger.debug("check_api_token: Token found for path #{request.path}") unless Rails.env.production?
       status = Device.check_token(token, request.headers['X-LingoLinq-Version'])
       @cached = true if status[:cached]
       ignorable_error = ['/api/v1/token_check', '/oauth/token/refresh'].include?(request.path) && status[:skip_on_token_check]
@@ -85,7 +85,7 @@ class ApplicationController < ActionController::Base
         Rails.logger.debug("check_api_token: @api_user set: #{!!@api_user}, @api_device_id: #{@api_device_id}")
         # Log if device_id is missing but user is present (debugging Rails 7 upgrade)
         if @api_user && !@api_device_id && !Rails.env.production?
-          Rails.logger.warn("Device.check_token returned user but no device_id. Token prefix: #{token[0..7]}..., Status keys: #{status.keys.inspect}")
+          Rails.logger.warn("Device.check_token returned user but no device_id. Status keys: #{status.keys.inspect}")
         end
       end
       # TODO: timezone user setting
@@ -185,6 +185,8 @@ class ApplicationController < ActionController::Base
     end
   end
   
+  # Returns true if authorized. On failure, renders api_error(400, {...}) and returns false.
+  # Callers must return after checking: "return unless allowed?(obj, 'permission')"
   def allowed?(obj, permission)
     scopes = ['*']
     if @api_user && @api_device_id
