@@ -1869,7 +1869,7 @@
       </div>
       {{#if this.audio_target_available}}
         <div class="form-group">
-          <label for="voice_output" class="col-sm-3 control-label">{{t "Voice Output" key='voice_output'}}</label>
+          <label for="voice_output" class="col-sm-3 control-label">{{t "Voice & Output" key='voice_output'}}</label>
           <div class="col-sm-5">
             {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(action (mut this.pending_preferences.device.voice.target)) }}
             {{#if audio_switching_delays.primary}}

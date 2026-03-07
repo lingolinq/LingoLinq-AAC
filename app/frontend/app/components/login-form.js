@@ -494,7 +494,7 @@ export default Component.extend({
             capabilities_token: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
             auth_settings: _this.stashes.get_object('auth_settings', true) ? 'exists' : 'missing'
           });
-          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+          setErrorState(i18n.t('user_retrieve_failed_token', "Retrieving login preferences failed - authentication token not available"));
           return;
         }
         
@@ -528,7 +528,7 @@ export default Component.extend({
           return;
         }
         console.warn('[login-form.login_followup] Token ensure failed', error);
-        setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+        setErrorState(i18n.t('user_retrieve_failed_token', "Retrieving login preferences failed - authentication token not available"));
       });
     },
     logout: function() {
