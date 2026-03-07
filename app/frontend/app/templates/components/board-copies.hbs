@@ -14,7 +14,7 @@
         {{#each this.copies as |copy|}}
           <span class='list-group-item'>
             <span style="font-size: 16px; font-weight: bold;">
-              {{#link-to "board" copy.key}}{{copy.key}}{{/link-to}}
+              <LinkTo @route="board" @model={{copy.key}}>{{copy.key}}</LinkTo>
             </span>
             <span class='text-muted'>
               {{t "by %{user_name}," key="by_user_plus_comma" user_name = copy.user_name}}

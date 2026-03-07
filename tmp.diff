@@ -1,0 +1,95 @@
+﻿commit ebb7523c5541ad955cd7c1ea26feb983d247602b
+Author: MelissaOneil <melissah29@gmail.com>
+Date:   Thu Feb 12 19:27:00 2026 -0700
+
+    Add various updates: modal/record-note, button-settings, edit-unit, board-preview-overlay, and/or helpers
+    
+    - Modal container, record-note component and controller updates
+    - Button settings and button-settings-action template changes
+    - New edit-unit and board-preview-overlay components
+    - New and/or template helpers
+    - Application and organization room template updates
+    - Modal utility and log session model changes
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+diff --git a/app/frontend/app/templates/application.hbs b/app/frontend/app/templates/application.hbs
+index fef8ef6b1..c09d10c5e 100644
+--- a/app/frontend/app/templates/application.hbs
++++ b/app/frontend/app/templates/application.hbs
+@@ -1063,7 +1063,11 @@
+ {{modal-container}}
+ {{outlet "highlight"}}
+ {{outlet "highlight-secondary"}}
+-{{outlet "board-preview"}}
++{{#if this.modalService.boardPreview}}
++  {{board-preview-overlay}}
++{{else}}
++  {{outlet "board-preview"}}
++{{/if}}
+ <FlashOutlet />
+ {{outlet "flash-message"}}
+ {{#if this.setup_footer}}
+
+commit 73626627a680d890b1bc765004b451a84b15cce1
+Author: MelissaOneil <melissah29@gmail.com>
+Date:   Fri Feb 6 19:15:27 2026 -0700
+
+    Refactor modal handling: remove outlet-based rendering for component modals
+    
+    - Eliminated the hasComponentBasedModal computed property and associated outlet checks from application.js and templates.
+    - Updated modal.js to ensure all modals utilize component-based rendering via the modal service, streamlining the modal management process.
+    - Adjusted tests to reflect changes in modal state handling and outlet disconnection logic.
+
+diff --git a/app/frontend/app/templates/application.hbs b/app/frontend/app/templates/application.hbs
+index 6779b1449..fef8ef6b1 100644
+--- a/app/frontend/app/templates/application.hbs
++++ b/app/frontend/app/templates/application.hbs
+@@ -1061,9 +1061,6 @@
+ {{/if}}
+ 
+ {{modal-container}}
+-{{#unless this.hasComponentBasedModal}}
+-  {{outlet "modal"}}
+-{{/unless}}
+ {{outlet "highlight"}}
+ {{outlet "highlight-secondary"}}
+ {{outlet "board-preview"}}
+
+commit d4f17fadf6234520478940df107de5f1d48fe664
+Author: MelissaOneil <melissah29@gmail.com>
+Date:   Fri Feb 6 14:10:14 2026 -0700
+
+    Phase 2 modals + setup components + backend/frontend fixes
+    
+    Modal conversions (component + template, convertedModals, modal-container):
+    - confirm-notify-user, share-utterance, share-email, edit-board-details, approve-board-share
+    - importing-recordings, importing-boards, confirm-remove-board, modeling-intro, confirm-external-app
+    
+    Setup flow: add setup/ components and templates (access, board_category, core, done,
+    extra-*, intro, logging, supervisors, symbols, usage, voice); setup controller and
+    setup.hbs/setup-footer.hbs updates.
+    
+    Backend: api/boards_controller (board_params fallback consistency), api/search_controller,
+    session_controller updates.
+    
+    Frontend: application.hbs, application.js hasComponentBasedModal/convertedModals,
+    modal.js convertedModals, modal-container.js/hbs, bin/ember-server. CHANGES.md.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+diff --git a/app/frontend/app/templates/application.hbs b/app/frontend/app/templates/application.hbs
+index 3d3787ed9..6779b1449 100644
+--- a/app/frontend/app/templates/application.hbs
++++ b/app/frontend/app/templates/application.hbs
+@@ -1105,8 +1105,8 @@
+       <span style='display: inline-block; font-size: 18px; margin-top: 10px; margin-right: 10px; color: #888;'>
+         {{t "step" key="step"}} {{this.setup_index}} {{t "of" key="of"}} {{this.setup_order.length}}
+       </span>
+-      <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{unless this.setup_previous "visibility: hidden;"}} >Previous</button>
+-      <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{unless this.setup_next "visibility: hidden;"}} >Next</button>
++      <button class='btn btn-lg btn-default' {{action "setup_go" "backward"}} style={{safe-style (unless this.setup_previous "visibility: hidden;" "")}} >Previous</button>
++      <button class='btn btn-lg btn-default' {{action "setup_go" "forward"}} style={{safe-style (unless this.setup_next "visibility: hidden;" "")}} >Next</button>
+     </div>
+     <div class='clear'></div>
+   </div>

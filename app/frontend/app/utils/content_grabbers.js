@@ -13,7 +13,9 @@ export default new Proxy({}, {
       }
       return value;
     }
-    console.warn('[ContentGrabbers Proxy] Service not ready yet for property: ' + String(prop));
+    if (typeof window !== 'undefined' && !window.Testem) {
+      console.warn('[ContentGrabbers Proxy] Service not ready yet for property: ' + String(prop));
+    }
     return undefined;
   },
   set(target, prop, value) {
@@ -21,7 +23,9 @@ export default new Proxy({}, {
       window.cg[prop] = value;
       return true;
     }
-    console.warn('[ContentGrabbers Proxy] Service not ready yet for setting: ' + String(prop));
+    if (typeof window !== 'undefined' && !window.Testem) {
+      console.warn('[ContentGrabbers Proxy] Service not ready yet for setting: ' + String(prop));
+    }
     return false;
   }
 });

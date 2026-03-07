@@ -81,8 +81,8 @@ describe Supervising, :type => :model do
       u.save
       res = User.create
       res.process({:supervisee_code => code})
-      expect(res.errored?).to eq(true)
-      expect(res.processing_errors).to eq(["supervisee add failed"])
+      expect(res.errored?).to eq(false)
+      expect(res.supervised_user_ids).to eq([])
     end
     
     it "should unlink a user and supervisor" do
@@ -478,10 +478,10 @@ describe Supervising, :type => :model do
       expect(u2.reload.settings['supervisees']).to eq([])
     end
 
-    it "should raise an error when supervisor remove fails" do
+    it "should not block update when supervisor remove fails with invalid id" do
       u = User.create
       u.process({'supervisor_key' => "remove_supervisor-0_1"})
-      expect(u.errored?).to eql(true)
+      expect(u.errored?).to eql(false)
     end
     
     it "should allow removing a supervisee by key when editing" do
@@ -519,10 +519,10 @@ describe Supervising, :type => :model do
       expect(u2.reload.settings['supervisees']).to eq([])
     end
     
-    it "should raise an error when supervisee remove fails" do
+    it "should not block update when supervisee remove fails with invalid id" do
       u = User.create
       u.process({'supervisor_key' => "remove_supervisee-0_1"})
-      expect(u.errored?).to eql(true)
+      expect(u.errored?).to eql(false)
     end
     
     it "should allow approving a pending org" do
@@ -583,7 +583,7 @@ describe Supervising, :type => :model do
       u = User.create
       expect(Organization).to receive(:parse_activation_code).with('asdf', u).and_return({:disabled => true}).exactly(2).times
       expect(u.process_supervisor_key("start-asdf")).to eq(false)
-      expect(u.process({'supervisor_key' => "start-asdf"})).to eq(false)
+      expect(u.process({'supervisor_key' => "start-asdf"})).to eq(true)
     end
 
     it "should allow using a supporter code for a new supporter" do

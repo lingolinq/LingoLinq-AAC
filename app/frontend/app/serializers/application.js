@@ -17,9 +17,16 @@ export default DS.RESTSerializer.extend({
    */
   normalizeResponse(store, primaryModelClass, payload, id, requestType) {
     // Handle the case where we request 'user' with id 'self' but get back a different ID.
-    // Pass a copy with id forced to 'self' so Ember Data never sees the real id and never
-    // tries to update the RecordIdentifier (which would trigger the "id should not be updated" warning).
-    if (primaryModelClass.modelName === 'user' && id === 'self' && requestType === 'findRecord' && payload) {
+    // fetch-manager passes snapshot.id (e.g. 'self') and operation (e.g. 'updateRecord') to
+    // normalizeResponse. For user 'self', snapshot.id is 'self'.
+    // Pass a copy with id forced to 'self' so Ember Data never tries to update the RecordIdentifier.
+    // id.endsWith(':self') is safe: backend user IDs use global_id format (e.g. 1_42) and never end with ':self'.
+    var userSelfRequestTypes = ['findRecord', 'updateRecord'];
+    var idIndicatesSelf = id === 'self' || id === 'user:self' || (typeof id === 'string' && id.endsWith(':self'));
+    if (primaryModelClass.modelName === 'user' &&
+      userSelfRequestTypes.indexOf(requestType) !== -1 &&
+      payload &&
+      idIndicatesSelf) {
       var userData = payload.user || payload;
       if (userData && userData.id && userData.id !== 'self') {
         var actualId = userData.id;

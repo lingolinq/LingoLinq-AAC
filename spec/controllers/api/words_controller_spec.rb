@@ -64,7 +64,8 @@ describe Api::WordsController, :type => :controller do
       RedisInit.default.del("setting/rules/xx-xx")
       get 'lang', params: {'locale' => 'xx'}
       json = assert_success_json
-      expect(json).to eq({})
+      expect(json).to include('_locale' => 'xx')
+      expect(json.except('_locale')).to eq({})
     end
 
     it "should return cached settings if available" do
@@ -77,12 +78,13 @@ describe Api::WordsController, :type => :controller do
       }, true)
       get 'lang', params: {'locale' => 'xx-xx'}
       json = assert_success_json
-      expect(json).to eq({
+      expect(json).to include(
+        '_locale' => 'xx-xx',
         'rules' => 'asdf3',
         'default_contractions' => 'qwer3',
         'contractions' => nil,
         'inflection_locations' => 'zxcv3'
-      })
+      )
     end
 
     it "should fall back to the base language if not for sub-language" do
@@ -96,12 +98,13 @@ describe Api::WordsController, :type => :controller do
       }, true)
       get 'lang', params: {'locale' => 'xx-xx'}
       json = assert_success_json
-      expect(json).to eq({
+      expect(json).to include(
+        '_locale' => 'xx-xx',
         'rules' => 'asdf4',
         'default_contractions' => 'qwer4',
         'contractions' => 'yuio4',
         'inflection_locations' => 'zxcv4'
-      })
+      )
     end
   end
 end

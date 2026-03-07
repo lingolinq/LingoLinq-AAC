@@ -31,8 +31,22 @@ export default Service.extend({
 
   setup: function() {
     this.memory_stash = memory_stash;
-    this.prefix = 'cdStash-';
+    this.prefix = 'lingolinqStash-';
+    var legacyPrefix = 'cdStash-';
     try {
+      // Migrate keys from legacy prefix to new prefix (one-time for existing users)
+      var keysToMigrate = [];
+      for(var idx = 0, l = localStorage.length; idx < l; idx++) {
+        var k = localStorage.key(idx);
+        if(k && k.indexOf(legacyPrefix) === 0) { keysToMigrate.push(k); }
+      }
+      keysToMigrate.forEach(function(key) {
+        try {
+          var real_key = key.replace(legacyPrefix, '');
+          localStorage[this.prefix + real_key] = localStorage[key];
+          localStorage.removeItem(key);
+        } catch(e) { }
+      }.bind(this));
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);
         if(key && key.indexOf(this.prefix) === 0) {
@@ -351,10 +365,14 @@ export default Service.extend({
   },
 
   get_db_key: function(persist) {
-    var key = this.get_raw('cd_db_key');
+    var key = this.get_raw('ll_db_key');
+    if(!key) { key = this.get_raw('cd_db_key'); }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
-      this.persist_raw('cd_db_key', key);
+      this.persist_raw('ll_db_key', key);
+      if(this.get_raw('cd_db_key')) {
+        try { localStorage.removeItem('cd_db_key'); } catch(e) { }
+      }
     }
     return key
   },

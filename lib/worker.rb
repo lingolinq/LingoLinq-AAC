@@ -37,7 +37,7 @@ module Worker
   def self.user_board_counts(queue, method_name, cutoff=25)
     hash = record_ids(queue, method_name)
     puts "found #{(hash['Board'] || []).length}"
-    Board.where(id: hash['Board']).having("COUNT(user_id) > #{cutoff}").group('user_id').count('user_id')
+    Board.where(id: hash['Board']).having("COUNT(user_id) > ?", cutoff).group('user_id').count('user_id')
   end
 
   def self.process_queues

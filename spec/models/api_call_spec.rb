@@ -27,7 +27,8 @@ describe ApiCall, :type => :model do
     expect(c.data).to eq({
       'url' => 'http://www.example.com/api/v1/bacon',
       'method' => 'post',
-      'access_token' => 'asdf',
+      'access_token_prefix' => 'asdf'[0..7],
+      'access_token_hash' => Digest::SHA256.hexdigest('asdf'),
       'status' => '1234',
       'time' => 1.351
     })

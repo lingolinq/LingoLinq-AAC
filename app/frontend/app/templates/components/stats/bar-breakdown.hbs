@@ -6,12 +6,12 @@
     <div class='row'>
       <div class='col-sm-4' style={{row.label_style}}>
         {{#if row.link}}
-          {{#link-to "organization.reports" this.org_id (query-params current_report=row.link)}}
+          <LinkTo @route="organization.reports" @model={{this.org_id}} @query={{hash current_report=row.link}}>
             {{#if row.glyph}}
               <span class={{row.glyph}}></span>
             {{/if}}
             {{row.id}}
-          {{/link-to}}
+          </LinkTo>
         {{else}}
           {{#if row.glyph}}
             <span class={{row.glyph}}></span>

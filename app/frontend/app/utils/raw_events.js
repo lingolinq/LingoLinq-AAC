@@ -48,7 +48,7 @@ var $board_canvas = null;
 var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
-  if(!buttonTracker.appState) { return; }
+  if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
@@ -439,7 +439,7 @@ var buttonTracker = EmberObject.extend({
     }
 
     var $overlay = $("#overlay_container");
-    // clear overlays when user interacts outside of them
+    // INFLECTIONS OVERLAY: Clear #overlay_container when user taps outside it.
     if($overlay.length > 0 && $(event.target).closest("#overlay_container").length == 0) {
       $overlay.remove();
     }
@@ -513,7 +513,7 @@ var buttonTracker = EmberObject.extend({
   },
   // used for handling dragging, scanning selection
   touch_continue: function(event) {
-    if(!buttonTracker.appState) { return; }
+    if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
     // if(capabilities.system == 'iOS' && capabilities.installed_app) { console.log("TCONT", event); }
     var $hover_button = $(event.target).closest('.hover_button');
     if((event.type == 'touchstart' || event.type == 'mousedown') && $hover_button.length) {
@@ -586,7 +586,7 @@ var buttonTracker = EmberObject.extend({
       }
       if(priors[0] != window.screenInnerOffsetX || priors[1] != window.screenInnerOffsetY) {
         var stashes = (this && this.stashes) || window.stashes;
-        if (stashes && typeof stashes.persist === 'function') {
+        if (stashes && typeof stashes.persist === 'function' && !stashes.isDestroyed && !stashes.isDestroying) {
           stashes.persist('screenInnerOffsetX', window.screenInnerOffsetX);
           stashes.persist('screenInnerOffsetY', window.screenInnerOffsetY);
         }
@@ -734,6 +734,8 @@ var buttonTracker = EmberObject.extend({
             if(buttonTracker.check('short_press_delay')) {
               buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
             }
+            // INFLECTIONS OVERLAY: Schedule long-press handler when inflections_overlay is enabled.
+            // track_long_press fires after long_press_delay and calls editManager.long_press_mode.
             runLater(function() {
               if(buttonTracker.track_long_press.later) {
                 runCancel(buttonTracker.track_long_press.later);
@@ -2222,6 +2224,7 @@ var buttonTracker = EmberObject.extend({
   },
   button_select: function(elem, args, source) {
     var dom = elem.dom || elem;
+    // INFLECTIONS OVERLAY: Overlay buttons have select_callback set by editManager.overlay_grid.
     if(dom && dom.classList && dom.classList.contains('overlay_button')) {
       if(dom.select_callback) {
         var event = args || {};
@@ -2438,6 +2441,10 @@ var buttonTracker = EmberObject.extend({
     return result;
   },
   long_press_delay: 1500,
+  /**
+   * Fired after long_press_delay when user holds on a button. In Speak Mode with
+   * inflections_overlay, triggers the inflection options overlay. See docs/INFLECTIONS_LONG_PRESS_OVERLAY.md.
+   */
   track_long_press: function(event) {
     this.track_long_press.later = null;
     if(this.longPressEvent) {

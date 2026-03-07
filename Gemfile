@@ -58,6 +58,7 @@ gem 'accessible-books'
 gem 's3'
 gem 'bugsnag'
 gem 'stripe'
+gem 'rack', '~> 2.2.22' # Pin to 2.2.x to avoid Rack 3.x incompatibilities
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'
@@ -72,7 +73,7 @@ gem 'rotp'
 
 gem 'sinatra'
 gem 'sanitize'
-gem 'ruby-openai', '~> 6.0'
+gem 'anthropic', '~> 1.23'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

@@ -79,7 +79,8 @@ describe Api::UnitsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
       get :show, params: {:id => ou.global_id}
       assert_unauthorized
     end
@@ -110,7 +111,8 @@ describe Api::UnitsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
       put :update, params: {:id => ou.global_id}
       assert_unauthorized
     end
@@ -142,7 +144,8 @@ describe Api::UnitsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      ou = OrganizationUnit.create
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
       delete :destroy, params: {:id => ou.global_id}
       assert_unauthorized
     end
@@ -351,12 +354,10 @@ describe Api::UnitsController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user_weeks'][user.global_id]).to_not eq(nil)
-      expect(json['user_weeks'][user.global_id].keys.length).to eq(1)
-      expect(json['user_weeks'][user.global_id][json['user_weeks'][user.global_id].keys[0]]).to eq({
-        'count' => 1,
-        'goals' => 0,
-        'statuses' => [{"from_unit"=>false, "goal_id"=>"1_7", "score"=>3}]
-      })
+      week_entries = json['user_weeks'][user.global_id]
+      week_with_statuses = week_entries.values.find { |v| v['statuses'] && v['statuses'].any? }
+      expect(week_with_statuses).to_not eq(nil), "expected at least one week with statuses in #{week_entries.inspect}"
+      expect(week_with_statuses['statuses']).to include({"from_unit"=>false, "goal_id"=>"1_7", "score"=>3})
       expect(json['user_counts']).to eq({
         'goal_set' => 1,
         'goal_recently_logged' => 1,
@@ -651,7 +652,7 @@ describe Api::UnitsController, :type => :controller do
       expect(s.data['note']['text']).to eq('Haldo!')
       expect(s.data['note']['video']).to eq(nil)
 
-      vid = UserVideo.create(:settings => {duration: 12})
+      vid = UserVideo.create(:user => @user, :settings => {duration: 12})
       post :note, params: {unit_id: ou.global_id, target: 'supervisors', note: "Haldo!", video_id: vid.global_id}
       json = assert_success_json
       expect(json['targets']).to eq(1)

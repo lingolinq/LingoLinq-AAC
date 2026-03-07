@@ -35,8 +35,15 @@ export default modal.ModalController.extend({
       modal.close();
       if(this.get('model.route')) {
         var _this = this;
+        var routeName = this.get('model.route');
+        // Only user.* routes have a :user_id dynamic segment; index, setup, etc. would throw "More context objects" if we pass user_name
+        const routeNeedsModel = routeName === 'user' || (typeof routeName === 'string' && routeName.startsWith('user.'));
         this.store.findRecord('user', board_for_user_id).then(function(u) {
-          _this.transitionToRoute(_this.get('model.route'), u.get('user_name'));
+          if(routeNeedsModel) {
+            _this.transitionToRoute(routeName, u.get('user_name'));
+          } else {
+            _this.transitionToRoute(routeName);
+          }
         }, function(err) {
           modal.close();
           modal.error(i18n.t('error_loading_user_details', "There was an unexpected error loading the user's details"));

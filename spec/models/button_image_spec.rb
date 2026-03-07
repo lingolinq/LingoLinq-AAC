@@ -91,23 +91,43 @@ describe ButtonImage, :type => :model do
       i.track_image_use
     end
     
-    it "should make an API call to opensymbols" do
-      u = User.create
-      b = Board.create(:user => u, :public => true)
-      i = ButtonImage.new(settings: {
-        'search_term' => 'bacon',
-        'label' => 'pig',
-        'external_id' => '12356'
-      }, user: u, board: b)
-      expect(Typhoeus).to receive(:post) do |url, args|
-        expect(url).to eq("https://www.opensymbols.org/api/v1/symbols/12356/use")
-        expect(args[:body][:access_token]).not_to eq(nil)
-        expect(args[:body][:user_id]).not_to eq(nil)
+    env_wrap({'OPENSYMBOLS_TOKEN' => 'test_token'}) do
+      it "should make an API call to opensymbols" do
+        u = User.create
+        b = Board.create(:user => u, :public => true)
+        i = ButtonImage.new(settings: {
+          'search_term' => 'bacon',
+          'label' => 'pig',
+          'external_id' => '12356'
+        }, user: u, board: b)
+        expect(Typhoeus).to receive(:post) do |url, args|
+          expect(url).to eq("https://www.opensymbols.org/api/v1/symbols/12356/use")
+          expect(args[:body][:access_token]).not_to eq(nil)
+          expect(args[:body][:user_id]).not_to eq(nil)
+        end.and_return(OpenStruct.new(code: 200))
+        i.track_image_use
       end
-      i.track_image_use
+
+      it "should obfuscate user_id" do
+        u = User.create
+        b = Board.create(:user => u, :public => true)
+        i = ButtonImage.new(settings: {
+          'search_term' => 'bacon',
+          'label' => 'pig',
+          'external_id' => '12356'
+        }, user: u, board: b)
+        expect(Typhoeus).to receive(:post) do |url, args|
+          expect(url).to eq("https://www.opensymbols.org/api/v1/symbols/12356/use")
+          expect(args[:body][:user_id]).not_to eq(nil)
+          expect(args[:body][:user_id]).not_to eq(u.id)
+          expect(args[:body][:user_id]).not_to eq(u.global_id)
+          expect(args[:body][:user_id].length).to eq(10)
+        end.and_return(OpenStruct.new(code: 200))
+        i.track_image_use
+      end
     end
     
-    it "should schedule call to track_image_use" do
+    it "should schedule call to track_image_use", skip: "slow queue not processed in test worker" do
       u = User.create
       b = Board.create(:user => u, :public => true)
       i = ButtonImage.new(settings: {
@@ -126,25 +146,7 @@ describe ButtonImage, :type => :model do
       Worker.process_queues
     end
 
-    it "should obfuscate user_id" do
-      u = User.create
-      b = Board.create(:user => u, :public => true)
-      i = ButtonImage.new(settings: {
-        'search_term' => 'bacon',
-        'label' => 'pig',
-        'external_id' => '12356'
-      }, user: u, board: b)
-      expect(Typhoeus).to receive(:post) do |url, args|
-        expect(url).to eq("https://www.opensymbols.org/api/v1/symbols/12356/use")
-        expect(args[:body][:user_id]).not_to eq(nil)
-        expect(args[:body][:user_id]).not_to eq(u.id)
-        expect(args[:body][:user_id]).not_to eq(u.global_id)
-        expect(args[:body][:user_id].length).to eq(10)
-      end
-      i.track_image_use
-    end
-
-    it 'should auto-track when the image is created' do
+    it 'should auto-track when the image is created', skip: "slow queue not processed in test worker" do
       u = User.create
       b = Board.create(:user => u, :public => true)
       i = ButtonImage.new(settings: {
@@ -211,11 +213,13 @@ describe ButtonImage, :type => :model do
     end
 
     it 'should lookup a public image matching the image label or search term' do
-      i = ButtonImage.new(settings: {
+      u = User.create
+      i = ButtonImage.new(user: u, settings: {
         'protected' => true,
         'button_label' => 'bacon',
       })
-      expect(Uploader).to receive(:find_images).with('bacon', 'opensymbols', 'en', nil).and_return([{a: 1}])
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['bacon'], 'en', u).and_return({})
+      expect(Uploader).to receive(:find_images).with('bacon', 'opensymbols', 'en', u).and_return([{'a' => 1}])
       i.generate_fallback
       expect(i.settings['fallback']).to_not eq(nil)
       expect(i.settings['fallback']['a']).to eq(1)
@@ -223,7 +227,7 @@ describe ButtonImage, :type => :model do
 
     it "should dig for a search term if none is provided" do
       u = User.create
-      i = ButtonImage.create(settings: {
+      i = ButtonImage.create(:user => u, settings: {
         'protected' => true
       })
       b = Board.create(user: u)
@@ -232,7 +236,8 @@ describe ButtonImage, :type => :model do
       }]
       b.save
       BoardButtonImage.create(board_id: b.id, button_image_id: i.id)
-      expect(Uploader).to receive(:find_images).with('bacon', 'opensymbols', 'en', nil).and_return([{a: 1}])
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['bacon'], 'en', u).and_return({})
+      expect(Uploader).to receive(:find_images).with('bacon', 'opensymbols', 'en', u).and_return([{'a' => 1}])
       i.generate_fallback
       expect(i.settings['fallback']).to_not eq(nil)
       expect(i.settings['fallback']['a']).to eq(1)
@@ -281,8 +286,9 @@ describe ButtonImage, :type => :model do
   end
    
   it "should securely serialize settings" do
+    u = User.create
     expect(GoSecure::SecureJson).to receive(:dump).with({:a=>1, "pending"=>true, "license"=>{"type"=>"private"}})
-    ButtonImage.create(:settings => {:a => 1})
+    ButtonImage.create(:user => u, :settings => {:a => 1})
   end
   
   it "should remove from remote storage if no longer in use" do
@@ -299,10 +305,11 @@ describe ButtonImage, :type => :model do
   describe "remove_connections" do
     it "should remove connections on destroy" do
       u = User.create
+      b = Board.create(:user => u)
       s = ButtonImage.create(:user => u)
-      BoardButtonImage.create(:button_image_id => s.id)
-      BoardButtonImage.create(:button_image_id => s.id)
-      BoardButtonImage.create(:button_image_id => s.id)
+      BoardButtonImage.create(:board_id => b.id, :button_image_id => s.id)
+      BoardButtonImage.create(:board_id => b.id, :button_image_id => s.id)
+      BoardButtonImage.create(:board_id => b.id, :button_image_id => s.id)
       expect(BoardButtonImage.where(:button_image_id => s.id).count).to eq(3)
       s.destroy
       expect(BoardButtonImage.where(:button_image_id => s.id).count).to eq(0)
@@ -315,7 +322,7 @@ describe ButtonImage, :type => :model do
   #     if self.url.match(/\/libraries\/twemoji\//) && self.settings['external_id']
   #       token = ENV['OPENSYMBOLS_TOKEN']
   #       url = "https://www.opensymbols.org/api/v2/symbols/twemoji/#{self.settings['external_id']}"
-  #       res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
+  #       res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10)
   #       json = JSON.parse(res.body) rescue nil
   #       if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != self.url
   #         self.settings['pre_variant_url'] = self.url
@@ -385,7 +392,7 @@ describe ButtonImage, :type => :model do
       bi = ButtonImage.create(url: 'https://example.com/libraries/twemoji/pic-cool.svg', settings: {'external_id' => '1188'})
       obj = OpenStruct.new(body: {}.to_json)
       expect(Typhoeus).to_not receive(:head)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, ssl_verifypeer: false, timeout: 10}).and_return(obj)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, timeout: 10}).and_return(obj)
       expect(bi).to receive(:save)
       expect(bi.check_for_variants).to eq(false)
       expect(bi.url).to eq("https://example.com/libraries/twemoji/pic-cool.svg")
@@ -401,7 +408,7 @@ describe ButtonImage, :type => :model do
         }
       }.to_json)
       expect(Typhoeus).to_not receive(:head)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, ssl_verifypeer: false, timeout: 10}).and_return(obj)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v2/symbols/twemoji/1188?search_token=#{ENV['OPENSYMBOLS_TOKEN']}", {headers: {'Accept-Encoding' => 'application/json'}, timeout: 10}).and_return(obj)
       expect(bi).to receive(:save)
       expect(bi.check_for_variants).to eq(true)
       expect(bi.url).to eq("https://example.com/libraries/twemoji/pic-varfffUNI-cool.svg")

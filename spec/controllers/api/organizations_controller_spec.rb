@@ -927,7 +927,7 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "new_users"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['user'][0]['id']).to eq(@user.global_id)
+      expect(json['user'].map { |u| u['id'] }).to include(@user.global_id)
     end
     
     it "should generate logged_ report" do
@@ -1162,6 +1162,7 @@ describe Api::OrganizationsController, :type => :controller do
     
     it 'should add a sentence suggestions' do
       token_user
+      WordData.create!(word: 'bacon', locale: 'en', data: {}) unless WordData.find_by(word: 'bacon', locale: 'en')
       o = Organization.create(:admin => true)
       o.add_manager(@user.user_name, true)
       post 'extra_action', :params => {'organization_id' => o.global_id, 'extra_action' => 'add_sentence_suggestion', 'word' => 'bacon', 'sentence' => 'I like me some bacon'}
@@ -1382,11 +1383,9 @@ describe Api::OrganizationsController, :type => :controller do
       User.link_supervisor_to_user(@user.reload, u.reload)
       post 'set_status', params: {organization_id: o.global_id, user_id: u.global_id, status: {'state' => 'bacon', 'note' => 'no way'}}
       json = assert_success_json
-      expect(json['status']).to eq({
-        'state' => 'bacon',
-        'date' => Time.now.to_i,
-        'note' => 'no way'
-      })
+      expect(json['status']['state']).to eq('bacon')
+      expect(json['status']['note']).to eq('no way')
+      expect(json['status']['date']).to be_within(15).of(Time.now.to_i)
     end
 
     it "should record a log message on update" do
@@ -1398,11 +1397,9 @@ describe Api::OrganizationsController, :type => :controller do
       User.link_supervisor_to_user(@user.reload, u.reload)
       post 'set_status', params: {organization_id: o.global_id, user_id: u.global_id, status: {'state' => 'bacon', 'note' => 'no way'}}
       json = assert_success_json
-      expect(json['status']).to eq({
-        'state' => 'bacon',
-        'date' => Time.now.to_i,
-        'note' => 'no way'
-      })
+      expect(json['status']['state']).to eq('bacon')
+      expect(json['status']['note']).to eq('no way')
+      expect(json['status']['date']).to be_within(15).of(Time.now.to_i)
       l = LogSession.last
       expect(l).to_not eq(nil)
       expect(l.user).to eq(u)

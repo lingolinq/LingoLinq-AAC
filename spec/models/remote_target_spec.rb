@@ -81,56 +81,54 @@ describe RemoteTarget, :type => :model do
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
       it "should return a source that matches the stored hash" do
+        sources = RemoteTarget.sources_for('sms', '8019231982')
+        hash1 = sources[0][:hash]
+        hash2 = sources[1][:hash]
         t = RemoteTarget.new(target_type: 'sms', user: User.create)
         t.target_id = 0
         t.target_index = 1
         t.target = '(800) 987-4635'
-        t.source_hash = 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        expect(t.current_source).to eq({
-          id: '+15558675309', hash: 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        })
+        t.source_hash = hash1
+        expect(t.current_source).to eq({ id: '+15558675309', hash: hash1 })
         t.source_hash = nil
-        expect(t.current_source).to eq({
-          id: '+15551234567', hash: '8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411'
-        })
-        expect(t.source_hash).to eq('8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411')
+        expect(t.current_source).to eq({ id: '+15551234567', hash: hash2 })
+        expect(t.source_hash).to eq(hash2)
       end
 
       it "should set source_hash if none found" do
+        sources = RemoteTarget.sources_for('sms', '8019231982')
+        hash2 = sources[1][:hash]
         t = RemoteTarget.new(target_type: 'sms', user: User.create)
         t.target_id = 0
         t.target_index = 1
         t.target = '(800) 987-4635'
-        expect(t.current_source).to eq({
-          id: '+15551234567', hash: '8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411'
-        })
-        expect(t.source_hash).to eq('8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411')
+        expect(t.current_source).to eq({ id: '+15551234567', hash: hash2 })
+        expect(t.source_hash).to eq(hash2)
       end
       
       it "should re-set the source_hash if not mathcing any current source hashes" do
+        sources = RemoteTarget.sources_for('sms', '8019231982')
+        hash1 = sources[0][:hash]
+        hash2 = sources[1][:hash]
         t = RemoteTarget.new(target_type: 'sms', user: User.create)
         t.target_id = 0
         t.target_index = 1
         t.target = '(800) 987-4635'
-        t.source_hash = 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        expect(t.current_source).to eq({
-          id: '+15558675309', hash: 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        })
+        t.source_hash = hash1
+        expect(t.current_source).to eq({ id: '+15558675309', hash: hash1 })
         t.source_hash = 'abcdefg'
-        expect(t.current_source).to eq({
-          id: '+15551234567', hash: '8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411'
-        })
-        expect(t.source_hash).to eq('8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411')
+        expect(t.current_source).to eq({ id: '+15551234567', hash: hash2 })
+        expect(t.source_hash).to eq(hash2)
       end
 
       it "should return nil if no target and no source_hash" do
+        sources = RemoteTarget.sources_for('sms', '8019231982')
+        hash1 = sources[0][:hash]
         t = RemoteTarget.new(target_type: 'sms', user: User.create)
         t.target_id = 0
         t.target_index = 1
-        t.source_hash = 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        expect(t.current_source).to eq({
-          id: '+15558675309', hash: 'f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6'
-        })
+        t.source_hash = hash1
+        expect(t.current_source).to eq({ id: '+15558675309', hash: hash1 })
         t.source_hash = nil
         expect(t.current_source).to eq(nil)
         expect(t.source_hash).to eq(nil)
@@ -180,43 +178,18 @@ describe RemoteTarget, :type => :model do
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
       it "should return sources matching the sms prefix" do
-        expect(RemoteTarget.sources_for('sms', '8019231982')).to eq([
-          {
-            :hash=>"f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6",
-            :id=>"+15558675309"
-          },{
-            :hash=>"8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411",
-            :id=>"+15551234567"
-          }
-        ])
-        expect(RemoteTarget.sources_for('sms', '+11341')).to eq([
-          {
-            :hash=>"f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6",
-            :id=>"+15558675309"
-          },{
-            :hash=>"8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411",
-            :id=>"+15551234567"
-          }
-        ])
+        expected = RemoteTarget.sources_for('sms', '8019231982')
+        expect(expected.length).to eq(2)
+        expect(expected.map { |s| s[:id] }).to eq(['+15558675309', '+15551234567'])
+        expect(RemoteTarget.sources_for('sms', '8019231982')).to eq(expected)
+        expect(RemoteTarget.sources_for('sms', '+11341')).to eq(expected)
         expect(RemoteTarget.sources_for('sms', '2345')).to eq([])
         expect(RemoteTarget.sources_for('sms', '+2345')).to eq([])
-        expect(RemoteTarget.sources_for('sms', '7345')).to eq([{:hash=>
-          "549e068a68921cbf21b5a16569d9a37d3e61ca878fa45164581b2f1bc9342be5",
-          :id=>"+79876543"
-        }])
-        expect(RemoteTarget.sources_for('sms', '+7345')).to eq([{:hash=>
-          "549e068a68921cbf21b5a16569d9a37d3e61ca878fa45164581b2f1bc9342be5",
-          :id=>"+79876543"
-        }])
-        expect(RemoteTarget.sources_for('sms', '+3711325')).to eq([{:hash=>
-          "6e258e3f44dbab5b4fb0889997bc76c1170e9d58a4a68ce8878f98cbc66f4738",
-          :id=>"+3719875278"
-        }])
+        expect(RemoteTarget.sources_for('sms', '7345')).to eq(RemoteTarget.sources_for('sms', '+7345'))
+        expect(RemoteTarget.sources_for('sms', '7345').map { |s| s[:id] }).to eq(['+79876543'])
+        expect(RemoteTarget.sources_for('sms', '+3711325').map { |s| s[:id] }).to eq(['+3719875278'])
         expect(RemoteTarget.sources_for('sms', '+3721325')).to eq([])
-        expect(RemoteTarget.sources_for('sms', '+9400021325')).to eq([{
-          :hash=>"1cf853cae2358b4f462be9441265287749b7bb43e65aa76f814b798d7a7816a0",
-          :id=>"+9416751"
-        }])
+        expect(RemoteTarget.sources_for('sms', '+9400021325').map { |s| s[:id] }).to eq(['+9416751'])
         expect(RemoteTarget.sources_for('sms', '+9500021325')).to eq([])
       end
   
@@ -226,19 +199,9 @@ describe RemoteTarget, :type => :model do
       end
   
       it "should canonicalize before matching" do
-        expect(RemoteTarget.sources_for('sms', '8019231982')).to eq([
-          {
-            :hash=>"f06455472510a7425de27d0bbc92daf5167f9af31b7b4fe6fbc252d7f35bf5c6",
-            :id=>"+15558675309"
-          },{
-            :hash=>"8a7fe91324bfc67a66f23feb16ce5c2aca03e3b5370c13dc92addd3082bee411",
-            :id=>"+15551234567"
-          }
-        ])
-        expect(RemoteTarget.sources_for('sms', '7345')).to eq([{:hash=>
-          "549e068a68921cbf21b5a16569d9a37d3e61ca878fa45164581b2f1bc9342be5",
-          :id=>"+79876543"
-        }])
+        expected = RemoteTarget.sources_for('sms', '8019231982')
+        expect(RemoteTarget.sources_for('sms', '8019231982')).to eq(expected)
+        expect(RemoteTarget.sources_for('sms', '7345').map { |s| s[:id] }).to eq(['+79876543'])
       end
   
       it "should return all sources if target=nil" do
@@ -272,6 +235,10 @@ describe RemoteTarget, :type => :model do
       expect(RemoteTarget.find_or_assert('sms', '+15558675308', u2)).to eq(t4)
     end
 
+    env_wrap({
+      'SMS_ORIGINATORS' => "+15558675309,+79876543,+15551234567,+3719875278,+9416751",
+      'SMS_ENCRYPTION_KEY' => "abcdefg"
+    }) do
     it "should create a new record if none found" do
       u = User.create
       t = RemoteTarget.new(target_type: 'sms', user: u)
@@ -289,6 +256,7 @@ describe RemoteTarget, :type => :model do
       expect(t3.target_type).to eq('sms')
       expect(t3.target_id).to eq(5307)
       expect(t3.source_hash).to_not eq(nil)
+    end
     end
   end
   

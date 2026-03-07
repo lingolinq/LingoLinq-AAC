@@ -314,11 +314,11 @@
           {{else if this.missing_library.pcs}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
-            {{#link-to "user.subscription" this.appState.currentUser.user_name}}billing page{{/link-to}}.
+            <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>billing page</LinkTo>.
           {{else if this.missing_library.symbolstix}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
-            {{#link-to "user.subscription" this.appState.currentUser.user_name}}billing page{{/link-to}}.
+            <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>billing page</LinkTo>.
           {{else}}
             {{t "Premium symbol support required" key="premium_symbols_required"}}
           {{/if}}
@@ -412,7 +412,7 @@
                   <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
-                {{#with confirm_found_board as |board|}}
+                {{#let this.confirm_found_board as |board|}}
                   <div class="col-sm-4">
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
@@ -478,7 +478,7 @@
                                share with them? -->
                     <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key="copy_this_board"}}</button>
                   </div>
-                {{/with}}
+                {{/let}}
               {{/if}}
             </div>
           {{else}}

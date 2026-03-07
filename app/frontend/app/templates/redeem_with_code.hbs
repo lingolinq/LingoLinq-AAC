@@ -27,7 +27,7 @@
           <LinkTo @route="login">{{t "sign in" key="sign_in"}}</LinkTo>
           {{#if this.app_state.domain_settings.full_domain}}
             {{t "or" key="or"}}
-            {{#link-to "register"}}{{t "create a new account" key="create_a_new_account"}}{{/link-to}}.
+            <LinkTo @route="register">{{t "create a new account" key="create_a_new_account"}}</LinkTo>.
           {{/if}}
         </p>
       {{/if}}

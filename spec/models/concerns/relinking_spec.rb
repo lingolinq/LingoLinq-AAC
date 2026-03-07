@@ -1284,8 +1284,10 @@ describe Relinking, :type => :model do
       u.settings['preferences']['sidebar_boards'] = [{'name' => 'Board', 'key' => old.key, 'image' => 'http://www.example.com/pic.png'}]
       u.save
       Worker.process_queues
+      Worker.process_queues
+      ref.reload.track_downstream_boards!
       expect(ref.reload.settings['immediately_downstream_board_ids']).to eq([old.global_id])
-      expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
+      expect(ref.reload.settings['downstream_board_ids'].sort).to eq([old.global_id, leave_alone.global_id, change_inline.global_id].sort)
       expect(u.reload.sidebar_boards.length).to eq(1)
       expect(u.sidebar_boards[0]['key']).to eq(old.key)
       
@@ -1744,6 +1746,8 @@ describe Relinking, :type => :model do
       b3.settings['translations'] = {'1' => {'fr' => {'label' => 'mange'}, 'zh' => {'label' => 'da'}, 'es' => {'label' => 'dias'}}, '2' => {'fr' => {'label' => 'allez'}}}
       b3.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
 
       expect(b1.reload.slice_locales(['fr', 'de'], [b1.global_id, b2.global_id], u)).to eq({sliced: true, ids: [b1.global_id, b2.global_id]})
       expect(b1.settings['locale']).to eq('fr')

@@ -129,32 +129,29 @@ describe Api::LogsController, :type => :controller do
       ip = ClusterLocation.create(:user => @user, :cluster_type => 'ip_address')
       l1 = LogSession.process_new({
         :events => [
-          {'timestamp' => 3.weeks.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => 3.weeks.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12']},
+          {'timestamp' => 3.weeks.ago.to_i + 5, 'type' => 'button', 'button' => {'label' => 'x', 'board' => {'id' => '1_1'}}, 'ip_address' => '1.2.3.4'}
         ]
-      }, {:user => @user, :device => @device, :author => @user})
-      l1.geo_cluster_id = geo.id
-      l1.ip_cluster_id = ip.id
-      l1.save
+      }, {:user => @user, :device => @device, :author => @user, :ip_address => '1.2.3.4'})
+      l1.update_columns(geo_cluster_id: geo.id, ip_cluster_id: ip.id)
       l2 = LogSession.process_new({
         :events => [
-          {'timestamp' => 1.week.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => 1.week.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}, 'geo' => ['13', '12']}
         ]
       }, {:user => @user, :device => @device, :author => @user})
-      l2.geo_cluster_id = geo.id
-      l2.save
+      l2.update_columns(geo_cluster_id: geo.id)
       l3 = LogSession.process_new({
         :events => [
-          {'timestamp' => 1.day.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => 1.day.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}, 'ip_address' => '8.8.8.8'}
         ]
-      }, {:user => @user, :device => @device, :author => @user})
-      l3.ip_cluster_id = ip.id
-      l3.save 
+      }, {:user => @user, :device => @device, :author => @user, :ip_address => '8.8.8.8'})
+      l3.update_columns(ip_cluster_id: ip.id)
 
-      get :index, params: {:user_id => @user.global_id, :start => 2.weeks.ago.to_s, :end => 1.day.from_now.to_s, :device_id => @device.global_id}
+      get :index, params: {:user_id => @user.global_id, :start => 2.weeks.ago.utc.strftime('%Y-%m-%d'), :end => 1.day.from_now.utc.strftime('%Y-%m-%d'), :device_id => @device.global_id}
       json = JSON.parse(response.body)
       expect(json['log'].length).to eq(2)
       expect(json['log'].map{|l| l['id'] }).to eq([l3.global_id, l2.global_id])
-      
+
       get :index, params: {:user_id => @user.global_id, :device_id => "abc"}
       json = JSON.parse(response.body)
       expect(json['log'].length).to eq(0)
@@ -465,7 +462,8 @@ describe Api::LogsController, :type => :controller do
 
     it "should try to extract and canonicalize the ip address" do
       token_user
-      request.env['HTTP_X_FORWARDED_FOR'] = "8.7.6.5"
+      request.env['REMOTE_ADDR'] = '8.7.6.5'
+      request.env['HTTP_X_FORWARDED_FOR'] = '8.7.6.5'
       post :create, params: {:log => {:events => [{'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button', 'button' => {'label' => 'cool', 'spoken' => true, 'board' => {'id' => '1_1'}}}]}}
       expect(response).to be_successful
       Worker.process_queues
@@ -500,7 +498,7 @@ describe Api::LogsController, :type => :controller do
       json = JSON.parse(response.body)
       Worker.process_queues
       log = LogSession.last
-      expect(log.data['event_summary']).to eq('Note by no-name: ahem')
+      expect(log.data['event_summary']).to eq("Note by #{@user.user_name}: ahem")
       expect(log.goal).to eq(g)
       expect(log.log_type).to eq('note')
     end
@@ -519,7 +517,7 @@ describe Api::LogsController, :type => :controller do
       json = JSON.parse(response.body)
       Worker.process_queues
       log = LogSession.last
-      expect(log.data['event_summary']).to eq('Note by no-name: ahem')
+      expect(log.data['event_summary']).to eq("Note by #{@user.user_name}: ahem")
       expect(log.goal).to eq(nil)
       expect(log.log_type).to eq('note')
     end
@@ -642,8 +640,8 @@ describe Api::LogsController, :type => :controller do
       expect(response.body).to eql("Not found")
       
       u = User.create
-      d = Device.create
-      log = LogSession.create(:user => u, :device => d, :author => u)
+      d = Device.create(:user => u)
+      log = LogSession.create(:user => u, :device => d, :author => u, :data => {'nonce' => 'abc'})
       get 'lam', params: {:log_id => log.global_id}
       expect(response).to be_successful
       expect(response.body).to eql("Not found")
@@ -651,8 +649,8 @@ describe Api::LogsController, :type => :controller do
     
     it "should render a LAM file on success" do
       u = User.create
-      d = Device.create
-      log = LogSession.create(:user => u, :device => d, :author => u)
+      d = Device.create(:user => u)
+      log = LogSession.create(:user => u, :device => d, :author => u, :data => {'nonce' => 'abc'})
       get 'lam', params: {:log_id => log.global_id, :nonce => log.data['nonce']}
       expect(response).to be_successful
       expect(response.body).to match(/CAUTION/)
@@ -784,48 +782,53 @@ describe Api::LogsController, :type => :controller do
     end
 
     it "should allow access for an authorized integration" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret}
       assert_error("users must be requested in blocks of between five to ten at a time")
     end
 
     it "should error with too few user ids" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: "a,b"}
       assert_error("users must be requested in blocks of between five to ten at a time")
     end
 
     it "should error with too many user ids" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: "a,b,c,d,e,f,g,h,i,j,k,l"}
       assert_error("users must be requested in blocks of between five to ten at a time")
     end
 
     it "should error on invalid ids" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: "a,b,c,d,e,f,g,h,i"}
       assert_error("invalid user ids")
       expect(@error_json['ids']).to eq(["a","b","c","d","e","f","g","h","i"])
     end
 
     it "should error with insufficient data if not enough results" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -833,14 +836,15 @@ describe Api::LogsController, :type => :controller do
         us << User.create
       end
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
       assert_error("not enough users for report, only the specified ids contained usage data")
       expect(@error_json['ids']).to eq([])
     end
 
     it "should error with only one record-containing user" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -852,14 +856,15 @@ describe Api::LogsController, :type => :controller do
       end
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(3.weeks.ago.to_date), user_id: us[0].id)
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
       get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
       assert_error("not enough users for report, only the specified ids contained usage data")
       expect(@error_json['ids']).to eq([ui.user_token(us[0])])
     end
 
     it "should error with two record-containing users" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -873,14 +878,15 @@ describe Api::LogsController, :type => :controller do
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(6.weeks.ago.to_date), user_id: us[1].id)
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(36.weeks.ago.to_date), user_id: us[2].id)
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
-      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
+      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|us_u| ui.user_token(us_u) }.join(',')}
       assert_error("not enough users for report, only the specified ids contained usage data")
       expect(@error_json['ids']).to eq([ui.user_token(us[0]), ui.user_token(us[1])])
     end
 
     it "should return a progress result for three or more record-containing users" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -894,8 +900,8 @@ describe Api::LogsController, :type => :controller do
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(6.weeks.ago.to_date), user_id: us[1].id)
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(5.weeks.ago.to_date), user_id: us[2].id)
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
-      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
+      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|us_u| ui.user_token(us_u) }.join(',')}
       json = assert_success_json
       expect(json['message']).to eq('Data is generating, please check back soon...')
       expect(json['progress']).to_not eq(nil)
@@ -907,7 +913,8 @@ describe Api::LogsController, :type => :controller do
     end
 
     it "should not include supervisors or users with research disabled" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -927,8 +934,8 @@ describe Api::LogsController, :type => :controller do
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(5.weeks.ago.to_date), user_id: us[3].id)
       WeeklyStatsSummary.create(weekyear: WeeklyStatsSummary.date_to_weekyear(5.weeks.ago.to_date), user_id: us[4].id)
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
-      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
+      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|us_u| ui.user_token(us_u) }.join(',')}
       json = assert_success_json
       expect(json['message']).to eq('Data is generating, please check back soon...')
       expect(json['progress']).to_not eq(nil)
@@ -940,7 +947,8 @@ describe Api::LogsController, :type => :controller do
     end
 
     it "should not allow too many requests for the same user" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(user: u)
       ui.settings['allow_trends'] = true
       ui.save
       us = []
@@ -951,14 +959,14 @@ describe Api::LogsController, :type => :controller do
         us << u
       end
       dk = DeveloperKey.create
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
-      d = Device.create(user_integration_id: ui.id, developer_key_id: dk.id)
-      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
+      d = Device.create(user: u, user_integration_id: ui.id, developer_key_id: dk.id)
+      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|us_u| ui.user_token(us_u) }.join(',')}
       assert_error("not enough users for report, only the specified ids contained usage data")
       expect(@error_json['ids']).to eq([])
-      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|u| ui.user_token(u) }.join(',')}
+      get 'trends_slice', params: {integration_id: dk.key, integration_secret: dk.secret, user_ids: us.map{|us_u| ui.user_token(us_u) }.join(',')}
       assert_error("exceeded quota for user ids")
-      expect(@error_json['ids']).to eq(us.map{|u| ui.user_token(u) })
+      expect(@error_json['ids']).to eq(us.map{|us_u| ui.user_token(us_u) })
     end
   end
 

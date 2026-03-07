@@ -120,14 +120,14 @@ module Sharing
       if author.settings['boards_i_shared']
         author.settings['boards_i_shared'] ||= {}
         list = [] + (author.settings['boards_i_shared'][self.global_id] || []).select{|share| share['user_id'] != user.global_id }
-        author.settings['boards_i_shared'][self.global_id] = list
+        author.settings = (author.settings || {}).merge('boards_i_shared' => (author.settings['boards_i_shared'] || {}).merge(self.global_id => list))
         author.save
       end
       
       if user.settings['boards_shared_with_me']
         user.settings ||= {}
         list = [] + (user.settings['boards_shared_with_me'] || []).select{|share| share['board_id'] != self.global_id }
-        user.settings['boards_shared_with_me'] = list
+        user.settings = (user.settings || {}).merge('boards_shared_with_me' => list)
         user.save_with_sync('share')
       end
     end

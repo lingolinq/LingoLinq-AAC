@@ -9,7 +9,7 @@ class OrganizationUnit < ActiveRecord::Base
   include Replicate
 
   belongs_to :organization
-  belongs_to :user_goal
+  belongs_to :user_goal, optional: true  # units can exist without a goal
   
   add_permissions('view', 'view_stats') {|user| self.supervisor?(user) }
   add_permissions('view', 'edit', 'view_stats') {|user| self.supervisor?(user, true) }
@@ -200,6 +200,7 @@ class OrganizationUnit < ActiveRecord::Base
       user_goal.active = false
       user_goal.save
     end
+    self.settings ||= {}
     if (self.settings['goal_assertions'] || {})[goal.global_id]
       self.settings['goal_assertions'][goal.global_id]['user_ids'] -= [user.global_id]
     end

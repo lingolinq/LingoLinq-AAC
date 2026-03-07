@@ -22,12 +22,12 @@ describe JsonApi::User do
     
     it "should include a correct gravatar url if profile is visible" do
       u = User.create(settings: {'email' => 'bob@example.com', 'public' => true})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/lingolinq\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
     end
     
     it "should include a silhouette url if profile is not visible" do
       u = User.create(settings: {'email' => 'bob@example.com'})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/lingolinq\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
     end
 
     it "should include permissions if requested" do
@@ -419,11 +419,13 @@ describe JsonApi::User do
       it "should include last profile run if supervise permission is set" do
         u = User.create
         d = Device.create(user: u)
+        started1 = Time.utc(2000, 6, 1, 0, 0, 0).to_i
+        expected1 = started1 + 12.months.to_i
         s = LogSession.create(data: {
           'profile' => {
             'id' => 'mmm',
             'summary' => 12,
-            'started' => Time.parse('June 1, 2000').to_i
+            'started' => started1
           }
         }, user: u, author: u, device: d)
 
@@ -433,32 +435,34 @@ describe JsonApi::User do
         Worker.process_queues
         json = JsonApi::User.build_json(u.reload, permissions: u)
         expect(json['last_profile']).to eq({
-          "added" => 959839200,
-          "expected" => 991396152,
+          "added" => started1,
+          "expected" => expected1,
           "log_id" => s.global_id,
           "profile_id" => "mmm",
           "summary" => 12,
           "summary_color" => nil,
-          "template_id" => nil,          
+          "template_id" => nil,
         })
 
+        started2 = Time.utc(2005, 6, 1, 0, 0, 0).to_i
+        expected2 = started2 + 12.months.to_i
         s = LogSession.create(data: {
           'profile' => {
             'id' => 'vvv',
             'summary' => 123,
-            'started' => Time.parse('June 1, 2005').to_i
+            'started' => started2
           }
         }, user: u, author: u, device: d)
         Worker.process_queues
         json = JsonApi::User.build_json(u.reload, permissions: u)
         expect(json['last_profile']).to eq({
-          "added" => 1117605600,
-          "expected" => 1149162552,
+          "added" => started2,
+          "expected" => expected2,
           "log_id" => s.global_id,
           "profile_id" => "vvv",
           "summary" => 123,
           "summary_color" => nil,
-          "template_id" => nil,          
+          "template_id" => nil,
         })
       end
     end

@@ -21,6 +21,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 
 export default modal.ModalController.extend({
+  appState: service('app-state'),
   contentGrabbers: service('content-grabbers'),
   opening: function() {
     var button = this.get('model.button');

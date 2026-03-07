@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe JobStash, :type => :model do
+  before(:each) { JobStash.delete_all }
   it 'should flush_old_records' do
     expect(JobStash.count).to eq(0)
     j1 = JobStash.create

@@ -4,7 +4,7 @@ describe ClusterLocation, :type => :model do
   describe "clusterize" do
     it "should do nothing if user not found" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -17,7 +17,7 @@ describe ClusterLocation, :type => :model do
     
     it "should create geo and ip clusters" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -41,7 +41,7 @@ describe ClusterLocation, :type => :model do
     
     it "should not create geo clusters without enough data points" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['14', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -58,7 +58,7 @@ describe ClusterLocation, :type => :model do
     
     it "should ignore already-clustered sessions" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s1.geo_cluster_id = 0
       s1.save
@@ -76,7 +76,7 @@ describe ClusterLocation, :type => :model do
     
     it "should find multiple new clusters" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s2 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13.0001', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s3 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12.0001']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.6'})
@@ -106,7 +106,7 @@ describe ClusterLocation, :type => :model do
     
     it "should still try to match to existing clusters even if found through clusterize" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       ClusterLocation.create(:user => u, :cluster_type => 'geo', :data => {'geo' => [13, 12, 0]})
       ClusterLocation.create(:user => u, :cluster_type => 'ip_address', :data => {'ip_address' => '0000:0000:0000:0000:0000:ffff:0102:0304'})
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -140,7 +140,7 @@ describe ClusterLocation, :type => :model do
     
     it "should find an existing ip and geo cluster" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       c1 = ClusterLocation.create(:user => u, :cluster_type => 'geo', :data => {'geo' => [13.0001, 12.0001, 0]})
       c2 = ClusterLocation.create(:user => u, :cluster_type => 'ip_address', :data => {'ip_address' => '0000:0000:0000:0000:0000:ffff:0102:0304'})
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -152,7 +152,7 @@ describe ClusterLocation, :type => :model do
     
     it "should update the cluster's existing geo median" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       c1 = ClusterLocation.create(:user => u, :cluster_type => 'geo', :data => {'geo' => [13.0001, 12.0001, 0]})
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       ClusterLocation.add_to_cluster(s1.global_id)
@@ -164,14 +164,14 @@ describe ClusterLocation, :type => :model do
     
     it "should automatically be scheduled on save for an unassigned log session" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       expect(Worker.scheduled?(ClusterLocation, :perform_action, {'method' => 'add_to_cluster', 'arguments' => [s1.global_id]})).to eq(true)
     end
     
     it "should not schedule a call to clusterize if geo or ip cluster not found but data present on session, but not enough new sessions" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       expect(ClusterLocation.add_to_cluster(s1.global_id)).to eq(false)
       expect(Worker.scheduled_for?('slow', ClusterLocation, :perform_action, {'method' => 'clusterize_ips', 'arguments' => [u.global_id]})).to eq(false)
@@ -180,10 +180,10 @@ describe ClusterLocation, :type => :model do
 
     it "should schedule a call to clusterize if geo or ip cluster not found but data present on session" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       20.times do |i|
-        dd = Device.create
+        dd = Device.create(:user => u)
         LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => dd, :ip_address => "1.2.3.1#{i}"})
       end
       obj = OpenStruct.new
@@ -196,7 +196,7 @@ describe ClusterLocation, :type => :model do
   describe "generate_stats" do
     it "should count basic stats" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       c = ClusterLocation.create(:user => u, :cluster_type => 'geo')
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'utterance' => {'text' => 'hello there', 'buttons' => []}, 'type' => 'utterance', 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s1.geo_cluster_id = c.id
@@ -213,7 +213,7 @@ describe ClusterLocation, :type => :model do
     
     it "should calculate geo as median of all sessions" do
       u = User.create
-      d = Device.create
+      d = Device.create(:user => u)
       c = ClusterLocation.create(:user => u, :cluster_type => 'geo')
       s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'geo' => ['13', '12']}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       s1.geo_cluster_id = c.id

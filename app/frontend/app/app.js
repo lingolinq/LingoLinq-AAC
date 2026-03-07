@@ -44,8 +44,9 @@ setOnerror(function(err) {
       LingoLinq.track_error(JSON.stringify(err), false);
     }
   }
+  // MUST rethrow when testing - required for test framework validation (after logging)
   if(isTesting() || LingoLinq.testing) {
-    throw(err);
+    throw err;
   }
 });
 
@@ -853,5 +854,7 @@ LingoLinq.log = {
 };
 window.LingoLinq = LingoLinq;
 window.LingoLinq.VERSION = window.app_version;
+// Set verboseDebug=true in console or localStorage lingolinq_verbose_debug='true' for verbose debug logs
+window.LingoLinq.verboseDebug = window.LingoLinq.verboseDebug || (typeof localStorage !== 'undefined' && localStorage.getItem('lingolinq_verbose_debug') === 'true');
 
 export default LingoLinq;
