@@ -81,6 +81,12 @@ var editManager = EmberObject.extend({
     }
 
   }),
+  /**
+   * Handles long-press actions. In Speak Mode with inflections_overlay enabled,
+   * shows the inflection options overlay (see docs/INFLECTIONS_LONG_PRESS_OVERLAY.md).
+   * REFACTOR NOTE: Board display refactoring must preserve this path - long_press_mode
+   * is invoked from raw_events.track_long_press and depends on grid_for + overlay_grid.
+   */
   long_press_mode: function(opts) {
     if(!this.appState) { return; }
     var app = this.appState.controller;
@@ -94,6 +100,9 @@ var editManager = EmberObject.extend({
         return true;
       } else if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
         if(opts.button_id) {
+          // INFLECTIONS OVERLAY: Long-press in Speak Mode shows inflection options.
+          // grid_for() builds the 3x3 grid (nw,n,ne, w,c,e, sw,s,se) from button inflections.
+          // overlay_grid() creates #overlay_container and appends to document.body.
           // TODO: scanning will require a reset, and looking for this
           // new mini-grid, but scanning can wait because how do you
           // open this overlay via scanning anyway? Idea: another button
@@ -620,6 +629,12 @@ var editManager = EmberObject.extend({
     });
     return res;
   },
+  /**
+   * Builds the inflection options grid for a button (nw, n, ne, w, c, e, sw, s, se).
+   * Used by the long-press inflections overlay in Speak Mode.
+   * REFACTOR NOTE: See docs/INFLECTIONS_LONG_PRESS_OVERLAY.md - ensure button lookup
+   * and inflection resolution still work if board/button rendering changes.
+   */
   grid_for: function(button_id) {
     var button = button_id;
     if(!button || !button.id) {
@@ -845,6 +860,21 @@ var editManager = EmberObject.extend({
     if(final.length == 0) { return null; }
     return final;
   },
+  /**
+   * Renders the inflection overlay as a 3x3 grid of buttons around the pressed button.
+   * Creates #overlay_container (div with .overlay .board classes), appends to document.body.
+   * REFACTOR NOTE: This is imperative DOM - uses elem.getBoundingClientRect(), creates
+   * .overlay_button elements with select_callback. raw_events element_release invokes
+   * select_callback on overlay_button clicks. Preserve #overlay_container id and
+   * .overlay_button class when refactoring board display layers.
+   */
+  /**
+   * Renders the inflections overlay as a 3x3 grid of options around the pressed button.
+   * Creates #overlay_container, appends to document.body. Overlay buttons use .overlay_button
+   * class and select_callback; raw_events.element_release invokes select_callback on tap.
+   * REFACTOR NOTE: Board display changes must ensure button DOM (or synthetic_button_elem_for_overlay)
+   * provides getBoundingClientRect, getElementsByClassName('symbol'), getElementsByClassName('button-label-holder').
+   */
   overlay_grid: function(grid, elem, event) {
     // TODO: log the overlay being opened somewhere
 

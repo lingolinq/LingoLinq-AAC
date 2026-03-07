@@ -439,7 +439,7 @@ var buttonTracker = EmberObject.extend({
     }
 
     var $overlay = $("#overlay_container");
-    // clear overlays when user interacts outside of them
+    // INFLECTIONS OVERLAY: Clear #overlay_container when user taps outside it.
     if($overlay.length > 0 && $(event.target).closest("#overlay_container").length == 0) {
       $overlay.remove();
     }
@@ -734,6 +734,8 @@ var buttonTracker = EmberObject.extend({
             if(buttonTracker.check('short_press_delay')) {
               buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
             }
+            // INFLECTIONS OVERLAY: Schedule long-press handler when inflections_overlay is enabled.
+            // track_long_press fires after long_press_delay and calls editManager.long_press_mode.
             runLater(function() {
               if(buttonTracker.track_long_press.later) {
                 runCancel(buttonTracker.track_long_press.later);
@@ -2222,6 +2224,7 @@ var buttonTracker = EmberObject.extend({
   },
   button_select: function(elem, args, source) {
     var dom = elem.dom || elem;
+    // INFLECTIONS OVERLAY: Overlay buttons have select_callback set by editManager.overlay_grid.
     if(dom && dom.classList && dom.classList.contains('overlay_button')) {
       if(dom.select_callback) {
         var event = args || {};
@@ -2438,6 +2441,10 @@ var buttonTracker = EmberObject.extend({
     return result;
   },
   long_press_delay: 1500,
+  /**
+   * Fired after long_press_delay when user holds on a button. In Speak Mode with
+   * inflections_overlay, triggers the inflection options overlay. See docs/INFLECTIONS_LONG_PRESS_OVERLAY.md.
+   */
   track_long_press: function(event) {
     this.track_long_press.later = null;
     if(this.longPressEvent) {
