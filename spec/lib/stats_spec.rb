@@ -95,7 +95,8 @@ describe Stats do
     it "should default to the last six months if start and end dates aren't provided" do
       u = User.create
       res = Stats.daily_use(u.global_id, {})
-      expect(res[:days].keys[-1]).to eq(Date.today.to_s)
+      # Stats uses Time.now + 1000 for default end_at, so the last day can be today or tomorrow near midnight
+      expect(res[:days].keys[-1]).to eq((Time.now + 1000).to_date.to_s)
       expect(res[:days].keys.length).to be >= 58
       expect(res[:days].keys.length).to be <= 65
     end
@@ -420,7 +421,8 @@ describe Stats do
     it "should infer start and end dates if none provided" do
       u = User.create
       res = Stats.daily_use(u.global_id, {})
-      expect(res[:days].keys[-1]).to eq(Date.today.to_s)
+      # Stats uses Time.now + 1000 for default end_at, so the last day can be today or tomorrow near midnight
+      expect(res[:days].keys[-1]).to eq((Time.now + 1000).to_date.to_s)
       expect(res[:days].keys.length).to be >= 58
       expect(res[:days].keys.length).to be <= 65
     end
