@@ -1026,6 +1026,8 @@ module Stats
           end
         end
       end
+      res[:trend_words].uniq! if res[:trend_words]
+      res[:trend_modeled_words].uniq! if res[:trend_modeled_words]
     end
     # - popular modeled words
     max_modeled = modeled_words.to_a.map(&:last).max || 0
