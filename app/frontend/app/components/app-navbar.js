@@ -40,6 +40,9 @@ export default Component.extend({
     return !this.get('isOnModernDashboard');
   }),
 
+  /** When true, the mobile drawer (landing-alt nav) is open. */
+  isLandingDrawerOpen: false,
+
   actions: {
     index() {
       this.get('application').send('index');
@@ -49,6 +52,16 @@ export default Component.extend({
     },
     toggleHeroColors() {
       this.get('application').send('toggleHeroColors');
+    },
+    toggleLandingDrawer() {
+      this.set('isLandingDrawerOpen', !this.get('isLandingDrawerOpen'));
+    },
+    closeLandingDrawer() {
+      this.set('isLandingDrawerOpen', false);
+    },
+    closeLandingDrawerAndShowFeatures() {
+      this.set('isLandingDrawerOpen', false);
+      this.get('application').send('showFeatures');
     }
   }
 });

@@ -1,6 +1,8 @@
 {{#if this.inline}}
   <div class="ll-bento-supervision-inline">
-    <h3 style='margin-top: 0;'>{{t "My Supervisors" key="my_supervisors"}}</h3>
+    {{#unless this.compactInline}}
+      <h3 style='margin-top: 0;'>{{t "My Supervisors" key="my_supervisors"}}</h3>
+    {{/unless}}
     {{#if this.model.supervisors_or_managing_org}}
       <table class="table table-hover">
         <tbody>
@@ -59,15 +61,17 @@
         </tbody>
       </table>
     {{else}}
-      <p>{{t "None found" key="none_found"}}</p>
+      {{#unless this.compactInline}}
+        <p>{{t "None found" key="none_found"}}</p>
+      {{/unless}}
     {{/if}}
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make Me someone else's Supervisor" uname=this.model.user_name key="add_supervisee"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
       {{else}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make %{uname} someone else's Supervisor" uname=this.model.user_name key="add_other_supervisee"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
       {{/if}}
       {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>
@@ -239,11 +243,11 @@
     {{/if}}
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make Me someone else's Supervisor" uname=this.model.user_name key="add_supervisee"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
       {{else}}
-        <button type='button' class='btn btn-default' {{action "add_supervisor"}}>{{t "Add Supervisor for %{uname}" uname=this.model.user_name key="add_user_supervisor"}}</button>
-        <button type='button' class='btn btn-default' {{action "add_supervisee"}} style='opacity: 0.7;'>{{t "Make %{uname} someone else's Supervisor" uname=this.model.user_name key="add_other_supervisee"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
       {{/if}}
       {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>

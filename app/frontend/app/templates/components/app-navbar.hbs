@@ -5,7 +5,7 @@
     {{!-- Single baseline: reusable authenticated inner (index + modern-dashboard). Modern Dashboard link only on authenticated view (index). --}}
     <AppNavbarAuthenticatedInner @showModernDashboardLink={{this.showModernDashboardLink}} />
   {{else}}
-    {{!-- Unauthenticated: landing-alt style (Features, Pricing, About, Try Free, hero toggle) --}}
+    {{!-- Unauthenticated: landing-alt style (Features, Pricing, About, Try Free). Reuses LaMobileDrawer for collapse. --}}
     {{#unless this.appState.installed_app}}
       {{#unless this.appState.embedded}}
         {{#unless this.appState.no_linky}}
@@ -16,7 +16,21 @@
           </div>
           <div class="la-topbar-right header-unauth-right">
             <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
+            <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{action "toggleLandingDrawer"}}>
+              <span class="la-topbar-hamburger__bar"></span>
+              <span class="la-topbar-hamburger__bar"></span>
+              <span class="la-topbar-hamburger__bar"></span>
+            </button>
           </div>
+          <LaMobileDrawer @isOpen={{this.isLandingDrawerOpen}} @onClose={{action "closeLandingDrawer"}}>
+            <a href="#" class="la-mobile-drawer__link" {{action "closeLandingDrawerAndShowFeatures"}}>{{t "Features" key="fsa_nav_features"}}</a>
+            <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo>
+            <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
+            <div class="la-mobile-drawer__divider"></div>
+            <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Sign In" key="login"}}</LinkTo>
+            <LinkTo @route="register" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Register" key="register"}}</LinkTo>
+            <LinkTo @route="register" class="la-mobile-drawer__cta" {{action "closeLandingDrawer"}}>{{t "Try Free" key="fsa_try_free"}} →</LinkTo>
+          </LaMobileDrawer>
         {{/unless}}
       {{/unless}}
     {{/unless}}

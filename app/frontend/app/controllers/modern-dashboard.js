@@ -2,7 +2,11 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { set } from '@ember/object';
 import { computed } from '@ember/object';
+import { get as emberGet, set as emberSet } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
+import { htmlSafe } from '@ember/template';
 import modal from '../utils/modal';
+import i18n from '../utils/i18n';
 
 export default Controller.extend({
   router: service(),
@@ -11,6 +15,58 @@ export default Controller.extend({
   activeTab: 'home',
   isSearchOpen: false,
   showNewBoardForm: false,
+  pillnavDropdownOpen: false,
+
+  activeTabLabel: computed('activeTab', function() {
+    var tab = this.get('activeTab');
+    var labels = {
+      home: i18n.t('home', 'Home'),
+      boards: i18n.t('boards', 'Boards'),
+      reports: i18n.t('reports', 'Reports'),
+      extras: i18n.t('extras', 'Extras'),
+      supervisors: i18n.t('supervisors', 'Supervisors')
+    };
+    return labels[tab] || labels.home;
+  }),
+
+  /** Show Getting Started card when user has not completed all checklist items (same logic as authenticated-view blank_slate) */
+  showGettingStarted: computed('appState.currentUser.preferences.progress', function() {
+    var progress = this.appState.get('currentUser.preferences.progress');
+    return progress && !progress.setup_done;
+  }),
+  gettingStartedPercent: computed('appState.currentUser.preferences.progress', function() {
+    var options = ['intro_watched', 'profile_edited', 'preferences_edited', 'home_board_set', 'app_added'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 100; }
+    var done = 0;
+    options.forEach(function(opt) {
+      if (progress[opt]) { done++; }
+    });
+    return options.length ? Math.round(done / options.length * 100) : 0;
+  }),
+  gettingStartedPercentStyle: computed('gettingStartedPercent', function() {
+    return htmlSafe('width: ' + this.get('gettingStartedPercent') + '%;');
+  }),
+  gettingStartedStep: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (var i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
+  }),
+
+  /* Board count for stat (value will be wired in the future); used for number and Board vs Boards label */
+  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', function() {
+    var user = this.get('appState.currentUser');
+    if (!user) { return 12; }
+    var roots = user.get('root_boards');
+    if (roots && roots.length !== undefined) { return roots.length; }
+    var mine = user.get('my_boards');
+    if (mine && mine.length !== undefined) { return mine.length; }
+    return 12;
+  }),
 
   extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
@@ -46,7 +102,11 @@ export default Controller.extend({
 
   onSearchKeydown(event) {
     if (event && event.key === 'Escape') {
-      set(this, 'isSearchOpen', false);
+      if (this.get('pillnavDropdownOpen')) {
+        set(this, 'pillnavDropdownOpen', false);
+      } else {
+        set(this, 'isSearchOpen', false);
+      }
     }
   },
 
@@ -86,6 +146,15 @@ export default Controller.extend({
       return;
     }
     set(this, 'activeTab', tab);
+  },
+
+  togglePillnavDropdown() {
+    set(this, 'pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
+  },
+
+  selectTab(tab) {
+    this.goTab(tab);
+    set(this, 'pillnavDropdownOpen', false);
   },
 
   go(dest) {
@@ -134,6 +203,10 @@ export default Controller.extend({
     }
   },
 
+  getting_started() {
+    modal.open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
+  },
+
   extraAction(name) {
     var appState = this.appState;
     var user = appState.get('currentUser');
@@ -172,6 +245,47 @@ export default Controller.extend({
     }
   },
 
+  homeInSpeakMode(boardForUserId, keepAsSelf) {
+    var appState = this.appState;
+    if (boardForUserId) {
+      appState.set_speak_mode_user(boardForUserId, true, keepAsSelf);
+    } else if ((emberGet(appState.get('currentUser'), 'permissions.delete') && (appState.get('currentUser.supervisees') || []).length > 0) || appState.get('currentUser.communicator_in_supporter_view')) {
+      var prompt = i18n.t('speak_as_which_user', "Select User to Speak As");
+      if (appState.get('currentUser.communicator_in_supporter_view')) {
+        prompt = i18n.t('speak_as_which_mode', "Select Mode and User for Session");
+      }
+      appState.set('referenced_speak_mode_user', null);
+      appState.get('controller').send('switch_communicators', { stay: true, modeling: 'ask', skip_me: false, header: prompt });
+    } else {
+      appState.home_in_speak_mode();
+    }
+  },
+
+  recordNoteFor(supervisee) {
+    var user = supervisee || this.appState.get('currentUser');
+    if (!emberGet(user, 'avatar_url_with_fallback')) {
+      emberSet(user, 'avatar_url_with_fallback', emberGet(user, 'avatar_url'));
+    }
+    var _this = this;
+    this.appState.check_for_needing_purchase().then(function() {
+      modal.open('record-note', { note_type: 'text', user: user }).then(function() {
+        runLater(function() {
+          _this.appState.get('currentUser').reload().then(null, function() {});
+        }, 5000);
+      });
+    }, function() {
+      modal.open('record-note', { note_type: 'text', user: user });
+    });
+  },
+
+  quickAssessmentFor(supervisee) {
+    if (emberGet(supervisee, 'premium') || emberGet(supervisee, 'currently_premium')) {
+      modal.open('quick-assessment', { user: supervisee });
+    } else {
+      modal.open('premium-required', { user_name: supervisee.user_name, action: 'quick_assessment', reason: 'not_currently_premium' });
+    }
+  },
+
   actions: {
     openSearch() { this.openSearch(); },
     closeSearch() { this.closeSearch(); },
@@ -179,6 +293,8 @@ export default Controller.extend({
     goHelp() { this.goHelp(); },
     openAccount() { this.openAccount(); },
     goTab(tab) { this.goTab(tab); },
+    selectTab(tab) { this.selectTab(tab); },
+    togglePillnavDropdown() { this.togglePillnavDropdown(); },
     go(dest) { this.go(dest); },
     goAndCloseSearch(dest) { this.goAndCloseSearch(dest); },
     newBoard() { this.newBoard(); },
@@ -186,6 +302,10 @@ export default Controller.extend({
     closeNewBoardForm() { this.closeNewBoardForm(); },
     goUpgrade() { this.goUpgrade(); },
     extraAction(name) { this.extraAction(name); },
-    openExtrasTab() { this.openExtrasTab(); }
+    openExtrasTab() { this.openExtrasTab(); },
+    homeInSpeakMode(boardForUserId, keepAsSelf) { this.homeInSpeakMode(boardForUserId, keepAsSelf); },
+    recordNoteFor(supervisee) { this.recordNoteFor(supervisee); },
+    quickAssessmentFor(supervisee) { this.quickAssessmentFor(supervisee); },
+    getting_started() { this.getting_started(); }
   }
 });

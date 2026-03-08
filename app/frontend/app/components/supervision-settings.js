@@ -16,7 +16,8 @@ export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   tagName: '',
-  
+  compactInline: false,
+
   init() {
     this._super(...arguments);
     this.set('add_supervisee_hit', false);

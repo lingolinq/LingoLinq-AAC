@@ -1,16 +1,23 @@
 <div class="md-user-layout hide_print">
   {{#if (and this.from_dashboard (or (is-equal this.app_state.current_route "user.stats") (is-equal this.app_state.current_route "user.logs")))}}
-  <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-    <LinkTo @route="modern-dashboard" class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
-    <LinkTo @route="modern-dashboard.boards" class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
-    {{#if (is-equal this.app_state.current_route "user.stats")}}
-    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Reports" key="reports"}}</span>
-    {{else}}
-    <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash from_dashboard=1 highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
-    {{/if}}
-    <LinkTo @route="modern-dashboard.extras" class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
-    <LinkTo @route="modern-dashboard.supervisors" class="md-pillnav__pill">{{t "Supervisors" key="supervisors"}}</LinkTo>
-  </nav>
+  <div class="md-shell md-shell--reports-view">
+    <div class="md-workspace">
+      <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+        <LinkTo @route="modern-dashboard" class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
+        <LinkTo @route="modern-dashboard.boards" class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
+        {{#if (is-equal this.app_state.current_route "user.stats")}}
+        <span class="md-pillnav__pill is-active" aria-current="page">{{t "Reports" key="reports"}}</span>
+        {{else}}
+        <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash from_dashboard=1 highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
+        {{/if}}
+        <LinkTo @route="modern-dashboard.extras" class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
+        <LinkTo @route="modern-dashboard.supervisors" class="md-pillnav__pill">{{t "Supervisors" key="supervisors"}}</LinkTo>
+      </nav>
+      <div class="md-user-outlet md-user-outlet--in-workspace">
+        {{outlet}}
+      </div>
+    </div>
+  </div>
   {{else}}
   <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
     <LinkTo @route="user.index" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill">{{t "summary" key="summary_lower"}}</LinkTo>
@@ -40,6 +47,8 @@
   {{/if}}
 </div>
 
+{{#unless (and this.from_dashboard (or (is-equal this.app_state.current_route "user.stats") (is-equal this.app_state.current_route "user.logs")))}}
 <div class="md-user-outlet">
   {{outlet}}
 </div>
+{{/unless}}

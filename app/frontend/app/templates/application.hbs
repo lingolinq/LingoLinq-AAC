@@ -295,21 +295,15 @@
                 <span class="la-topbar-hamburger__bar"></span>
               </button>
             </div>
-            {{#if this.landingNavOpen}}
-              <div class="la-mobile-drawer">
-                <div class="la-mobile-drawer__backdrop" {{action "closeLandingNav"}}></div>
-                <div class="la-mobile-drawer__panel">
-                  <button class="la-mobile-drawer__close" type="button" aria-label={{t "Close menu" key='fsa_close_menu'}} {{action "closeLandingNav"}}>&times;</button>
-                  <a href="#" class="la-mobile-drawer__link" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
-                  <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
-                  <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
-                  <div class="la-mobile-drawer__divider"></div>
-                  <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Sign In" key='login'}}</LinkTo>
-                  <LinkTo @route="register" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Register" key='register'}}</LinkTo>
-                  <LinkTo @route="register" class="la-mobile-drawer__cta" {{action "closeLandingNav"}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
-                </div>
-              </div>
-            {{/if}}
+            <LaMobileDrawer @isOpen={{this.landingNavOpen}} @onClose={{action "closeLandingNav"}}>
+              <a href="#" class="la-mobile-drawer__link" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+              <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
+              <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
+              <div class="la-mobile-drawer__divider"></div>
+              <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Sign In" key='login'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Register" key='register'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__cta" {{action "closeLandingNav"}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
+            </LaMobileDrawer>
           {{/unless}}
         {{/unless}}
       {{/unless}}

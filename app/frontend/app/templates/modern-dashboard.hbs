@@ -1,6 +1,6 @@
 <div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--board-view"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (is-equal this.activeTab "extras") "md-shell--extras-view"}} {{if (is-equal this.activeTab "supervisors") "md-shell--supervisor-view"}}">
   <div class="md-workspace">
-  {{!-- Primary Nav Pills (navbar is in application header when on modern-dashboard) --}}
+  {{!-- Primary Nav: pill strip above 525px, dropdown below (active action shown) --}}
   <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
       {{t "Home" key="home"}}
@@ -18,6 +18,19 @@
       {{t "Supervisors" key="supervisors"}}
     </button>
   </nav>
+  <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
+    <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <span class="md-pillnav-dropdown__label">{{this.activeTabLabel}}</span>
+      <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
+    </button>
+    <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "extras") "is-active"}}" {{action "selectTab" "extras"}}>{{t "Extras" key="extras"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "supervisors") "is-active"}}" {{action "selectTab" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button></li>
+    </ul>
+  </div>
 
   <main class="md-main">
     <header class="md-hero md-hero--dashboard">
@@ -25,7 +38,34 @@
       <p class="md-hero__sub">{{t "Let's continue where you left off." key="md_hero_sub"}}</p>
     </header>
 
-    <section class="md-grid md-grid--dashboard" aria-label={{t "Dashboard" key="dashboard"}}>
+    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+      {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
+      <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
+        <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
+        <div class="md-card__head md-card__head--getting-started">
+          <div class="md-card__head-left">
+            <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
+              <img src={{path "images/pastel-getting-started.svg"}} class="md-card__icon-img" alt="" aria-hidden="true">
+            </div>
+            <div class="md-card__titles">
+              <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+              <div class="md-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
+            </div>
+          </div>
+          <div class="md-card__getting-started-status">
+            <div class="md-card__progress" role="progressbar" aria-valuenow={{this.gettingStartedPercent}} aria-valuemin="0" aria-valuemax="100">
+              <div class="md-card__progress-fill" style={{this.gettingStartedPercentStyle}}></div>
+              <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.gettingStartedPercent}}</span>
+            </div>
+            <span class="md-card__getting-started-step">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.gettingStartedStep total=5}}</span>
+          </div>
+        </div>
+        <button type="button" class="md-btn md-card__getting-started-btn" {{action "getting_started"}}>
+          {{t "Help me Setup my Account" key="help_me_setup_account"}}
+        </button>
+      </article>
+      <div class="md-grid__divider" aria-hidden="true"></div>
+      {{/if}}
       <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
@@ -87,7 +127,11 @@
           {{/if}}
           <div class="md-stat">
             <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
-            <div class="md-stat__num">12</div>
+            <div class="md-stat__num">{{this.boardCount}}</div>
+            <div class="md-stat__meta">
+              <div>{{t "Total" key="total"}}</div>
+              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
+            </div>
           </div>
         </div>
         {{#if this.showNewBoardForm}}
@@ -181,10 +225,10 @@
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
           <div class="md-stat">
             <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
-            <div class="md-stat__num">12</div>
+            <div class="md-stat__num">{{this.boardCount}}</div>
             <div class="md-stat__meta">
               <div>{{t "Total" key="total"}}</div>
-              <div>{{t "Boards" key="boards"}}</div>
+              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
             </div>
           </div>
         </div>
@@ -269,69 +313,90 @@
       {{/if}}
 
       {{#if (is-equal this.activeTab "supervisors")}}
-      <article class="md-card md-card--sup" aria-label={{t "Supervisors" key="supervisors"}}>
-        <div class="md-card__head md-card__head--between">
-          <div class="md-card__title">{{t "Supervisors" key="supervisors"}}</div>
-        </div>
-        <div class="md-people">
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p2" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Sarah Chen</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+      <section class="md-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
+        {{#if this.appState.currentUser.supporter_role}}
+          <article class="md-card md-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
+                <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
+              </div>
             </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p1" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Marcus Webb</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            <div class="md-people">
+              {{#if this.appState.currentUser.known_supervisees}}
+                {{#each this.appState.currentUser.known_supervisees as |supervisee|}}
+                  <div class="md-person md-person--linked">
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="md-person__main">
+                      <img src={{supervisee.avatar_url}} class="md-avatar md-avatar--img" alt="" aria-hidden="true">
+                      <div class="md-person__meta">
+                        <div class="md-person__name">{{supervisee.user_name}}</div>
+                        {{#if supervisee.goal}}
+                          <div class="md-person__role md-muted">{{supervisee.goal.summary}}</div>
+                        {{else}}
+                          <div class="md-person__role md-muted">{{t "no goal set" key="no_goal_set"}}</div>
+                        {{/if}}
+                        {{#if supervisee.unread_messages}}
+                          <span class="md-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
+                        {{/if}}
+                      </div>
+                    </LinkTo>
+                    <ul class="md-person__links" role="list">
+                      <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
+                      {{#if supervisee.home_board_key}}
+                        <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
+                      {{/if}}
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</a></li>
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</a></li>
+                      <li><LinkTo @route="user.stats" @model={{supervisee.user_name}} @query={{hash highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "Reports" key="reports"}}</LinkTo></li>
+                      <li><a href="#" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
+                      <li><a href="#" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                    </ul>
+                  </div>
+                {{/each}}
+                {{#if this.appState.currentUser.all_connections.loading}}
+                  <div class="md-person md-muted">{{t "Loading more..." key="loading_more"}}</div>
+                {{else if this.appState.currentUser.all_connections.error}}
+                  <div class="md-person md-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
+                {{/if}}
+              {{else}}
+                <div class="md-person md-muted">{{t "None found" key="none_found"}}</div>
+              {{/if}}
             </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p3" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Elena Torres</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+          </article>
+        {{else}}
+          <article class="md-card md-card--sup md-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
+                <div class="md-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
+                {{#unless this.appState.currentUser.supervisors_or_managing_org}}
+                  <span class="md-info-badge md-info-badge--below-sub" role="status">
+                    <span class="md-info-badge__dot" aria-hidden="true"></span>
+                    {{t "None found" key="none_found"}}
+                  </span>
+                {{/unless}}
+              </div>
             </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p4" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">James Park</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
+            <div class="md-card__sup-inline">
+              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true}}
             </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p5" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Yuki Tanaka</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
-            </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p6" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">David Okonkwo</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
-            </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p7" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Rachel Green</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
-            </div>
-          </div>
-          <div class="md-person">
-            <div class="md-avatar md-avatar--p8" aria-hidden="true"></div>
-            <div class="md-person__meta">
-              <div class="md-person__name">Alex Rivera</div>
-              <div class="md-person__role">{{t "Supervisor" key="supervisor"}}</div>
-            </div>
-          </div>
-        </div>
-      </article>
+          </article>
+          {{#if this.appState.currentUser.supervised_units}}
+            <article class="md-card md-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
+              <div class="md-card__head">
+                <div class="md-card__title">{{t "rooms:" key="rooms_colon"}}</div>
+              </div>
+              <div class="md-rooms-list">
+                {{#each this.appState.currentUser.supervised_units as |unit|}}
+                  <span class="md-rooms-list__item">
+                    <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>{{unit.name}}</LinkTo>
+                  </span>
+                {{/each}}
+              </div>
+            </article>
+          {{/if}}
+        {{/if}}
+      </section>
       {{/if}}
 
       {{#if (is-equal this.activeTab "extras")}}
@@ -342,15 +407,17 @@
           {{#each this.extrasItems as |item|}}
             {{#if item.show}}
               <article class="md-extras-card" role="listitem">
-                <div class="md-extras-card__icon-wrap {{if (is-equal item.action "newBoard") "md-extras-card__icon-wrap--new-board"}} {{if (is-equal item.action "intro") "md-extras-card__icon-wrap--learn-setup"}}">
-                  <img src={{path item.image}} class="md-extras-card__img" alt="" aria-hidden="true">
+                <div class="md-extras-card__head">
+                  <div class="md-extras-card__icon-wrap {{if (is-equal item.action "newBoard") "md-extras-card__icon-wrap--new-board"}} {{if (is-equal item.action "intro") "md-extras-card__icon-wrap--learn-setup"}}">
+                    <img src={{path item.image}} class="md-extras-card__img" alt="" aria-hidden="true">
+                  </div>
+                  <div class="md-extras-card__body">
+                    <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
+                    <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
+                  </div>
                 </div>
-                <div class="md-extras-card__body">
-                  <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
-                  <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
-                </div>
-                <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
-                  {{t item.btn_default key=item.btn_key}}
+                <button type="button" class="md-btn md-btn--primary md-btn--wide md-extras-card__btn" {{action "extraAction" item.action}}>
+                  {{t item.btn_default key=item.btn_key}} →
                 </button>
               </article>
             {{/if}}

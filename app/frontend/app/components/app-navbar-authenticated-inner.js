@@ -13,11 +13,25 @@ export default Component.extend({
   tagName: '',
   appState: service('app-state'),
 
+  /** When true, the mobile drawer (same structure as landing la-mobile-drawer) is open. */
+  isDrawerOpen: false,
+
   application: computed(function() {
     return getOwner(this).lookup('controller:application');
   }),
 
   actions: {
+    toggleDrawer() {
+      this.toggleProperty('isDrawerOpen');
+    },
+    closeDrawer() {
+      this.set('isDrawerOpen', false);
+      this.get('application').send('closeThemePicker');
+    },
+    closeDrawerAndSend(signal) {
+      this.send('closeDrawer');
+      this.get('application').send(signal);
+    },
     support() {
       this.get('application').send('support');
     },

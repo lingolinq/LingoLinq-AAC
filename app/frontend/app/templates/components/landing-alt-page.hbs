@@ -244,41 +244,64 @@
 
       <hr class="la-divider" aria-hidden="true">
 
-      {{!-- ── Footer ── --}}
-      <footer id="la-footer" class="la-footer">
+      {{!-- ── Footer (reusable collapse: brand + hamburger at 1024px, drawer with links) ── --}}
+      <footer id="la-footer" class="la-footer la-footer--collapsible">
         <div class="la-footer-inner">
           <div class="la-footer-brand">
             {{app-logo linkRoute="index" class="la-footer-logo" imgClass="la-footer-logo-img" size="75px" showName=true nameStyle="branded" imgAlt="" ariaHiddenImg=true}}
             <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key='landing_footer_tagline'}}</p>
           </div>
-          <div class="la-footer-col">
-            <h4>{{t "Product" key='landing_footer_product'}}</h4>
-            <a href="#" {{action "showFeatures"}}>{{t "Features" key='landing_footer_features'}}</a>
-            <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
-            <LinkTo @route="landing">{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
-            <LinkTo @route="index">{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
+          <div class="la-footer__main--desktop">
+            <div class="la-footer-col">
+              <h4>{{t "Product" key='landing_footer_product'}}</h4>
+              <a href="#" {{action "showFeatures"}}>{{t "Features" key='landing_footer_features'}}</a>
+              <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
+              <LinkTo @route="landing">{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
+              <LinkTo @route="index">{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
+            </div>
+            <div class="la-footer-col">
+              <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
+              <LinkTo @route="intro">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+              <a href="#" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</a>
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key='landing_footer_api'}}</a>
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key='landing_footer_oss'}}</a>
+            </div>
+            <div class="la-footer-col">
+              <h4>{{t "Company" key='landing_footer_company'}}</h4>
+              <LinkTo @route="about">{{t "About Us" key='landing_footer_about'}}</LinkTo>
+              <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Blog" key='landing_footer_blog'}}</a>
+              <LinkTo @route="contact">{{t "Contact" key='landing_footer_contact'}}</LinkTo>
+              <a href="#" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
+            </div>
+            <div class="la-footer-bottom">
+              <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
+              <div class="la-footer-bottom-badges">
+                <span class="la-badge la-badge--wcag">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
+                <span class="la-badge la-badge--oss">{{t "Open Source" key='landing_oss_badge'}}</span>
+              </div>
+            </div>
           </div>
-          <div class="la-footer-col">
-            <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
-            <LinkTo @route="intro">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-            <a href="#" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</a>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key='landing_footer_api'}}</a>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key='landing_footer_oss'}}</a>
-          </div>
-          <div class="la-footer-col">
-            <h4>{{t "Company" key='landing_footer_company'}}</h4>
-            <LinkTo @route="about">{{t "About Us" key='landing_footer_about'}}</LinkTo>
-            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Blog" key='landing_footer_blog'}}</a>
-            <LinkTo @route="contact">{{t "Contact" key='landing_footer_contact'}}</LinkTo>
-            <a href="#" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
-          </div>
-        </div>
-        <div class="la-footer-bottom">
-          <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
-          <div class="la-footer-bottom-badges">
-            <span class="la-badge la-badge--wcag">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
-            <span class="la-badge la-badge--oss">{{t "Open Source" key='landing_oss_badge'}}</span>
-          </div>
+          <LaFooterDrawer as |f|>
+            <div class="la-mobile-drawer__header">{{t "Product" key='landing_footer_product'}}</div>
+            <a href="#" class="la-mobile-drawer__link" {{action "showFeatures"}} {{action f.closeDrawer}}>{{t "Features" key='landing_footer_features'}}</a>
+            <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
+            <LinkTo @route="landing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
+            <LinkTo @route="index" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
+            <div class="la-mobile-drawer__divider"></div>
+            <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
+            <LinkTo @route="intro" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+            <a href="#" class="la-mobile-drawer__link" {{action "support"}} {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</a>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "API Docs" key='landing_footer_api'}}</a>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+            <div class="la-mobile-drawer__divider"></div>
+            <div class="la-mobile-drawer__header">{{t "Company" key='landing_footer_company'}}</div>
+            <LinkTo @route="about" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "About Us" key='landing_footer_about'}}</LinkTo>
+            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Blog" key='landing_footer_blog'}}</a>
+            <LinkTo @route="contact" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Contact" key='landing_footer_contact'}}</LinkTo>
+            <a href="#" class="la-mobile-drawer__link" {{action "support"}} {{action f.closeDrawer}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
+            <div class="la-mobile-drawer__divider"></div>
+            <span class="la-mobile-drawer__footer-note">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
+          </LaFooterDrawer>
         </div>
       </footer>
 

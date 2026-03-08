@@ -1607,18 +1607,20 @@ export default Controller.extend({
     'appState.sidebar_visible',
     'appState.index_view',
     'appState.current_route',
+    'appState.index_or_landing_view',
     'session.isAuthenticated',
     'appState.currentUser.preferences.new_index',
+    'isModernDashboardRoute',
     function() {
       var res = "";
       if(this.appState.get('sidebar_visible')) {
         res = res + "with_sidebar ";
       }
       var route = this.appState.get('current_route');
-      if(this.appState.get('index_view') || route === 'landing' || route === 'modern-dashboard') {
+      if(this.appState.get('index_or_landing_view')) {
         res = res + "index ";
       }
-      if(route === 'modern-dashboard') {
+      if(this.get('isModernDashboardRoute')) {
         res = res + "modern-dashboard ";
       }
       if(route === 'user.stats') {
