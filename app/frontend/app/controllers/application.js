@@ -44,8 +44,11 @@ export default Controller.extend({
   useAltLanding: true, // default unauthenticated view is landing-alt
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
 
-  /** Show page footer when not viewing a board (index, landing-alt, user routes, etc.). */
-  footer: computed('appState.currentBoardState', function() {
+  /** Show page footer when not viewing a board (index, landing-alt, user routes, etc.) or when on setup (setup uses same page footer as other pages). */
+  footer: computed('appState.currentBoardState', 'appState.current_route', function() {
+    if (this.isSetupRoute) {
+      return true;
+    }
     return !this.appState.get('currentBoardState');
   }),
 
@@ -356,6 +359,9 @@ export default Controller.extend({
     },
     support: function() {
       modal.open('support');
+    },
+    getting_started: function() {
+      this.get('modalService').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
     toggleHeroColors: function() {
       this.set('useAltHeroColors', !this.get('useAltHeroColors'));
@@ -1677,8 +1683,16 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, user.stats, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', function() {
-    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute');
+  /** True when current route is setup or any nested route (e.g. setup.intro, setup.voice). */
+  isSetupRoute: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'setup' || (route && route.indexOf('setup.') === 0);
+  }),
+  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup uses same navbar as authenticated view. About page uses same navbar when user is logged in. */
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'appState.current_route', 'appState.currentUser', function() {
+    var route = this.appState.get('current_route');
+    var cu = this.appState.get('currentUser');
+    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') ||
+      (route === 'about' && cu);
   })
 });

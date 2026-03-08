@@ -28,6 +28,32 @@ export default Controller.extend({
   queryParams: ['page', 'finish', 'user_id'],
   order: order,
   extra_order: extra_order,
+  setup_index: computed('page', 'appState.controller.setup_index', function() {
+    var ctrl = this.appState && this.appState.get('controller');
+    return ctrl ? ctrl.get('setup_index') : 1;
+  }),
+  setup_order_length: computed('page', 'appState.controller.setup_order', function() {
+    var ctrl = this.appState && this.appState.get('controller');
+    var o = ctrl && ctrl.get('setup_order');
+    return o && o.length ? o.length : order.length;
+  }),
+  setup_previous: computed('page', 'appState.controller.setup_previous', function() {
+    var ctrl = this.appState && this.appState.get('controller');
+    return ctrl ? ctrl.get('setup_previous') : false;
+  }),
+  setup_next: computed('page', 'appState.controller.setup_next', function() {
+    var ctrl = this.appState && this.appState.get('controller');
+    return ctrl ? ctrl.get('setup_next') : false;
+  }),
+  setupProgressPercent: computed('setup_index', 'setup_order_length', function() {
+    var len = this.get('setup_order_length');
+    if(!len) { return 0; }
+    return Math.round((this.get('setup_index') / len) * 100);
+  }),
+  setupProgressStyle: computed('setupProgressPercent', function() {
+    var pct = this.get('setupProgressPercent');
+    return (pct !== undefined && pct !== null) ? ('width: ' + pct + '%') : 'width: 0%';
+  }),
   setupComponent: computed('page', function() {
     var page = this.get('page');
     var pages = order.concat(extra_order);
@@ -346,7 +372,7 @@ export default Controller.extend({
         this.set('cell', user.get('cell_phone'));
       } else if(change == 'setup_user.cell_phone') {
         this.set('cell', user.get('cell_phone'));
-      } else if(this.get('cell')) {
+      } else if(this.get('cell') && user.get('cell_phone') !== this.get('cell')) {
         user.set('cell_phone', this.get('cell'));
         this.send('set_preference', 'cell_phone', this.get('cell'));
       }
@@ -363,7 +389,7 @@ export default Controller.extend({
       var user = this.get('setup_user') || this.get('fake_user');
       if(!this.get('pin') && user.get('preferences.speak_mode_pin') && user.get('preferences.require_speak_mode_pin')) {
         this.set('pin', user.get('preferences.speak_mode_pin') || "");
-      } else if(change == 'setup_user.preferences.speak_mode_pin') {
+      } else if(change == 'setup_user.preferences.speak_mode_pin' || change == 'setup_user.preferences.require_speak_mode_pin') {
         this.set('pin', user.get('preferences.speak_mode_pin') || "");
       } else {
         var pin = (parseInt(this.get('pin'), 10) || "").toString().substring(0, 4);
@@ -373,10 +399,12 @@ export default Controller.extend({
             _this.set('pin', pin);
           }
         }, 10);
-        if(pin.length == 4 && (!user.get('preferences.require_speak_mode_pin') || pin != user.get('preferences.speak_mode_pin'))) {
+        var pinChanged = pin.length == 4 && (!user.get('preferences.require_speak_mode_pin') || pin != user.get('preferences.speak_mode_pin'));
+        var requireOff = pin.length != 4 && user.get('preferences.require_speak_mode_pin');
+        if(pinChanged) {
           user.set('preferences.require_speak_mode_pin', true);
           this.send('set_preference', 'speak_mode_pin', this.get('pin'));
-        } else if(pin.length != 4 && user.get('preferences.require_speak_mode_pin')) {
+        } else if(requireOff) {
           this.send('set_preference', 'require_speak_mode_pin', false);
         }
       }
@@ -590,9 +618,11 @@ export default Controller.extend({
       this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
     }
     user.save().then(function() {
-      if(_this.appState && _this.appState.controller) {
-        _this.appState.controller.set('footer_status', null);
-      }
+      runLater(function() {
+        if(_this.appState && _this.appState.controller && !_this._save_user_timer) {
+          _this.appState.controller.set('footer_status', null);
+        }
+      }, 150);
     }, function(err) {
       if(_this.appState && _this.appState.controller) {
         _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
@@ -613,6 +643,12 @@ export default Controller.extend({
   actions: {
     noop: function() {
 
+    },
+    setup_go: function(direction) {
+      var ctrl = this.appState && this.appState.get('controller');
+      if(ctrl && typeof ctrl.send === 'function') {
+        ctrl.send('setup_go', direction);
+      }
     },
     find_new_board: function() {
       this.set('do_find_board', true);

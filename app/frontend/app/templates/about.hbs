@@ -2,47 +2,32 @@
   <div class="app-shell">
     <main class="la-main" role="main">
 
-      {{!-- ── Hero Intro ── --}}
-      <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
-        <span class="la-section-eyebrow-badge">
-          {{t "About" key="about"}} <span style="color: #2a5aa8;">Lingo</span><span style="color: #3a6bc7; font-style: italic;">Linq</span>
-        </span>
-        <div class="la-hero-title-wrap">
-          <h1 class="la-hero-title">
+      {{!-- ── Hero Intro (same styling as landing-alt "Built for how schools") ── --}}
+      <section id="about-hero" class="la-section">
+        <div class="la-section-header">
+          <span class="la-section-eyebrow-badge">{{t "About" key="about"}} <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span></span>
+          <h1 class="la-section-title">
             {{t "Every voice should be" key="every_voice_should_be"}} <em>{{t "heard" key="heard"}}</em>
           </h1>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-section-subtitle">{{t "Open-source AAC that works everywhere—in the cloud, offline, and across every device." key="about_hero_subtitle"}}</p>
         </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
-        <div class="la-about-glass-grid">
-          <div class="la-about-glass-card">
-            <div class="la-about-glass-card__header">
-              <span class="la-about-glass-card__icon" aria-hidden="true">💬</span>
-              <h3 class="la-about-glass-card__title">{{t "The Challenge" key="about_the_challenge"}}</h3>
-            </div>
-            <p class="la-about-glass-card__text">
-              {{t "Some people need help being heard -- and the tools out there? Often clunky, confusing, and way too expensive." key="the_challenge_text"}} <strong class="la-challenge-cta">{{t "We're here to change that." key="the_challenge_cta"}}</strong>
-            </p>
+        <div class="la-feature-grid">
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">💬</div>
+            <h3>{{t "The Challenge" key="about_the_challenge"}}</h3>
+            <p>{{t "Some people need help being heard -- and the tools out there? Often clunky, confusing, and way too expensive." key="the_challenge_text"}} <strong>{{t "We're here to change that." key="the_challenge_cta"}}</strong></p>
           </div>
-
-          <div class="la-about-glass-card">
-            <div class="la-about-glass-card__header">
-              <span class="la-about-glass-card__icon" aria-hidden="true">🔗</span>
-              <h3 class="la-about-glass-card__title">{{t "Our Mission" key="about_our_mission"}}</h3>
-            </div>
-            <p class="la-about-glass-card__text">
-              {{t "LingoLinq means linking language to the people who need it most. Everyone deserves a voice that's easy to use, affordable, and just works." key="our_mission_text"}} <strong class="la-challenge-cta">{{t "That's what LingoLinq is all about." key="our_mission_closer"}}</strong>
-            </p>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">🔗</div>
+            <h3>{{t "Our Mission" key="about_our_mission"}}</h3>
+            <p>{{t "LingoLinq means linking language to the people who need it most. Everyone deserves a voice that's easy to use, affordable, and just works." key="our_mission_text"}} <strong>{{t "That's what LingoLinq is all about." key="our_mission_closer"}}</strong></p>
           </div>
-
-          <div class="la-about-glass-card la-about-glass-card--cta">
-            <div class="la-about-glass-card__header">
-              <span class="la-about-glass-card__icon" aria-hidden="true">🚀</span>
-              <h3 class="la-about-glass-card__title">{{t "Get Started" key="about_get_started"}}</h3>
-            </div>
-            <p class="la-about-glass-card__text">
-              {{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong>
-            </p>
-            <div class="la-hero-actions" style="justify-content: center; margin-top: 1.25rem;">
+          <div class="la-feature-card la-feature-card--cta">
+            <div class="la-feature-icon la-feature-icon--coral" aria-hidden="true">🚀</div>
+            <h3>{{t "Get Started" key="about_get_started"}}</h3>
+            <p>{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong>{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
+            <div class="la-about-hero-actions">
               <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
               <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
             </div>
@@ -50,80 +35,44 @@
         </div>
       </section>
 
-      {{!-- ── Features ── --}}
-      <section class="la-section">
+      {{!-- ── What We Offer (feature cards, same as landing-alt) ── --}}
+      <section id="about-what-we-offer" class="la-section">
         <div class="la-section-header">
           <span class="la-section-eyebrow-badge">{{t "What We Offer" key="about_what_we_offer"}}</span>
           <h2 class="la-section-title">{{t "Built around" key="about_features_title_1"}} <em>{{t "what matters" key="about_features_title_2"}}</em></h2>
           <hr class="la-about-hero-separator" aria-hidden="true">
         </div>
         <div class="la-feature-grid">
-          {{#expandable-card
-            icon="📖"
-            iconClass="la-feature-icon--teal"
-            titleText="Learn as You Go"
-            titleKey="learn_as_you_go"
-            catchphraseText="Expert-designed templates and training so you never start from scratch."
-            catchphraseKey="learn_as_you_go_catchphrase"
-          }}
-            <p>{{t "If you're new to the world of augmentative communication, just about every part of it feels intimidating. How could you possibly know the right words and symbols to pick for an individual's personal needs (and wants, and hopes, and wishes). Not to worry, we work with many different specialists to provide well-researched templates that will get you started. And just as importantly, we provide training resources for parents, caregivers, siblings... everyone involved in supporting an individual deserves to know what's going on and how exactly they can help the communication strategies be successful." key="learn_as_you_go_content_1"}}</p>
-          {{/expandable-card}}
-
-          {{#expandable-card
-            icon="☁️"
-            iconClass="la-feature-icon--coral"
-            titleText="Work Offline"
-            titleKey="work_offline"
-            catchphraseText="Communicate anywhere -- boards and logs sync when you reconnect."
-            catchphraseKey="work_offline_catchphrase"
-          }}
-            <p>{{t "Gathering data and working across devices is great, but there are still plenty of places where you won't have a good Wi-fi connection. %app_name% stores a user's boards and logs on each device so the user can communicate offline with no interrupts. Everything syncs back up the next time there is an internet connection." key="offline_content_1"}}</p>
-          {{/expandable-card}}
-
-          {{#expandable-card
-            icon="🔄"
-            iconClass="la-feature-icon--navy"
-            titleText="Personalization and Sync"
-            titleKey="personalization"
-            catchphraseText="Your setup follows you across every device, always up to date."
-            catchphraseKey="personalization_catchphrase"
-          }}
-            <p>{{t "Being tied to a single device is risky, especially when you've added lots of your own pictures or moved picture symbols around for personal use. Not only can you possibly lose your data and configuration, but if a screen cracks or a battery dies, you're out of luck until it can be replaced. %app_name% works across multiple devices and keeps content in sync for you so you don't have to worry." key="personalization_content_1"}}</p>
-          {{/expandable-card}}
-
-          {{#expandable-card
-            icon="🤝"
-            iconClass="la-feature-icon--coral"
-            titleText="Create, Share and Reuse"
-            titleKey="create_share"
-            catchphraseText="Discover boards, share openly, and build on each other's work."
-            catchphraseKey="create_share_catchphrase"
-          }}
-            <p>{{t "Nobody wants to start from scratch when creating a set of communication boards. %app_name% lets you easily discover and personalize communication boards created by others. And %app_name% encourages open licenses of content and symbols, so you don't have to wonder if you're breaking copyright somewhere on accident." key="create_share_content_1"}}</p>
-            <p>{{t "%app_name% is committed to making boards open and reusable. So much so that we started <a href='https://www.openboardformat.org'>the OpenBoards initiative</a> to work toward a standard file format for importing and exporting boards across all apps and devices, and we use that format as our native import/export format. When we have the freedom to build off of each other's ideas and successes regardless of where they came from, everyone wins." key="open_board_support"}}</p>
-          {{/expandable-card}}
-
-          {{#expandable-card
-            icon="👥"
-            iconClass="la-feature-icon--teal"
-            titleText="Team Coordination"
-            titleKey="coordination"
-            catchphraseText="Therapists and families collaborate without taking the device away."
-            catchphraseKey="coordination_catchphrase"
-          }}
-            <p>{{t "Having to take an individual's communication device away from them in order to program it is a terrible thing, it takes away their voice. %app_name% lets therapists, specialists, parents and other team members modify the communication set and even log session notes and messages in a place where everyone can benefit from them." key="coordination_content_1"}}</p>
-          {{/expandable-card}}
-
-          {{#expandable-card
-            icon="📊"
-            iconClass="la-feature-icon--navy"
-            titleText="Insights"
-            titleKey="insights"
-            catchphraseText="Clear reports that show what's working and where to focus next."
-            catchphraseKey="insights_catchphrase"
-          }}
-            <p>{{t "Sometimes it's really hard to know what's working and what's not. Augmentative communication is an ongoing process of modifying and introducing vocabulary, and without good reports it's difficult to be sure what needs to change. %app_name% can log all communications and provide insightful reports based on time, location and vocabulary that makes it clearer for everyone just where to focus their efforts for the best results." key="insights_content_1"}}</p>
-          {{/expandable-card}}
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--teal">📖</div>
+            <h3>{{t "Learn as You Go" key="learn_as_you_go"}}</h3>
+            <p>{{t "Expert-designed templates and training so you never start from scratch." key="learn_as_you_go_catchphrase"}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--coral">☁️</div>
+            <h3>{{t "Work Offline" key="work_offline"}}</h3>
+            <p>{{t "Communicate anywhere -- boards and logs sync when you reconnect." key="work_offline_catchphrase"}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--navy">🔄</div>
+            <h3>{{t "Personalization and Sync" key="personalization"}}</h3>
+            <p>{{t "Your setup follows you across every device, always up to date." key="personalization_catchphrase"}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--coral">🤝</div>
+            <h3>{{t "Create, Share and Reuse" key="create_share"}}</h3>
+            <p>{{t "Discover boards, share openly, and build on each other's work." key="create_share_catchphrase"}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--teal">👥</div>
+            <h3>{{t "Team Coordination" key="coordination"}}</h3>
+            <p>{{t "Therapists and families collaborate without taking the device away." key="coordination_catchphrase"}}</p>
+          </div>
+          <div class="la-feature-card">
+            <div class="la-feature-icon la-feature-icon--navy">📊</div>
+            <h3>{{t "Insights" key="insights"}}</h3>
+            <p>{{t "Clear reports that show what's working and where to focus next." key="insights_catchphrase"}}</p>
+          </div>
         </div>
       </section>
 

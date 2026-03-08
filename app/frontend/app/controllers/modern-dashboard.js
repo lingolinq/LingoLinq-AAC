@@ -11,6 +11,7 @@ import i18n from '../utils/i18n';
 export default Controller.extend({
   router: service(),
   appState: service('app-state'),
+  modal: service('modal'),
 
   activeTab: 'home',
   isSearchOpen: false,
@@ -76,11 +77,8 @@ export default Controller.extend({
     var externalDevice = user && user.get('external_device');
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
-    var introWatched = user && user.get('preferences.progress.intro_watched');
     var items = [
       { title_key: 'learn_and_setup_card', title_default: 'Learn and Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started with %app_name%', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
-      { title_key: 'new_board', title_default: 'New Board', subtitle_key: 'new_board_subtitle', subtitle_default: 'Create a new vocabulary board', image: 'images/icon-boards.png', action: 'newBoard', btn_key: 'create', btn_default: 'Create', show: !modelingOnly },
-      { title_key: 'search_boards', title_default: 'Search Boards', subtitle_key: 'find_boards_subtitle', subtitle_default: 'Find vocabulary boards', image: 'images/browse-boards-icon.svg', action: 'searchBoards', btn_key: 'search', btn_default: 'Search', show: !modelingOnly && introWatched },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
       { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
@@ -159,8 +157,10 @@ export default Controller.extend({
 
   go(dest) {
     if (dest === 'speak') {
-      this.router.transitionTo('index');
-    } else if (dest === 'boards') {
+      this.homeInSpeakMode();
+      return;
+    }
+    if (dest === 'boards') {
       this.router.transitionTo('modern-dashboard.boards');
     } else if (dest === 'supervisors') {
       this.router.transitionTo('modern-dashboard.supervisors');
@@ -204,7 +204,7 @@ export default Controller.extend({
   },
 
   getting_started() {
-    modal.open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
+    this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
   },
 
   extraAction(name) {

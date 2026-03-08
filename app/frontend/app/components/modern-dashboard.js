@@ -1,8 +1,10 @@
 import Component from '@glimmer/component';
+import { get as emberGet } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import { service } from '@ember/service';
 import modal from '../utils/modal';
+import i18n from '../utils/i18n';
 
 export default class ModernDashboardComponent extends Component {
   @service router;
@@ -12,9 +14,40 @@ export default class ModernDashboardComponent extends Component {
   @tracked isSearchOpen = false;
   @tracked showNewBoardForm = false;
 
+  /**
+   * Same behavior as authenticated-view Speak button: enter speak mode for current user,
+   * or open switch-communicators if user has supervisees / is in supporter view.
+   */
+  @action
+  goToSpeakMode() {
+    var appState = this.appState;
+    var currentUser = appState.get('currentUser');
+    var hasSupervisees = (emberGet(currentUser, 'permissions.delete') && (appState.get('currentUser.supervisees') || []).length > 0);
+    var communicatorInSupporterView = appState.get('currentUser.communicator_in_supporter_view');
+    if (hasSupervisees || communicatorInSupporterView) {
+      var prompt = i18n.t('speak_as_which_user', 'Select User to Speak As');
+      if (communicatorInSupporterView) {
+        prompt = i18n.t('speak_as_which_mode', 'Select Mode and User for Session');
+      }
+      appState.set('referenced_speak_mode_user', null);
+      var controller = appState.get('controller');
+      if (controller && typeof controller.send === 'function') {
+        controller.send('switch_communicators', { stay: true, modeling: 'ask', skip_me: false, header: prompt });
+      } else {
+        modal.open('switch-communicators', { stay: true, modeling: 'ask', skip_me: false, header: prompt });
+      }
+    } else {
+      appState.home_in_speak_mode();
+    }
+  }
+
   @action
   go(key) {
-    if (key === 'speak' || key === 'boards' || key === 'supervisors' || key === 'home' || key === 'extras') {
+    if (key === 'speak') {
+      this.goToSpeakMode();
+      return;
+    }
+    if (key === 'boards' || key === 'supervisors' || key === 'home' || key === 'extras') {
       this.router.transitionTo('index');
     } else if (key === 'reports') {
       var u = this.appState.get('currentUser.user_name');

@@ -146,7 +146,7 @@ export default Component.extend({
     }
     if(this.last_started_on_modal) {
       this.last_started_on_modal = false;
-      if(!ignore) {
+      if(!ignore && !this.get('uncloseable')) {
         this.send('close', event);
       }
     }
@@ -158,8 +158,9 @@ export default Component.extend({
     close: function(event) {
       if(!this || typeof this.get !== 'function') { return; }
       var isBackdropClick = event && event.target && $(event.target).hasClass('modal');
+      if (this.get('uncloseable') && isBackdropClick) { return; }
       var isExplicitButtonCall = event && (event.type === 'click' || event.type === 'keydown') && !isBackdropClick;
-      
+
       if(isBackdropClick) {
         try {
           event.preventDefault();

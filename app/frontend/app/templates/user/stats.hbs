@@ -30,7 +30,7 @@
         {{/if}}
       </div>
     </section>
-    <hr class="md-stats-hero__separator" aria-hidden="true">
+    <hr class="la-about-hero-separator" aria-hidden="true">
     {{#if this.usage_stats}}
       <div class="md-stats-compare-filter-group{{if this.usage_stats2 " md-stats-compare-filter-group--active" ""}}">
         {{#if this.usage_stats2}}
@@ -318,14 +318,14 @@
   {{else if this.model.permissions.edit}}
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "Reports" key="reports"}}</h1>
-      <hr class="md-stats-hero__separator" aria-hidden="true">
+      <hr class="la-about-hero-separator" aria-hidden="true">
     </section>
     <p class="md-stats-text">{{t "%app_name% can generate insightful reports on word frequency, usage by time of day or location, etc., but only if logging is enabled. Right now it's turned off, but you can enable it in your preferences." key="logging_disabled"}}</p>
     <button type="button" class="md-btn md-btn--primary" {{action "enable_logging"}}>{{t "Enable Communication Logging & Reports" key="enable_logging_and_reports"}}</button>
   {{else}}
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "Reports" key="reports"}}</h1>
-      <hr class="md-stats-hero__separator" aria-hidden="true">
+      <hr class="la-about-hero-separator" aria-hidden="true">
     </section>
     <p class="md-stats-text">{{t "Looks like this user has logging turned off, and you don't have permission to enable it for the user." key="unauthorized_reports"}}</p>
   {{/if}}
@@ -337,7 +337,7 @@
         <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{action "switch_communicators"}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </div>
-    <hr class="md-stats-hero__separator" aria-hidden="true">
+    <hr class="la-about-hero-separator" aria-hidden="true">
   </section>
   <p class="md-stats-text">
     {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are only available to users who have purchased a premium account. Please " key="purchase_subscription_1h"}}

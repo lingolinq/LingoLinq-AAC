@@ -22,6 +22,7 @@ export default Component.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
+  modal: service('modal'),
   app_state: alias('appState'),
 
   init() {
@@ -586,7 +587,7 @@ export default Component.extend({
       }
     },
     getting_started: function() {
-       modal.open('getting-started', {progress: this.appState.get('currentUser.preferences.progress')});
+      this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
     support: function() {
       modal.open('support');

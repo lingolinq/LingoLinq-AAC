@@ -2,7 +2,7 @@
   {{#if this.prompt}}
     <p>{{t "You may need to log in to access this information" key="login_needed"}}</p>
   {{/if}}
-    {{#if this.login_followup}}
+    {{#if this.showDeviceStep}}
       {{#if this.login_followup_already_long_token}}
         <h2>{{t "Approve This Device" key="approve_this_device"}}</h2>
         <p>{{t "Currently this device is set to log out after a short period of inactivity. Would you like to change this?" key="confirm_device_long_token_with_long_token"}}</p>
@@ -10,8 +10,16 @@
         <h2>{{t "Activate New Device" key="activate_new_device"}}</h2>
         <p>{{t "It looks like you haven't logged in before on this device. How would you like to proceed?" key="confirm_device_long_token"}}</p>
       {{/if}}
-      <button {{action "login_followup" true}} class={{if this.browserless "login-btn" "login-btn login-btn--outline"}} style='width: 100%;'><div style='font-size: 25px;'>{{t "Trust this Device" key="trust_this_device"}}</div>{{t "Keep me logged in" key="keep_me_logged_in"}}</button>
-      <button {{action "login_followup" false}} class='login-btn login-btn--outline' style='width: 100%; margin-top: 10px;'><div style='font-size: 25px;'>{{t "This is a Shared Device" key="not_trust_this_device"}}</div>{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</button>
+      <div class="login-device-buttons">
+        <button type="button" {{action "login_followup" true}} class={{if this.browserless "login-btn" "login-btn"}}>
+          <span class="login-btn__title">{{t "Trust this Device" key="trust_this_device"}}</span>
+          <span class="login-btn__sub">{{t "Keep me logged in" key="keep_me_logged_in"}}</span>
+        </button>
+        <button type="button" {{action "login_followup" false}} class="login-btn login-btn--outline">
+          <span class="login-btn__title">{{t "This is a Shared Device" key="not_trust_this_device"}}</span>
+          <span class="login-btn__sub">{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</span>
+        </button>
+      </div>
     {{else if this.login_single_assertion}}
       <h2>{{t "Approve This Device" key="approve_this_device"}}</h2>
       <p>{{t "This account is only allowed to log in to one dedicated device at a time. If you log in on this device it will force a log out on your other device. How would you like to proceed?" key="confirm_device_force_logout"}}</p>

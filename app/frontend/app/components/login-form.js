@@ -229,6 +229,7 @@ export default Component.extend({
         _this.set('login_single_assertion', false);
         _this.set('login_followup_already_long_token', data.long_token_set);
         _this.send('login_success', false);
+        _this.router.transitionTo('login.device');
       }, function(err) {
         if (!_this.isDestroyed && !_this.isDestroying) {
           _this.set('logging_in', false);
@@ -274,8 +275,11 @@ export default Component.extend({
   browserless: computed(function() {
     return capabilities.browserless;
   }),
-  noSubmit: computed('logging_in', 'logged_in', 'noSecret', 'redirecting', function() {
-    return this.get('noSecret') || this.get('redirecting') || this.get('logging_in') || this.get('logged_in') || this.get('login_followup');
+  showDeviceStep: computed('login_followup', 'deviceStep', function() {
+    return this.get('login_followup') || this.get('deviceStep');
+  }),
+  noSubmit: computed('logging_in', 'logged_in', 'noSecret', 'redirecting', 'showDeviceStep', function() {
+    return this.get('noSecret') || this.get('redirecting') || this.get('logging_in') || this.get('logged_in') || this.get('showDeviceStep');
   }),
   noSecret: computed('client_secret', function() {
     return !this.get('client_secret');

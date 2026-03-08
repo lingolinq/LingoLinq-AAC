@@ -1,26 +1,22 @@
-<div class='col-sm-6 col-sm-offset-3'>
-  <h4>{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</h4>
-  <span style='float: left; margin-right: 10px; margin-bottom: 5px;'>{{app-logo size="sm"}}</span>
-  <p class='prompt'>{{t "Thanks for signing up for %app_name%! We're excited you're here and hope %app_name% makes a difference for you. If you're new to %app_name%, this walkthrough will help you get started." key="intro_1"}}</p>
-  {{#if this.app_state.auto_start}}
-    <div style='margin-bottom: 40px;'>
-      <button class='btn btn-default btn-lg' {{action "done"}}>{{t "Skip For Now, Return<br>to the Dashboard" key="skip_to_dashboard"}}</button>
+<div class="md-card__head md-card__head--getting-started md-card__head--setup-intro">
+  <div class="md-card__head-left">
+    <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
+      <img src={{path "images/pastel-getting-started.svg"}} class="md-card__icon-img" alt="" aria-hidden="true">
     </div>
-  {{else}}
-    {{#if this.for_self}}
-      <div style='margin-bottom: 40px;'>
-        <button class='btn btn-default btn-lg' {{action "done"}} style='font-size: 22px;'>{{t "Skip For Now, Return<br>to the Dashboard" key="skip_to_dashboard"}}</button>
-        <button class='btn btn-default btn-lg' {{action "choose_board"}} style='font-size: 22px;'>{{t "Skip the Setup, Just<br>Help Me Choose a Board" key="skip_to_board_choice"}}</button>
-      </div>
-    {{/if}}
-  {{/if}}
-  {{#if this.setup_user.user_name}}
-    <img src={{this.setup_user.avatar_url_with_fallback}} onerror='button_broken_image(this);' style='float: left; width: 50px; height: 50px; margin-right: 10px; object-fit: contain;'>
-    <p class='prompt'>{{t "First, remember your username (<b>%{un}</b>), you can use it to log in when you download the free app. You can also edit boards, practice and view reports from any computer with a web browser!" un=this.setup_user.user_name key="intro_3"}}</p>
-  {{/if}}
-  <p class='prompt'>{{t "Next we'd like to teach just a little about AAC (Augmentative and Alternative Communication), and then help make sure you've got %app_name% set up correctly. Hit \"Next\" in the bottom corner to get started." key="intro_2"}}</p>
-  <div style='float: right;'>
-    <span class='glyphicon glyphicon-arrow-right' style='font-size: 70px; transform: rotate(45deg);'></span>
+    <div class="md-card__titles">
+      <div class="md-card__title">{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</div>
+      {{#if this.setup_user.user_name}}
+        <div class="md-card__sub">{{t "Thanks for signing up for %app_name%," key="intro_1_before"}} <span class="setup-intro__username">{{this.setup_user.user_name}}</span>{{t "! Use this walkthrough to help you get started." key="intro_1_after"}}</div>
+      {{else}}
+        <div class="md-card__sub">{{t "Thanks for signing up for %app_name%! Use this walkthrough to help you get started." key="intro_1_no_name"}}</div>
+      {{/if}}
+    </div>
   </div>
-  <div style='clear: both;'></div>
 </div>
+{{#if this.for_self}}
+  {{#unless this.app_state.auto_start}}
+    <div class="setup-intro__actions">
+      <button type="button" class="md-btn md-btn--ghost md-card__getting-started-btn--secondary" {{action "choose_board"}}>{{t "Skip Setup - I'd like to Choose a Board" key="skip_to_board_choice"}}</button>
+    </div>
+  {{/unless}}
+{{/if}}
