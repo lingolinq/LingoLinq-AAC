@@ -1477,7 +1477,7 @@ Button.load_actions = function() {
     },
     {
       action: ':click',
-      description: i18n.t('toggle_shift', "Make a Click Sound"),
+      description: i18n.t('make_click_sound', "Make a Click Sound"),
       trigger: function() {
       }
     },
