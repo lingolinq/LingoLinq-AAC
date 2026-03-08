@@ -86,18 +86,22 @@ describe Flusher do
       PaperTrail.request.whodunnit = 'user:jane'
       u = User.create
       d = Device.create(:user => u)
+      # Use fixed timestamps in the same week to avoid flakiness near week boundaries.
+      # Both sessions must share the same first-event timestamp so they land in the
+      # same weekyear (base_time - 3600 can cross Sunday midnight and create 2 summaries).
+      base_time = 3.days.ago.to_i
       s = LogSession.new(:device => d, :user => u, :author => u)
       s.data = {}
       s.data['events'] = [
-        {'user_id' => u.global_id, 'geo' => ['2', '3'], 'timestamp' => 10.minutes.ago.to_i, 'type' => 'button', 'button' => {'label' => 'hat', 'board' => {'id' => '1_1'}}},
-        {'user_id' => u.global_id, 'geo' => ['1', '2'], 'timestamp' => 8.minutes.ago.to_i, 'type' => 'button', 'button' => {'label' => 'cow', 'board' => {'id' => '1_1'}}}
+        {'user_id' => u.global_id, 'geo' => ['2', '3'], 'timestamp' => base_time, 'type' => 'button', 'button' => {'label' => 'hat', 'board' => {'id' => '1_1'}}},
+        {'user_id' => u.global_id, 'geo' => ['1', '2'], 'timestamp' => base_time + 120, 'type' => 'button', 'button' => {'label' => 'cow', 'board' => {'id' => '1_1'}}}
       ]
       s.save
       s2 = LogSession.new(:device => d, :user => u, :author => u)
       s2.data = {}
       s2.data['events'] = [
-        {'user_id' => u.global_id, 'geo' => ['2', '3'], 'timestamp' => 90.minutes.ago.to_i, 'type' => 'button', 'button' => {'label' => 'hat', 'board' => {'id' => '1_1'}}},
-        {'user_id' => u.global_id, 'geo' => ['1', '2'], 'timestamp' => 94.minutes.ago.to_i, 'type' => 'button', 'button' => {'label' => 'cow', 'board' => {'id' => '1_1'}}}
+        {'user_id' => u.global_id, 'geo' => ['2', '3'], 'timestamp' => base_time, 'type' => 'button', 'button' => {'label' => 'hat', 'board' => {'id' => '1_1'}}},
+        {'user_id' => u.global_id, 'geo' => ['1', '2'], 'timestamp' => base_time + 60, 'type' => 'button', 'button' => {'label' => 'cow', 'board' => {'id' => '1_1'}}}
       ]
       s2.save
       Worker.process_queues

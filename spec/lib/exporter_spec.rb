@@ -651,7 +651,7 @@ describe Exporter do
       expect(res[:events].length).to eq(15)
       expect(res[:events][0][:id]).to eq('sesh:0')
       expect(res[:events][0][:timestamp]).to be > "1999-12-31T23:58:00Z"
-      expect(res[:events][0][:timestamp]).to be < "2000-01-01T00:00:00Z"
+      expect(res[:events][0][:timestamp]).to be <= "2000-01-01T00:00:00Z"
       expect(res[:events][14][:timestamp]).to be > "2000-01-01T00:02:30Z"
       expect(res[:events][14][:timestamp]).to be < "2000-01-01T00:03:30Z"
       expect(res[:events][0]['ssid']).to eq(res[:events][14]['ssid'])

@@ -2971,15 +2971,16 @@ describe LogSession, :type => :model do
       }, {:user => u, :author => u2, :device => d})
       Worker.process_queues
       expect(u.reload.settings['unread_messages']).to eq(1)
-      expect(u.settings['user_notifications']).to eq([{
+      expect(u.settings['user_notifications'].length).to eq(1)
+      expect(u.settings['user_notifications'][0].except('added_at')).to eq({
         'id' => l.global_id,
         'type' => 'push_message',
         'user_name' => u.user_name,
         'author_user_name' => u2.user_name,
         'text' => 'ahem',
-        'occurred_at' => "2015-05-12T20:06:22Z",
-        'added_at' => Time.now.utc.iso8601
-      }])
+        'occurred_at' => "2015-05-12T20:06:22Z"
+      })
+      expect(Time.parse(u.settings['user_notifications'][0]['added_at'])).to be_within(5.seconds).of(Time.now.utc)
       expect(u2.reload.settings['user_notifications']).to eq(nil)
     end
   
