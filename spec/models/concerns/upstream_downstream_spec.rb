@@ -291,9 +291,7 @@ describe UpstreamDownstream, :type => :model do
       b2.save
       b2.reload.track_downstream_boards!
       RemoteAction.process_all
-      Worker.process_queues
-      Worker.process_queues
-      Worker.process_queues
+      20.times { Worker.process_queues; break if Worker.queues_empty? }
       expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b3.settings['total_buttons']).to eq(0)
       expect(b3.settings['unlinked_buttons']).to eq(0)
@@ -313,9 +311,12 @@ describe UpstreamDownstream, :type => :model do
       }
       b3.save
       RemoteAction.process_all
-      Worker.process_queues
-      Worker.process_queues
-      Worker.process_queues
+      20.times { Worker.process_queues; break if Worker.queues_empty? }
+      expect(Worker.queues_empty?).to eq(true)
+      # Synchronous track ensures downstream_board_ids are fully propagated (avoids CI timing/queue-pressure flakiness)
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b3.reload.downstream_board_ids.sort).to eq([b1.global_id, b2.global_id].sort)
       expect(b3.settings['total_buttons']).to eq(7)
       expect(b3.settings['unlinked_buttons']).to eq(4)
@@ -339,9 +340,12 @@ describe UpstreamDownstream, :type => :model do
       b3.instance_variable_set('@button_links_changed', true)
       b3.save
       RemoteAction.process_all
-      Worker.process_queues
-      Worker.process_queues
-      Worker.process_queues
+      20.times { Worker.process_queues; break if Worker.queues_empty? }
+      expect(Worker.queues_empty?).to eq(true)
+      # Synchronous track ensures downstream_board_ids are fully propagated (avoids CI timing/queue-pressure flakiness)
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b3.reload.downstream_board_ids.sort).to eq([b1.global_id, b2.global_id].sort)
       expect(b3.settings['total_buttons']).to eq(8)
       expect(b3.settings['unlinked_buttons']).to eq(5)

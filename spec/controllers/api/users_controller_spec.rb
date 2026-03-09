@@ -837,6 +837,7 @@ describe Api::UsersController, :type => :controller do
 
       
       b1a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
+      b1a.settings['grid'] = {'rows' => 1, 'columns' => 3, 'order' => [['1', nil, nil]]}
       b1a.instance_variable_set('@buttons_changed', true)
       b1a.save
       Worker.process_queues
@@ -844,6 +845,7 @@ describe Api::UsersController, :type => :controller do
       expect(b1a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
       b2a = Board.create(:user => u)
       b2a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
+      b2a.settings['grid'] = {'rows' => 1, 'columns' => 3, 'order' => [['1', nil, nil]]}
       b2a.instance_variable_set('@buttons_changed', true)
       b2a.save
       Worker.process_queues
@@ -887,6 +889,7 @@ describe Api::UsersController, :type => :controller do
 
       
       b1a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
+      b1a.settings['grid'] = {'rows' => 1, 'columns' => 3, 'order' => [['1', nil, nil]]}
       b1a.instance_variable_set('@buttons_changed', true)
       b1a.save
       Worker.process_queues
@@ -894,6 +897,7 @@ describe Api::UsersController, :type => :controller do
       expect(b1a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
       b2a = Board.create(:user => u)
       b2a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
+      b2a.settings['grid'] = {'rows' => 1, 'columns' => 3, 'order' => [['1', nil, nil]]}
       b2a.instance_variable_set('@buttons_changed', true)
       b2a.save
       Worker.process_queues
