@@ -1,20 +1,25 @@
-<div class="skinny_bio">
-  <div class="well" style="text-align: center;">
-    <div style='position: relative;'>
-      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 100px;">
+<div class="md-user-summary">
+  <header class="md-hero md-hero--user">
+    <div style="position: relative;">
+      <img src={{this.model.avatar_url_with_fallback}} alt="" class="md-hero--user__avatar">
       {{#if this.model.online}}
-        <div title='currently online' class='online_marker'></div>
+        <div title={{t "currently online" key="currently_online"}} class="online_marker"></div>
       {{/if}}
     </div>
-    <h2 style="margin-bottom: 0;">{{ this.model.name }}</h2>
-    <div style="margin-bottom: 10px;">{{ this.model.user_name }}</div>
-    <div>{{ this.model.description }}</div>
-    {{#if this.model.details_url}}
-    <div><a href={{this.model.details_url}} target="_blank" rel="noopener">{{ this.model.details_url }}</a></div>
-    {{/if}}
-    <div>{{ this.model.location }}</div>
-  </div>
-</div>
+    <div class="md-hero--user__body">
+      <h1 class="md-hero--user__name">{{this.model.name}}</h1>
+      <p class="md-hero--user__username">{{this.model.user_name}}</p>
+      {{#if this.model.description}}
+        <p class="md-hero--user__meta">{{this.model.description}}</p>
+      {{/if}}
+      {{#if this.model.details_url}}
+        <p class="md-hero--user__meta"><a href={{this.model.details_url}} target="_blank" rel="noopener">{{this.model.details_url}}</a></p>
+      {{/if}}
+      {{#if this.model.location}}
+        <p class="md-hero--user__meta">{{this.model.location}}</p>
+      {{/if}}
+    </div>
+  </header>
 {{#if this.model.permissions.view_detailed}}
   {{#if this.model.permissions.delete}}
     {{#if this.model.pending_org}}
@@ -507,14 +512,15 @@
             {{/each}}
           </ul>
         {{/if}}
-        <h4>
+        <section class="md-user-summary__available-boards" aria-labelledby="available-boards-heading">
+        <h4 id="available-boards-heading" class="md-user-summary__available-boards-title">
           {{#if this.model.external_device}}
             {{t "%app_name% Boards in this Account:" key="boards_in_this_account"}}
           {{else}}
             {{t "Available Boards:" key="available_boards_colon"}}
           {{/if}}
         </h4>
-        <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
+        <ul class="nav nav-pills md-user-summary__board-tabs" role="tablist">
           {{#if this.model.permissions.edit}}
             <li role="presentation" class={{if this.mine_selected "active"}}><a href="#" {{action "set_selected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
           {{else if this.model.permissions.model}}
@@ -557,6 +563,7 @@
             {{/if}}
           {{/unless}}
         </ul>
+        <div class="md-user-summary__available-boards-body">
         {{#if this.board_list}}
           {{#if this.board_list.loading}}
             {{t "Loading..." key="loading"}}
@@ -579,12 +586,10 @@
                 <div style='margin-bottom: 5px;'><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.parent_object.board.key}}</em></div>
                 <a href="#" class='btn btn-default' {{action "load_children"}} style='margin-bottom: 10px;'><span class='glyphicon glyphicon-arrow-left'></span> {{t "Back to Full List" key="back_to_full_list"}}</a>
               {{/if}}
-              <form style="margin-bottom: 10px;" {{action "nothing" on="submit"}}>
-                <div style="width: 250px;">
-                <Input @type="text" @value={{this.filterString}} class="form-control" placeholder="Filter Results" />
-                </div>
+              <form class="md-user-summary__board-filter" {{action "nothing" on="submit"}}>
+                <Input @type="text" @value={{this.filterString}} class="form-control md-user-summary__board-filter-input" placeholder={{t "Filter Results" key="filter_results"}} />
               </form>
-              <div class="row">
+              <div class="md-user-summary__board-grid row">
                 {{#each this.filtered_results as |board|}}
                   {{#if board.board.key}}
                     {{#unless board.board.removed}}
@@ -629,6 +634,8 @@
             {{t "None found" key="none_found"}}
           {{/if}}
         {{/if}}
+        </div>
+        </section>
       </div>
     </div>
   {{#if this.model.permissions.support_actions}}
@@ -812,3 +819,4 @@
 {{else}}
   {{t "This account is private. Nothing to see here, move along." key="private_account"}}
 {{/if}}
+</div>

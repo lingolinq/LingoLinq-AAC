@@ -1,15 +1,19 @@
+<div class="setup-intro__header">
+  <div class="md-card__title">{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</div>
+</div>
 <div class="md-card__head md-card__head--getting-started md-card__head--setup-intro">
   <div class="md-card__head-left">
     <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
-      <img src={{path "images/pastel-getting-started.svg"}} class="md-card__icon-img" alt="" aria-hidden="true">
+      <img src={{path "images/pastel-reports.png"}} class="md-card__icon-img" alt="" aria-hidden="true">
     </div>
     <div class="md-card__titles">
-      <div class="md-card__title">{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</div>
       {{#if this.setup.setup_user.user_name}}
-        <div class="md-card__sub">{{t "Thanks for signing up," key="intro_1_before"}} <span class="setup-intro__username">{{this.setup.setup_user.user_name}}</span>{{t ". Let's help you get started." key="intro_1_after"}}</div>
+        <div class="md-card__sub">{{t "Thanks for signing up," key="intro_1_before"}} <span class="setup-intro__username">{{this.setup.setup_user.user_name}}</span>{{t "." key="intro_1_after_period"}}</div>
       {{else}}
-        <div class="md-card__sub">{{t "Thanks for signing up. Let's help you get started." key="intro_1_no_name"}}</div>
+        <div class="md-card__sub">{{t "Thanks for signing up." key="intro_1_no_name"}}</div>
       {{/if}}
+      <p class="setup-intro__get-started">{{t "Let's help you get started." key="intro_lets_help"}}</p>
+      <p class="setup-intro__encourage">{{t "A few quick steps will get you ready—click Next below to begin." key="intro_encourage"}}</p>
     </div>
   </div>
 </div>

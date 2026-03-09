@@ -586,7 +586,7 @@ export default Controller.extend({
       _this.set('fake_user', EmberObject.create({
         preferences:
         {
-          device: {voice: {}},
+          device: {voice: {}, dwell: false, scanning: false},
           vocalize_buttons: true,
           auto_home_return: true
         }
@@ -704,6 +704,9 @@ export default Controller.extend({
   _do_user_save: function(user) {
     var _this = this;
     var pendingUtterance = this._pending_utterance_text_only;
+    var pendingSymbolBg = this._pending_symbol_background;
+    var pendingAccess = this._pending_access;
+    var pendingHomeReturn = this._pending_home_return;
     if(!user || !user.save) { return; }
     if(this.appState && this.appState.controller) {
       this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
@@ -718,7 +721,49 @@ export default Controller.extend({
         user.set('preferences', prefsClone);
         user.notifyPropertyChange('preferences');
       }
+      if(pendingSymbolBg === 'black_with_high_contrast') {
+        var bg = user.get('preferences.device.symbol_background');
+        var hc = user.get('preferences.high_contrast');
+        if(bg !== 'black' || hc !== true) {
+          var prefs = user.get('preferences') || {};
+          var prefsClone = Object.assign({}, prefs);
+          prefsClone.device = Object.assign({}, prefs.device || {});
+          prefsClone.device.symbol_background = 'black';
+          prefsClone.high_contrast = true;
+          user.set('preferences', prefsClone);
+          user.notifyPropertyChange('preferences');
+        }
+      }
+      if(pendingAccess === 'touch' || pendingAccess === 'dwell' || pendingAccess === 'scanning') {
+        var wantDwell = pendingAccess === 'dwell';
+        var wantScanning = pendingAccess === 'scanning';
+        var currentDwell = user.get('preferences.device.dwell');
+        var currentScanning = user.get('preferences.device.scanning');
+        if(currentDwell !== wantDwell || currentScanning !== wantScanning) {
+          var prefs = user.get('preferences') || {};
+          var prefsClone = Object.assign({}, prefs);
+          prefsClone.device = Object.assign({}, prefs.device || {});
+          prefsClone.device.dwell = wantDwell;
+          prefsClone.device.scanning = wantScanning;
+          user.set('preferences', prefsClone);
+          user.notifyPropertyChange('preferences');
+        }
+      }
+      if(pendingHomeReturn === 'auto_return' || pendingHomeReturn === 'stay') {
+        var wantAutoReturn = pendingHomeReturn === 'auto_return';
+        var currentAutoReturn = user.get('preferences.auto_home_return');
+        if(currentAutoReturn !== wantAutoReturn) {
+          var prefs = user.get('preferences') || {};
+          var prefsClone = Object.assign({}, prefs);
+          prefsClone.auto_home_return = wantAutoReturn;
+          user.set('preferences', prefsClone);
+          user.notifyPropertyChange('preferences');
+        }
+      }
       _this.set('_pending_utterance_text_only', null);
+      _this.set('_pending_symbol_background', null);
+      _this.set('_pending_access', null);
+      _this.set('_pending_home_return', null);
       runLater(function() {
         if(_this.appState && _this.appState.controller && !_this._save_user_timer) {
           _this.appState.controller.set('footer_status', null);
@@ -726,6 +771,9 @@ export default Controller.extend({
       }, 150);
     }, function(err) {
       _this.set('_pending_utterance_text_only', null);
+      _this.set('_pending_symbol_background', null);
+      _this.set('_pending_access', null);
+      _this.set('_pending_home_return', null);
       if(_this.appState && _this.appState.controller) {
         _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
       }
@@ -760,25 +808,40 @@ export default Controller.extend({
       if(preference !== 'device.utterance_text_only') {
         this.set('_pending_utterance_text_only', null);
       }
+      if(preference !== 'device.symbol_background') {
+        this.set('_pending_symbol_background', null);
+      }
+      if(preference !== 'access') {
+        this.set('_pending_access', null);
+      }
+      if(preference !== 'home_return') {
+        this.set('_pending_home_return', null);
+      }
       if(preference == 'access') {
+        this.set('_pending_access', value);
+        var prefs = user.get('preferences') || {};
+        var prefsClone = Object.assign({}, prefs);
+        prefsClone.device = Object.assign({}, prefs.device || {});
         if(value == 'touch') {
-          user.set('preferences.device.dwell', false);
-          user.set('preferences.device.scanning', false);
+          prefsClone.device.dwell = false;
+          prefsClone.device.scanning = false;
         } else if(value == 'dwell') {
-          user.set('preferences.device.dwell', true);
-          user.set('preferences.device.scanning', false);
+          prefsClone.device.dwell = true;
+          prefsClone.device.scanning = false;
         } else if(value == 'scanning') {
-          user.set('preferences.device.dwell', false);
-          user.set('preferences.device.scanning', true);
+          prefsClone.device.dwell = false;
+          prefsClone.device.scanning = true;
         }
+        user.set('preferences', prefsClone);
+        user.notifyPropertyChange('preferences');
       } else if(preference == 'home_return') {
-        if(value == 'auto_return') {
-          this.set('auto_home_return', true);
-          return;
-        } else {
-          this.set('auto_home_return', false);
-          return;
-        }
+        this.set('_pending_home_return', value);
+        var wantAutoReturn = value === 'auto_return';
+        var prefs = user.get('preferences') || {};
+        var prefsClone = Object.assign({}, prefs);
+        prefsClone.auto_home_return = wantAutoReturn;
+        user.set('preferences', prefsClone);
+        user.notifyPropertyChange('preferences');
       } else if(preference == 'preferred_symbols') {
         if(!user.get('original_preferred_symbols')) {
           user.set('original_preferred_symbols', user.get('preferences.preferred_symbols') || 'original')
@@ -787,6 +850,7 @@ export default Controller.extend({
         user.set('preferred_symbols_changed', user.get('preferred_symbols') != user.get('original_preferred_symbols'));
         this.appState.set('setup_user', user);
       } else if(preference == 'device.symbol_background') {
+        this.set('_pending_symbol_background', value === 'black_with_high_contrast' ? 'black_with_high_contrast' : null);
         var prefs = user.get('preferences') || {};
         var prefsClone = Object.assign({}, prefs);
         prefsClone.device = Object.assign({}, prefs.device || {});

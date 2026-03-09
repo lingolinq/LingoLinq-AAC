@@ -5,7 +5,7 @@
   <img src={{path "walkthrough/reports.gif"}} style='width: 100%;' >
 </div>
 <div class='col-sm-5'>
-  <p class='prompt'>{{t "%app_name% has powerful built-in reporting tools that allow caregivers, therapists and supporters to see things like what time of day the device is being used, most common words and progress toward goals. To use these helpful features, just enable logging." key="logging_reports_1"}}</p>
+  <p class='prompt'>{{t "%app_name% reports show when the device is used, which words are used most, and progress toward goals. Enable logging to use them." key="logging_reports_1"}}</p>
   {{#if setup_user}}
     <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{action "set_preference" "logging" true}}>
       {{#if setup_user.preferences.logging}}
@@ -23,9 +23,9 @@
   {{#if setup_user.supporter_role}}
     <p class='prompt'>{{t "As a supervisor, you'll have access to boards and usage reports for the communicators you work with. If you'd like, you can also turn on notifications, and receive regular updates on communicator progress, or even opt-in to receiving text messages from communicators that have added you as a supervisor." key="notifications_settings"}}</p>
   {{else}}
-    <p class='prompt'>{{t "When logging is enabled, you can opt to receive regular emails with details on communication over time, including current goals and word usage. This can help keep everyone on the same page and can be a valuable tool is helping communicators make continual progress." key="communicator_notifications"}}</p>
+    <p class='prompt'>{{t "With logging on, you can receive regular emails on goals and word usage—helpful for keeping everyone aligned and supporting the communicator's progress." key="communicator_notifications"}}</p>
   {{/if}}
-  <p class='prompt'>{{t "You can change these and other notification preferences under the \"Profile\" section of \"My Account\" at any time." key="available_under_profile"}}</p>
+  <p class='prompt'>{{t "Change these and other notification settings anytime in My Account under Profile." key="available_under_profile"}}</p>
 </div>
 <div class='col-sm-5'>
   <div class='setup_setting' style='margin-top: 0;'>

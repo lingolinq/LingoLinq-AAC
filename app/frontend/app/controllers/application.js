@@ -1239,7 +1239,19 @@ export default Controller.extend({
         if(user_id) {
           params.user_id = user_id;
         }
-        _this.router.transitionTo('setup', {queryParams: params});
+        var transition = _this.router.transitionTo('setup', {queryParams: params});
+        transition.then(function() {
+          runLater(function() {
+            var container = document.getElementById('setup_container');
+            if (container && typeof container.scrollIntoView === 'function') {
+              container.scrollIntoView({ behavior: 'instant', block: 'start' });
+            }
+            if (document.scrollingElement) {
+              document.scrollingElement.scrollTop = 0;
+            }
+            window.scrollTo(0, 0);
+          }, 0);
+        }, function() { });
       }, function() { });
     },
     speak_mode_notification: function() {
@@ -1689,11 +1701,16 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'setup' || (route && route.indexOf('setup.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, home-boards/search home, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup uses same navbar as authenticated view. About page and home-boards (search/home) use same navbar when user is logged in. */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'appState.current_route', 'appState.currentUser', function() {
+  /** True when current route is user or any nested route (e.g. user.index, user.edit, user.preferences). */
+  isUserRoute: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'user' || (route && route.indexOf('user.') === 0);
+  }),
+  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user/*, home-boards/search home, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup and user pages use same navbar as authenticated view. About page and home-boards (search/home) use same navbar when user is logged in. */
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
-    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') ||
+    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
       (route === 'about' && cu) ||
       (route === 'home-boards' && cu);
   })
