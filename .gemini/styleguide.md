@@ -35,7 +35,7 @@ Rails 7.23 backend with an Ember 3.28 frontend, deployed on Render.
 
 ## Frontend (Ember)
 
-- Ember frontend requires Node 18. Flag any Node 20+ specific APIs in frontend code
+- The entire project uses Node 20. Do not suggest or reference Node 18
 - Prefer tracked properties and computed macros over observers
 - Flag any use of jQuery or direct DOM manipulation
 - Flag Ember deprecation warnings (sendAction, Ember.run, etc.)
@@ -65,4 +65,4 @@ Rails 7.23 backend with an Ember 3.28 frontend, deployed on Render.
 - Do not suggest adding TypeScript. This is a JavaScript project
 - Do not suggest switching from Ember to React or other frameworks
 - Do not flag the use of Ember classic components (migration is in progress)
-- Do not suggest upgrading Node versions in frontend code (Node 18 is required)
+- Do not suggest downgrading Node. Node 20 is the project standard
