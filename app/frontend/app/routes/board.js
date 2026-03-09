@@ -11,19 +11,11 @@ import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
-  router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
   appState: service('app-state'),
   model: function(params) {
     var _this = this;
-    // Reserved paths: /cache (offline manifest), /jobby (Resque). Don't load as boards.
-    var reserved_keys = ['cache', 'jobby'];
-    if(reserved_keys.indexOf(params.key) >= 0) {
-      var target = params.key === 'cache' ? '/' : '/' + params.key;
-      window.location.href = target;
-      return RSVP.reject({status: 404, reserved_key: true});
-    }
     // TODO: when on the home screen if you have a large board and hit to open
     // it, it takes a while to change views. This does not, however, happen
     // if you hit the same board in the 'popular boards' list since those
@@ -168,12 +160,6 @@ export default Route.extend({
     return key != null ? { key: key } : {};
   },
   actions: {
-    error: function(error) {
-      if(error && error.reserved_key) {
-        return false; // Don't bubble - we redirected
-      }
-      return true;
-    },
     re_transition: function() {
       if(this.get('error_record')) {
         this.set('error_record.retrying', true);
