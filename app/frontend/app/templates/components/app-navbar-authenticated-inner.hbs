@@ -67,10 +67,7 @@
         <li role="presentation">
           <LinkTo @route="user" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
-        <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
-        {{#if this.appState.currentUser.permissions.delete}}
-          <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
-        {{/if}}
+        <li><LinkTo @route="user.index" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
         <li><LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note"}}>
           {{#if this.appState.currentUser.unread_messages}}
@@ -142,6 +139,7 @@
     {{/if}}
     <div class="la-mobile-drawer__divider"></div>
     <LinkTo @route="user" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Account" key="my_account"}}</LinkTo>
+    <LinkTo @route="user.index" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "My Boards" key="my_boards"}}</LinkTo>
     <LinkTo @route="search" @models={{array "any" "_"}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Find Board" key="find_board"}}</LinkTo>
     {{#if this.appState.currentUser.permissions.delete}}
       <a href="#" class="la-mobile-drawer__link" {{action "closeDrawerAndSend" "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a>

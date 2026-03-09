@@ -6,17 +6,10 @@
     <div class="md-card__titles">
       <div class="md-card__title">{{t "Welcome to %app_name%!" key="welcome_to_lingolinq"}}</div>
       {{#if this.setup_user.user_name}}
-        <div class="md-card__sub">{{t "Thanks for signing up for %app_name%," key="intro_1_before"}} <span class="setup-intro__username">{{this.setup_user.user_name}}</span>{{t "! Use this walkthrough to help you get started." key="intro_1_after"}}</div>
+        <div class="md-card__sub">{{t "Thanks for signing up," key="intro_1_before"}} <span class="setup-intro__username">{{this.setup_user.user_name}}</span>{{t ". Let's help you get started." key="intro_1_after"}}</div>
       {{else}}
-        <div class="md-card__sub">{{t "Thanks for signing up for %app_name%! Use this walkthrough to help you get started." key="intro_1_no_name"}}</div>
+        <div class="md-card__sub">{{t "Thanks for signing up. Let's help you get started." key="intro_1_no_name"}}</div>
       {{/if}}
     </div>
   </div>
 </div>
-{{#if this.for_self}}
-  {{#unless this.app_state.auto_start}}
-    <div class="setup-intro__actions">
-      <button type="button" class="md-btn md-btn--ghost md-card__getting-started-btn--secondary" {{action "choose_board"}}>{{t "Skip Setup - I'd like to Choose a Board" key="skip_to_board_choice"}}</button>
-    </div>
-  {{/unless}}
-{{/if}}

@@ -1,10 +1,25 @@
-<h2>{{t "Finding the Right Home Board" key="finding_a_home_board"}}</h2>
-{{#if this.advanced}}
-  <p>{{t "When using a communication tool, the home board is your starting point to say some things quickly but also jump off into deeper topics. It's important to have a good starting place, but there's lots of different styles of communication boards out there, and it's not always clear which is the best. Every person is different. Here are some different styles of home boards with some detail about why they might be useful." key="finding_home_board1"}}</p>
-  <p>{{t "When you find a home board that makes sense, hit the menu and choose \"Set as Home\" to make it your home board." key="finding_home_board2"}}</p>
-  <div class='row'>
-    {{board-picker}}
+<div class="md-shell md-shell--home-boards">
+  <div class="md-workspace">
+    <main class="md-main md-main--home-boards">
+      <header class="md-hero md-hero--home-boards">
+        <h1 class="md-hero__title">{{t "Finding the Right Home Board" key="finding_a_home_board"}}</h1>
+        {{#unless this.advanced}}
+          <p class="md-hero__sub">{{t "Choose a layout that fits the communicator, then set it as your home board." key="finding_home_board_hero_sub"}}</p>
+        {{/unless}}
+      </header>
+      <article class="md-card md-card--home-boards">
+        {{#if this.advanced}}
+          <div class="md-card--home-boards__subheader">
+            <p class="md-card--home-boards__subheader-lead">{{t "Your home board is your starting point—for quick phrases and for going deeper. Board styles vary. The right one depends on the person. Here are options with notes on why each might help." key="finding_home_board1"}}</p>
+            <p class="md-card--home-boards__subheader-support">{{t "When you find one that fits, use the menu and choose \"Set as Home\" to make it yours." key="finding_home_board2"}}</p>
+          </div>
+          <div class="md-card--home-boards__picker row">
+            {{board-picker}}
+          </div>
+        {{else}}
+          {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") onSelect=(action "select_board")}}
+        {{/if}}
+      </article>
+    </main>
   </div>
-{{else}}
-  {{board-selection-tool search=true loadError=(action "show_advanced") advanced=(action "show_advanced") onSelect=(action "select_board")}}
-{{/if}}
+</div>

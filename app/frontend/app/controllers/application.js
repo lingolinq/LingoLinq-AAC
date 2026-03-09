@@ -1667,9 +1667,10 @@ export default Controller.extend({
   ),
   /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
   showBentoPageWithFooter: computed('footer', 'appState.index_or_landing_view', 'appState.current_route', function() {
+    var route = this.appState.get('current_route');
     return this.get('footer') &&
-      this.appState.get('index_or_landing_view') &&
-      this.appState.get('current_route') !== 'landing';
+      (this.appState.get('index_or_landing_view') || route === 'home-boards') &&
+      route !== 'landing';
   }),
   /** True when the top navbar should use bento styling and contents (index/landing or user.stats with currentUser). */
   showBentoStyleHeader: computed('appState.index_or_landing_view', 'appState.current_route', 'appState.currentUser', function() {
@@ -1688,11 +1689,12 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'setup' || (route && route.indexOf('setup.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup uses same navbar as authenticated view. About page uses same navbar when user is logged in. */
+  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, home-boards/search home, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup uses same navbar as authenticated view. About page and home-boards (search/home) use same navbar when user is logged in. */
   useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'appState.current_route', 'appState.currentUser', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
     return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') ||
-      (route === 'about' && cu);
+      (route === 'about' && cu) ||
+      (route === 'home-boards' && cu);
   })
 });

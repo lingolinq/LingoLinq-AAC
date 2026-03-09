@@ -26,6 +26,9 @@
             {{#if this.appState.domain_settings.support_url}}
               <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true">❓</span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
             {{/if}}
+            {{#if this.appState.currentUser}}
+              <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+            {{/if}}
           </ul>
         {{/if}}
       {{else}}
@@ -38,6 +41,9 @@
           {{/if}}
           {{#if this.appState.domain_settings.youtube_url}}
             <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🎬</span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
+          {{/if}}
+          {{#if this.appState.currentUser}}
+            <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
           {{/if}}
         </ul>
       {{/if}}

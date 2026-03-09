@@ -212,7 +212,9 @@ class Api::UsersController < ApplicationController
       return unless allowed?(user, 'edit')
     end
     # we don't want to set device preferences unless the user actually changed device settings
-    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated']
+    device_updated = (params['user'] && params['user']['preferences'] && params['user']['preferences']['device'] && params['user']['preferences']['device']['updated'])
+    device_updated ||= (params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated'])
+    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if device_updated
     options['device'] = user_device
     options['updater'] = @api_user
       

@@ -16,12 +16,34 @@ vendor/bundle/
 .pnpm-store/
 .npm/
 
+coverage/
+test/tmp/
+node_modules/**
+
+# Rails / Ember heavy directories
+vendor/**
+tmp/**
+log/**
+coverage/**
+
+# Ember build artifacts
+tmp/broccoli_*
+node_modules/.cache/
+
+# Large media
+**/symbols/**
+**/images/**
+**/icons/**
+**/uploads/**
+
 dist/
 build/
 coverage/
 .cache/
 .parcel-cache/
 storybook-static/
+ember-dist/
+
 
 log/
 tmp/
@@ -42,7 +64,5 @@ public/packs-test/
 *.jpeg
 *.gif
 *.webp
-*.zip
-*.tar
-*.gz
-*.pdf# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+*.pdf
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
