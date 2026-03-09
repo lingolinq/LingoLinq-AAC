@@ -216,6 +216,25 @@ describe JsonApi::Unit do
       expect(json['org_supervisor_profile']).to eq(true)
       expect(json['org_profile']).to eq(true)
     end
+    it "should not throw a TypeError when external_device is a string" do
+      user = User.create
+      o = Organization.create
+      unit = OrganizationUnit.create(:settings => {'name' => 'Roomy'}, :organization => o)
+      UserLink.generate(user, unit, 'org_unit_communicator').save!
+      user.update!(settings: { 'external_device' => 'some string' })
+      expect { JsonApi::Unit.build_json(unit) }.not_to raise_error
+    end
+
+    it "should merge external_device when it is a hash" do
+      user = User.create
+      o = Organization.create
+      unit = OrganizationUnit.create(:settings => {'name' => 'Roomy'}, :organization => o)
+      UserLink.generate(user, unit, 'org_unit_communicator').save!
+      user.update!(settings: { 'external_device' => { 'id' => 'device_1' } })
+      json = JsonApi::Unit.build_json(unit)
+      communicator = json['communicators'].first
+      expect(communicator['device']).to eq({ external_device: true, 'id' => 'device_1' })
+    end
   end
   
   describe "page_data" do
