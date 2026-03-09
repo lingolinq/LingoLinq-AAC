@@ -168,4 +168,4 @@ seeding data. One-off user creation belongs in the Rails console.
 - All user-facing text must use i18n helpers
 - New features MUST have feature flags (AAC users are sensitive to UI changes)
 - AI APIs NEVER see user-identifiable data (use PiiScrubber)
-- Ember frontend: Node 18 only. AI tools: Node 20. Use nvm to switch.
+- Node 20 is the standard across the entire project. Use nvm to switch: `nvm use 20`
