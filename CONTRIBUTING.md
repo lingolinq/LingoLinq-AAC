@@ -87,9 +87,9 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Scot | Merge commit |
-| `main` | Scot | Merge commit |
-| `main` (hotfix) | Scot | Merge commit |
+| `staging` | Melissa (Scot backup) | Merge commit |
+| `main` | Melissa + Scot agree | Merge commit |
+| `main` (hotfix) | Scot or Melissa | Merge commit |
 
 ## Commit Messages
 
