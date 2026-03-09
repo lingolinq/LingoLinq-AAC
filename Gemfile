@@ -18,6 +18,8 @@ group :development, :test do
   gem 'ruby-lsp-rails', require: false
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
+  gem 'brakeman', require: false
+  gem 'bundler-audit', require: false
 end
 
 gem 'benchmark'
