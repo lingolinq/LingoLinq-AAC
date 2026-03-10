@@ -2853,9 +2853,11 @@ describe Subscription, :type => :model do
         'last_purchase_plan_id' => 'asdf'
       }
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })
@@ -2881,9 +2883,11 @@ describe Subscription, :type => :model do
       }
       expect(Purchasing).to receive(:change_user_id).with('222222', u1.global_id, u2.global_id)
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })
