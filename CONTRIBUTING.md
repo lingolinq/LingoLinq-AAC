@@ -28,7 +28,7 @@ to `develop`. A core team member will review your PR and may request changes.
 Format: `name/type/short-description`
 
 - `name` -- your first name or GitHub username (lowercase)
-- `type` -- one of: `feature`, `fix`, `chore`, `hotfix`, `upgrade`, `release`
+- `type` -- one of: `feat`, `fix`, `chore`, `hotfix`, `upgrade`, `release`
 - `short-description` -- 2-4 words, kebab-case
 
 Examples:
@@ -108,7 +108,7 @@ For urgent production issues:
 1. Branch from `main`: `yourname/hotfix/description`
 2. Open a PR directly against `main`. **Scot must approve.**
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
-   so the fix is not lost.
+   so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
 ## Approval Summary
 
