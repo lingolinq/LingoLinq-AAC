@@ -32,6 +32,10 @@ $color-gold: #f5c23b;
   --topbar-height: 92px;
   --bottombar-height: 88.5px; /* 59px × 1.5 for unauthenticated footer */
 }
+/* Landing-alt page: same navbar height as authenticated pages */
+#within_ember.landing-alt-route:has(header.header--unauthenticated) {
+  --topbar-height: 68px;
+}
 #within_ember:has(header.header--unauthenticated) .page-footer {
   display: flex;
   flex-direction: column;
@@ -21162,6 +21166,32 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
     font-size: 1.05em;
     font-weight: 800;
   }
+
+  .la-hero-title-line2 {
+    display: inline;
+    font-size: 0.92em; /* 8% smaller than first line */
+  }
+}
+
+/* Hero title entrance: Communication from left, "access for every student" from right */
+@keyframes la-hero-title-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.la-hero-card .la-hero-title .la-hero-title--from-left {
+  display: inline-block;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.la-hero-card .la-hero-title .la-hero-title--from-right {
+  display: inline-block;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s forwards;
+  opacity: 0;
 }
 
 .la-hero-highlight {
@@ -21191,7 +21221,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 @keyframes la-badges-enter {
   from {
     opacity: 0;
-    transform: translateX(-80px);
+    transform: translateX(-48px);
   }
   to {
     opacity: 0.95;
@@ -21220,11 +21250,11 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
   transition: background 0.2s ease, opacity 0.2s ease;
   will-change: transform;
-  animation: la-badges-enter 0.5s ease-out forwards;
+  animation: la-badges-enter 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 
-  &:nth-child(1) { animation-delay: 0.15s; opacity: 0; }
-  &:nth-child(2) { animation-delay: 0.3s; opacity: 0; }
-  &:nth-child(3) { animation-delay: 0.45s; opacity: 0; }
+  &:nth-child(1) { animation-delay: 0.2s; opacity: 0; }
+  &:nth-child(2) { animation-delay: 0.4s; opacity: 0; }
+  &:nth-child(3) { animation-delay: 0.6s; opacity: 0; }
 
   &:hover {
     background: rgba(255, 255, 255, 0.22);
@@ -21413,12 +21443,17 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 }
 
-/* Respect reduced motion: disable hero animations (floating badges + CTA glow) */
+/* Respect reduced motion: disable hero animations (title entrance, floating badges, CTA glow) */
 @media (prefers-reduced-motion: reduce) {
+  .la-hero-card .la-hero-title .la-hero-title--from-left,
+  .la-hero-card .la-hero-title .la-hero-title--from-right,
   .la-floating-chip,
   .la-hero-card .la-btn--primary,
   #about-hero .la-about-hero-actions .la-btn--primary {
     animation: none;
+  }
+  .la-hero-card .la-hero-title .la-hero-title--from-right {
+    opacity: 1;
   }
 }
 
