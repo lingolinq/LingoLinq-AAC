@@ -82,6 +82,8 @@ GEM
       minitest (>= 5.1)
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
+    addressable (2.8.9)
+      public_suffix (>= 2.0.2, < 8.0)
     anthropic (1.23.0)
       cgi
       connection_pool
@@ -305,12 +307,14 @@ GEM
       ttfunk (~> 1.7)
     prettyprint (0.2.0)
     prism (1.9.0)
+    proxies (0.2.3)
     pry (0.15.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
     psych (5.3.1)
       date
       stringio
+    public_suffix (7.0.5)
     puma (7.1.0)
       nio4r (~> 2.0)
     racc (1.8.1)
@@ -447,6 +451,9 @@ GEM
       rexml
     ruby2_keywords (0.0.5)
     rubyzip (2.4.1)
+    s3 (0.3.29)
+      addressable
+      proxies
     sanitize (7.0.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.16.8)
@@ -565,6 +572,7 @@ DEPENDENCIES
   ruby-lsp-rails
   ruby-saml
   rubyzip (~> 2.3)
+  s3
   sanitize
   sass-rails (~> 6.0)
   sdoc

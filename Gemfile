@@ -44,6 +44,8 @@ gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
+# TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
+gem 's3'
 gem 'http-2'
 gem 'resque'
 gem 'puma'
