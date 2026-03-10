@@ -34,6 +34,8 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingolinq_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       REDIS_URL: redis://localhost:6379/
       SECURE_ENCRYPTION_KEY: ${{ secrets.SECURE_ENCRYPTION_KEY }}
       SECURE_NONCE_KEY: ${{ secrets.SECURE_NONCE_KEY }}

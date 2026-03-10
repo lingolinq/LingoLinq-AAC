@@ -41,7 +41,7 @@ module JsonApi::Unit
             hash['org_status'] = org_link['state']['status']
           end
           if user.settings['external_device']
-            hash['device'] = {external_device: true}.merge(user.settings['external_device'])
+            hash['device'] = {external_device: true}.merge(Hash.try_convert(user.settings['external_device']) || {})
           elsif user.settings['preferences'] && user.settings['preferences']['home_board']
             hash['device'] = {device_name: "LingoLinq", default_device: true, board_key: user.settings['preferences']['home_board']['key']}
           end
