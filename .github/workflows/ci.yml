@@ -95,3 +95,63 @@ jobs:
       - name: Run Ember tests (Chrome Headless)
         working-directory: app/frontend
         run: npx ember test
+
+  security-scan:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run Brakeman (Rails SAST)
+        run: |
+          gem install brakeman
+          brakeman --no-pager --format json --output brakeman-results.json || true
+          brakeman --no-pager --format text
+        continue-on-error: true
+
+      - name: Upload Brakeman results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brakeman-results
+          path: brakeman-results.json
+
+      - name: Run bundle-audit (gem CVE check)
+        run: |
+          gem install bundler-audit
+          bundle-audit check --update
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run npm audit (frontend CVE check)
+        working-directory: app/frontend
+        run: |
+          npm install --ignore-scripts
+          npm audit --audit-level=high || true
+        continue-on-error: true
+
+  secret-detection:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
