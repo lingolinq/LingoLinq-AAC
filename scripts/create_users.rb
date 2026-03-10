@@ -80,7 +80,14 @@ nyc = create_user('NYC_test', default_password, {
 })
 
 # Find or create a Demo School District organization
-demo_org = Organization.all.find { |o| o.settings && o.settings['name'] =~ /Demo School District/i }
+# Note: settings is encrypted (secure_serialize), so we cannot query by JSON/ILIKE; iterate in batches.
+demo_org = nil
+Organization.find_each do |o|
+  if o.settings && o.settings['name']&.match?(/Demo School District/i)
+    demo_org = o
+    break
+  end
+end
 
 unless demo_org
   puts "Creating 'Demo School District' organization..."
