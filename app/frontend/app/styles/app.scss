@@ -22049,6 +22049,12 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 #about-hero .la-section-header {
   margin-bottom: 0;
+  /* Match la-plan-text / other sections: flex + align-items center so eyebrow and content stay centered above grid at all breakpoints (1366–547) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
 }
 
 /* About page: all dividers use the same subtle color */
@@ -22614,7 +22620,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper.la-wrapper--about .la-a11y-statement {
-  max-width: 37.5%; /* 50% of previous 75% */
+  max-width: 55%; /*  previous 75% */
   margin-left: auto;
   margin-right: auto;
 }
@@ -24356,19 +24362,32 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: $aac-spacing-8;
+  min-width: 0;
+}
+
+.la-support-list li {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .la-support-list__link {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: $aac-spacing-8;
+  min-width: 0;
+  max-width: 100%;
   font-size: 15px;
   font-weight: 500;
   color: var(--md-ink);
   text-decoration: none;
   transition: color 0.15s ease;
+  white-space: normal;
+  overflow-wrap: break-word;
 
   &:hover {
     color: var(--md-teal);
@@ -24388,9 +24407,15 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-support-list__btn {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: $aac-spacing-8;
+  min-width: 0;
+  max-width: 100%;
   text-decoration: none;
   cursor: pointer;
+  white-space: normal;
+  overflow-wrap: break-word;
 
   &:hover {
     text-decoration: none;
@@ -24417,6 +24442,18 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   &:active {
     transform: translateY(0);
     box-shadow: 0 1px 4px rgba(17, 26, 46, 0.08);
+  }
+}
+
+// Support modal: responsive layout for smaller screens
+@media (max-width: 480px) {
+  .la-support-modal-body {
+    padding: 20px 16px;
+  }
+
+  .la-support-modal-body .la-support-list__btn.la-btn.la-btn--ghost {
+    padding: 10px 14px;
+    border-radius: 12px; // Slightly less pill-like when text wraps
   }
 }
 
