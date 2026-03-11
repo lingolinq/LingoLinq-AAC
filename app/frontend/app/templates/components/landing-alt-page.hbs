@@ -300,10 +300,12 @@
 
     </main>
 
-    {{!-- Bottom navbar (same as app footer), sticky at bottom when this view is shown --}}
-    <div class="la-page-footer-wrap">
-      {{page-footer support=(action "applicationSupport") language=(action "applicationLanguage")}}
-    </div>
+    {{!-- Bottom navbar (same as app footer), only when authenticated --}}
+    {{#if this.showPageFooter}}
+      <div class="la-page-footer-wrap">
+        {{page-footer support=(action "applicationSupport") language=(action "applicationLanguage")}}
+      </div>
+    {{/if}}
 
   </div>
 </div>

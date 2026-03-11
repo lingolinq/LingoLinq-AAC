@@ -48,14 +48,9 @@ header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
   padding-top: 6px;
   padding-bottom: 6px;
 }
+/* Hide page footer in unauthenticated view (login, register, landing-alt, etc.) */
 #within_ember:has(header.header--unauthenticated) .page-footer {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
-  min-height: var(--bottombar-height);
-  padding-top: 17px;
-  padding-bottom: 17px;
+  display: none !important;
 }
 
 @font-face{
@@ -142,7 +137,7 @@ header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
 /* Pricing and features pages: reserve space above footer when scrolled to bottom */
 .la-wrapper.la-wrapper--pricing .la-main,
 .la-wrapper.la-wrapper--features .la-main {
-  padding-bottom: var(--bottombar-height, 60px);
+  padding-bottom: 0;
 }
 /* Pricing page: org management + bulk purchase above buttons, displayed horizontally */
 .la-pricing-extra-links {
@@ -19041,7 +19036,7 @@ $aac-z-topbar:   400;
   top: 0;
   height: 100vh;
   padding-top: 0;
-  padding-bottom: var(--bottombar-height);
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 
@@ -19070,7 +19065,7 @@ $aac-z-topbar:   400;
   visibility: visible !important;
 }
 #within_ember:has(.la-wrapper) .la-wrapper {
-  padding-bottom: var(--bottombar-height);
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 
@@ -21131,6 +21126,7 @@ header #identity #identity_button.btn::after {
   grid-area: main;
   overflow-y: auto;
   padding: $aac-spacing-48 $aac-spacing-28;
+  padding-bottom: 0;
   background: #F3F1ED;
   position: relative;
   display: flex;
@@ -23407,6 +23403,11 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin: 0 auto $aac-spacing-16;
 }
 
+/* Landing-alt: "Built for how schools..." same size as "Everything you need..." */
+#la-features .la-section-header .la-section-title {
+  font-size: 32px;
+}
+
 .la-wrapper.la-wrapper--about .la-plan-section .la-plan-title {
   margin-bottom: $aac-spacing-24;
 }
@@ -25359,6 +25360,12 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     max-width: 100%;
   }
 
+  /* Move hero wave image (and its contents) up; mockup stays in flow */
+  .la-hero-wave-layer {
+    transform: translateY(-35rem);
+    animation: none;
+  }
+
   .la-hero-card-inner {
     grid-template-columns: 1fr;
     padding: 0;
@@ -25436,6 +25443,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 @media (max-width: $aac-breakpoint-lg) {
   .la-wrapper .la-main {
     padding: $aac-spacing-20 calc(#{$aac-spacing-20} + 5rem);
+    padding-bottom: 0;
     gap: $aac-spacing-20;
   }
 
@@ -25576,6 +25584,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     width: 100%;
     max-width: 100%;
     padding: $aac-spacing-16 calc(#{$aac-spacing-16} + 5rem);
+    padding-bottom: 0;
     gap: $aac-spacing-16;
   }
 
@@ -25585,6 +25594,18 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
   .la-hero-card {
     border-radius: $aac-radius-lg;
+  }
+
+  /* Hero wave: show center portion only; crop left and right edges */
+  .la-hero-wave-layer {
+    overflow: hidden;
+  }
+  .la-hero-wave {
+    width: 140%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    object-position: center bottom;
   }
 
   .la-about-glass-grid {
@@ -25706,6 +25727,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
   .la-wrapper .la-main {
     padding: $aac-spacing-12 calc(#{$aac-spacing-12} + 5rem);
+    padding-bottom: 0;
     gap: $aac-spacing-12;
   }
 
@@ -25781,6 +25803,34 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-wrapper .la-plan-title {
+    font-size: 24px;
+  }
+
+  #la-features .la-section-header .la-section-title {
+    font-size: 24px;
+  }
+}
+
+// — xs (≤ 480px): hero wave — more dramatic center crop (left/right hidden) —
+@media (max-width: 480px) {
+  .la-hero-wave-layer {
+    transform: translateY(-50rem);
+    animation: none;
+    overflow: hidden;
+  }
+  .la-hero-wave {
+    width: 200%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    object-position: center bottom;
+  }
+
+  /* CTA section: content 15% smaller; headline matches "Built for how..." (24px at 480px) */
+  .la-cta-section .la-cta-inner {
+    font-size: 85%;
+  }
+  .la-cta-section .la-cta-headline {
     font-size: 24px;
   }
 }
