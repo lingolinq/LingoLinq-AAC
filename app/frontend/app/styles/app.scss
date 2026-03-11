@@ -826,6 +826,7 @@ header .btn {
 #inner_header {
   display: flex;
   align-items: center;
+  background: #f8f9fa;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -984,7 +985,7 @@ header .btn {
 /* Applied in: app/templates/application.hbs (line 519) - user/identity dropdown
    Referenced in: raw_events.js, scanner.js */
 #identity {
-  text-align: right; 
+  text-align: right;
   padding: 0 20px 0 0;
   margin-left: 12px;
   display: flex;
@@ -7846,7 +7847,7 @@ table tr.long_delay td {
 
     .sale {
       background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-      position: absolute; 
+      position: absolute;
       top: 0;
       width: 100%;
       margin-left: -20px;
@@ -10049,14 +10050,12 @@ body:-ms-fullscreen {
 .header-index-with-dark-toggle #inner_header:has(.app-navbar) {
   width: 100%;
   min-width: 0;
-  background-color: transparent;
 }
 /* Board page: when navbar and board bar (speak or nav_header) are both present, stack them and use navy bar */
 .header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak),
 .header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) {
   flex-direction: column;
   align-items: stretch;
-  background-color: #1B2A4A;
 }
 .header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) .app-navbar,
 .header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) .app-navbar {
@@ -10068,43 +10067,6 @@ body:-ms-fullscreen {
   min-height: 56px;
   width: 100%;
   box-sizing: border-box;
-}
-/* Second row (board bar) on navy: light text and button styling to match server */
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header {
-  color: rgba(255, 255, 255, 0.92);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .btn,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header .btn,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .btn-default,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header .btn-default {
-  color: rgba(255, 255, 255, 0.92);
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.1);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .btn:hover,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header .btn:hover,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .btn-default:hover,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header .btn-default:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.35);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .speak-header__home-marker {
-  background: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.2);
-  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.12), 1px 0 0 rgba(0, 0, 0, 0.15);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak .speak-header__home-marker .btn {
-  color: rgba(255, 255, 255, 0.92);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak a,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header a {
-  color: rgba(255, 255, 255, 0.92);
-}
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#speak) #speak a:hover,
-.header-index-with-dark-toggle #inner_header:has(.app-navbar):has(#nav_header) #nav_header a:hover {
-  color: #fff;
 }
 #within_ember > header.header-index-with-dark-toggle:has(.app-navbar) {
   background: transparent !important;
@@ -10858,7 +10820,6 @@ header.header--unauthenticated ~ #content .la-topbar {
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
-  background-color: #1B2A4A;
 }
 
 /* Welcome username centered on main navbar (authenticated index/landing only) */
@@ -16277,8 +16238,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
   }
 
   .landing-hero-visual {
-  justify-content: center;
-}
+    justify-content: center;
+  }
 
   .landing-testimonial-quote {
     font-size: 1.75rem;
@@ -16316,13 +16277,13 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
   .landing-hero-buttons {
     flex-direction: column;
-  align-items: center;
+    align-items: center;
   }
 
   .landing-btn {
     width: 100%;
     max-width: 320px;
-  justify-content: center;
+    justify-content: center;
   }
 
   .landing-cta-buttons {
@@ -16389,7 +16350,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
   .landing-stats-inner {
     grid-template-columns: 1fr;
-  gap: 20px;
+    gap: 20px;
   }
 
   .landing-stat-number {
@@ -19517,13 +19478,13 @@ $aac-z-topbar:   400;
   margin-bottom: 2.5rem;
 }
 
-// About page only: hero buttons match landing hero (Try LingoLinq Free + Watch Demo style)
-/* About page: Try LingoLinq Free / primary — same look and hover as landing-alt hero */
+// About page only: hero + CTA buttons use same CTA gradient as landing-alt
+/* About page: Try LingoLinq Free / primary — same coral–soft yellow gradient */
 .la-wrapper.la-wrapper--about .la-hero-card .la-btn--primary,
 .la-wrapper.la-wrapper--about .la-cta-section .la-btn--primary {
-  background: $color-gold;
+  background: $la-cta-gradient;
   color: #1B365D;
-  border-color: $color-gold;
+  border: 1px solid rgba(232, 122, 111, 0.5);
   filter: brightness(1.02);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
   transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
@@ -20331,6 +20292,8 @@ $la-hero-blue:     #3d5266; /* warmer slate blue (was #415a75), white text passe
 $la-gray-muted:    #4d5c54; /* warm gray for stat-label, section-subtitle (4.5:1 on white) */
 $la-gray-bar:      #c9c4b8; /* warm gray for mockup bar, ghost btn (was #dce1e9) */
 $la-gray-bar-border: #b5afa2; /* border for mockup bar / ghost */
+/* CTA gradient: coral → soft yellow (offsets teal/blue gradient) */
+$la-cta-gradient: linear-gradient(135deg, #e87a6f 0%, #f0a078 40%, #fef3c7 100%);
 /* Two-tone logo: left = hero 20% darker, right = same as Ready to start CTA */
 $la-logo-left: color.adjust($la-hero-blue, $lightness: -20%);
 $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
@@ -20699,13 +20662,14 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .la-topbar-cta {
-  background: color.adjust($la-coral, $saturation: -7%); /* same as .la-hero-highlight "every student" */
+  background: $la-cta-gradient;
   color: $la-navy;
   font-size: $aac-font-size-sm;
   font-weight: $aac-font-weight-black;
   padding: $aac-spacing-8 $aac-spacing-20;
   border-radius: $aac-radius-pill;
   text-decoration: none;
+  border: 1px solid rgba(232, 122, 111, 0.5);
   letter-spacing: $aac-letter-spacing-base;
   transition: filter 0.15s ease;
   white-space: nowrap;
@@ -20715,8 +20679,9 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 
 /* Try Free in inner header (app-navbar inside #inner_header) */
 #inner_header .la-topbar-cta {
-  background: #F2C94C;
+  background: $la-cta-gradient;
   color: #1B2A4A;
+  border: 1px solid rgba(232, 122, 111, 0.5);
 
   &:hover { color: #1B2A4A; }
 }
@@ -20942,13 +20907,75 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  background: linear-gradient(180deg, #3F7F7B 0%, #5A8F8B 100%);
+  background: transparent;
   border-radius: 0;
   position: relative;
   z-index: 1;
   overflow: visible;
   padding-bottom: clamp(48px, 30px + 3.7vw, 83px);
   transition: background 0.25s ease;
+}
+
+/* Hero wave: static image on top, moving layer behind for left-to-right flow */
+.la-hero-wave-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  min-width: 100%;
+  height: 70.31vh; /* 56.25vh × 1.25 */
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.4s ease-out;
+}
+
+/* Same vertical speed as .la-floating-chip, then 2× slower */
+.la-hero-card:hover .la-hero-wave-layer {
+  animation: la-hero-wave-float 212s ease-in-out infinite;
+}
+
+@keyframes la-hero-wave-float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-5rem); }
+  100% { transform: translateY(0); }
+}
+
+/* Subtle grow/shrink layer behind the wave */
+.la-hero-wave-flow {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 100%,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    transparent 70%
+  );
+  animation: la-hero-wave-flow-breathe 6s ease-in-out infinite;
+}
+
+@keyframes la-hero-wave-flow-breathe {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.08); }
+}
+
+.la-hero-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  min-width: 100%;
+  height: 70.31vh;
+  object-fit: fill;
+  object-position: center bottom;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .hero-background {
@@ -20979,12 +21006,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle at 75% 45%,
-    rgba(255, 255, 255, 0.05),
-    transparent 50%
-  );
-  filter: blur(40px);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -20998,8 +21020,10 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   background: color.adjust(#4b6e90, $lightness: 15%);
 }
 
-/* Hero container: layout only, fully transparent (no glass panel) */
+/* Hero container: layout only, fully transparent (no glass panel); above wave image */
 .la-hero-card .hero-container {
+  position: relative;
+  z-index: 1;
   max-width: min(1320px, 94%);
   margin: clamp(1.5rem, 0.5rem + 1.75vw, 3rem) auto 0;
   padding: clamp(24px, 12px + 2.5vw, 48px) clamp(28px, 12px + 3.5vw, 72px) clamp(28px, 14px + 2.9vw, 56px) clamp(20px, 4px + 3vw, 48px);
@@ -21054,6 +21078,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 }
 
+/* Hero text: layout only, no container bg */
 .la-hero-text {
   max-width: min(860px, 100%);
   padding-left: 0.5rem;
@@ -21061,6 +21086,46 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+/* Dark gray text and borders on transparent hero so content reads on glass panel; Lexend font */
+.la-hero-card .la-hero-text .la-hero-title,
+.la-hero-card .la-hero-text .la-hero-title .la-hero-title-line1,
+.la-hero-card .la-hero-text .la-hero-title .la-hero-title-line2 {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  color: #374151;
+}
+/* "every student" — gradient same as Sign In button on inner_header */
+.la-hero-card .la-hero-text .la-hero-title .la-hero-highlight {
+  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.la-hero-card .la-hero-text .la-hero-subtitle {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  color: #374151;
+}
+.la-hero-card .la-hero-text .la-hero-badge-label {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+}
+.la-hero-card .la-hero-text .la-hero-headline {
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+}
+.la-hero-card .la-hero-text .la-hero-badges-section {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.la-hero-card .la-hero-text .la-hero-badge-label {
+  color: #374151;
+}
+.la-hero-card .la-hero-text .la-btn--ghost {
+  color: #374151;
+  border-color: rgba(55, 65, 81, 0.4);
+}
+.la-hero-card .la-hero-text .la-btn--ghost:hover {
+  background: rgba(55, 65, 81, 0.08);
 }
 
 /* Left content block: headline max-width, vertical rhythm per spacing map */
@@ -21195,8 +21260,23 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .la-hero-highlight {
-  color: #F2C94C;
+  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
   font-size: 1.1em;
+}
+
+/* Same gradient as "every student" for "actually", "nothing you don't", "a voice" */
+.la-wrapper .la-section-title em,
+.la-wrapper .la-plan-title em,
+.la-wrapper .la-cta-headline em {
+  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .la-hero-subtitle-badges-wrap {
@@ -21408,9 +21488,9 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .la-hero-card .la-btn--primary {
-  background: color.adjust($la-coral, $saturation: -7%, $lightness: 5%); /* 5% lighter */
+  background: $la-cta-gradient;
   color: $la-navy;
-  border-color: color.adjust($la-coral, $saturation: -7%, $lightness: 5%);
+  border: 1px solid rgba(232, 122, 111, 0.5);
   filter: brightness(1.02);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
   animation: ctaGlow 6s ease-in-out infinite;
@@ -21423,23 +21503,30 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 }
 
-// Hero ghost (Watch Demo)
+// Hero ghost (Watch Demo) — same glass bg as .md-workspace on modern dashboard
 .la-hero-card .la-btn--ghost {
   font-weight: $aac-font-weight-semi;
-  background: transparent;
-  color: #F7F9FB;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: $la-navy;
+  border: 1px solid rgba(0, 0, 0, 0.04);
   padding: $aac-spacing-12 30px;
   border-radius: $aac-radius-pill;
+  box-shadow:
+    0 4px 56px rgba(0, 0, 0, 0.012),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #F7F9FB;
-    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.32);
+    color: $la-navy;
+    border-color: rgba(0, 0, 0, 0.06);
     text-decoration: none;
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow:
+      0 6px 24px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -21777,22 +21864,29 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin-right: $aac-spacing-10;
 }
 
+/* Same glass bg as .md-workspace / Watch Demo button */
 .la-mockup-speak {
   font-size: 13px;
   font-weight: 600;
-  background: color.adjust($la-mockup-teal-bg, $lightness: -10%);
-  color: color.adjust($color-ink, $lightness: 15%);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: $la-navy;
   padding: 8px 16px;
   border-radius: 999px;
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
   white-space: nowrap;
-  border: none;
-  box-shadow: none;
-  transition: background 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 4px 56px rgba(0, 0, 0, 0.012),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
-    background: color.adjust($la-mockup-teal-bg, $lightness: -16%);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.32);
+    box-shadow:
+      0 6px 24px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -22009,8 +22103,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     rgba(20, 127, 130, 0.08) 35%,
     rgba(20, 127, 130, 0.18) 100%
   );
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
@@ -22161,9 +22255,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 #about-hero .la-about-hero-actions .la-btn--primary {
-  background: color.adjust($la-coral, $saturation: -7%, $lightness: 5%);
+  background: $la-cta-gradient;
   color: $la-navy;
-  border-color: color.adjust($la-coral, $saturation: -7%, $lightness: 5%);
+  border: 1px solid rgba(232, 122, 111, 0.5);
   filter: brightness(1.02);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
   animation: ctaGlow 6s ease-in-out infinite;
@@ -22252,8 +22346,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   letter-spacing: $aac-letter-spacing-wide;
   color: #0d5c5f;
   background: rgba(20, 127, 130, 0.14);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border: 1px solid rgba(20, 127, 130, 0.35);
   border-radius: $aac-radius-pill;
   padding: 6px $aac-spacing-20;
@@ -22292,8 +22386,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 #la-features,
 #about-what-we-offer,
 .la-features-modal-body {
-  .la-feature-grid {
-    display: grid;
+.la-feature-grid {
+  display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 32px;
     align-items: stretch;
@@ -22345,7 +22439,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     font-size: 30px;
     line-height: 1;
     border: 1px solid rgba(27, 42, 74, 0.05);
-    box-shadow:
+  box-shadow:
       0 6px 14px rgba(0, 0, 0, 0.05),
       inset 0 1px 0 rgba(255, 255, 255, 0.7);
     transition:
@@ -22422,7 +22516,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     .la-feature-card:nth-child(4):hover,
     .la-feature-card:nth-child(5):hover,
     .la-feature-card:nth-child(6):hover {
-      transform: translateY(-3px);
+    transform: translateY(-3px);
     }
   }
 }
@@ -22457,7 +22551,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   #about-what-we-offer,
   .la-features-modal-body {
     .la-feature-card,
-    .la-feature-icon {
+.la-feature-icon {
       transition: none;
     }
 
@@ -23209,11 +23303,11 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin: 0 0 $aac-spacing-32;
 }
 
-/* Start Free Today: 10% lighter than hero primary (Try LingoLinq Free) */
+/* Start Free Today: same coral–soft yellow CTA gradient */
 .la-cta-section .la-btn--primary {
-  background: color.adjust($la-coral, $saturation: -7%, $lightness: 10%);
+  background: $la-cta-gradient;
   color: $la-navy;
-  border-color: color.adjust($la-coral, $saturation: -7%, $lightness: 10%);
+  border: 1px solid rgba(232, 122, 111, 0.5);
   filter: brightness(1.02);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
 
@@ -23498,9 +23592,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     padding-top: $aac-spacing-16;
     gap: $aac-spacing-12;
   }
-  .la-footer-bottom-badges {
+.la-footer-bottom-badges {
     flex-wrap: wrap;
-    gap: $aac-spacing-8;
+  gap: $aac-spacing-8;
   }
 }
 
@@ -24229,7 +24323,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
   &:hover {
     background: rgba(0, 0, 0, 0.1);
-    color: #1b2a4a;
+  color: #1b2a4a;
   }
 }
 
@@ -24799,8 +24893,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-hero-text {
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 16px;
+    padding-right: 16px;
     align-items: center;
     width: 100%;
   }
