@@ -63,6 +63,7 @@ Router.map(function() {
   this.route('privacy_practices', { path: '/privacy_practices' });
   this.route('jobs', { path: '/jobs' });
   this.route('pricing', { path: '/pricing' });
+  this.route('features', { path: '/features' });
   this.route('contact', { path: '/contact' });
   this.route('home-boards', { path: '/search/home' });
   this.route('emergency', { path: '/search/emergency' });

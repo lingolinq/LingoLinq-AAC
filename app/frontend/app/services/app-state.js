@@ -3921,7 +3921,7 @@ export default Service.extend({
       var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
       if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
       var base = rootURL + 'images/';
-      var faviconHref = base + 'logo-big-blue-gold.png?v=3';
+      var faviconHref = base + 'logo-new.png?v=3';
       for (var i = 0; i < links.length; i++) {
         var href = links[i].getAttribute('href') || '';
         if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('logo-big') !== -1) {

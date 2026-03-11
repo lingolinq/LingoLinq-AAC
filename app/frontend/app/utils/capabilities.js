@@ -1090,7 +1090,7 @@ var capabilities;
             };
             var check_one = function(type) {
               var check_type = (capabilities.sharing.types()[type] || {})[capabilities.system] || type;
-              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-big-blue-gold.png', 'https://www.mylingolinq.com', function() {
+              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-new.png', 'https://www.mylingolinq.com', function() {
                 valids.push(type);
                 all_done();
               }, function() {

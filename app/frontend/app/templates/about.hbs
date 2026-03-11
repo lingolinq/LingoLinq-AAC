@@ -2,15 +2,17 @@
   <div class="app-shell">
     <main class="la-main" role="main">
 
-      {{!-- ── Hero Intro (same styling as landing-alt "Built for how schools") ── --}}
+      {{!-- ── Hero Intro (same styling as pricing page top) ── --}}
       <section id="about-hero" class="la-section">
-        <div class="la-section-header">
+        <div class="la-section-header" style="display: block; text-align: center;">
           <span class="la-section-eyebrow-badge">{{t "About" key="about"}} <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span></span>
-          <h1 class="la-section-title">
-            {{t "Every voice should be" key="every_voice_should_be"}} <em>{{t "heard" key="heard"}}</em>
-          </h1>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">
+              {{t "Every voice should be" key="every_voice_should_be"}} <em>{{t "heard" key="heard"}}</em>
+            </h1>
+          </div>
           <hr class="la-about-hero-separator" aria-hidden="true">
-          <p class="la-section-subtitle">{{t "Open-source AAC that works everywhere—in the cloud, offline, and across every device." key="about_hero_subtitle"}}</p>
+          <p class="la-pricing-hero-subtitle">{{t "Open-source AAC that works everywhere—in the cloud, offline, and across every device." key="about_hero_subtitle"}}</p>
         </div>
         <div class="la-feature-grid">
           <div class="la-feature-card">
@@ -140,8 +142,6 @@
           </div>
         </div>
       </section>
-
-      <hr class="la-divider" aria-hidden="true">
 
       {{!-- ── Attributions ── --}}
       <section class="la-attr-section">

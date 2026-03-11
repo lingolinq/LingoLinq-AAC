@@ -1,5 +1,4 @@
 import Controller from '@ember/controller';
-import modal from '../utils/modal';
 
 export default Controller.extend({
   activeFont: null,
@@ -7,9 +6,6 @@ export default Controller.extend({
   actions: {
     support() {
       // placeholder for support/help action
-    },
-    showFeatures() {
-      modal.open('la-features-modal');
     },
     toggleFont(fontName) {
       var _this = this;

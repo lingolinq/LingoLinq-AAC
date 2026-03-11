@@ -36,7 +36,7 @@ module JsonApi::UserVersion
       elsif version.whodunnit.match(/^admin:/)
         json['modifier'] = {
           'description' => 'LingoLinq Admin',
-          'image' => "https://www.mylingolinq.com/images/logo-big-blue-gold.png"
+          'image' => "https://www.mylingolinq.com/images/logo-new.png"
         }
       end
     end

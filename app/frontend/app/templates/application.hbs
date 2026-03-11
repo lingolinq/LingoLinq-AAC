@@ -1,4 +1,4 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
@@ -199,7 +199,7 @@
       <span class="nav-header__brand">
         <a href="#" {{action "index"}} class="nav-header__logo-link">
           <span class="nav-header__logo">
-            <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo_white.svg")}} alt="LingoLinq">
+            <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-new.png")}} alt="LingoLinq">
           </span>
         </a>
         <a href="#" {{action "index"}} class="nav-header__app-name-link">
@@ -283,7 +283,7 @@
         {{#unless this.app_state.embedded}}
           {{#unless this.app_state.no_linky}}
             <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
-              <a href="#" class="la-topbar-link" role="menuitem" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+              <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key='fsa_nav_features'}}</LinkTo>
               <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
@@ -296,7 +296,7 @@
               </button>
             </div>
             <LaMobileDrawer @isOpen={{this.landingNavOpen}} @onClose={{action "closeLandingNav"}}>
-              <a href="#" class="la-mobile-drawer__link" {{action "showFeatures"}}>{{t "Features" key='fsa_nav_features'}}</a>
+              <LinkTo @route="features" class="la-mobile-drawer__link">{{t "Features" key='fsa_nav_features'}}</LinkTo>
               <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
               <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingNav"}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
               <div class="la-mobile-drawer__divider"></div>

@@ -1,14 +1,23 @@
 import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 import modal from '../utils/modal';
 
 export default Component.extend({
   tagName: '',
+  session: service('session'),
+  appState: service('app-state'),
   activeFont: null,
   heroContainerHidden: false,
   _featuresObserver: null,
   _planObserver: null,
   _ctaSectionObserver: null,
+
+  /** Only show page footer when authenticated (matches application footer visibility). */
+  showPageFooter: computed('session.isAuthenticated', 'appState.currentUser', function() {
+    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
+  }),
 
   didInsertElement() {
     this._super(...arguments);
@@ -116,9 +125,6 @@ export default Component.extend({
     },
     applicationLanguage() {
       modal.open('modals/choose-locale');
-    },
-    showFeatures() {
-      modal.open('la-features-modal');
     },
     toggleFont(fontName) {
       var _this = this;

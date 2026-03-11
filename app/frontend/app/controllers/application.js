@@ -44,7 +44,7 @@ export default Controller.extend({
   useAltLanding: true, // default unauthenticated view is landing-alt
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
 
-  /** Show page footer when not viewing a board (index, landing-alt, user routes, etc.) or when on setup (setup uses same page footer as other pages). */
+  /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
   footer: computed('appState.currentBoardState', 'appState.current_route', function() {
     if (this.isSetupRoute) {
       return true;
@@ -392,10 +392,6 @@ export default Controller.extend({
     },
     closeLandingNav: function() {
       this.set('landingNavOpen', false);
-    },
-    showFeatures: function() {
-      this.set('landingNavOpen', false);
-      modal.open('la-features-modal');
     },
     toggleAltLanding: function() {
       this.toggleProperty('useAltLanding');
@@ -1712,6 +1708,8 @@ export default Controller.extend({
     var cu = this.appState.get('currentUser');
     return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
       (route === 'about' && cu) ||
+      (route === 'features' && cu) ||
+      (route === 'pricing' && cu) ||
       (route === 'home-boards' && cu);
   })
 });

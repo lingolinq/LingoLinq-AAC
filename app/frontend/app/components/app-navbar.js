@@ -47,9 +47,6 @@ export default Component.extend({
     index() {
       this.get('application').send('index');
     },
-    showFeatures() {
-      this.get('application').send('showFeatures');
-    },
     toggleHeroColors() {
       this.get('application').send('toggleHeroColors');
     },
@@ -59,9 +56,5 @@ export default Component.extend({
     closeLandingDrawer() {
       this.set('isLandingDrawerOpen', false);
     },
-    closeLandingDrawerAndShowFeatures() {
-      this.set('isLandingDrawerOpen', false);
-      this.get('application').send('showFeatures');
-    }
   }
 });

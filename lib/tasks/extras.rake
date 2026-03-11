@@ -9,7 +9,7 @@ task "extras:copy_terms" => :environment do
 end
 
 task "extras:generate_favicon" do
-  logo = './public/images/logo-big-blue-gold.png'
+  logo = './public/images/logo-new.png'
   raise "Source logo not found: #{logo}" unless File.exist?(logo)
   # Pastel favicon set
   { 16 => 16, 32 => 32 }.each do |canvas, scale|
@@ -437,7 +437,7 @@ task "extras:desktop" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big-blue-gold.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -451,8 +451,8 @@ task "extras:desktop" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big-blue-gold.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big-blue-gold.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else
@@ -545,7 +545,7 @@ task "extras:mobile" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big-blue-gold.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -559,8 +559,8 @@ task "extras:mobile" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big-blue-gold.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big-blue-gold.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else
