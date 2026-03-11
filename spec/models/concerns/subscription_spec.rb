@@ -1796,7 +1796,8 @@ describe Subscription, :type => :model do
       u.settings['subscription']['last_purchased'] = 3.years.ago.iso8601
       hash2 = u.subscription_hash
 
-      expect(hash).to eq(hash2)
+      # timestamp is set by Time.now on each call; compare meaningful fields only
+      expect(hash.except('timestamp')).to eq(hash2.except('timestamp'))
     end
 
     it "should change when a paid communicator expires" do
