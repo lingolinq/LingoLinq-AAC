@@ -9,6 +9,9 @@ $brand-coral: #FF6B4A;
 // Gold (brand accent)
 $color-gold: #f5c23b;
 
+/* CTA gradient (coral → soft yellow) used by landing-alt; defined early so About/landing blocks can use it */
+$la-cta-gradient: linear-gradient(135deg, #e87a6f 0%, #f0a078 40%, #fef3c7 100%);
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -32,9 +35,18 @@ $color-gold: #f5c23b;
   --topbar-height: 92px;
   --bottombar-height: 88.5px; /* 59px × 1.5 for unauthenticated footer */
 }
-/* Landing-alt page: same navbar height as authenticated pages */
-#within_ember.landing-alt-route:has(header.header--unauthenticated) {
-  --topbar-height: 68px;
+/* Unauthenticated header with landing nav (index with useAltLanding or /landing-alt): compact height and padding */
+#within_ember:has(header.header--unauthenticated .la-topbar-nav) {
+  --topbar-height: 44px;
+}
+header.header--unauthenticated:has(.la-topbar-nav) {
+  min-height: 56px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 #within_ember:has(header.header--unauthenticated) .page-footer {
   display: flex;
@@ -109,15 +121,17 @@ $color-gold: #f5c23b;
   height: auto;
   min-height: var(--bottombar-height);
 }
-/* Pricing page: same as landing – full-page scroll, footer at end of content */
-#within_ember.pricing-route {
+/* Pricing and features pages: same as landing – full-page scroll, footer at end of content */
+#within_ember.pricing-route,
+#within_ember.features-route {
   position: static;
   overflow-x: hidden;
   overflow-y: visible;
   display: block;
   min-height: 100%;
 }
-#within_ember.pricing-route .page-footer {
+#within_ember.pricing-route .page-footer,
+#within_ember.features-route .page-footer {
   position: static !important;
   bottom: auto;
   left: auto;
@@ -125,8 +139,9 @@ $color-gold: #f5c23b;
   height: auto;
   min-height: var(--bottombar-height);
 }
-/* Pricing page: reserve space above footer when scrolled to bottom */
-.la-wrapper.la-wrapper--pricing .la-main {
+/* Pricing and features pages: reserve space above footer when scrolled to bottom */
+.la-wrapper.la-wrapper--pricing .la-main,
+.la-wrapper.la-wrapper--features .la-main {
   padding-bottom: var(--bottombar-height, 60px);
 }
 /* Pricing page: org management + bulk purchase above buttons, displayed horizontally */
@@ -363,13 +378,24 @@ body:has(#within_ember.bento-page-with-footer) {
   min-height: 0;
 }
 #within_ember.bento-page-with-footer #content > .ember-view:empty,
-#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)),
+#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)),
 #within_ember:has(.page-footer) #content > .ember-view:empty,
-#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)) {
+#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)) {
   flex: 0 0 0;
   min-height: 0;
   height: 0;
   overflow: hidden;
+}
+/* Pricing, about, landing-alt: let outlet size to content so #content scrolls and footer shows at end */
+#within_ember.bento-page-with-footer #content > .ember-view:has(.la-wrapper),
+#within_ember:has(.page-footer) #content > .ember-view:has(.la-wrapper) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 /* Stats page: let outlet size to content so #content scrolls and .md-stats-main padding clears the footer */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-stats-page),
@@ -1054,8 +1080,7 @@ header.speaking #identity {
   padding-right: 2px;
 }
 #identity .btn {
-  background: #3a6bc7;
-  color: #fff;
+  /* Base layout/size only; background/color overridden by header rules to match Watch Demo (#la-demo) glass */
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -1065,21 +1090,28 @@ header.speaking #identity {
   white-space: nowrap;
   overflow: visible;
   width: auto;
-  transition: filter 0.15s ease;
-  &:hover { filter: brightness(1.08); text-decoration: none; color: #fff; }
+  transition: filter 0.15s ease, background 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  &:hover { text-decoration: none; }
 }
-/* Identity button in header: override .btn solid blue with modern dashboard active gradient (not on index navbar – that uses glass) */
+/* Identity button in header: same glass as Watch Demo (#la-demo), same shadow as Try Free; no blue/teal gradient */
 header:not(.header-index-with-dark-toggle) #identity #identity_button.btn {
-  background: linear-gradient(135deg, var(--md-teal), rgba(91, 141, 239, 0.9)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.22) !important;
+  background-image: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1B365D !important;
+  font-weight: normal !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
 }
 header:not(.header-index-with-dark-toggle) #identity #identity_button.btn:hover,
 header:not(.header-index-with-dark-toggle) #identity #identity_button.btn:focus {
-  background: linear-gradient(135deg, var(--md-teal), rgba(91, 141, 239, 0.9)) !important;
-  filter: brightness(1.08);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.32) !important;
+  background-image: none !important;
+  color: #1B365D !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  filter: none;
 }
 header.speaking #identity .btn {
   width: 58px;
@@ -1537,6 +1569,7 @@ footer .skinny_links {
 .page-footer__app-name {
   padding-right: 10px;
   font-size: 1.2em;
+  font-weight: bold;
 }
 .page-footer__developers-link {
   margin-left: 12px;
@@ -1558,11 +1591,20 @@ footer .skinny_links {
 footer a,
 .page-footer a {
   color: var(--fs-navy, #1B365D);
+  font-weight: normal;
 }
 footer a:hover,
 .page-footer a:hover {
   color: var(--fs-navy, #1B365D);
   opacity: 0.85;
+}
+
+/* More subtle dividers: pipe characters and dropdown separator */
+.page-footer .text-muted {
+  color: rgba(27, 54, 93, 0.35);
+}
+.page-footer .skinny_links .divider {
+  background-color: rgba(27, 54, 93, 0.12);
 }
 
 .page-footer-link-with-icon {
@@ -1580,7 +1622,7 @@ $page-footer-breakpoint-sm: 640px;
 $page-footer-breakpoint-xs: 480px;
 
 /* When About/Support/Contact are visible in the footer (≥768px), hide them from the More Resources dropdown */
-@media (min-width: $page-footer-breakpoint-md + 1) {
+@media (min-width: (#{$page-footer-breakpoint-md + 1})) {
   .page-footer .skinny_links .page-footer__menu-top-at-sm {
     display: none !important;
   }
@@ -2692,6 +2734,7 @@ tr.accuracy_non_mastered {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   text-align: center;
 }
@@ -10549,6 +10592,103 @@ body:-ms-fullscreen {
   margin: 0;
   object-fit: contain;
 }
+
+/* Inner header logo: 50% of default size */
+#inner_header .nav-header__logo {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  margin-top: 5px;
+  margin-left: 4rem;
+}
+#inner_header .nav-header__logo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  border-radius: 4px;
+}
+#inner_header .nav-header__logo img {
+  width: 100%;
+  height: 100%;
+}
+#inner_header .app-navbar .nav-header__logo {
+  width: auto;
+  max-height: 45px;
+  margin-top: 0;
+}
+#inner_header .app-navbar .nav-header__logo::after {
+  border-radius: 6px;
+}
+#inner_header .app-navbar .nav-header__logo img {
+  width: 67px;
+  height: 41px;
+}
+#inner_header .header--unauthenticated h1 .nav-header__logo img {
+  height: 30px;
+  width: auto;
+}
+
+/* App name in inner header: slightly lighter than black */
+#inner_header .nav-header__app-name-link,
+#inner_header .nav-header__app-name-primary,
+#inner_header .nav-header__app-name-accent {
+  color: #1a1a1a;
+}
+#inner_header .nav-header__app-name-link:hover {
+  color: #1a1a1a;
+}
+
+/* Inner header nav links: same color as nav-header__brand */
+#inner_header .la-topbar-link {
+  color: color.adjust(#1a1a1a, $lightness: 10%);
+  font-weight: 500; /* $aac-font-weight-medium — defined later in file */
+  &:hover {
+    color: color.adjust(#1a1a1a, $lightness: 10%);
+    background: rgba(0, 0, 0, 0.06);
+  }
+  &.active {
+    color: color.adjust(#1a1a1a, $lightness: 10%);
+  }
+}
+#inner_header .nav-header__logo-link {
+  color: #1a1a1a;
+}
+
+/* Identity button on landing-alt: same style as Watch Demo (glass) */
+#within_ember.landing-alt-route #identity #identity_button,
+#within_ember.landing-alt-route .app-navbar #identity #identity_button {
+  background: rgba(255, 255, 255, 0.22) !important;
+  background-image: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1B365D !important;
+  font-weight: normal !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+
+  &:hover,
+  &:focus {
+    background: rgba(255, 255, 255, 0.32) !important;
+    background-image: none !important;
+    color: #1B365D !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px);
+    filter: none;
+  }
+}
+#within_ember.landing-alt-route #identity #identity_button::before,
+#within_ember.landing-alt-route #identity #identity_button::after,
+#within_ember.landing-alt-route .app-navbar #identity #identity_button::before,
+#within_ember.landing-alt-route .app-navbar #identity #identity_button::after {
+  display: none !important;
+  background: none !important;
+  background-image: none !important;
+}
+
 .header--unauthenticated h1 .nav-header__app-name {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 22px;
@@ -18997,13 +19137,27 @@ $aac-z-topbar:   400;
   }
 }
 
+/* Landing-alt: app-shell and wrapper use same gradient as hero-background (.la-hero-card).
+   :has(#la-main) matches both index (useAltLanding) and /landing-alt route. */
+#within_ember:has(#la-main) .la-wrapper {
+  background: linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
+  background-size: auto;
+  animation: none;
+}
+#within_ember:has(#la-main) .la-wrapper .app-shell {
+  background: linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
+}
+#within_ember:has(#la-main) .la-wrapper .la-main {
+  background: linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
+}
+
 // Parallax image only in the section from "Included in every plan" through footer
 .la-parallax-zone {
   position: relative;
   border-radius: 24px;
   overflow: hidden;
   margin-top: 22px; /* breathing room: feature cards → Included in every plan (~80px total) */
-  background-color: #f8f7f5; /* matches page gradient where image doesn’t fill */
+  background-color: #f7fafc; /* matches page gradient where image doesn’t fill */
   background-image: url('/images/landing-page.jpg');
   background-size: contain;
   background-position: center center;
@@ -19015,12 +19169,12 @@ $aac-z-topbar:   400;
     position: absolute;
     inset: 0;
     z-index: 0;
-    /* Slightly tint overlay teal for stronger brand cohesion */
+    /* Light blue with a slight teal tint */
     background: linear-gradient(
       160deg,
-      rgba(63, 127, 123, 0.2) 0%,
-      rgba(210, 238, 235, 0.82) 45%,
-      rgba(232, 245, 244, 0.8) 100%
+      rgba(88, 158, 200, 0.14) 0%,
+      rgba(208, 235, 248, 0.78) 45%,
+      rgba(238, 248, 252, 0.76) 100%
     );
     pointer-events: none;
   }
@@ -19114,12 +19268,10 @@ $aac-z-topbar:   400;
     }
   }
 
-  // Title 15% smaller, darkened blue for light bg
+  // Title 15% smaller, darkened blue for light bg (em gets gradient from .la-wrapper .la-hero-title em)
   .la-hero-title {
     font-size: 46px; // 54 × 0.85
     color: #1b2a4a;
-
-    em { color: #3a6bc7; }
 
     @media (max-width: 1366px) { font-size: 36px; }
     @media (max-width: 1200px) { font-size: 31px; }
@@ -19300,10 +19452,7 @@ $aac-z-topbar:   400;
     }
   }
 
-  // Card content — dark text for light glass
-  .la-about-glass-card__icon {
-    font-size: 28px; // 24 × 1.15
-  }
+  // Card content — dark text for light glass (icon size from .la-wrapper .la-about-glass-card__icon)
 
   .la-about-glass-card__title {
     font-size: 23px; // 20 × 1.15
@@ -19424,9 +19573,10 @@ $aac-z-topbar:   400;
   @media (max-width: 480px)  { font-size: 15.3px; }
 }
 
-// About page: "Built around what matters" — same style as "Every voice should be heard" (size, color, spacing)
+// About page: "Built around what matters" — same style as "Every voice should be heard" (size, color, spacing); unbold
 .la-wrapper.la-wrapper--about .la-section-header .la-section-title {
   font-size: 35px;
+  font-weight: normal;
   color: #1b2a4a;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -19471,6 +19621,11 @@ $aac-z-topbar:   400;
 }
 .la-wrapper.la-wrapper--about .la-cta-section .la-about-hero-separator {
   margin: 0 auto $aac-spacing-24;
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
 }
 
 // About page: "What we offer" (and other section eyebrow badges) — same bottom margin as About LingoLinq badge
@@ -19869,6 +20024,35 @@ $aac-z-topbar:   400;
   .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title-wrap {
     padding-bottom: 1.5rem;
   }
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+  .la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle {
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header .la-hero-title-wrap {
+    padding-bottom: 1.5rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-pricing-hero-subtitle,
+  .la-wrapper.la-wrapper--features #features-hero .la-pricing-hero-subtitle {
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header .la-hero-title-wrap,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header .la-hero-title-wrap {
+    padding-bottom: 1.5rem;
+  }
 }
 @media (max-width: 480px) {
   .la-wrapper.la-wrapper--pricing .la-section .la-section-header {
@@ -19881,6 +20065,33 @@ $aac-z-topbar:   400;
     padding-right: 0.25rem;
   }
   .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge {
+    margin-bottom: 1.5rem;
+  }
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle {
+    font-size: 15px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header .la-section-eyebrow-badge {
+    margin-bottom: 1.5rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-pricing-hero-subtitle,
+  .la-wrapper.la-wrapper--features #features-hero .la-pricing-hero-subtitle {
+    font-size: 15px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header .la-section-eyebrow-badge,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header .la-section-eyebrow-badge {
     margin-bottom: 1.5rem;
   }
 }
@@ -19940,6 +20151,13 @@ $aac-z-topbar:   400;
   }
 }
 
+/* Bottom-align CTA button in each pricing card (grid gives equal-height cards) */
+.pricing-card .cta,
+.la-pricing-card .cta {
+  margin-top: auto;
+  padding-top: $aac-spacing-20;
+}
+
 .la-pricing-card__prices {
   display: flex;
   flex-direction: column;
@@ -19984,14 +20202,14 @@ $aac-z-topbar:   400;
   .pricing-card__badge,
   .badge {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 0.55rem;
+    right: 0.75rem;
     font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: 999px;
     background: rgba(20, 127, 130, 0.2);
     color: #0e6669;
   }
@@ -20028,7 +20246,7 @@ $aac-z-topbar:   400;
 
   .cta {
     display: inline-block;
-    margin-top: 1rem;
+    margin-top: auto; /* bottom-align with other cards; padding from .pricing-card .cta, .la-pricing-card .cta */
     padding: 12px 24px;
     border-radius: 8px;
     font-weight: 600;
@@ -20194,14 +20412,24 @@ $aac-z-topbar:   400;
   margin-bottom: $aac-spacing-64;
 }
 .la-wrapper.la-wrapper--pricing .la-section {
-  margin-top: 8rem;
+  margin-top: calc(#{$aac-spacing-48} * 1.2);
+  padding-top: $aac-spacing-32;
   margin-bottom: 0;
   align-items: center;
 }
 
-// Pricing page: Plans section badge — larger bottom margin
+// Pricing page: Plans section badge — larger bottom margin; entrance from left on load
 .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge {
   margin-bottom: 2.5rem;
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title-wrap {
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s forwards;
 }
 
 // Pricing page: "Choose your plan" — same size as hero and Compare plans headers, same separator
@@ -20224,6 +20452,8 @@ $aac-z-topbar:   400;
 }
 .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title {
   margin-bottom: $aac-spacing-16;
+  font-weight: normal;
+  text-align: center;
 }
 .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-about-hero-separator {
   margin: 0 auto 0;
@@ -20239,17 +20469,26 @@ $aac-z-topbar:   400;
   padding-right: 1rem;
   width: 100%;
   box-sizing: border-box;
+  text-align: center;
+}
+
+.la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
 }
 .la-wrapper.la-wrapper--pricing .la-section .la-pricing-preview-grid {
   margin-top: -2rem;
 }
 
 .la-wrapper .la-main {
-  width: clamp(94%, 72% + 8vw, 80%);
-  max-width: clamp(94%, 72% + 8vw, 80%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: calc(#{$aac-spacing-28} + 5rem);
+  padding-right: calc(#{$aac-spacing-28} + 5rem);
   overflow-y: visible;
-  background: transparent;
+  background: linear-gradient(180deg, #f2f3f5 0%, #e6e8ec 50%, #d8dce0 100%);
 }
 
 // ── Font overrides (toggled via controller) ─────────────────────────────────
@@ -20292,8 +20531,6 @@ $la-hero-blue:     #3d5266; /* warmer slate blue (was #415a75), white text passe
 $la-gray-muted:    #4d5c54; /* warm gray for stat-label, section-subtitle (4.5:1 on white) */
 $la-gray-bar:      #c9c4b8; /* warm gray for mockup bar, ghost btn (was #dce1e9) */
 $la-gray-bar-border: #b5afa2; /* border for mockup bar / ghost */
-/* CTA gradient: coral → soft yellow (offsets teal/blue gradient) */
-$la-cta-gradient: linear-gradient(135deg, #e87a6f 0%, #f0a078 40%, #fef3c7 100%);
 /* Two-tone logo: left = hero 20% darker, right = same as Ready to start CTA */
 $la-logo-left: color.adjust($la-hero-blue, $lightness: -20%);
 $la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
@@ -20677,21 +20914,51 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   &:hover { filter: brightness(1.08); text-decoration: none; color: $la-navy; }
 }
 
-/* Try Free in inner header (app-navbar inside #inner_header) */
+/* Try Free in inner header — same bg and hover as Try LingoLinq (hero .la-btn--primary); keep height/padding */
 #inner_header .la-topbar-cta {
   background: $la-cta-gradient;
-  color: #1B2A4A;
+  color: $la-navy;
+  font-weight: normal;
   border: 1px solid rgba(232, 122, 111, 0.5);
+  filter: brightness(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: filter 0.15s ease, transform 0.2s ease, box-shadow 0.25s ease;
 
-  &:hover { color: #1B2A4A; }
+  &:hover {
+    filter: brightness(0.96);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+    color: $la-navy;
+    text-decoration: none;
+  }
 }
 
-/* Sign In (identity button) in inner header */
-#inner_header #identity .btn {
-  background: #3a6bc7;
-  color: white;
+/* Sign In (identity button) — same glass as Watch Demo, same shadow as Try Free; overrides gradient/base .btn when in header */
+header #identity #identity_button.btn {
+  background: rgba(255, 255, 255, 0.22) !important;
+  background-image: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1B365D !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 
-  &:hover { color: white; }
+  &:hover,
+  &:focus {
+    background: rgba(255, 255, 255, 0.32) !important;
+    background-image: none !important;
+    color: #1B365D !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    filter: none;
+  }
+}
+header #identity #identity_button.btn::before,
+header #identity #identity_button.btn::after {
+  display: none !important;
+  background: none !important;
+  background-image: none !important;
 }
 
 .la-topbar-login {
@@ -20903,20 +21170,19 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 // ── Hero card ────────────────────────────────────────────────────────────────
 // Full-width hero: break out of .la-main so hero spans viewport; content stays centered. Sits just below navbar.
 .la-hero-card {
-  margin-top: clamp(2rem, 1rem + 2vw, 4rem);
+  margin-top: clamp(0rem, 0rem + 2vw, 2rem); /* 2rem less than previous */
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  background: transparent;
+  background: linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
   border-radius: 0;
   position: relative;
   z-index: 1;
   overflow: visible;
-  padding-bottom: clamp(48px, 30px + 3.7vw, 83px);
   transition: background 0.25s ease;
 }
 
-/* Hero wave: static image on top, moving layer behind for left-to-right flow */
+/* Hero wave: permanently up 5rem, then float over 2rem range at same speed */
 .la-hero-wave-layer {
   position: absolute;
   left: 0;
@@ -20928,35 +21194,19 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
-  transition: transform 0.4s ease-out;
-}
-
-/* Same vertical speed as .la-floating-chip, then 2× slower */
-.la-hero-card:hover .la-hero-wave-layer {
-  animation: la-hero-wave-float 212s ease-in-out infinite;
+  will-change: transform;
+  transform: translateY(3rem);
+  animation: la-hero-wave-float 16s ease-in-out infinite;
 }
 
 @keyframes la-hero-wave-float {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-5rem); }
-  100% { transform: translateY(0); }
+  0%, 100% { transform: translateY(3rem); }
+  50% { transform: translateY(1rem); }
 }
 
-/* Subtle grow/shrink layer behind the wave */
+/* la-hero-wave-flow overlay removed */
 .la-hero-wave-flow {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
-  transform: translateX(-50%);
-  background: radial-gradient(
-    ellipse 120% 100% at 50% 100%,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    transparent 70%
-  );
-  animation: la-hero-wave-flow-breathe 6s ease-in-out infinite;
+  display: none;
 }
 
 @keyframes la-hero-wave-flow-breathe {
@@ -20979,36 +21229,19 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .hero-background {
-  padding-top: 2rem; /* 10rem − 8rem */
+  padding-top: 0; /* 2rem less than previous 2rem */
 
   @media (max-width: 1024px) {
-    padding-top: 8rem; /* 2rem + 5rem + 1rem on smaller screens */
+    padding-top: 6rem; /* 2rem less than previous 8rem */
   }
 
-  // Wave at bottom — same bg as rest of page (.la-wrapper base #f8f7f5) so it blends
+  // Bottom curve removed — hero has flat bottom
   &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 72px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 72' preserveAspectRatio='none'%3E%3Cpath fill='%23f8f7f5' d='M0 38 C280 72 400 72 600 38 C800 4 920 4 1200 38 V72 H0 Z'/%3E%3C/svg%3E");
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    background-position: 0 100%;
-    pointer-events: none;
+    display: none;
   }
 }
 
-/* Toggle: use previous hero + button colors (slate blue) instead of teal/blue */
-.hero-background::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: none;
-}
+/* hero-background::before overlay removed */
 
 #within_ember.la-hero-colors-alt .la-hero-card {
   background: color.adjust($la-hero-blue, $lightness: 11%, $saturation: 6%);
@@ -21044,6 +21277,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   gap: clamp(24px, 8px + 3.3vw, 56px);
   align-items: start; /* let columns grow with content so mockup margin/scale have room */
   position: relative;
+  background: transparent;
 
   // warm glow — top right, balances mockup side
   &::before {
@@ -21229,7 +21463,7 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 
   .la-hero-highlight {
     font-size: 1.05em;
-    font-weight: 800;
+    font-weight: normal;
   }
 
   .la-hero-title-line2 {
@@ -21268,10 +21502,11 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   font-size: 1.1em;
 }
 
-/* Same gradient as "every student" for "actually", "nothing you don't", "a voice" */
+/* Same gradient as "every student" for "actually", "nothing you don't", "a voice", pricing hero "pricing" */
 .la-wrapper .la-section-title em,
 .la-wrapper .la-plan-title em,
-.la-wrapper .la-cta-headline em {
+.la-wrapper .la-cta-headline em,
+.la-wrapper .la-hero-title em {
   background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
   -webkit-background-clip: text;
   background-clip: text;
@@ -21342,6 +21577,9 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 }
 
+/* Cloud-based / 90% Lower Cost / Real Classrooms badge icon bg (one source of truth) */
+$la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%);
+
 .la-hero-badge-icon {
   display: flex;
   align-items: center;
@@ -21362,16 +21600,30 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
   }
 
+  /* Cloud-based icon bg; 90% Lower Cost and Real Classrooms use same ($la-hero-badge-icon-bg) */
   &--cloud,
   &--cost,
   &--school {
-    background: rgba(color.adjust(#F2C94C, $saturation: -15%, $lightness: 15%), 0.88);
+    background: $la-hero-badge-icon-bg !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    color: #374151;
 
     .la-hero-badge:hover & {
-      background: rgba(color.adjust(#F2C94C, $saturation: -15%, $lightness: 15%), 0.88);
+      background: $la-hero-badge-icon-bg !important;
+      color: #374151;
     }
   }
+}
+
+/* 90% Lower Cost icon: copy cloud-based icon bg and icon color */
+.la-hero-badge-icon--cost {
+  background: $la-hero-badge-icon-bg !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  color: #374151;
+}
+.la-hero-badge:hover .la-hero-badge-icon--cost {
+  background: $la-hero-badge-icon-bg !important;
+  color: #374151;
 }
 
 .la-hero-badge-label {
@@ -21461,12 +21713,10 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   }
   25% {
     filter: brightness(0.96);
-    transform: translateY(-2px);
     box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
   }
   50% {
     filter: brightness(0.96);
-    transform: translateY(-2px);
     box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
   }
   100% {
@@ -21497,7 +21747,6 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 
   &:hover {
     filter: brightness(0.96);
-    transform: translateY(-2px);
     box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
     color: $la-navy;
   }
@@ -21523,7 +21772,6 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
     color: $la-navy;
     border-color: rgba(0, 0, 0, 0.06);
     text-decoration: none;
-    transform: translateY(-2px);
     box-shadow:
       0 6px 24px rgba(0, 0, 0, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -21536,11 +21784,24 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   .la-hero-card .la-hero-title .la-hero-title--from-right,
   .la-floating-chip,
   .la-hero-card .la-btn--primary,
-  #about-hero .la-about-hero-actions .la-btn--primary {
+  #about-hero .la-about-hero-actions .la-btn--primary,
+  .la-wrapper.la-wrapper--pricing .la-cta-buttons .la-btn--primary {
     animation: none;
   }
   .la-hero-card .la-hero-title .la-hero-title--from-right {
     opacity: 1;
+  }
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge,
+  .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-hero-title-wrap,
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header .la-section-eyebrow-badge,
+  .la-wrapper.la-wrapper--about #about-hero .la-section-header .la-hero-title-wrap,
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header .la-section-eyebrow-badge,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header .la-section-eyebrow-badge,
+  .la-wrapper.la-wrapper--about #features-hero .la-section-header .la-hero-title-wrap,
+  .la-wrapper.la-wrapper--features #features-hero .la-section-header .la-hero-title-wrap {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -21660,12 +21921,28 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   margin-bottom: $aac-spacing-12;
 }
 
+/* Communicator, Supporter, Eval: modern stroke icons in a consistent rounded container */
 .la-wrapper .la-about-glass-card__icon {
   display: inline-flex;
-  font-size: 24px;
-  line-height: 1;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(20, 127, 130, 0.1);
+  color: #0e6669;
+
+  svg {
+    width: 28px;
+    height: 28px;
+    stroke: currentColor;
+  }
 }
+
+.la-wrapper .la-about-glass-card__icon--communicator { background: rgba(44, 82, 130, 0.12); color: #2c5282; }
+.la-wrapper .la-about-glass-card__icon--supporter { background: rgba(26, 122, 110, 0.12); color: #1a7a6e; }
+.la-wrapper .la-about-glass-card__icon--eval { background: rgba(107, 114, 128, 0.12); color: #6b7280; }
 
 .la-wrapper .la-about-glass-card__title {
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
@@ -21864,29 +22141,22 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin-right: $aac-spacing-10;
 }
 
-/* Same glass bg as .md-workspace / Watch Demo button */
+/* Mockup Speak: same gradient as hero background */
 .la-mockup-speak {
   font-size: 13px;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: #e6e8ec;
   color: $la-navy;
   padding: 8px 16px;
   border-radius: 999px;
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
   white-space: nowrap;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow:
-    0 4px 56px rgba(0, 0, 0, 0.012),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.32);
-    box-shadow:
-      0 6px 24px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   }
 }
 
@@ -22080,13 +22350,15 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 /* Section anchoring: light gray band so flow is white (hero) → light gray (features) → parallax → white (CTA) */
 #la-features {
   padding-top: $aac-spacing-32;
-  background-color: #F7F9FA;
+  background: transparent;
+  border: none;
 }
 
 /* Landing-alt: Why LingoLinq section — tighter spacing hierarchy (eyebrow 16px, headline 24px) */
 /* Shared glass badge: landing + about page (About LingoLinq, What we offer, Trust & transparency, Open source, Ready to start, Attributions, etc.) */
 #la-features .la-section-header .la-section-eyebrow-badge,
 #about-hero .la-section-header .la-section-eyebrow-badge,
+#la-plan .la-section-eyebrow-badge,
 #la-testimonial .la-section-eyebrow-badge,
 #la-a11y .la-section-eyebrow-badge,
 .la-wrapper .la-cta-section .la-cta-eyebrow,
@@ -22095,6 +22367,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-wrapper.la-wrapper--about .la-a11y-statement .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--about .la-cta-section .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--about .la-attr-section .la-section-eyebrow-badge,
+.la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--contact .la-hero-card .la-section-eyebrow-badge,
 .la-features-modal-body .la-section-header .la-section-eyebrow-badge {
   background: linear-gradient(
@@ -22128,6 +22401,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 #la-features .la-section-header .la-section-title,
 #about-hero .la-section-header .la-section-title,
 .la-features-modal-body .la-section-header .la-section-title {
+  font-weight: normal;
   margin-bottom: 24px;
 }
 #about-what-we-offer .la-section-header .la-section-title {
@@ -22138,27 +22412,165 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 #about-hero {
   margin-top: calc(#{$aac-spacing-48} * 1.2);
   padding-top: $aac-spacing-32;
-  background-color: #F7F9FA;
+  background-color: transparent;
 }
 
 #about-hero .la-section-header {
   margin-bottom: 0;
 }
 
-/* About page: all dividers use the same subtle color */
+/* About page: dividers use subtle gradient */
 .la-wrapper.la-wrapper--about .la-about-hero-separator {
   background: linear-gradient(90deg, transparent, rgba(20, 127, 130, 0.28), rgba(58, 107, 199, 0.22), transparent);
+}
+
+/* Pricing page: same divider style as landing-alt hero (.la-hero-headline border) — 1px subtle line */
+.la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* About page hero: match pricing page top (layout, badge, title, divider, subtitle) */
+.la-wrapper.la-wrapper--about #about-hero .la-section-header {
+  margin-bottom: 0;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header .la-hero-title-wrap {
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s forwards;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header .la-hero-title {
+  margin-bottom: $aac-spacing-16;
+  font-weight: normal;
+  text-align: center;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 auto 0;
+  margin-top: -2rem;
+  margin-bottom: 0;
+}
+
+/* About "Built around" section: same 1px divider as top of page */
+.la-wrapper.la-wrapper--about #about-what-we-offer .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle {
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header + .la-feature-grid {
+  margin-top: -2rem;
+}
+
+/* Features page hero: same layout and styling as about hero top */
+.la-wrapper.la-wrapper--about #features-hero .la-section-header,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header {
+  margin-bottom: 0;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-section-header .la-section-eyebrow-badge,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-section-header .la-hero-title-wrap,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header .la-hero-title-wrap {
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s forwards;
+  margin-left: auto;
+  margin-right: auto;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-section-header .la-hero-title,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header .la-hero-title {
+  margin-bottom: $aac-spacing-16;
+  font-weight: normal;
+  text-align: center;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 auto 0;
+  margin-top: -2rem;
+  margin-bottom: 0;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-pricing-hero-subtitle,
+.la-wrapper.la-wrapper--features #features-hero .la-pricing-hero-subtitle {
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.la-wrapper.la-wrapper--about #features-hero .la-section-header + .la-feature-grid,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header + .la-feature-grid {
+  margin-top: -2rem;
+}
+#features-hero {
+  margin-top: calc(#{$aac-spacing-48} * 1.2);
+  padding-top: $aac-spacing-32;
+  background-color: transparent;
 }
 
 #about-hero .la-section-header .la-section-subtitle {
   margin-bottom: $aac-spacing-24;
 }
 
-#about-hero .la-about-hero-brand {
-  color: #2a5aa8;
-}
+#about-hero .la-about-hero-brand,
 #about-hero .la-about-hero-brand--italic {
-  color: #3a6bc7;
+  color: #1b2a4a;
 }
 
 /* About hero: same feature grid and cards as #la-features */
@@ -22382,9 +22794,10 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   letter-spacing: 0.005em;
 }
 
-// ── Feature grid & cards (landing-alt + about "What We Offer" + features modal) ─
+// ── Feature grid & cards (landing-alt + about "What We Offer" + features page + features modal) ─
 #la-features,
 #about-what-we-offer,
+#features-hero,
 .la-features-modal-body {
 .la-feature-grid {
   display: grid;
@@ -22953,7 +23366,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-wrapper .la-plan-title {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 32px;
-  font-weight: $aac-font-weight-bold;
+  font-weight: normal;
   color: $la-navy;
   max-width: 90%;
   margin: 0 0 $aac-spacing-16;
@@ -23184,12 +23597,12 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   border-radius: 24px;
   background: linear-gradient(
     125deg,
-    #eaf5f4 0%,
-    #faf8ed 20%,
-    #e2f1f0 42%,
-    #fcfaf2 62%,
-    #e8f4f3 82%,
-    #f9f7ec 100%
+    #f2faf9 0%,
+    #fcfbf5 20%,
+    #eef8f7 42%,
+    #fefdf8 62%,
+    #f2faf9 82%,
+    #fcfbf5 100%
   );
   background-size: 200% 200%;
   animation: la-cta-gradient-shift 12s ease-in-out infinite;
@@ -23287,7 +23700,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-wrapper .la-cta-headline {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: 38px;
-  font-weight: $aac-font-weight-black;
+  font-weight: normal;
   color: white;
   letter-spacing: -0.025em;
   line-height: 1.15;
@@ -23325,6 +23738,47 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   align-items: center;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+/* Pricing page CTA: match landing-alt hero buttons (Try LingoLinq / Watch Demo) */
+.la-wrapper.la-wrapper--pricing .la-cta-buttons .la-btn--primary {
+  background: $la-cta-gradient;
+  color: $la-navy;
+  border: 1px solid rgba(232, 122, 111, 0.5);
+  filter: brightness(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
+  animation: ctaGlow 6s ease-in-out infinite;
+
+  &:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+    color: $la-navy;
+  }
+}
+
+.la-wrapper.la-wrapper--pricing .la-cta-buttons .la-btn--ghost {
+  font-weight: $aac-font-weight-semi;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: $la-navy;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: $aac-spacing-12 30px;
+  border-radius: $aac-radius-pill;
+  box-shadow:
+    0 4px 56px rgba(0, 0, 0, 0.012),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.32);
+    color: $la-navy;
+    border-color: rgba(0, 0, 0, 0.18);
+    text-decoration: none;
+    box-shadow:
+      0 6px 24px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
 }
 
 /* Ready to start section: animate entire block when section scrolls into view */
@@ -23435,7 +23889,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: $aac-spacing-48 clamp($aac-spacing-16, 4vw + $aac-spacing-12, $aac-spacing-32) $aac-spacing-40;
   margin-top: 0;
   background: rgba($la-navy, 0.03);
-  border-top: 1px solid rgba($la-navy, 0.08);
+  border-top: none;
 }
 
 .la-footer-inner {
@@ -23859,7 +24313,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   .la-section-title {
     font-family: 'DM Serif Display', Georgia, serif;
     font-size: calc(38px * 0.85); /* 15% smaller than landing */
-    font-weight: $aac-font-weight-black;
+    font-weight: normal;
     color: $la-navy;
     margin: 0 0 24px;
     letter-spacing: -0.02em;
@@ -24866,8 +25320,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 // — xl+ (≥ 1280px): restore left/right margins on workspace so we keep edges on large screens —
 @media (min-width: $aac-breakpoint-xl) {
   .la-wrapper .la-main {
-    padding-left: $aac-spacing-20;
-    padding-right: $aac-spacing-20;
+    padding-left: calc(#{$aac-spacing-20} + 5rem);
+    padding-right: calc(#{$aac-spacing-20} + 5rem);
   }
   .md-workspace {
     margin-left: $aac-spacing-20;
@@ -24958,7 +25412,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 // — lg (≤ 1024px): collapse topbar nav, 2-col stats —
 @media (max-width: $aac-breakpoint-lg) {
   .la-wrapper .la-main {
-    padding: $aac-spacing-20;
+    padding: $aac-spacing-20 calc(#{$aac-spacing-20} + 5rem);
     gap: $aac-spacing-20;
   }
 
@@ -25098,7 +25552,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   .la-wrapper .la-main {
     width: 100%;
     max-width: 100%;
-    padding: $aac-spacing-16;
+    padding: $aac-spacing-16 calc(#{$aac-spacing-16} + 5rem);
     gap: $aac-spacing-16;
   }
 
@@ -25228,7 +25682,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-wrapper .la-main {
-    padding: $aac-spacing-12;
+    padding: $aac-spacing-12 calc(#{$aac-spacing-12} + 5rem);
     gap: $aac-spacing-12;
   }
 
@@ -26583,6 +27037,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   overflow: visible;
   display: block;
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   -webkit-box-orient: unset;
   text-align: center;
   padding: 0 4px;

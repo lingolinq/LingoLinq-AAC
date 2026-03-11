@@ -220,7 +220,7 @@ describe('subscription', function() {
       waitsFor(function() { return Subscription.handler == handler; });
       runs(function() {
         expect(handler.args.key).toEqual('asdfasdf');
-        expect(handler.args.image).toEqual('/images/logo-big-blue-gold.png');
+        expect(handler.args.image).toEqual('/images/logo-new.png');
         expect(handler.args.token).toNotEqual(undefined);
 
         window.StripeCheckout = null;

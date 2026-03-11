@@ -393,10 +393,6 @@ export default Controller.extend({
     closeLandingNav: function() {
       this.set('landingNavOpen', false);
     },
-    showFeatures: function() {
-      this.set('landingNavOpen', false);
-      modal.open('la-features-modal');
-    },
     toggleAltLanding: function() {
       this.toggleProperty('useAltLanding');
     },
@@ -1712,6 +1708,8 @@ export default Controller.extend({
     var cu = this.appState.get('currentUser');
     return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
       (route === 'about' && cu) ||
+      (route === 'features' && cu) ||
+      (route === 'pricing' && cu) ||
       (route === 'home-boards' && cu);
   })
 });

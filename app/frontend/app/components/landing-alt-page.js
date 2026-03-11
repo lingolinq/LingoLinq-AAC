@@ -117,9 +117,6 @@ export default Component.extend({
     applicationLanguage() {
       modal.open('modals/choose-locale');
     },
-    showFeatures() {
-      modal.open('la-features-modal');
-    },
     toggleFont(fontName) {
       var _this = this;
       if (_this.get('activeFont') === fontName) {

@@ -80,7 +80,7 @@ LingoLinq::Application.routes.draw do
         cache "/fonts/ArchitectsDaughter.ttf"
         cache "/images/star.png"
         cache "/images/logo-small.png"
-        cache "/images/logo-big-blue-gold.png"
+        cache "/images/logo-new.png"
         cache "/images/star_gray.png"
         cache "/images/folder.png"
         cache "/images/folder_home.png"
