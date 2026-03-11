@@ -1,5 +1,5 @@
 task "extras:copy_terms" => :environment do
-  ['privacy', 'terms', 'jobs', 'privacy_practices'].each do |type|
+  ['privacy', 'terms', 'jobs'].each do |type|
     str = "<!-- auto-generated app/views/shared/_#{type}.html.erb -->\n"
     str += File.read("./app/views/shared/_#{type}.html.erb")
     File.open("./app/frontend/app/templates/#{type}.hbs", 'w') do |f|
