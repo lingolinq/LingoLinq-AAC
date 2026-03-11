@@ -406,6 +406,10 @@ var buttonTracker = EmberObject.extend({
       if($(event.target).closest('.dropdown-menu').length > 0) {
         return;
       }
+      // allow sidebar clicks (board links, pin, close) to propagate so Ember actions run
+      if($(event.target).closest('#sidebar').length > 0 || $(event.target).closest('#sidebar_tease').length > 0) {
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();
@@ -1210,17 +1214,14 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            var stashes = buttonTracker.stashes;
-            if(stashes && stashes.get) {
-              var hiddenAt = stashes.get('sidebar_hidden_at');
-              if(hiddenAt && (Date.now() - hiddenAt) < 400) {
-                stashes.set('sidebar_hidden_at', null);
-              } else {
-                stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
-              }
-            }
-            buttonTracker.ignoreUp = true;
-            buttonTracker.buttonDown = false;
+            // Let sidebar_tease and sidebar_close fall through to trigger synthetic click
+            // so Ember actions (toggleSidebar) receive the event and run
+            event.preventDefault();
+            var e = $.Event( 'click' );
+            e.clientX = event.clientX;
+            e.clientY = event.clientY;
+            e.pass_through = true;
+            $(elem_wrap.dom).trigger(e);
           } else {
             event.preventDefault();
             // click events are eaten by our listener above, unless you
