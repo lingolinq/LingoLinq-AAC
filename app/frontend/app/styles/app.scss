@@ -225,6 +225,18 @@ header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
               radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
               linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
 }
+/* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user) */
+#within_ember:has(.page-footer) #content:has(.login-page-bg) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: calc(var(--topbar-height) + 3rem);
+  padding-bottom: var(--bottombar-height);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
 /* Light mode: shell bg uses active pill gradient (7eb8e0 → 3a6bc7). */
 #within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
 #within_ember.bento-page-with-footer.bento-default-mode-active #content.index.with_user {
@@ -378,13 +390,24 @@ body:has(#within_ember.bento-page-with-footer) {
   min-height: 0;
 }
 #within_ember.bento-page-with-footer #content > .ember-view:empty,
-#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)),
+#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)):not(:has(.login-page-bg)),
 #within_ember:has(.page-footer) #content > .ember-view:empty,
-#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)) {
+#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)):not(:has(.login-page-bg)) {
   flex: 0 0 0;
   min-height: 0;
   height: 0;
   overflow: hidden;
+}
+/* Login, register, forgot password/username: same as .la-wrapper so content is visible and #content scrolls */
+#within_ember.bento-page-with-footer #content > .ember-view:has(.login-page-bg),
+#within_ember:has(.page-footer) #content > .ember-view:has(.login-page-bg) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 /* Pricing, about, landing-alt: let outlet size to content so #content scrolls and footer shows at end */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.la-wrapper),
