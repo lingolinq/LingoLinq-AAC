@@ -10085,7 +10085,7 @@ body:-ms-fullscreen {
   color: #3A6BC7;
 }
 
-/* Reusable app navbar: glass effect – gradient + backdrop blur + soft bottom divider */
+/* Reusable app navbar: when authenticated, match unauthenticated header (solid gradient from header); no separate bar background */
 .app-navbar {
   position: relative;
   display: flex;
@@ -10096,11 +10096,9 @@ body:-ms-fullscreen {
   padding-left: 16px;
   padding-right: 16px;
   box-sizing: border-box;
-  background: linear-gradient(180deg, rgba(45, 74, 117, 0.92) 0%, rgba(27, 54, 93, 0.92) 40%, rgba(15, 31, 56, 0.92) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
 }
 
 /* When navbar is inside main header (#inner_header), fill the bar and let navbar provide the look */
@@ -10129,9 +10127,14 @@ body:-ms-fullscreen {
   width: 100%;
   box-sizing: border-box;
 }
+/* Authenticated main nav: same header style as unauthenticated (gradient, height, border) */
 #within_ember > header.header-index-with-dark-toggle:has(.app-navbar) {
-  background: transparent !important;
-  background-color: transparent !important;
+  background: linear-gradient(180deg, #263d5c 0%, #1b2a4a 40%, #0d1525 100%) !important;
+  background-color: #1b2a4a !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  min-height: 70px;
+  height: auto;
+  overflow: visible;
 }
 /* Board page: header needs solid background so two-row bar is visible */
 #within_ember > header.header-index-with-dark-toggle:has(#inner_header #speak),
@@ -10170,12 +10173,17 @@ body:-ms-fullscreen {
   flex-shrink: 0;
   display: flex;
 }
-/* Identity button in navbar: same gradient as modern dashboard active button */
+/* Identity button in navbar: match unauthenticated (glass style, same as landing-alt) */
 .app-navbar #identity #identity_button {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.22) !important;
   background-image: none !important;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1B365D !important;
+  font-weight: normal !important;
+  border: 1px solid rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 }
 .app-navbar #identity #identity_button::before,
 .app-navbar #identity #identity_button::after {
@@ -10185,10 +10193,12 @@ body:-ms-fullscreen {
 }
 .app-navbar #identity #identity_button:hover,
 .app-navbar #identity #identity_button:focus {
-  background: rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.32) !important;
   background-image: none !important;
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: none;
+  color: #1B365D !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-2px);
   filter: none;
 }
 .app-navbar .md-iconbtn__label {
@@ -10202,29 +10212,30 @@ body:-ms-fullscreen {
   border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Modern Dashboard link: same as .header-index-with-dark-toggle .ll-bento-help-btn--nav */
+/* Modern Dashboard link: match unauthenticated nav font and color (.la-topbar-link: rgba(white, 0.7)) */
 .app-navbar .ll-bento-help-btn--nav {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-right: 12px;
   vertical-align: middle;
-  font-size: 14px;
-  font-weight: 500;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 13.6px;
+  font-weight: 600;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.7);
   transition: color 0.2s ease;
 }
 .app-navbar .ll-bento-help-btn--nav:hover {
-  color: rgba(255, 255, 255, 1);
+  color: #ffffff;
   text-decoration: none;
 }
 .app-navbar .ll-bento-help-btn--nav .ll-bento-help-btn__icon {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.7);
   flex-shrink: 0;
 }
 .app-navbar .ll-bento-help-btn--nav:hover .ll-bento-help-btn__icon {
-  color: rgba(255, 255, 255, 1);
+  color: #ffffff;
 }
 .app-navbar .ll-bento-help-btn--nav .ll-bento-help-btn__label {
   white-space: nowrap;
@@ -10242,26 +10253,29 @@ body:-ms-fullscreen {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.7);
 }
 .app-navbar .ll-bento-help-btn--nav-icon-only:hover .ll-bento-help-btn__icon {
-  color: rgba(255, 255, 255, 1);
+  color: #ffffff;
 }
 .app-navbar .ll-bento-help-btn--nav-icon-only .ll-bento-help-btn__nav-icon {
   display: block;
 }
 
-/* Upgrade button: glass style to match cards */
+/* Upgrade button: match unauthenticated nav font and color (Lexend, rgba(white, 0.7)) */
 .app-navbar .md-pillnav__upgrade-nav {
   padding: 6px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff;
+  color: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  font-weight: 800;
-  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13.6px;
   line-height: 1;
   box-sizing: border-box;
   display: inline-flex;
@@ -10271,16 +10285,19 @@ body:-ms-fullscreen {
   margin-right: 12px;
   cursor: pointer;
   outline: none;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .app-navbar .md-pillnav__upgrade-nav:hover,
 .app-navbar .md-pillnav__upgrade-nav:focus {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), 0 3px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
 }
 .app-navbar .md-pillnav__upgrade-nav:active {
-  transform: scale(var(--md-tap, 0.99));
+  transform: translateY(-2px) scale(var(--md-tap, 0.99));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .app-navbar .header-unauth-nav {
@@ -10300,7 +10317,10 @@ body:-ms-fullscreen {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 13.6px;
+  font-weight: 600;
 }
 .app-navbar #header_search .form-control::placeholder {
   color: rgba(255, 255, 255, 0.6);
@@ -10329,15 +10349,19 @@ body:-ms-fullscreen {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.7);
   opacity: 1;
 }
 .app-navbar #header_search .header-search-btn:hover {
   background: rgba(0, 0, 0, 0.06);
+  color: #ffffff;
 }
 .app-navbar #header_search .header-search-icon {
   pointer-events: none;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.7);
+}
+.app-navbar #header_search .header-search-btn:hover .header-search-icon {
+  color: #ffffff;
 }
 .app-navbar__brand {
   margin: 0;
@@ -10361,12 +10385,12 @@ body:-ms-fullscreen {
   align-items: center;
   height: 100%;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.7);
 }
 .app-navbar .nav-header__logo-link:hover,
 .app-navbar .nav-header__app-name-link:hover {
   text-decoration: none;
-  color: rgba(255, 255, 255, 1);
+  color: #ffffff;
 }
 .app-navbar .nav-header__logo-link:focus,
 .app-navbar .nav-header__logo-link:focus-visible {
@@ -10378,35 +10402,47 @@ body:-ms-fullscreen {
   justify-content: center;
   margin-top: 0;
   width: auto;
-  max-height: 90px; /* match logo img height (72px + 25%) */
+  max-height: 30px;
   vertical-align: middle;
 }
+/* Logo size: match unauthenticated header */
 .app-navbar .nav-header__logo img {
   padding-top: 0;
-  width: 133px;   /* 148px −10% */
-  height: 81px;   /* 90px −10% */
+  height: 30px;
+  width: auto;
   max-height: none;
   margin-top: 0;
   margin-right: 0;
   object-fit: contain;
 }
 .app-navbar .nav-header__app-name-link {
-  margin-left: -24px;
+  margin-left: 4px;
 }
+/* Brand app name: match unauthenticated (DM Serif Display, same colors) */
 .app-navbar .nav-header__app-name {
   display: inline-block;
   vertical-align: middle;
   margin-left: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 .app-navbar .nav-header__app-name-lingo,
-.app-navbar .nav-header__app-name-linq,
-.app-navbar .nav-header__app-name-primary,
-.app-navbar .nav-header__app-name-accent {
-  color: #ffffff;
+.app-navbar .nav-header__app-name-linq {
+  color: inherit;
   font-style: normal;
 }
 .app-navbar .nav-header__app-name-primary {
-  font-size: 110%;
+  color: color.adjust(#415a75, $lightness: 35%);
+  font-style: normal;
+  font-size: 1em;
+}
+.app-navbar .nav-header__app-name-accent {
+  color: $color-gold;
+  font-style: italic;
 }
 
 .ll-bento-bar__welcome {
@@ -10725,6 +10761,23 @@ body:-ms-fullscreen {
 .header--unauthenticated h1 .nav-header__logo-link:hover,
 .header--unauthenticated h1 .nav-header__app-name-link:hover {
   text-decoration: none;
+}
+
+/* Authenticated nav brand: same font style as unauthenticated (DM Serif Display, sizes, colors) */
+.app-navbar h1 .nav-header__app-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.app-navbar h1 .nav-header__app-name-primary {
+  color: color.adjust(#415a75, $lightness: 35%);
+}
+.app-navbar h1 .nav-header__app-name-accent {
+  color: $color-gold;
+  font-style: italic;
 }
 
 /* Nav links and CTA laid out inside #nav_header flex container */
@@ -25882,24 +25935,39 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   position: relative;
   overflow: hidden;
 
-  h2 {
+  /* Auth header/divider: match about page design */
+  .la-section-header {
     text-align: center;
-    color: $la-navy;
-    font-weight: $aac-font-weight-black;
-    font-size: 22px;
-    margin: 0 0 $aac-spacing-10;
-    letter-spacing: -0.02em;
-    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    max-width: 100%;
+    margin-bottom: $aac-spacing-20;
   }
 
-  .register-card__divider {
-    width: 100%;
-    max-width: 140px;
-    height: 2px;
-    margin: 0 auto $aac-spacing-16;
+  .la-hero-title-wrap {
+    margin-bottom: 0;
+  }
+
+  .la-hero-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 24px;
+    font-weight: normal;
+    color: #1b2a4a;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 $aac-spacing-12;
+    text-align: center;
+
+    @media (max-width: 480px) {
+      font-size: 22px;
+    }
+  }
+
+  .la-about-hero-separator {
+    height: 1px;
+    max-width: 100%;
     border: none;
-    border-radius: 2px;
-    background: linear-gradient(90deg, transparent, rgba(20, 127, 130, 0.5), rgba(58, 107, 199, 0.4), transparent);
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.12);
+    margin: 0 auto $aac-spacing-20;
   }
 
   .register-subtitle {
@@ -26175,24 +26243,39 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   position: relative;
   overflow: hidden;
 
-  h2 {
+  /* Auth header/divider: match about page design */
+  .la-section-header {
     text-align: center;
-    color: $la-navy;
-    font-weight: $aac-font-weight-black;
-    font-size: 26px;
-    margin: 0 0 $aac-spacing-16;
-    letter-spacing: -0.02em;
-    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    max-width: 100%;
+    margin-bottom: $aac-spacing-24;
   }
 
-  .login-card__divider {
-    width: 100%;
-    max-width: 160px;
-    height: 3px;
-    margin: 0 auto $aac-spacing-24;
+  .la-hero-title-wrap {
+    margin-bottom: 0;
+  }
+
+  .la-hero-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 26px;
+    font-weight: normal;
+    color: #1b2a4a;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 $aac-spacing-16;
+    text-align: center;
+
+    @media (max-width: 480px) {
+      font-size: 22px;
+    }
+  }
+
+  .la-about-hero-separator {
+    height: 1px;
+    max-width: 100%;
     border: none;
-    border-radius: 2px;
-    background: linear-gradient(90deg, transparent, rgba(20, 127, 130, 0.5), rgba(58, 107, 199, 0.4), transparent);
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.12);
+    margin: 0 auto $aac-spacing-24;
   }
 
   .form-group {

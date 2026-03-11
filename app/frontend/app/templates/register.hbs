@@ -8,8 +8,12 @@
   <div class="register-page">
   <div class="register-card">
     {{#if this.stashes.enabled}}
-      <h2>{{t "Create a %app_name% Account" key="create_app_account"}}</h2>
-      <div class="register-card__divider" aria-hidden="true"></div>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Create a %app_name% Account" key="create_app_account"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       <form novalidate {{action "saveProfile" on="submit"}}>
       {{#if this.start_code_ref}}
         <div class="register-invite">
@@ -122,8 +126,12 @@
       {{/if}}
       </form>
     {{else}}
-      <h2>{{t "Can't Register" key="cant_register"}}</h2>
-      <div class="register-card__divider" aria-hidden="true"></div>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Can't Register" key="cant_register"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       <p>
         <span class="glyphicon glyphicon-exclamation-sign"></span>
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}

@@ -7,8 +7,12 @@
   </div>
   <div class="login-page">
   <div class="login-card">
-    <h2>{{t "Login Help" key="login_help"}}</h2>
-    <div class="login-card__divider" aria-hidden="true"></div>
+    <div class="la-section-header">
+      <div class="la-hero-title-wrap">
+        <h2 class="la-hero-title">{{t "Login Help" key="login_help"}}</h2>
+      </div>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+    </div>
     <form {{action "submitKey" on="submit"}}>
       {{#if this.response.email_sent}}
         <div class="form-group">
