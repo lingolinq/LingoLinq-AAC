@@ -38,7 +38,7 @@ LingoLinq::Application.routes.draw do
   get '/cache' => 'boards#cache'
   get '/videos/:source/:id' => 'boards#video'
   get '/privacy' => 'boards#privacy'
-  get '/privacy_practices' => 'boards#privacy_practices'
+  get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'

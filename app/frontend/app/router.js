@@ -60,7 +60,6 @@ Router.map(function() {
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });
   this.route('privacy', { path: '/privacy' });
-  this.route('privacy_practices', { path: '/privacy_practices' });
   this.route('jobs', { path: '/jobs' });
   this.route('pricing', { path: '/pricing' });
   this.route('features', { path: '/features' });
