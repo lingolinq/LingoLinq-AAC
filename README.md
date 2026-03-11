@@ -1,7 +1,7 @@
 ## LingoLinq-AAC - Every Voice Should Be Heard
 
 [![OpenAAC](https://www.openaac.org/images//OpenAAC-advocate-blue.svg)](https://www.openaac.org/advocates.html)
-[![DeepWiki](https://deepwiki.com/badge/swahlquist/LingoLinq-AAC)](https://deepwiki.com/swahlquist/LingoLinq-AAC)
+[![DeepWiki](https://deepwiki.com/badge/lingolinq/LingoLinq-AAC)](https://deepwiki.com/lingolinq/LingoLinq-AAC)
 
 LingoLinq-AAC is an open, web-based AAC (Augmentative and Alternative Communication) app. This project aims to modernize the existing tech stack and user interface, as well as integrate advanced AI features and tools to significantly enhance the AAC experience. If people struggle getting their words out for whatever reason, they can use the speech synthesis engine on a computing device to "speak" for them. Sometimes they'll just type on a keyboard (think Stephen Hawking), but sometimes typing is too slow or not a reasonable expectation, so communication "boards", which are just grids of labeled pictures, can also be used. LingoLinq supports building these grids and keyboards, optionally tracks their usage, and also offers tools for the team supporting the communicator.
 
