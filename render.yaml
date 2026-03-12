@@ -4,6 +4,10 @@ services:
     runtime: ruby
     plan: starter
     branch: functional-baseline
+    previews:
+      generation: automatic
+      expireAfterDays: 7
+    previewPlan: free
     buildCommand: "./bin/render-build.sh"
     preDeployCommand: bundle exec rails db:migrate
     startCommand: bundle exec puma -C config/puma.rb
@@ -44,8 +48,11 @@ services:
     runtime: ruby
     plan: starter
     branch: main
+    previews:
+      generation: automatic
+      expireAfterDays: 7
+    previewPlan: free
     buildCommand: "bundle install --deployment"
-
     startCommand: env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
     envVars:
       - key: RAILS_ENV
