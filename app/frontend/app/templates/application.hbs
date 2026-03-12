@@ -1003,9 +1003,9 @@
       <span style="margin: 5px; text-align: right; white-space: nowrap;">
         {{#if this.app_state.currentUser}}
           <button class='btn btn-default' style="width: 50%;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
-          <button class='btn btn-default' id='sidebar_close' style="width: calc(50% - 14px); padding-left: 0; padding-right: 0;">&times;</button>
+          <button class='btn btn-default' id='sidebar_close' style="width: calc(50% - 14px); padding-left: 0; padding-right: 0;" {{action "toggleSidebar"}}>&times;</button>
         {{else}}
-          <button id='sidebar_close' class='btn btn-default' style="width: 90%;">&times; {{t "Hide" key="hide_upper"}}</button>
+          <button id='sidebar_close' class='btn btn-default' style="width: 90%;" {{action "toggleSidebar"}}>&times; {{t "Hide" key="hide_upper"}}</button>
         {{/if}}
       </span>
     {{/unless}}
@@ -1048,7 +1048,7 @@
     {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       {{#unless this.app_state.sidebar_relegated}}
         {{#unless this.app_state.eval_mode}}
-          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}}>
+          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} role="button" tabindex="0">
             {{#if this.app_state.fenced_sidebar_board}}
               <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;'></span>
             {{/if}}

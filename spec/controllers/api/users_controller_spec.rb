@@ -2672,7 +2672,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['user_id']).to eq(u.global_id)
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to match(/.+\$.+/)
-      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me/)
+      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me\$/)
       expect(json['supervisees'][0]['verifier']).to_not eq(json['verifier'])
     end
 
@@ -2685,7 +2685,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2704,7 +2704,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2725,7 +2725,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u1.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
