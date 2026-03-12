@@ -136,6 +136,6 @@ export default Component.extend({
     },
     toggleHeroContainer() {
       this.toggleProperty('heroContainerHidden');
-    }
+    },
   }
 });

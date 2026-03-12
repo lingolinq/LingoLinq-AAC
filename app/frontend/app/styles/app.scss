@@ -9,8 +9,16 @@ $brand-coral: #FF6B4A;
 // Gold (brand accent)
 $color-gold: #f5c23b;
 
-/* CTA gradient (coral → soft yellow) used by landing-alt; defined early so About/landing blocks can use it */
-$la-cta-gradient: linear-gradient(135deg, #e87a6f 0%, #f0a078 40%, #fef3c7 100%);
+/* CTA gradient (coral → soft yellow) used by landing-alt; slightly higher saturation so hero feels less pale */
+$la-cta-gradient: linear-gradient(135deg, #{color.adjust(#e87a6f, $saturation: 12%)} 0%, #{color.adjust(#f0a078, $saturation: 12%)} 40%, #fef3c7 100%);
+/* Medium color from CTA gradient — solid background for other CTAs */
+$la-cta-solid: color.adjust(#f0a078, $saturation: 12%);
+/* Hero "Try LingoLinq" / "Try Free" button when wave is not showing */
+$la-hero-cta-bg: #F2B95A;
+/* Lightest color in hero background gradient (top of gradient) */
+$la-hero-bg-lightest: color.adjust(#f4f3f0, $lightness: 10%);
+/* "every student" and matching em gradients — teal to blue */
+$la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
 
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
@@ -1120,7 +1128,7 @@ header:not(.header-index-with-dark-toggle) #identity #identity_button.btn {
   color: #1B365D !important;
   font-weight: normal !important;
   border: 1px solid rgba(0, 0, 0, 0.04) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: none !important;
 }
 header:not(.header-index-with-dark-toggle) #identity #identity_button.btn:hover,
 header:not(.header-index-with-dark-toggle) #identity #identity_button.btn:focus {
@@ -1128,7 +1136,7 @@ header:not(.header-index-with-dark-toggle) #identity #identity_button.btn:focus 
   background-image: none !important;
   color: #1B365D !important;
   border-color: rgba(0, 0, 0, 0.06) !important;
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
   filter: none;
 }
 header.speaking #identity .btn {
@@ -1146,14 +1154,14 @@ header.speaking #identity .user_name {
   display: none;
 }
 
-/* Modern identity dropdown menu */
+/* Modern identity dropdown menu — dark slate bg, light text */
 #identity .dropdown .dropdown-menu {
   margin-top: 8px;
   padding: 8px 0;
   border: none;
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
-  background: #fff;
+  background: rgb(55, 65, 81);
   min-width: 0;
   width: max-content;
   overflow: hidden;
@@ -1163,7 +1171,7 @@ header.speaking #identity .user_name {
   > li > .ember-view {
     padding: 10px 18px;
     font-size: 15px;
-    color: #333;
+    color: rgba(255, 255, 255, 0.95);
     transition: background 0.12s ease, color 0.12s ease;
     border-radius: 0;
     display: block;
@@ -1171,15 +1179,15 @@ header.speaking #identity .user_name {
     line-height: 1.4;
 
     &:hover, &:focus {
-      background: #f0f4fa;
-      color: #1a3a6e;
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
       text-decoration: none;
     }
 
     .glyphicon {
       margin-right: 6px;
       font-size: 13px;
-      opacity: 0.65;
+      opacity: 0.85;
     }
   }
 
@@ -1187,10 +1195,11 @@ header.speaking #identity .user_name {
     font-size: 16px;
     font-weight: 600;
     padding: 12px 18px;
-    color: #1a3a6e;
+    color: rgba(255, 255, 255, 0.95);
 
     &:hover, &:focus {
-      background: #e8edf7;
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
     }
   }
 
@@ -1200,13 +1209,13 @@ header.speaking #identity .user_name {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #8c95a6;
+    color: rgba(255, 255, 255, 0.7);
     border-bottom: none;
   }
 
   .divider {
     margin: 6px 14px;
-    background-color: #eef0f4;
+    background-color: rgba(255, 255, 255, 0.15);
     height: 1px;
     border: none;
   }
@@ -1214,6 +1223,18 @@ header.speaking #identity .user_name {
   > li > a .label {
     vertical-align: middle;
     margin-right: 4px;
+  }
+
+  a {
+    color: rgba(255, 255, 255, 0.95);
+  }
+  a:hover, a:focus {
+    color: #ffffff;
+  }
+
+  .ll-theme-picker-dropdown-label.dropdown-header {
+    color: rgba(255, 255, 255, 0.7);
+    border-top-color: rgba(255, 255, 255, 0.15);
   }
 }
 
@@ -10173,7 +10194,7 @@ body:-ms-fullscreen {
   flex-shrink: 0;
   display: flex;
 }
-/* Identity button in navbar: match unauthenticated (glass style, same as landing-alt) */
+/* Identity button in navbar: flat, no shadow */
 .app-navbar #identity #identity_button {
   background: rgba(255, 255, 255, 0.22) !important;
   background-image: none !important;
@@ -10182,7 +10203,7 @@ body:-ms-fullscreen {
   color: #1B365D !important;
   font-weight: normal !important;
   border: 1px solid rgba(0, 0, 0, 0.04) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: none !important;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 }
 .app-navbar #identity #identity_button::before,
@@ -10197,7 +10218,7 @@ body:-ms-fullscreen {
   background-image: none !important;
   color: #1B365D !important;
   border-color: rgba(0, 0, 0, 0.06) !important;
-  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
   transform: translateY(-2px);
   filter: none;
 }
@@ -10614,13 +10635,22 @@ body:-ms-fullscreen {
 }
 /* ── Unauthenticated header – subtle gradient (same navy family) ───────────── */
 #within_ember > header.header--unauthenticated {
-  background: linear-gradient(180deg, #263d5c 0%, #1b2a4a 40%, #0d1525 100%) !important;
-  background-color: #1b2a4a !important;
+  background: #000 !important;
+  background-color: #000 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   height: auto;
   min-height: 70px;
   overflow: visible;
 }
+
+/* Top navbar on landing (index/landing-alt): same bg as lightest hero gradient color */
+#within_ember:has(#la-main) header.header--unauthenticated:has(.la-topbar-nav),
+#within_ember:has(#la-main) header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
+  background: $la-hero-bg-lightest !important;
+  background-color: $la-hero-bg-lightest !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
 .header--unauthenticated #inner_header {
   overflow: visible;
 }
@@ -10655,14 +10685,6 @@ body:-ms-fullscreen {
   margin-top: 5px;
   margin-left: 4rem;
 }
-#inner_header .nav-header__logo::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.4);
-  pointer-events: none;
-  border-radius: 4px;
-}
 #inner_header .nav-header__logo img {
   width: 100%;
   height: 100%;
@@ -10671,9 +10693,6 @@ body:-ms-fullscreen {
   width: auto;
   max-height: 45px;
   margin-top: 0;
-}
-#inner_header .app-navbar .nav-header__logo::after {
-  border-radius: 6px;
 }
 #inner_header .app-navbar .nav-header__logo img {
   width: 67px;
@@ -10710,26 +10729,25 @@ body:-ms-fullscreen {
   color: #1a1a1a;
 }
 
-/* Identity button on landing-alt: same style as Watch Demo (glass) */
+/* Identity button on landing / landing-alt (incl. index with useAltLanding): dark slate bg to match dropdown */
 #within_ember.landing-alt-route #identity #identity_button,
-#within_ember.landing-alt-route .app-navbar #identity #identity_button {
-  background: rgba(255, 255, 255, 0.22) !important;
+#within_ember.landing-alt-route .app-navbar #identity #identity_button,
+#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button {
+  background: rgb(55, 65, 81) !important;
   background-image: none !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #1B365D !important;
+  color: rgba(255, 255, 255, 0.95) !important;
   font-weight: normal !important;
-  border: 1px solid rgba(0, 0, 0, 0.04) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 
   &:hover,
   &:focus {
-    background: rgba(255, 255, 255, 0.32) !important;
+    background: color.adjust(rgb(55, 65, 81), $lightness: 8%) !important;
     background-image: none !important;
-    color: #1B365D !important;
-    border-color: rgba(0, 0, 0, 0.06) !important;
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: none !important;
     transform: translateY(-2px);
     filter: none;
   }
@@ -10737,10 +10755,18 @@ body:-ms-fullscreen {
 #within_ember.landing-alt-route #identity #identity_button::before,
 #within_ember.landing-alt-route #identity #identity_button::after,
 #within_ember.landing-alt-route .app-navbar #identity #identity_button::before,
-#within_ember.landing-alt-route .app-navbar #identity #identity_button::after {
+#within_ember.landing-alt-route .app-navbar #identity #identity_button::after,
+#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button::before,
+#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button::after {
   display: none !important;
   background: none !important;
   background-image: none !important;
+}
+
+/* Identity dropdown on landing / landing-alt: dark slate bg */
+#within_ember.landing-alt-route #identity .dropdown .dropdown-menu,
+#within_ember.index-or-landing-view header.header--unauthenticated #identity .dropdown .dropdown-menu {
+  background: rgb(55, 65, 81);
 }
 
 .header--unauthenticated h1 .nav-header__app-name {
@@ -20970,14 +20996,14 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .la-topbar-cta {
-  background: $la-cta-gradient;
+  background: $la-hero-cta-bg;
   color: $la-navy;
-  font-size: $aac-font-size-sm;
+  font-size: 12px;
   font-weight: $aac-font-weight-black;
-  padding: $aac-spacing-8 $aac-spacing-20;
+  padding: 6px 16px;
   border-radius: $aac-radius-pill;
   text-decoration: none;
-  border: 1px solid rgba(232, 122, 111, 0.5);
+  border: 1px solid rgba(245, 194, 59, 0.5);
   letter-spacing: $aac-letter-spacing-base;
   transition: filter 0.15s ease;
   white-space: nowrap;
@@ -20985,20 +21011,22 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   &:hover { filter: brightness(1.08); text-decoration: none; color: $la-navy; }
 }
 
-/* Try Free in inner header — same bg and hover as Try LingoLinq (hero .la-btn--primary); keep height/padding */
+/* Try Free in inner header — same bg as Try LingoLinq (hero .la-btn--primary), slightly smaller than hero CTA */
 #inner_header .la-topbar-cta {
-  background: $la-cta-gradient;
+  background: $la-hero-cta-bg;
   color: $la-navy;
-  font-weight: normal;
-  border: 1px solid rgba(232, 122, 111, 0.5);
+  font-size: 12px;
+  font-weight: 600; /* semi-bold: a bit more bold, not full bold */
+  padding: 6px 16px;
+  border: 1px solid rgba(245, 194, 59, 0.5);
   filter: brightness(1.02);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: filter 0.15s ease, transform 0.2s ease, box-shadow 0.25s ease;
+  box-shadow: none;
+  transition: filter 0.15s ease, transform 0.2s ease;
 
   &:hover {
     filter: brightness(0.96);
     transform: translateY(-2px);
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
     color: $la-navy;
     text-decoration: none;
   }
@@ -21012,7 +21040,7 @@ header #identity #identity_button.btn {
   -webkit-backdrop-filter: blur(10px);
   color: #1B365D !important;
   border: 1px solid rgba(0, 0, 0, 0.04) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: none !important;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 
   &:hover,
@@ -21021,7 +21049,7 @@ header #identity #identity_button.btn {
     background-image: none !important;
     color: #1B365D !important;
     border-color: rgba(0, 0, 0, 0.06) !important;
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+    box-shadow: none !important;
     filter: none;
   }
 }
@@ -21030,6 +21058,27 @@ header #identity #identity_button.btn::after {
   display: none !important;
   background: none !important;
   background-image: none !important;
+}
+
+/* Landing / landing-alt: identity/Sign In button — solid dark slate to match dropdown.
+   index route (/) with useAltLanding renders LandingAltPage but current_route stays "index", so we also match .index-or-landing-view + .header--unauthenticated. */
+#within_ember.landing-alt-route #identity #identity_button.btn,
+#within_ember.landing-alt-route header #identity #identity_button.btn,
+#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button.btn {
+  background: rgb(55, 65, 81) !important;
+  background-image: none !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+
+  &:hover,
+  &:focus {
+    background: color.adjust(rgb(55, 65, 81), $lightness: 8%) !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: none !important;
+  }
 }
 
 .la-topbar-login {
@@ -21242,62 +21291,20 @@ header #identity #identity_button.btn::after {
 // ── Hero card ────────────────────────────────────────────────────────────────
 // Full-width hero: break out of .la-main so hero spans viewport; content stays centered. Sits just below navbar.
 .la-hero-card {
+  position: relative;
   margin-top: clamp(0rem, 0rem + 2vw, 2rem); /* 2rem less than previous */
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  background: linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(78, 205, 196, 0.05), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(27, 54, 93, 0.05), transparent 60%),
+    linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
   border-radius: 0;
   position: relative;
   z-index: 1;
   overflow: visible;
   transition: background 0.25s ease;
-}
-
-/* Hero wave: permanently up 5rem, then float over 2rem range at same speed */
-.la-hero-wave-layer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  min-width: 100%;
-  height: 70.31vh; /* 56.25vh × 1.25 */
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-  will-change: transform;
-  transform: translateY(3rem);
-  animation: la-hero-wave-float 16s ease-in-out infinite;
-}
-
-@keyframes la-hero-wave-float {
-  0%, 100% { transform: translateY(3rem); }
-  50% { transform: translateY(1rem); }
-}
-
-/* la-hero-wave-flow overlay removed */
-.la-hero-wave-flow {
-  display: none;
-}
-
-@keyframes la-hero-wave-flow-breathe {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.08); }
-}
-
-.la-hero-wave {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  min-width: 100%;
-  height: 70.31vh;
-  object-fit: fill;
-  object-position: center bottom;
-  pointer-events: none;
-  z-index: 1;
 }
 
 .hero-background {
@@ -21345,7 +21352,7 @@ header #identity #identity_button.btn::after {
   margin: 0 auto;
   padding: 0;
   display: grid;
-  grid-template-columns: 11fr 9fr; /* 55% left (text), 45% right (mockup) */
+  grid-template-columns: 6fr 4fr; /* 60% left (text), 40% right (mockup) */
   gap: clamp(24px, 8px + 3.3vw, 56px);
   align-items: start; /* let columns grow with content so mockup margin/scale have room */
   position: relative;
@@ -21401,9 +21408,9 @@ header #identity #identity_button.btn::after {
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
   color: #374151;
 }
-/* "every student" — gradient same as Sign In button on inner_header */
+/* "every student" — gradient +5% saturation */
 .la-hero-card .la-hero-text .la-hero-title .la-hero-highlight {
-  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  background: $la-highlight-gradient;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -21417,7 +21424,7 @@ header #identity #identity_button.btn::after {
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
 }
 .la-hero-card .la-hero-text .la-hero-headline {
-  border-bottom-color: rgba(0, 0, 0, 0.12);
+  border-bottom-color: rgba(0, 0, 0, 0.09);
 }
 .la-hero-card .la-hero-text .la-hero-badges-section {
   background: rgba(0, 0, 0, 0.04);
@@ -21427,11 +21434,12 @@ header #identity #identity_button.btn::after {
   color: #374151;
 }
 .la-hero-card .la-hero-text .la-btn--ghost {
-  color: #374151;
-  border-color: rgba(55, 65, 81, 0.4);
+  color: rgba(255, 255, 255, 0.86);
+  border-color: rgba(255, 255, 255, 0.11);
 }
 .la-hero-card .la-hero-text .la-btn--ghost:hover {
-  background: rgba(55, 65, 81, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(65, 75, 91, 0.85);
 }
 
 /* Left content block: headline max-width, vertical rhythm per spacing map */
@@ -21458,19 +21466,42 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-headline {
-  margin-bottom: 32px; /* divider to feature pills */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 28px; /* 28px divider → paragraph (vertical rhythm) */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+/* Hero vertical rhythm: headline 24px → divider, 28px → paragraph, 32px → pills, 28px → CTA */
+.la-hero-card .la-hero-headline .la-hero-title-wrap {
+  padding-bottom: 24px;
+}
+
+.la-hero-trust-line {
+  margin-top: 24px;
+  margin-bottom: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.11);
+  font-size: clamp(1.3rem, 1.2rem + 0.32vw, 1.4rem);
+  font-weight: 500;
+  letter-spacing: 0.035em;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+}
+
+.la-hero-card .la-hero-text .la-hero-trust-line {
+  border-top-color: rgba(0, 0, 0, 0.04);
+  color: #9ca3af;
 }
 
 .la-hero-badges-section {
   width: fit-content;
   padding: clamp(8px, 4px + 0.56vw, 12px);
-  margin-bottom: clamp(16px, 8px + 1.67vw, 32px);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  margin-bottom: 28px; /* 28px feature pills → CTA buttons */
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 16px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .la-hero-badges-section .la-hero-badges {
@@ -21492,7 +21523,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-actions-section {
-  padding-top: 0;
+  padding-top: 16px; /* 8px more above CTAs for breathing room below pills */
 }
 
 .la-hero-eyebrow {
@@ -21511,10 +21542,10 @@ header #identity #identity_button.btn::after {
 .la-wrapper .la-hero-title {
   font-family: 'DM Serif Display', Georgia, serif;
   font-size: clamp(2rem, 0.8rem + 3.47vw, 3.575rem);
-  font-weight: 700;
+  font-weight: 600; /* semi-bold: cleaner, calmer, more editorial than 700 */
   color: #ffffff;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  line-height: 1.08;
+  letter-spacing: -0.025em; /* tight for display; keeps two-line headline feeling like one unit */
   font-kerning: normal;
   margin: 0;
   display: block;
@@ -21534,13 +21565,13 @@ header #identity #identity_button.btn::after {
   }
 
   .la-hero-highlight {
-    font-size: 1.05em;
+    font-size: 1.1025em; /* 5% larger than 1.05em */
     font-weight: normal;
   }
 
   .la-hero-title-line2 {
     display: inline;
-    font-size: 0.92em; /* 8% smaller than first line */
+    font-size: 0.88em; /* ~4% smaller than line 1 — subtle emphasis, modern two-line headline */
   }
 }
 
@@ -21566,12 +21597,22 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-highlight {
-  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  background: $la-highlight-gradient;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  font-size: 1.1em;
+  font-size: 1.155em; /* 5% larger than 1.1em */
+}
+
+/* "every student" in hero — teal to blue gradient */
+.hero-gradient {
+  background: linear-gradient(90deg, #2A9D8F, #4C86D8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-size: 1.155em; /* match previous la-hero-highlight emphasis */
 }
 
 /* Same gradient as "every student" for "actually", "nothing you don't", "a voice", pricing hero "pricing" */
@@ -21579,7 +21620,7 @@ header #identity #identity_button.btn::after {
 .la-wrapper .la-plan-title em,
 .la-wrapper .la-cta-headline em,
 .la-wrapper .la-hero-title em {
-  background: linear-gradient(135deg, var(--md-teal, #2cb7b0), rgba(91, 141, 239, 0.9));
+  background: $la-highlight-gradient;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -21600,9 +21641,8 @@ header #identity #identity_button.btn::after {
   color: #FFFFFF;
   line-height: 1.7;
   letter-spacing: 0.01em;
-  margin: 0 0 $aac-spacing-16;
-  width: 100%;
-  max-width: 100%;
+  margin: 0 0 32px; /* 32px paragraph → feature pills (vertical rhythm) */
+  max-width: 65ch; /* 55–70 chars per line for readability */
 }
 
 @keyframes la-badges-enter {
@@ -21619,7 +21659,7 @@ header #identity #identity_button.btn::after {
 .la-hero-badges {
   display: flex;
   flex-wrap: nowrap;
-  gap: clamp(8px, 4px + 0.83vw, 16px);
+  gap: clamp(4px, 2px + 0.42vw, 8px);
   margin-top: 0;
   margin-bottom: 0;
 }
@@ -21628,14 +21668,14 @@ header #identity #identity_button.btn::after {
   display: inline-flex;
   align-items: center;
   gap: clamp(8px, 4px + 0.56vw, 12px);
-  padding: clamp(6px, 4px + 0.28vw, 8px) clamp(12px, 4px + 1.11vw, 20px) clamp(6px, 4px + 0.28vw, 8px) clamp(12px, 8px + 0.56vw, 16px);
+  padding: clamp(3px, 2px + 0.14vw, 5px) clamp(12px, 4px + 1.11vw, 20px) clamp(3px, 2px + 0.14vw, 5px) clamp(12px, 8px + 0.56vw, 16px);
   flex-shrink: 0; /* overridden in .la-hero-badges-section for equal fit */
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: $aac-radius-pill;
-  opacity: 0.95;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-  transition: background 0.2s ease, opacity 0.2s ease;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px; /* more square than pill so badges don’t look like action buttons */
+  opacity: 0.98;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: background 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
   will-change: transform;
   animation: la-badges-enter 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 
@@ -21644,7 +21684,9 @@ header #identity #identity_button.btn::after {
   &:nth-child(3) { animation-delay: 0.6s; opacity: 0; }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
     opacity: 1;
   }
 }
@@ -21699,7 +21741,7 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
 }
 
 .la-hero-badge-label {
-  font-size: clamp(13px, 10px + 0.35vw, 15px);
+  font-size: clamp(11.7px, 9px + 0.32vw, 13.5px); /* 10% smaller than previous */
   font-weight: $aac-font-weight-semi;
   color: #FFFFFF;
   letter-spacing: 0.01em;
@@ -21806,47 +21848,45 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
 
 .la-hero-card .la-btn {
   min-height: 56px;
-  padding: $aac-spacing-12 30px; /* 28–32px horizontal */
+  padding: 14px 26px;
+  border-radius: 28px;
 }
 
 .la-hero-card .la-btn--primary {
-  background: $la-cta-gradient;
+  background: $la-hero-cta-bg;
   color: $la-navy;
-  border: 1px solid rgba(232, 122, 111, 0.5);
+  border: 1px solid rgba(245, 194, 59, 0.5);
   filter: brightness(1.02);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
-  animation: ctaGlow 6s ease-in-out infinite;
+  box-shadow: none;
 
   &:hover {
     filter: brightness(0.96);
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
     color: $la-navy;
   }
 }
 
-// Hero ghost (Watch Demo) — same glass bg as .md-workspace on modern dashboard
+// Hero ghost (Watch Demo) — secondary CTA; middle ground so primary wins but secondary stays readable
 .la-hero-card .la-btn--ghost {
   font-weight: $aac-font-weight-semi;
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(70, 80, 95, 0.7);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  color: $la-navy;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  padding: $aac-spacing-12 30px;
-  border-radius: $aac-radius-pill;
-  box-shadow:
-    0 4px 56px rgba(0, 0, 0, 0.012),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  padding: 14px 26px;
+  border-radius: 28px;
+  transform: translateY(-2px);
+  box-shadow: none;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.32);
-    color: $la-navy;
-    border-color: rgba(0, 0, 0, 0.06);
+    background: rgba(78, 88, 102, 0.8);
+    color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.18);
     text-decoration: none;
-    box-shadow:
-      0 6px 24px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transform: translateY(-3px);
+    box-shadow: none;
   }
 }
 
@@ -21885,24 +21925,46 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: clamp(240px, 160px + 12.5vw, 340px);
-  margin-top: calc(clamp(24px, 8px + 3.33vw, 56px) - 4rem);
+  min-height: clamp(216px, 144px + 11.25vw, 306px);
+  margin-top: calc((clamp(24px, 8px + 3.33vw, 56px) - 4rem) / 2);
   overflow: visible; /* allow scaled mockup to show */
-  padding: 0 clamp(12px, 4px + 1.11vw, 20px) clamp(12px, 4px + 1.11vw, 20px);
+  padding: clamp(7px, 4px + 0.55vw, 12px) clamp(25px, 14px + 1.8vw, 43px) clamp(25px, 15px + 1.82vw, 43px);
+  background: rgb(55, 65, 81);
+  border-radius: 24px;
+  box-shadow:
+    0 40px 80px rgba(15, 35, 70, 0.18),
+    0 12px 24px rgba(15, 35, 70, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 
-  // Soft glow behind the mockup — gives right column visual weight and balance
+  // Layer 1 — Ambient glow: very soft radial behind mockup (spotlight, not flashy)
   &::before {
     content: '';
     position: absolute;
-    inset: -50px -30px -50px -30px;
-    border-radius: 50%;
+    inset: -65px;
     background: radial-gradient(
-      ellipse 65% 55% at 50% 50%,
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(255, 255, 255, 0.1) 40%,
+      circle,
+      rgba(78, 205, 196, 0.18),
+      rgba(78, 205, 196, 0.1),
       transparent 65%
     );
-    z-index: 0;
+    filter: blur(40px);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  // Very faint teal glow — second layer behind mockup
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -32px;
+    background: radial-gradient(
+      circle,
+      rgba(78, 205, 196, 0.12),
+      transparent 65%
+    );
+    filter: blur(40px);
+    z-index: -1;
     pointer-events: none;
   }
 }
@@ -21937,7 +21999,7 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
   }
 
   &.la-floating-chip--br {
-    bottom: calc(20% - 10rem);
+    bottom: calc(20% - 6rem); /* 3.5rem lower than before (was 20% - 2.5rem) */
     left: clamp(-4px, -12px + 0.83vw, 4px);
     animation-delay: 1.5s;
   }
@@ -22076,14 +22138,17 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-mockup {
   position: relative;
   z-index: 1;
-  width: clamp(280px, 140px + 22.7vw, 467px);
+  width: clamp(252px, 126px + 20.4vw, 420px);
   max-width: 100%;
-  margin-top: clamp(20px, 8px + 2.22vw, 40px);
+  margin-top: clamp(18px, 8px + 2vw, 36px);
   background: white;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: $la-shadow-sm;
-  transform: scale(1.02);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 14px 32px rgba(0, 0, 0, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.03);
+  transform: scale(0.98); /* 10% smaller than previous (was 1.09) */
   transform-origin: top center;
 }
 
@@ -22131,22 +22196,6 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   flex-direction: column;
   gap: 14px;
   background: #fafbfc;
-
-  /* Glass overlay covering everything below the topbar */
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: 0 0 20px 20px;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0.25) 100%
-    );
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 0 rgba(255, 255, 255, 0.2);
-  }
 }
 
 .la-mockup-grid {
@@ -22421,6 +22470,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 /* Section anchoring: light gray band so flow is white (hero) → light gray (features) → parallax → white (CTA) */
 #la-features {
+  margin-top: $aac-spacing-48;
   padding-top: $aac-spacing-32;
   background: transparent;
   border: none;
@@ -25413,12 +25463,6 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     max-width: 100%;
   }
 
-  /* Move hero wave image (and its contents) up; mockup stays in flow */
-  .la-hero-wave-layer {
-    transform: translateY(-35rem);
-    animation: none;
-  }
-
   .la-hero-card-inner {
     grid-template-columns: 1fr;
     padding: 0;
@@ -25477,18 +25521,18 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   .la-hero-mockup-wrap {
     justify-content: center;
     width: 100%;
-    max-width: min(500px, 100%); /* use full content width when narrower than cap */
+    max-width: min(450px, 100%); /* 10% smaller than previous 500px cap */
     margin: calc(40px - 3rem) auto 0;
     box-sizing: border-box;
   }
 
   .la-hero-mockup-wrap .la-mockup {
     width: 100%;
-    max-width: min(500px, 100%);
+    max-width: min(450px, 100%);
   }
 
   .la-mockup {
-    margin-top: 40px;
+    margin-top: 20px;
   }
 }
 
@@ -25566,12 +25610,12 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-hero-mockup-wrap {
-    max-width: min(625px, 100%); /* 500px + 25% at lg; fill when container narrower */
+    max-width: min(562px, 100%); /* 10% smaller (was 625px) */
   }
 
   .la-hero-mockup-wrap .la-mockup {
     width: 100%;
-    max-width: min(625px, 100%);
+    max-width: min(562px, 100%);
   }
 
   // Stats: relax to 2x2
@@ -25625,12 +25669,12 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-hero-mockup-wrap {
-    max-width: min(781px, 100%); /* 625px + 25% at md; fill when container narrower */
+    max-width: min(703px, 100%); /* 10% smaller (was 781px) */
   }
 
   .la-hero-mockup-wrap .la-mockup {
     width: 100%;
-    max-width: min(781px, 100%);
+    max-width: min(703px, 100%);
   }
 
   .la-wrapper .la-main {
@@ -25647,18 +25691,6 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
   .la-hero-card {
     border-radius: $aac-radius-lg;
-  }
-
-  /* Hero wave: show center portion only; crop left and right edges */
-  .la-hero-wave-layer {
-    overflow: hidden;
-  }
-  .la-hero-wave {
-    width: 140%;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    object-position: center bottom;
   }
 
   .la-about-glass-grid {
@@ -25864,21 +25896,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 }
 
-// — xs (≤ 480px): hero wave — more dramatic center crop (left/right hidden) —
+// — xs (≤ 480px) —
 @media (max-width: 480px) {
-  .la-hero-wave-layer {
-    transform: translateY(-50rem);
-    animation: none;
-    overflow: hidden;
-  }
-  .la-hero-wave {
-    width: 200%;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    object-position: center bottom;
-  }
-
   /* CTA section: content 15% smaller; headline matches "Built for how..." (24px at 480px) */
   .la-cta-section .la-cta-inner {
     font-size: 85%;

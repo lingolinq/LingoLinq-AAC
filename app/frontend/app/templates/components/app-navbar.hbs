@@ -5,10 +5,24 @@
     {{!-- Single baseline: reusable authenticated inner (index + modern-dashboard). Modern Dashboard link only on authenticated view (index). --}}
     <AppNavbarAuthenticatedInner @showModernDashboardLink={{this.showModernDashboardLink}} />
   {{else}}
-    {{!-- Unauthenticated: landing-alt style (Features, Pricing, About, Try Free). Reuses LaMobileDrawer for collapse. --}}
+    {{!-- Unauthenticated: brand (logo + app name) + landing-alt style (Features, Pricing, About, Try Free). Reuses LaMobileDrawer for collapse. --}}
     {{#unless this.appState.installed_app}}
       {{#unless this.appState.embedded}}
         {{#unless this.appState.no_linky}}
+          <span class="app-navbar__nav-header">
+            <h1 class="app-navbar__brand">
+              <span class="nav-header__brand">
+                <LinkTo @route="index" class="nav-header__logo-link">
+                  <span class="nav-header__logo">
+                    <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} alt="LingoLinq">
+                  </span>
+                </LinkTo>
+                <LinkTo @route="index" class="nav-header__app-name-link">
+                  <span class="nav-header__app-name"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></span>
+                </LinkTo>
+              </span>
+            </h1>
+          </span>
           <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key="fsa_page_sections"}}>
             <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key="fsa_nav_features"}}</LinkTo>
             <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo>
