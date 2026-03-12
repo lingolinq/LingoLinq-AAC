@@ -16,11 +16,29 @@ export default Component.extend({
   /** When true, the mobile drawer (same structure as landing la-mobile-drawer) is open. */
   isDrawerOpen: false,
 
+  /** When true, the LingoLinq company links sidebar (About, Pricing, etc.) is open. */
+  isCompanySidebarOpen: false,
+
   application: computed(function() {
     return getOwner(this).lookup('controller:application');
   }),
 
   actions: {
+    openSupport() {
+      var fn = this.get('onSupport');
+      if (fn && typeof fn === 'function') {
+        fn();
+      }
+    },
+    openLanguage() {
+      this.get('application').send('language');
+    },
+    openCompanySidebar() {
+      this.set('isCompanySidebarOpen', true);
+    },
+    closeCompanySidebar() {
+      this.set('isCompanySidebarOpen', false);
+    },
     toggleDrawer() {
       this.toggleProperty('isDrawerOpen');
     },
@@ -31,9 +49,6 @@ export default Component.extend({
     closeDrawerAndSend(signal) {
       this.send('closeDrawer');
       this.get('application').send(signal);
-    },
-    support() {
-      this.get('application').send('support');
     },
     goUpgrade() {
       this.get('application').send('goUpgrade');

@@ -1351,10 +1351,13 @@ h1 a:hover {
   color: #ffffff;
 }
 #nav_header .nav-header__app-name-primary {
-  font-size: 110%;
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: #ffffff;
 }
 #nav_header .nav-header__app-name-accent {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: #ffffff;
   font-style: normal;
 }
@@ -7436,6 +7439,18 @@ video.button_image {
   padding-top: 7px;
   padding-bottom: 7px;
 }
+.dropdown-menu__language-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dropdown-menu__language-icon {
+  width: auto;
+  height: 18px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-right: 14px;
+}
 #grid_menuitem {
   .btn {
     height: 40px;
@@ -9899,7 +9914,8 @@ body:-ms-fullscreen {
   padding: 24px;
   position: relative;
   overflow: hidden;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 400;
   background: transparent; /* gradient on #content fills the content viewport */
 }
 
@@ -10282,6 +10298,22 @@ body:-ms-fullscreen {
 .app-navbar .ll-bento-help-btn--nav-icon-only .ll-bento-help-btn__nav-icon {
   display: block;
 }
+.app-navbar .ll-bento-help-btn--support {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.app-navbar .ll-bento-help-btn--support .ll-bento-help-btn__support-icon {
+  width: 20px;
+  height: 20px;
+}
+.app-navbar .ll-bento-help-btn--support .ll-bento-help-btn__support-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Upgrade button: match unauthenticated nav font and color (Lexend, rgba(white, 0.7)) */
 .app-navbar .md-pillnav__upgrade-nav {
@@ -10439,13 +10471,13 @@ body:-ms-fullscreen {
 .app-navbar .nav-header__app-name-link {
   margin-left: 4px;
 }
-/* Brand app name: match unauthenticated (DM Serif Display, same colors) */
+/* Brand app name: Maitree 25px, same colors as unauthenticated */
 .app-navbar .nav-header__app-name {
   display: inline-block;
   vertical-align: middle;
   margin-left: 0;
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 22px;
+  font-family: 'Maitree', serif;
+  font-size: 25px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: 0.01em;
@@ -10457,11 +10489,14 @@ body:-ms-fullscreen {
   font-style: normal;
 }
 .app-navbar .nav-header__app-name-primary {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: color.adjust(#415a75, $lightness: 35%);
   font-style: normal;
-  font-size: 1em;
 }
 .app-navbar .nav-header__app-name-accent {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: $color-gold;
   font-style: italic;
 }
@@ -10481,7 +10516,8 @@ body:-ms-fullscreen {
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 400;
   color: rgba(31, 42, 68, 0.9);
 }
 
@@ -10703,11 +10739,18 @@ body:-ms-fullscreen {
   width: auto;
 }
 
-/* App name in inner header: slightly lighter than black */
-#inner_header .nav-header__app-name-link,
+/* App name in inner header: slightly lighter than black; Maitree 25px */
+#inner_header .nav-header__app-name-link {
+  color: #1a1a1a;
+}
 #inner_header .nav-header__app-name-primary,
 #inner_header .nav-header__app-name-accent {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: #1a1a1a;
+}
+#inner_header .nav-header__app-name-accent {
+  font-style: normal;
 }
 #inner_header .nav-header__app-name-link:hover {
   color: #1a1a1a;
@@ -10729,10 +10772,9 @@ body:-ms-fullscreen {
   color: #1a1a1a;
 }
 
-/* Identity button on landing / landing-alt (incl. index with useAltLanding): dark slate bg to match dropdown */
-#within_ember.landing-alt-route #identity #identity_button,
-#within_ember.landing-alt-route .app-navbar #identity #identity_button,
-#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button {
+/* Identity button on all unauthenticated pages (landing, landing-alt, login, register, etc.): dark slate bg to match dropdown */
+#within_ember header.header--unauthenticated #identity #identity_button,
+#within_ember header.header--unauthenticated .app-navbar #identity #identity_button {
   background: rgb(55, 65, 81) !important;
   background-image: none !important;
   color: rgba(255, 255, 255, 0.95) !important;
@@ -10752,35 +10794,108 @@ body:-ms-fullscreen {
     filter: none;
   }
 }
-#within_ember.landing-alt-route #identity #identity_button::before,
-#within_ember.landing-alt-route #identity #identity_button::after,
-#within_ember.landing-alt-route .app-navbar #identity #identity_button::before,
-#within_ember.landing-alt-route .app-navbar #identity #identity_button::after,
-#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button::before,
-#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button::after {
+#within_ember header.header--unauthenticated #identity #identity_button::before,
+#within_ember header.header--unauthenticated #identity #identity_button::after,
+#within_ember header.header--unauthenticated .app-navbar #identity #identity_button::before,
+#within_ember header.header--unauthenticated .app-navbar #identity #identity_button::after {
   display: none !important;
   background: none !important;
   background-image: none !important;
 }
 
-/* Identity dropdown on landing / landing-alt: dark slate bg */
-#within_ember.landing-alt-route #identity .dropdown .dropdown-menu,
-#within_ember.index-or-landing-view header.header--unauthenticated #identity .dropdown .dropdown-menu {
+/* Identity dropdown on unauthenticated pages: dark slate bg */
+#within_ember header.header--unauthenticated #identity .dropdown .dropdown-menu {
   background: rgb(55, 65, 81);
 }
 
+/* Authenticated pages: identity in inner_header — no bg or border */
+#within_ember header:not(.header--unauthenticated) #identity #identity_button,
+#within_ember header:not(.header--unauthenticated) .app-navbar #identity #identity_button,
+#within_ember header:not(.header--unauthenticated) #identity.identity-with-dark-toggle #identity_button {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#within_ember header:not(.header--unauthenticated) #identity #identity_button:hover,
+#within_ember header:not(.header--unauthenticated) #identity #identity_button:focus,
+#within_ember header:not(.header--unauthenticated) .app-navbar #identity #identity_button:hover,
+#within_ember header:not(.header--unauthenticated) .app-navbar #identity #identity_button:focus,
+#within_ember header:not(.header--unauthenticated) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember header:not(.header--unauthenticated) #identity.identity-with-dark-toggle #identity_button:focus {
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+#within_ember header:not(.header--unauthenticated) #identity #identity_button::before,
+#within_ember header:not(.header--unauthenticated) #identity #identity_button::after,
+#within_ember header:not(.header--unauthenticated) .app-navbar #identity #identity_button::before,
+#within_ember header:not(.header--unauthenticated) .app-navbar #identity #identity_button::after,
+#within_ember header:not(.header--unauthenticated) #identity.identity-with-dark-toggle #identity_button::before,
+#within_ember header:not(.header--unauthenticated) #identity.identity-with-dark-toggle #identity_button::after {
+  display: none !important;
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+}
+
+/* Authenticated pages inner_header: support (?) and upgrade font color */
+#within_ember header:not(.header--unauthenticated) .app-navbar .ll-bento-help-btn--support .ll-bento-help-btn__icon,
+#within_ember header:not(.header--unauthenticated) .app-navbar .ll-bento-help-btn--support .ll-bento-help-btn__support-icon {
+  color: #374151;
+}
+#within_ember header:not(.header--unauthenticated) .app-navbar .ll-bento-help-btn--support:hover .ll-bento-help-btn__icon,
+#within_ember header:not(.header--unauthenticated) .app-navbar .ll-bento-help-btn--support:hover .ll-bento-help-btn__support-icon {
+  color: #1a1a1a;
+}
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__upgrade-nav,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__upgrade-nav,
+#within_ember header:not(.header--unauthenticated) #identity .ll-bento-upgrade-btn--nav {
+  color: #374151;
+}
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__upgrade-nav:hover,
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__upgrade-nav:focus,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__upgrade-nav:hover,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__upgrade-nav:focus,
+#within_ember header:not(.header--unauthenticated) #identity .ll-bento-upgrade-btn--nav:hover,
+#within_ember header:not(.header--unauthenticated) #identity .ll-bento-upgrade-btn--nav:focus {
+  color: #374151;
+}
+
+/* Authenticated pages inner_header: search boards input and magnifier font/icon color */
+#within_ember header:not(.header--unauthenticated) #header_search .form-control,
+#within_ember header:not(.header--unauthenticated) #header_search .form-control::placeholder,
+#within_ember header:not(.header--unauthenticated) #header_search .header-search-btn,
+#within_ember header:not(.header--unauthenticated) #header_search .header-search-icon {
+  color: #374151;
+}
+#within_ember header:not(.header--unauthenticated) #header_search .header-search-btn:hover .header-search-icon {
+  color: #374151;
+}
+#within_ember header:not(.header--unauthenticated) #header_search .form-control {
+  font-weight: normal;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 .header--unauthenticated h1 .nav-header__app-name {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 22px;
+  font-family: 'Maitree', serif;
+  font-size: 25px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 .header--unauthenticated h1 .nav-header__app-name-primary {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: color.adjust(#415a75, $lightness: 35%); /* light slate: readable on dark nav, ties to hero */
 }
 .header--unauthenticated h1 .nav-header__app-name-accent {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: $color-gold; /* every student / logo right */
   font-style: italic;
 }
@@ -10789,19 +10904,23 @@ body:-ms-fullscreen {
   text-decoration: none;
 }
 
-/* Authenticated nav brand: same font style as unauthenticated (DM Serif Display, sizes, colors) */
+/* Authenticated nav brand: Maitree 25px, same colors as unauthenticated */
 .app-navbar h1 .nav-header__app-name {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 22px;
+  font-family: 'Maitree', serif;
+  font-size: 25px;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
 .app-navbar h1 .nav-header__app-name-primary {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: color.adjust(#415a75, $lightness: 35%);
 }
 .app-navbar h1 .nav-header__app-name-accent {
+  font-size: 25px;
+  font-family: 'Maitree', serif;
   color: $color-gold;
   font-style: italic;
 }
@@ -10887,7 +11006,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Maitree', serif;
   font-size: 22px;
   font-weight: 800;
   color: #3a6bc7;
@@ -11068,7 +11187,8 @@ header.header--unauthenticated ~ #content .la-topbar {
   align-items: center;
   gap: 8px;
   font-size: 16px;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.95);
   pointer-events: auto;
 }
@@ -15285,7 +15405,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
   max-width: 100%;
   box-sizing: border-box;
   padding-left: 0;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 400;
   color: var(--fs-text);
   background: var(--fs-white);
   line-height: 1.6;
@@ -17691,7 +17812,7 @@ $categories: (
 );
 
 // Typography
-$aac-font-display:   'DM Serif Display', Georgia, serif;
+$aac-font-display:   'Maitree', serif;
 $aac-font-body:      'Nunito', 'Segoe UI', sans-serif;
 
 $aac-font-size-xs:   11px;
@@ -19298,6 +19419,58 @@ $aac-z-topbar:   400;
   color: #147f82;
 }
 
+/* Privacy page: same background as authenticated-view workspace (md-shell) */
+.la-wrapper.la-wrapper--privacy {
+  background:
+    radial-gradient(1200px 600px at 20% 20%, rgba(44, 183, 176, 0.12), transparent 55%),
+    radial-gradient(1200px 600px at 80% 15%, rgba(240, 106, 91, 0.10), transparent 60%),
+    radial-gradient(1000px 700px at 60% 85%, rgba(91, 141, 239, 0.12), transparent 60%),
+    var(--md-bg, #eef1f6);
+  min-height: 100vh;
+}
+
+/* Privacy page: center all containers and hero */
+.la-wrapper.la-wrapper--privacy .app-shell,
+.la-wrapper.la-wrapper--privacy .la-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.la-wrapper.la-wrapper--privacy .la-main > section:not(.la-privacy-section) {
+  width: 100%;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.la-wrapper.la-wrapper--privacy .la-main > section.la-privacy-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  padding: 40px;
+  border-radius: 48px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 4px 56px rgba(0, 0, 0, 0.012),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  @media (min-width: 768px) {
+    width: 60%;
+    max-width: 60%;
+  }
+}
+
 // About-page hero separator — same as login page divider
 .la-about-hero-separator {
   width: 100%;
@@ -19805,8 +19978,9 @@ $aac-z-topbar:   400;
 
 // Privacy page: content card and prose
 .la-privacy-content-card {
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: 1080px;
+  margin: -5rem auto;
+  padding: 1.5rem;
 }
 
 .la-privacy-content-header {
@@ -20934,6 +21108,97 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   letter-spacing: 0.02em;
 }
 
+/* ── LingoLinq company sidebar (About, Pricing, Developers, etc.) ── */
+.ll-company-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+}
+
+.ll-company-sidebar__backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(27, 42, 74, 0.35);
+  animation: la-drawer-fade-in 0.25s ease forwards;
+}
+
+.ll-company-sidebar__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  max-width: 90vw;
+  height: 100%;
+  background: #fff;
+  box-shadow: -4px 0 24px rgba(27, 42, 74, 0.15);
+  padding: 72px 24px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: la-drawer-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+}
+
+.ll-company-sidebar__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(27, 42, 74, 0.1);
+  border-radius: 10px;
+  font-size: 22px;
+  color: rgba(27, 42, 74, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: rgba(27, 42, 74, 0.05);
+    color: rgba(27, 42, 74, 0.8);
+  }
+}
+
+.ll-company-sidebar__title {
+  margin: 0 0 20px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: $la-navy;
+  letter-spacing: -0.01em;
+}
+
+.ll-company-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ll-company-sidebar__link {
+  display: block;
+  padding: 12px 14px;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: $la-navy;
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: rgba(27, 42, 74, 0.06);
+    text-decoration: none;
+    color: $la-navy;
+  }
+}
+
 .la-topbar-compare-link {
   color: rgba(white, 0.55);
   font-size: $aac-font-size-xs;
@@ -21060,11 +21325,9 @@ header #identity #identity_button.btn::after {
   background-image: none !important;
 }
 
-/* Landing / landing-alt: identity/Sign In button — solid dark slate to match dropdown.
-   index route (/) with useAltLanding renders LandingAltPage but current_route stays "index", so we also match .index-or-landing-view + .header--unauthenticated. */
-#within_ember.landing-alt-route #identity #identity_button.btn,
-#within_ember.landing-alt-route header #identity #identity_button.btn,
-#within_ember.index-or-landing-view header.header--unauthenticated #identity #identity_button.btn {
+/* Unauthenticated pages: identity/Sign In button — solid dark slate to match dropdown (landing, login, register, etc.). */
+#within_ember header.header--unauthenticated #identity #identity_button.btn,
+#within_ember header.header--unauthenticated .app-navbar #identity #identity_button.btn {
   background: rgb(55, 65, 81) !important;
   background-image: none !important;
   color: rgba(255, 255, 255, 0.95) !important;
@@ -21540,7 +21803,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-wrapper .la-hero-title {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Maitree', serif;
   font-size: clamp(2rem, 0.8rem + 3.47vw, 3.575rem);
   font-weight: 600; /* semi-bold: cleaner, calmer, more editorial than 700 */
   color: #ffffff;
@@ -21548,6 +21811,7 @@ header #identity #identity_button.btn::after {
   letter-spacing: -0.025em; /* tight for display; keeps two-line headline feeling like one unit */
   font-kerning: normal;
   margin: 0;
+  margin-bottom: 0;
   display: block;
   height: auto;
 
@@ -21594,6 +21858,32 @@ header #identity #identity_button.btn::after {
   display: inline-block;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s forwards;
   opacity: 0;
+}
+
+/* Dashboard hero: subtitle enters from the right (after title from left) */
+@keyframes md-hero-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Dashboard hero: "It's great to see you" from left, "Let's continue..." from right (same timing as landing-alt) */
+.md-hero--dashboard .md-hero__title .md-hero__title--from-left {
+  display: inline-block;
+  font-size: inherit;
+  opacity: 0;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.md-hero--dashboard .md-hero__sub .md-hero__sub--from-right {
+  display: inline-block;
+  font-size: inherit;
+  opacity: 0;
+  animation: md-hero-from-right 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
 }
 
 .la-hero-highlight {
@@ -22691,8 +22981,47 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 #about-hero .la-about-hero-brand,
-#about-hero .la-about-hero-brand--italic {
+#about-hero .la-about-hero-brand--italic,
+#privacy-hero .la-about-hero-brand,
+#privacy-hero .la-about-hero-brand--italic {
   color: #1b2a4a;
+}
+
+/* Privacy hero: same spacing, animation, badge, header, and divider as about hero */
+#privacy-hero {
+  margin-top: calc(#{$aac-spacing-48} * 1.2);
+  padding-top: $aac-spacing-32;
+  background-color: transparent;
+}
+.la-wrapper.la-wrapper--about #privacy-hero .la-section-header {
+  margin-bottom: 0;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+.la-wrapper.la-wrapper--about #privacy-hero .la-section-header .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.la-wrapper.la-wrapper--about #privacy-hero .la-section-header .la-hero-title-wrap {
+  opacity: 0;
+  transform: translateX(-36px);
+  animation: la-hero-title-from-left 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s forwards;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: $aac-spacing-16;
+}
+.la-wrapper.la-wrapper--about #privacy-hero .la-section-header .la-hero-title {
+  margin-bottom: $aac-spacing-16;
+  font-weight: normal;
+  text-align: center;
 }
 
 /* About hero: same feature grid and cards as #la-features */
@@ -22891,7 +23220,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-section-title {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Maitree', serif;
   font-size: 38px;
   font-weight: $aac-font-weight-black;
   color: $la-navy;
@@ -23486,7 +23815,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-plan-title {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Maitree', serif;
   font-size: 32px;
   font-weight: normal;
   color: $la-navy;
@@ -23825,7 +24154,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .la-wrapper .la-cta-headline {
-  font-family: 'DM Serif Display', Georgia, serif;
+  font-family: 'Maitree', serif;
   font-size: 38px;
   font-weight: normal;
   color: white;
@@ -24438,7 +24767,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-section-title {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: 'Maitree', serif;
     font-size: calc(38px * 0.85); /* 15% smaller than landing */
     font-weight: normal;
     color: $la-navy;
@@ -25665,7 +25994,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     height: 60px;
   }
   .header--unauthenticated h1 .nav-header__app-name {
-    font-size: 22px;
+    font-size: 25px;
   }
 
   .la-hero-mockup-wrap {
@@ -25779,7 +26108,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     height: 60px;
   }
   .header--unauthenticated h1 .nav-header__app-name {
-    font-size: 22px;
+    font-size: 25px;
   }
   .header--unauthenticated .nav-header__brand {
     gap: 4px;
@@ -25938,7 +26267,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .register-card {
-  margin-top: 1rem;
+  margin-top: $aac-spacing-24;
   background:
     radial-gradient(ellipse 50% 60% at 15% 20%, rgba(78, 205, 196, 0.07) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 85% 70%, rgba(58, 107, 199, 0.05) 0%, transparent 70%),
@@ -25966,13 +26295,13 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-hero-title {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: 'Maitree', serif;
     font-size: 24px;
     font-weight: normal;
     color: #1b2a4a;
     line-height: 1.2;
     letter-spacing: -0.02em;
-    margin: 0 0 $aac-spacing-12;
+    margin: 0;
     text-align: center;
 
     @media (max-width: 480px) {
@@ -26158,7 +26487,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: 11px 20px;
   border: none;
   border-radius: 50px;
-  background: color.adjust(#415a75, $lightness: 5%, $saturation: 12%); /* same as login / navbar sign-in / Ready to start CTA */
+  background: #4c86d8;
   color: #fff;
   font-size: 16px;
   font-weight: 700;
@@ -26247,6 +26576,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .login-card {
+  margin-top: $aac-spacing-24;
   background:
     radial-gradient(ellipse 50% 60% at 15% 20%, rgba(78, 205, 196, 0.07) 0%, transparent 70%),
     radial-gradient(ellipse 45% 50% at 85% 70%, rgba(58, 107, 199, 0.05) 0%, transparent 70%),
@@ -26274,13 +26604,13 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-hero-title {
-    font-family: 'DM Serif Display', Georgia, serif;
+    font-family: 'Maitree', serif;
     font-size: 26px;
     font-weight: normal;
     color: #1b2a4a;
     line-height: 1.2;
     letter-spacing: -0.02em;
-    margin: 0 0 $aac-spacing-16;
+    margin: 0;
     text-align: center;
 
     @media (max-width: 480px) {
@@ -26334,9 +26664,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     }
   }
 
-  /* Sign In button: match inner header #identity .btn */
+  /* Sign In / Submit button */
   .login-btn:not(.login-btn--outline) {
-    background: #3a6bc7;
+    background: #4c86d8;
   }
 }
 
@@ -26843,10 +27173,116 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: clamp(26px, 3vw, 40px);
   letter-spacing: -0.3px;
 }
+.md-hero--dashboard .md-hero__title {
+  font-family: 'Maitree', serif;
+  font-size: clamp(23.4px, 2.7vw, 36px); /* 90% of base */
+}
 .md-hero__sub {
   margin: 0 0 2rem;
   color: var(--md-muted);
   font-size: 16px;
+}
+
+/* ---------- Support page (routed, same look as authenticated-view) ---------- */
+.md-shell--support {
+  min-height: 100%;
+  background: var(--md-shell-bg, linear-gradient(180deg, #f0f4f8 0%, #e2e8f0 100%));
+}
+.md-main--support {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 18px 16px 24px;
+}
+.md-hero--support {
+  padding: 28px 2px 16px;
+}
+.md-hero--support .md-hero__title {
+  font-family: 'Maitree', serif;
+  font-size: clamp(23.4px, 2.7vw, 36px);
+}
+.md-hero--support .md-hero__sub {
+  margin: 0;
+  font-size: 14px;
+}
+.md-grid--support {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  max-width: 720px;
+}
+@media (min-width: 640px) {
+  .md-grid--support {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.md-card--support-resources,
+.md-card--support-form {
+  padding: 20px 22px;
+}
+.md-card--support-cookies {
+  grid-column: 1 / -1;
+  padding: 14px 22px;
+}
+.md-card__body {
+  margin-top: 12px;
+}
+.md-card__body.md-support-content {
+  margin-top: 16px;
+}
+.md-support-lead {
+  margin: 0 0 12px;
+  color: var(--md-muted);
+  font-size: 1rem;
+}
+.md-support-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.md-support-list li {
+  margin-bottom: 10px;
+}
+.md-support-form .la-contact-form__row {
+  margin-bottom: 14px;
+}
+.md-support-form .la-contact-form__label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.md-support-form .la-contact-input {
+  width: 100%;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--md-r-md, 8px);
+  border: 1px solid var(--md-line);
+  font-size: 1rem;
+}
+.md-support-form .la-contact-input--textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.md-support-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+.md-support-form__actions .md-btn {
+  padding: 10px 18px;
+}
+.md-support-cookies-btn {
+  background: none;
+  border: none;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--md-muted);
+  cursor: pointer;
+}
+.md-support-cookies-btn:hover {
+  color: var(--md-ink);
 }
 
 /* ---------- Grid ---------- */
@@ -27548,10 +27984,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
 }
 
-/* Small screens (≤640px): status bar and steps wrap below Getting Started header/subheader; hero title 10% smaller */
+/* Small screens (≤640px): status bar and steps wrap below Getting Started header/subheader; dashboard hero title 10% smaller again */
 @media (max-width: 640px) {
   .md-hero--dashboard .md-hero__title {
-    font-size: clamp(23.4px, 2.7vw, 36px); /* 90% of clamp(26px, 3vw, 40px) */
+    font-size: clamp(21.06px, 2.43vw, 32.4px); /* 90% of dashboard title */
   }
   .md-card--getting-started .md-card__head--getting-started {
     flex-wrap: wrap;

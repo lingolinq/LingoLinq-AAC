@@ -3,7 +3,7 @@
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
-    <AppNavbar />
+    {{app-navbar onSupport=(action "support")}}
   {{else}}
   {{#if this.app_state.speak_mode}}
     <span id="speak">

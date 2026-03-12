@@ -31,13 +31,13 @@
     {{/if}}
   </span>
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
-    {{#if @showModernDashboardLink}}
-      <LinkTo @route="modern-dashboard" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
+    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+      <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
-          <svg class="ll-bento-help-btn__nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
         </span>
-      </LinkTo>
-    {{/if}}
+      </div>
+    </LinkTo>
     <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
       {{t "Upgrade" key="upgrade"}}
     </button>
@@ -75,7 +75,7 @@
           {{/if}}
           {{t "Messages" key="messages"}}
         </LinkTo></li>
-        <li><a href="#" {{action "support"}}>{{t "Help" key="help"}}</a></li>
+        <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
         <li class="dropdown-header ll-theme-picker-dropdown-label">{{t "Color Tone" key="color_tone"}}</li>
         <li class="ll-bento-theme-picker-dropdown">
           <div class="ll-bento-theme-picker ll-bento-theme-picker--in-dropdown" role="group" aria-label={{t "Choose theme" key="choose_theme"}}>
@@ -97,6 +97,17 @@
             </div>
           </div>
         </li>
+        <li class="divider" role="separator"></li>
+        <li>
+          <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
+        </li>
+        <li>
+          <a href="#" {{action "openLanguage" preventDefault=true}} class="dropdown-menu__language-link">
+            <img src={{path "images/icon-language-new2.png"}} class="dropdown-menu__language-icon" alt="" aria-hidden="true">
+            {{this.appState.current_locale_string}}
+          </a>
+        </li>
+        <li class="divider" role="separator"></li>
         <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
     </span>
@@ -148,4 +159,21 @@
     <LinkTo @route="user.logs" @model={{this.appState.currentUser.user_name}} @query={{hash type="note"}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Messages" key="messages"}}</LinkTo>
     <a href="#" class="la-mobile-drawer__link" {{action "closeDrawerAndSend" "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a>
   </LaMobileDrawer>
+  {{#if this.isCompanySidebarOpen}}
+    <div class="ll-company-sidebar" role="dialog" aria-modal="true" aria-label={{t "LingoLinq" key="app_name"}}>
+      <div class="ll-company-sidebar__backdrop" {{action "closeCompanySidebar"}} role="button" tabindex="0" aria-label={{t "Close" key="close"}}></div>
+      <div class="ll-company-sidebar__panel">
+        <button class="ll-company-sidebar__close" type="button" aria-label={{t "Close menu" key="fsa_close_menu"}} {{action "closeCompanySidebar"}}>&times;</button>
+        <h2 class="ll-company-sidebar__title"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></h2>
+        <nav class="ll-company-sidebar__nav" aria-label={{t "More Resources" key="more_resources"}}>
+          <LinkTo @route="about" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "About" key="about"}}</LinkTo>
+          <LinkTo @route="pricing" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Pricing" key="pricing"}}</LinkTo>
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Developers" key="developers"}}</a>
+          <LinkTo @route="privacy" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Privacy" key="privacy"}}</LinkTo>
+          <LinkTo @route="terms" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Terms" key="terms"}}</LinkTo>
+          <LinkTo @route="contact" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Contact Us" key="contact"}}</LinkTo>
+        </nav>
+      </div>
+    </div>
+  {{/if}}
 </div>

@@ -1,106 +1,118 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "%app_name% Support" key="app_support"}}
-    </h3>
-    <div class='text-muted' style='text-align: right; margin-right: 50px; margin-bottom: -25px;'>v{{this.app_state.version}}</div>
-  </div>
-  <div class="modal-body">
-    <p>
-      {{t "Running into an issue or have an idea to share? We want to hear from you." key="support_intro"}}
-      {{#unless this.app_state.no_linky}}
-        {{t "Below are some resources that might help:" key="support_resources"}}
-      {{/unless}}
-    </p>
-    {{#if this.app_state.no_linky}}
-      {{#if this.ios}}
-        <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
-          <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-          {{#if this.app_state.domain_settings.support_url}}
-            <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
-          {{/if}}
-        </ul>
+<div class="md-shell md-shell--support">
+  <main class="md-main md-main--support">
+    <header class="md-hero md-hero--support">
+      <h1 class="md-hero__title">{{t "Support" key="support"}}</h1>
+      {{#if this.appState.version}}
+        {{#unless (is-equal this.appState.version "unknown")}}
+          <p class="md-hero__sub">{{t "Version" key="version"}} v{{this.appState.version}}</p>
+        {{/unless}}
       {{/if}}
-    {{else}}
-      <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
-        {{#if this.ios}}
-          <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-        {{/if}}
-        {{#if this.app_state.domain_settings.support_url}}
-          <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
-        {{/if}}
-        {{#if this.app_state.domain_settings.youtube_url}}
-          <li><a href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
-        {{/if}}
-      </ul>
-    {{/if}}
+    </header>
 
-    <form class="form-horizontal" {{action "submit_message" on="submit"}}>
-      <div class="form-group">
-        <div class="col-sm-7 col-sm-offset-3">
-          <h3 style="margin-bottom: -5px; font-size: 18px;">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</h3>
+    <section class="md-grid md-grid--support" aria-label={{t "Support" key="support"}}>
+      <article class="md-card md-card--support-resources" aria-label={{t "Helpful resources" key="helpful_resources"}}>
+        <div class="md-card__head">
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Help & Resources" key="help_and_resources"}}</div>
+            <div class="md-card__sub">{{t "Running into an issue or have an idea to share? We want to hear from you." key="support_intro"}}</div>
+          </div>
         </div>
-      </div>
-      {{#if this.app_state.sessionUser}}
-        {{#if this.app_state.sessionUser.supervisors}}
-          <div class="form-group">
-            <label for="author_id" class="col-sm-3 control-label">{{t "Send Reply To" key="send_reply_to"}}</label>
-            <div class="col-sm-7">
-              {{bound-select select_class="form-control" select_id="supervisor_type" content=this.author_ids selection=this.author_id action=(action (mut this.author_id)) }}
+        <div class="md-card__body md-support-content">
+          {{#unless this.appState.no_linky}}
+            <p class="md-support-lead">{{t "Below are some resources that might help:" key="support_resources"}}</p>
+          {{/unless}}
+
+          {{#if this.appState.no_linky}}
+            {{#if this.ios}}
+              <ul class="la-support-list md-support-list">
+                <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🔊</span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+                {{#if this.appState.domain_settings.support_url}}
+                  <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true">❓</span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+                {{/if}}
+                {{#if this.appState.currentUser}}
+                  <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+                {{/if}}
+              </ul>
+            {{/if}}
+          {{else}}
+            <ul class="la-support-list md-support-list">
+              {{#if this.ios}}
+                <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🔊</span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+              {{/if}}
+              {{#if this.appState.domain_settings.support_url}}
+                <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true">❓</span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+              {{/if}}
+              {{#if this.appState.domain_settings.youtube_url}}
+                <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🎬</span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
+              {{/if}}
+              {{#if this.appState.currentUser}}
+                <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+              {{/if}}
+            </ul>
+          {{/if}}
+        </div>
+      </article>
+
+      <article class="md-card md-card--support-form" aria-label={{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}>
+        <div class="md-card__head">
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</div>
+            <div class="md-card__sub">{{t "Send us a message and we'll get back to you." key="support_form_sub"}}</div>
+          </div>
+        </div>
+        <div class="md-card__body md-support-content">
+          <form class="la-contact-form md-support-form" {{action "submit_message" on="submit"}}>
+            {{#if this.appState.sessionUser}}
+              {{#if this.appState.sessionUser.supervisors}}
+                <div class="la-contact-form__row">
+                  <label for="support_author_id" class="la-contact-form__label">{{t "Send Reply To" key="send_reply_to"}}</label>
+                  {{bound-select select_class="la-contact-input" select_id="support_author_id" content=this.author_ids selection=this.author_id action=(action "updateAuthorId") }}
+                </div>
+              {{/if}}
+            {{/if}}
+            {{#if this.prompt_user}}
+              <div class="la-contact-form__row">
+                <label for="support_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
+                <Input @value={{this.name}} class="la-contact-input" id="support_name" placeholder={{t "Your Name" key="your_name"}} />
+              </div>
+              <div class="la-contact-form__row">
+                <label for="support_email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
+                <Input @value={{this.email}} class="la-contact-input" id="support_email" placeholder="you@example.com" />
+              </div>
+            {{/if}}
+            <div class="la-contact-form__row">
+              <label for="support_subject" class="la-contact-form__label">{{t "Subject" key="subject"}}</label>
+              <Input @value={{this.subject}} class="la-contact-input" id="support_subject" placeholder="" />
             </div>
-          </div>
-        {{/if}}
-      {{/if}}
-      {{#if this.prompt_user}}
-        <div class="form-group">
-          <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
-          <div class="col-sm-7">
-            <Input @value={{this.name}} class="form-control" id="name" placeholder="Your Name" />
-          </div>
+            <div class="la-contact-form__row">
+              <label for="support_message" class="la-contact-form__label">{{t "Message" key="message"}}</label>
+              <Textarea @value={{this.message}} class="la-contact-input la-contact-input--textarea" id="support_message" placeholder="" rows={{4}} />
+            </div>
+            {{#if this.error}}
+              <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
+            {{/if}}
+            <div class="la-contact-form__actions md-support-form__actions">
+              <button disabled={{this.disabled}} type="submit" class="md-btn md-btn--primary">{{t "Send Message" key="send_message"}}</button>
+              <LinkTo @route="troubleshooting" class="md-btn md-btn--ghost">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
+            </div>
+          </form>
         </div>
-        <div class="form-group">
-          <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
-          <div class="col-sm-7">
-            <Input @value={{this.email}} class="form-control" id="email" placeholder="you@example.com" />
-          </div>
-        </div>
-      {{/if}}
-      <div class="form-group">
-        <label for="subject" class="col-sm-3 control-label">{{t "Subject" key="subject"}}</label>
-        <div class="col-sm-7">
-          <Input @value={{this.subject}} class="form-control" id="subject" placeholder="" />
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="message" class="col-sm-3 control-label">{{t "Message" key="message"}}</label>
-        <div class="col-sm-7">
-          <Textarea @value={{this.message}} class="form-control" id="message" placeholder="" rows={{3}} />
-        </div>
-      </div>
-      <div class="form-group">
-        <div class="col-sm-offset-3 col-sm-7">
-          <button disabled={{this.disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
-          <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
-          <span style="padding-left: 5px;"><LinkTo @route="troubleshooting">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo></span>
+      </article>
+
+      <div class="md-card md-card--support-cookies" aria-label={{t "Cookies" key="cookies"}}>
+        <div class="md-card__body md-support-content">
+          <p class="la-support-cookies">
+            <button type="button" class="la-support-cookies__btn md-support-cookies-btn" {{action "toggle_cookies"}} aria-pressed={{if this.cookies "true" "false"}}>
+              <span class="la-support-cookies__icon {{unless this.cookies "la-support-cookies__icon--off"}}" aria-hidden="true">🍪</span>
+              {{#if this.cookies}}
+                {{t "disable cookies" key="disable_cookies"}}
+              {{else}}
+                {{t "enable cookies" key="enable_cookies"}}
+              {{/if}}
+            </button>
+          </p>
         </div>
       </div>
-      {{#if this.error}}
-        <div class="form-group">
-          <div class="col-sm-offset-3 col-sm-7">
-            <p class="text-danger">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
-          </div>
-        </div>
-      {{/if}}
-    </form>
-    <div style='margin-top: 20px'>
-      <a href="#" {{action "toggle_cookies"}}>
-        {{#if this.cookies}}
-          {{t "disable cookies" key="disable_cookies"}}
-        {{else}}
-          {{t "enable cookies" key="enable_cookies"}}
-        {{/if}}
-      </a>
-    </div>
-  </div>
-{{/modal-dialog}}
+    </section>
+  </main>
+</div>

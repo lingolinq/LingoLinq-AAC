@@ -46,6 +46,7 @@ Router.reopen({
 Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
+  this.route('bento', { path: '/bento' });
   this.route('modern-dashboard', { path: '/modern-dashboard' }, function() {
     this.route('index', { path: '/' });
     this.route('boards', { path: '/boards' });
@@ -104,6 +105,7 @@ Router.map(function() {
   this.route('redeem_with_code', { path: '/redeem/:code' });
   this.route('gift_purchase', { path: '/gift' });
   this.route('bulk_purchase', { path: '/purchase/:id'});
+  this.route('support', { path: '/support' });
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});

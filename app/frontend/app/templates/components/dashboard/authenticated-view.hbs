@@ -1,894 +1,451 @@
-<div class="ll-bento-app-shell {{if this.app_state.darkMode "ll-bento-app-shell--dark"}} {{if this.app_state.midDayMode "ll-bento-app-shell--midday"}} {{if this.app_state.defaultMode "ll-bento-app-shell--default"}} {{if this.app_state.lightMode "ll-bento-app-shell--light"}}">
-  <div class="ll-bento-bg-orbs" aria-hidden="true">
-    <span class="ll-bento-orb ll-bento-orb--a"></span>
-    <span class="ll-bento-orb ll-bento-orb--b"></span>
-    <span class="ll-bento-orb ll-bento-orb--c"></span>
+<div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--board-view"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (is-equal this.activeTab "extras") "md-shell--extras-view"}} {{if (is-equal this.activeTab "supervisors") "md-shell--supervisor-view"}}">
+  <div class="md-workspace">
+  {{!-- Primary Nav: pill strip above 525px, dropdown below (active action shown) --}}
+  <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
+      {{t "Home" key="home"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "goTab" "boards"}}>
+      {{t "Boards" key="boards"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
+      {{t "Reports" key="reports"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "extras") "is-active"}}" {{action "goTab" "extras"}}>
+      {{t "Extras" key="extras"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "supervisors") "is-active"}}" {{action "goTab" "supervisors"}}>
+      {{t "Supervisors" key="supervisors"}}
+    </button>
+  </nav>
+  <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
+    <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <span class="md-pillnav-dropdown__label">{{this.activeTabLabel}}</span>
+      <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
+    </button>
+    <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "extras") "is-active"}}" {{action "selectTab" "extras"}}>{{t "Extras" key="extras"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "supervisors") "is-active"}}" {{action "selectTab" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button></li>
+    </ul>
   </div>
-  <div class="ll-bento-device-frame ll-bento-device-frame--wide {{if (is-equal this.sectionBorderMode "off") "ll-bento-device-frame--no-section-border"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-device-frame--section-border-thick"}} {{if this.demoMainContentBg "ll-bento-device-frame--demo-bg"}}" style={{this.demoMainContentBgStyle}}>
-    <header class="ll-bento-bar {{if this.app_state.midDayMode "ll-bento-bar--midday"}} {{if this.app_state.defaultMode "ll-bento-bar--default"}}">
-      <div class="ll-bento-bar__section ll-bento-bar__brand">
-        <a href="#" class="ll-bento-brand-link" {{action "index"}}>
-          <span class="ll-bento-brand__logo-wrap" aria-hidden="true">
-            <img src={{path "images/icon-house-balanced.png"}} alt="" class="ll-bento-logo" aria-hidden="true">
-          </span>
-          <span class="ll-bento-brand__name">{{t "%app_name%" key="app_name"}}</span>
-          <span class="ll-bento-bar__brand-sep" aria-hidden="true">·</span>
-          <span class="ll-bento-bar__brand-home">{{t "Home Page" key="home_page"}}</span>
-        </a>
-      </div>
-      <div class="ll-bento-bar__section ll-bento-bar__welcome">
-        <span class="ll-bento-bar-welcome" aria-hidden="true">
-          <span class="ll-bento-bar-welcome__label">{{t "It's great to see you" key="welcome"}}</span>
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-bar-welcome__link"><span class="ll-bento-bar-welcome__badge">{{this.app_state.currentUser.user_name}}</span></LinkTo>
-          {{else}}
-            <span class="ll-bento-bar-welcome__badge">{{this.app_state.currentUser.user_name}}</span>
-          {{/if}}
-          {{#if this.app_state.show_index_celebration}}
-            <span class="ll-bento-bar-welcome__celebration-icon" aria-hidden="true" title={{t "Welcome!" key="welcome_exclaim"}}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 21l2-6 4 2-2 4-4-0z"/><path d="M19 21l2-6-4 2 2 4 4 0z"/></svg>
-            </span>
-          {{/if}}
-        </span>
-      </div>
-      {{#if this.app_state.defaultMode}}
-        <div class="ll-bento-bar__section ll-bento-bar__demo-colors" role="group" aria-label={{t "Demo content background" key="demo_content_background"}}>
-          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy" title={{t "Navy" key="navy_color"}} aria-label={{t "Navy" key="navy_color"}} {{action "setDemoMainContentBg" "#1B365D"}}></button>
-          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--navy-light" title={{t "Medium gray" key="medium_gray"}} aria-label={{t "Medium gray" key="medium_gray"}} {{action "setDemoMainContentBg" "#C6CDD7"}}></button>
-          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--tab-light" title={{t "Light teal" key="light_teal"}} aria-label={{t "Light teal" key="light_teal"}} {{action "setDemoMainContentBg" "#E9F9F8"}}></button>
-          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--reset" title={{t "Reset to default" key="reset_to_default"}} aria-label={{t "Reset to default" key="reset_to_default"}} {{action "clearDemoMainContentBg"}}>
-            <span class="glyphicon glyphicon-repeat" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="ll-bento-demo-color ll-bento-demo-color--border {{if (is-equal this.sectionBorderMode "off") "ll-bento-demo-color--border-off"}} {{if (is-equal this.sectionBorderMode "thick") "ll-bento-demo-color--border-thick"}}" title={{t "Toggle section border" key="toggle_section_border"}} aria-label={{t "Toggle section border" key="toggle_section_border"}} {{action "toggleSectionBorder"}}>
-            <span class="ll-bento-demo-color--border-icon" aria-hidden="true"></span>
-          </button>
-        </div>
-      {{/if}}
-      <div class="ll-bento-bar__section ll-bento-bar__actions">
-        <a href="#" class="ll-bento-icon-btn ll-bento-icon-btn--refresh" {{action "reload"}} role="button" aria-label={{t "Reload" key="reload"}} title={{t "Reload" key="reload"}}>
-          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-        </a>
-        {{#if this.app_state.currentUser.permissions.delete}}
-          <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-icon-btn" aria-label={{t "Profile" key="profile"}}>
-            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 18px; height: 18px; border-radius: 999px; object-fit: cover;" alt="">
-          </LinkTo>
-        {{else}}
-          <span class="ll-bento-icon-btn" aria-hidden="true">
-            <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="fit_image" style="width: 18px; height: 18px; border-radius: 999px; object-fit: cover;" alt="">
-          </span>
-        {{/if}}
-      </div>
+
+  <main class="md-main">
+    <header class="md-hero md-hero--dashboard">
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue where you left off." key="md_hero_sub"}}</span></p>
     </header>
-    <div class="row ll-bento-main-content">
-<div class='col col-12' id="bento-main">
-  <div class="ll-bento-span">
-  <div class="ll-bento-tabs" role="tablist" aria-label={{t "Home filters" key="home_filters"}}>
-    <button class="ll-bento-tab {{if this.index_nav.main "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.main "true" "false"}} type="button" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</button>
-    {{#unless this.app_state.currentUser.modeling_only}}
-      {{#if this.show_communicators_tab}}
-        <button class="ll-bento-tab {{if this.index_nav.supervisees "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.supervisees "true" "false"}} type="button" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</button>
+
+    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+      {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
+      <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
+        <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
+        <div class="md-card__head md-card__head--getting-started">
+          <div class="md-card__head-left">
+            <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
+              <img src={{path "images/pastel-getting-started.svg"}} class="md-card__icon-img" alt="" aria-hidden="true">
+            </div>
+            <div class="md-card__titles">
+              <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+              <div class="md-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
+            </div>
+          </div>
+          <div class="md-card__getting-started-status">
+            <div class="md-card__progress" role="progressbar" aria-valuenow={{this.gettingStartedPercent}} aria-valuemin="0" aria-valuemax="100">
+              <div class="md-card__progress-fill" style={{this.gettingStartedPercentStyle}}></div>
+              <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.gettingStartedPercent}}</span>
+            </div>
+            <span class="md-card__getting-started-step">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.gettingStartedStep total=5}}</span>
+          </div>
+        </div>
+        <button type="button" class="md-btn md-card__getting-started-btn" {{action "getting_started"}}>
+          {{t "Help me Setup my Account" key="help_me_setup_account"}}
+        </button>
+      </article>
+      <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
-    {{/unless}}
-    <button class="ll-bento-tab {{if this.index_nav.boards "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.boards "true" "false"}} type="button" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</button>
-    {{#unless this.app_state.currentUser.supporter_role}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <button class="ll-bento-tab {{if this.index_nav.supervisors "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.supervisors "true" "false"}} type="button" {{action "set_index_nav" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button>
-      {{/unless}}
-    {{/unless}}
-    {{#unless this.app_state.currentUser.modeling_only}}
-      <button id='nav_updates' class="ll-bento-tab {{if this.index_nav.updates "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.updates "true" "false"}} type="button" {{action "set_index_nav" "updates"}} style='position: relative;'>
-        {{t "Updates" key="updates"}}
-        {{#if this.pending_updates}}
-          <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
-            {{#if this.pending_updates.count}}
-              {{this.pending_updates.count}}
-            {{else}}
-              {{t "!" key="exclaim"}}
-            {{/if}}
-          </span>
-        {{/if}}
-      </button>
-      <button id='nav_logging' class="ll-bento-tab {{if this.index_nav.logging "ll-bento-tab--active"}}" role="tab" aria-selected={{if this.index_nav.logging "true" "false"}} type="button" {{action "set_index_nav" "logging"}}>{{t "Logging" key="logging"}}</button>
-    {{/unless}}
-  </div>
-  </div>
-  {{#if this.index_nav.main}}
-    {{#if this.blank_slate}}
-      <a href="#" class="ll-bento-getting-started ll-bento-getting-started--main" {{action "getting_started"}}>
-        <img src={{path "images/pastel-getting-started.svg"}} alt="" class="ll-bento-getting-started__image" aria-hidden="true">
-        <div class="ll-bento-getting-started__body">
-          <div class="ll-bento-getting-started__header">
-            <span class="ll-bento-getting-started__title">{{t "Getting Started" key="getting_started"}}</span>
-            <span class="ll-bento-getting-started__hint">{{t "Finish setting up your account" key="on_your_way"}}</span>
+      <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
+            <img src={{path "images/icon-sound.png"}} class="md-card__icon-img" alt="" aria-hidden="true">
           </div>
-          <div class="ll-bento-progress" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100">
-            <div class="ll-bento-progress__fill" style={{this.blank_slate_percent_style}}></div>
-            <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
-          </div>
-          <span class="ll-bento-getting-started__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.getting_started_step total=5}}</span>
-          <div class="ll-bento-getting-started__divider" aria-hidden="true"></div>
-        </div>
-        <span class="ll-bento-getting-started__btn">{{t "Help me Setup my Account" key="help_me_setup_account"}}</span>
-      </a>
-    {{/if}}
-    {{!-- Home board card - commented out, uncomment to restore
-    {{#unless this.home_board_or_supporter}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <LinkTo @route="home-boards" class="ll-bento-home-board-card">
-          <img src={{path "images/pastel-house.png"}} alt="" class="ll-bento-home-board-card__image" aria-hidden="true">
-          <div class="ll-bento-home-board-card__content">
-            <h3 class="ll-bento-home-board-card__title">{{t "You haven't set a home board yet" key="choose_home_board"}}</h3>
-            <p class="ll-bento-home-board-card__subtitle">{{t "Let us help you choose one." key="let_us_help_choose_home"}}</p>
-          </div>
-          <span class="ll-bento-home-board-card__btn">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</span>
-        </LinkTo>
-      {{/unless}}
-    {{/unless}}
-    --}}
-  {{/if}}
-  <div class='row big_buttons ll-bento-content'>
-    {{#if this.index_nav.supervisees}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-      <div class='col-xs-12'>
-        <h4>{{t "People I Supervise" key="people_i_supervise"}}</h4>
-      </div><div style='clear: left;'></div>
-      {{#unless this.supervisees_with_badges}}
-        <div style='margin: 0 20px; max-width: 600px;'>{{t "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicators account. Once you have helped your communicators add you to their account as a supervisor, you will see them appear here." key="no_supervisors_explainer"}}</div>
-      {{/unless}}
-      {{#each this.supervisees_with_badges as |supervisee|}}
-        <div class='col-lg-6 col-md-12' style='padding: 0 5px;'>
-          <div style='border: 5px solid #ccc; border-radius: 10px; margin-bottom: 10px; padding: 10px 15px;'>
-            <div style='float: left; position: relative;'>
-              <LinkTo @route="user" @model={{supervisee.user_name}}>
-                {{#if supervisee.local_avatar_url}}
-                  <img src={{supervisee.local_avatar_url}} rel-url={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
-                {{else}}
-                  <img src={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
-                {{/if}}
-              </LinkTo>
-              {{#if supervisee.online}}
-                <div title='currently online' class='online_marker'></div>
-              {{/if}}
-              {{#if supervisee.earned_badge}}
-                {{badge-earned badge=supervisee.earned_badge}}
-              {{/if}}
-            </div>
-            <div style='overflow: hidden; white-space: nowrap; margin-top: -10px;'>
-              <span style='font-size: 30px;'>{{supervisee.user_name}}</span>
-              <div class='text-muted' style='margin: -10px 0 5px;'>
-                {{#if supervisee.goal}}
-                  {{supervisee.goal.summary}}
-                {{else}}
-                  <span style='color: #ccc;'>{{t "no goal set" key="no_goal_set"}}</span>
-                  {{#if (persistence-online)}}
-                    {{#unless this.app_state.currentUser.modeling_only}}
-                      - <a {{action "set_goal" supervisee}} href="#">{{t "set a goal" key="set_a_goal"}}</a>
-                    {{/unless}}
-                  {{/if}}
-                {{/if}}
-              </div>
-            </div>
-            {{#if supervisee.home_board_key}}
-              <button class='btn btn-primary' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id true}}>
-                <span class='glyphicon glyphicon-hand-up' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Model for" key="model_for"}}<br>{{supervisee.user_name}}
-                </div>
-              </button>
-              <button class='btn btn-default modeling_button less_important' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id}}>
-                <span class='glyphicon glyphicon-volume-up' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Speak as" key="speak_as"}}<br>{{supervisee.user_name}}
-                </div>
-              </button>
-            {{else if supervisee.external_device}}
-              <button class='btn btn-default button_row_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <span class='glyphicon glyphicon-user' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "User" key="user"}}<br>{{t "Profile" key="profile"}}
-                </div>
-              </button>
-            {{else}}
-              <button class='btn btn-default button_row_wrap attention_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <img src={{path "images/learn.png"}}>
-                <div style='line-height: 14px;'>
-                  {{t "Setup" key="setup"}}<br>{{t "User" key="user"}}
-                </div>
-              </button>
-            {{/if}}
-            {{#if this.app_state.currentUser.modeling_only}}
-              <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "home_board" supervisee.home_board_key}}>
-                <span class='glyphicon glyphicon-th' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Home" key="home"}}<br>{{t "Board" key="board"}}
-                </div>
-              </button>
-            {{else}}
-              <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "stats" supervisee.user_name}}>
-                <span class='glyphicon glyphicon-stats' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Usage" key="usage"}}<br>{{t "Reports" key="reports"}}
-                </div>
-              </button>
-              <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "images/pastel-lightbulb.png"}} class="modeling_ideas_icon">
-                <div style='line-height: 14px;'>
-                  {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
-                </div>
-              </button>
-              <div class="btn-group">
-                <button class='btn btn-default dropdown-toggle button_row_extras' style='margin-bottom: 5px; border-width: 2px; border-color: #ddd; color: #888;'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class='text'>{{t "Extras" key="extras"}} </span><span class="caret"></span></button>
-                <ul class="dropdown-menu" style='left: auto; right: 0;'>
-                  <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
-                  <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
-                  <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
-                  <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
-                  <li><a href="#" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
-                  {{#if supervisee.remote_modeling}}
-                    <li><a href="#" {{action "remote_model" supervisee}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
-                  {{/if}}
-                </ul>
-              </div>
-            {{/if}}
-            <div style='clear: left;'></div>
-            {{#if supervisee.current_badge}}
-              {{#if supervisee.premium}}
-                {{badge-progress badge=supervisee.current_badge}}
-              {{else}}
-                <div style='height: 35px;'></div>
-              {{/if}}
-            {{else}}
-              <div style='height: 35px;'></div>
-            {{/if}}
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</div>
+            <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
-      {{/each}}
-      {{/unless}}
-    {{else if this.index_nav.main}}
-      <div class={{if this.show_main_extras "main" "main short_list"}}>
-        {{#if this.app_state.currentUser.eval_ended}}
-          <div class='alert alert-danger'>
-            {{t "Your evaluation has ended" key="eval_ended"}}
-            {{#if this.app_state.currentUser.can_reset_eval}}
-              <br>
-              <button {{action "update_evaluation" "reset"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Reset Evaluation" key="reset_evaluation"}}
-                </span>
-              </button>
-            {{else if this.app_state.currentUser.subscription.eval_extendable}}
-              <br>
-              <button {{action "update_evaluation" "extend"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Request an Extension" key="request_extension"}}
-                </span>
-              </button>
-            {{/if}}
+        <div class="md-card__row">
+          <div class="md-chip md-chip--soft">
+            <span class="md-chip__dot" aria-hidden="true"></span>
+            {{t "Last board: Beginner Lessons" key="md_last_board"}}
           </div>
-        {{else if this.app_state.currentUser.eval_ending_soon}}
-          <div class='alert alert-danger'>
-            {{t "Your evaluation is set to finish soon. This evaluation period will end" key="eval_ending_soon"}}
-            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
-            {{#if this.app_state.currentUser.can_reset_eval}}
-              <br>
-              <button {{action "update_evaluation"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Review Evaluation Status" key="review_evaluation"}}
-                </span>
-              </button>
-            {{/if}}
-          </div>
-        {{else if this.session.modeling_session}}
-        {{else if this.app_state.limited_free_space}}
-          <div class='alert alert-danger'>
-            {{t "Your device is almost out of free space! You only have %{mb}Mb of storage available. You may need to delete some data from other apps for %app_name% to work properly offline." mb=this.app_state.limited_free_space.mb key="need_memory_for_offline"}}
-          </div>
-        {{else if this.model.earned_badge}}
-          <div>
-            {{badge-earned badge=this.model.earned_badge big=true}}
-          </div>
-        {{else if this.model.first_incomplete_lesson}}
-          {{#if this.app_state.feature_flags.lessons}}
-          <div style='margin-left: 10px; margin-bottom: 10px;'>
-            <button class='btn btn-lg btn-default' {{action "next_lesson"}}>
-            <span class='glyphicon glyphicon-education'></span>
-            {{t "Next Lesson: " key="next_lesson"}}
-            {{this.model.first_incomplete_lesson.title}}
-            {{#if this.model.first_incomplete_lesson.due_at}}
-              <div style='font-size: 14px;'>due {{date this.model.first_incomplete_lesson.due_at}}</div>
-            {{/if}}
-            </button>
-          </div>
-          {{/if}}
-        {{else if this.rating_allowed}}
-          <div>
-            <button {{action "launch_rating"}} class='purchase_link' style='font-size: 20px;'>
-              <span style='color: #fff;'>
-                <span class="glyphicon glyphicon-info-sign"></span>
-                {{t "Rate the %app_name% App" key="rate_the_app"}}
-              </span>
-            </button>
-          </div>
-        {{else if this.app_state.currentUser.subscription.eval_expires}}
-          <div class='alert alert-info'>
-            {{t "This is an evaluation account, and will run through " key="eval_ending_date"}}
-            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
-          </div>
-        {{/if}}
-        <div class="ll-bento-actions {{if this.show_main_extras "ll-bento-actions--extras-expanded"}}">
-          <div class="ll-bento-section-group">
-            <span class="ll-bento-section-label">{{t "Primary Actions" key="primary_actions"}}</span>
-            <div class="ll-bento-actions-grid">
-            {{#if this.app_state.currentUser.external_device}}
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "manual_session"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
-                  <img src={{path "images/pastel-logging.png"}} class="ll-bento-action-card__img" alt="" aria-hidden="true">
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Manual Log Session" key="manual_log_session"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "Log a session manually for offline use" key="manual_log_subtitle"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--extras">{{t "Start" key="start"}}</span>
-              </a>
-            {{else}}
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--speak ll-bento-action-card--with-btn" {{action "homeInSpeakMode"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--speak">
-                  <img src={{path "images/pastel-sound.png"}} class="ll-bento-action-card__img" alt="" aria-hidden="true">
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Speak Mode" key="speak_mode"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "Use your boards to speak and communicate" key="speak_mode_subtitle"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--speak">{{t "Speak" key="speak"}}</span>
-              </a>
-            {{/if}}
-            {{#if this.app_state.currentUser.modeling_only}}
-              {{#if this.app_state.currentUser.permissions.delete}}
-                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-action-card ll-bento-action-card--with-btn">
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--account">
-                    <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' class="ll-bento-action-card__img" alt="">
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "My Account" key="my_account"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Profile and settings" key="profile_and_settings"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--account">{{t "Open" key="open"}}</span>
-                </LinkTo>
-              {{/if}}
-            {{else}}
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "stats"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--reports">
-                  <img src={{path "images/pastel-reports2.png"}} class="ll-bento-action-card__img" alt="">
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Reports" key="reports"}}</h4>
-                  <p class="ll-bento-action-card__sub">{{t "Usage insights" key="usage_insights"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--reports">{{t "Create" key="create"}}</span>
-              </a>
-            {{/if}}
+          <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
+            {{t "Continue Speaking" key="continue_speaking"}}
+          </button>
+        </div>
+        <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
+        <img src={{path "images/sound-waves.png"}} class="md-card__sound-waves" alt="" aria-hidden="true">
+      </article>
 
-            {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
-              {{#if this.modeling_ideas_available}}
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "modeling_ideas"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--ideas">
-                    <img src={{path "images/pastel-lightbulb.png"}} class="ll-bento-action-card__img modeling_ideas_icon" alt="">
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Modeling Ideas" key="modeling_ideas"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Explore concepts" key="explore_concepts"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--ideas">{{t "Start" key="start"}}</span>
-                </a>
-              {{else}}
-                {{#unless this.app_state.currentUser.modeling_only}}
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "newBoard"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--modeling">
-                      <img src={{path "images/new.svg"}} class="ll-bento-action-card__img" alt="">
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "New Board" key="new_board"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Create a new vocabulary board" key="new_board_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--modeling">{{t "Create" key="create"}}</span>
-                  </a>
-                {{/unless}}
-              {{/if}}
-            {{else}}
-              {{#unless this.app_state.currentUser.modeling_only}}
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "intro"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--ideas">
-                    <img src={{path "images/learn.png"}} class="ll-bento-action-card__img" alt="">
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Learn and Setup" key="learn_and_setup_card"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Get started with %app_name%" key="get_started_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--ideas">{{t "Learn" key="learn_action"}}</span>
-                </a>
-              {{/unless}}
-            {{/if}}
-
-            {{#if this.show_main_extras}}
-            <div class="ll-bento-extras-expanded">
-              <span class="ll-bento-section-label">{{t "More Tools & Resources" key="more_tools"}}</span>
-              <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn ll-bento-action-card--extras-toggle ll-bento-action-card--extras-expanded" {{action "toggle_extras"}}>
-                <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
-                  <img src={{path "images/pastel-extras.png"}} class="ll-bento-action-card__img" alt="">
-                </div>
-                <div class="ll-bento-action-card__body">
-                  <h4 class="ll-bento-action-card__title">{{t "Extras" key="extras"}} <span class="caret"></span></h4>
-                  <p class="ll-bento-action-card__sub">{{t "Games & resources" key="games_and_resources"}}</p>
-                </div>
-                <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--extras">{{t "Collapse" key="collapse"}}</span>
-              </a>
-              <div class="ll-bento-extras-expanded-grid">
-              {{#unless this.app_state.currentUser.modeling_only}}
-                {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "intro"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--green-yellow">
-                      <img src={{path "images/learn.png"}} class="ll-bento-action-card__img" alt="">
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "Learn and Setup" key="learn_and_setup_card"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Get started with %app_name%" key="get_started_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--green-yellow">{{t "Learn" key="learn_action"}}</span>
-                  </a>
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "newBoard"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--speak">
-                      <img src={{path "images/new.svg"}} class="ll-bento-action-card__img" alt="">
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "New Board" key="new_board"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Create a new vocabulary board" key="new_board_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--speak">{{t "Create" key="create"}}</span>
-                  </a>
-                {{else}}
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "newBoard"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--speak">
-                      <img src={{path "images/new.svg"}} class="ll-bento-action-card__img" alt="">
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "New Board" key="new_board"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Create a new vocabulary board" key="new_board_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--speak">{{t "Create" key="create"}}</span>
-                  </a>
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "searchBoards"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--reports">
-                      <span class="glyphicon glyphicon-search ll-bento-action-card__glyph"></span>
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "Search Boards" key="search_boards"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Find vocabulary boards" key="find_boards_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--reports">{{t "Search" key="search"}}</span>
-                  </a>
-                {{/if}}
-              {{/unless}}
-              {{#if this.sync_able}}
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "sync_details"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--ideas">
-                    <span class="glyphicon glyphicon-refresh ll-bento-action-card__glyph"></span>
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Sync" key="sync"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Sync your data" key="sync_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--ideas">{{t "Sync" key="sync"}}</span>
-                </a>
-              {{/if}}
-              {{#if this.app_state.currentUser.permissions.delete}}
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "goals"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--reports">
-                    <span class="glyphicon glyphicon-flag ll-bento-action-card__glyph"></span>
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Goals" key="goals"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Track progress" key="goals_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--reports">{{t "View" key="view"}}</span>
-                </a>
-              {{/if}}
-              {{#unless this.app_state.currentUser.modeling_only}}
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "record_note"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--ideas">
-                    <span class="glyphicon glyphicon-file ll-bento-action-card__glyph"></span>
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "New Note" key="new_note"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Add a progress note" key="new_note_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--ideas">{{t "Add" key="add"}}</span>
-                </a>
-                <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "run_eval" "pick"}}>
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
-                    <span class="glyphicon glyphicon-list-alt ll-bento-action-card__glyph"></span>
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Run Evaluation" key="run_eval"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Assessment tools" key="run_eval_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--extras">{{t "Run" key="run_action"}}</span>
-                </a>
-              {{/unless}}
-              {{#if this.app_state.currentUser.permissions.delete}}
-                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-action-card ll-bento-action-card--with-btn">
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--green-yellow">
-                    <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' class="ll-bento-action-card__img" alt="">
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "My Account" key="my_account"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Profile and settings" key="profile_and_settings"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--green-yellow">{{t "Open" key="open"}}</span>
-                </LinkTo>
-              {{/if}}
-              {{#if this.app_state.feature_flags.lessons}}
-                {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
-                  <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "lessons" "pick"}}>
-                    <div class="ll-bento-action-card__icon ll-bento-action-card__icon--speak">
-                      <span class="glyphicon glyphicon-education ll-bento-action-card__glyph"></span>
-                    </div>
-                    <div class="ll-bento-action-card__body">
-                      <h4 class="ll-bento-action-card__title">{{t "Trainings" key="trainings"}}</h4>
-                      <p class="ll-bento-action-card__sub">{{t "Continuing education" key="trainings_subtitle"}}</p>
-                    </div>
-                    <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--speak">{{t "Start" key="start"}}</span>
-                  </a>
-                {{/if}}
-              {{/if}}
-              {{#if this.app_state.feature_flags.emergency_boards}}
-                <LinkTo @route="offline_boards" class="ll-bento-action-card ll-bento-action-card--emergency ll-bento-action-card--with-btn">
-                  <div class="ll-bento-action-card__icon ll-bento-action-card__icon--reports">
-                    <span class="glyphicon glyphicon-exclamation-sign ll-bento-action-card__glyph"></span>
-                  </div>
-                  <div class="ll-bento-action-card__body">
-                    <h4 class="ll-bento-action-card__title">{{t "Basic Access" key="critical_access"}}</h4>
-                    <p class="ll-bento-action-card__sub">{{t "Offline boards" key="offline_boards_subtitle"}}</p>
-                  </div>
-                  <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--reports">{{t "Access" key="access"}}</span>
-                </LinkTo>
-              {{/if}}
-              </div>
-            </div>
-            {{else}}
-            <a href="#" class="ll-bento-action-card ll-bento-action-card--with-btn" {{action "toggle_extras"}}>
-              <div class="ll-bento-action-card__icon ll-bento-action-card__icon--extras">
-                <img src={{path "images/pastel-extras.png"}} class="ll-bento-action-card__img" alt="">
-              </div>
-              <div class="ll-bento-action-card__body">
-                <h4 class="ll-bento-action-card__title">{{t "Extras" key="extras"}} <span class="caret-right"></span></h4>
-                <p class="ll-bento-action-card__sub">{{t "Games & resources" key="games_and_resources"}}</p>
-              </div>
-              <span class="ll-bento-action-card__action-btn ll-bento-action-card__action-btn--extras">{{t "Expand" key="expand"}}</span>
-            </a>
-            {{/if}}
-          </div>
+      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-card__head md-card__head--between">
+          <div>
+            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
+            <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
-        {{#unless this.show_main_extras}}
-          {{#if (persistence-online)}}
-            {{#if this.app_state.currentUser.current_badge}}
-              {{badge-progress badge=this.app_state.currentUser.current_badge big=true}}
-            {{/if}}
+        <div class="md-extrasRow">
+          <div class="md-extrasIcon" aria-hidden="true">
+            <img src={{path "images/icon-extras.png"}} class="md-extrasIcon__img" alt="" aria-hidden="true">
+          </div>
+          <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
+            {{t "Explore Extras" key="explore_extras"}}
+          </button>
+        </div>
+        <img src={{path "images/extras-wave.png"}} class="md-card__extras-wave" alt="" aria-hidden="true">
+      </article>
+
+      {{#if (is-equal this.activeTab "boards")}}
+      <div class="md-boards-page" aria-label={{t "Boards" key="boards"}}>
+        <div class="md-card__head md-card__head--between {{if this.showNewBoardForm "md-card__head--center-back"}}">
+          <div class="md-card__left">
+            <div class="md-card__title">{{t "Boards" key="boards"}}</div>
+            <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
+          </div>
+          {{#if this.showNewBoardForm}}
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "closeNewBoardForm"}}>{{t "Back to Boards" key="back_to_boards"}}</button>
+          {{else}}
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
           {{/if}}
-        {{/unless}}
+          <div class="md-stat">
+            <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
+            <div class="md-stat__num">{{this.boardCount}}</div>
+            <div class="md-stat__meta">
+              <div>{{t "Total" key="total"}}</div>
+              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
+            </div>
+          </div>
+        </div>
+        {{#if this.showNewBoardForm}}
+        <div class="md-card__new-board-inline">
+          {{new-board standalone=true onClose=(action "closeNewBoardForm")}}
+        </div>
+        {{else}}
+        <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-chat.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Make Small Talk" key="make_small_talk"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-getting-started.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Beginner Lessons" key="beginner_lessons"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-sound.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Conversation…" key="conversation_ellipsis"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-lightbulb.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 4" key="board_4"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-house.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 5" key="board_5"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-logging.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 6" key="board_6"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-reports2.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 7" key="board_7"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-extras.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 8" key="board_8"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-modeling.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 9" key="board_9"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-star.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 10" key="board_10"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/browse-boards-icon.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 11" key="board_11"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/icon-boards.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 12" key="board_12"}}</div>
+          </button>
+        </div>
+        {{/if}}
       </div>
-    {{else if this.index_nav.boards}}
-      {{#if this.showOffline}}
-        <h4>{{t "Recent boards" key="available_boards"}}</h4>
-        {{#if this.recentOfflineBoards}}
-          {{#each this.recentOfflineBoards as |board|}}
-            {{#if board.key}}
-              <div class="col-md-2 col-xs-4 big_button_holder">
-                <button class='btn big_button btn-default'>
+      {{else}}
+      <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
+        <div class="md-card__head md-card__head--between">
+          <div class="md-card__left">
+            <div class="md-card__title">{{t "Boards" key="boards"}}</div>
+            <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
+          </div>
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
+          <div class="md-stat">
+            <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
+            <div class="md-stat__num">{{this.boardCount}}</div>
+            <div class="md-stat__meta">
+              <div>{{t "Total" key="total"}}</div>
+              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
+            </div>
+          </div>
+        </div>
+        <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-chat.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Make Small Talk" key="make_small_talk"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-getting-started.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Beginner Lessons" key="beginner_lessons"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-sound.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Conversation…" key="conversation_ellipsis"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-lightbulb.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 4" key="board_4"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-house.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 5" key="board_5"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-logging.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 6" key="board_6"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-reports2.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 7" key="board_7"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-extras.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 8" key="board_8"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-modeling.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 9" key="board_9"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/pastel-star.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 10" key="board_10"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/browse-boards-icon.svg"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 11" key="board_11"}}</div>
+          </button>
+          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
+            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
+              <img src={{path "images/icon-boards.png"}} class="md-thumb__icon" alt="">
+            </div>
+            <div class="md-strip__label">{{t "Board 12" key="board_12"}}</div>
+          </button>
+        </div>
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
+          {{t "View All Boards →" key="view_all_boards"}}
+        </button>
+      </article>
+      {{/if}}
 
-                  {{board.key}}
-                </button>
+      {{#if (is-equal this.activeTab "supervisors")}}
+      <section class="md-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
+        {{#if this.appState.currentUser.supporter_role}}
+          <article class="md-card md-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
+                <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
               </div>
+            </div>
+            <div class="md-people">
+              {{#if this.appState.currentUser.known_supervisees}}
+                {{#each this.appState.currentUser.known_supervisees as |supervisee|}}
+                  <div class="md-person md-person--linked">
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="md-person__main">
+                      <img src={{supervisee.avatar_url}} class="md-avatar md-avatar--img" alt="" aria-hidden="true">
+                      <div class="md-person__meta">
+                        <div class="md-person__name">{{supervisee.user_name}}</div>
+                        {{#if supervisee.goal}}
+                          <div class="md-person__role md-muted">{{supervisee.goal.summary}}</div>
+                        {{else}}
+                          <div class="md-person__role md-muted">{{t "no goal set" key="no_goal_set"}}</div>
+                        {{/if}}
+                        {{#if supervisee.unread_messages}}
+                          <span class="md-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
+                        {{/if}}
+                      </div>
+                    </LinkTo>
+                    <ul class="md-person__links" role="list">
+                      <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
+                      {{#if supervisee.home_board_key}}
+                        <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
+                      {{/if}}
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</a></li>
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</a></li>
+                      <li><LinkTo @route="user.stats" @model={{supervisee.user_name}} @query={{hash highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "Reports" key="reports"}}</LinkTo></li>
+                      <li><a href="#" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
+                      <li><a href="#" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                    </ul>
+                  </div>
+                {{/each}}
+                {{#if this.appState.currentUser.all_connections.loading}}
+                  <div class="md-person md-muted">{{t "Loading more..." key="loading_more"}}</div>
+                {{else if this.appState.currentUser.all_connections.error}}
+                  <div class="md-person md-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
+                {{/if}}
+              {{else}}
+                <div class="md-person md-muted">{{t "None found" key="none_found"}}</div>
+              {{/if}}
+            </div>
+          </article>
+        {{else}}
+          <article class="md-card md-card--sup md-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
+                <div class="md-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
+                {{#unless this.appState.currentUser.supervisors_or_managing_org}}
+                  <span class="md-info-badge md-info-badge--below-sub" role="status">
+                    <span class="md-info-badge__dot" aria-hidden="true"></span>
+                    {{t "None found" key="none_found"}}
+                  </span>
+                {{/unless}}
+              </div>
+            </div>
+            <div class="md-card__sup-inline">
+              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true}}
+            </div>
+          </article>
+          {{#if this.appState.currentUser.supervised_units}}
+            <article class="md-card md-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
+              <div class="md-card__head">
+                <div class="md-card__title">{{t "rooms:" key="rooms_colon"}}</div>
+              </div>
+              <div class="md-rooms-list">
+                {{#each this.appState.currentUser.supervised_units as |unit|}}
+                  <span class="md-rooms-list__item">
+                    <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>{{unit.name}}</LinkTo>
+                  </span>
+                {{/each}}
+              </div>
+            </article>
+          {{/if}}
+        {{/if}}
+      </section>
+      {{/if}}
+
+      {{#if (is-equal this.activeTab "extras")}}
+      <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
+        <h2 class="md-extras-page__title">{{t "More Tools & Resources" key="more_tools"}}</h2>
+        <p class="md-extras-page__sub">{{t "Games & resources" key="games_and_resources"}}</p>
+        <div class="md-extras-page__grid" role="list">
+          {{#each this.extrasItems as |item|}}
+            {{#if item.show}}
+              <article class="md-extras-card" role="listitem">
+                <div class="md-extras-card__head">
+                  <div class="md-extras-card__icon-wrap {{if (is-equal item.action "newBoard") "md-extras-card__icon-wrap--new-board"}} {{if (is-equal item.action "intro") "md-extras-card__icon-wrap--learn-setup"}}">
+                    <img src={{path item.image}} class="md-extras-card__img" alt="" aria-hidden="true">
+                  </div>
+                  <div class="md-extras-card__body">
+                    <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
+                    <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
+                  </div>
+                </div>
+                <button type="button" class="md-btn md-btn--primary md-btn--wide md-extras-card__btn" {{action "extraAction" item.action}}>
+                  {{t item.btn_default key=item.btn_key}} →
+                </button>
+              </article>
             {{/if}}
           {{/each}}
-        {{else}}
-          <div class="col-sm-4">
-            {{t "None found" key="none_found"}}
-          </div>
-        {{/if}}
-      {{else}}
-        <div class="ll-bento-boards-page">
-        <header class="ll-bento-boards-page__header">
-          <h1 class="ll-bento-boards-page__title">{{t "Boards" key="boards"}}</h1>
-          <p class="ll-bento-boards-page__subtitle">{{t "Browse, open, and manage your communication boards" key="boards_page_subtitle"}}</p>
-        </header>
-        {{#unless this.home_board_or_supporter}}
-          {{#unless this.app_state.currentUser.modeling_only}}
-            {{#unless this.app_state.currentUser.preferences.home_board}}
-              <div class="ll-bento-boards-home-board-wrap">
-                <LinkTo @route="home-boards" class="ll-bento-home-board-card">
-                  <img src={{path "images/pastel-house.png"}} alt="" class="ll-bento-home-board-card__image" aria-hidden="true">
-                  <div class="ll-bento-home-board-card__content">
-                    <h3 class="ll-bento-home-board-card__title">{{t "You haven't set a home board yet" key="choose_home_board"}}</h3>
-                    <p class="ll-bento-home-board-card__subtitle">{{t "Let us help you choose one." key="let_us_help_choose_home"}}</p>
-                  </div>
-                  <span class="ll-bento-home-board-card__btn">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</span>
-                </LinkTo>
-              </div>
-            {{/unless}}
-          {{/unless}}
-        {{/unless}}
-        {{#if this.app_state.currentUser.preferences.home_board}}
-          <div class="ll-bento-current-home">
-            <span class="ll-bento-current-home__icon" aria-hidden="true">
-              <span class="glyphicon glyphicon-home"></span>
-            </span>
-            <div class="ll-bento-current-home__body">
-              <span class="ll-bento-current-home__label">{{t "current home board:" key="current_home_board"}}</span>
-              {{#if this.app_state.currentUser.preferences.home_board}}
-                <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="ll-bento-current-home__link">
-                  {{this.app_state.currentUser.preferences.home_board.key}}
-                </LinkTo>
-              {{else}}
-                <LinkTo @route="home-boards" class="ll-bento-current-home__link">
-                  {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </LinkTo>
-              {{/if}}
-            </div>
-          </div>
-        {{/if}}
-        <div class="ll-bento-boards-toolbar">
-          <a href="#" class="ll-bento-search ll-bento-boards-toolbar__search" {{action "searchBoards"}} role="button" aria-label={{t "Search Boards" key="search_boards"}}>
-            <span class="ll-bento-search__icon" aria-hidden="true">&#8981;</span>
-            <span class="ll-bento-search__input">{{t "Search Boards" key="search_boards"}}</span>
-          </a>
-          <nav class="ll-bento-filter-pills" role="group" aria-label={{t "Filter" key="filter"}}>
-            <a href="#" class="ll-bento-filter-pill {{if this.suggested_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "suggested"}}>
-              <span class="glyphicon glyphicon-star" aria-hidden="true"></span>
-              <span>{{t "Suggested" key="suggested"}}</span>
-            </a>
-            <a href="#" class="ll-bento-filter-pill {{if this.personal_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "personal"}}>
-              <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
-              <span>{{t "Mine" key="mine"}}</span>
-            </a>
-            <a href="#" class="ll-bento-filter-pill {{if this.popular_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "popular"}}>
-              <span class="glyphicon glyphicon-globe" aria-hidden="true"></span>
-              <span>{{t "Community" key="community"}}</span>
-            </a>
-            <a href="#" class="ll-bento-filter-pill {{if this.recent_selected "ll-bento-filter-pill--active"}}" {{action "set_selected" "recent"}}>
-              <span class="glyphicon glyphicon-time" aria-hidden="true"></span>
-              <span>{{t "Recent" key="recent"}}</span>
-            </a>
-          </nav>
         </div>
-        {{#if this.suggested_selected}}
-          {{#unless this.app_state.currentUser.supporter_role}}
-            <div class="ll-bento-boards-page__home-cta">
-              <LinkTo @route="home-boards" class="ll-bento-boards-page__home-link">
-                <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
-                {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-              </LinkTo>
-            </div>
-          {{/unless}}
-        {{/if}}
-        {{#if this.current_boards}}
-          {{#if this.current_boards.loading}}
-            <div class="ll-bento-board-grid__loading">{{t "Loading..." key="loading"}}</div>
-          {{else if this.current_boards.error}}
-            <div class="ll-bento-board-grid__error">{{t "Failed to load" key="failed_to_load"}}</div>
-          {{else}}
-            <div class="ll-bento-board-grid">
-              {{#each this.current_boards as |board|}}
-                <div class="ll-bento-board-grid__item">
-                  {{board-icon board=board localized=true allow_style=this.suggested_selected}}
-                </div>
-              {{/each}}
-            </div>
-            {{#if this.personal_selected}}
-              <div class="ll-bento-boards-page__footer-cta">
-                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ll-bento-boards-page__see-all">
-                  {{t "See All My Boards" key="see_all_my_boards"}}
-                </LinkTo>
-              </div>
-            {{/if}}
-          {{/if}}
-        {{else}}
-          <div class="ll-bento-board-grid__empty">{{t "None found" key="none_found"}}</div>
-        {{/if}}
-        </div>{{!-- /.ll-bento-boards-page --}}
+      </section>
       {{/if}}
-    {{else if this.index_nav.supervisors}}
-      <div class="col-xs-12 ll-bento-supervision-inline-wrap">
-        {{supervision-settings inline=true model=this.app_state.currentUser}}
-      </div>
-    {{else if this.index_nav.logging}}
-      <div class='col-md-8 col-md-offset-2 col-xs-12'>
-        {{#if this.app_state.currentUser.supporter_role}}
-          <h4>{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h4>
-        {{else}}
-          <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
-        {{/if}}
-        <div style="margin-left: 20px;">
-          {{#if this.logs.loading}}
-            <p>{{t "Loading..." key="loading"}}</p>
-          {{else if this.logs.error}}
-            <p>{{t "Failed to load" key="failed_to_load"}}</p>
-          {{else if this.logs}}
-            {{#each this.logs as |log|}}
-              <p>
-                <span title={{date log.started_at}}>
-                  {{date_ago log.started_at}}
-                </span>
-                {{#link-to "user.log" log.user.user_name log.id}}
-                  {{#if log.assessment}}
-                    {{t "assessment" key="assessment"}}
-                  {{else}}
-                    {{t "button" count=log.button_count key="button_count"}}
-                  {{/if}}
-                {{/link-to}}
-                {{#if this.app_state.currentUser.supporter_role}}
-                  <span> -
-                    {{#link-to "user" log.user.user_name}}
-                      {{log.user.user_name}}
-                    {{/link-to}}
-                  </span>
-                {{/if}}
-                <br>
-                <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
-              </p>
-            {{/each}}
-          {{else}}
-            {{#if this.show_sessions_explanation}}
-              <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
-            {{else}}
-              <p>
-                {{t "No sessions currently available" key="no_sessions_found"}}
-                <a href="#" {{action "show_explanation" "sessions"}}>
-                  <span class='glyphicon glyphicon-info-sign'></span>
-                </a>
-              </p>
-            {{/if}}
-          {{/if}}
-        </div>
-      </div>
-    {{else if this.index_nav.updates}}
-      <div class='col-md-8 col-md-offset-2 col-xs-12'>
-        {{#if this.device.needs_install_reminder}}
-          <div style="margin-bottom: 20px; text-align: center;">
-            <h2>
-              <span class="glyphicon glyphicon-phone"></span>
-              {{t "Try the App" key="use_cough_drop_app"}}
-            </h2>
-            <div style='text-align: left;'>
-              {{t "%app_name% works in any web browser, but you can also install the free app in the following stores:" key="app_stores"}}
-            </div>
-            <div>
-              {{#if this.app_state.domain_settings.ios_store_url}}
-                <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
-                </a>
-              {{/if}}
-              {{#if this.app_state.domain_settings.play_store_url}}
-                <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
-                </a><br>
-              {{/if}}
-              {{#if this.app_state.domain_settings.kindle_store_url}}
-                <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
-                </a>
-              {{/if}}
-              <LinkTo @route="download">
-                <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
-              </LinkTo>
-            </div>
-          </div>
-        {{/if}}
-        <h4>{{t "Notifications" key="notifications"}}</h4>
-        <div style="margin-left: 20px;">
-          {{#if this.app_state.currentUser.pending_org}}
-            <p>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}</LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.pending_supervision_org}}
-            <p>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}</LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.pending_board_shares}}
-            {{#each this.app_state.currentUser.pending_board_shares as |share|}}
-              <p>
-                <span class="glyphicon glyphicon-share"></span>
-                <LinkTo @route="board" @model={{share.board_key}}>{{share.board_key}}</LinkTo>
-                {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
-              </p>
-            {{/each}}
-          {{/if}}
-          {{#if this.app_state.currentUser.unread_messages}}
-            <p>
-            <LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
-              <span class="glyphicon glyphicon-envelope"></span>
-              {{t "You have " key="you_have"}}
-              {{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}
-            </LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.parsed_notifications}}
-            {{#each this.app_state.currentUser.parsed_notifications as |notif|}}
-              <UserNotification @notification={{notif}} />
-            {{/each}}
-          {{/if}}
-          {{#unless this.app_state.currentUser.unread_messages}}
-            {{#unless this.app_state.currentUser.parsed_notifications}}
-              {{#unless this.app_state.currentUser.pending_board_shares}}
-                {{#if this.show_notifications_explanation}}
-                  <em style="font-size: 11px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
-                {{else}}
-                  {{t "You have no new messages" key="no_new_messages"}}
-                  <a href="#" {{action "show_explanation" "notifications"}}>
-                    <span class='glyphicon glyphicon-info-sign'></span>
-                  </a>
-                {{/if}}
-              {{/unless}}
-            {{/unless}}
-          {{/unless}}
-        </div>
+    </section>
+  </main>
 
-        {{#if this.app_state.currentUser.supporter_role}}
-          <h4>{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h4>
-        {{else}}
-          <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
-        {{/if}}
-        <div style="margin-left: 20px;">
-          {{#if this.logs.loading}}
-            <p>{{t "Loading..." key="loading"}}</p>
-          {{else if this.logs.error}}
-            <p>{{t "Failed to load" key="failed_to_load"}}</p>
-          {{else if this.logs}}
-            {{#each this.logs as |log|}}
-              <p>
-                <span title={{date log.started_at}}>
-                  {{date_ago log.started_at}}
-                </span>
-                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
-                  {{#if log.assessment}}
-                    {{t "assessment" key="assessment"}}
-                  {{else}}
-                    {{t "button" count=log.button_count key="button_count"}}
-                  {{/if}}
-                </LinkTo>
-                {{#if this.app_state.currentUser.supporter_role}}
-                  <span> -
-                    <LinkTo @route="user" @model={{log.user.user_name}}>
-                      {{log.user.user_name}}
-                    </LinkTo>
-                  </span>
-                {{/if}}
-                <br>
-                <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
-              </p>
-            {{/each}}
-          {{else}}
-            {{#if this.show_sessions_explanation}}
-              <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
-            {{else}}
-              <p>
-                {{t "No sessions currently available" key="no_sessions_found"}}
-                <a href="#" {{action "show_explanation" "sessions"}}>
-                  <span class='glyphicon glyphicon-info-sign'></span>
-                </a>
-              </p>
-            {{/if}}
-          {{/if}}
+  </div>{{!-- .md-workspace --}}
+
+  {{#if this.isSearchOpen}}
+    <section class="md-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
+      <div class="md-searchOverlay__top">
+        <input
+          class="md-searchOverlay__input"
+          placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
+          autofocus
+          {{action "onSearchKeydown" on="keyDown"}}
+        />
+        <button type="button" class="md-btn md-btn--ghost" {{action "closeSearch"}}>
+          {{t "Close" key="close"}}
+        </button>
+      </div>
+      <div class="md-searchOverlay__body">
+        <div class="md-muted">{{t "Hook this to your Rails endpoint later." key="md_search_hook"}}</div>
+        <div class="md-quickActions">
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "speak"}}>{{t "Continue Speaking" key="continue_speaking"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "boards"}}>{{t "Open Boards" key="open_boards"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "reports"}}>{{t "View Reports" key="view_reports"}}</button>
+          <button type="button" class="md-row" {{action "openExtrasTab"}}>{{t "Explore Extras" key="explore_extras"}}</button>
         </div>
       </div>
-    {{/if}}
-  </div>
-  </div>
-</div>
-</div>
+    </section>
+  {{/if}}
 </div>

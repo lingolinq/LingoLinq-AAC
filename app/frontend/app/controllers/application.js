@@ -358,7 +358,7 @@ export default Controller.extend({
       this.appState.return_to_index();
     },
     support: function() {
-      modal.open('support');
+      this.get('router').transitionTo('support');
     },
     getting_started: function() {
       this.get('modalService').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
@@ -1702,7 +1702,7 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'user' || (route && route.indexOf('user.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user/*, home-boards/search home, user.stats, about, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup and user pages use same navbar as authenticated view. About page and home-boards (search/home) use same navbar when user is logged in. */
+  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user/*, home-boards/search home, user.stats, about, privacy, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup and user pages use same navbar as authenticated view. About, privacy, and home-boards (search/home) use same navbar when user is logged in. */
   useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
@@ -1710,6 +1710,8 @@ export default Controller.extend({
       (route === 'about' && cu) ||
       (route === 'features' && cu) ||
       (route === 'pricing' && cu) ||
-      (route === 'home-boards' && cu);
+      (route === 'privacy' && cu) ||
+      (route === 'home-boards' && cu) ||
+      route === 'support';
   })
 });
