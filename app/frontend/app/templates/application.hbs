@@ -1115,10 +1115,5 @@
   {{page-footer support=(action "support") language=(action "language")}}
 {{/if}}
 
-{{#unless this.app_state.testing}}
-  {{#unless this.app_state.installed_app}}
-    <iframe style="visibility: hidden; height: 0; position: absolute;" src="/cache" title="Cache iframe"></iframe>
-  {{/unless}}
-{{/unless}}
 </div>
 {{button-tracker}}

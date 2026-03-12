@@ -47,7 +47,7 @@ gem 'aws-sdk-cloudfront', '~> 1'
 # TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
 gem 's3'
 gem 'http-2'
-gem 'resque'
+gem 'resque', '~> 3.0'
 gem 'puma'
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
@@ -57,7 +57,8 @@ gem 'rubyzip', '~> 2.3'
 gem 'accessible-books'
 gem 'bugsnag'
 gem 'stripe'
-gem 'rack', '~> 2.2.22' # Pin to 2.2.x to avoid Rack 3.x incompatibilities
+# Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
+gem 'rack', '>= 3.0'
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'
@@ -70,7 +71,7 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 
-gem 'sinatra'
+gem 'sinatra', '~> 4.2'
 gem 'sanitize'
 gem 'anthropic', '~> 1.23'
 
