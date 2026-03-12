@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main, develop ]
 
 jobs:
   rspec:
@@ -30,17 +31,17 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/lingolinq_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       REDIS_URL: redis://localhost:6379/
       SECURE_ENCRYPTION_KEY: ${{ secrets.SECURE_ENCRYPTION_KEY }}
       SECURE_NONCE_KEY: ${{ secrets.SECURE_NONCE_KEY }}
       COOKIE_KEY: ${{ secrets.COOKIE_KEY }}
       DEFAULT_EMAIL_FROM: ${{ secrets.DEFAULT_EMAIL_FROM }}
       SYSTEM_ERROR_EMAIL: ${{ secrets.SYSTEM_ERROR_EMAIL }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -92,4 +93,64 @@ jobs:
 
       - name: Run Ember tests (Chrome Headless)
         working-directory: app/frontend
-        run: npx ember test -T 60 -T 60 -T 60 -T 60
+        run: npx ember test
+
+  security-scan:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Run Brakeman (Rails SAST)
+        run: |
+          gem install brakeman
+          brakeman --no-pager --format json --output brakeman-results.json || true
+          brakeman --no-pager --format text
+        continue-on-error: true
+
+      - name: Upload Brakeman results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brakeman-results
+          path: brakeman-results.json
+
+      - name: Run bundle-audit (gem CVE check)
+        run: |
+          gem install bundler-audit
+          bundle-audit check --update
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run npm audit (frontend CVE check)
+        working-directory: app/frontend
+        run: |
+          npm install --ignore-scripts
+          npm audit --audit-level=high || true
+        continue-on-error: true
+
+  secret-detection:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks (CLI - no license required)
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks detect --source . --log-opts="--all" --exit-code 1 || true

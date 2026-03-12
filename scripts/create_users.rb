@@ -1,9 +1,24 @@
 # Ruby script to create the requested LingoLinq users
-# Usage: bundle exec rails runner create_users.rb
+# Usage: bundle exec rails runner scripts/create_users.rb
+#
+# Requires CREATE_USERS_DEFAULT_PASSWORD to be set (no hardcoded passwords).
+# In production, also set CREATE_USERS_ALLOW_PRODUCTION=1 to allow running.
 
 # Check for required classes to ensure script is running in Rails context
 unless defined?(User) && defined?(Organization)
-  puts "Error: Script must be run with 'bundle exec rails runner create_users.rb'"
+  puts "Error: Script must be run with 'bundle exec rails runner scripts/create_users.rb'"
+  exit 1
+end
+
+default_password = ENV['CREATE_USERS_DEFAULT_PASSWORD']
+if default_password.to_s.empty?
+  puts "Error: CREATE_USERS_DEFAULT_PASSWORD must be set. Set it in .env or export it."
+  puts "Example: CREATE_USERS_DEFAULT_PASSWORD=your_secret bundle exec rails runner scripts/create_users.rb"
+  exit 1
+end
+
+if Rails.env.production? && ENV['CREATE_USERS_ALLOW_PRODUCTION'] != '1'
+  puts "Error: Refusing to create users in production unless CREATE_USERS_ALLOW_PRODUCTION=1 is set."
   exit 1
 end
 
@@ -38,9 +53,9 @@ def create_user(user_name, password, options = {})
   user
 end
 
-# 1. Full Authority User: larry/password
+# 1. Full Authority User: larry / password from CREATE_USERS_DEFAULT_PASSWORD
 puts "--- Setting up Full Authority User ---"
-larry = create_user('larry', 'password', { 
+larry = create_user('larry', default_password, { 
   name: 'Larry Admin', 
   email: 'larry@lingolinq.com', 
   is_admin: true 
@@ -57,15 +72,22 @@ else
   puts "Warning: Admin Organization not found"
 end
 
-# 2. Demo District Admin: NYC_test/password
+# 2. Demo District Admin: NYC_test / password from CREATE_USERS_DEFAULT_PASSWORD
 puts "\n--- Setting up Demo District Admin ---"
-nyc = create_user('NYC_test', 'password', { 
+nyc = create_user('NYC_test', default_password, { 
   name: 'NYC Test Admin', 
   email: 'nyc_test@example.com' 
 })
 
 # Find or create a Demo School District organization
-demo_org = Organization.all.find { |o| o.settings && o.settings['name'] =~ /Demo School District/i }
+# Note: settings is encrypted (secure_serialize), so we cannot query by JSON/ILIKE; iterate in batches.
+demo_org = nil
+Organization.find_each do |o|
+  if o.settings && o.settings['name']&.match?(/Demo School District/i)
+    demo_org = o
+    break
+  end
+end
 
 unless demo_org
   puts "Creating 'Demo School District' organization..."

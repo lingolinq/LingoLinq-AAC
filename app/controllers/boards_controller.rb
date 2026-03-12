@@ -100,11 +100,6 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def cache
-    response.headers.except! 'X-Frame-Options'
-    render :layout => false
-  end
-  
   def video
     response.headers.except! 'X-Frame-Options'
     render :layout => false

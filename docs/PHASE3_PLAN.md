@@ -2,7 +2,7 @@
 
 ## Overview
 **Target**: Ember 3.28 LTS, stable and deployable  
-**Estimated Window**: ~1–2 weeks  
+**Estimated Window**: ~1-2 weeks  
 **Current Version**: Ember 3.16  
 **Goal**: Incremental upgrade with testing at each step
 
@@ -20,7 +20,7 @@
 - **Ember**: 3.16.0
 - **Ember Data**: 3.16.0
 - **Ember CLI**: 3.16.0
-- **Node**: >= 18.0.0
+- **Node**: >= 20.0.0
 - **Build**: ✅ Successful
 - **App Boot**: ✅ No errors
 

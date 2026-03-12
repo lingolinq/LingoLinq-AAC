@@ -18,6 +18,8 @@ group :development, :test do
   gem 'ruby-lsp-rails', require: false
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
+  gem 'brakeman', require: false
+  gem 'bundler-audit', require: false
 end
 
 gem 'benchmark'
@@ -37,28 +39,26 @@ gem 'sprockets-rails', '~> 3.5'
 # mimemagic is deprecated, Rails 7 uses marcel/mini_mime internally
 
 gem 'typhoeus'
-gem 'coffee-rails'
 gem 'aws-sdk-rails'
 gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
+# TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
+gem 's3'
 gem 'http-2'
-gem 'resque'
-gem 'rails_12factor', group: :production
-# gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
+gem 'resque', '~> 3.0'
 gem 'puma'
-gem 'rack-offline'
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
 # OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
 gem 'rubyzip', '~> 2.3'
 gem 'accessible-books'
-gem 's3'
 gem 'bugsnag'
 gem 'stripe'
-gem 'rack', '~> 2.2.22' # Pin to 2.2.x to avoid Rack 3.x incompatibilities
+# Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
+gem 'rack', '>= 3.0'
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'
@@ -71,7 +71,7 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 
-gem 'sinatra'
+gem 'sinatra', '~> 4.2'
 gem 'sanitize'
 gem 'anthropic', '~> 1.23'
 

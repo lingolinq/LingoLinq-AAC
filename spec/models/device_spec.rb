@@ -255,18 +255,20 @@ describe Device, :type => :model do
     end
     
     it "should remove tokens based on their timeouts" do
+      fred_timestamp = 25.days.ago.to_i
+      fred_last = 1.hour.ago.to_i
       d = Device.new
       d.settings = {}
       d.settings['long_token'] = false
       d.settings['keys'] = [
-        {'value' => 'bob', 'timestamp' => 25.days.ago.to_i, 'last_timestamp' => 25.days.ago.to_i}, 
-        {'value' => 'fred', 'timestamp' => 25.days.ago.to_i, 'last_timestamp' => 1.hour.ago.to_i}, 
-        {'value' => 'sue', 'timestamp' => 30.days.ago.to_i, 'last_timestamp' => 1.minute.ago.to_i}, 
-        {'value' => 'alice', 'timestamp' => 5.days.ago.to_i, 'last_timestamp' => 1.minute.ago.to_i, 'expire_at' => 5.minutes.ago.to_i}, 
+        {'value' => 'bob', 'timestamp' => 25.days.ago.to_i, 'last_timestamp' => 25.days.ago.to_i},
+        {'value' => 'fred', 'timestamp' => fred_timestamp, 'last_timestamp' => fred_last},
+        {'value' => 'sue', 'timestamp' => 30.days.ago.to_i, 'last_timestamp' => 1.minute.ago.to_i},
+        {'value' => 'alice', 'timestamp' => 5.days.ago.to_i, 'last_timestamp' => 1.minute.ago.to_i, 'expire_at' => 5.minutes.ago.to_i},
         {'value' => 'alexis', 'timestamp' => 3.hours.ago.to_i, 'last_timestamp' => 20.minute.ago.to_i, 'timeout' => 10.minutes.to_i}
       ]
       d.clean_old_keys
-      expect(d.settings['keys']).to eq([{'value' => 'fred', 'timestamp' => 25.days.ago.to_i, 'last_timestamp' => 1.hour.ago.to_i}])
+      expect(d.settings['keys']).to eq([{'value' => 'fred', 'timestamp' => fred_timestamp, 'last_timestamp' => fred_last}])
     end
 
     it "should honor org-configured timeouts" do

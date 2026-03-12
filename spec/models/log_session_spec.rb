@@ -4105,11 +4105,12 @@ describe LogSession, :type => :model do
       })
       s.reload
       expect(s.data['events'].length).to eq(2)
-      
+
+      dismiss_timestamp = 6.hours.ago.to_i
       LogSession.process_modeling_event({
         'modeling_action' => 'dismiss',
         'modeling_activity_id' => '1f',
-        'timestamp' => 6.hours.ago.to_i,
+        'timestamp' => dismiss_timestamp,
         'modeling_user_ids' => ['1', '2']
       }, {
         user: u, device: d
@@ -4121,7 +4122,7 @@ describe LogSession, :type => :model do
         'modeling_activity_id' => '1f',
         'repeats' => 1,
         'id' => 3,
-        'timestamp' => 6.hours.ago.to_i,
+        'timestamp' => dismiss_timestamp,
         'modeling_user_ids' => ['1', '2'],
         'related_user_ids' => []
       })
