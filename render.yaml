@@ -1,3 +1,5 @@
+# LingoLinq-AAC Render Configuration
+# Preview environments enabled - PRs auto-deploy a testable URL
 services:
   - type: web
     name: LingoLinq-AAC
