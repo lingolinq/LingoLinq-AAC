@@ -40,7 +40,7 @@ export default Controller.extend({
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
     var owner = getOwner(this);
-    var sessionService = owner.lookup('lingolinq:session');
+    var sessionService = owner.lookup('service:session') || owner.lookup('lingolinq:session');
     if(sessionService) {
       // Use defineProperty to set it without triggering read-only error
       Object.defineProperty(this, 'session', {
@@ -325,7 +325,12 @@ export default Controller.extend({
   }),
   actions: {
     invalidateSession: function() {
-      session.invalidate(true);
+      var sess = this.get('session');
+      if(sess && typeof sess.invalidate === 'function') {
+        sess.invalidate(true);
+      } else {
+        session.invalidate(true);
+      }
     },
     authenticateSession: function() {
       if(location.hostname == '127.0.0.1') {
