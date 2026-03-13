@@ -818,8 +818,9 @@ LingoLinq.Visualizations = {
       };
       script = document.createElement('script');
       script.type = 'text/javascript';
+      script.async = true;
       // TODO: pull api keys out into config file?
-      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&' +
+      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {

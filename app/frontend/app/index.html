@@ -13,6 +13,9 @@
 
     {{content-for "head"}}
 
+    <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
+    <script src="/assets/globals.js"></script>
+
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
 
