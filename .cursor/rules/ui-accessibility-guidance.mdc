@@ -23,8 +23,9 @@ alwaysApply: true
 - Avoid unnecessary motion, distracting visual effects, or interaction patterns that may increase cognitive load.
 - Preserve accessibility and existing workflows unless explicitly asked to change them.
 
-**Typography and font size:** This is an AAC site; text must remain readable. When applying modern styling or redesigning a page, do not use very small font sizes—nothing so small that it is hard to read. Prefer body text in the ~1rem–1.15rem range as a baseline; headings and emphasis can be larger. Avoid making fonts too large (e.g. oversized body copy). If in doubt, err on the side of slightly larger and clearer rather than smaller and “sleek.”
+**Typography and font size:** This is an AAC site; text must remain readable. When applying modern styling or redesigning a page, do not use very small font sizes—nothing so small that it is hard to read. Prefer body text in the ~1rem–1.15rem range as a baseline; headings and emphasis can be larger. Avoid making fonts too small (e.g. oversized body copy). If in doubt, err on the side of slightly larger and clearer rather than smaller and “sleek.”
 
+**When changing or restyling sections:** Do not shrink section text by roughly 25% (a common mistake). Section headings, leads, and body copy should stay at least as large as existing patterns or slightly larger. If the current section uses e.g. 1.25rem, match or increase it—do not reduce to ~1rem for a "cleaner" look. Reference existing font sizes on similar pages that have our new styles (e.g. pricing, contact, about) and match them.
 ## UI and styling conventions
 
 - Match the existing visual system: calm, modern SaaS styling with soft gradients, rounded surfaces, and restrained depth.

@@ -38,9 +38,15 @@
         </span>
       </div>
     </LinkTo>
-    <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
-      {{t "Upgrade" key="upgrade"}}
-    </button>
+    {{#if this.appState.currentUser}}
+      <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>
+        {{t "Upgrade" key="upgrade"}}
+      </LinkTo>
+    {{else}}
+      <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
+        {{t "Upgrade" key="upgrade"}}
+      </button>
+    {{/if}}
     <span style="display: inline-block;" class="dropdown">
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
         <span class="user_holder">
@@ -76,6 +82,17 @@
           {{t "Messages" key="messages"}}
         </LinkTo></li>
         <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
+        <li class="divider" role="separator"></li>
+        <li>
+          <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
+        </li>
+        <li>
+          <a href="#" {{action "openLanguage" preventDefault=true}} class="dropdown-menu__language-link">
+            {{this.appState.current_locale_string}}
+            <img src={{path "images/icon-language-new2.png"}} class="dropdown-menu__language-icon" alt="" aria-hidden="true">
+          </a>
+        </li>
+        <li class="divider" role="separator"></li>
         <li class="dropdown-header ll-theme-picker-dropdown-label">{{t "Color Tone" key="color_tone"}}</li>
         <li class="ll-bento-theme-picker-dropdown">
           <div class="ll-bento-theme-picker ll-bento-theme-picker--in-dropdown" role="group" aria-label={{t "Choose theme" key="choose_theme"}}>
@@ -96,16 +113,6 @@
               </div>
             </div>
           </div>
-        </li>
-        <li class="divider" role="separator"></li>
-        <li>
-          <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
-        </li>
-        <li>
-          <a href="#" {{action "openLanguage" preventDefault=true}} class="dropdown-menu__language-link">
-            <img src={{path "images/icon-language-new2.png"}} class="dropdown-menu__language-icon" alt="" aria-hidden="true">
-            {{this.appState.current_locale_string}}
-          </a>
         </li>
         <li class="divider" role="separator"></li>
         <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>

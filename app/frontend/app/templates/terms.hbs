@@ -1,19 +1,22 @@
-<div class="la-wrapper la-wrapper--privacy">
+<div class="la-wrapper la-wrapper--about la-wrapper--privacy la-wrapper--terms">
   <div class="app-shell">
     <main class="la-main" role="main">
 
-      <section class="la-section la-privacy-section">
+      {{!-- Hero (same structure as privacy page) --}}
+      <section id="terms-hero" class="la-section">
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge">{{t "Legal" key="legal"}} <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span></span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">{{t "Terms of Service (ToS)" key="terms_of_use_title"}}</h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle">{{t "Last Updated: March 3, 2026" key="terms_updated"}}</p>
+        </div>
+      </section>
+
+      <section class="la-section la-privacy-section la-terms-content-section">
         <div class="la-about-glass-card la-privacy-content-card">
           <div class="la-privacy-content">
-            <div class="la-privacy-content-header">
-              <span class="la-section-eyebrow-badge">
-                {{t "Legal" key="legal"}} <span style="color: #2a5aa8;">Lingo</span><span style="color: #3a6bc7; font-style: italic;">Linq</span>
-              </span>
-              <h1 class="la-privacy-title">{{t "Terms of Service (ToS)" key="terms_of_use_title"}}</h1>
-              <hr class="la-about-hero-separator" aria-hidden="true">
-              <p class="la-privacy-updated">{{t "Last Updated: March 3, 2026" key="terms_updated"}}</p>
-            </div>
-
             <p>{{t "Welcome to LingoLinq. These Terms of Service (\"Terms\") govern your access to and use of the LingoLinq website (www.lingolinq.com) and all associated products and services (collectively, the \"Service\"). By accessing or using the Service, you agree to be bound by these Terms." key="terms_intro"}}</p>
 
             <h3>{{t "1. Account Responsibilities" key="terms_account_heading"}}</h3>

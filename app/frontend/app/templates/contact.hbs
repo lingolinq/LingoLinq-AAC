@@ -1,62 +1,62 @@
-<div class="la-wrapper la-wrapper--contact">
+<div class="la-wrapper la-wrapper--pricing la-wrapper--contact">
   <div class="app-shell">
     <main class="la-main" role="main">
 
-      {{!-- ── Hero (same layout as About / Pricing) ── --}}
-      <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
-        <span class="la-section-eyebrow-badge">
-          {{t "Contact" key="contact_eyebrow"}} <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span>
-        </span>
-        <div class="la-hero-title-wrap">
-          <h1 class="la-hero-title">
-            {{t "We'd love to" key="contact_hero_get_in"}} <em>{{t "hear from you" key="contact_hear_from_you"}}</em>
-          </h1>
+      {{!-- Hero (same structure as pricing page): badge, header, divider, subheader --}}
+      <section id="contact-hero" class="la-section">
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge">{{t "CONTACT" key="contact_eyebrow"}} <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span></span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">{{t "Contact Us" key="contact"}}</h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle">
+            {{t "Whether you have a question, an idea, or feedback—we want to hear it. Send us a note and we'll get back to you as soon as we can." key="contact_us_intro"}}
+          </p>
         </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
-        <p class="la-contact-hero-subtitle">
-          {{t "Whether you have a question, an idea, or feedback—we want to hear it. Send us a note. We read every message and will get back to you as soon as we can." key="contact_us_intro"}}
-        </p>
 
-        <div class="la-about-glass-card la-contact-form-card">
-          <form class="la-contact-form" {{action "submit_message" on="submit"}}>
-            <div class="la-contact-form__row">
-              <label for="name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
-              <Input @value={{this.name}} class="la-contact-input" id="name" placeholder={{t "Your Name" key="your_name"}} />
-            </div>
-            <div class="la-contact-form__row">
-              <label for="email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
-              <Input @value={{this.email}} class="la-contact-input" id="email" placeholder="you@example.com" />
-            </div>
-            <div class="la-contact-form__row">
-              <label for="recipient" class="la-contact-form__label">{{t "Recipient" key="recipient"}}</label>
-              {{bound-select select_class="la-contact-input" select_id="recipient" content=this.recipient_list selection=this.recipient action=(action (mut this.recipient)) }}
-            </div>
-            {{#if this.support_recipient}}
-              {{#unless this.app_state.no_linky}}
-                {{#if this.app_state.domain_settings.support_url}}
-                  <div class="la-contact-form__row la-contact-form__row--hint">
-                    <p class="la-contact-form__hint">
-                      {{t "Before filing a ticket, please" key="before_ticker"}}
-                      <a href={{this.app_state.domain_settings.support_url}} class="la-contact-form__link">{{t "check our support site" key="check_support_site"}}</a>
-                      {{t "for common questions." key="support_through_site"}}
-                    </p>
-                  </div>
-                {{/if}}
-              {{/unless}}
-            {{/if}}
-            <div class="la-contact-form__row">
-              <label for="subject" class="la-contact-form__label">{{t "Subject" key="subject"}}</label>
-              <Input @value={{this.subject}} class="la-contact-input" id="subject" placeholder="" />
-            </div>
-            <div class="la-contact-form__row">
-              <label for="message" class="la-contact-form__label">{{t "Message" key="message"}}</label>
-              <Textarea @value={{this.message}} class="la-contact-input la-contact-input--textarea" id="message" placeholder="" rows={{4}} />
-            </div>
-            <div class="la-contact-form__actions">
-              <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
-              <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{action "reset"}}>{{t "Clear" key="clear"}}</button>
-            </div>
-          </form>
+        <div class="la-contact-form-wrapper">
+          <div class="la-about-glass-card la-contact-form-card">
+            <form class="la-contact-form" {{action "submit_message" on="submit"}}>
+              <div class="la-contact-form__row">
+                <label for="contact_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
+                <Input @value={{this.name}} class="la-contact-input" id="contact_name" placeholder={{t "Your Name" key="your_name"}} />
+              </div>
+              <div class="la-contact-form__row">
+                <label for="contact_email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
+                <Input @value={{this.email}} class="la-contact-input" id="contact_email" placeholder="you@example.com" />
+              </div>
+              <div class="la-contact-form__row">
+                <label for="contact_recipient" class="la-contact-form__label">{{t "Recipient" key="recipient"}}</label>
+                {{bound-select select_class="la-contact-input" select_id="contact_recipient" content=this.recipient_list selection=this.recipient action=(action (mut this.recipient)) }}
+              </div>
+              {{#if this.support_recipient}}
+                {{#unless this.app_state.no_linky}}
+                  {{#if this.app_state.domain_settings.support_url}}
+                    <div class="la-contact-form__row la-contact-form__row--hint">
+                      <p class="la-contact-form__hint">
+                        {{t "Before filing a ticket, please" key="before_ticker"}}
+                        <a href={{this.app_state.domain_settings.support_url}} class="la-contact-form__link">{{t "check our support site" key="check_support_site"}}</a>
+                        {{t "for common questions." key="support_through_site"}}
+                      </p>
+                    </div>
+                  {{/if}}
+                {{/unless}}
+              {{/if}}
+              <div class="la-contact-form__row">
+                <label for="contact_subject" class="la-contact-form__label">{{t "Subject" key="subject"}}</label>
+                <Input @value={{this.subject}} class="la-contact-input" id="contact_subject" placeholder="" />
+              </div>
+              <div class="la-contact-form__row">
+                <label for="contact_message" class="la-contact-form__label">{{t "Message" key="message"}}</label>
+                <Textarea @value={{this.message}} class="la-contact-input la-contact-input--textarea" id="contact_message" placeholder="" rows={{4}} />
+              </div>
+              <div class="la-contact-form__actions">
+                <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
+                <button disabled={{this.disabled}} type="button" class="la-btn la-btn--ghost" {{action "reset"}}>{{t "Clear" key="clear"}}</button>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
 

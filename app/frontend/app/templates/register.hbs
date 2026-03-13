@@ -10,7 +10,7 @@
     {{#if this.stashes.enabled}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">
-          <h2 class="la-hero-title">{{t "Create a %app_name% Account" key="create_app_account"}}</h2>
+          <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
         </div>
         <hr class="la-about-hero-separator" aria-hidden="true">
       </div>
@@ -96,6 +96,7 @@
           </label>
         </div>
       </div>
+      <div class="register-btn-wrap">
       {{#if (persistence-online)}}
         <button type="submit" disabled={{this.registering.saving}} class="register-btn">
           {{#if this.registering.initializing}}
@@ -111,6 +112,7 @@
           {{t "Not Online" key="not_online"}}
         </button>
       {{/if}}
+      </div>
       {{#if this.registering.error}}
         <p class='register-error'>
           {{#if this.registering.error.email_blocked}}

@@ -369,7 +369,7 @@ export default Controller.extend({
     goUpgrade: function() {
       var user = this.appState.get('currentUser');
       if (user) {
-        modal.open('premium-required', { user_name: user.get('user_name'), user: user, remind_to_upgrade: true });
+        this.get('router').transitionTo('user.subscription', user.get('user_name'));
       } else {
         modal.open('premium-required', { remind_to_upgrade: true });
       }
@@ -1711,7 +1711,9 @@ export default Controller.extend({
       (route === 'features' && cu) ||
       (route === 'pricing' && cu) ||
       (route === 'privacy' && cu) ||
+      (route === 'terms' && cu) ||
       (route === 'home-boards' && cu) ||
-      route === 'support';
+      route === 'support' ||
+      route === 'contact';
   })
 });
