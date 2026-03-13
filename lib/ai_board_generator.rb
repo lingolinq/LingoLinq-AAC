@@ -26,6 +26,13 @@ module AiBoardGenerator
 
       cell_count = rows * columns
 
+      # Configure blocklist with user names before scrubbing
+      if user
+        names = [user.user_name]
+        names << user.settings['full_name'] if user.settings && user.settings['full_name']
+        PiiScrubber.configure_blocklist(names)
+      end
+
       # PII scrub the user prompt before sending to AI
       scrub_result = PiiScrubber.redact_for_ai(prompt)
       scrubbed_prompt = scrub_result[:payload]
