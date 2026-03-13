@@ -61,6 +61,7 @@ module Stats
     res[:days] = days
     sessions = find_sessions(user_id, options)
     res.merge!(touch_stats(sessions))
+    res[:locations] = location_use_for_sessions(sessions)
     word_development.each do |key, list|
       # if a word is used more than 7 times in the last few weeks, go ahead
       # and call it an emergent word
@@ -843,10 +844,15 @@ module Stats
         location[:ip_address] = cluster.data['ip_address']
       end
       if cluster.geo? && cluster.data && cluster.data['geo']
+        geo = cluster.data['geo']
+        lat = geo[0].respond_to?(:to_f) ? geo[0].to_f : nil
+        lng = geo[1].respond_to?(:to_f) ? geo[1].to_f : nil
+        alt = geo[2].respond_to?(:to_f) ? geo[2].to_f : 0
+        next if lat.nil? || lng.nil?
         location[:geo] = {
-          :latitude => cluster.data['geo'][0],
-          :longitude => cluster.data['geo'][1],
-          :altitude => cluster.data['geo'][2]
+          :latitude => lat,
+          :longitude => lng,
+          :altitude => alt
         }
       end
       res << location
