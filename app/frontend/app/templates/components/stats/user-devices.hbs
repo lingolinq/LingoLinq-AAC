@@ -5,6 +5,9 @@
         <tr>
           <th>
             {{t "Devices" key="devices"}}
+            <div class="text-muted" style="font-size: 0.85em; font-weight: normal; margin-top: 4px;">
+              {{t "Click a device to filter the report by that device." key="device_filter_hint"}}
+            </div>
           </th>
         </tr>
       </thead>
@@ -14,7 +17,7 @@
             <tr>
               <td>
                 <strong>
-                  <a href="#" {{action "filter" device}}>
+                  <a href="#" title={{t "Filter report by this device" key="filter_report_by_device"}} {{action "filter" device}}>
                     {{device.name}}
                   </a>
                 </strong><br>

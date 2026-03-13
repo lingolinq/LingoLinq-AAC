@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
@@ -327,10 +327,17 @@ export default Controller.extend({
   check_persistence_data: function() {
     var _this = this;
     _this.set('storage', {pending: true});
+    var storageTimeout = runLater(function() {
+      if(_this.get('storage.pending')) {
+        _this.set('storage', {size: 'unavailable'});
+      }
+    }, 8000);
     capabilities.storage.all_files().then(function(res) {
-      _this.set('storage', {size: Math.round(res.size * 10 / 1024 / 1024) / 10});
+      runCancel(storageTimeout);
+      _this.set('storage', {size: Math.round((res.size || 0) * 10 / 1024 / 1024) / 10});
     }, function(err) {
-      _this.set('storage', {size: 'unknown'});
+      runCancel(storageTimeout);
+      _this.set('storage', {size: 'unavailable'});
     });
 
     _this.set('local_storage', false);

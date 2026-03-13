@@ -174,13 +174,13 @@
       </div>
       <div class="row" style='page-break-inside: avoid;'>
         {{#if this.model.preferences.geo_logging }}
-          {{stats/geo-locations usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter" snapshots=this.filter_list}}
+          {{stats/geo-locations usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(action "update_left_filter") snapshots=this.filter_list}}
           {{#if this.usage_stats2}}
-            {{stats/geo-locations usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+            {{stats/geo-locations usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(action "update_right_filter")}}
           {{/if}}
-          {{stats/ip-addresses usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter"}}
+          {{stats/ip-addresses usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(action "update_left_filter")}}
           {{#if this.usage_stats2}}
-            {{stats/ip-addresses usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+            {{stats/ip-addresses usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(action "update_right_filter")}}
           {{/if}}
         {{else}}
           {{stats/geo-disabled side_by_side=this.usage_stats2}}
@@ -194,9 +194,9 @@
         {{#if this.usage_stats2}}
           {{stats/heat-map usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
-        {{stats/user-devices usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter="update_left_filter"}}
+        {{stats/user-devices usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2 filter=(action "update_left_filter")}}
         {{#if this.usage_stats2}}
-          {{stats/user-devices usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter="update_right_filter"}}
+          {{stats/user-devices usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true filter=(action "update_right_filter")}}
         {{/if}}
       </div>
       {{#unless this.usage_stats2}}
@@ -207,7 +207,7 @@
             </LinkTo>
             {{#if this.model.permissions.edit}}
               {{#unless this.snapshot_id}}
-                <a href="#" {{action "save_snapshot"}} class='btn btn-default'>{{t "Create Snapshot" key="create_snapshot"}}</a>
+                <a href="#" {{action "save_snapshot"}} class='btn btn-default' title={{t "Save this date range to use later for report filtering and side-by-side comparisons" key="save_report_period_tooltip"}}>{{t "Save Report Period" key="save_report_period"}}</a>
               {{/unless}}
             {{/if}}
           </div>

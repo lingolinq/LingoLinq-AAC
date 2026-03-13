@@ -5,6 +5,9 @@
         <tr>
           <th>
             {{t "IP Addresses" key="ip_addresses"}}
+            <div class="text-muted" style="font-size: 0.85em; font-weight: normal; margin-top: 4px;">
+              {{t "Click an IP address to filter the report by that location." key="ip_address_filter_hint"}}
+            </div>
           </th>
         </tr>
       </thead>
@@ -14,7 +17,7 @@
             <tr>
               <td>
                 <strong>
-                  <a href="#" {{action "filter" location}}>
+                  <a href="#" title={{t "Filter report by this location" key="filter_report_by_location"}} {{action "filter" location}}>
                     {{location.readable_ip_address}}
                   </a>
                 </strong><br>

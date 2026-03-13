@@ -2226,12 +2226,16 @@ describe Api::UsersController, :type => :controller do
       expect(json['log']).to_not eq(nil)
     end
 
-    it "should return error when user has no daily_use log" do
+    it "should return empty daily_use structure when user has no log" do
       token_user
       get :daily_use, params: {:user_id => @user.global_id}
-      expect(response).to have_http_status(:bad_request)
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['error']).to eq('No daily_use log found for this user')
+      expect(json['log']).to_not eq(nil)
+      expect(json['log']['daily_use']).to eq([])
+      expect(json['log']['id']).to include('daily_use-empty-')
+      # No LogSession should be created
+      expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
     it "should not allow a supervisor without admin_support_actions to check another user's daily use" do
@@ -2430,13 +2434,15 @@ describe Api::UsersController, :type => :controller do
     
     it "should error if no template is defined" do
       token_user
+      # Remove template so we can test the error path (migration/seeds normally create it)
+      UserIntegration.find_by(template: true, integration_key: 'core_word_list')&.destroy
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       assert_error('no core word list integration defined')
     end
     
     it "should set the user's core list" do
       token_user
-      ui = UserIntegration.create(:template => true, :integration_key => 'core_word_list')
+      ui = UserIntegration.find_or_create_by!(template: true, integration_key: 'core_word_list') { |u| u.settings ||= {} }
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       expect(response).to be_successful
       json = JSON.parse(response.body)

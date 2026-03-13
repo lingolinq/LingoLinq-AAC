@@ -17,9 +17,7 @@
       {{#if this.ios}}
         <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-          {{#if this.app_state.domain_settings.support_url}}
-            <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
-          {{/if}}
+          <li><LinkTo @route="troubleshooting" @click={{action "close"}}><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</LinkTo></li>
         </ul>
       {{/if}}
     {{else}}
@@ -27,9 +25,7 @@
         {{#if this.ios}}
           <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
         {{/if}}
-        {{#if this.app_state.domain_settings.support_url}}
-          <li><a href={{this.app_state.domain_settings.support_url}} target="_blank" rel="noopener"><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
-        {{/if}}
+        <li><LinkTo @route="troubleshooting" @click={{action "close"}}><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</LinkTo></li>
         {{#if this.app_state.domain_settings.youtube_url}}
           <li><a href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
         {{/if}}

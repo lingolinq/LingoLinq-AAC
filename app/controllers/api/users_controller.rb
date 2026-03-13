@@ -702,7 +702,17 @@ class Api::UsersController < ApplicationController
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      return api_error 400, { error: 'No daily_use log found for this user' }
+      # Return empty structure when no log exists yet; frontend shows "No data loaded"
+      # instead of error; log is created when user first pushes usage via stashes
+      render json: {
+        log: {
+          id: "daily_use-empty-#{user.global_id}",
+          type: 'daily_use',
+          user: { id: user.global_id, user_name: user.user_name },
+          author: { id: user.global_id, user_name: user.user_name },
+          daily_use: []
+        }
+      }
     end
   end
   
