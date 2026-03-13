@@ -1098,8 +1098,11 @@ LingoLinq.User = DS.Model.extend({
     }
   }),
   toggle_cookies: observer('watch_user_name_and_cookies', 'preferences.cookies', function() {
-    if(this.get('watch_user_name_and_cookies') && this.get('preferences.cookies') != undefined) {
-      this.appState.toggle_cookies(!!this.get('preferences.cookies'));
+    if(this.get('watch_user_name_and_cookies')) {
+      var val = this.get('preferences.cookies');
+      if(val !== undefined && val !== null) {
+        this.appState.toggle_cookies(val === true || val === 'true');
+      }
     }
   }),
   load_word_activities: function() {
