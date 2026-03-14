@@ -60,8 +60,11 @@ else
   user1.settings['subscription']['never_expires'] = true
   user1.settings['subscription']['plan_id'] = 'slp_monthly_granted'
   user1.settings['subscription']['started'] = 1.year.ago.iso8601
+  user1.settings['preferences'] ||= {}
+  user1.settings['preferences']['logging'] = true
+  user1.settings['preferences']['geo_logging'] = true
   user1.save!
-  puts "✓ Ensured example user has lifetime subscription"
+  puts "✓ Ensured example user has lifetime subscription and geo logging enabled"
 
   org = Organization.find_by(admin: true)
   unless org
@@ -321,7 +324,10 @@ else
     s19 = LogSession.process_new({'events' => [{'type' => 'button', 'button' => {'label' => 'fun', 'board' => {'id' => board1.global_id}}, 'geo' => [lat - 0.0001, long - 0.0001], 'timestamp' => ts + 59}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
     s20 = LogSession.process_new({'events' => [{'type' => 'utterance', 'utterance' => {'text' => 'this is fun', 'buttons' => []}, 'geo' => [lat, long], 'timestamp' => ts + 60}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
     s21 = LogSession.process_new({'events' => [{'type' => 'utterance', 'utterance' => {'text' => 'this is fun', 'buttons' => []}, 'geo' => [lat + 0.0001, long], 'timestamp' => ts + 61}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-    puts "✓ Created log sessions"
+    # Run geo clustering synchronously so the stats Locations map shows data (normally runs via Resque)
+    ClusterLocation.clusterize_ips(u.global_id)
+    ClusterLocation.clusterize_geos(u.global_id)
+    puts "✓ Created log sessions with geo clusters for stats map"
   else
     puts "✓ Log sessions already exist, skipping"
   end
@@ -329,6 +335,19 @@ else
   puts "=" * 60
   puts "Initial seeding complete!"
   puts "=" * 60
+end
+
+# Ensure example user has logging and geo_logging enabled for stats map (runs every seed)
+example_user = User.find_by(user_name: 'example')
+if example_user
+  example_user.settings ||= {}
+  example_user.settings['preferences'] ||= {}
+  if !example_user.settings['preferences']['geo_logging']
+    example_user.settings['preferences']['geo_logging'] = true
+    example_user.settings['preferences']['logging'] = true
+    example_user.save!
+    puts "✓ Enabled geo_logging and logging for example user (stats map will show)"
+  end
 end
 
 # Import word data - runs regardless of whether initial seed data exists
@@ -349,6 +368,16 @@ if suggestion_count == 0
   puts "✓ Imported suggestions"
 else
   puts "✓ Word suggestions already imported, skipping"
+end
+
+# Core word list integration template - required for Modify Core Word List modal to work.
+# Runs every time seeds run so existing deployments get it.
+core_list_template = UserIntegration.find_by(template: true, integration_key: 'core_word_list')
+unless core_list_template
+  UserIntegration.create!(template: true, integration_key: 'core_word_list', settings: {})
+  puts "✓ Created core word list integration template"
+else
+  puts "✓ Core word list integration template already exists"
 end
 
 # Organization seeding: defined in lib/seed_organization.rb so it can be loaded without running full seeds.
@@ -897,6 +926,14 @@ unless DEMO_ALREADY_SEEDED
   end
 
   puts "\n  Total log sessions created: #{total_sessions_created}"
+
+  # Run geo clustering synchronously so the stats Locations map shows data (normally runs via Resque)
+  puts "\n  Building geo clusters for stats map..."
+  students.each do |student_data|
+    ClusterLocation.clusterize_ips(student_data[:user].global_id)
+    ClusterLocation.clusterize_geos(student_data[:user].global_id)
+  end
+  puts "  ✓ Geo clusters built for #{students.length} students"
 
   # ---- Generate WeeklyStatsSummary records from seeded sessions ----
   # The after_save callback on LogSession only *schedules* background jobs

@@ -18,10 +18,14 @@ export default Component.extend({
     this._super(...arguments);
     const appState = this.get('appState');
     if (appState.get('sessionUser')) {
-      this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
+      this.set('cookies', this._cookiesEnabled(appState.get('sessionUser.preferences.cookies')));
     } else {
       this.set('cookies', localStorage['enable_cookies'] === 'true');
     }
+  },
+
+  _cookiesEnabled(val) {
+    return val === true || val === 'true';
   },
 
   ios: computed(function() {
@@ -59,9 +63,10 @@ export default Component.extend({
       const appState = this.get('appState');
       if (appState.get('sessionUser')) {
         appState.set('sessionUser.watch_cookies');
-        appState.set('sessionUser.preferences.cookies', !appState.get('sessionUser.preferences.cookies'));
+        const currentlyEnabled = this._cookiesEnabled(appState.get('sessionUser.preferences.cookies'));
+        appState.set('sessionUser.preferences.cookies', !currentlyEnabled);
         appState.get('sessionUser').save().then(() => {
-          this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
+          this.set('cookies', this._cookiesEnabled(appState.get('sessionUser.preferences.cookies')));
         }, function() {});
       } else {
         appState.toggle_cookies(localStorage['enable_cookies'] !== 'true');

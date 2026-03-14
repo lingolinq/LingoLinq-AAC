@@ -226,6 +226,8 @@
     {{push-to-cloud}}
   {{else if (is-equal this.currentTemplate "edit-unit")}}
     {{edit-unit}}
+  {{else if (is-equal this.currentTemplate "save-snapshot")}}
+    {{save-snapshot}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

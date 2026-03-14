@@ -1261,6 +1261,11 @@ var capabilities;
                   dirs.push(e.name);
                 }
               });
+              if(dirs.length === 0) {
+                all_files.size = 0;
+                promise.resolve(all_files);
+                return;
+              }
               var done_dirs = 0;
               dirs.forEach(function(dir) {
                 capabilities.storage.list_files(dir, true).then(function(list) {
