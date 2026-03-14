@@ -776,9 +776,6 @@ export default Component.extend({
         modal.open('premium-required', {user_name: user.user_name, action: 'evaluation', reason: 'not_currently_premium'});
       }
     },
-    getting_started: function() {
-      this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
-    },
     support: function() {
       modal.open('support');
     },

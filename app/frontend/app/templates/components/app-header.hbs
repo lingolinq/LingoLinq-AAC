@@ -21,86 +21,100 @@
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/if}}
-      {{#unless this.app_state.eval_mode}}
-        {{#if this.app_state.pairing}}
-          <button class={{if this.app_state.pairing.user.online "btn over pair access online" "btn over pair access"}} {{action "remote_modeling"}} id='reply_icon'>
-            {{#if this.app_state.pairing.model}}
-              <span class='glyphicon glyphicon-road'></span>
-            {{else}}
-              <span class='glyphicon glyphicon-search'></span>
-            {{/if}}
-            {{#if this.app_state.pairing.user}}
-              <img src={{this.app_state.pairing.user.avatar_url_with_fallback}} >
-            {{/if}}
-          </button>
-        {{else if this.app_state.reply_note}}
-          <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-envelope'></span></div>
-        {{else if this.app_state.inflection_shift}}
-          <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-adjust'></span></div>
-        {{else if this.app_state.insertion}}
-          <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-console'></span></div>
-        {{else if this.app_state.flipped}}
-          <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-repeat'></span></div>
-        {{else if this.app_state.followers.active}}
-          <div class='label label-info over clear' id='reply_icon'>
-            {{#each this.app_state.followers.active as |user|}}
-              <img src={{user.avatar_url}} class='follower' >
-            {{/each}}
-          </div>
-        {{else if this.app_state.clearable_history}}
-          <div class='label label-warning over' id='reply_icon' style='width: 60px; margin-right: -65px; border-radius: 10px;'><span class='glyphicon glyphicon-remove'></span> {{this.app_state.clearable_history}}</div>
-        {{else if this.app_state.shift}}
-          <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-font'></span></div>
-        {{/if}}
-      {{/unless}}
-      <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-        {{#unless this.app_state.button_list}}
-          {{#if this.app_state.embedded}}
-            <div style='float: left; margin: 5px; opacity: 0.7;'>
-              {{app-logo size="xs" imgAlt="LingoLinq"}}
-              {{t "Powered by %app_name%" key="powered_by_app"}}
-            </div>
-          {{else if this.app_state.currentUser.preferences.blank_status}}
-            <div id="blank_status" class='text-muted'>
-              {{time this.app_state.current_time}}
-              {{#if this.app_state.battery.level}}
-                <div class="progress">
-                  <div class={{this.app_state.battery.progress_class}} role="progressbar" aria-valuenow={{this.app_state.battery.level}} aria-valuemin="0" aria-valuemax="100" style={{this.app_state.battery.progress_style}}>
-                    {{#if this.app_state.battery.charging}}
-                      <span class="glyphicon glyphicon-flash"></span>
+      <div class="speak-bar__button-list-wrap">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+          {{#unless this.app_state.button_list}}
+            {{#if this.app_state.embedded}}
+              <div style='float: left; margin: 5px; opacity: 0.7;'>
+                {{app-logo size="xs" imgAlt="LingoLinq"}}
+                {{t "Powered by %app_name%" key="powered_by_app"}}
+              </div>
+            {{else if this.app_state.currentUser.preferences.blank_status}}
+              <div id="blank_status" class='text-muted'>
+                {{time this.app_state.current_time}}
+                {{#if this.app_state.battery.level}}
+                  <div class="progress">
+                    <div class={{this.app_state.battery.progress_class}} role="progressbar" aria-valuenow={{this.app_state.battery.level}} aria-valuemin="0" aria-valuemax="100" style={{this.app_state.battery.progress_style}}>
+                      {{#if this.app_state.battery.charging}}
+                        <span class="glyphicon glyphicon-flash"></span>
+                      {{/if}}
+                      <span class="sr-only">{{t "%{pct}% battery" key="percent_battery" pct=this.app_state.battery.level}} {{#if this.app_state.battery.charging}}{{t "charging" key="charging"}}{{/if}}</span>
+                    </div>
+                    {{#if this.app_state.battery.low}}
+                      {{#unless this.app_state.battery.charging}}
+                        <span class="glyphicon glyphicon-exclamation-sign" style="margin-top: 2px;"></span>
+                      {{/unless}}
                     {{/if}}
-                    <span class="sr-only">{{t "%{pct}% battery" key="percent_battery" pct=this.app_state.battery.level}} {{#if this.app_state.battery.charging}}{{t "charging" key="charging"}}{{/if}}</span>
                   </div>
-                  {{#if this.app_state.battery.low}}
-                    {{#unless this.app_state.battery.charging}}
-                      <span class="glyphicon glyphicon-exclamation-sign" style="margin-top: 2px;"></span>
-                    {{/unless}}
-                  {{/if}}
-                </div>
+                {{/if}}
+                {{#if this.show_board_intro}}
+                  <div {{action "board_intro"}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
+                    <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'>
+                    {{t "Intro" key="intro"}}
+                  </div>
+                {{else if this.app_state.eye_gaze_state}}
+                  <div class="eye_status" title={{this.app_state.eye_gaze_state.status}}>
+                    {{#if this.app_state.eye_gaze_state.active}}
+                      <span class="glyphicon glyphicon-eye-open"></span>
+                    {{else if this.app_state.eye_gaze_state.dormant}}
+                      <span class="glyphicon glyphicon-eye-open" style='opacity: 0.4;'></span>
+                    {{else}}
+                      <span class="glyphicon glyphicon-eye-close text-muted"></span>
+                    {{/if}}
+                  </div>
+                {{/if}}
+              </div>
+            {{/if}}
+          {{/unless}}
+          {{#let this.app_state.button_list as |button_list|}}
+            {{button-list buttonList=button_list}}
+          {{/let}}
+        </a>
+        {{#unless this.app_state.eval_mode}}
+          {{#unless this.app_state.currentUser.preferences.device.disable_speak_options}}
+            <button class="btn btn-default pass_to_btn_list" {{action "speakOptions"}} id="speak_options">
+              {{#if this.app_state.referenced_user.unread_alerts}}
+                <span class='label label-danger' style='position: absolute; top: -5px; right: -5px; border-radius: 10px;'>{{this.app_state.referenced_user.unread_alerts}}</span>
+              {{else if this.app_state.referenced_user.request_alert}}
+                <span class='label label-danger' style='position: absolute; top: -5px; right: -5px; border-radius: 10px;'>*</span>
               {{/if}}
-              {{#if this.show_board_intro}}
-                <div {{action "board_intro"}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
-                  <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'>
-                  {{t "Intro" key="intro"}}
-                </div>
-              {{else if this.app_state.eye_gaze_state}}
-                <div class="eye_status" title={{this.app_state.eye_gaze_state.status}}>
-                  {{#if this.app_state.eye_gaze_state.active}}
-                    <span class="glyphicon glyphicon-eye-open"></span>
-                  {{else if this.app_state.eye_gaze_state.dormant}}
-                    <span class="glyphicon glyphicon-eye-open" style='opacity: 0.4;'></span>
-                  {{else}}
-                    <span class="glyphicon glyphicon-eye-close text-muted"></span>
-                  {{/if}}
-                </div>
+              <span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span>
+            </button>
+          {{/unless}}
+        {{/unless}}
+        {{#unless this.app_state.eval_mode}}
+          {{#if this.app_state.pairing}}
+            <button class={{if this.app_state.pairing.user.online "btn over pair access online" "btn over pair access"}} {{action "remote_modeling"}} id='reply_icon'>
+              {{#if this.app_state.pairing.model}}
+                <span class='glyphicon glyphicon-road'></span>
+              {{else}}
+                <span class='glyphicon glyphicon-search'></span>
               {{/if}}
+              {{#if this.app_state.pairing.user}}
+                <img src={{this.app_state.pairing.user.avatar_url_with_fallback}} >
+              {{/if}}
+            </button>
+          {{else if this.app_state.reply_note}}
+            <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-envelope'></span></div>
+          {{else if this.app_state.inflection_shift}}
+            <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-adjust'></span></div>
+          {{else if this.app_state.insertion}}
+            <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-console'></span></div>
+          {{else if this.app_state.flipped}}
+            <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-repeat'></span></div>
+          {{else if this.app_state.followers.active}}
+            <div class='label label-info over clear' id='reply_icon'>
+              {{#each this.app_state.followers.active as |user|}}
+                <img src={{user.avatar_url}} class='follower' >
+              {{/each}}
             </div>
+          {{else if this.app_state.clearable_history}}
+            <div class='label label-warning over' id='reply_icon' style='width: 60px; margin-right: -65px; border-radius: 10px;'><span class='glyphicon glyphicon-remove'></span> {{this.app_state.clearable_history}}</div>
+          {{else if this.app_state.shift}}
+            <div class='label label-info over' id='reply_icon'><span class='glyphicon glyphicon-font'></span></div>
           {{/if}}
         {{/unless}}
-        {{#let this.app_state.button_list as |button_list|}}
-          {{button-list buttonList=button_list}}
-        {{/let}}
-      </a>
+      </div>
       {{#unless this.app_state.button_list}}
         {{#if this.app_state.currentUser.preferences.blank_status}}
           {{#unless this.app_state.eval_mode}}
@@ -137,18 +151,6 @@
           {{/unless}}
         {{/if}}
       {{/unless}}
-      {{#unless this.app_state.eval_mode}}
-        {{#unless this.app_state.currentUser.preferences.device.disable_speak_options}}
-          <button class="btn btn-default pass_to_btn_list" {{action "speakOptions"}} id="speak_options">
-            {{#if this.app_state.referenced_user.unread_alerts}}
-              <span class='label label-danger' style='position: absolute; top: -5px; right: -5px; border-radius: 10px;'>{{this.app_state.referenced_user.unread_alerts}}</span>
-            {{else if this.app_state.referenced_user.request_alert}}
-              <span class='label label-danger' style='position: absolute; top: -5px; right: -5px; border-radius: 10px;'>*</span>
-            {{/if}}
-            <span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span>
-          </button>
-        {{/unless}}
-      {{/unless}}
       <button class="btn btn-default access skinnier" id="backspace_button" {{action "backspace"}}>
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
@@ -172,9 +174,14 @@
         {{#unless this.app_state.edit_mode}}
           {{#unless this.app_state.embedded}}
             {{#unless this.app_state.index_or_landing_view}}
-              <span style='float: right;' class='not_pretty_skinny'>
-                <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
-              </span>
+              {{! Hide Help when on a board in normal mode so Done with Boards is flush left }}
+              {{#if this.app_state.currentBoardState.id}}
+                {{! On board, not edit: no Help (normal mode bar) }}
+              {{else}}
+                <span style='float: right;' class='not_pretty_skinny'>
+                  <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
+                </span>
+              {{/if}}
             {{/unless}}
           {{/unless}}
         {{/unless}}
@@ -202,240 +209,14 @@
     </h1>
     {{#if this.app_state.currentBoardState.id}}
       {{#unless this.app_state.edit_mode}}
-        {{#if this.app_state.from_route}}
-          <button id='board_done' class='btn btn-default' {{action "back_to_from_route"}}>
-            <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
-            <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
-            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
-          </button>
-        {{/if}}
-        <span id="board_id">
-          {{#if this.app_state.current_board_is_home}}
-            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 20px; width: 20px; vertical-align: bottom; margin-top: 10px;">
-          {{else}}
-            {{#if this.board.model.image_url}}
-              <img src={{this.board.model.image_url}} style="width: 20px; height: 20px; vertical-align: bottom; margin-top: 10px;">
-            {{else}}
-              <span style="display: inline-block; height: 30px;"></span>
-            {{/if}}
-          {{/if}}
-          {{#if this.app_state.current_board_in_board_set}}
-            <span class="glyphicon glyphicon-align-justify" title={{t "in the user's board set" key="in_board_set"}}></span>
-          {{else if this.app_state.current_board_in_extended_board_set}}
-            <span class="glyphicon glyphicon-list" title={{t "in a supervisee's board set" key="in_supervisee_board_set"}}></span>
-          {{/if}}
-
-          {{#if this.app_state.currentBoardState.integration_name}}
-            {{this.app_state.currentBoardState.integration_name}}
-          {{else}}
-            {{#if this.board.model.local_only}}
-              {{this.app_state.current_board_user_name}} / 
-            {{else}}
-              <LinkTo @route="user" @model={{this.app_state.current_board_user_name}}>{{this.app_state.current_board_user_name}}</LinkTo> /
-            {{/if}}
-            {{this.app_state.current_board_name}}
-          {{/if}}
-          {{#if this.stashes.board_level}}
-            <span style='margin-left: 5px;'>L{{this.stashes.board_level}}</span>
-          {{/if}}
-        </span>
-      {{/unless}}
-    {{else if this.app_state.currentUser.single_org}}
-      {{#unless this.app_state.index_or_landing_view}}
-        {{#unless (is-equal this.app_state.current_route "landing")}}
-          <div id='org_name'>
-            {{this.app_state.currentUser.single_org.name}}
-            <span class="nav-header__org-sep" aria-hidden="true"> · </span>
-            <span class="nav-header__user-home"><span class="nav-header__user-name">{{this.app_state.currentUser.user_name}}</span><span class="nav-header__org-sep" aria-hidden="true"> · </span>{{t "Home Page" key="home_page"}}</span>
-          </div>
-        {{/unless}}
-      {{/unless}}
-    {{/if}}
-    {{#if this.app_state.empty_header}}
-      {{#if this.isSessionAuthenticated}}
-      {{#unless (is-equal this.app_state.current_route "landing")}}
-        {{#if (persistence-online)}}
-          {{#unless this.app_state.super_no_linky}}
-            {{#if this.allow_search}}
-              <form id="header_search" {{action "searchBoards" on="submit"}}>
-                <div class="header-search-wrap">
-                  <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
-                  <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
-                    <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  </button>
-                </div>
-              </form>
-            {{/if}}
-          {{/unless}}
-        {{/if}}
-      {{/unless}}
-      {{/if}}
-    {{/if}}
-    {{#unless this.isSessionAuthenticated}}
-      {{#unless this.app_state.installed_app}}
-        {{#unless this.app_state.embedded}}
-          {{#unless this.app_state.no_linky}}
-            <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
-              <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key='fsa_nav_features'}}</LinkTo>
-              <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
-              <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
-            </div>
-            <div class="la-topbar-right header-unauth-right">
-              <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
-            </div>
-          {{/unless}}
-        {{/unless}}
-      {{/unless}}
-    {{/unless}}
-    {{#if this.app_state.edit_mode}}
-      {{#if this.dragMode}}
-        <button class="btn btn-default drag_button" id="edit_clear_button" style="position: relative; width: 300px;">
-          {{t "Clear Button" key="clear_button"}}
+        {{! Done with Boards + normal_mode + board_id in flex layout }}
+        <div class="nav-header__board-bar">
+        <button id='board_done' class='btn btn-default' {{action "back_to_from_route"}}>
+          <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
+          <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
+          <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
         </button>
-        <button class="btn btn-default drag_button" id="edit_stash_button" style="position: relative; width: 300px;">
-          {{t "Copy Button to Stash" key="copy_button_to_stash"}}
-        </button>
-      {{else if this.board.preview_levels}}
-        <button class="btn btn-default drag_button" {{action "shift_level" "down"}} style="position: relative; width: 50px;">
-          <span class='glyphicon glyphicon-chevron-left'></span>
-        </button>
-        <span style='font-size: 20px; margin: 0 10px; width: 90px; display: inline-block; text-align: center;'>
-          {{t "Level" key="level"}} {{this.board.current_level}}
-        </span>
-        <button class="btn btn-default drag_button" {{action "shift_level" "up"}} style="position: relative; width: 50px;">
-          <span class='glyphicon glyphicon-chevron-right'></span>
-        </button>
-        <button class="btn btn-info" {{action "shift_level" "done"}} style="position: relative; width: 100px;">
-          {{t "Done" key="done"}}
-        </button>
-      {{else}}
-        <button class={{this.no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
-        <span class="dropdown" style="display: inline-block;">
-          <button class={{this.paint_mode_class}} data-toggle="dropdown">
-            <span class="wide">{{t "Paint" key="paint"}}</span><span class="skinny glyphicon glyphicon-tint"></span>
-            {{#if this.board.paint_mode}}
-              {{this.board.paintColor}}
-            {{/if}}
-          </button>
-          <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style={{this.swatch_style}}>
-            {{#each this.swatches as |swatch|}}
-              <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{action "paint" swatch.fill swatch.border swatch.types}} style="float: left; width: 140px; clear: right; padding-top: 3px; padding-bottom: 3px;">
-                  <span class="swatch" style={{swatch.style}}></span>
-                  <span style="width: 70px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: top;">{{swatch.color}}</span>
-                  <span class="text-muted" style="margin-left: 22px; display: block; margin-top: -5px; font-size: 14px; vertical-align: top;">
-                    {{swatch.hint}}&nbsp;
-                  </span>
-                </a>
-              </li>
-              {{#if swatch.right_edge}}
-                <!-- defined in app_state.extra_colored_keys -->
-                {{#each swatch.extras as |extra|}}
-                  <li role="presentation">
-                    <a role="menuitem" href="#" tabindex="-1" {{action "paint" extra.fill extra.border extra.types}} style="float: left; width: 60px; clear: right; padding-left: 10px; padding-right: 10px; padding-top: 3px; padding-bottom: 3px;">
-                      <span class="swatch" style={{extra.style}}></span>
-                      <span class="text-muted" style="display: block; margin-top: -5px; font-size: 14px; vertical-align: top; white-space: nowrap; overflow: hidden; width: 40px;">
-                        {{extra.label}}&nbsp;
-                      </span>
-                    </a>
-                  </li>
-                {{/each}}
-                <div style='clear: left;'></div>
-              {{/if}}
-            {{/each}}
-            <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "hide"}} style="float: left; width: 140px; clear: both;"><span class="glyphicon glyphicon-minus-sign"></span> {{t "Hide" key="hide_upper"}}</a>
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "show"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-ok-sign"></span> {{t "Un-Hide" key="unhide"}}</a>
-              <span style="clear: left;"></span>
-            </li>
-            <!-- TODO: painting text-only or w/ image -->
-            <li role="presentation" class="text-muted">
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "close"}} style="float: left; width: 140px; clear: both;"><span class="glyphicon glyphicon-remove-sign"></span> {{t "De-Link" key="de_link"}}</a>
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "open"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-plus-sign"></span> {{t "Re-Link" key="re_link"}}</a>
-              <span style="clear: left;"></span>
-            </li>
-            {{#if this.app_state.feature_flags.board_levels}}
-              <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{action "paint" "level"}}>
-                  <span class="glyphicon glyphicon-signal"></span>
-                  {{t "Level Modifications" key="level_modifications"}}
-                </a>
-              </li>
-            {{/if}}
-          </ul>
-        </span>
-        <span class="wide_placeholder" style="padding-right: 10px;"></span>
-        <button class="btn btn-default wide" {{action "undoEdit"}} disabled={{this.board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
-        <button class="btn btn-default wide" {{action "redoEdit"}} disabled={{this.board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
-        <span class="dropdown" style="display: inline-block;">
-          <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
-          <ul class="dropdown-menu skinny_grid" role="menu" aria-labelledby="dLabel">
-            <li role="presentation" id="grid_menuitem">
-              <span style="display: block; width: 300px; height: 200px; position: relative;">
-                <span style="position: absolute; top: 0px; left: 0; width: 100%; text-align: center;">
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span><span class="sr-only">{{t "Top Row "key="top_row"}}</span></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Top Row" key="add_top_row"}}</span></a>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Top Row" key="remove_top_row"}}</span></a>
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span></span>
-                </span>
-                <span style="position: absolute; top: 53px; width: 50%; right: 0; text-align: right; line-height: 45px;">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Right Column" key="add_right_column"}}</span></a>
-                  <span class="glyphicon glyphicon-chevron-right"></span><br>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Right Column" key="remove_right_column"}}</span></a>
-                  <span class="glyphicon glyphicon-chevron-right"></span>
-                </span>
-                <span style="position: absolute; top: 53px; width: 50%; left: 0; text-align: left; line-height: 45px;">
-                  <span class="glyphicon glyphicon-chevron-left"></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Left Column" key="add_left_column"}}</span></a><br>
-                  <span class="glyphicon glyphicon-chevron-left"></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Left Column" key="remove_left_column"}}</span></a>
-                </span>
-                <span style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;">
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span><span class="sr-only">{{t "Bottom Rowx" key="bottom_row"}}</span></span>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Bottom Row" key="add_bottom_row"}}</span></a>
-                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Bottom Row" key="remove_bottom_row"}}</span></a>
-                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span></span>
-                </span>
-              </span>
-            </li>
-          </ul>
-        </span>
-        <button class="btn btn-default wide" {{action "suggestions"}}><span class="wide">{{t "Ideas" key="ideas"}}</span><span class="skinny glyphicon glyphicon-tasks"></span></button>
-        <span class="dropdown" style="display: inline-block;">
-          <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
-          <ul class="dropdown-menu skinny_right" role="menu" aria-labelledby="dLabel">
-            <li role="presentation" class={{this.undo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{action "undoEdit"}}>{{t "Undo" key="undo"}}</a>
-            </li>
-            <li role="presentation" class={{this.redo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{action "redoEdit"}} disabled="true">{{t "Redo" key="redo"}}</a>
-            </li>
-            <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "editBoardDetails"}}>{{t "Edit Name & Details" key="edit_details"}}</a>
-            </li>
-            <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "openButtonStash"}}>{{t "Button Stash" key="button_stash"}}</a>
-            </li>
-            {{#if this.board.button_levels}}
-              <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{action "preview_levels"}}>{{t "Preview Levels" key="preview_levels"}}</a>
-              </li>
-            {{/if}}
-            <li role="presentation really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{action "saveBoard"}}>{{t "Save Board" key="save_board"}}</a>
-            </li>
-            <li role="presentation really_skinny">
-              <a role="menuitem" href="#" tabindex="-1" {{action "resetBoard"}}>{{t "Cancel Changes" key="cancel_changes"}}</a>
-            </li>
-          </ul>
-        </span>
-        <span class="not_really_skinny">
-          <button class="btn btn-primary" {{action "saveBoard"}}><span class="wide">{{t "Save" key="save"}}{{#if this.board.model.multiple_locales}}{{#if this.board.model.button_locale}}<div style='height: 5px; margin-top: -5px; font-style: italic;'>( {{this.board.model.button_locale}} )</div>{{/if}}{{/if}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
-          <button class="btn btn-default" {{action "resetBoard"}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
-        </span>
-      {{/if}}
-    {{else}}
-      {{#if this.app_state.currentBoardState}}
+        <div class="nav-header__board-bar-right">
         <span id="normal_mode">
           {{#unless this.app_state.empty_board_history}}
             <a class="btn btn-default" href="#" {{action "back"}}>
@@ -686,7 +467,234 @@
             {{/if}}
           {{/if}}
         </span>
+        <span id="board_id">
+          {{#if this.app_state.current_board_is_home}}
+            <img src="https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg" style="height: 17px; width: 17px; vertical-align: bottom;">
+          {{else}}
+            {{#if this.board.model.image_url}}
+              <img src={{this.board.model.image_url}} style="width: 17px; height: 17px; vertical-align: bottom;">
+            {{else}}
+              <span style="display: inline-block; height: 30px;"></span>
+            {{/if}}
+          {{/if}}
+          {{#if this.app_state.current_board_in_board_set}}
+            <span class="glyphicon glyphicon-align-justify" title={{t "in the user's board set" key="in_board_set"}}></span>
+          {{else if this.app_state.current_board_in_extended_board_set}}
+            <span class="glyphicon glyphicon-list" title={{t "in a supervisee's board set" key="in_supervisee_board_set"}}></span>
+          {{/if}}
+
+          {{#if this.app_state.currentBoardState.integration_name}}
+            {{this.app_state.currentBoardState.integration_name}}
+          {{else}}
+            {{#if this.board.model.local_only}}
+              {{this.app_state.current_board_user_name}} / 
+            {{else}}
+              <LinkTo @route="user" @model={{this.app_state.current_board_user_name}}>{{this.app_state.current_board_user_name}}</LinkTo> /
+            {{/if}}
+            {{this.app_state.current_board_name}}
+          {{/if}}
+          {{#if this.stashes.board_level}}
+            <span style='margin-left: 5px;'>L{{this.stashes.board_level}}</span>
+          {{/if}}
+        </span>
+        </div>
+        </div>
+      {{/unless}}
+    {{else if this.app_state.currentUser.single_org}}
+      {{#unless this.app_state.index_or_landing_view}}
+        {{#unless (is-equal this.app_state.current_route "landing")}}
+          <div id='org_name'>
+            {{this.app_state.currentUser.single_org.name}}
+            <span class="nav-header__org-sep" aria-hidden="true"> · </span>
+            <span class="nav-header__user-home"><span class="nav-header__user-name">{{this.app_state.currentUser.user_name}}</span><span class="nav-header__org-sep" aria-hidden="true"> · </span>{{t "Home Page" key="home_page"}}</span>
+          </div>
+        {{/unless}}
+      {{/unless}}
+    {{/if}}
+    {{#if this.app_state.empty_header}}
+      {{#if this.isSessionAuthenticated}}
+      {{#unless (is-equal this.app_state.current_route "landing")}}
+        {{#if (persistence-online)}}
+          {{#unless this.app_state.super_no_linky}}
+            {{#if this.allow_search}}
+              <form id="header_search" {{action "searchBoards" on="submit"}}>
+                <div class="header-search-wrap">
+                  <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
+                  <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
+                    <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  </button>
+                </div>
+              </form>
+            {{/if}}
+          {{/unless}}
+        {{/if}}
+      {{/unless}}
       {{/if}}
+    {{/if}}
+    {{#unless this.isSessionAuthenticated}}
+      {{#unless this.app_state.installed_app}}
+        {{#unless this.app_state.embedded}}
+          {{#unless this.app_state.no_linky}}
+            <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key='fsa_page_sections'}}>
+              <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key='fsa_nav_features'}}</LinkTo>
+              <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo>
+              <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
+            </div>
+            <div class="la-topbar-right header-unauth-right">
+              <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
+            </div>
+          {{/unless}}
+        {{/unless}}
+      {{/unless}}
+    {{/unless}}
+    {{#if this.app_state.edit_mode}}
+      {{#if this.dragMode}}
+        <button class="btn btn-default drag_button" id="edit_clear_button" style="position: relative; width: 300px;">
+          {{t "Clear Button" key="clear_button"}}
+        </button>
+        <button class="btn btn-default drag_button" id="edit_stash_button" style="position: relative; width: 300px;">
+          {{t "Copy Button to Stash" key="copy_button_to_stash"}}
+        </button>
+      {{else if this.board.preview_levels}}
+        <button class="btn btn-default drag_button" {{action "shift_level" "down"}} style="position: relative; width: 50px;">
+          <span class='glyphicon glyphicon-chevron-left'></span>
+        </button>
+        <span style='font-size: 20px; margin: 0 10px; width: 90px; display: inline-block; text-align: center;'>
+          {{t "Level" key="level"}} {{this.board.current_level}}
+        </span>
+        <button class="btn btn-default drag_button" {{action "shift_level" "up"}} style="position: relative; width: 50px;">
+          <span class='glyphicon glyphicon-chevron-right'></span>
+        </button>
+        <button class="btn btn-info" {{action "shift_level" "done"}} style="position: relative; width: 100px;">
+          {{t "Done" key="done"}}
+        </button>
+      {{else}}
+        <button class={{this.no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
+        <span class="dropdown" style="display: inline-block;">
+          <button class={{this.paint_mode_class}} data-toggle="dropdown">
+            <span class="wide">{{t "Paint" key="paint"}}</span><span class="skinny glyphicon glyphicon-tint"></span>
+            {{#if this.board.paint_mode}}
+              {{this.board.paintColor}}
+            {{/if}}
+          </button>
+          <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style={{this.swatch_style}}>
+            {{#each this.swatches as |swatch|}}
+              <li role="presentation">
+                <a role="menuitem" href="#" tabindex="-1" {{action "paint" swatch.fill swatch.border swatch.types}} style="float: left; width: 140px; clear: right; padding-top: 3px; padding-bottom: 3px;">
+                  <span class="swatch" style={{swatch.style}}></span>
+                  <span style="width: 70px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: top;">{{swatch.color}}</span>
+                  <span class="text-muted" style="margin-left: 22px; display: block; margin-top: -5px; font-size: 14px; vertical-align: top;">
+                    {{swatch.hint}}&nbsp;
+                  </span>
+                </a>
+              </li>
+              {{#if swatch.right_edge}}
+                <!-- defined in app_state.extra_colored_keys -->
+                {{#each swatch.extras as |extra|}}
+                  <li role="presentation">
+                    <a role="menuitem" href="#" tabindex="-1" {{action "paint" extra.fill extra.border extra.types}} style="float: left; width: 60px; clear: right; padding-left: 10px; padding-right: 10px; padding-top: 3px; padding-bottom: 3px;">
+                      <span class="swatch" style={{extra.style}}></span>
+                      <span class="text-muted" style="display: block; margin-top: -5px; font-size: 14px; vertical-align: top; white-space: nowrap; overflow: hidden; width: 40px;">
+                        {{extra.label}}&nbsp;
+                      </span>
+                    </a>
+                  </li>
+                {{/each}}
+                <div style='clear: left;'></div>
+              {{/if}}
+            {{/each}}
+            <li role="presentation">
+              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "hide"}} style="float: left; width: 140px; clear: both;"><span class="glyphicon glyphicon-minus-sign"></span> {{t "Hide" key="hide_upper"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "show"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-ok-sign"></span> {{t "Un-Hide" key="unhide"}}</a>
+              <span style="clear: left;"></span>
+            </li>
+            <!-- TODO: painting text-only or w/ image -->
+            <li role="presentation" class="text-muted">
+              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "close"}} style="float: left; width: 140px; clear: both;"><span class="glyphicon glyphicon-remove-sign"></span> {{t "De-Link" key="de_link"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "open"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-plus-sign"></span> {{t "Re-Link" key="re_link"}}</a>
+              <span style="clear: left;"></span>
+            </li>
+            {{#if this.app_state.feature_flags.board_levels}}
+              <li role="presentation">
+                <a role="menuitem" href="#" tabindex="-1" {{action "paint" "level"}}>
+                  <span class="glyphicon glyphicon-signal"></span>
+                  {{t "Level Modifications" key="level_modifications"}}
+                </a>
+              </li>
+            {{/if}}
+          </ul>
+        </span>
+        <span class="wide_placeholder" style="padding-right: 10px;"></span>
+        <button class="btn btn-default wide" {{action "undoEdit"}} disabled={{this.board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
+        <button class="btn btn-default wide" {{action "redoEdit"}} disabled={{this.board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
+        <span class="dropdown" style="display: inline-block;">
+          <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
+          <ul class="dropdown-menu skinny_grid" role="menu" aria-labelledby="dLabel">
+            <li role="presentation" id="grid_menuitem">
+              <span style="display: block; width: 300px; height: 200px; position: relative;">
+                <span style="position: absolute; top: 0px; left: 0; width: 100%; text-align: center;">
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span><span class="sr-only">{{t "Top Row "key="top_row"}}</span></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Top Row" key="add_top_row"}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "top"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Top Row" key="remove_top_row"}}</span></a>
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span></span>
+                </span>
+                <span style="position: absolute; top: 53px; width: 50%; right: 0; text-align: right; line-height: 45px;">
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Right Column" key="add_right_column"}}</span></a>
+                  <span class="glyphicon glyphicon-chevron-right"></span><br>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "right"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Right Column" key="remove_right_column"}}</span></a>
+                  <span class="glyphicon glyphicon-chevron-right"></span>
+                </span>
+                <span style="position: absolute; top: 53px; width: 50%; left: 0; text-align: left; line-height: 45px;">
+                  <span class="glyphicon glyphicon-chevron-left"></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Left Column" key="add_left_column"}}</span></a><br>
+                  <span class="glyphicon glyphicon-chevron-left"></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "column" "left"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Left Column" key="remove_left_column"}}</span></a>
+                </span>
+                <span style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;">
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span><span class="sr-only">{{t "Bottom Rowx" key="bottom_row"}}</span></span>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "add" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Bottom Row" key="add_bottom_row"}}</span></a>
+                  <a role="menuitem" tabindex="-1" href="#" {{action "modifyGrid" "remove" "row" "bottom"}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Bottom Row" key="remove_bottom_row"}}</span></a>
+                  <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span></span>
+                </span>
+              </span>
+            </li>
+          </ul>
+        </span>
+        <button class="btn btn-default wide" {{action "suggestions"}}><span class="wide">{{t "Ideas" key="ideas"}}</span><span class="skinny glyphicon glyphicon-tasks"></span></button>
+        <span class="dropdown" style="display: inline-block;">
+          <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
+          <ul class="dropdown-menu skinny_right" role="menu" aria-labelledby="dLabel">
+            <li role="presentation" class={{this.undo_class}}>
+              <a role="menuitem" href="#" tabindex="-1" {{action "undoEdit"}}>{{t "Undo" key="undo"}}</a>
+            </li>
+            <li role="presentation" class={{this.redo_class}}>
+              <a role="menuitem" href="#" tabindex="-1" {{action "redoEdit"}} disabled="true">{{t "Redo" key="redo"}}</a>
+            </li>
+            <li role="presentation">
+              <a role="menuitem" href="#" tabindex="-1" {{action "editBoardDetails"}}>{{t "Edit Name & Details" key="edit_details"}}</a>
+            </li>
+            <li role="presentation">
+              <a role="menuitem" href="#" tabindex="-1" {{action "openButtonStash"}}>{{t "Button Stash" key="button_stash"}}</a>
+            </li>
+            {{#if this.board.button_levels}}
+              <li role="presentation">
+                <a role="menuitem" href="#" tabindex="-1" {{action "preview_levels"}}>{{t "Preview Levels" key="preview_levels"}}</a>
+              </li>
+            {{/if}}
+            <li role="presentation really_skinny">
+              <a role="menuitem" href="#" tabindex="-1" {{action "saveBoard"}}>{{t "Save Board" key="save_board"}}</a>
+            </li>
+            <li role="presentation really_skinny">
+              <a role="menuitem" href="#" tabindex="-1" {{action "resetBoard"}}>{{t "Cancel Changes" key="cancel_changes"}}</a>
+            </li>
+          </ul>
+        </span>
+        <span class="not_really_skinny">
+          <button class="btn btn-primary" {{action "saveBoard"}}><span class="wide">{{t "Save" key="save"}}{{#if this.board.model.multiple_locales}}{{#if this.board.model.button_locale}}<div style='height: 5px; margin-top: -5px; font-style: italic;'>( {{this.board.model.button_locale}} )</div>{{/if}}{{/if}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
+          <button class="btn btn-default" {{action "resetBoard"}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
+        </span>
+      {{/if}}
+    {{else}}
     {{/if}}
     </span>
   {{/if}}

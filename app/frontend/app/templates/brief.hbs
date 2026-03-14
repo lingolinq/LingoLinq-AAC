@@ -13,12 +13,14 @@
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/unless}}
-      <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-        {{#let this.app_state.button_list as |button_list|}}
-          {{button-list buttonList=button_list}}
-        {{/let}}
-      </a>
-      <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
+      <div class="speak-bar__button-list-wrap">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+          {{#let this.app_state.button_list as |button_list|}}
+            {{button-list buttonList=button_list}}
+          {{/let}}
+        </a>
+        <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
+      </div>
       <button class="btn btn-default access skinnier" {{action "backspace"}}>
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>

@@ -710,19 +710,19 @@ export default Service.extend({
   lightMode: computed('themeMode', function() {
     return this.get('themeMode') === 'light';
   }),
-  h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
+  h1_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "";
     if(this.get('currentBoardState.id')) {
       res = res + "with_board " ;
-      if(this.get('from_route') && !this.get('edit_mode')) {
+      if(!this.get('edit_mode')) {
         res = res + "sr-only ";
       }
     }
     return htmlSafe(res);
   }),
-  nav_header_class: computed('currentBoardState.id', 'from_route', function() {
+  nav_header_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "no_beta ";
-    if(this.get('currentBoardState.id') && this.get('from_route') && !this.get('edit_mode')) {
+    if(this.get('currentBoardState.id') && !this.get('edit_mode')) {
       res = res + "board_done ";
     }
     return htmlSafe(res);

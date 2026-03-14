@@ -642,14 +642,129 @@ header:after {
 header form .btn {
   height: 34px;
 }
+/* normal_mode: flex row, just to the right of Done with Boards, with board_id on next row */
 header #normal_mode {
-  position: absolute; 
-  top: 2px; 
-  padding-left: 5px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+}
+/* Board bar: Done (2 rows, col1) | normal_mode (row1) + board_id (row2) in col2 */
+.nav-header__board-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.nav-header__board-bar #board_done {
+  align-self: stretch;
+  flex-shrink: 0;
+}
+.nav-header__board-bar-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.nav-header__board-bar-right #normal_mode {
+  margin-top: 3px;
+}
+#nav_header .nav-header__board-bar-right #board_id {
+  position: static;
+  left: auto;
+  top: auto;
+  padding-left: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  max-width: none;
+  font-size: 13.5px;
+  line-height: 1.25;
+  display: flex;
+  align-items: flex-end;
+  img {
+    margin-right: 5px;
+  }
 }
 header #normal_mode .btn {
-  height: 45px;
-  padding-top: 11px;
+  height: 42px;
+  padding: 8px 14px;
+  padding-top: 12px;
+  padding-bottom: 13px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  background: #fff !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+header #normal_mode .btn:hover,
+header #normal_mode .btn:focus {
+  background: #f9fafb !important;
+  border-color: #d1d5db !important;
+  color: #111827;
+}
+/* Speak Mode button: blue, white text, no border, same radius */
+header #normal_mode #speak_mode.btn-primary,
+header #normal_mode a#speak_mode.btn-primary {
+  background: #4D83C0 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px;
+}
+header #normal_mode #speak_mode.btn-primary:hover,
+header #normal_mode a#speak_mode.btn-primary:focus {
+  background: #4374a8 !important;
+  color: #fff !important;
+  border: none !important;
+}
+/* Level dropdown (L10): same radius as other buttons, oval pill around level text */
+header #normal_mode #level_dropdown,
+header #normal_mode .dropdown a#level_dropdown {
+  background: #fff !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 4px;
+}
+header #normal_mode #level_dropdown span[style*='border-radius: 100px'] {
+  padding: 4px 10px !important;
+  border-radius: 100px;
+  border: 1px solid #D6E8F6 !important;
+  background: #eaf5ff !important;
+  margin-left: 0 !important;
+}
+/* Show text labels, hide icon-only on wide view (words like image) */
+header #normal_mode .btn .wide {
+  display: inline !important;
+}
+header #normal_mode .btn .skinny,
+header #normal_mode .btn .real_skinny {
+  display: none !important;
+}
+header #normal_mode .btn .caret,
+header #normal_mode .btn b.caret {
+  display: inline-block !important;
+  margin-left: 4px;
+}
+/* Back button: show "Back" text, hide arrow so only word shows */
+header #normal_mode .btn .hidden {
+  display: inline !important;
+}
+header #normal_mode .glyphicon-arrow-left {
+  display: none !important;
+}
+
+/* Normal mode (after exiting speak mode): hide logo and brand name on navbar */
+header:has(#normal_mode) .nav-header__brand {
+  display: none !important;
 }
 /* Applied in: app/templates/application.hbs (line 1074), app/templates/setup-footer.hbs
    Setup wizard footer - setup_footer set via application/setup controllers */
@@ -885,6 +1000,11 @@ header .btn {
   background: #f8f9fa;
 }
 
+/* Boards page, not in speak mode: bottom shadow on inner_header (outside container) */
+header:has(#normal_mode) #inner_header {
+  box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+}
+
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
    Navigation header - nav_header_class from app-state service */
 #nav_header {
@@ -927,7 +1047,7 @@ header .btn {
     width: 115px; 
     height: 65px; 
     margin-top: 2px; 
-    margin-left: 2px; 
+    margin-left: 4px; 
     margin-right: -2px; 
     text-align: left;
     background: linear-gradient(to right, #fff 95%,#ddd 100%);
@@ -1038,6 +1158,327 @@ header .btn {
   font-size: 1.2em;
   margin-left: -6px;
 }
+
+/* Speak mode header: clean white bar, subtle bottom border (target design) */
+#inner_header:has(#speak) {
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e9ecef;
+}
+
+#inner_header:has(#speak) #speak {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  float: none;
+  padding: 2px 2px;
+  gap: 2px;
+}
+
+#inner_header:has(#speak) .speak-header__home-marker {
+  float: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: 0;
+  border-radius: 0;
+}
+
+/* Home: square, matches button_list height (58px), white bg, slightly darker outline, no radius */
+#inner_header:has(#speak) .speak-header__home-marker .btn,
+#inner_header:has(#speak) #home_button.btn {
+  background: #fff !important;
+  border: 1px solid #c4c4c4 !important;
+  border-radius: 0;
+  color: #5a5a5a;
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  min-height: 58px;
+  padding: 14px;
+  box-sizing: border-box;
+  box-shadow: none !important;
+}
+
+#inner_header:has(#speak) .speak-header__home-marker .btn:hover,
+#inner_header:has(#speak) #home_button.btn:hover {
+  background: #f8f9fa !important;
+  border-color: #b8b8b8 !important;
+}
+
+#inner_header:has(#speak) #home_button .button_icon {
+  color: #5a5a5a;
+  font-size: 1.6em;
+}
+
+/* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap */
+#inner_header:has(#speak) .speak-bar__button-list-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #6c757d;
+  border-radius: 0;
+  padding: 8px 8px;
+  margin: 0;
+  min-height: 58px;
+  box-sizing: border-box;
+  gap: 0;
+}
+
+/* Sentence bar link inside wrapper: fills space, no scroll; words wrap to next line when needed */
+#inner_header:has(#speak) .speak-bar__button-list-wrap #button_list {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  min-height: 0;
+  color: #212529;
+  display: flex;
+  align-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+/* Button list inner wrapper: flex wrap so chips that would be cut off wrap to the next line */
+#inner_header:has(#speak) #button_list > * {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: center;
+  row-gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Speak options button inside wrapper: right-aligned */
+#inner_header:has(#speak) .speak-bar__button-list-wrap #speak_options {
+  margin-left: auto;
+  flex-shrink: 0;
+  border-color: #c4c4c4 !important;
+}
+
+/* Sentence bar word chips: allow full label to show; min width for symbol-only chips */
+#inner_header:has(#speak) #button_list .history_button {
+  height: 36px !important;
+  min-width: 36px;
+  max-width: none !important;
+  margin: 0 6px !important;
+  overflow: visible;
+  flex-shrink: 0;
+}
+#inner_header:has(#speak) #button_list .history_button .text {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+#inner_header:has(#speak) #button_list .history_button img {
+  height: 32px !important;
+  max-width: 48px !important;
+}
+
+#inner_header:has(#speak) #button_list .utterance_cursor {
+  height: 22px;
+  margin: 0 4px;
+}
+
+#inner_header:has(#speak) .progress {
+  margin-bottom: 0;
+}
+
+#inner_header:has(#speak) #speak_options {
+  margin-left: 0;
+  margin-right: 0;
+  height: auto;
+  min-width: 52px;
+  min-height: 44px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+/* Right-side controls: square, white bg, faint border, grouped closely */
+#inner_header:has(#speak) #speak_options,
+#inner_header:has(#speak) #back_button,
+#inner_header:has(#speak) #backspace_button,
+#inner_header:has(#speak) #clear_button,
+#inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list,
+#inner_header:has(#speak) #speak .btn.btn-default.access {
+  background: #fff !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 8px;
+  color: #333;
+  box-shadow: none !important;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+/* Backspace and clear: match button_list height (58px) */
+#inner_header:has(#speak) #backspace_button,
+#inner_header:has(#speak) #clear_button {
+  height: 58px;
+  min-height: 58px;
+}
+#inner_header:has(#speak) #clear_button .button_icon,
+#inner_header:has(#speak) #clear_button .glyphicon {
+  font-size: 1.4em;
+}
+#inner_header:has(#speak) #backspace_button {
+  margin-left: 3px;
+}
+
+#inner_header:has(#speak) #speak_options:hover,
+#inner_header:has(#speak) #back_button:hover,
+#inner_header:has(#speak) #backspace_button:hover,
+#inner_header:has(#speak) #clear_button:hover,
+#inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list:hover,
+#inner_header:has(#speak) #speak .btn.btn-default.access:hover {
+  background: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+}
+#inner_header:has(#speak) .speak-bar__button-list-wrap #speak_options:hover {
+  border-color: #b8b8b8 !important;
+}
+
+#inner_header:has(#speak) #speak .btn .button_icon,
+#inner_header:has(#speak) #speak .glyphicon {
+  color: #333;
+}
+
+/* Backspace: keep square, constrain icon size so button isn’t oversized */
+#inner_header:has(#speak) #backspace_button img[src*='delete.svg'] {
+  width: 20px;
+  height: 14px;
+  display: block;
+  filter: none;
+  object-fit: contain;
+}
+
+#inner_header:has(#speak) #speak img[src*='delete.svg'] {
+  filter: none;
+}
+
+/* Identity in speak bar: slight left margin */
+#inner_header:has(#speak) #identity {
+  padding-right: 0;
+  margin-left: 4px;
+}
+
+#inner_header:has(#speak) #identity #identity_button.btn {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  color: #374151 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  width: 58px !important;
+  min-width: 58px !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  padding: 8px 6px !important;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#inner_header:has(#speak) #identity #identity_button.btn:hover,
+#inner_header:has(#speak) #identity #identity_button.btn:focus {
+  background: #f9fafb !important;
+  background-image: none !important;
+  color: #374151 !important;
+  border-color: #d1d5db !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Avatar circle: neutral slate (modern, professional) */
+#inner_header:has(#speak) #identity .user_holder {
+  background: #e2e8f0;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+}
+
+#inner_header:has(#speak) #identity img.user {
+  border: none;
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Dropdown chevron: to the right of user img, subtle */
+#inner_header:has(#speak) #identity #identity_button .caret {
+  border-top-color: #6b7280;
+  border-width: 4px 4px 0;
+  margin: 0;
+  margin-left: 0;
+  vertical-align: middle;
+  flex-shrink: 0;
+  order: 10;
+}
+
+/* Logging (briefcase) badge: top-right, inverted colors, no outline, 10% larger */
+#inner_header:has(#speak) #identity .logging_enabled {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: #fff;
+  color: #475569;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: none;
+  box-sizing: border-box;
+}
+
+#inner_header:has(#speak) #identity .logging_enabled.glyphicon-briefcase {
+  font-size: 12px;
+}
+
+/* Unread/status badges: inside circle, top-left so briefcase can stay top-right */
+#inner_header:has(#speak) #identity #identity_button .unread {
+  top: 2px;
+  right: auto;
+  left: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 18px;
+  border-radius: 9px;
+  border: 1.5px solid #fff;
+  box-sizing: border-box;
+}
+
 /* Applied in: app/templates/application.hbs (line 519) - user/identity dropdown
    Referenced in: raw_events.js, scanner.js */
 #identity {
@@ -5339,6 +5780,10 @@ body > .popover.bottom {
 #content.with_sidebar .board {
   width: -webkit-calc(100% - 60px);
   width: calc(100% - 60px);
+}
+/* Push the board down within the page (below header/nav) */
+#content .board {
+  margin-top: 1.5rem;
 }
 /* Default: allow page scroll. Do not apply when bento footer layout is active (so full-height chain rules can take effect). */
 html:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))),
@@ -10258,7 +10703,8 @@ body:-ms-fullscreen {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
   vertical-align: middle;
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
   font-size: 13.6px;
@@ -10284,7 +10730,8 @@ body:-ms-fullscreen {
 }
 .app-navbar .ll-bento-help-btn--nav-icon-only {
   padding: 9px 12px;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -10328,18 +10775,18 @@ body:-ms-fullscreen {
   color: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   transform: translateY(-2px);
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 13.6px;
   line-height: 1;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 12px;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
   cursor: pointer;
   outline: none;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -10349,12 +10796,12 @@ body:-ms-fullscreen {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), 0 3px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
   transform: translateY(-3px);
 }
 .app-navbar .md-pillnav__upgrade-nav:active {
   transform: translateY(-2px) scale(var(--md-tap, 0.99));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .app-navbar .header-unauth-nav {
@@ -10434,7 +10881,7 @@ body:-ms-fullscreen {
   align-items: center;
   margin-top: 0;
   height: var(--topbar-height);
-  gap: 4px;
+  gap: 2px;
 }
 .app-navbar .nav-header__logo-link,
 .app-navbar .nav-header__app-name-link {
@@ -10473,7 +10920,7 @@ body:-ms-fullscreen {
   object-fit: contain;
 }
 .app-navbar .nav-header__app-name-link {
-  margin-left: 4px;
+  margin-left: 0;
 }
 /* Brand app name: Maitree 25px, same colors as unauthenticated */
 .app-navbar .nav-header__app-name {
@@ -11272,7 +11719,8 @@ header.header--unauthenticated ~ #content .la-topbar {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
   vertical-align: middle;
   font-size: 14px;
   font-weight: 500;
@@ -11343,15 +11791,16 @@ header.header--unauthenticated ~ #content .la-topbar {
   color: #fff;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  font-weight: 400;
   font-size: 13px;
   line-height: 1;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 12px;
-  margin-right: 12px;
+  margin-left: 0;
+  margin-right: 0;
   cursor: pointer;
   outline: none;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
@@ -11368,7 +11817,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 
 /* Upgrade button in header (moved from dock) – right of Help */
 .ll-bento-upgrade-btn--nav {
-  margin-left: 12px;
+  margin-left: 0;
   vertical-align: middle;
   text-decoration: none;
 }
@@ -24419,22 +24868,27 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: 6px $aac-spacing-20;
   font-weight: $aac-font-weight-bold;
 }
+/* Schedule a District Demo: same bg, shadow, etc. as hero "Watch Demo" */
 .la-wrapper .la-cta-section .la-btn--ghost {
   font-weight: $aac-font-weight-semi;
-  background: rgba($la-navy, 0.06);
-  color: $la-navy;
-  border: 1px solid rgba($la-navy, 0.35);
-  padding: $aac-spacing-12 $aac-spacing-28;
-  border-radius: $aac-radius-pill;
+  background: rgba(70, 80, 95, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  padding: 14px 26px;
+  border-radius: 28px;
+  transform: translateY(-2px);
+  box-shadow: none;
   transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 
   &:hover {
-    background: rgba($la-navy, 0.14);
-    color: $la-navy;
-    border-color: rgba($la-navy, 0.5);
+    background: rgba(78, 88, 102, 0.8);
+    color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.18);
     text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+    box-shadow: none;
   }
 }
 
@@ -24482,18 +24936,17 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin: 0 0 $aac-spacing-32;
 }
 
-/* Start Free Today: same coral–soft yellow CTA gradient */
+/* Start Free Today: same bg, shadow, etc. as hero "Try LingoLinq Free" */
 .la-cta-section .la-btn--primary {
-  background: $la-cta-gradient;
+  background: $la-hero-cta-bg;
   color: $la-navy;
-  border: 1px solid rgba(232, 122, 111, 0.5);
+  border: 1px solid rgba(245, 194, 59, 0.5);
   filter: brightness(1.02);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 
   &:hover {
     filter: brightness(0.96);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
     color: $la-navy;
   }
 }

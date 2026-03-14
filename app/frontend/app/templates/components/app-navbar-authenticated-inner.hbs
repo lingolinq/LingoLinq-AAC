@@ -31,13 +31,7 @@
     {{/if}}
   </span>
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
-    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
-      <div class="ll-bento-help-btn__support-inner">
-        <span class="ll-bento-help-btn__icon" aria-hidden="true">
-          <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-        </span>
-      </div>
-    </LinkTo>
+    {{#unless this.appState.currentBoardState.id}}
     {{#if this.appState.currentUser}}
       <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>
         {{t "Upgrade" key="upgrade"}}
@@ -47,6 +41,14 @@
         {{t "Upgrade" key="upgrade"}}
       </button>
     {{/if}}
+    {{/unless}}
+    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+      <div class="ll-bento-help-btn__support-inner">
+        <span class="ll-bento-help-btn__icon" aria-hidden="true">
+          <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </span>
+      </div>
+    </LinkTo>
     <span style="display: inline-block;" class="dropdown">
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
         <span class="user_holder">
@@ -132,7 +134,9 @@
     {{#if @showModernDashboardLink}}
       <LinkTo @route="modern-dashboard" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Modern Dashboard" key="modern_dashboard"}}</LinkTo>
     {{/if}}
+    {{#unless this.appState.currentBoardState.id}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "goUpgrade"}}>{{t "Upgrade" key="upgrade"}}</button>
+    {{/unless}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>
     {{#if this.application.showThemePicker}}
