@@ -275,6 +275,7 @@
   "register": "Register",
   "critical_access": "Basic Access",
   "sidebar": "sidebar",
+  "board_alt": "Board Alt",
   "copy_to_button_stash": "Button<br>Stash",
   "view_word_data": "Word<br>Data",
   "app_name_upper": "%app_name_upper%",

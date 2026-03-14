@@ -1077,12 +1077,9 @@
       <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>
         {{t "Upgrade" key="upgrade"}}
       </LinkTo>
-    {{else}}
-      <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
-        {{t "Upgrade" key="upgrade"}}
-      </button>
     {{/if}}
     {{/unless}}
+    {{#if this.app_state.currentUser}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
@@ -1090,7 +1087,9 @@
         </span>
       </div>
     </LinkTo>
+    {{/if}}
     <span style="display: inline-block;" class="dropdown">
+      {{#if this.app_state.currentUser}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
         <span class="user_holder">
           <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
@@ -1160,6 +1159,25 @@
         <li class="divider" role="separator"></li>
         <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
+      {{else}}
+      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}} aria-haspopup="true">
+        {{t "Sign In" key="login"}}
+        <span class="caret"></span>
+      </a>
+      <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
+        {{#unless this.app_state.index_or_landing_view}}
+        <li role="presentation">
+          <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+        </li>
+        {{/unless}}
+        <li role="presentation">
+          <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
+        </li>
+        <li role="presentation">
+          <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+        </li>
+      </ul>
+      {{/if}}
     </span>
       {{/if}}
     </span>
@@ -1207,6 +1225,16 @@
         </a>
       {{/if}}
     {{/each}}
+    {{#if this.board_alt_username}}
+      {{#if this.board_alt_boardname}}
+        <LinkTo @route="user.board-alt" @models={{array this.board_alt_username this.board_alt_boardname}} class="sidebar_item sidebar_item--board-alt">
+          <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/></svg>
+          </span>
+          {{t "Board Alt" key="board_alt"}}
+        </LinkTo>
+      {{/if}}
+    {{/if}}
     {{#if this.app_state.currentUser.preferences.quick_sidebar}}
       {{#unless this.app_state.currentUser.preferences.lock_quick_sidebar}}
         <span style="margin: 5px; text-align: right;">

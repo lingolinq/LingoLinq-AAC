@@ -126,6 +126,9 @@ Router.map(function() {
     this.route('history');
     this.route('lessons');
     this.route('focus');
+    this.route('board-alt', { path: 'board/:boardname' }, function() {
+      this.route('index', { path: '/' });
+    });
     this.route('confirm_registration', { path: '/confirm_registration/:code' });
     this.route('password_reset', { path: '/password_reset/:code' });
   });

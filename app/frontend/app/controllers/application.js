@@ -52,6 +52,19 @@ export default Controller.extend({
     return !this.appState.get('currentBoardState');
   }),
 
+  /** Username segment for Board Alt route (user_id in URL). */
+  board_alt_username: computed('appState.currentBoardState.key', function() {
+    var key = this.get('appState.currentBoardState.key');
+    if (!key || key.indexOf('/') === -1) { return null; }
+    return key.split('/')[0];
+  }),
+  /** Boardname segment for Board Alt route (boardname in URL). */
+  board_alt_boardname: computed('appState.currentBoardState.key', function() {
+    var key = this.get('appState.currentBoardState.key');
+    if (!key || key.indexOf('/') === -1) { return null; }
+    return key.split('/').slice(1).join('/');
+  }),
+
   init() {
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)

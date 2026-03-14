@@ -379,11 +379,13 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
-/* Modern dashboard outlet: size to content so .md-shell bg extends to bottom of page */
+/* Modern dashboard outlet: size to content so .md-shell bg extends to bottom of page; min-width 0 so it shrinks with viewport */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-shell),
 #within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) {
   flex: 0 0 auto;
   min-height: auto;
+  min-width: 0;
+  max-width: 100%;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -395,6 +397,7 @@ body:has(#within_ember.bento-page-with-footer) {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  min-width: 0;
 }
 #within_ember.bento-page-with-footer #content > .ember-view:empty,
 #within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)):not(:has(.login-page-bg)),
@@ -5778,12 +5781,15 @@ body > .popover.bottom {
 }
 /* Applied in: application.hbs #content - when sidebar_visible is true */
 #content.with_sidebar .board {
-  width: -webkit-calc(100% - 60px);
-  width: calc(100% - 60px);
+  width: -webkit-calc(100% - 60px - 0.1rem);
+  width: calc(100% - 60px - 0.1rem);
+  margin-left: 0.1rem;
 }
-/* Push the board down within the page (below header/nav) */
+/* Push the board down within the page (below header/nav); slight left margin, full width */
 #content .board {
-  margin-top: 1.5rem;
+  margin: 1.5rem 0 0 0.1rem;
+  width: -webkit-calc(100% - 0.1rem);
+  width: calc(100% - 0.1rem);
 }
 /* Default: allow page scroll. Do not apply when bento footer layout is active (so full-height chain rules can take effect). */
 html:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))),
@@ -5902,10 +5908,10 @@ body.pretty_loader #loading_box {
 /* Applied in: app/templates/application.hbs (line 762) - sidebar tease in speak mode */
 #sidebar_tease {
   top: 0;
-  margin-top: 100px;
+  margin-top: calc(100px - 3.75rem);
   position: absolute;
   right: 0;
-  width: 80px;
+  width: 56px;
   height: 40px;
   background: #eee;
   text-align: center;
@@ -5919,7 +5925,7 @@ body.pretty_loader #loading_box {
   opacity: 0.7;
   cursor: pointer;
   &.skinny {
-    width: 50px;
+    width: 30px;
     height: 35px;
     font-size: 13px;
   }
@@ -5986,6 +5992,23 @@ body.pretty_loader #loading_box {
     display: block;
     width: 60%;
     margin: 0 auto;
+  }
+  /* Board Alt: colored icon above label (modern board layout – grid in teal) */
+  .sidebar_item__icon--board-alt {
+    display: block;
+    width: 60%;
+    margin: 0 auto;
+    color: rgba(44, 183, 176, 0.95);
+    background: linear-gradient(145deg, rgba(44, 183, 176, 0.25) 0%, rgba(91, 141, 239, 0.2) 100%);
+    border-radius: 6px;
+    padding: 4px;
+    box-sizing: border-box;
+  }
+  .sidebar_item__icon--board-alt svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
   }
 }
 #sidebar > a:hover {
@@ -11223,9 +11246,22 @@ body:-ms-fullscreen {
   color: #1a1a1a;
 }
 
-/* Identity button on all unauthenticated pages (landing, landing-alt, login, register, etc.): dark slate bg to match dropdown */
+/* Identity button on all unauthenticated pages (landing, landing-alt, login, register, etc.): dark slate bg to match dropdown. Pill-shaped (not circular). */
 #within_ember header.header--unauthenticated #identity #identity_button,
 #within_ember header.header--unauthenticated .app-navbar #identity #identity_button {
+  width: auto !important;
+  min-width: unset !important;
+  height: 42px !important;
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.25rem !important;
+  white-space: nowrap !important;
   background: rgb(55, 65, 81) !important;
   background-image: none !important;
   color: rgba(255, 255, 255, 0.95) !important;
@@ -21794,9 +21830,22 @@ header #identity #identity_button.btn::after {
   background-image: none !important;
 }
 
-/* Unauthenticated pages: identity/Sign In button — solid dark slate to match dropdown (landing, login, register, etc.). */
+/* Unauthenticated pages: identity/Sign In button — solid dark slate to match dropdown (landing, login, register, etc.). Pill-shaped (not circular). */
 #within_ember header.header--unauthenticated #identity #identity_button.btn,
 #within_ember header.header--unauthenticated .app-navbar #identity #identity_button.btn {
+  width: auto !important;
+  min-width: unset !important;
+  height: 42px !important;
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.25rem !important;
+  white-space: nowrap !important;
   background: rgb(55, 65, 81) !important;
   background-image: none !important;
   color: rgba(255, 255, 255, 0.95) !important;
@@ -27576,17 +27625,20 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   --md-tap: 0.99;
 }
 
-/* Modern dashboard shell: size to content (min 100vh) so bg extends to bottom of page */
+/* Modern dashboard shell: size to content (min 100vh) so bg extends to bottom of page; min-width 0 so it shrinks with viewport */
 #content .ember-view > .md-shell,
 #content > .md-shell {
   flex: 0 0 auto;
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .md-shell {
   min-height: 100vh;
+  min-width: 0;
   padding-top: 3rem;
   display: flex;
   flex-direction: column;
@@ -27600,6 +27652,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 .md-workspace {
   max-width: 1200px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 40px auto;
   padding: 40px 40px calc(40px - 7rem) 40px;
   border-radius: 48px;
@@ -27613,7 +27667,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 .md-shell > .md-workspace {
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  flex-shrink: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -27926,10 +27982,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-workspace > .md-main {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
 }
 
 .md-main {
   max-width: 1120px;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 18px 16px 24px;
 }
@@ -28356,6 +28415,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-user-summary {
   color: var(--md-ink);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .md-user-summary .md-card {
   padding: 18px 20px;
@@ -28551,34 +28613,62 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-user-summary__board-grid {
   display: flex !important;
   flex-wrap: wrap;
-  gap: 1.5rem 1.75rem;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  width: 100%;
+}
+/* Bootstrap .row clearfix ::before/::after become flex items and shift the first row; disable them */
+.md-user-summary__board-grid.row::before,
+.md-user-summary__board-grid.row::after {
+  display: none !important;
+  content: none !important;
+}
+@media (min-width: 480px) {
+  .md-user-summary__board-grid {
+    gap: 0.75rem 1rem;
+  }
 }
 @media (min-width: 768px) {
   .md-user-summary__board-grid {
-    gap: 1.75rem 2rem;
+    gap: 1rem 1.25rem;
   }
 }
 @media (min-width: 1024px) {
   .md-user-summary__board-grid {
-    gap: 2rem 2.25rem;
+    gap: 1rem 1.5rem;
   }
 }
+/* Flex + Bootstrap columns: column width from Bootstrap at each breakpoint; min-width keeps card from being cut off */
 .md-user-summary__board-grid > div {
-  max-width: none;
   padding: 0;
-  flex: 0 1 auto;
-  width: fit-content;
-  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* Card width (2.4rem*2 + 160px image + buffer); wrap before content is cut off */
+  min-width: 250px;
 }
-.md-user-summary__board-grid > div.col-sm-2,
-.md-user-summary__board-grid > div.col-xs-3 {
+.md-user-summary__board-grid > div.col-xs-12,
+.md-user-summary__board-grid > div.col-sm-6,
+.md-user-summary__board-grid > div.col-md-4,
+.md-user-summary__board-grid > div.col-lg-2 {
   max-width: none !important;
+}
+/* Large screens: size by content + min-width so as many cards fit as possible without overlap (Bootstrap col-lg-2 would force 6 columns and overlap) */
+@media (min-width: 992px) {
+  .md-user-summary__board-grid > div.col-lg-2 {
+    width: auto !important;
+    flex: 0 0 auto !important;
+  }
 }
 .md-user-summary__board-grid > div.col-sm-12 {
   flex: 1 1 100%;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: block; /* "show more" link row */
 }
 
 /* Board cards in Available Boards: card layout (wide, spacious), not pill */
@@ -28657,6 +28747,152 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   width: auto;
   text-align: center;
   color: inherit;
+}
+
+/* ---------- User summary: responsive on all screen sizes ---------- */
+.md-user-summary {
+  box-sizing: border-box;
+  width: 100%;
+}
+@media (max-width: 767px) {
+  .md-user-summary {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .md-hero--user {
+    padding: 16px 0 14px;
+    gap: 14px;
+  }
+  .md-hero--user__avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+  }
+  .md-hero--user__name {
+    font-size: 1.25rem;
+  }
+  .md-hero--user__username,
+  .md-hero--user__meta {
+    font-size: 13px;
+  }
+  .md-user-summary .row.big_buttons {
+    margin-left: -4px;
+    margin-right: -4px;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .md-user-summary .row.big_buttons .big_button_holder,
+  .md-user-summary .row.big_buttons .col-xs-6 {
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-bottom: 8px;
+  }
+  .md-user-summary .row.big_buttons .big_button {
+    font-size: 1rem;
+    padding: 14px 0;
+    max-height: none;
+  }
+  .md-user-summary .row.big_buttons .big_button img {
+    height: 80px;
+  }
+  .md-user-summary .row.big_buttons .big_button > .glyphicon {
+    font-size: 2.5rem;
+  }
+  .md-user-summary .row.big_buttons .col-sm-3.col-xs-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+    min-width: 0;
+  }
+  .md-user-summary .panel-body,
+  .md-user-summary .panel-heading {
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 14px;
+  }
+  .md-user-summary .md-grid--actions {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .md-user-summary__available-boards-title {
+    font-size: 1.35rem !important;
+  }
+  .md-user-summary__board-tabs {
+    padding: 6px 8px;
+    gap: 4px 6px;
+  }
+  .md-user-summary__board-tabs li a {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .md-user-summary .alert {
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .md-user-summary h2,
+  .md-user-summary h4 {
+    margin-top: 18px;
+    margin-bottom: 8px;
+    font-size: 1.2rem;
+  }
+  .md-user-summary .list-group {
+    max-width: 100% !important;
+  }
+}
+@media (max-width: 479px) {
+  .md-user-summary {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .md-user-summary .row.big_buttons .col-sm-3.col-xs-6,
+  .md-user-summary .row.big_buttons .big_button_holder {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  .md-user-summary .row.big_buttons .col-xs-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  .md-user-summary .panel.panel-default.summary .panel-body,
+  .md-user-summary .panel.panel-default.summary .panel-heading {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .md-user-summary .col-sm-3.col-xs-6 {
+    margin-bottom: 10px;
+  }
+  .md-user-summary .md-grid--actions {
+    grid-template-columns: 1fr;
+  }
+  .md-user-summary .row.big_buttons > [style*="float: right"] {
+    float: none !important;
+    width: 100% !important;
+    max-width: 100%;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+  .md-user-summary .row.big_buttons .btn-group {
+    width: 100%;
+  }
+  .md-user-summary .row.big_buttons .btn-group .dropdown-toggle {
+    width: 100%;
+    text-align: center;
+  }
+}
+@media (min-width: 768px) {
+  .md-user-summary {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+@media (min-width: 1200px) {
+  .md-user-summary {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
 }
 
 /* ---------- About page hero (modern dashboard styling) ---------- */
