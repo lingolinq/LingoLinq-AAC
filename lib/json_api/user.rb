@@ -4,6 +4,16 @@ module JsonApi::User
   TYPE_KEY = 'user'
   DEFAULT_PAGE = 25
   MAX_PAGE = 50
+
+  def self.paginate_meta(params, json)
+    meta = {}
+    meta[:sort_by] = params['sort_by'] if params['sort_by'].present?
+    meta[:sort_order] = params['sort_order'] if params['sort_order'].present?
+    filter_val = params['filter'].presence || params['q'].presence
+    meta[:filter] = filter_val if filter_val
+    meta[:recent] = params['recent'] if params['recent'].present?
+    meta
+  end
     
   def self.build_json(user, args={})
     json = {}

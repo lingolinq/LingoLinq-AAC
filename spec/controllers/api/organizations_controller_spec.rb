@@ -829,7 +829,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "unused_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate setup_but_expired report" do
@@ -839,7 +840,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "setup_but_expired"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate current_but_expired report" do
@@ -849,7 +851,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "current_but_expired"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate free_supervisor_without_supervisees report" do
@@ -859,7 +862,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "free_supervisor_without_supervisees"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     # it "should generate free_supervisor_with_supervisors report" do
@@ -879,7 +883,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "active_free_supervisor_without_supervisees_or_org"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate eval_accounts report" do
@@ -889,7 +894,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "eval_accounts"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     # it "should generate recent_ report" do
@@ -937,7 +943,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "logged_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate not_logged_ report" do
@@ -947,7 +954,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "not_logged_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate missing_words report" do
