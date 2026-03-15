@@ -14,8 +14,8 @@ module ExternalTracker
     d = user.devices[0]
     ip = d && d.settings['ip_address']
     location = nil
-    if ip && ENV['IPSTACK_KEY']
-      url = "http://api.ipstack.com/#{ip}?access_key=#{ENV['IPSTACK_KEY']}"
+    if ip && ENV['IPLOCATE_API_KEY']
+      url = "https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}"
       begin
         res = Typhoeus.get(url, timeout: 5)
         location = JSON.parse(res.body)
@@ -27,7 +27,7 @@ module ExternalTracker
     state = nil
     if location && (location['country_code'] == 'USA' || location['country_code'] == 'US')
       city = location['city']
-      state = location['region_name']
+      state = location['subdivision']
     end
 
 
