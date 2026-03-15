@@ -1,8 +1,7 @@
 import Component from '@ember/component';
 import { observer } from '@ember/object';
 import LingoLinq from '../app';
-
-/* Chart.js and chartjs-chart-sankey loaded via app.import in ember-cli-build.js */
+import Chart from '../utils/chart-with-sankey'; // Chart.js + Sankey plugin bundled via npm
 
 export default Component.extend({
   chart: null,
@@ -60,7 +59,7 @@ export default Component.extend({
       return LingoLinq.stats_colors.partsOfSpeechColor(key);
     };
 
-    chart = new window.Chart(canvas, {
+    chart = new Chart(canvas, {
       type: 'sankey',
       data: {
         datasets: [{

@@ -5,6 +5,7 @@ import modal from '../../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
+import { debounce as runDebounce, cancel as runCancel } from '@ember/runloop';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
@@ -215,8 +216,22 @@ export default Controller.extend({
       _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
     });
   },
-  get_report: observer('current_report', 'model.id', 'per_page', 'sort_by', 'sort_order', 'filter', function() {
+  get_report: observer('current_report', 'model.id', 'per_page', 'sort_by', 'sort_order', function() {
+    if(this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+      this._filterDebounceTimer = null;
+    }
     this.fetch_report();
+  }),
+  get_report_filter: observer('filter', function() {
+    if(this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+    }
+    var _this = this;
+    this._filterDebounceTimer = runDebounce(this, function() {
+      _this._filterDebounceTimer = null;
+      _this.fetch_report();
+    }, 300);
   }),
   removable_report: computed('current_report', function() {
     return ['all_users', 'all_supervisors'].indexOf(this.get('current_report')) >= 0;

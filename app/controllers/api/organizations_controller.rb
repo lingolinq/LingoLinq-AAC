@@ -654,7 +654,6 @@ class Api::OrganizationsController < ApplicationController
       per_page = JsonApi::User::DEFAULT_PAGE if per_page < 1
       offset = params['offset'].to_i
       offset = 0 if offset < 0
-      total = user_list.length
       page_users = user_list.slice(offset, per_page + 1)
       more = page_users && page_users.length > per_page
       page_users = page_users ? page_users[0, per_page] : []
