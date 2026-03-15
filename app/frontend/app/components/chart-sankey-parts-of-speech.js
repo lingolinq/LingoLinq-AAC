@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { observer } from '@ember/object';
+import LingoLinq from '../app';
 
 /* Chart.js and chartjs-chart-sankey loaded via app.import in ember-cli-build.js */
 
