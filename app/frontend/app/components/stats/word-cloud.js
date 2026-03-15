@@ -24,17 +24,25 @@ export default Component.extend({
       return 768;
     }
   }),
-  draw: observer('stats', 'ref_stats', 'zoom', 'word_cloud_id', function() {
+  draw: observer('stats', 'ref_stats', 'zoom', 'word_cloud_id', 'shape', 'color', 'gridSize', 'shuffle', 'allowDuplicates', function() {
     var elem = this.get('element').getElementsByClassName('word_cloud')[0];
     if(elem) {
       var list = [];
       var max = 1;
       var _this = this;
       var list1 = (this.get('stats.modeling') ? this.get('stats.modeled_words_by_frequency') : this.get('stats.words_by_frequency')) || [];
+      var allowDuplicates = _this.get('allowDuplicates');
       list1.forEach(function(obj) {
         if(!obj.text.match(/^[\+:]/)) {
           max = Math.max(max, obj.count);
-          list.push([obj.text, obj.count]);
+          if (allowDuplicates && obj.count > 1) {
+            var copies = Math.min(Math.ceil(obj.count / 3), 5);
+            for (var i = 0; i < copies; i++) {
+              list.push([obj.text, obj.count / (i + 1)]);
+            }
+          } else {
+            list.push([obj.text, obj.count]);
+          }
         }
       });
       if(this.get('ref_stats')) {
@@ -45,14 +53,21 @@ export default Component.extend({
           }
         });
       }
-      window.WordCloud(elem, {
+      var opts = {
         list: list,
-        gridSize: 16,
+        gridSize: _this.get('gridSize') || 16,
         weightFactor: function (size) {
           var res = ((size / max) * 245 * (_this.get('zoom') || 1)) + 5;
           return res;
         }
-      });
+      };
+      var shape = _this.get('shape');
+      if (shape) { opts.shape = shape; }
+      var color = _this.get('color');
+      if (color) { opts.color = color; }
+      var shuffle = _this.get('shuffle');
+      if (shuffle !== undefined) { opts.shuffle = shuffle; }
+      window.WordCloud(elem, opts);
     }
   })
 });
