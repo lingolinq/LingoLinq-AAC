@@ -1079,7 +1079,7 @@
               <strong>Active</strong>
             </p>
             <ul class="list-group">
-              {{#each active_sidebar_options as |option|}}
+              {{#each this.active_sidebar_options as |option|}}
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}>
                   <span style="float: right; margin-top: 5px;">
@@ -1102,12 +1102,12 @@
                 </li>
               {{/each}}
             </ul>
-            {{#if disabled_sidebar_options_or_prior_sidebar_boards}}
+            {{#if this.disabled_sidebar_options_or_prior_sidebar_boards}}
               <p class="form-control-static">
                 <strong>Disabled</strong>
               </p>
               <ul class="list-group">
-                {{#each disabled_sidebar_options as |option|}}
+                {{#each this.disabled_sidebar_options as |option|}}
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
@@ -1124,7 +1124,7 @@
                 {{/each}}
               </ul>
               {{#if this.pending_preferences.prior_sidebar_boards}}
-                {{#unless include_prior_sidebar_buttons}}
+                {{#unless this.include_prior_sidebar_buttons}}
                   <a href="#" {{action 'include_prior_sidebar_buttons'}}>{{t "show prior sidebar links and buttons" key='show_prior_buttons'}}</a>
                 {{/unless}}
               {{/if}}
@@ -1134,10 +1134,10 @@
                 <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder="add board key/action" />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{action 'add_sidebar_board' new_sidebar_board}}>{{t "Add" key='add'}}</button>
+                <button class='btn btn-default' {{action 'add_sidebar_board' this.new_sidebar_board}}>{{t "Add" key='add'}}</button>
               </span>
-              {{#if add_sidebar_board_error}}
-                <p class='text-danger'>{{add_sidebar_board_error}}</p>
+              {{#if this.add_sidebar_board_error}}
+                <p class='text-danger'>{{this.add_sidebar_board_error}}</p>
               {{/if}}
             </div>
           {{/unless}}

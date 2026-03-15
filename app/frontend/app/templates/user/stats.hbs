@@ -264,6 +264,14 @@
         {{#if this.usage_stats2}}
           {{stats/parts-of-speech-pie usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
         {{/if}}
+        {{stats/sankey-parts-of-speech usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/sankey-parts-of-speech usage_stats=this.usage_stats2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+        {{/if}}
+        {{stats/sankey-word-pairs wordPairsData=this.wordPairsForSankey ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}
+        {{#if this.usage_stats2}}
+          {{stats/sankey-word-pairs wordPairsData=this.wordPairsForSankey2 ref_stats=this.usage_stats side_by_side=true right_side=true}}
+        {{/if}}
       </div>
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         {{stats/time-of-day usage_stats=this.usage_stats ref_stats=this.usage_stats2 side_by_side=this.usage_stats2}}

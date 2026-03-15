@@ -17,23 +17,63 @@
           <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "refresh"}} title={{t "redraw" key="redraw"}} aria-label={{t "redraw" key="redraw"}}>↻</button>
           <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "zoom" "in"}} title={{t "zoom in" key="zoom_in"}} aria-label={{t "zoom in" key="zoom_in"}}>+</button>
           <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "zoom" "out"}} title={{t "zoom out" key="zoom_out"}} aria-label={{t "zoom out" key="zoom_out"}}>−</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon {{if this.shuffle "active"}}" {{action "toggleShuffle"}} title={{t "Shuffle layout for different arrangement each time" key="word_cloud_shuffle"}} aria-label={{t "Shuffle layout for different arrangement each time" key="word_cloud_shuffle"}}>⇄</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon {{if this.allowDuplicates "active"}}" {{action "toggleDuplicates"}} title={{t "Allow same word to appear multiple times" key="word_cloud_duplicates"}} aria-label={{t "Allow same word to appear multiple times" key="word_cloud_duplicates"}}>⧉</button>
         </span>
         <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
       </div>
     </div>
     <div class="la-support-modal-body">
+      <div class="row la-word-cloud-options" style="margin-bottom: 12px;">
+        <div class="col-sm-4">
+          <label for="word-cloud-shape">{{t "Shape" key="word_cloud_shape_label"}}</label>
+          <select id="word-cloud-shape" class="form-control la-contact-input" onchange={{action "updateShape" value="target.value"}}>
+            {{#each this.shapeOptions as |opt|}}
+              {{#if (is-equal this.shape opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label for="word-cloud-color">{{t "Color" key="word_cloud_color_label"}}</label>
+          <select id="word-cloud-color" class="form-control la-contact-input" onchange={{action "updateColor" value="target.value"}}>
+            {{#each this.colorOptions as |opt|}}
+              {{#if (is-equal this.color opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label for="word-cloud-spacing">{{t "Spacing" key="word_cloud_spacing_label"}}</label>
+          <select id="word-cloud-spacing" class="form-control la-contact-input" onchange={{action "updateGridSize" value="target.value"}}>
+            {{#each this.gridSizeOptions as |opt|}}
+              {{#if (is-equal this.gridSize opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
+        </div>
+      </div>
       {{#if this.model.stats}}
         <div class="row">
           <div class={{if this.model.stats2 "col-sm-6" "col-sm-12"}}>
             {{#if this.model.stats2}}
               <strong>{{this.model.stats.label}}</strong>
             {{/if}}
-            {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+            {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
           </div>
           {{#if this.model.stats2}}
             <div class="col-sm-6">
               <strong>{{this.model.stats2.label}}</strong>
-              {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+              {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
             </div>
           {{/if}}
         </div>

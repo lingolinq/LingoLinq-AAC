@@ -475,6 +475,135 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['user'].length).to eq(25)
       expect(json['meta']['next_url']).to eq("#{JsonApi::Json.current_host}/api/v1/organizations/#{o.global_id}/users?offset=#{JsonApi::User::DEFAULT_PAGE}&per_page=#{JsonApi::User::DEFAULT_PAGE}")
     end
+
+    it "should filter users by filter param (user_name ILIKE)" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'alice_smith')
+      u2 = User.create(user_name: 'bob_jones')
+      u3 = User.create(user_name: 'alice_brown')
+      [u1, u2, u3].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :filter => 'alice'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].length).to eq(2)
+      expect(json['user'].map { |u| u['user_name'] }.sort).to eq(['alice_brown', 'alice_smith'])
+    end
+
+    it "should filter users by q param (alias for filter)" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'xavier_user')
+      u2 = User.create(user_name: 'other_user')
+      [u1, u2].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :q => 'xavier'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].length).to eq(1)
+      expect(json['user'][0]['user_name']).to eq('xavier_user')
+    end
+
+    it "should sort users by user_name with sort_order asc" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'zebra_user')
+      u2 = User.create(user_name: 'alpha_user')
+      u3 = User.create(user_name: 'middle_user')
+      [u1, u2, u3].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :sort_by => 'user_name', :sort_order => 'asc'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      names = json['user'].map { |u| u['user_name'] }
+      expect(names).to eq(names.sort)
+      expect(names.first).to eq('alpha_user')
+    end
+
+    it "should sort users by user_name with sort_order desc" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'alpha_user')
+      u2 = User.create(user_name: 'zebra_user')
+      [u1, u2].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :sort_by => 'user_name', :sort_order => 'desc'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      names = json['user'].map { |u| u['user_name'] }
+      expect(names).to eq(names.sort.reverse)
+      expect(names.first).to eq('zebra_user')
+    end
+
+    it "should sort users by joined (created_at) with sort_order asc" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'first_joined')
+      u2 = User.create(user_name: 'second_joined')
+      u3 = User.create(user_name: 'third_joined')
+      [u1, u2, u3].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :sort_by => 'joined', :sort_order => 'asc'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = json['user'].map { |u| u['id'] }
+      expect(ids).to eq([u1.global_id, u2.global_id, u3.global_id])
+    end
+
+    it "should sort users by joined (created_at) with sort_order desc" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'first_joined')
+      u2 = User.create(user_name: 'second_joined')
+      u3 = User.create(user_name: 'third_joined')
+      [u1, u2, u3].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :sort_by => 'joined', :sort_order => 'desc'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = json['user'].map { |u| u['id'] }
+      expect(ids).to eq([u3.global_id, u2.global_id, u1.global_id])
+    end
+
+    it "should order by id desc when recent param is present" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      u1 = User.create(user_name: 'oldest_user')
+      u2 = User.create(user_name: 'newest_user')
+      [u1, u2].each { |u| o.add_user(u.user_name, false) }
+
+      get :users, params: {:organization_id => o.global_id, :recent => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = json['user'].map { |u| u['id'] }
+      expect(ids.first).to eq(u2.global_id)
+    end
+
+    it "should respect offset and per_page for paging" do
+      o = Organization.create(:settings => {'total_licenses' => 100})
+      token_user
+      o.add_manager(@user.user_name)
+      10.times do |i|
+        u = User.create
+        o.add_user(u.user_name, false)
+      end
+
+      get :users, params: {:organization_id => o.global_id, :offset => 2, :per_page => 3}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].length).to eq(3)
+      expect(json['meta']['offset']).to eq(2)
+      expect(json['meta']['per_page']).to eq(3)
+      expect(json['meta']['next_offset']).to eq(5)
+    end
   end
   
   describe "managers" do
@@ -829,7 +958,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "unused_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate setup_but_expired report" do
@@ -839,7 +969,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "setup_but_expired"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate current_but_expired report" do
@@ -849,7 +980,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "current_but_expired"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate free_supervisor_without_supervisees report" do
@@ -859,7 +991,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "free_supervisor_without_supervisees"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     # it "should generate free_supervisor_with_supervisors report" do
@@ -879,7 +1012,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "active_free_supervisor_without_supervisees_or_org"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate eval_accounts report" do
@@ -889,7 +1023,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "eval_accounts"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     # it "should generate recent_ report" do
@@ -937,7 +1072,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "logged_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate not_logged_ report" do
@@ -947,7 +1083,8 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "not_logged_3"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json).to eq({'user' => []})
+      expect(json['user']).to eq([])
+      expect(json['meta']).to be_present
     end
     
     it "should generate missing_words report" do

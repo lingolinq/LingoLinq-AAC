@@ -411,7 +411,8 @@ class Api::BoardsController < ApplicationController
       rows: rows,
       columns: columns,
       locale: locale_param,
-      include_core_words: include_core_words
+      include_core_words: include_core_words,
+      user: @api_user
     )
     if result[:error]
       return api_error(503, { error: result[:error] })
