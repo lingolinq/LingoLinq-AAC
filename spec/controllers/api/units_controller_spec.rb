@@ -393,12 +393,15 @@ describe Api::UnitsController, :type => :controller do
         'user_counts' => {"goal_recently_logged"=>0, "goal_set"=>0, "modeled_word_counts"=>[], "recent_session_count"=>0, "recent_session_hours"=>0.0, "recent_session_seconds"=>0.0, "recent_session_user_count"=>0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_users"=>0, "total_words"=>0, "word_counts"=>[]}
       })
 
-
+      # Use dates derived from week starts so both events fall in the same week. Relative dates
+      # like 2.weeks.ago and 2.weeks.ago+1 can span a week boundary (e.g. Sun+Mon) and fail.
+      week_a_start = 2.weeks.ago.to_date.beginning_of_week(:monday)
+      week_b_start = 4.weeks.ago.to_date.beginning_of_week(:monday)
       LogSession.process_daily_use({
         'events' => [
-          {'date' => "#{2.weeks.ago.to_date.iso8601}", 'active' => true, 'activity_level' => 3, 'models' => 4},
-          {'date' => "#{(2.weeks.ago.to_date + 1).iso8601}", 'active' => true, 'activity_level' => 1, 'models' => 2, 'focus_words' => 1},
-          {'date' => "#{4.weeks.ago.to_date.iso8601}", 'active' => true, 'activity_level' => 5, 'goals' => 1},
+          {'date' => week_a_start.iso8601, 'active' => true, 'activity_level' => 3, 'models' => 4},
+          {'date' => (week_a_start + 1).iso8601, 'active' => true, 'activity_level' => 1, 'models' => 2, 'focus_words' => 1},
+          {'date' => week_b_start.iso8601, 'active' => true, 'activity_level' => 5, 'goals' => 1},
         ]
       }, {author: @user, device: @user.devices[0]})
 
@@ -408,8 +411,8 @@ describe Api::UnitsController, :type => :controller do
       expect(json['weeks']).to eq([])
       expect(json['supervisor_weeks']).to_not eq({})
       expect(json['supervisor_weeks'][@user.global_id]).to_not eq(nil)
-      a = 2.weeks.ago.beginning_of_week(:monday).to_date.to_time(:utc).to_i.to_s
-      b = 4.weeks.ago.beginning_of_week(:monday).to_date.to_time(:utc).to_i.to_s
+      a = week_a_start.to_time(:utc).to_i.to_s
+      b = week_b_start.to_time(:utc).to_i.to_s
       expect(json['supervisor_weeks'][@user.global_id][a]).to eq({
         'actives' => 2, 'average_level' => 0.8, 'days' => 2, 'focus_words' => 1, 'models' => 6, 'total_levels' => 4
       })
