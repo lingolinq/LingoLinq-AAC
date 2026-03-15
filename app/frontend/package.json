@@ -69,9 +69,8 @@
     "recordrtc": "^5.6.2",
     "sass": "^1.97.1",
     "tinycolor2": "^1.6.0",
-    "wordcloud2": "^1.0.0"
+    "wordcloud": "^1.2.3"
   },
-  "dependencies": {},
   "overrides": {
     "ember-cli-babel": "^7.26.6"
   },

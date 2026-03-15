@@ -16,22 +16,62 @@
         <button class='btn btn-default' {{action "refresh"}}><span class="glyphicon glyphicon-refresh" title={{t "redraw" key="redraw"}}></span></button>
         <button class='btn btn-default' {{action "zoom" "in"}}><span class="glyphicon glyphicon-plus" title={{t "zoom in" key="zoom_in"}}></span></button>
         <button class='btn btn-default' {{action "zoom" "out"}}><span class="glyphicon glyphicon-minus" title={{t "zoom out" key="zoom_out"}}></span></button>
+        <button class='btn btn-default {{if this.shuffle "active"}}' {{action "toggleShuffle"}} title={{t "Shuffle layout for different arrangement each time" key="word_cloud_shuffle"}}><span class="glyphicon glyphicon-random"></span></button>
+        <button class='btn btn-default {{if this.allowDuplicates "active"}}' {{action "toggleDuplicates"}} title={{t "Allow same word to appear multiple times" key="word_cloud_duplicates"}}><span class="glyphicon glyphicon-copy"></span></button>
       </span>
     </h3>
   </div>
   <div class="modal-body" id="button_settings">
+    <div class="row" style="margin-bottom: 12px;">
+      <div class="col-sm-4">
+        <label>{{t "Shape" key="word_cloud_shape_label"}}</label>
+        <select class="form-control" onchange={{action "updateShape" value="target.value"}}>
+          {{#each this.shapeOptions as |opt|}}
+            {{#if (is-equal this.shape opt.value)}}
+              <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+            {{else}}
+              <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+            {{/if}}
+          {{/each}}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label>{{t "Color" key="word_cloud_color_label"}}</label>
+        <select class="form-control" onchange={{action "updateColor" value="target.value"}}>
+          {{#each this.colorOptions as |opt|}}
+            {{#if (is-equal this.color opt.value)}}
+              <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+            {{else}}
+              <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+            {{/if}}
+          {{/each}}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label>{{t "Spacing" key="word_cloud_spacing_label"}}</label>
+        <select class="form-control" onchange={{action "updateGridSize" value="target.value"}}>
+          {{#each this.gridSizeOptions as |opt|}}
+            {{#if (is-equal this.gridSize opt.value)}}
+              <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+            {{else}}
+              <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+            {{/if}}
+          {{/each}}
+        </select>
+      </div>
+    </div>
     {{#if this.model.stats}}
     <div class="row">
       <div class={{if this.model.stats2 "col-sm-6" "col-sm-12"}}>
         {{#if this.model.stats2}}
           <strong>{{this.model.stats.label}}</strong>
         {{/if}}
-        {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+        {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
       </div>
       {{#if this.model.stats2}}
         <div class='col-sm-6'>
           <strong>{{this.model.stats2.label}}</strong>
-          {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+          {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
         </div>
       {{/if}}
     </div>

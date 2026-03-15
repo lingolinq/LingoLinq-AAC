@@ -61,7 +61,7 @@ module.exports = function (defaults) {
   app.import('node_modules/jquery-minicolors/jquery.minicolors.min.js');
   app.import('node_modules/bootstrap/dist/js/bootstrap.min.js');
   app.import('node_modules/recordrtc/RecordRTC.min.js');
-  app.import('node_modules/wordcloud2/src/wordcloud2.js');
+  app.import('node_modules/wordcloud/src/wordcloud2.js');
   app.import('vendor/media_recorder/media_recorder.js');
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
