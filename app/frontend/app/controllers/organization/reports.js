@@ -128,6 +128,7 @@ export default Controller.extend({
     perPage = Math.min(50, Math.max(1, perPage));
     addParam('per_page', perPage);
     if(this.get('sort_order')) { addParam('sort_order', this.get('sort_order')); }
+    addParam('filter', this.get('filter'));
     if(report === 'recent_sessions') {
       return base + '/logs' + (params.length ? '?' + params.join('&') : '');
     }

@@ -13,6 +13,10 @@
 
     {{content-for "head"}}
 
+    <!-- Chart.js and chartjs-chart-sankey: loaded separately to avoid bundler variable collision -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
+
     <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
     <script src="/assets/globals.js"></script>
 

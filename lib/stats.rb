@@ -60,6 +60,7 @@ module Stats
     res = usage_stats(all_stats)
     res[:days] = days
     sessions = find_sessions(user_id, options)
+    res[:word_pairs] = word_pairs(sessions)
     res.merge!(touch_stats(sessions))
     res[:locations] = location_use_for_sessions(sessions)
     word_development.each do |key, list|
@@ -101,7 +102,8 @@ module Stats
     res.merge!(device_stats(sessions))
     res.merge!(sensor_stats(sessions))
     res.merge!(parts_of_speech_stats(sessions))
-    
+    res[:word_pairs] = word_pairs(sessions)
+
     res[:days] = days
 
     res[:locations] = location_use_for_sessions(sessions)

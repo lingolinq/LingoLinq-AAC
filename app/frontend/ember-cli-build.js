@@ -62,6 +62,8 @@ module.exports = function (defaults) {
   app.import('node_modules/bootstrap/dist/js/bootstrap.min.js');
   app.import('node_modules/recordrtc/RecordRTC.min.js');
   app.import('node_modules/wordcloud/src/wordcloud2.js');
+  // Chart.js and chartjs-chart-sankey loaded from CDN in index.html to avoid
+  // variable collision when concatenated (Identifier 's' has already been declared)
   app.import('vendor/media_recorder/media_recorder.js');
   app.import('vendor/speak_js/speakClient.js');
   app.import('vendor/speech/speech.js');
