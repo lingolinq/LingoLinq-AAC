@@ -48,7 +48,8 @@ describe Device, :type => :model do
       d = Device.new
       expect { d.unique_device_key }.to raise_error("must be saved first")
       d.id = 123
-      expect { d.unique_device_key }.to raise_error("missing developer_key_id")
+      # nil developer_key_id is treated as system device (legacy devices from seeds)
+      expect(d.unique_device_key).to eq('default')
       d.device_key = 'default'
       d.developer_key_id = 0
       expect(d.unique_device_key).to eq('default')
