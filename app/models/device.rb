@@ -17,7 +17,7 @@ class Device < ActiveRecord::Base
   def generate_defaults
     self.settings ||= {}
     self.settings['name'] ||= 'Web browser for Desktop' if self.default_device?
-    self.settings['name'] ||= self.device_key.split(/\s/, 2)[1] if self.system_generated?
+    self.settings['name'] ||= (self.device_key || 'default').to_s.split(/\s/, 2)[1] if self.system_generated?
     true
   end
 
