@@ -88,11 +88,11 @@
         {{/unless}}
         <div class="form-group">
           <label for="identification">{{t "Username" key="username"}}</label>
-          {{lowercase-text-field id="identification" class="form-control touchy" value=this.identification placeholder="username" autocomplete="username"}}
+          {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
         </div>
         <div class="form-group">
           <label for="password">{{t "Password" key="password"}}</label>
-          <Input @type="password" id="password" class="form-control touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
+          <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>
