@@ -736,7 +736,7 @@ unless DEMO_ALREADY_SEEDED
 
     # Create device with realistic metadata
     dev_profile = device_profiles[student_idx % device_profiles.length]
-    device = Device.find_or_create_by(user: student, developer_key_id: 0, device_key: "seed-student-#{student.id}")
+    device = Device.find_or_initialize_by(user: student, developer_key_id: 0)
     # Ensure device_key is always set, even for pre-existing system-generated devices
     if device.device_key.blank?
       device.device_key = "seed-student-#{student.id}"
