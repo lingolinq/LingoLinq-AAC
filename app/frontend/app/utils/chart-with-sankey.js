@@ -13,4 +13,5 @@ export function getChart() {
   return window.Chart;
 }
 
-export default getChart;
+// Default export is the Chart constructor so consumers can use: import Chart from '...'; new Chart(canvas, config)
+export default getChart();
