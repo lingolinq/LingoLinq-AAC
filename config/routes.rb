@@ -35,7 +35,6 @@ LingoLinq::Application.routes.draw do
 
   root ember_handler
   get '/goal_status/:goal_id/:goal_code' => 'boards#log_goal_status'
-  get '/cache' => 'boards#cache'
   get '/videos/:source/:id' => 'boards#video'
   get '/privacy' => 'boards#privacy'
   get '/privacy_practices' => 'boards#privacy_practices'
@@ -65,72 +64,15 @@ LingoLinq::Application.routes.draw do
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
-  # if Rails.env.production?
-    offline = Rack::Offline.configure :cache_interval => 120 do
-      cache ActionController::Base.helpers.asset_path("application.css")
-      cache ActionController::Base.helpers.asset_path("application.js")
-      cache "/fonts/glyphicons-halflings-regular.eot"
-      cache "/fonts/glyphicons-halflings-regular.svg"
-      cache "/fonts/glyphicons-halflings-regular.ttf"
-      cache "/fonts/glyphicons-halflings-regular.woff"
-      cache "/fonts/OpenDyslexicAlta-Regular.otf"
-      cache "/fonts/ArchitectsDaughter.ttf"
-      cache "/images/star.png"
-      cache "/images/logo-small.png"
-      cache "/images/logo-big.png"
-      cache "/images/star_gray.png"
-      cache "/images/folder.png"
-      cache "/images/folder_home.png"
-      cache "/images/folder_integration.png"
-      cache "/images/spinner.gif"
-      cache "/images/talk.png"
-      cache "/images/link.png"
-      cache "/images/video.svg"
-      cache "/images/app.png"
-      cache "/images/orange.png"
-      cache "/images/preview.png"
-      cache "/images/stats.png"
-      cache "/images/microphone.svg"
-      cache "/images/upload.svg"
-      cache "/images/camera.svg"
-      cache "/images/delete.svg"
-      cache "/images/square.svg"
-      cache "/images/modeling_ideas.svg"
-      cache "/images/bar_chart.svg"
-      cache "/images/eye.svg"
-      cache "/images/cursor.png"
-      cache "/images/extras.svg"
-      cache "/images/blank.gif"
-      cache "/images/cc.png"
-      cache "/images/pd.png"
-      cache "/images/unknown_action.png"
-      cache "/images/settings.png"
-      cache "/images/jquery.minicolors.png"
-      cache "/images/web_version.svg"
-      cache "/images/ios_app_store.svg"
-      cache "/images/google_play.png"
-      cache "/images/amazon.png"
-      cache "/images/faces.png"
-      cache "/images/clock.png"
-      cache "/images/error.png"
-      cache "/images/check.png"
-      cache "/images/action.png"
-      cache "/offline"
-      # cache other assets
+  # Rack::Offline (rack-offline gem) removed: gem was abandoned (last release 2012),
+  # HTML5 AppCache was removed from all modern browsers. Offline support is handled
+  # by IndexedDB/SQLite in the Ember frontend.
 
-      fallback({"/" => "/offline"})
-      fallback({"/oauth2/" => "/404"})
-      fallback({"/api/" => "/offline.json"})
-
-      network "*"  
-    end
-    get "/application.manifest" => offline  
-  # end
-  
   get 'profile' => ember_handler
   get 'profile/:user_id/:profile_id' => ember_handler
   get 'search/:query' => ember_handler
   get 'search/:locale/:query' => ember_handler
+  get 'setup' => ember_handler
   get 'u/:reply_code' => 'boards#utterance_redirect'
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
@@ -165,6 +107,8 @@ LingoLinq::Application.routes.draw do
       get 'stats' => 'boards#stats'
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
+      post 'from_html' => 'boards#from_html', on: :collection
+      post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
       post 'stars' => 'boards#star'
       post 'slice_locales' => 'boards#slice_locales'

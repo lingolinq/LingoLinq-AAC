@@ -69,6 +69,7 @@ describe ExternalTracker do
     end
     
     it "should check for geo location based on ip address" do
+      ENV['IPSTACK_KEY'] = 'testkey'
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'eval'
@@ -102,6 +103,7 @@ describe ExternalTracker do
     end
     
     it "should push to external systems" do
+      ENV['IPSTACK_KEY'] = 'testkey'
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'therapist'

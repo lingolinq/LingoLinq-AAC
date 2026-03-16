@@ -79,7 +79,7 @@
             {{/if}}
             <button class='btn btn-default' {{action "edit_unit"}}>{{t "Edit Room" key="edit_room"}}</button>
           {{/if}}
-          {{#if this.model.permissions.edit}}
+          {{#if (and this.model.permissions.edit (or this.organization.premium this.model.permissions.delete))}}
           <span class="dropdown">
             <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
               {{t "Actions" key="actions"}}

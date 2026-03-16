@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import { isTesting } from '@ember/debug';
 import Route from '@ember/routing/route';
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';
@@ -130,7 +130,9 @@ export default Service.extend({
     // This prevents errors if window.persistence isn't ready yet
     var _this = this;
     runLater(function() {
-      _this._setupRefreshTimers();
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this._setupRefreshTimers();
+      }
     }, 0);
   },
 
@@ -184,7 +186,9 @@ export default Service.extend({
     this.set('button_list', []);
     // Defer stashes access until after service initialization is complete
     runLater(function() {
-      _this.set('stashes', _this.stashes);
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('stashes', _this.stashes);
+      }
     }, 0);
     this.set('geolocation', geolocation);
     this.set('installed_app', capabilities.installed_app);
@@ -204,6 +208,7 @@ export default Service.extend({
     var _this = this;
 
     capabilities.battery.listen(function(battery) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       battery.level = Math.round(battery.level * 100);
       if(battery.level != _this.get('battery.level') || battery.charging !== _this.get('battery.charging')) {
         _this.set('battery', battery);
@@ -232,6 +237,7 @@ export default Service.extend({
           }
         }
         var maybe_sound = function(type, attempt) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
           attempt = attempt || 0;
           if(_this.get('speak_mode') && _this.get('currentUser.preferences.battery_sounds')) {
             if(speecher.speaking) {
@@ -275,6 +281,7 @@ export default Service.extend({
                 if(!fulls.complete) {
                   fulls.complete = true; fulls.mostly = true; fulls.ready = true;
                   var remind = function() {
+                    if (_this.isDestroyed || _this.isDestroying) { return; }
                     // taper off reminders that the device is fully charged
                     if(_this.get('battery_fulls.complete') && battery.charging && battery.level == 100 && _this.get('battery_fulls.reminds') <= 3) {
                       maybe_sound('glug');
@@ -306,7 +313,9 @@ export default Service.extend({
       }
     });
     capabilities.ssid.listen(function(ssid) {
-      _this.set('current_ssid', ssid);
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('current_ssid', ssid);
+      }
     });
     capabilities.nfc.available().then(function(res) {
       if(res && res.background) {
@@ -349,7 +358,7 @@ export default Service.extend({
     modal.setup(route);
     this.set('browser', capabilities.browser);
     this.set('system', capabilities.system);
-    this.contentGrabbers.boardGrabber.transitioner = route;
+    this.contentGrabbers.boardGrabber.transitioner = this.router;
     LingoLinq.controller = controller;
     this.stashes.controller = controller;
     editManager.setup(controller, this, this.persistence, this.stashes);
@@ -366,9 +375,10 @@ export default Service.extend({
       // the app will force a logout unexpectedly.
       var find_user = function(last_try) {
         var find = LingoLinq.store.findRecord('user', 'self');
+        var _vb = (window.LingoLinq || {}).verboseDebug;
 
         find.then(function(user) {
-          console.log("user initialization working..");
+          if (_vb) { console.log("user initialization working.."); }
           try {
             if (user && typeof user.get === 'function') {
               try {
@@ -405,17 +415,21 @@ export default Service.extend({
             // console.log('[APP-STATE] find_user: user name mismatch, fetching by session as_user_id');
             valid_user = LingoLinq.store.findRecord('user', _this.session.get('as_user_id'));
           }
-          console.log('[APP-STATE] find_user: about to call valid_user.then()', {
-            valid_user_type: typeof valid_user,
-            is_promise: valid_user && typeof valid_user.then === 'function',
-            valid_user: valid_user
-          });
+          if (_vb) {
+            console.log('[APP-STATE] find_user: about to call valid_user.then()', {
+              valid_user_type: typeof valid_user,
+              is_promise: valid_user && typeof valid_user.then === 'function',
+              valid_user: valid_user
+            });
+          }
           valid_user.then(function(user) {
-            console.log('[APP-STATE] find_user: valid_user.then() called', {
+            if (_vb) {
+              console.log('[APP-STATE] find_user: valid_user.then() called', {
               has_user: !!user,
               user_type: typeof user,
               user_id: user && user.get ? user.get('id') : 'no get method'
-            });
+              });
+            }
             try {
               if(!user.get('fresh') && _this.stashes.get('online')) {
               // if online, try reloading, but it's ok if you can't
@@ -430,10 +444,12 @@ export default Service.extend({
             if(_this.session) {
               user.set('modeling_session', _this.session.get('modeling_session'));
             }
-            console.log('[APP-STATE] find_user: setting sessionUser', {
-              has_user: !!user,
-              user_id: user ? user.get('id') : null
-            });
+            if (_vb) {
+              console.log('[APP-STATE] find_user: setting sessionUser', {
+                has_user: !!user,
+                user_id: user ? user.get('id') : null
+              });
+            }
             LingoLinq.appState.set('sessionUser', user);
             
             // Manually trigger the observer to ensure currentUser is set
@@ -445,10 +461,12 @@ export default Service.extend({
                 user.save().then(null, function() { });
               }
               LingoLinq.appState.set('currentUser', user);
-              console.log('[APP-STATE] find_user: manually set currentUser', {
-                has_currentUser: !!LingoLinq.appState.get('currentUser'),
-                currentUser_id: LingoLinq.appState.get('currentUser') ? LingoLinq.appState.get('currentUser.id') : null
-              });
+              if (_vb) {
+                console.log('[APP-STATE] find_user: manually set currentUser', {
+                  has_currentUser: !!LingoLinq.appState.get('currentUser'),
+                  currentUser_id: LingoLinq.appState.get('currentUser') ? LingoLinq.appState.get('currentUser.id') : null
+                });
+              }
             }
             } catch(e) {
               console.error('[APP-STATE] find_user: error in valid_user.then() callback', e, e.stack);
@@ -1616,16 +1634,26 @@ export default Service.extend({
   },
   refresh_session_user: function() {
     var _this = this;
-    LingoLinq.store.findRecord('user', 'self').then(function(user) {
+    return LingoLinq.store.findRecord('user', 'self').then(function(user) {
       if(!user.get('fresh')) {
-        user.reload().then(function(user) {
+        return user.reload().then(function(reloadedUser) {
+          reloadedUser.set('modeling_session', _this.session.get('modeling_session'));
+          _this.set('sessionUser', reloadedUser);
+          return reloadedUser;
+        }, function() {
+          // On reload failure, still set sessionUser with the user we have
           user.set('modeling_session', _this.session.get('modeling_session'));
           _this.set('sessionUser', user);
-        }, function() { });
+          return user;
+        });
       }
       user.set('modeling_session', _this.session.get('modeling_session'));
       _this.set('sessionUser', user);
-    }, function() { });
+      return user;
+    }, function(err) {
+      // Propagate failure so caller can handle (e.g. don't transition on auth failure)
+      return RSVP.reject(err);
+    });
   },
   set_auto_synced: observer('sessionUser', 'sessionUser.auto_sync', function() {
     // Guard: check this before accessing properties
@@ -1840,30 +1868,39 @@ export default Service.extend({
   },
   set_current_user: observer('sessionUser', 'speak_mode', 'speakModeUser', function() {
     this.did_set_current_user = true;
-    console.log('[APP-STATE] set_current_user observer fired', {
-      has_sessionUser: !!this.get('sessionUser'),
-      sessionUser_id: this.get('sessionUser') ? this.get('sessionUser.id') : null,
-      speak_mode: this.get('speak_mode'),
-      has_speakModeUser: !!this.get('speakModeUser')
-    });
+    var _vb = (window.LingoLinq || {}).verboseDebug;
+    if (_vb) {
+      console.log('[APP-STATE] set_current_user observer fired', {
+        has_sessionUser: !!this.get('sessionUser'),
+        sessionUser_id: this.get('sessionUser') ? this.get('sessionUser.id') : null,
+        speak_mode: this.get('speak_mode'),
+        has_speakModeUser: !!this.get('speakModeUser')
+      });
+    }
     if(this.get('speak_mode') && this.get('speakModeUser')) {
       this.set('currentUser', this.get('speakModeUser'));
-      console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser');
+      if (_vb) { console.log('[APP-STATE] set_current_user: set currentUser to speakModeUser'); }
+      this.notifyPropertyChange("currentUser");
     } else {
       var user = this.get('sessionUser');
-      console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
-        has_user: !!user,
-        user_id: user ? user.get('id') : null
-      });
+      if (_vb) {
+        console.log('[APP-STATE] set_current_user: setting currentUser from sessionUser', {
+          has_user: !!user,
+          user_id: user ? user.get('id') : null
+        });
+      }
       if(user && user.get && !user.get('preferences.progress.app_added') && (navigator.standalone || (capabilities.installed_app && capabilities.mobile))) {
         user.set('preferences.progress.app_added', true);
         user.save().then(null, function() { });
       }
       this.set('currentUser', user);
-      console.log('[APP-STATE] set_current_user: currentUser set', {
-        has_currentUser: !!this.get('currentUser'),
-        currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
-      });
+      if (_vb) {
+        console.log('[APP-STATE] set_current_user: currentUser set', {
+          has_currentUser: !!this.get('currentUser'),
+          currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
+        });
+      }
+      runNext(() => this.notifyPropertyChange("currentUser"));
     }
     if(this.get('currentUser')) {
       this.set('currentUser.load_all_connections', true);
@@ -2008,7 +2045,6 @@ export default Service.extend({
           row.forEach(function(button) {
             var ref = button.get('border_color') + button.get('background_color');
             if(!knowns[ref] && ref) {
-              console.log("FOUND", ref);
               knowns[ref] = true;
               list.push({fill: button.get('background_color'), border: button.get('border_color')});
             }
@@ -2290,7 +2326,7 @@ export default Service.extend({
         }
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
-        capabilities.fullscreen(false);
+        var fullscreenPromise = capabilities.fullscreen(false);
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
@@ -2316,16 +2352,25 @@ export default Service.extend({
           if(LingoLinq.Board) {
             LingoLinq.Board.clear_fast_html();
           }
-          // Schedule a delayed re-render to catch viewport changes from
-          // async fullscreen exit or other deferred layout updates. The
-          // initial clear_fast_html triggers an immediate re-render, but
-          // dimensions may change once fullscreen has fully exited (async).
+          // Schedule a re-render after fullscreen exit so layout reflects the new
+          // viewport. capabilities.fullscreen(false) returns a promise that resolves
+          // once we're out of fullscreen; we use runNext after that to allow one
+          // layout frame before processButtons.
           var _controller = editManager.controller;
-          runLater(function() {
-            if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
-              _controller.processButtons();
-            }
-          }, 600);
+          var doProcessButtons = function() {
+            runNext(function() {
+              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
+                _controller.processButtons();
+              }
+            });
+          };
+          if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {
+            fullscreenPromise.then(doProcessButtons, function() {
+              runLater(doProcessButtons, 200);
+            });
+          } else {
+            runLater(doProcessButtons, 600);
+          }
         }
       }
       this.refresh_suggestions();
@@ -2381,18 +2426,19 @@ export default Service.extend({
     }
   ),
   refresh_suggestions: function() {
-    if(this.controller && this.controller.get('board.model')) {
+    var board = this.controller && this.controller.get('board.model');
+    if(board && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
-      var ref = this.controller.get('board.model.id') + "::" + history_string + "::" + this.get('shift');
-      if(true || ref != this.get('suggestion_id')) {
-        var $board = $(".board[data-id='" + this.controller.get('board.model.id') + "']");
+      var ref = board.id + "::" + history_string + "::" + this.get('shift');
+      if(ref != this.get('suggestion_id')) {
+        var $board = $(".board[data-id='" + board.id + "']");
         if($board.length > 0) {
           this.set('suggestion_id', ref);
-          this.controller.get('board.model').clear_real_time_changes();
-          this.controller.get('board.model').load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
+          board.clear_real_time_changes();
+          board.load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
           if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
-            this.controller.get('board.model').load_real_time_inflections();
+            board.load_real_time_inflections();
           }
         }
       }
@@ -2940,7 +2986,7 @@ export default Service.extend({
     }
   }),
   testing: computed(function() {
-    return Ember.testing;
+    return isTesting();
   }),
   logging_paused: computed('stashes.logging_paused_at', function() {
     return !!this.stashes.get('logging_paused_at');

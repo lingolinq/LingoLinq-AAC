@@ -11,7 +11,7 @@
       <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
-          {{#if model.load_board.key}}
+          {{#if this.model.load_board.key}}
             <img src={{this.model.icon}} style="height: 20px;">
             <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
@@ -55,7 +55,7 @@
                   <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
-                {{#with this.confirm_found_board as |board|}}
+                {{#let this.confirm_found_board as |board|}}
                   <div class="col-sm-4">
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
@@ -120,7 +120,7 @@
                                share with them? -->
                     <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key="copy_this_board"}}</button>
                   </div>
-                {{/with}}
+                {{/let}}
               {{/if}}
             </div>
           {{else}}
@@ -129,7 +129,7 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=this.foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" onAction=(action "selectFoundBoard") locale=this.foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>

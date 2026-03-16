@@ -24,7 +24,8 @@ describe UserIntegration, :type => :model do
     end
     
     it "should asssert a device" do
-      ui = UserIntegration.new(:settings => {})
+      u = User.create
+      ui = UserIntegration.new(:settings => {}, :user => u)
       ui.generate_defaults
       expect(ui.device).to_not eq(nil)
     end
@@ -32,7 +33,8 @@ describe UserIntegration, :type => :model do
   
   describe "assert_device" do
     it "should create the device if not present" do
-      ui = UserIntegration.new(:settings => {})
+      u = User.create
+      ui = UserIntegration.new(:settings => {}, :user => u)
       ui.assert_device
       expect(ui.device).to_not eq(nil)
       
@@ -46,7 +48,7 @@ describe UserIntegration, :type => :model do
     
     it "should link the device to the integration once it's saved" do
       u = User.create
-      ui = UserIntegration.create
+      ui = UserIntegration.create(:user => u)
       expect(ui.device).to_not eq(nil)
       d = ui.device
       expect(d.user_integration).to eq(ui)
@@ -54,7 +56,7 @@ describe UserIntegration, :type => :model do
     
     it "should apply the default scope by default to the device" do
       u = User.create
-      ui = UserIntegration.create
+      ui = UserIntegration.create(:user => u)
       expect(ui.device).to_not eq(nil)
       expect(ui.device.permission_scopes).to eq(['read_profile'])
     end
@@ -62,7 +64,7 @@ describe UserIntegration, :type => :model do
   
   describe "assert_webhooks" do
     it "should install webhooks" do
-      ui = UserIntegration.create
+      ui = UserIntegration.create(:user => User.create)
       ui.assert_webhooks
       expect(Worker.scheduled?(UserIntegration, 'perform_action', {'method' => 'assert_webhooks', 'id' => ui.id, 'arguments' => [true]})).to eq(false)
       ui.instance_variable_set('@install_default_webhooks', true)
@@ -93,7 +95,7 @@ describe UserIntegration, :type => :model do
     
     it "should not install button action webhook if already installed" do
       u = User.create
-      wh = Webhook.create
+      wh = Webhook.create(:user => u)
       ui = UserIntegration.create(:user => u, :settings => {
         'button_webhook_url' => 'http://www.example.com',
         'button_webhook_id' => wh.global_id
@@ -367,7 +369,7 @@ describe UserIntegration, :type => :model do
   describe "placement_code" do
     it "should generate correct values" do
       u = User.create
-      ui = UserIntegration.create
+      ui = UserIntegration.create(:user => u)
       expect { ui.placement_code() }.to raise_error("needs at least one arg")
       expect { ui.placement_code("asdf", 5) }.to raise_error("strings only")
       expect(ui.settings['static_token']).to_not eq(nil)
@@ -381,9 +383,9 @@ describe UserIntegration, :type => :model do
     it "should delete related webhooks on destroy" do
       u = User.create
       ui = UserIntegration.create(:user => u)
-      wh1 = Webhook.create(:user_integration => ui)
-      wh2 = Webhook.create(:user_integration => ui)
-      wh3 = Webhook.create
+      wh1 = Webhook.create(:user_integration => ui, :user => u)
+      wh2 = Webhook.create(:user_integration => ui, :user => u)
+      wh3 = Webhook.create(:user => u)
       expect(wh1.user_integration_id).to eq(ui.id)
       ui.destroy
       expect(Webhook.find_by(:id => wh1.id)).to eq(nil)
@@ -394,12 +396,14 @@ describe UserIntegration, :type => :model do
   
   describe "global_integrations" do
     it "should return a list of found integrations" do
-      expect(RedisInit.permissions).to receive(:get).with('global_integrations').and_return(nil).at_least(2).times
-      expect(RedisInit.permissions).to receive(:setex).exactly(2).times
+      allow(RedisInit.permissions).to receive(:get).and_return(nil)
+      expect(RedisInit.permissions).to receive(:get).with('global_integrations').at_least(:twice)
+      allow(RedisInit.permissions).to receive(:setex)
       expect(UserIntegration.global_integrations).to eq({})
-      ui1 = UserIntegration.create(:integration_key => 'asdf', :settings => {'global' => true})
-      ui2 = UserIntegration.create(:integration_key => 'qwer')
-      ui3 = UserIntegration.create(:settings => {'global' => true})
+      u = User.create
+      ui1 = UserIntegration.create(:integration_key => 'asdf', :settings => {'global' => true}, :user => u)
+      ui2 = UserIntegration.create(:integration_key => 'qwer', :user => u)
+      ui3 = UserIntegration.create(:settings => {'global' => true}, :user => u)
       expect(UserIntegration.global_integrations).to eq({'asdf' => ui1.global_id})
     end
     
@@ -410,12 +414,15 @@ describe UserIntegration, :type => :model do
     end
     
     it "should cached the result if computed" do
-      expect(RedisInit.permissions).to receive(:get).with('global_integrations').and_return(nil).at_least(2).times
+      allow(RedisInit.permissions).to receive(:get).and_return(nil)
+      expect(RedisInit.permissions).to receive(:get).with('global_integrations').at_least(:twice)
+      allow(RedisInit.permissions).to receive(:setex)
       expect(RedisInit.permissions).to receive(:setex).with('global_integrations', 30.minutes.to_i, '{}')
       expect(UserIntegration.global_integrations).to eq({})
-      ui1 = UserIntegration.create(:integration_key => 'asdf', :settings => {'global' => true})
-      ui2 = UserIntegration.create(:integration_key => 'qwer')
-      ui3 = UserIntegration.create(:settings => {'global' => true})
+      u = User.create
+      ui1 = UserIntegration.create(:integration_key => 'asdf', :settings => {'global' => true}, :user => u)
+      ui2 = UserIntegration.create(:integration_key => 'qwer', :user => u)
+      ui3 = UserIntegration.create(:settings => {'global' => true}, :user => u)
       expect(RedisInit.permissions).to receive(:setex).with('global_integrations', 30.minutes.to_i, {'asdf' => ui1.global_id}.to_json)
       expect(UserIntegration.global_integrations).to eq({'asdf' => ui1.global_id})
     end
@@ -423,16 +430,16 @@ describe UserIntegration, :type => :model do
   
   describe "user_token" do
     it "should generate a token" do
-      ui = UserIntegration.create
       u = User.create
+      ui = UserIntegration.create(:user => u)
       token = ui.user_token(u)
       expect(token).to_not eq(nil)
       expect(token.length).to be > 50
     end
     
     it "should generate the same token on repeat requests" do
-      ui = UserIntegration.create
       u = User.create
+      ui = UserIntegration.create(:user => u)
       token = ui.user_token(u)
       expect(token).to_not eq(nil)
       expect(token).to eq(ui.user_token(u))
@@ -442,14 +449,15 @@ describe UserIntegration, :type => :model do
     end
     
     it "should return nil for no user" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(:user => u)
       expect(ui.user_token(nil)).to eq(nil)
     end
     
     it "should include a decipherable user_id" do
       10.times do 
-        ui = UserIntegration.create
         u = User.create
+        ui = UserIntegration.create(:user => u)
         token = ui.user_token(u)
         expect(token).to_not eq(nil)
         user_id = token.split(/:/)[0]
@@ -458,7 +466,8 @@ describe UserIntegration, :type => :model do
     end
     
     it "should generate unique values for obfuscation_offset" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(:user => u)
       200.times do |i|
         last = ui.settings['obfuscation_offset'].to_a.map(&:last).uniq
         ui.settings['obfuscation_offset'] = nil
@@ -472,12 +481,14 @@ describe UserIntegration, :type => :model do
 
   describe "user_from_token" do
     it "should return nil without a token" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(:user => u)
       expect(ui.user_from_token(nil)).to eq(nil)
     end
 
     it "should return nil with a mismatched integration id" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(:user => u)
       expect(ui.user_from_token("asdf")).to eq(nil)
       expect(ui.user_from_token("asdf:asdf")).to eq(nil)
       expect(ui.user_from_token("asdf:asdf:asdf")).to eq(nil)
@@ -487,7 +498,8 @@ describe UserIntegration, :type => :model do
     end
 
     it "should find the correct user based on the token" do
-      ui = UserIntegration.create
+      u = User.create
+      ui = UserIntegration.create(:user => u)
       u = User.create
       token = ui.user_token(u)
       expect(ui.user_from_token(token)).to eq(u)
@@ -507,8 +519,9 @@ describe UserIntegration, :type => :model do
     end
 
     it "should POST update if configured" do
+      u = User.create
       dk = DeveloperKey.create
-      ui = UserIntegration.create(integration_key: 'communication_workshop')
+      ui = UserIntegration.create(integration_key: 'communication_workshop', user: u)
       ui.device.developer_key = dk
       ui.device.save
       ui.reload
@@ -526,7 +539,7 @@ describe UserIntegration, :type => :model do
     it "should send anonymized user id if available" do
       u = User.create
       dk = DeveloperKey.create
-      ui = UserIntegration.create(integration_key: 'communication_workshop')
+      ui = UserIntegration.create(integration_key: 'communication_workshop', user: u)
       ui.device.developer_key = dk
       ui.device.save
       ui.reload

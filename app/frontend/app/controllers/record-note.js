@@ -165,8 +165,9 @@ export default modal.ModalController.extend({
           goal_id: _this.get('goal_id'),
           goal_status: _this.get('goal_status'),
           notify: notify
-        }, this.get('model.id'));
+        }, _this.get('model.id'));
         stashes.push_log(true);
+        modal.close(true);
       };
       if(persistence.get('online')) {
         var log = _this.store.createRecord('log', {

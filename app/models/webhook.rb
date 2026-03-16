@@ -10,7 +10,7 @@ class Webhook < ActiveRecord::Base
   secure_serialize :settings
   include Replicate
   belongs_to :user
-  belongs_to :user_integration
+  belongs_to :user_integration, optional: true  # webhooks can exist without integration (e.g. register)
   before_save :generate_defaults
   after_destroy :delete_user_integration
   
@@ -232,8 +232,9 @@ class Webhook < ActiveRecord::Base
   end
   
   def process_params(params, non_user_params)
-    raise "user required" unless self.user || non_user_params['user']
-    self.user = non_user_params['user']
+    user_param = non_user_params[:user] || non_user_params['user']
+    raise "user required" unless self.user || user_param
+    self.user = user_param
     self.settings ||= {}
     self.settings['notifications'] ||= {}
     if params['user_integration_id']
@@ -246,9 +247,10 @@ class Webhook < ActiveRecord::Base
     self.settings['webhook_type'] = params['webhook_type'] if params['webhook_type']
 
     if params['webhook_type'] == 'user'
-      if non_user_params['notifications']
+      notifications_param = non_user_params[:notifications] || non_user_params['notifications']
+      if notifications_param
         self.settings['advanced_configuration'] = true
-        non_user_params['notifications'].each do |key, opts|
+        notifications_param.each do |key, opts|
           if key == '*' || USER_WEBHOOKS.include?(key)
             self.settings['notifications'][key] ||= []
             if opts['callback'] && opts['callback'].match(/^http/)

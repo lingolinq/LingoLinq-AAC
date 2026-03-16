@@ -63,11 +63,11 @@
                 {{/if}}
               {{/each}}
             </div>
-            {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
+            <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
           {{else}}
             {{#if (persistence-online)}}
               <p>{{t "None found" key="none_found"}}</p>
-              {{#link-to "user.index" this.app_state.currentUser.user_name}}{{t "See All My Boards" key="see_all_my_boards"}}{{/link-to}}
+              <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
             {{else}}
               <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
             {{/if}}

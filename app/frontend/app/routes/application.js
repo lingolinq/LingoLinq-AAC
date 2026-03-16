@@ -3,6 +3,7 @@ import { later as runLater } from '@ember/runloop';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
+import lingoLinqExtras from '../utils/extras';
 import geo from '../utils/geo';
 import progress_tracker from '../utils/progress_tracker';
 import ttsVoices from '../utils/tts_voices';
@@ -56,6 +57,7 @@ export default Route.extend({
   },
   setupController: function(controller) {
     // Setup utilities with injected services
+    lingoLinqExtras.register_services(this.appState, this.stashes);
     speecher.setup(this.appState, this.persistence, this.stashes, ttsVoices);
     geo.setup(this.appState, this.persistence, this.stashes);
     progress_tracker.setup(this.persistence);

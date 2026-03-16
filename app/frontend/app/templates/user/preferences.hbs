@@ -372,19 +372,18 @@
         </div>
       </div>
     {{/if}}
-    {{#if this.app_state.feature_flags.inflections_overlay}}
-      <div class="form-group">
-        <label for="inflections_overlay" class="col-sm-3 control-label">{{t "Long-Press" key='long_press'}}</label>
-        <div class="col-sm-5">
-          <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" />
-              {{t "Show inflection options on long-press in Speak Mode" key='inflections_overlay'}}
-            </label>
-          </div>
+    {{! Was gated by this.app_state.feature_flags.inflections_overlay - remove #if to restore flag use }}
+    <div class="form-group">
+      <label for="inflections_overlay" class="col-sm-3 control-label">{{t "Long-Press" key='long_press'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" />
+            {{t "Show inflection options on long-press in Speak Mode" key='inflections_overlay'}}
+          </label>
         </div>
       </div>
-    {{/if}}
+    </div>
     {{#unless this.pending_preferences.activation_on_start}}
       <div class="form-group">
         <label for="activation_location" class="col-sm-3 control-label">{{t "Select Based on" key='activation_location'}}</label>
@@ -943,18 +942,18 @@
     <div class="form-group">
       <label for="core_word_list" class="col-sm-3 control-label">{{t "Core Word List" key='core_word_list'}}</label>
       <div class='col-sm-6'>
-        {{#if core_lists.loading}}
+        {{#if this.core_lists.loading}}
           <p class='form-control-static'>{{t "Loading..." key='loading'}}</p>
-        {{else if core_lists.error}}
+        {{else if this.core_lists.error}}
           <p class='form-control-static'>{{t "Error loading core word list" key='error_loading_core_word_list'}}</p>
-        {{else if core_lists}}
+        {{else if this.core_lists}}
           <p class='form-control-static'><em>{{t "Core words are the most common words in a language, and often express multiple intents or meanings. The following list of words will be marked as \"core\" (as opposed to \"fringe\") for this user." key='core_words_explainer'}}</em></p>
           <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
-            {{raw_user_core_list}}
+            {{this.raw_user_core_list}}
           </div>
           <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
           <span style='padding-left: 10px;'>
-            {{t "core word" count=core_lists.for_user.length}}
+            {{t "core word" count=this.core_lists.for_user.length}}
             {{t "listed" key='listed'}}
           </span>
         {{else}}
@@ -978,17 +977,17 @@
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <Textarea @value={{substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
+          <Textarea @value={{this.substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
         </div>
       </div>
-      {{#if core_lists.for_user}}
+      {{#if this.core_lists.for_user}}
         <div class="form-group">
           <label for="core_word_list" class="col-sm-3 control-label">{{t "Requested Buttons" key='requested_buttons'}}</label>
           <div class='col-sm-6'>
             <p class='form-control-static'><em>{{t "Communicators and supporters can request that phrases or words be added to a communicator's vocabulary set. Those requests are listed here." key='requested_phrases_explainer'}}</em></p>
             <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
-              {{#if requested_phrases}}
-                {{#each requested_phrases as |phrase|}}
+              {{#if this.requested_phrases}}
+                {{#each this.requested_phrases as |phrase|}}
                   <div style='padrequested_phrase_changesding-left: 10px;'>
                     {{#if phrase.used}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
                     {{phrase.text}}
@@ -1073,14 +1072,14 @@
       <div class="form-group">
         <label class="col-sm-3 control-label">{{t "Links and Buttons" key='links_and_buttons'}}</label>
         <div class="col-sm-5">
-          {{#unless editing_sidebar}}
+          {{#unless this.editing_sidebar}}
             <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button><br>
           {{else}}
             <p class="form-control-static">
               <strong>Active</strong>
             </p>
             <ul class="list-group">
-              {{#each active_sidebar_options as |option|}}
+              {{#each this.active_sidebar_options as |option|}}
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}>
                   <span style="float: right; margin-top: 5px;">
@@ -1103,12 +1102,12 @@
                 </li>
               {{/each}}
             </ul>
-            {{#if disabled_sidebar_options_or_prior_sidebar_boards}}
+            {{#if this.disabled_sidebar_options_or_prior_sidebar_boards}}
               <p class="form-control-static">
                 <strong>Disabled</strong>
               </p>
               <ul class="list-group">
-                {{#each disabled_sidebar_options as |option|}}
+                {{#each this.disabled_sidebar_options as |option|}}
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
@@ -1125,7 +1124,7 @@
                 {{/each}}
               </ul>
               {{#if this.pending_preferences.prior_sidebar_boards}}
-                {{#unless include_prior_sidebar_buttons}}
+                {{#unless this.include_prior_sidebar_buttons}}
                   <a href="#" {{action 'include_prior_sidebar_buttons'}}>{{t "show prior sidebar links and buttons" key='show_prior_buttons'}}</a>
                 {{/unless}}
               {{/if}}
@@ -1135,10 +1134,10 @@
                 <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder="add board key/action" />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{action 'add_sidebar_board' new_sidebar_board}}>{{t "Add" key='add'}}</button>
+                <button class='btn btn-default' {{action 'add_sidebar_board' this.new_sidebar_board}}>{{t "Add" key='add'}}</button>
               </span>
-              {{#if add_sidebar_board_error}}
-                <p class='text-danger'>{{add_sidebar_board_error}}</p>
+              {{#if this.add_sidebar_board_error}}
+                <p class='text-danger'>{{this.add_sidebar_board_error}}</p>
               {{/if}}
             </div>
           {{/unless}}
@@ -1157,7 +1156,7 @@
               {{t "No tags saved" key='no_tags_saved'}}
             {{/if}}
           </p>
-          {{#if can_record_tags}}
+          {{#if this.can_record_tags}}
             <button class='btn btn-default' {{action 'program_tag'}}>{{t "Save New Tag" key='save_new_tag'}}</button>
           {{/if}}
           <button class='btn btn-default' {{action 'clear_nfc_tags'}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
@@ -1568,7 +1567,7 @@
                 {{#unless this.native_eyegaze_capable}}
                   <p class='form-control-static text-danger'>
                     {{t "Integrated eye trackers will only work in the" key='eyegaze_windows_only_1'}}
-                    {{#link-to 'download'}}{{t "Windows app" key='windows_app'}}{{/link-to}}.
+                    <LinkTo @route="download">{{t "Windows app" key='windows_app'}}</LinkTo>.
                     {{t "If your eye tracker can control the mouse cursor, you can try dwell tracking instead." key='eyegaze_windows_only_2'}}
                   </p>
                 {{/unless}}

@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import templateHelpers from '../utils/template_helpers';
 import {
   later as runLater,
   cancel as runCancel
@@ -78,6 +78,12 @@ LingoLinq.Board = DS.Model.extend({
   categories: DS.attr('raw'),
   home_board: DS.attr('boolean'),
   has_fallbacks: DS.attr('boolean'),
+  /** When loaded by key, the API returns global_id as id; we normalize to key and store backend id here. */
+  _actual_id: DS.attr('string'),
+  /** Backend global_id for comparisons (e.g. preferences.home_board.id). Use this when comparing with server ids. */
+  global_id: computed('id', '_actual_id', function() {
+    return this.get('_actual_id') || this.get('id');
+  }),
   valid_id: computed('id', function() {
     return !!(this.get('id') && this.get('id') != 'bad');
   }),
@@ -152,7 +158,7 @@ LingoLinq.Board = DS.Model.extend({
   nothing_visible: computed('buttons', 'grid', function() {
     var found_visible = false;
     this.get('used_buttons').forEach(function(button) {
-      if(button && button.hidden !== true) {
+      if(button && !button.hidden) {
         found_visible = true;
       }
     });
@@ -249,6 +255,7 @@ LingoLinq.Board = DS.Model.extend({
   local_images_with_license: computed('grid', 'buttons', function() {
     var images = LingoLinq.store.peekAll('image');
     var result = [];
+    var seen_ids = {};
     var missing = false;
     var fallbacks = this.get('fallback_images') || [];
     this.get('used_buttons').forEach(function(button) {
@@ -262,34 +269,13 @@ LingoLinq.Board = DS.Model.extend({
             } else {
               LingoLinq.store.findRecord('image', button.image_id).then(function(img) {
                 image.set('license', img.get('license'));
-              });    
+              });
             }
           }
-          result.push(image);
-          var need_reload = [];
-          (image.get('alternates') || []).forEach(function(alternate) {
-            var img = LingoLinq.store.createRecord('image')
-            img.set('url', alternate.url);
-            img.set('library', alternate.library);
-            if(!alternate.license) {
-              need_reload.push(img);
-            }
-            img.set('license', alternate.license);
-            result.push(img);
-          });
-          if(need_reload.length > 0) {
-            if(!image.reloading_promise) {
-              image.reloading_promise = image.reload();
-            }
-            image.reloading_promise.then(function(image) {
-              image.reloading_promise = null;
-              image.get('alternates').forEach(function(alt) {
-                var alternate = need_reload.find(function(a) { return a.get('library') == alt.library; })
-                if(alternate) {
-                  alternate.set('license', alt.license);
-                }
-              });
-            }, function() { });
+          // Only include each unique image once; alternates share the same license
+          if(!seen_ids[image.get('id')]) {
+            seen_ids[image.get('id')] = true;
+            result.push(image);
           }
         } else {
 //          console.log('missing image ' + button.image_id);
@@ -297,7 +283,6 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
     });
-    result = result.uniq();
     result.some_missing = missing;
     return result;
   }),
@@ -465,6 +450,9 @@ LingoLinq.Board = DS.Model.extend({
     return res;
   },
   contextualized_buttons: function(label_locale, vocalization_locale, history, capitalize, inflection_shift) {
+    if(this.get('isDeleted')) {
+      return [];
+    }
     var t = (this.get('updated') || (new Date()))
     if(t.getTime) { t = t.getTime(); }
     var state = JSON.stringify({hh: this.get('update_hash'), u: t, ll: label_locale, vl: vocalization_locale, h: history, c: capitalize, is: inflection_shift, sp: this.appState.get('speak_mode'), fw: this.appState.get('focus_words'), fid: this.get('focus_id'), uid: this.appState.get('sessionUser.id'), ai: this.appState.get('referenced_user.preferences.auto_inflections'), sk: this.appState.get('referenced_user.preferences.skin'), r: this.get('current_revision')});
@@ -730,7 +718,7 @@ LingoLinq.Board = DS.Model.extend({
     return unused;
   }),
   long_preview: computed('name', 'labels', 'user_name', 'created', function() {
-    var date = Ember.templateHelpers.date(this.get('created'), 'day');
+    var date = templateHelpers.date(this.get('created'), 'day');
     var labels = this.get('labels');
     if(labels && labels.length > 100) {
       var new_labels = "";
@@ -1203,6 +1191,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_real_time_inflections: function() {
+    if(this.get('isDeleted')) {
+      return;
+    }
     var history = this.stashes.get('working_vocalization') || [];
     // TODO: update inflections for linked buttons as well
     // for load_board settings add a new option to support inflections
@@ -1232,6 +1223,9 @@ LingoLinq.Board = DS.Model.extend({
     });
   },
   load_word_suggestions: function(board_ids) {
+    if(this.get('isDeleted')) {
+      return null;
+    }
     var working = [].concat(this.stashes.get('working_vocalization') || []);
     var in_progress = null;
     if(working.length > 0 && working[working.length - 1].in_progress) {
@@ -1463,6 +1457,14 @@ LingoLinq.Board = DS.Model.extend({
       var persistence = _this.persistence || (typeof window !== 'undefined' && window.persistence);
       var url_cache = persistence && persistence.url_cache ? persistence.url_cache : {};
       var local_image_url = url_cache[pref_original_image_url || 'none'] || url_cache[original_image_url || 'none'] || url_cache[unvarianted_image_url || 'none'] || pref_original_image_url || original_image_url || 'none';
+      // Fallback for word art and other images (e.g. data URLs) that may not be in image_urls
+      if((!local_image_url || local_image_url === 'none') && button.image_id) {
+        var locals = _this.get('local_images_with_license') || [];
+        var img = locals.find(function(l) { return l.get && String(l.get('id')) === String(button.image_id); });
+        if(img && img.get('url')) {
+          local_image_url = img.get('url');
+        }
+      }
       var hc = !pref_original_image_url && !!(_this.get('hc_image_ids') || {})[button.image_id];
       var local_sound_url = (url_cache[(_this.get('sound_urls') || {})[button.sound_id] || 'none'] || (_this.get('sound_urls') || {})[button.sound_id] || 'none');
       var opts = Button.button_styling(button, _this, pos);
@@ -1477,7 +1479,8 @@ LingoLinq.Board = DS.Model.extend({
 
       res = res + "<span style='" + opts.image_holder_style + "'>";
       var appState = _this.appState || (typeof window !== 'undefined' && window.appState);
-      if(appState && !appState.get('currentUser.hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
+      var userForDisplay = (appState && appState.get('speak_mode')) ? appState.get('referenced_user') : appState.get('currentUser');
+      if(appState && userForDisplay && !userForDisplay.get('hide_symbols') && local_image_url && local_image_url != 'none' && !_this.get('text_only') && !button.text_only) {
         res = res + "<img src=\"" + Button.clean_url(local_image_url) + "\" rel=\"" + Button.clean_url(pref_original_image_url || original_image_url) + "\" onerror='button_broken_image(this);' draggable='false' style='" + opts.image_style + "' class='symbol " + (hc ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
@@ -1507,7 +1510,8 @@ LingoLinq.Board = DS.Model.extend({
     };
     var html = "";
 
-    var devicePrefs = (this.appState && this.appState.get('currentUser.preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
+    var displayUser = (this.appState && this.appState.get('speak_mode')) ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+    var devicePrefs = (displayUser && displayUser.get && displayUser.get('preferences.device')) || (typeof window !== 'undefined' && window.user_preferences && window.user_preferences.device);
     var text_position = "text_position_" + (devicePrefs && devicePrefs.button_text_position ? devicePrefs.button_text_position : 'top');
     if(this.get('text_only')) { text_position = "text_position_text_only"; }
 
@@ -1610,24 +1614,8 @@ LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
-      // Reset classes_added so board.add_classes() can re-run with fresh
-      // display_class values on the next speak mode entry
-      b.set('classes_added', false);
     });
-    // Clear stale ordered_buttons to prevent the template from rendering
-    // old Button objects while new ones are being created asynchronously.
-    // Without this, old buttons from a previous render cycle may display
-    // with stale state (wrong display_class, positioning, etc.)
-    if(editManager.controller) {
-      editManager.controller.set('ordered_buttons', null);
-    }
-    // Trigger a full board reload via board_reload_key. This fires the
-    // processButtons observer which does computeHeight + process_for_displaying
-    // in the correct sequence.
-    var appState = editManager.appState;
-    if(appState && typeof appState.set === 'function') {
-      appState.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
-    } else if(editManager.controller) {
+    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
   },

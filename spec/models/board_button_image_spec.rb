@@ -1,20 +1,22 @@
 require 'spec_helper'
 
 describe BoardButtonImage, :type => :model do
+  let(:u) { User.create }
+
   describe "images_for_board" do
     it "should return all button_images connected to a specific board" do
-      i = ButtonImage.create
-      bi = BoardButtonImage.create(:board_id => 1, :button_image_id => i.id)
-      expect(BoardButtonImage.images_for_board(1).to_a).to eq([i])
+      i = ButtonImage.create(:user => u)
+      b = Board.create(:user => u)
+      bi = BoardButtonImage.create(:board_id => b.id, :button_image_id => i.id)
+      expect(BoardButtonImage.images_for_board(b.id).to_a).to eq([i])
     end
   end
   
   describe "connect" do
     it "create connections for all found refs" do
-      u = User.create
       b = Board.create(:user => u)
-      i = ButtonImage.create
-      i2 = ButtonImage.create
+      i = ButtonImage.create(:user => u)
+      i2 = ButtonImage.create(:user => u)
       BoardButtonImage.connect(b.id, [{:id => i.global_id}, {:id => i2.id + 3}])
       expect(BoardButtonImage.count).to eq(1)
       bi = BoardButtonImage.last
@@ -22,9 +24,8 @@ describe BoardButtonImage, :type => :model do
     end
     
     it "should not track use for images even if user_id is provided" do
-      u = User.create
       b = Board.create(:user => u)
-      i = ButtonImage.create
+      i = ButtonImage.create(:user => u)
       expect(ButtonImage).to_not receive(:track_image_use).with({
         'label' => "hat",
         'external_id' => nil,
@@ -41,10 +42,9 @@ describe BoardButtonImage, :type => :model do
   
   describe "disconnect" do
     it "should delete connections for all found refs" do
-      u = User.create
       b = Board.create(:user => u)
-      i = ButtonImage.create
-      i2 = ButtonImage.create
+      i = ButtonImage.create(:user => u)
+      i2 = ButtonImage.create(:user => u)
       BoardButtonImage.connect(b.id, [{:id => i.global_id}, {:id => i2.global_id}])
       expect(BoardButtonImage.count).to eq(2)
       BoardButtonImage.disconnect(b.id, [{:id => i.global_id}, {:id => i2.id + 3}])
@@ -59,11 +59,10 @@ describe BoardButtonImage, :type => :model do
     end
     
     it "should disconnect orphaned records and connect new buttons" do
-      u = User.create
       b = Board.create(:user => u)
-      i = ButtonImage.create
-      i2 = ButtonImage.create
-      i3 = ButtonImage.create
+      i = ButtonImage.create(:user => u)
+      i2 = ButtonImage.create(:user => u)
+      i3 = ButtonImage.create(:user => u)
       BoardButtonImage.create(:board_id => b.id, :button_image_id => i.id)
       expect(BoardButtonImage.count).to eq(1)
       expect(BoardButtonImage.all.map(&:button_image_id)).to eq([i.id])

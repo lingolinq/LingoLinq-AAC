@@ -15,7 +15,8 @@ describe Api::ProfilesController, :type => :controller do
 
     it "should require authorization" do
       token_user
-      template = ProfileTemplate.create
+      u = User.create
+      template = ProfileTemplate.create(user: u)
       get 'show', params: {id: template.global_id}
       assert_unauthorized
     end
@@ -150,7 +151,7 @@ describe Api::ProfilesController, :type => :controller do
       org = Organization.create(settings: {'total_licenses' => 2})
       org.add_user(@user.user_name, false)
       org.add_supervisor(@user.user_name, false)
-      t1 = ProfileTemplate.create(public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
+      t1 = ProfileTemplate.create(user: @user, public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
       org.settings['communicator_profile'] = {
         'profile_id' => 'cole'
       }
@@ -173,7 +174,7 @@ describe Api::ProfilesController, :type => :controller do
       org = Organization.create(settings: {'total_licenses' => 2})
       org.add_user(@user.user_name, false)
       org.add_supervisor(@user.user_name, false)
-      t1 = ProfileTemplate.create(public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
+      t1 = ProfileTemplate.create(user: @user, public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
       org.settings['communicator_profile'] = {
         'profile_id' => 'cole',
         'frequency' => 12.months.to_i
@@ -199,7 +200,7 @@ describe Api::ProfilesController, :type => :controller do
       org = Organization.create(settings: {'total_licenses' => 2})
       org.add_user(@user.user_name, false)
       org.add_supervisor(@user.user_name, false)
-      t1 = ProfileTemplate.create(public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
+      t1 = ProfileTemplate.create(user: @user, public_profile_id: 'cheese', settings: {'public' => true, 'profile' => {'name' => 'Cheese'}})
       org.settings['communicator_profile'] = {
         'profile_id' => 'cole',
         'frequency' => 12.months.to_i

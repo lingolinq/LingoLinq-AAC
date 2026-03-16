@@ -2,11 +2,13 @@ require 'spec_helper'
 
 describe UserBoardConnection, :type => :model do
   it "should always have a value for home" do
-    u = UserBoardConnection.create
-    expect(u.home).to eq(false)
-    u.home = nil
-    u.save
-    expect(u.home).to eq(false)
+    u = User.create
+    b = Board.create(user: u)
+    ubc = UserBoardConnection.create(user: u, board: b)
+    expect(ubc.home).to eq(false)
+    ubc.home = nil
+    ubc.save
+    expect(ubc.reload.home).to eq(false)
   end
   
   it "should be created for home boards" do
@@ -21,9 +23,10 @@ describe UserBoardConnection, :type => :model do
   
   it "should match parent_board_id to board's parent_board_id" do
     u = User.create
-    b = Board.create(user: u, parent_board_id: 1114)
-    ubc = UserBoardConnection.create(board: b)
-    expect(ubc.parent_board_id).to eq(1114)
+    parent = Board.create(user: u)
+    b = Board.create(user: u, parent_board_id: parent.id)
+    ubc = UserBoardConnection.create(board: b, user: u)
+    expect(ubc.parent_board_id).to eq(parent.id)
   end
   
   describe "root_board_id" do

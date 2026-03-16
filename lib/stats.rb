@@ -60,7 +60,9 @@ module Stats
     res = usage_stats(all_stats)
     res[:days] = days
     sessions = find_sessions(user_id, options)
+    res[:word_pairs] = word_pairs(sessions)
     res.merge!(touch_stats(sessions))
+    res[:locations] = location_use_for_sessions(sessions)
     word_development.each do |key, list|
       # if a word is used more than 7 times in the last few weeks, go ahead
       # and call it an emergent word
@@ -100,7 +102,8 @@ module Stats
     res.merge!(device_stats(sessions))
     res.merge!(sensor_stats(sessions))
     res.merge!(parts_of_speech_stats(sessions))
-    
+    res[:word_pairs] = word_pairs(sessions)
+
     res[:days] = days
 
     res[:locations] = location_use_for_sessions(sessions)
@@ -274,6 +277,8 @@ module Stats
   def self.sensor_stats(sessions)
     res = {}
     sessions.each do |session|
+      session.assert_extra_data
+      next unless session.data && session.data['stats']
       merge_sensor_stats!(res, session.data['stats'])
     end
     res
@@ -283,7 +288,8 @@ module Stats
     counts = {}
     max = 0
     sessions.each do |session|
-      (session.data['touch_locations'] || {}).each do |board_id, xs|
+      session.assert_extra_data
+      ((session.data || {})['touch_locations'] || {}).each do |board_id, xs|
         xs.each do |x, ys|
           ys.each do |y, count|
             counts[x.to_s + "," + y.to_s] ||= 0
@@ -578,6 +584,8 @@ module Stats
     stats = init_stats(sessions)
     device_prefs = DEVICE_PREFERENCES
     sessions.each do |session|
+      session.assert_extra_data
+      next unless session.data && session.data['stats']
       if session.data['stats']
         # TODO: more filtering needed for board-specific drill-down
         stats[:total_session_seconds] += session.data['stats']['session_seconds'] || 0
@@ -838,10 +846,15 @@ module Stats
         location[:ip_address] = cluster.data['ip_address']
       end
       if cluster.geo? && cluster.data && cluster.data['geo']
+        geo = cluster.data['geo']
+        lat = geo[0].respond_to?(:to_f) ? geo[0].to_f : nil
+        lng = geo[1].respond_to?(:to_f) ? geo[1].to_f : nil
+        alt = geo[2].respond_to?(:to_f) ? geo[2].to_f : 0
+        next if lat.nil? || lng.nil?
         location[:geo] = {
-          :latitude => cluster.data['geo'][0],
-          :longitude => cluster.data['geo'][1],
-          :altitude => cluster.data['geo'][2]
+          :latitude => lat,
+          :longitude => lng,
+          :altitude => alt
         }
       end
       res << location
@@ -890,8 +903,9 @@ module Stats
       'button_chains' => {}
     }
     sessions.each do |session|
+      session.assert_extra_data
+      (session.data ||= {})['stats'] ||= {}
       if !session.data['stats']['buttons_used']
-        session.assert_extra_data
         session.generate_stats
       end
       buttons_used = session.data['stats']['buttons_used'] || {}
@@ -1020,6 +1034,8 @@ module Stats
           end
         end
       end
+      res[:trend_words].uniq! if res[:trend_words]
+      res[:trend_modeled_words].uniq! if res[:trend_modeled_words]
     end
     # - popular modeled words
     max_modeled = modeled_words.to_a.map(&:last).max || 0
@@ -1146,6 +1162,8 @@ module Stats
     }
     sequences = {}
     sessions.each do |session|
+      session.assert_extra_data
+      next unless session.data && session.data['stats']
       ['parts_of_speech', 'core_words', 'modeled_parts_of_speech', 'modeled_core_words', 'parts_of_speech_combinations'].each do |key|
         (session.data['stats'][key] || {}).each do |part, cnt|
           res[key.to_sym][part] ||= 0
@@ -1159,11 +1177,12 @@ module Stats
   def self.word_pairs(sessions)
     pairs = {}
     sessions.each do |session|
+      session.assert_extra_data
+      (session.data ||= {})['stats'] ||= {}
       if !session.data['stats']['word_pairs']
-        session.assert_extra_data
         session.generate_stats
       end
-      (session.data['stats']['word_pairs'] || []).each do |key, hash|
+      (session.data['stats']['word_pairs'] || {}).each do |key, hash|
         if pairs[key]
           pairs[key]['count'] += hash['count']
         else
@@ -1195,15 +1214,16 @@ module Stats
     timed_blocks = {}
     modeled_timed_blocks = {}
     sessions.each do |session|
+      session.assert_extra_data
+      (session.data ||= {})['stats'] ||= {}
       if !session.data['stats']['time_blocks']
-        session.assert_extra_data
         session.generate_stats
       end
-      (session.data['stats']['time_blocks'] || []).each do |block, cnt|
+      (session.data['stats']['time_blocks'] || {}).each do |block, cnt|
         timed_blocks[block.to_i] ||= 0
         timed_blocks[block.to_i] += cnt
       end
-      (session.data['stats']['modeled_time_blocks'] || []).each do |block, cnt|
+      (session.data['stats']['modeled_time_blocks'] || {}).each do |block, cnt|
         modeled_timed_blocks[block.to_i] ||= 0
         modeled_timed_blocks[block.to_i] += cnt
       end

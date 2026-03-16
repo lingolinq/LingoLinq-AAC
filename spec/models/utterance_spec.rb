@@ -15,20 +15,22 @@ describe Utterance, :type => :model do
   end
 
   it "should retry on existing reply nonce" do
+    user = User.create
     expect(GoSecure).to receive(:nonce).with('security_nonce').and_return('34qt34t34').at_least(1).times
     expect(GoSecure).to receive(:nonce).with('utterance_reply_code').and_return('asdf').exactly(12).times
-    u = Utterance.create(data: {'button_list' => []})
+    u = Utterance.create(user: user, data: {'button_list' => []})
     expect(u.reply_nonce).to eq(GoSecure.sha512('utterance_reply_long', 'asdf')[0, 10])
-    expect { Utterance.create(data: {'button_list' => []}) }.to raise_error("can't generate nonce")
+    expect { Utterance.create(user: user, data: {'button_list' => []}) }.to raise_error("can't generate nonce")
   end
   
   it "should track the default image url" do
+    user = User.create
     button_list = [
       {'label' => 'hat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
     ]
-    u = Utterance.create(:data => {
+    u = Utterance.create(:user => user, :data => {
       'button_list' => button_list
     })
     expect(u.data['image_url']).to eq('http://www.example.com/pib.png')
@@ -54,12 +56,13 @@ describe Utterance, :type => :model do
   end
 
   it "should no longer track the default image url once it's changed" do
+    user = User.create
     button_list = [
       {'label' => 'hat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
     ]
-    u = Utterance.create(:data => {
+    u = Utterance.create(:user => user, :data => {
       'button_list' => button_list
     })
     expect(u.data['image_url']).to eq('http://www.example.com/pib.png')
@@ -71,12 +74,13 @@ describe Utterance, :type => :model do
   end
   
   it "should not set the image url to the large image url if it's not the default image url" do
+    user = User.create
     button_list = [
       {'label' => 'hat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
       {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
     ]
-    u = Utterance.create(:data => {
+    u = Utterance.create(:user => user, :data => {
       'button_list' => button_list
     })
     expect(u.data['image_url']).to eq('http://www.example.com/pib.png')
@@ -102,7 +106,7 @@ describe Utterance, :type => :model do
         {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
         {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
       ]
-      u = Utterance.create(:data => {
+      u = Utterance.create(:user => u1, :data => {
         'button_list' => button_list
       })
       res = u.share_with({
@@ -129,7 +133,7 @@ describe Utterance, :type => :model do
         {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
         {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
       ]
-      u = Utterance.create(:data => {
+      u = Utterance.create(:user => u1, :data => {
         'button_list' => button_list,
       })
       res = u.share_with({
@@ -150,7 +154,7 @@ describe Utterance, :type => :model do
       }]})).to eq(false)
       # check that it was recorded for sharer
       expect(s2.log_type).to eq('note')
-      expect(s2.data['event_summary']).to eq('Note by no-name: hat cat scat')
+      expect(s2.data['event_summary']).to eq("Note by #{u1.user_name}: hat cat scat")
     end
 
     it "should allow sharing with one of the supervisors of one of my supervisees" do
@@ -271,6 +275,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+45558675309,+79876543,+45551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should allow sending an sms message to a user contact" do
         u = User.create
         d = Device.create(user: u)
@@ -301,6 +306,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+15558675309,+79876543,+15551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should send sms to a user contact with one of the specified originators" do
         u = User.create
         d = Device.create(user: u)
@@ -459,7 +465,7 @@ describe Utterance, :type => :model do
           {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
           {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
         ]
-        utterance = Utterance.create(:data => {
+        utterance = Utterance.create(:user => u, :data => {
           'button_list' => button_list,
           'sentence' => 'hat cat scat',
           'author_ids' => [contact_id],
@@ -494,15 +500,16 @@ describe Utterance, :type => :model do
   
   describe "generate_preview" do
     it "should generate a preview" do
+      user = User.create
       button_list = [
         {'label' => 'hat', 'image' => 'http://www.example.com/pib.png'},
         {'label' => 'cat', 'image' => 'http://www.example.com/pib.png'},
         {'label' => 'scat', 'image' => 'http://www.example.com/pic.png'}
       ]
-      u = Utterance.create(:data => {
+      u = Utterance.create(:user => user, :data => {
         'button_list' => button_list
       })
-      expect(SentencePic).to receive(:generate).with(u).and_return("http://www.example.com/pid.png")
+      expect(SentencePic).to receive(:generate).with(an_instance_of(Utterance)).and_return("http://www.example.com/pid.png")
       Worker.process_queues
 #      expect(u.reload.data['large_image_url']).to eq("http://www.example.com/pid.png")
     end
@@ -513,6 +520,7 @@ describe Utterance, :type => :model do
       'SMS_ORIGINATORS' => "+45558675309,+79876543,+45551234567,+3719875278,+9416751",
       'SMS_ENCRYPTION_KEY' => "abcdefg"
     }) do
+      before { allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png') }
       it "should send a text message to a user" do
         u = User.create
         u.settings['cell_phone'] = '123456'
@@ -585,6 +593,7 @@ describe Utterance, :type => :model do
     end
 
     it "should allow sending an email to a user contact" do
+      allow(SentencePic).to receive(:generate).and_return('https://example.com/preview.png')
       u = User.create
       Device.create(user: u)
       u.settings['email'] = 'bob@example.com'

@@ -135,9 +135,23 @@
   
   var auth = null;
   try {
-    auth = JSON.parse(localStorage['cdStash-auth_settings']);
+    // Prefer the new key, but fall back to the legacy key and migrate it if found.
+    var authRaw = localStorage['lingolinqStash-auth_settings'];
+    if (!authRaw) {
+      authRaw = localStorage['cdStash-auth_settings'];
+      if (authRaw) {
+        // Migrate legacy key to new key so future reads use the new prefix.
+        localStorage['lingolinqStash-auth_settings'] = authRaw;
+      }
+    }
+    if (authRaw) {
+      auth = JSON.parse(authRaw);
+    }
     <% if @access_token %>
       auth = <%= {access_token: @access_token, user_name: @user_name}.to_json.html_safe %>;
+      try {
+        localStorage['lingolinqStash-auth_settings'] = JSON.stringify(auth);
+      } catch(e2) { }
     <% end %>
   } catch(e) { }
   if(auth && auth.user_name && auth.access_token && document.getElementById('oauth_login') && !document.getElementById('invalid_attempt')) {

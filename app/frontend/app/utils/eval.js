@@ -5,8 +5,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **/
 
-import Ember from 'ember';
 import { later as runLater } from '@ember/runloop';
+import templateHelpers from './template_helpers';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
@@ -388,7 +388,7 @@ var evaluation = {
               item.title = pct + "% accuracy over " + items[key].possibly_correct + " trials";
               item.avg_response = Math.round(items[key].time_tally / item.count / 1000 * 10) / 10;
               if(items[key]) {
-                item.title = item.title + ", " + Ember.templateHelpers.seconds_ago(item.avg_response) + " avg. response time";
+                item.title = item.title + ", " + templateHelpers.seconds_ago(item.avg_response) + " avg. response time";
               }
               if(item.fail) { item.title = item.title + " (stopped early from errors)"; }
             } else if(item_key == 'button_sizes') {

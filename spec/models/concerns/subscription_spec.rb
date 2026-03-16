@@ -807,8 +807,8 @@ describe Subscription, :type => :model do
         }
       }])
       expect(u.expires_at).to_not eq(nil)
-      expect(u.settings['subscription']['added_to_organization']).to be > (5.seconds.ago.to_time.iso8601)
-      expect(u.settings['subscription']['added_to_organization']).to be < (5.seconds.from_now.to_time.iso8601)
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be > 5.seconds.ago
+      expect(Time.parse(u.settings['subscription']['added_to_organization'])).to be < 5.seconds.from_now
       expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'subscription_token', 'arguments' => ['token', 'unsubscribe']})).to eq(false)
     end
     
@@ -1248,7 +1248,7 @@ describe Subscription, :type => :model do
         expect(u.settings['subscription']['last_purchase_plan_id']).to eq('long_term_200')
         expect(u.settings['subscription']['last_purchase_id']).to eq('23456')
         expect(u.settings['subscription']['prior_purchase_ids']).to eq([])
-        expect(u.expires_at.to_i).to eq(8.weeks.from_now.to_i)
+        expect(u.expires_at.to_i).to be_within(1).of(8.weeks.from_now.to_i)
       end
       
       it "should not re-procress already-handled purchase_ids" do
@@ -1796,7 +1796,8 @@ describe Subscription, :type => :model do
       u.settings['subscription']['last_purchased'] = 3.years.ago.iso8601
       hash2 = u.subscription_hash
 
-      expect(hash).to eq(hash2)
+      # timestamp is set by Time.now on each call; compare meaningful fields only
+      expect(hash.except('timestamp')).to eq(hash2.except('timestamp'))
     end
 
     it "should change when a paid communicator expires" do
@@ -2853,9 +2854,11 @@ describe Subscription, :type => :model do
         'last_purchase_plan_id' => 'asdf'
       }
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })
@@ -2881,9 +2884,11 @@ describe Subscription, :type => :model do
       }
       expect(Purchasing).to receive(:change_user_id).with('222222', u1.global_id, u2.global_id)
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })
@@ -3487,7 +3492,7 @@ describe Subscription, :type => :model do
       link.data['state']['added'] = added.iso8601
       link.save
       expect(u.reload.org_sponsored?).to eq(true)
-      expect(u.purchase_credit_duration).to eq((Time.now - added).to_i)
+      expect(u.purchase_credit_duration).to be_within(2).of((Time.now - added).to_i)
     end
     
     it "should count recently-expired long-term-purchase in calculation" do

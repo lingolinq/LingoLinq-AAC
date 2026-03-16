@@ -28,7 +28,8 @@ describe JsonApi::Image do
     end
 
     it "should return metadata for pending uploads" do
-      i = ButtonImage.new(settings: {'hat' => 'black', 'content_type' => 'image/png', 'pending' => true, 'pending_url' => 'http://www.pic.com'})
+      u = User.create
+      i = ButtonImage.new(user: u, settings: {'hat' => 'black', 'content_type' => 'image/png', 'pending' => true, 'pending_url' => 'http://www.pic.com'})
       i.instance_variable_set('@remote_upload_possible', true)
       i.save
       expect(i.pending_upload?).to eq(true)
@@ -107,8 +108,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('asdf')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])
@@ -127,8 +129,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/symbolstix/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('symbolstix')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])
@@ -147,8 +150,9 @@ describe JsonApi::Image do
       expect(hash['url']).to eq('http://www.example.com/symbolstix/pic.png')
       expect(hash['protected']).to eq(true)
       expect(hash['protected_source']).to eq('symbolstix')
+      # Alternates without license inherit main image license
       expect(hash['alternates']).to eq([
-        {'content_type' => nil, 'library' => 'symbolstix', 'license' => nil, 'url' => 'http://www.example.com/symbolstix/pic.png'},
+        {'content_type' => nil, 'library' => 'symbolstix', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/symbolstix/pic.png'},
         {'content_type' => nil, 'library' => 'original', 'license' => {'type'=> 'private'}, 'url' => 'http://www.example.com/pic.png'},
         {'content_type' => nil, 'library' => 'asdf', 'license' => {'type' => 'private'}, 'url' => 'http://www.example.com/pic.png'},
       ])

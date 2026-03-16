@@ -355,6 +355,8 @@ describe SessionController, :type => :controller do
 
     it "should not automatically approve 2fa-required token" do
       u = User.create
+      u.assert_2fa!
+      u.save
       o = Organization.create(admin: true)
       o.add_manager(u.user_name, true)
       key_with_stash(u)
@@ -1090,9 +1092,10 @@ describe SessionController, :type => :controller do
       expect(@user.reload.state_2fa).to eq({required: true, verified: false})
       @device.generate_token!(true)
       get :token_check, params: {:access_token => @device.tokens[0], '2fa_code' => 'abcdefg', :include_token => true}
-      json = assert_success_json
-      expect(json['authenticated']).to eq(true)
-      expect(json['scopes']).to eq(['none'])
+      expect(response).to have_http_status(401)
+      json = JSON.parse(response.body)
+      expect(json['authenticated']).to eq(false)
+      expect(json['scopes']).to eq(nil)
       expect(json['valid_2fa']).to eq(false)
       expect(json['token']).to_not eq(nil)
       expect(json['token']['set_2fa']).to eq("otpauth://totp/LingoLinq:#{@user.user_name}:?secret=#{@user.settings['2fa']['secret']}&issuer=LingoLinq")
@@ -1674,7 +1677,7 @@ describe SessionController, :type => :controller do
         expect(links.detect{|l| l['type'] == 'saml_auth' }).to_not eq(nil)
         expect(assigns[:temp_token]).to_not eq(nil)
         expect(response).to be_redirect
-        expect(response.location).to eq("http://test.host/oauth2/token?oauth_code=abcd&tmp_token=#{assigns[:temp_token]}&user_name=no-name")
+        expect(response.location).to eq("http://test.host/oauth2/token?oauth_code=abcd&tmp_token=#{assigns[:temp_token]}&user_name=#{u.user_name}")
       end
 
       it "should render inline success if specified" do

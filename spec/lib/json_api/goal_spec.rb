@@ -45,8 +45,8 @@ describe JsonApi::Goal do
     end
     
     it "should include video information" do
-      u = User.new
-      v = UserVideo.create(:url => "http://www.example.com/video.mp4")
+      u = User.create
+      v = UserVideo.create(:user => u, :url => "http://www.example.com/video.mp4")
       g = UserGoal.new(:user => u, :settings => {
         'video_id' => v.global_id
       })
@@ -89,8 +89,8 @@ describe JsonApi::Goal do
     it "should include video information on user comments" do
       u = User.create
       u2 = User.create
-      v = UserVideo.create(:url => "http://www.example.com/video.mp4")
-      v2 = UserVideo.create(:url => "http://www.example.com/video2.mp4")
+      v = UserVideo.create(:user => u, :url => "http://www.example.com/video.mp4")
+      v2 = UserVideo.create(:user => u2, :url => "http://www.example.com/video2.mp4")
       g = UserGoal.new(:user => u, :settings => {
         'video_id' => v.global_id,
         'comments' => [

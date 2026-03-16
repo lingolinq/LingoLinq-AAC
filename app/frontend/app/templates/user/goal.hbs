@@ -20,7 +20,7 @@
             <em>{{t "org-created Goal" key="org_created_goal"}}</em>
           {{else}}
             {{t "author: " key="author_colon"}}
-            {{#link-to "user" this.model.author.user_name}}{{this.model.author.user_name}}{{/link-to}}
+            <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
           {{/if}}
         </span>
       </div>

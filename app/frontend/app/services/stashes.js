@@ -31,8 +31,22 @@ export default Service.extend({
 
   setup: function() {
     this.memory_stash = memory_stash;
-    this.prefix = 'cdStash-';
+    this.prefix = 'lingolinqStash-';
+    var legacyPrefix = 'cdStash-';
     try {
+      // Migrate keys from legacy prefix to new prefix (one-time for existing users)
+      var keysToMigrate = [];
+      for(var idx = 0, l = localStorage.length; idx < l; idx++) {
+        var k = localStorage.key(idx);
+        if(k && k.indexOf(legacyPrefix) === 0) { keysToMigrate.push(k); }
+      }
+      keysToMigrate.forEach(function(key) {
+        try {
+          var real_key = key.replace(legacyPrefix, '');
+          localStorage[this.prefix + real_key] = localStorage[key];
+          localStorage.removeItem(key);
+        } catch(e) { }
+      }.bind(this));
       for(var idx = 0, l = localStorage.length; idx < l; idx++) {
         var key = localStorage.key(idx);
         if(key && key.indexOf(this.prefix) === 0) {
@@ -154,8 +168,27 @@ export default Service.extend({
       promises.push(this.flush_db_id());
     }
     if(stash_capabilities && stash_capabilities.dbman) {
-      var stash = {};
-      stash.storageId = 'stash';
+      var stash;
+      if(ignore_prefix === 'auth_') {
+        // Preserve auth data in IndexedDB for page reload (e.g. post-login).
+        // Overwriting with {} would wipe auth_settings and break session restore.
+        stash = {};
+        for(var k in memory_stash) {
+          if(k !== 'raw' && k !== 'storageId' && k !== 'changed') {
+            stash[k] = JSON.stringify(memory_stash[k]);
+          }
+        }
+        // persist_object writes to localStorage but may not update memory_stash;
+        // ensure auth_settings from localStorage is included for post-login reload.
+        var auth_obj = this.get_object('auth_settings', true);
+        if(auth_obj && auth_obj.access_token) {
+          stash.auth_settings = JSON.stringify(auth_obj);
+        }
+        stash.storageId = 'stash';
+      } else {
+        stash = {};
+        stash.storageId = 'stash';
+      }
       promises.push(stash_capabilities.storage_store({store: 'settings', id: 'stash', record: stash}));
     }
     for(var idx = 0; idx < localStorage.length; idx++) {
@@ -332,10 +365,14 @@ export default Service.extend({
   },
 
   get_db_key: function(persist) {
-    var key = this.get_raw('cd_db_key');
+    var key = this.get_raw('ll_db_key');
+    if(!key) { key = this.get_raw('cd_db_key'); }
     if(persist) {
       key = key || ("db2_" + Math.random().toString() + "_" + (new Date()).getTime().toString());
-      this.persist_raw('cd_db_key', key);
+      this.persist_raw('ll_db_key', key);
+      if(this.get_raw('cd_db_key')) {
+        try { localStorage.removeItem('cd_db_key'); } catch(e) { }
+      }
     }
     return key
   },

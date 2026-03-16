@@ -1,5 +1,6 @@
-import Ember from 'ember';
 import EmberApplication from '@ember/application';
+import { isTesting } from '@ember/debug';
+import { setOnerror } from '@ember/-internals/error-handling';
 import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
@@ -21,7 +22,7 @@ window.onerror = function(msg, url, line, col, obj) {
   }
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
-Ember.onerror = function(err) {
+setOnerror(function(err) {
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
@@ -43,10 +44,11 @@ Ember.onerror = function(err) {
       LingoLinq.track_error(JSON.stringify(err), false);
     }
   }
-  if(Ember.testing || LingoLinq.testing) {
-    throw(err);
+  // MUST rethrow when testing - required for test framework validation (after logging)
+  if(isTesting() || LingoLinq.testing) {
+    throw err;
   }
-};
+});
 
 var customEvents = {
     'buttonselect': 'buttonSelect',
@@ -405,6 +407,16 @@ LingoLinq.extra_keyed_colors = [
   {border: '#ff2f25', fill: '#f3a4a4', label: 'else'}
 ];
 
+// Shared stats chart colors - used by pie charts and Sankey charts so they stay in sync
+LingoLinq.stats_colors = {
+  core: '#49c7e8',
+  fringe: '#e5cea2',
+  partsOfSpeechColor: function(type) {
+    var color = LingoLinq.keyed_colors.find(function(c) { return c.types.indexOf(type) >= 0; });
+    return window.tinycolor((color || {fill: '#ccc'}).fill).saturate(10).darken(20).toHexString();
+  }
+};
+
 LingoLinq.licenseOptions.license_url = function(id) {
   for(var idx = 0; idx < LingoLinq.licenseOptions.length; idx++) {
     if(LingoLinq.licenseOptions[idx].id == id) {
@@ -753,7 +765,7 @@ window.addEventListener('message', function(event) {
 //     RunLater(LingoLinq.YT.poll, 100);
 //   }
 // };
-// if(!Ember.testing) {
+// if(!isTesting()) {
 //   RunLater(LingoLinq.YT.poll, 500);
 // }
 
@@ -816,8 +828,9 @@ LingoLinq.Visualizations = {
       };
       script = document.createElement('script');
       script.type = 'text/javascript';
+      script.async = true;
       // TODO: pull api keys out into config file?
-      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&' +
+      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {
@@ -852,5 +865,7 @@ LingoLinq.log = {
 };
 window.LingoLinq = LingoLinq;
 window.LingoLinq.VERSION = window.app_version;
+// Set verboseDebug=true in console or localStorage lingolinq_verbose_debug='true' for verbose debug logs
+window.LingoLinq.verboseDebug = window.LingoLinq.verboseDebug || (typeof localStorage !== 'undefined' && localStorage.getItem('lingolinq_verbose_debug') === 'true');
 
 export default LingoLinq;

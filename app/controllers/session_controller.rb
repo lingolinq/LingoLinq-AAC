@@ -76,7 +76,7 @@ class SessionController < ApplicationController
         if config['redirect_uri'] == DeveloperKey.oob_uri
           redirect_to oauth_local_url(:error => 'access_denied')
         else
-          redirect_to paramified_redirect + "error=access_denied"
+          redirect_to paramified_redirect + "error=access_denied", allow_other_host: true
         end
         return
       end
@@ -150,7 +150,7 @@ class SessionController < ApplicationController
       elsif config['redirect_uri'] == DeveloperKey.oob_uri
         redirect_to oauth_local_url(:code => params['code'])
       else
-        redirect_to paramified_redirect + "code=#{params['code']}"
+        redirect_to paramified_redirect + "code=#{params['code']}", allow_other_host: true
       end
     end
   end
@@ -191,13 +191,15 @@ class SessionController < ApplicationController
           device.confirm_2fa!(:approve, true)
         end
       end
-      render json: JsonApi::Token.as_json(device.user, device, :include_refresh => true).to_json
+      # Rails 7: render json: expects a hash, not a pre-encoded string
+      render json: JsonApi::Token.as_json(device.user, device, :include_refresh => true)
     end
   end
   
   def oauth_logout
     Device.find_by_global_id(@api_device_id).logout!
-    render json: {logout: true}.to_json
+    # Rails 7: render json: expects a hash, not a pre-encoded string
+    render json: {logout: true}
   end
   
   def oauth_local
@@ -222,7 +224,8 @@ class SessionController < ApplicationController
     elsif @api_user && device && device.token_type == :integration
       token, refresh_token = device.generate_from_refresh_token!(params['access_token'], params['refresh_token'])
       if token
-        render json: JsonApi::Token.as_json(@api_user, device, :include_refresh => true).to_json
+        # Rails 7: render json: expects a hash, not a pre-encoded string
+        render json: JsonApi::Token.as_json(@api_user, device, :include_refresh => true)
       else
         api_error 400, { error: "Invalid refresh token" }
       end
@@ -345,7 +348,7 @@ class SessionController < ApplicationController
 
     request = OneLogin::RubySaml::Authrequest.new
     settings = saml_settings(org, code)
-    redirect_to(request.create(settings, :RelayState => code))
+    redirect_to(request.create(settings, :RelayState => code), allow_other_host: true)
   end
 
   def saml_consume
@@ -477,7 +480,7 @@ class SessionController < ApplicationController
     # Generate a response to the IdP.
     logout_request_id = logout_request.id
     logout_response = OneLogin::RubySaml::SloLogoutresponse.new.create(settings, logout_request_id, nil, :RelayState => params[:RelayState])
-    redirect_to logout_response
+    redirect_to logout_response, allow_other_host: true
   end
 
   def token_wait
@@ -488,7 +491,8 @@ class SessionController < ApplicationController
       device = auth && Device.find_by_global_id(auth['device_id'])
       if user && device && user == device.user
         RedisInit.default.del("token_popout_#{params['popout_id']}")
-        render json: JsonApi::Token.as_json(user, device).to_json
+        # Rails 7: render json: expects a hash, not a pre-encoded string
+        render json: JsonApi::Token.as_json(user, device)
       else
         return render json: {error: 'not found'}
       end
@@ -517,10 +521,16 @@ class SessionController < ApplicationController
         
         installed_app = request.headers['X-INSTALLED-COUGHDROP'] == 'true' || params['installed_app'] == 'true'
         d = Device.find_or_create_by(:user_id => u.id, :developer_key_id => 0, :device_key => device_key)
+        d.save! if d.new_record?
         assert_session_device(d, u, installed_app)
 
         u.password_used!
-        render json: JsonApi::Token.as_json(u, d).to_json
+        token_json = JsonApi::Token.as_json(u, d)
+        # Debug logging for token response
+        Rails.logger.info("Token response for user #{u.user_name}: #{token_json.keys.inspect}")
+        Rails.logger.debug("Token response full: #{token_json.inspect}")
+        # Rails 7: render json: expects a hash, not a pre-encoded string
+        render json: token_json
       else
         old_key = nil
         begin
@@ -588,7 +598,7 @@ class SessionController < ApplicationController
           avatar_image_url: (valid ? @api_user.generated_avatar_url : nil),
           scopes: device && device.permission_scopes,
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations,
         }
         if params['2fa_code']
@@ -654,7 +664,7 @@ class SessionController < ApplicationController
         json = {
           authenticated: false, 
           sale: sale,
-          ws_url: ENV['CDWEBSOCKET_URL'],
+          ws_url: ENV['LLWEBSOCKET_URL'],
           global_integrations: global_integrations
         }
       end
@@ -670,7 +680,7 @@ class SessionController < ApplicationController
         error: error_message,
         error_status: error_status,
         sale: nil,
-        ws_url: ENV['CDWEBSOCKET_URL'],
+        ws_url: ENV['LLWEBSOCKET_URL'],
         global_integrations: []
       }
     end
@@ -718,7 +728,8 @@ class SessionController < ApplicationController
 
   protected
   def assert_session_device(d, u, installed_app)
-    store_user_data = (u.settings['preferences'] || {})['cookies'] != false
+    d.settings ||= {}
+    store_user_data = ((u.settings || {})['preferences'] || {})['cookies'] != false
     d.settings['ip_address'] = store_user_data ? request.remote_ip : nil
     d.settings['user_agent'] = store_user_data ? request.headers['User-Agent'] : nil
     d.settings['system'] ||= params['system']

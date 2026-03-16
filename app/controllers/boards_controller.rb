@@ -1,7 +1,7 @@
 class BoardsController < ApplicationController
   def index
     @meta_record = OpenStruct.new
-    @meta_record.title = "MyCoolApp - Every voice should be heard"
+    @meta_record.title = "LingoLinq - Every voice should be heard"
     @meta_record.summary = "Let's help those with complex communication needs make their voices heard, using good technology that actually makes things easier and supports everyone in helping the individual succeed."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = @domain_overrides['settings']['app_name']
@@ -18,8 +18,8 @@ class BoardsController < ApplicationController
   
   def about
     @meta_record = OpenStruct.new
-    @meta_record.title = "About MyCoolApp"
-    @meta_record.summary = "Why \"MyCoolApp\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.title = "About LingoLinq"
+    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"
@@ -100,23 +100,25 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def cache
-    response.headers.except! 'X-Frame-Options'
-    render :layout => false
-  end
-  
   def video
     response.headers.except! 'X-Frame-Options'
     render :layout => false
   end
 
+  ICON_REDIRECT_ALLOWED_HOSTS = [
+    'opensymbols.s3.amazonaws.com',
+    /\.s3\.amazonaws\.com\z/,
+    /\.s3\.[a-z0-9-]+\.amazonaws\.com\z/,
+    'lessonpix.com',
+    'www.lessonpix.com'
+  ].freeze
+
   def icon
     board = Board.find_by_path(params['id'])
-    if board
-      redirect_to board.icon_url_or_fallback
-    else
-      redirect_to Board::DEFAULT_ICON
-    end
+    url = board ? board.icon_url_or_fallback : Board::DEFAULT_ICON
+    host = URI.parse(url).host rescue nil
+    allowed = host && (request.host == host || ICON_REDIRECT_ALLOWED_HOSTS.any? { |h| h.is_a?(Regexp) ? host.match?(h) : host == h })
+    redirect_to allowed ? url : Board::DEFAULT_ICON, allow_other_host: true
   end
   
   def utterance

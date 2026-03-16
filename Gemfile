@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 gem 'dotenv'
 
 group :development, :test do
+  gem 'rack-cors'
   gem 'guard'
   gem 'guard-rspec'
   gem 'rspec-rails'
@@ -17,44 +18,47 @@ group :development, :test do
   gem 'ruby-lsp-rails', require: false
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
+  gem 'brakeman', require: false
+  gem 'bundler-audit', require: false
 end
 
 gem 'benchmark'
 
-# Required for Ruby 3.4+ compatibility with Rails 6.1.7+
+# Required for Ruby 3.4+ compatibility with Rails 7.0+
 gem 'mutex_m'
 gem 'matrix'
 
-gem 'concurrent-ruby', '1.3.4'
+gem 'concurrent-ruby', '~> 1.3'
 
-# Rails 6.1.7+ has Rack 3 and Ruby 3.4 support
-gem 'rails', '~> 6.1.7'
-gem 'pg' #, '0.19.0' #, '>=1.1.3'
-gem 'sass-rails'
-gem 'sprockets-rails', '~> 3.4.2'
-gem 'uglifier', '>= 1.3.0'
-gem 'mimemagic', '0.4.3'
+# Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
+gem 'rails', '~> 7.2.0'
+gem 'pg', '~> 1.5'
+gem 'sass-rails', '~> 6.0'
+gem 'sprockets-rails', '~> 3.5'
+# uglifier is deprecated, use terser via ember-cli-terser (already in frontend)
+# mimemagic is deprecated, Rails 7 uses marcel/mini_mime internally
 
 gem 'typhoeus'
-gem 'coffee-rails'
 gem 'aws-sdk-rails'
 gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
+# TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
+gem 's3'
 gem 'http-2'
-gem 'resque'
-gem 'rails_12factor', group: :production
-# gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
+gem 'resque', '~> 3.0'
 gem 'puma'
-gem 'rack-offline'
-gem 'paper_trail'
+gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
+# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+gem 'rubyzip', '~> 2.3'
 gem 'accessible-books'
-gem 's3'
 gem 'bugsnag'
 gem 'stripe'
+# Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
+gem 'rack', '>= 3.0'
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'
@@ -67,8 +71,9 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 
-gem 'sinatra'
+gem 'sinatra', '~> 4.2'
 gem 'sanitize'
+gem 'anthropic', '~> 1.23'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

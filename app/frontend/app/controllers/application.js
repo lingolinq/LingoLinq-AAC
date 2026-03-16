@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Controller from '@ember/controller';
+import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
@@ -40,7 +40,7 @@ export default Controller.extend({
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
     var owner = getOwner(this);
-    var sessionService = owner.lookup('lingolinq:session');
+    var sessionService = owner.lookup('service:session') || owner.lookup('lingolinq:session');
     if(sessionService) {
       // Use defineProperty to set it without triggering read-only error
       Object.defineProperty(this, 'session', {
@@ -60,7 +60,7 @@ export default Controller.extend({
     }
   },
   updateTitle: function(str) {
-    if(!Ember.testing) {
+    if(!isTesting()) {
       if(str) {
         document.title = str + " - " + LingoLinq.app_name;
       } else {
@@ -165,13 +165,15 @@ export default Controller.extend({
     'stashes.root_board_state.id',
     'stashes.temporary_root_board_state.id',
     'appState.currentUser.preferences.home_board.id',
+    'board.model.global_id',
     'board.model.intro',
     'board.model.intro.unapproved',
     function() {
       // TODO: also show if checking out the board in the 
       // setup process (except that's really only under 
       // advanced now), or if enabled on the embed
-      var root_board = this.stashes.get('root_board_state.id') == this.get('board.model.id') || this.stashes.get('temporary_root_board_state.id') == this.get('board.model.id');
+      var boardId = this.get('board.model.global_id') || this.get('board.model.id');
+      var root_board = this.stashes.get('root_board_state.id') == boardId || this.stashes.get('temporary_root_board_state.id') == boardId;
       // TODO: option to set board level for board_intro prompt
       // TODO: when entering board intro, set root_board_state to the board's id
       return root_board && this.get('board.model.intro') && !this.get('board.model.intro.unapproved');
@@ -323,7 +325,12 @@ export default Controller.extend({
   }),
   actions: {
     invalidateSession: function() {
-      session.invalidate(true);
+      var sess = this.get('session');
+      if(sess && typeof sess.invalidate === 'function') {
+        sess.invalidate(true);
+      } else {
+        session.invalidate(true);
+      }
     },
     authenticateSession: function() {
       if(location.hostname == '127.0.0.1') {
@@ -1136,6 +1143,7 @@ export default Controller.extend({
     back_to_from_route: function() {
       var from = this.appState.get('from_route');
       if(from && from.length && this.router) {
+        // from is [routeName, ...paramValues] from the previous transition; pass directly.
         this.router.transitionTo.apply(this.router, from);
       } else {
         this.appState.return_to_index();
@@ -1145,6 +1153,10 @@ export default Controller.extend({
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
     },
     setup_go: function(direction) {
+      var setupController = this.router && this.router.controllerFor && this.router.controllerFor('setup');
+      if(setupController && typeof setupController.flush_pending_save === 'function') {
+        setupController.flush_pending_save();
+      }
       var order = this.get('setup_order');
       var current = this.get('setup_page') || 'intro';
       var current_index = order.indexOf(current) || 0;

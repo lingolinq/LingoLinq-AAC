@@ -4,7 +4,6 @@ require 'dotenv'
 Dotenv.load
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
-require 'rspec/autorun'
 require 'simplecov'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
@@ -13,7 +12,10 @@ Dir[Rails.root.join("spec/support/**/*.rb")].each { |f| require f }
 
 # Checks for pending migrations before tests are run.
 # If you are not using ActiveRecord, you can remove this line.
-ActiveRecord::Migration.check_pending! if defined?(ActiveRecord::Migration)
+# Rails 7: check_pending! was removed; use check_all_pending! (supports multi-DB).
+if defined?(ActiveRecord::Migration)
+  ActiveRecord::Migration.check_all_pending!
+end
 
 SimpleCov.start 'rails'
 
@@ -27,7 +29,8 @@ RSpec.configure do |config|
   # config.mock_with :rr
 
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
-  config.fixture_path = "#{::Rails.root}/spec/fixtures"
+  # Rails 7.1+: use fixture_paths (array) instead of fixture_path (singular)
+  config.fixture_paths = ["#{::Rails.root}/spec/fixtures"]
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
@@ -41,19 +44,29 @@ RSpec.configure do |config|
   
   config.infer_spec_type_from_file_location!
 
-  # Run specs in random order to surface order dependencies. If you find an
-  # order dependency and want to debug it, you can fix the order by providing
-  # the seed, which is printed after each run.
-  #     --seed 1234
-  config.order = "random"
+  # Use defined order for consistent CI results and fewer order-dependent failures.
+  # To run with random order (e.g. to surface order dependencies): bundle exec rspec --order random
+  config.order = "defined"
   
   config.before(:each) do
+    ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs
     Time.zone = nil
     Worker.flush_queues
+    # When S3 credentials aren't configured (e.g. CI/GitHub Actions), stub remote_upload_params
+    # so tests that exercise upload JSON paths don't fail. In development with .env loaded,
+    # real credentials are used when available.
+    if ENV['AWS_SECRET'].to_s.blank?
+      allow(Uploader).to receive(:remote_upload_params).and_return(
+        upload_url: 'https://example.com/',
+        upload_params: {}
+      )
+    end
+    RemoteAction.delete_all
+    RedisInit.reset_queue_pressure_cache!
     PaperTrail.request.whodunnit = nil
     RedisInit.cache_token = "#{rand(999)}.#{Time.now.to_f}"
     ENV['REMOTE_EXTRA_DATA'] = nil
-    ENV['APP_NAME'] = "MyCoolApp"
+    ENV['APP_NAME'] = "LingoLinq"
     Permissable.set_redis(RedisInit.permissions, RedisInit.cache_token)
     RedisInit.default.del('domain_org_ids')
     Board.last_scheduled_stamp = nil

@@ -10,7 +10,10 @@ export default Component.extend({
   willInsertElement: function () {
     var _this = this;
     runLater(function () {
-      if (_this.video_not_ready) {
+      if (_this.isDestroyed || _this.isDestroying) {
+        return;
+      }
+      if (typeof _this.video_not_ready === 'function') {
         _this.video_not_ready();
       }
       contentGrabbers.videoGrabber.setup(_this);

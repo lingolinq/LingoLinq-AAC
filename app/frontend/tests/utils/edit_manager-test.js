@@ -19,22 +19,24 @@ import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
-import EmberObject from '@ember/object';
+import EmberObject, { observer } from '@ember/object';
 import $ from 'jquery';
+
+function setAllReady() {
+  var allReady = true;
+  if(!this.get('pending_buttons')) { return; }
+  this.get('pending_buttons').forEach(function(b) {
+    if(b.get('content_status') != 'ready') { allReady = false; }
+  });
+  this.set('all_ready', allReady);
+}
 
 describe('editManager', function() {
   var board = null;
 
   beforeEach(function() {
     var model = EmberObject.extend({
-      set_all_ready: function() {
-        var allReady = true;
-        if(!this.get('pending_buttons')) { return; }
-        this.get('pending_buttons').forEach(function(b) {
-          if(b.get('content_status') != 'ready') { allReady = false; }
-        });
-        this.set('all_ready', allReady);
-      }.observes('pending_buttons', 'pending_buttons.@each', 'pending_buttons.@each.content_status'),
+      set_all_ready: observer('pending_buttons', 'pending_buttons.@each', 'pending_buttons.@each.content_status', setAllReady),
       find_content_locally: function() {
         this.set('found_content_locally', true);
         return RSVP.resolve();

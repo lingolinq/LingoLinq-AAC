@@ -440,7 +440,18 @@ var modal = EmberObject.extend({
     modal.flash(text, 'success', below_header, sticky, opts);
   },
   board_preview: function(board, locale, allow_style, callback) {
-    modal.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+    var service = this._getService();
+    if (service) {
+      service.open('board-preview', {
+        board: board,
+        locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
+        option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+        allow_style: allow_style,
+        callback: callback
+      });
+    } else if (this.route) {
+      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+    }
   },
   cancel_auto_close: function() {
     try {
@@ -456,8 +467,12 @@ var modal = EmberObject.extend({
     }
   },
   close_board_preview: function() {
-    // disconnectOutlet is deprecated - outlets are automatically managed in modern Ember
-    // The outlet will be automatically cleaned up when the route transitions
+    var service = this._getService();
+    if (service) {
+      service.close(null, 'board-preview');
+    } else {
+      this.close(null, 'board-preview');
+    }
   }
 }).create();
 

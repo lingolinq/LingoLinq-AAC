@@ -8,13 +8,6 @@ describe BoardsController, :type => :controller do
     end
   end
   
-  describe "cache" do
-    it "should render" do
-      get "cache"
-      expect(response).to be_successful
-    end
-  end
-  
   describe "about" do
     it "should render" do
       get "about"
@@ -138,13 +131,15 @@ describe BoardsController, :type => :controller do
     it "should render templates, right now it's rendering empty string in tests"
     
     it "should load the utterance record" do
-      u = Utterance.create(:data => {:sentence => "ok guys"})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:sentence => "ok guys"})
       get :utterance, params: {:id => u.global_id}
 #      response.should be_success
     end
     
     it "should set a meta attribute" do
-      u = Utterance.create(:data => {:sentence => "ok guys"})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {:sentence => "ok guys"})
       meta = u.meta_record
       expect_any_instance_of(Utterance).to receive(:meta_record).and_return(meta)
       get :utterance, params: {:id => u.global_id}

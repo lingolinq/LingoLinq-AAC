@@ -223,8 +223,7 @@ module Flusher
     flush_user_content(user_id, user_name)
     # TODO: remove any public comments by the user
     LogSession.where(:author_id => user.id).each do |note|
-      note.author_id = 0
-      note.save
+      note.update_columns(author_id: nil)
     end
     flush_record(user, user.id, 'User')
   end

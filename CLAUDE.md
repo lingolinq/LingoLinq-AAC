@@ -1,10 +1,5 @@
 ---
-description: 
-alwaysApply: true
----
-
----
-description: 
+description:
 alwaysApply: true
 ---
 
@@ -195,6 +190,8 @@ rake extras:desktop
 
 **Framework:** Ember.js 3.28 with Ember Data for models
 
+**jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
+
 **Offline Support:** IndexedDB (web) or SQLite (mobile) via `dbman.js` abstraction layer
 
 **Key Utilities:** (in `app/frontend/app/utils/`)
@@ -254,6 +251,15 @@ rake extras:desktop
 - **User-facing strings:** ALWAYS use double quotes `"string"`
 - **All other strings:** ALWAYS use single quotes `'string'`
 - This convention is CRITICAL - i18n generator depends on it
+
+**Deprecations:**
+- NEVER suppress or hide deprecations. Fix the root cause instead.
+- Do not use `registerDeprecationHandler` to silence warnings.
+- When addressing Ember deprecations, migrate to the recommended APIs (e.g. `observer()` instead of `.observes()`, `isTesting()` from `@ember/debug` instead of `Ember.testing`).
+
+**Functionality and styling:**
+- Do NOT remove or change functionality when refactoring.
+- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
 
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
@@ -333,7 +339,7 @@ s = u.log_sessions.last
 bi = ButtonImage.last
 ```
 
-See CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
+See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem areas.
 
 ## Testing
 
@@ -352,7 +358,7 @@ See CODE_INVESTIGATION.md for detailed debugging guidance on common problem area
 - Translation files: `public/locales/*.json`
 - Word data import tool available in admin org for inflections/parts of speech
 - Template files at OpenAAC tools site for rules.json and words.json
-- See TRANSLATIONS.md for contributor guidelines
+- See docs/TRANSLATIONS.md for contributor guidelines
 - Use `i18n_generator.rb` scripts to manage translation files
 
 ## Additional Notes
@@ -362,3 +368,38 @@ See CODE_INVESTIGATION.md for detailed debugging guidance on common problem area
 - Contributor agreement required for code contributions
 - OpenAAC Slack channel available for questions
 - Background jobs use Resque with multiple queues: priority, default, slow, whenever
+
+## Audit Orchestration System
+
+This repo includes a full audit orchestration system for continuous code quality, compliance, and MVP readiness assessment.
+
+### Directory Layout
+| Directory | Purpose |
+|-----------|---------|
+| `skills/` | 7 structured audit skills (checklists + output schemas) |
+| `subagents/` | 7 isolated audit worker prompts for Claude Code Task tool |
+| `workflows/` | Orchestration runbooks (full-audit pipeline, team coordination) |
+| `audit-reports/` | Generated audit output (JSON + markdown) |
+| `.claude/skills/` | Claude Code native skills (a11y, compliance, deploy, ember) |
+
+### Running a Full Audit
+1. Read `workflows/full-audit.md`
+2. Follow its orchestration steps (launches 6 parallel subagents)
+3. Results land in `audit-reports/` and sync to Notion
+
+### Skills Reference
+| Skill | Path | Purpose |
+|-------|------|---------|
+| Full-Stack Auditor | `skills/full-stack-auditor/SKILL.md` | Master orchestrator + MVP scoring |
+| GDPR/FERPA Compliance | `skills/gdpr-ferpa-compliance/SKILL.md` | Privacy & compliance |
+| Ember Stabilization | `skills/ember-stabilization/SKILL.md` | Ember 3.12->3.28 migration |
+| Rails Upgrade | `skills/rails-upgrade/SKILL.md` | Rails upgrade readiness |
+| API Contract Verification | `skills/api-contract-verification/SKILL.md` | Ember<->Rails contract checks |
+| SOC2 Auditor | `skills/soc2-auditor/SKILL.md` | SOC2-style security posture |
+| Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
+
+### Audit Rules
+- NEVER modify code during audits — read-only until "apply fixes" is explicitly said
+- Always show diffs before proposing changes
+- Subagents scan only their declared domain
+- All findings include file paths and line numbers where possible

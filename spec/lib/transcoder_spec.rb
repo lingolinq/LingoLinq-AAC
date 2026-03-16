@@ -121,7 +121,8 @@ describe Transcoder do
     end
     
     it "should schedule a transcoding job and return the id" do
-      bs = ButtonSound.create(:settings => {'full_filename' => 'a/b/c.wav'})
+      u = User.create
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c.wav'})
       config = OpenStruct.new
       job = OpenStruct.new
       job.id = 'asdf'
@@ -158,7 +159,8 @@ describe Transcoder do
     end
     
     it "should schedule a transcoding job and return the id" do
-      v = UserVideo.create(:settings => {'full_filename' => 'a/b/c.avi'})
+      u = User.create
+      v = UserVideo.create(:user => u, :settings => {'full_filename' => 'a/b/c.avi'})
       config = OpenStruct.new
       job = OpenStruct.new
       job.id = 'asdf'

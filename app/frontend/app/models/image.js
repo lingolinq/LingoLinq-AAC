@@ -17,6 +17,7 @@ LingoLinq.Image = DS.Model.extend({
     this.clean_license();
   }),
   url: DS.attr('string'),
+  data_url: DS.attr('string'),
   fallback: DS.attr('boolean'),
   content_type: DS.attr('string'),
   width: DS.attr('number'),

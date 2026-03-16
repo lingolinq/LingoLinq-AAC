@@ -9,12 +9,14 @@ describe JsonApi::Utterance do
 
   describe "build_json" do
     it "should not include unlisted settings" do
-      u = Utterance.create(:data => {'asdf' => '1234'})
+      user = User.create
+      u = Utterance.create(:user => user, :data => {'asdf' => '1234'})
       expect(JsonApi::Utterance.build_json(u).keys).not_to be_include('asdf')
     end
     
     it "should include appropriate attributes" do
-      u = Utterance.create()
+      user = User.create
+      u = Utterance.create(:user => user)
       ['id', 'link', 'button_list', 'sentence', 'image_url'].each do |key|
         expect(JsonApi::Utterance.build_json(u).keys).to be_include(key)
       end

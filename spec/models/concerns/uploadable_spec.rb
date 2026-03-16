@@ -1,6 +1,8 @@
 require 'spec_helper'
 
 describe Uploadable, :type => :model do
+  let(:u) { User.create }
+
   class FakeUploadable
     def self.before_save(*args); end
     def self.after_save(*args); end
@@ -19,8 +21,8 @@ describe Uploadable, :type => :model do
   
   describe "confirmation_key" do
     it "should generate a valid key" do
-      i = ButtonImage.create
-      i2 = ButtonImage.create
+      i = ButtonImage.create(user: u)
+      i2 = ButtonImage.create(user: u)
       k = i.confirmation_key
       expect(k).not_to eq(nil)
       expect(k.length).to be > 64
@@ -36,7 +38,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should add extensions only for known file types" do
-      i = ButtonImage.create(:settings => {'content_type' => 'image/png'})
+      i = ButtonImage.create(user: u, :settings => {'content_type' => 'image/png'})
       expect(i.full_filename).to match(/\.png$/)
       i.settings['full_filename'] = nil
       i.settings['content_type'] = 'bacon/bacon'
@@ -44,12 +46,12 @@ describe Uploadable, :type => :model do
     end
     
     it "should add a hashed value for security" do
-      i = ButtonImage.create(:settings => {'content_type' => 'image/png'})
+      i = ButtonImage.create(user: u, :settings => {'content_type' => 'image/png'})
       expect(i.full_filename.length).to be > 150
     end
     
     it "should store the value when returned" do
-      i = ButtonImage.create(:settings => {'content_type' => 'image/png'})
+      i = ButtonImage.create(user: u, :settings => {'content_type' => 'image/png'})
       fn = i.full_filename
       i.reload
       expect(i.settings['full_filename']).to eq(fn)
@@ -136,7 +138,7 @@ describe Uploadable, :type => :model do
 
   describe "upload_after_save" do
     it "should schedule an upload only if set" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       s.settings['pending_url'] = 'http://www.example.com/pic.png'
       s.instance_variable_set('@schedule_upload_to_remote', false)
       s.upload_after_save
@@ -150,7 +152,7 @@ describe Uploadable, :type => :model do
 
   describe "remote_upload_params" do
     it "should collect upload parameters, including a success callback" do
-      s = ButtonSound.create(:settings => {'content_type' => 'image/png'})
+      s = ButtonSound.create(user: u, :settings => {'content_type' => 'image/png'})
       res = s.remote_upload_params
       expect(res[:upload_url]).not_to eq(nil)
       expect(res[:upload_params]).not_to eq(nil)
@@ -166,7 +168,7 @@ describe Uploadable, :type => :model do
     
     it "should handle data-uris" do
       uri = "data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICYAAACyAgCdASoCAAEALmk0mk0iIiIiIgBoSygABc6zbAAA/v56QAAAAA=="
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
         f = args[:body][:file]
@@ -179,7 +181,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should handle downloads" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'audio/mp3'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
@@ -194,7 +196,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should error gracefully on mismatched content type header" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       s.upload_to_remote("http://pic.com/cow.png")
@@ -205,7 +207,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should error gracefully on bad http response" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => false, :headers => {'Content-Type' => 'audio/mp3'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       s.upload_to_remote("http://pic.com/cow.png")
@@ -216,7 +218,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should upload to the remote location" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'audio/mp3'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
@@ -230,7 +232,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should convert for rasterization if specified" do
-      s = ButtonSound.create(:settings => {})
+      s = ButtonSound.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'audio/mp3'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
@@ -253,7 +255,7 @@ describe Uploadable, :type => :model do
     end
 
     it "should measure image height if not already set" do
-      s = ButtonImage.create(:settings => {})
+      s = ButtonImage.create(user: u, :settings => {})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
@@ -272,7 +274,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should use the data uri if specified" do
-      s = ButtonImage.create(:settings => {'data_uri' => 'data:image/png;base64,R0lGODdh'})
+      s = ButtonImage.create(user: u, :settings => {'data_uri' => 'data:image/png;base64,R0lGODdh'})
       res = OpenStruct.new(:success? => true)
       expect(Typhoeus).to receive(:post) { |url, args|
         f = args[:body][:file]
@@ -287,7 +289,7 @@ describe Uploadable, :type => :model do
     end
     
     it "should clear the data uri on success" do
-      s = ButtonImage.create(:settings => {'data_uri' => 'data:image/png;base64,000'})
+      s = ButtonImage.create(user: u, :settings => {'data_uri' => 'data:image/png;base64,000'})
       res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => "abcdefg")
       expect(Typhoeus).to receive(:get).and_return(res)
       res = OpenStruct.new(:success? => true)
@@ -318,7 +320,7 @@ describe Uploadable, :type => :model do
   
   describe "cached_copy" do
     it "should schedule to cache a copy for protected images" do
-      i = ButtonImage.new
+      i = ButtonImage.new(user: u)
       expect(Uploader).to receive(:protected_remote_url?).with("http://www.example.com/pic.png").and_return(true).at_least(1).times
       i.url = "http://www.example.com/pic.png"
       i.save
@@ -337,7 +339,7 @@ describe Uploadable, :type => :model do
 
     it "should not create a new record on error, just use the same record again" do
       i = ButtonImage.new(url: 'http://www.example.com/pic.svg')
-      bi = ButtonImage.create(url: 'bacon')
+      bi = ButtonImage.create(user: u, url: 'bacon')
       expect(Uploader).to receive(:protected_remote_url?).with('http://www.example.com/pic.svg').and_return(true)
       expect(Uploader).to receive(:protected_remote_url?).with('bacon').and_return(false).at_least(1).times
       expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/pic.svg').and_return({url: 'bacon'})
@@ -355,7 +357,7 @@ describe Uploadable, :type => :model do
     
     it "should return false if too many failed attempts" do
       i = ButtonImage.new(url: 'http://www.example.com/pic.svg')
-      bi = ButtonImage.create(url: 'bacon', settings: {'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i, 30.minutes.ago.to_i]})
+      bi = ButtonImage.create(user: u, url: 'bacon', settings: {'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i, 30.minutes.ago.to_i]})
       expect(Uploader).to receive(:protected_remote_url?).with('http://www.example.com/pic.svg').and_return(true)
       expect(Uploader).to_not receive(:found_image_url)
       expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/pic.svg').and_return({url: 'bacon'})
@@ -364,7 +366,7 @@ describe Uploadable, :type => :model do
     
     it "should not stop if too few failed attempts" do
       i = ButtonImage.new(url: 'http://www.example.com/pic.svg')
-      bi = ButtonImage.create(url: 'bacon', settings: {'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
+      bi = ButtonImage.create(user: u, url: 'bacon', settings: {'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
       expect(Uploader).to receive(:protected_remote_url?).with('http://www.example.com/pic.svg').and_return(true)
       expect(Uploader).to receive(:found_image_url).and_return(nil)
       expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/pic.svg').and_return({url: 'bacon'})
@@ -384,9 +386,9 @@ describe Uploadable, :type => :model do
     end
     
     it "should not error if cached button_image is found, but no result on it yet" do
-      bi = ButtonImage.new
-      bi2 = ButtonImage.create(url: 'lingolinq://something.png', settings: {'error_pending_url' => 'lingolinq://something.png', 'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
-      u = User.create
+      u_local = User.create
+      bi = ButtonImage.new(user: u_local)
+      bi2 = ButtonImage.create(user: u_local, url: 'lingolinq://something.png', settings: {'error_pending_url' => 'lingolinq://something.png', 'copy_attempts' => [2.hours.ago.to_i, 1.hour.ago.to_i]})
       expect(bi.assert_cached_copy).to eq(false)
       bi.url = "http://www.example.com/pic.png"
       bi.save
@@ -395,11 +397,11 @@ describe Uploadable, :type => :model do
       expect(Uploader).to receive(:protected_remote_url?).with("lingolinq://something.png").and_return(false).at_least(1).times
       expect(ButtonImage).to receive(:cached_copy_identifiers).with("http://www.example.com/pic.png").and_return({
         library: 'lessonpix',
-        user_id: u.global_id,
+        user_id: u_local.global_id,
         image_id: '12345',
         url: 'lingolinq://something.png'
       })
-      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
+      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u_local).and_return('http://www.example.com/pics/pic.png')
       expect(ButtonImage).to receive(:find_by).with(url: 'lingolinq://something.png').and_return(bi2)
       expect(bi2).to receive(:upload_to_remote){|url|
         expect(url).to eq('http://www.example.com/pics/pic.png')
@@ -415,9 +417,9 @@ describe Uploadable, :type => :model do
     end
     
     it "should assert a cached copy" do
-      bi = ButtonImage.new
-      bi2 = ButtonImage.create
-      u = User.create
+      u_local = User.create
+      bi = ButtonImage.new(user: u_local)
+      bi2 = ButtonImage.create(user: u_local)
       expect(bi.assert_cached_copy).to eq(false)
       bi.url = "http://www.example.com/pic.png"
       bi.save
@@ -426,11 +428,11 @@ describe Uploadable, :type => :model do
       expect(Uploader).to receive(:protected_remote_url?).with("lingolinq://something.png").and_return(false).at_least(1).times
       expect(ButtonImage).to receive(:cached_copy_identifiers).with("http://www.example.com/pic.png").and_return({
         library: 'lessonpix',
-        user_id: u.global_id,
+        user_id: u_local.global_id,
         image_id: '12345',
         url: 'lingolinq://something.png'
       })
-      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
+      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u_local).and_return('http://www.example.com/pics/pic.png')
       expect(ButtonImage).to receive(:create).and_return(bi2)
       expect(bi2).to receive(:upload_to_remote){|url|
         expect(url).to eq('http://www.example.com/pics/pic.png')
@@ -444,19 +446,19 @@ describe Uploadable, :type => :model do
     end
     
     it "should retry on failed cache copy assertion" do
-      bi = ButtonImage.new
-      bi2 = ButtonImage.create
-      u = User.create
+      u_local = User.create
+      bi = ButtonImage.new(user: u_local)
+      bi2 = ButtonImage.create(user: u_local)
       expect(bi.assert_cached_copy).to eq(false)
       bi.url = "http://www.example.com/api/v1/users/bob/protected_image/pic/123"
       bi.save
       expect(ButtonImage).to receive(:cached_copy_identifiers).with("http://www.example.com/api/v1/users/bob/protected_image/pic/123").and_return({
         library: 'lessonpix',
-        user_id: u.global_id,
+        user_id: u_local.global_id,
         image_id: '12345',
         url: 'lingolinq://something.png'
       })
-      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u).and_return('http://www.example.com/pics/pic.png')
+      expect(Uploader).to receive(:found_image_url).with('12345', 'lessonpix', u_local).and_return('http://www.example.com/pics/pic.png')
       expect(ButtonImage).to receive(:create).and_return(bi2)
       bi2.settings['errored_pending_url'] = 'asdf'
       bi2.save
@@ -476,7 +478,7 @@ describe Uploadable, :type => :model do
       u = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq('http://www.example.com/pic.png')
     end
@@ -487,7 +489,7 @@ describe Uploadable, :type => :model do
       u2 = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u2).and_return({})
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u2)).to eq('http://www.example.com/pic.png')
     end
@@ -498,7 +500,7 @@ describe Uploadable, :type => :model do
       u2 = User.create
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
       
-      bi2 = ButtonImage.create(url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      bi2 = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
       expect(Uploader).to receive(:lessonpix_credentials).with(u2).and_return(nil)
       expect(ButtonImage.cached_copy_url("http://www.example.com/api/v1/users/#{u.global_id}/protected_image/lessonpix/12345", u2)).to eq("https://lessonpix.com/drawings/12345/100x100/12345.png")
     end
@@ -511,8 +513,8 @@ describe Uploadable, :type => :model do
         url4 = "http://www.example.com/pics/3"
         url5 = "http://www.example.com/pics/4"
         url6 = "http://www.example.com/pics/5"
-        bi = ButtonImage.create(:url => 'pic:1', :settings => {'cached_copy_url' => 'http://www.example/cache/1'})
-        bi = ButtonImage.create(:url => 'pic:2', :settings => {'cached_copy_url' => 'http://www.example/cache/2'})
+        bi = ButtonImage.create(user: u, :url => 'pic:1', :settings => {'cached_copy_url' => 'http://www.example/cache/1'})
+        bi = ButtonImage.create(user: u, :url => 'pic:2', :settings => {'cached_copy_url' => 'http://www.example/cache/2'})
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/pics/1').and_return({
           user_id: 'sue', library: 'lessonpix', image_id: '123', url: 'pic:1'
         }).exactly(2).times
@@ -542,13 +544,13 @@ describe Uploadable, :type => :model do
     
     describe "cached_copy_urls" do
       it "should return a list of url mappings" do
-        bi1 = ButtonImage.create(:url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
-        bi2 = ButtonImage.create(:url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
-        bbi1 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi2 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi3 = ButtonImage.create(:url => 'http://www.example.com/bacon/2')
-        bbi4 = ButtonImage.create(:url => 'http://www.example.com/bacon/3')
-        bbi5 = ButtonImage.create(:url => 'http://www.example.com/bacon/4')
+        bi1 = ButtonImage.create(user: u, :url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
+        bi2 = ButtonImage.create(user: u, :url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
+        bbi1 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi2 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi3 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/2')
+        bbi4 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/3')
+        bbi5 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/4')
         u = User.create
         expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/bacon/1').and_return({
@@ -591,13 +593,13 @@ describe Uploadable, :type => :model do
       end
 
       it "should update any records where a cached url is found" do
-        bi1 = ButtonImage.create(:url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
-        bi2 = ButtonImage.create(:url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
-        bbi1 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi2 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi3 = ButtonImage.create(:url => 'http://www.example.com/bacon/2')
-        bbi4 = ButtonImage.create(:url => 'http://www.example.com/bacon/3')
-        bbi5 = ButtonImage.create(:url => 'http://www.example.com/bacon/4')
+        bi1 = ButtonImage.create(user: u, :url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
+        bi2 = ButtonImage.create(user: u, :url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
+        bbi1 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi2 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi3 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/2')
+        bbi4 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/3')
+        bbi5 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/4')
         u = User.create
         expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/bacon/1').and_return({
@@ -650,13 +652,13 @@ describe Uploadable, :type => :model do
       end
       
       it "should not update records where a cached url is found if it already has a cached url (unless it happens to find a better url)" do
-        bi1 = ButtonImage.create(:url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
-        bi2 = ButtonImage.create(:url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
-        bbi1 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi2 = ButtonImage.create(:url => 'http://www.example.com/bacon/1', :settings => {'cached_copy_url' => 'http://www.example.com/cheddar/cache/1'})
-        bbi3 = ButtonImage.create(:url => 'http://www.example.com/bacon/2', :settings => {'cached_copy_url' => 'http://www.example.com/cheddar/cache/2'})
-        bbi4 = ButtonImage.create(:url => 'http://www.example.com/bacon/3')
-        bbi5 = ButtonImage.create(:url => 'http://www.example.com/bacon/4')
+        bi1 = ButtonImage.create(user: u, :url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
+        bi2 = ButtonImage.create(user: u, :url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
+        bbi1 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi2 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1', :settings => {'cached_copy_url' => 'http://www.example.com/cheddar/cache/1'})
+        bbi3 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/2', :settings => {'cached_copy_url' => 'http://www.example.com/cheddar/cache/2'})
+        bbi4 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/3')
+        bbi5 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/4')
         u = User.create
         expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/bacon/1').and_return({
@@ -709,13 +711,13 @@ describe Uploadable, :type => :model do
       end
       
       it "should not update records that only have fallback urls" do
-        bi1 = ButtonImage.create(:url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
-        bi2 = ButtonImage.create(:url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
-        bbi1 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi2 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi3 = ButtonImage.create(:url => 'http://www.example.com/bacon/2')
-        bbi4 = ButtonImage.create(:url => 'http://www.example.com/bacon/3')
-        bbi5 = ButtonImage.create(:url => 'http://www.example.com/bacon/4')
+        bi1 = ButtonImage.create(user: u, :url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
+        bi2 = ButtonImage.create(user: u, :url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
+        bbi1 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi2 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi3 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/2')
+        bbi4 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/3')
+        bbi5 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/4')
         u = User.create
         expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/bacon/1').and_return({
@@ -768,13 +770,13 @@ describe Uploadable, :type => :model do
       end
       
       it "should return fallback urls if available and the user isn't authorized for the real one" do
-        bi1 = ButtonImage.create(:url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
-        bi2 = ButtonImage.create(:url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
-        bbi1 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi2 = ButtonImage.create(:url => 'http://www.example.com/bacon/1')
-        bbi3 = ButtonImage.create(:url => 'http://www.example.com/bacon/2')
-        bbi4 = ButtonImage.create(:url => 'http://www.example.com/bacon/3')
-        bbi5 = ButtonImage.create(:url => 'http://www.example.com/bacon/4')
+        bi1 = ButtonImage.create(user: u, :url => "bacon:1", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/1'})
+        bi2 = ButtonImage.create(user: u, :url => "bacon:2", :settings => {'cached_copy_url' => 'http://www.example.com/bacon/cache/2'})
+        bbi1 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi2 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/1')
+        bbi3 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/2')
+        bbi4 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/3')
+        bbi5 = ButtonImage.create(user: u, :url => 'http://www.example.com/bacon/4')
         u = User.create
         expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return(nil)
         expect(ButtonImage).to receive(:cached_copy_identifiers).with('http://www.example.com/bacon/1').and_return({
@@ -882,7 +884,7 @@ describe Uploadable, :type => :model do
       expect(bi).to receive(:full_filename).and_return(nil)
       expect(bi.raster_url).to eq(nil)
       expect(bi).to receive(:full_filename).and_return("a/b/c/d.svg").at_least(1).times
-      expect(bi.raster_url).to eq("#{ENV['UPLOADS_S3_CDN'] || "https://#{ENV['UPLOADS_S3_BUCKET']}"}/a/b/c/d.svg.raster.png")
+      expect(bi.raster_url).to eq("#{ENV['UPLOADS_S3_CDN'] || "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com"}/a/b/c/d.svg.raster.png")
     end
 
     it "should return skinned url if passed" do

@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import * as emberDebug from '@ember/debug';
 import {
   describe,
   it,
@@ -213,7 +213,7 @@ describe('session', function() {
     });
 
     it("should confirm token validity if specified", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -240,7 +240,7 @@ describe('session', function() {
     });
 
     it("should confirm token invalidity if specified", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -267,7 +267,7 @@ describe('session', function() {
     });
 
     it("should not confirm token validity if online and already checked", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -291,7 +291,7 @@ describe('session', function() {
     });
 
     it("should log the user out if their token is expired (and they are online)", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -322,7 +322,7 @@ describe('session', function() {
     });
 
     it("should not log the user out if there is an unexpected issue confirming the token", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -358,7 +358,7 @@ describe('session', function() {
 
     it("should set browserToken on success response", function() {
       persistence.set('browserToken', null);
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {
@@ -392,7 +392,7 @@ describe('session', function() {
     });
 
     it("should set browserToken on error response", function() {
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stub(stashes, 'get_object', function(key, extra) {
         if(extra && key == 'auth_settings') {
           return {

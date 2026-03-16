@@ -28,7 +28,8 @@ describe JsonApi::Sound do
     end
 
     it "should return metadata for pending uploads" do
-      i = ButtonSound.new(settings: {'hat' => 'black', 'content_type' => 'image/png', 'pending' => true, 'pending_url' => 'http://www.pic.com'})
+      u = User.create
+      i = ButtonSound.new(user: u, settings: {'hat' => 'black', 'content_type' => 'image/png', 'pending' => true, 'pending_url' => 'http://www.pic.com'})
       i.instance_variable_set('@remote_upload_possible', true)
       i.save
       expect(i.pending_upload?).to eq(true)

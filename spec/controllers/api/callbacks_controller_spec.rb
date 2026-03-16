@@ -99,9 +99,10 @@ describe Api::CallbacksController, :type => :controller do
     end
     
     it "should handle transcoding" do
+      u = User.create
       expect(GoSecure).to receive(:nonce).with("security_nonce").and_return("abcdefg")
       expect(GoSecure).to receive(:nonce).with("transcoding_key").and_return("abcdefg")
-      bs = ButtonSound.create(:settings => {
+      bs = ButtonSound.create(:user => u, :settings => {
         'full_filename' => 'sounds/4/3/0-something.wav'
       })
       prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s

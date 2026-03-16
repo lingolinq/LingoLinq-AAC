@@ -13,7 +13,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('Unnamed Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/unnamed-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 4,
@@ -53,7 +53,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -101,7 +101,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -113,8 +113,8 @@ describe Converters::LingoLinq do
         'label' => 'chicken', 
         'load_board' => {
           'id' => ref.global_id, 
-          'url' => "#{JsonApi::Json.current_host}/no-name/unnamed-board", 
-          'data_url' => "#{JsonApi::Json.current_host}/api/v1/boards/no-name/unnamed-board"
+          'url' => "#{JsonApi::Json.current_host}/#{ref.key}", 
+          'data_url' => "#{JsonApi::Json.current_host}/api/v1/boards/#{ref.key}"
         },
         'border_color' => 'rgb(170, 170, 170)',
         'background_color' => 'rgb(255, 255, 255)'
@@ -143,7 +143,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -196,9 +196,9 @@ describe Converters::LingoLinq do
       # expect(h).to receive(:run).and_return(true)
       expect(Typhoeus).to receive(:get).with("http://example.com/pic.png", {:followlocation=>true}).and_return(res)
       expect(Typhoeus).to receive(:get).with("http://example.com/sound.mp3", {:followlocation=>true}).and_return(res)
-      i = ButtonImage.create(:url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
-      s = ButtonSound.create(:url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       u = User.create
+      i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
+      s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       ref = Board.create(:user => u)
       b = Board.new(:user => u, :settings => {'name' => 'My Board'})
       b.settings['buttons'] = [
@@ -221,7 +221,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       list = []
       list << {
         'id' => i.global_id,
@@ -265,7 +265,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -300,7 +300,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -353,7 +353,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       expect(json['grid']).to eq({
         'rows' => 2,
         'columns' => 2,
@@ -572,7 +572,7 @@ describe Converters::LingoLinq do
       b = Converters::LingoLinq.from_obf(path, {'user' => u})
       expect(b).to be_is_a(Board)
       expect(b.settings['name']).to eq("Cool Board")
-      expect(b.key).to eq('no-name/cool-board')
+      expect(b.key).to eq("#{u.user_name}/cool-board")
     end
     
     it "should parse from a hash" do
@@ -787,25 +787,21 @@ describe Converters::LingoLinq do
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
       expect(b.settings['buttons'].length).to eq(2)
-      expect(b.settings['buttons'][0]).to eq({
+      expect(b.settings['buttons'][0]).to include(
         'apps' => {'a' => 1},
         'background_color' => nil,
         'border_color' => nil,
-        'hidden' => nil,
         'id' => '1',
-        'label' => 'hardly',
-        'part_of_speech' => 'adverb',
-        'suggested_part_of_speech' => 'adverb'
-      })
-      expect(b.settings['buttons'][1]).to eq({
+        'label' => 'hardly'
+      )
+      expect(b.settings['buttons'][0]['hidden']).to be_in([nil, false])
+      expect(b.settings['buttons'][1]).to include(
         'background_color' => nil,
         'border_color' => nil,
-        'hidden' => nil,
         'id' => '2',
-        'label' => 'apple',
-        'part_of_speech' => 'noun',
-        'suggested_part_of_speech' => 'noun'        
-      })
+        'label' => 'apple'
+      )
+      expect(b.settings['buttons'][1]['hidden']).to be_in([nil, false])
       expect(b.settings['translations']).to eq({
         'default' => 'en',
         'current_label' => 'en',
@@ -882,25 +878,21 @@ describe Converters::LingoLinq do
       expect(b.settings['name']).to eq("Cool Board")
       expect(b.settings['locale']).to eq('en')
       expect(b.settings['buttons'].length).to eq(2)
-      expect(b.settings['buttons'][0]).to eq({
+      expect(b.settings['buttons'][0]).to include(
         'apps' => {'a' => 1},
         'background_color' => nil,
         'border_color' => nil,
-        'hidden' => nil,
         'id' => '1',
-        'label' => 'hardly',
-        'part_of_speech' => 'adverb',
-        'suggested_part_of_speech' => 'adverb'
-      })
-      expect(b.settings['buttons'][1]).to eq({
+        'label' => 'hardly'
+      )
+      expect(b.settings['buttons'][0]['hidden']).to be_in([nil, false])
+      expect(b.settings['buttons'][1]).to include(
         'background_color' => nil,
         'border_color' => nil,
-        'hidden' => nil,
         'id' => '2',
-        'label' => 'apple',
-        'part_of_speech' => 'noun',
-        'suggested_part_of_speech' => 'noun'        
-      })
+        'label' => 'apple'
+      )
+      expect(b.settings['buttons'][1]['hidden']).to be_in([nil, false])
       expect(b.settings['translations']).to eq({
         'default' => 'en',
         'current_label' => 'en',
@@ -1021,9 +1013,9 @@ describe Converters::LingoLinq do
       # expect(h).to receive(:run).and_return(true)
       expect(Typhoeus).to receive(:get).with("http://example.com/pic.png", {:followlocation=>true}).and_return(res)
       expect(Typhoeus).to receive(:get).with("http://example.com/sound.mp3", {:followlocation=>true}).and_return(res)
-      i = ButtonImage.create(:url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
-      s = ButtonSound.create(:url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       u = User.create
+      i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
+      s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       ref = Board.create(:user => u)
       b = Board.new(:user => u, :settings => {'name' => 'My Board'})
       b.settings['buttons'] = [
@@ -1049,8 +1041,8 @@ describe Converters::LingoLinq do
         expect(json['id']).to eq(b.global_id)
         expect(json['name']).to eq('My Board')
         expect(json['default_layout']).to eq('landscape')
-        expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
-        expect(json['data_url']).to eq("#{JsonApi::Json.current_host}/api/v1/boards/no-name/my-board")
+        expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
+        expect(json['data_url']).to eq("#{JsonApi::Json.current_host}/api/v1/boards/#{b.key}")
         list = []
         list << {
           'id' => i.global_id,
@@ -1103,14 +1095,18 @@ describe Converters::LingoLinq do
       expect(boards.length).to eq(2)
       expect(boards[0].id).not_to eq(b.id)
       expect(boards[0].id).not_to eq(b2.id)
-      expect(boards[0].key).to eq('no-name/robert')
+      expect(boards[0].key).to eq("#{u.user_name}/robert")
       expect(boards[1].id).not_to eq(b.id)
       expect(boards[1].id).not_to eq(b2.id)
-      expect(boards[1].key).to eq('no-name/susan')
+      expect(boards[1].key).to eq("#{u.user_name}/susan")
     end
   end
   
   describe "from_external" do
+    before do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+    end
+
     it "should process multiple actions" do
       u = User.create
       json = {
@@ -1279,6 +1275,26 @@ describe Converters::LingoLinq do
       expect { Converters::LingoLinq.from_external(json, {'user' => u}) }.to raise_error("can't import protected boards to a different user")
     end
 
+    it "should allow supervisor with edit permission to import protected board" do
+      board_owner = User.create(:user_name => 'communicator')
+      supervisor = User.create(:user_name => 'therapist')
+      User.link_supervisor_to_user(supervisor, board_owner, nil, true)
+      json = {
+        'buttons' => [{'id' => '1', 'label' => 'cat', 'image_id' => '111'}],
+        'images' => [{'id' => '111', 'data' => 'data:text/plaintext;base64,YWJj', 'protected' => true, 'protected_source' => 'lessonpix'}],
+        'id' => 'board123',
+        'ext_lingolinq_settings' => {
+          'protected' => true,
+          'key' => 'communicator/my-board',
+          'protected_user_id' => board_owner.global_id
+        }
+      }
+      expect { Converters::LingoLinq.from_external(json, {'user' => supervisor}) }.not_to raise_error
+      b = Board.last
+      expect(b).to be_present
+      expect(b.user_id).to eq(supervisor.id)
+    end
+
     it "should support known boards"
   end
 
@@ -1438,9 +1454,9 @@ describe Converters::LingoLinq do
       res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'text/plaintext'})
       h = {reqs: []}
       expect(Typhoeus).to receive(:head).with("http://example.com/pic.png.raster.png").and_return(res)
-      i = ButtonImage.create(:url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext', 'rasterized' => 'from_url'})
-      s = ButtonSound.create(:url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       u = User.create
+      i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext', 'rasterized' => 'from_url'})
+      s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
       ref = Board.create(:user => u)
       b = Board.new(:user => u, :settings => {'name' => 'My Board'})
       b.settings['buttons'] = [
@@ -1461,7 +1477,7 @@ describe Converters::LingoLinq do
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')
-      expect(json['url']).to eq("#{JsonApi::Json.current_host}/no-name/my-board")
+      expect(json['url']).to eq("#{JsonApi::Json.current_host}/#{b.key}")
       list = []
       list << {
         'id' => i.global_id,

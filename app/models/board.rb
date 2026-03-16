@@ -1,5 +1,8 @@
 class Board < ActiveRecord::Base
   DEFAULT_ICON = "https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png"
+  # When a board used as home/sidebar by more users than this, cleanup runs in a background job
+  # to avoid blocking board destruction and request timeouts on popular public boards.
+  HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
   include Processable
   include Permissions
   include Async
@@ -18,8 +21,8 @@ class Board < ActiveRecord::Base
   has_many :button_sounds, :through => :board_button_sounds
   has_many :log_session_boards
   belongs_to :user
-  belongs_to :parent_board, :class_name => 'Board'
-  belongs_to :board_content
+  belongs_to :parent_board, :class_name => 'Board', optional: true
+  belongs_to :board_content, optional: true
   has_many :child_boards, :class_name => 'Board', :foreign_key => 'parent_board_id'
   # pg_search_scope :search_by_text, :against => :search_string, :ranked_by => "log(boards.popularity + boards.home_popularity + 3) * :tsearch"
   # pg_search_scope :search_by_text_for_home_popularity, :against => :search_string, :ranked_by => "log(boards.home_popularity + 2) * :tsearch"
@@ -446,6 +449,8 @@ class Board < ActiveRecord::Base
         found_locales[self.settings['locale'].split(/-|_/)[0]] = true
       end
     end
+    # Ensure public boards have at least one BoardLocale for search (e.g. 'en')
+    found_locales['en'] = true if self.fully_listed? && found_locales.empty?
     locales.each do |locale|
       next unless locale
       found_locales[locale] = true
@@ -941,7 +946,8 @@ class Board < ActiveRecord::Base
         'id' => max_id,
         'label' => label,
         'suggest_symbol' => true,
-        'hidden' => false
+        'hidden' => false,
+        'hide_label' => false
       }
       buttons << button
       @buttons_changed = 'populated_from_labels'
@@ -1313,7 +1319,7 @@ class Board < ActiveRecord::Base
   def check_image_url
     if self.settings && self.settings['image_url'] == DEFAULT_ICON && self.settings['default_image_url'] == self.settings['image_url'] && self.settings['name'] && self.settings['name'] != 'Unnamed Board'
       locale = (self.settings['locale'] || 'en').split(/-|_/)[0].downcase
-      res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(self.settings['name'])}&locale=#{locale}", :timeout => 5, :ssl_verifypeer => false)
+      res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(self.settings['name'])}&locale=#{locale}", :timeout => 5)
       results = JSON.parse(res.body) rescue nil
       results ||= []
       icon = results.detect do |result|
@@ -1861,6 +1867,8 @@ class Board < ActiveRecord::Base
       # Normalize hidden/link_disabled so string "false" from params is not treated as truthy
       button['hidden'] = (button['hidden'] == true || button['hidden'].to_s == 'true')
       button['link_disabled'] = (button['link_disabled'] == true || button['link_disabled'].to_s == 'true')
+      button['hide_label'] = (button['hide_label'] == true || button['hide_label'].to_s == 'true')
+      button['text_only'] = (button['text_only'] == true || button['text_only'].to_s == 'true')
       button.delete('level_modifications') if button['level_modifications'] && !button['level_modifications'].is_a?(Hash)
       button.delete('ref_id') if button['ref_id'].blank?
       button.delete('rules') if button['rules'].blank?
@@ -1961,19 +1969,70 @@ class Board < ActiveRecord::Base
   end
   
   def flush_related_records
+    board_global_id = self.global_id
+    board_key = self.key
+    ubcs = UserBoardConnection.where(board_id: self.id).includes(:user)
+    if ubcs.count > HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD
+      user_connection_data = ubcs.map { |ubc| { 'user_id' => ubc.user_id, 'home' => ubc.home } }
+      Board.schedule_for(:slow, :clear_home_and_sidebar_for_deleted_board, board_global_id, board_key, user_connection_data)
+    else
+      ubcs.each do |ubc|
+        Board.clear_home_and_sidebar_for_user(ubc.user, board_global_id, board_key, ubc.home)
+      end
+    end
+    UserBoardConnection.where(board_id: self.id).delete_all
     ue = self.user && self.user.user_extra
     if ue && ue.settings['replaced_boards']
       id = self.global_id(true)
       changed = false
       ue.settings['replaced_boards'].each do |key, val|
         if val == id
-          ue.settings['replaced_boards'].delete(key) 
+          ue.settings['replaced_boards'].delete(key)
           changed = true
         end
       end
       ue.save if changed
     end
     DeletedBoard.process(self)
+  end
+
+  # Clears home_board and sidebar refs for one user. Used inline (few users) and by the background job.
+  def self.clear_home_and_sidebar_for_user(user, board_global_id, board_key, had_home)
+    return unless user && user.settings
+    user.settings['preferences'] ||= {}
+    user_changed = false
+    if had_home
+      if user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['id'] == board_global_id
+        user.settings['preferences'].delete('home_board')
+        user.settings['home_board_changed'] = true
+        user.notify('home_board_changed')
+        user.schedule_audit_protected_sources
+        user.schedule(:update_home_board_inflections)
+        user_changed = true
+      end
+    end
+    sidebar = user.settings['preferences']['sidebar_boards']
+    sidebar = sidebar.values if sidebar.is_a?(Hash)
+    if sidebar.is_a?(Array)
+      original_len = sidebar.length
+      sidebar.reject! { |b| b && b['key'] == board_key }
+      if sidebar.length != original_len
+        user.settings['preferences']['sidebar_boards'] = sidebar
+        user.settings['sidebar_changed'] = true
+        user_changed = true
+      end
+    end
+    user.save_with_sync('home_board_deleted') if user_changed
+  end
+
+  # Background job: clears home_board and sidebar refs for many users after board deletion.
+  def self.clear_home_and_sidebar_for_deleted_board(board_global_id, board_key, user_connection_data)
+    return unless user_connection_data.is_a?(Array)
+    user_connection_data.each do |entry|
+      next unless entry.is_a?(Hash) && entry['user_id']
+      user = User.find_by(id: entry['user_id'])
+      clear_home_and_sidebar_for_user(user, board_global_id, board_key, entry['home'])
+    end
   end
   
   def images_and_sounds_for(user)

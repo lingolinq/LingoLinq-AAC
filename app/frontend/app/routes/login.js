@@ -1,7 +1,9 @@
 import Route from '@ember/routing/route';
+import { inject as service } from '@ember/service';
 import session from '../utils/session';
 
 export default Route.extend({
+  router: service('router'),
   title: "Login",
   beforeModel: function(transition) {
     // If user is authenticated and has a valid token, redirect away from login
@@ -10,7 +12,7 @@ export default Route.extend({
       // Don't redirect if token is known to be invalid
       // This allows users with expired/invalid tokens to re-authenticate
       if(!session.get('invalid_token')) {
-        this.transitionTo('index');
+        this.router.transitionTo('index');
       }
     }
   },

@@ -55,3 +55,76 @@ task :transcode_errored_records => :environment do
   count = ButtonSound.schedule_missing_transcodings
   puts "done, #{count} scheduled"
 end
+
+desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
+task "scheduler:dispatch" => :environment do
+  run_task = Proc.new do |name, &block|
+    puts "  [#{name}] starting..."
+    result = block.call
+    puts "  [#{name}] done: #{result}"
+  rescue => e
+    puts "  [#{name}] ERROR: #{e.class}: #{e.message}"
+    Rails.logger.error("[Scheduler] #{name} failed: #{e.class}: #{e.message}")
+    Rails.logger.error("[Scheduler] #{e.backtrace&.first(5)&.join("\n")}")
+  end
+
+  hour = Time.now.utc.hour
+  puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch (hour=#{hour} UTC) ==="
+
+  # --- Hourly tasks (every run) ---
+  puts "--- Hourly tasks ---"
+
+  run_task.call("generate_log_summaries") do
+    res = LogSession.generate_log_summaries
+    "found #{res[:found]}, notified #{res[:notified]}"
+  end
+
+  run_task.call("push_remote_logs") do
+    res = LogSession.push_logs_remotely
+    Uploader.remote_remove_batch
+    "updated #{res} logs"
+  end
+
+  run_task.call("check_for_log_mergers") do
+    res = LogSession.check_possible_mergers
+    "found #{res} possible logs"
+  end
+
+  run_task.call("advance_goals") do
+    count = UserGoal.advance_goals.count
+    "#{count} advanced"
+  end
+
+  # --- Daily tasks (run once at 6 AM UTC) ---
+  if hour == 6
+    puts "--- Daily tasks (6 AM UTC) ---"
+
+    run_task.call("check_for_expiring_subscriptions") do
+      res = User.check_for_subscription_updates
+      User.schedule_for('slow', :check_for_subscription_updates)
+      BoardContent.schedule_for('whenever', :link_clones, 1000)
+      JSON.pretty_generate(res)
+    end
+
+    run_task.call("transcode_errored_records") do
+      count = ButtonSound.schedule_missing_transcodings
+      "#{count} scheduled"
+    end
+
+    run_task.call("flush_users") do
+      res = Flusher.flush_deleted_users
+      Utterance.clear_old_nonces
+      "deleted #{res} users"
+    end
+
+    run_task.call("clean_old_deleted_boards") do
+      User.schedule_for(:slow, :flush_old_versions)
+      Worker.schedule(Flusher, :flush_resque_errors)
+      count = DeletedBoard.flush_old_records
+      JobStash.flush_old_records
+      "#{count} deleted"
+    end
+  end
+
+  puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch Complete ==="
+end

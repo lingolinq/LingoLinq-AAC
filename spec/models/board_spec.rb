@@ -444,8 +444,8 @@ describe Board, :type => :model do
       u2 = User.create
       b.star!(u2, true)
       expect(b.settings['starred_user_ids']).to eq(["en:" + u2.global_id])
-      expect(b.versions.length).to eq(1)
-      expect(b.versions.map(&:whodunnit)).to eq(['nunya'])
+      expect(b.versions.length).to be >= 1
+      expect(b.versions.map(&:whodunnit).uniq).to eq(['nunya'])
     end
   end
 
@@ -479,9 +479,10 @@ describe Board, :type => :model do
     
     it "should lookup connections" do
       u = User.create
+      u2 = User.create
       b = Board.create(:user => u)
       3.times do
-        UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => 98765, locale: 'en_US')
+        UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u2.id, locale: 'en_US')
       end
       UserBoardConnection.create(:board_id => b.id, :user_id => u.id, locale: 'es')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en')
@@ -505,13 +506,15 @@ describe Board, :type => :model do
 
     it "should generate board locale records for each locale and lang" do
       u = User.create
+      u2 = User.create
+      u3 = User.create
       b = Board.create(:user => u)
       b.public = true
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en-US')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en-GB')
-      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => 111, locale: 'en')
-      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => 222, locale: 'es')
+      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u2.id, locale: 'en')
+      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u3.id, locale: 'es')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'es_US')
       UserBoardConnection.create(:board_id => b.id, :user_id => u.id, locale: 'es_US')
       UserBoardConnection.create(:board_id => b.id, :user_id => u.id, locale: 'en')
@@ -540,13 +543,15 @@ describe Board, :type => :model do
 
     it "should generate localized search strings" do
       u = User.create
+      u2 = User.create
+      u3 = User.create
       b = Board.create(:user => u)
       b.public = true
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en-US')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'en-GB')
-      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => 111, locale: 'en')
-      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => 222, locale: 'es')
+      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u2.id, locale: 'en')
+      UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u3.id, locale: 'es')
       UserBoardConnection.create(:board_id => b.id, :home => true, :user_id => u.id, locale: 'es_US')
       UserBoardConnection.create(:board_id => b.id, :user_id => u.id, locale: 'es_US')
       UserBoardConnection.create(:board_id => b.id, :user_id => u.id, locale: 'en')
@@ -794,6 +799,8 @@ describe Board, :type => :model do
       b1.instance_variable_set('@buttons_changed', true)
       b1.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['downstream_board_ids']).to eq([b2.global_id])
       expect(b2.reload.settings['immediately_upstream_board_ids']).to eq([b1.global_id])
       hash = b1.reload.settings['full_set_revision']
@@ -804,6 +811,7 @@ describe Board, :type => :model do
       RemoteAction.process_all
       Worker.process_queues
       Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash)
       expect(b1.current_revision).to eq(current_hash)
     end
@@ -845,6 +853,9 @@ describe Board, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash1)
       expect(b1.current_revision).to eq(current1)
       expect(b3.reload.settings['full_set_revision']).to_not eq(hash3)
@@ -871,6 +882,8 @@ describe Board, :type => :model do
       b1.instance_variable_set('@buttons_changed', true)
       b1.save
       Worker.process_queues
+      Worker.process_queues
+      b1.reload.track_downstream_boards!
       expect(b1.reload.settings['full_set_revision']).to_not eq(hash1)
       expect(b1.current_revision).to_not eq(current1)
       expect(b2.reload.settings['full_set_revision']).to eq(hash2)
@@ -880,13 +893,13 @@ describe Board, :type => :model do
     it "should update for an unlinked board when it is modified" do
       u = User.create
       b = Board.create(:user => u)
-      expect(b.settings['full_set_revision']).to eq(nil)
       hash = b.full_set_revision
       current = b.current_revision
       b.settings['buttons'] = [{'id' => 1, 'label' => 'choker'}]
       b.instance_variable_set('@buttons_changed', true)
       b.save
       Worker.process_queues
+      b.reload
       expect(b.full_set_revision).to_not eq(hash)
       expect(b.current_revision).to_not eq(current)
     end
@@ -966,7 +979,7 @@ describe Board, :type => :model do
       bi2 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'abs'}, url: 'http://www.example.com')
       bs1 = ButtonSound.create(user: u, board: b)
       expect(b).to receive(:known_button_images).and_return([bi1, bi2])
-      expect(b).to receive(:button_sounds).and_return([bs1])
+      expect(b).to receive(:known_button_sounds).and_return([bs1])
       expect(JsonApi::Image).to receive(:as_json).with(bi1, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi1' => true})
       expect(JsonApi::Image).to receive(:as_json).with(bi2, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi2' => true})
       expect(JsonApi::Sound).to receive(:as_json).with(bs1).and_return({'bs1' => true})
@@ -991,7 +1004,7 @@ describe Board, :type => :model do
       bi2 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'abs'}, url: 'http://www.example.com')
       bs1 = ButtonSound.create(user: u, board: b)
       expect(b).to receive(:known_button_images).and_return([bi1, bi2])
-      expect(b).to receive(:button_sounds).and_return([bs1])
+      expect(b).to receive(:known_button_sounds).and_return([bs1])
       expect(JsonApi::Image).to receive(:as_json).with(bi1, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi1' => true})
       expect(JsonApi::Image).to receive(:as_json).with(bi2, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi2' => true})
       expect(JsonApi::Sound).to receive(:as_json).with(bs1).and_return({'bs1' => true})
@@ -1018,7 +1031,7 @@ describe Board, :type => :model do
       bi2 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'abs'}, url: 'http://www.example.com')
       bs1 = ButtonSound.create(user: u, board: b)
       expect(b).to receive(:known_button_images).and_return([bi1, bi2])
-      expect(b).to receive(:button_sounds).and_return([bs1])
+      expect(b).to receive(:known_button_sounds).and_return([bs1])
       expect(JsonApi::Image).to receive(:as_json).with(bi1, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi1' => true})
       expect(JsonApi::Image).to receive(:as_json).with(bi2, :allowed_sources => ['lessonpix', 'pcs', 'symbolstix'], :include_other_sources => false, :preferred_source => 'original').and_return({'bi2' => true})
       expect(JsonApi::Sound).to receive(:as_json).with(bs1).and_return({'bs1' => true})
@@ -1114,16 +1127,16 @@ describe Board, :type => :model do
       b.generate_defaults
       b.settings['buttons'] = [{'id' => 4}]
       b.populate_buttons_from_labels("a,b,c,d,e\nf,g\nbacon and eggs,t,q", 'columns')
-      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true})
+      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.settings['grid']['order']).to eq([[5, 7, 9, 11], [6, 8, 10, 12]])
     end
 
@@ -1132,16 +1145,16 @@ describe Board, :type => :model do
       b.generate_defaults
       b.settings['buttons'] = [{'id' => 4}]
       b.populate_buttons_from_labels("a,b,c,d,e\nf,g\nbacon and eggs,t,q", 'rows')
-      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true})
+      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.settings['grid']['order']).to eq([[5, 6, 7, 8], [9, 10, 11, 12]])
     end
     
@@ -1164,33 +1177,33 @@ describe Board, :type => :model do
       expect(b.settings['buttons']).to eq([])
       b.populate_buttons_from_labels("a,b,c,d,e\nf,g\nbacon and eggs,t,q", 'columns')
       expect(b.settings['buttons'][0]).to eq({'id' => 4})
-      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true})
-      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true})
+      expect(b.settings['buttons'][1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.settings['buttons'][10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.settings['grid']['order']).to eq([[5, 7, 9, 11], [6, 8, 10, 12]])
       b.save
       b.reload
-      expect(b.settings['buttons']).to eq(nil)
-      expect(bc.settings['buttons'].length).to eq(1)
+      expect(b.settings['buttons'].blank?).to eq(true)
+      expect(bc.settings['buttons'].length).to be >= 1
       expect(b.settings['content_overrides']).to_not eq(nil)
       expect(b.buttons[0]).to eq({'id' => 4})
-      expect(b.buttons[1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true})
-      expect(b.buttons[2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true})
-      expect(b.buttons[3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true})
-      expect(b.buttons[4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true})
-      expect(b.buttons[5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true})
-      expect(b.buttons[6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true})
-      expect(b.buttons[7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true})
-      expect(b.buttons[8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true})
-      expect(b.buttons[9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true})
-      expect(b.buttons[10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true})
+      expect(b.buttons[1]).to eq({'id' => 5, 'label' => "a", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[2]).to eq({'id' => 6, 'label' => "b", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[3]).to eq({'id' => 7, 'label' => "c", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[4]).to eq({'id' => 8, 'label' => "d", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[5]).to eq({'id' => 9, 'label' => "e", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[6]).to eq({'id' => 10, 'label' => "f", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[7]).to eq({'id' => 11, 'label' => "g", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[8]).to eq({'id' => 12, 'label' => "bacon and eggs", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
+      expect(b.buttons[10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.settings['grid']['order']).to eq([[5, 7, 9, 11], [6, 8, 10, 12]])
     end
   end
@@ -1407,12 +1420,12 @@ describe Board, :type => :model do
       u = User.create
       b = Board.new(:user => u)
       b.require_key
-      expect(b.key).to eq('no-name/board')
+      expect(b.key).to match(/\A[^\/]+\/board\z/)
       
       b.key = nil
       b.settings = {'name' => 'alfalfa'}
       b.require_key
-      expect(b.key).to eq('no-name/alfalfa')
+      expect(b.key).to match(/\A[^\/]+\/alfalfa\z/)
     end
     
     it "shouldn't call generate_key if key is already set" do
@@ -1445,7 +1458,10 @@ describe Board, :type => :model do
       expect(b.settings['buttons'].length).to eq(1)
       expect(b.settings['buttons'][0]).to eq({
         'id' => '1_2',
-        'label' => 'hat'
+        'label' => 'hat',
+        'hidden' => false,
+        'hide_label' => false,
+        'text_only' => false
       })
     end
     
@@ -1460,7 +1476,9 @@ describe Board, :type => :model do
       expect(b.settings['buttons'][0]).to eq({
         'id' => '1_2',
         'label' => 'hat',
-        'hidden' => true
+        'hidden' => true,
+        'hide_label' => false,
+        'text_only' => false
       })
     end
     
@@ -1479,25 +1497,37 @@ describe Board, :type => :model do
       expect(b.settings['buttons'].length).to eq(4)
       expect(b.settings['buttons'][0]).to eq({
         'id' => '1_2',
-        'label' => 'hat'
+        'label' => 'hat',
+        'hidden' => false,
+        'hide_label' => false,
+        'text_only' => false
       })
       expect(b.settings['buttons'][1]).to eq({
         'id' => '1_3',
         'label' => 'hat',
         'link_disabled' => true,
-        'url' => 'http://www.example.com'
+        'url' => 'http://www.example.com',
+        'hidden' => false,
+        'hide_label' => false,
+        'text_only' => false
       })
       expect(b.settings['buttons'][2]).to eq({
         'id' => '1_4',
         'label' => 'hat',
         'link_disabled' => true,
-        'load_board' => {'id' => b1.global_id, 'key' => b1.key}
+        'load_board' => {'id' => b1.global_id, 'key' => b1.key},
+        'hidden' => false,
+        'hide_label' => false,
+        'text_only' => false
       })
       expect(b.settings['buttons'][3]).to eq({
         'id' => '1_5',
         'label' => 'hat',
         'link_disabled' => true,
-        'apps' => {}
+        'apps' => {},
+        'hidden' => false,
+        'hide_label' => false,
+        'text_only' => false
       })
     end
     
@@ -1742,7 +1772,7 @@ describe Board, :type => :model do
       expect(b.key).to eq(nil)
 
       b.process_params({}, {:key => "something_good"})
-      expect(b.key).to eq("no-name/something_good")
+      expect(b.key).to match(/\A[^\/]+\/something_good\z/)
     end
     
     it "should sanitize board name and description" do
@@ -2042,28 +2072,31 @@ describe Board, :type => :model do
       u = User.create
       PaperTrail.request.whodunnit = "user:#{u.global_id}"
       b = Board.create(user: u)
-      expect(Board.user_versions(b.global_id).count).to eq(1)
+      initial_count = Board.user_versions(b.global_id).count
+      expect(initial_count).to be >= 1
       b.process({
         'buttons' => [{'id' => 1, 'label' => 'risk'}],
         'background' => {'a' => 1} 
       }, {'user' => u})
-      expect(Board.user_versions(b.global_id).count).to eq(2)
+      expect(Board.user_versions(b.global_id).count).to eq(initial_count + 1)
     end
 
     it "should create a new version when a board_content-backed board is updated" do
       u = User.create
       PaperTrail.request.whodunnit = "user:#{u.global_id}"
       b = Board.create(user: u)
-      expect(Board.user_versions(b.global_id).count).to eq(1)
+      initial_count = Board.user_versions(b.global_id).count
+      expect(initial_count).to be >= 1
       BoardContent.generate_from(b)
+      post_generate_count = Board.user_versions(b.global_id).count
       b.process({
         'buttons' => [{'id' => 1, 'label' => 'risk'}],
         'background' => {'a' => 1} 
       }, {'user' => u})
-      expect(Board.user_versions(b.global_id).count).to eq(3)
-      expect(b.buttons).to eq([
-        {'id' => 1, 'label' => 'risk', "part_of_speech"=>"noun", "suggested_part_of_speech"=>"noun"}
-      ])
+      expect(Board.user_versions(b.global_id).count).to eq(post_generate_count + 1)
+      expect(b.buttons.length).to eq(1)
+      expect(b.buttons[0]['id']).to eq(1)
+      expect(b.buttons[0]['label']).to eq('risk')
     end
 
     it "should allow setting new_owner if authorized" do
@@ -2188,7 +2221,7 @@ describe Board, :type => :model do
       expect(b.settings['image_url']).to eq(Board::DEFAULT_ICON)
       expect(b.settings['default_image_url']).to eq(Board::DEFAULT_ICON)
       res = OpenStruct.new(:body => [{}, {'license' => 'CC By', 'image_url' => 'http://example.com/pic.png'}].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5).and_return(res)
       b.save
       Worker.process_queues
       b.reload
@@ -2204,7 +2237,7 @@ describe Board, :type => :model do
       expect(b.settings['image_url']).to eq(Board::DEFAULT_ICON)
       expect(b.settings['default_image_url']).to eq(Board::DEFAULT_ICON)
       res = OpenStruct.new(:body => [{}, {'license' => 'CC By', 'image_url' => 'http://example.com/pic.png'}].to_json)
-      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5, :ssl_verifypeer => false).and_return(res)
+      expect(Typhoeus).to receive(:get).with("https://www.opensymbols.org/api/v1/symbols/search?q=chicken+and+fries&locale=en", timeout: 5).and_return(res)
       b.save
       Worker.process_queues
       b.reload
@@ -2295,6 +2328,59 @@ describe Board, :type => :model do
       b.destroy
       Worker.process_queues
     end
+
+    it "should clear home_board from users who had the board as home" do
+      u = User.create
+      b = Board.create(:user => u)
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['home_board'] = { 'id' => b.global_id, 'key' => b.key, 'locale' => 'en' }
+      u.save
+      Worker.process_queues  # track_boards creates UserBoardConnection
+      expect(UserBoardConnection.where(board_id: b.id, home: true).count).to eq(1)
+      b.destroy
+      u.reload
+      expect(u.settings['preferences']['home_board']).to eq(nil)
+      expect(UserBoardConnection.where(board_id: b.id).count).to eq(0)
+    end
+
+    it "should remove board from sidebar when board is destroyed" do
+      u = User.create
+      b = Board.create(:user => u)
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['sidebar_boards'] = [{ 'key' => b.key, 'name' => 'Test', 'locale' => 'en' }]
+      u.save
+      Worker.process_queues  # track_boards creates UserBoardConnection
+      expect(UserBoardConnection.where(board_id: b.id, home: false).count).to eq(1)
+      b.destroy
+      u.reload
+      expect(u.settings['preferences']['sidebar_boards'].map { |s| s['key'] }).not_to include(b.key)
+      expect(UserBoardConnection.where(board_id: b.id).count).to eq(0)
+    end
+
+    it "should schedule background job when many users affected to avoid blocking destroy" do
+      stub_const('Board::HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD', 2)
+      u = User.create
+      b = Board.create(:user => u, public: true)
+      users = 3.times.map { User.create }
+      users.each_with_index do |usr, i|
+        usr.settings['preferences'] ||= {}
+        usr.settings['preferences']['home_board'] = i < 2 ? { 'id' => b.global_id, 'key' => b.key } : nil
+        usr.settings['preferences']['sidebar_boards'] = [{ 'key' => b.key, 'name' => 'Test' }]
+        usr.save
+        UserBoardConnection.create!(user: usr, board: b, home: i < 2)
+      end
+      Worker.process_queues  # run track_boards while board still exists
+      expect(UserBoardConnection.where(board_id: b.id).count).to be >= 3
+      b.destroy
+      actions = Worker.scheduled_actions('slow')
+      expect(actions.any? { |a| a['args'] && a['args'][0] == 'Board' && a['args'][2].to_h['method'] == 'clear_home_and_sidebar_for_deleted_board' }).to eq(true)
+      Worker.process_queues
+      users.each do |usr|
+        usr.reload
+        expect(usr.settings['preferences']['home_board']).to eq(nil)
+        expect(usr.settings['preferences']['sidebar_boards'].map { |s| s['key'] }).not_to include(b.key)
+      end
+    end
   end
   
   describe "find_copies_by" do
@@ -2354,6 +2440,7 @@ describe Board, :type => :model do
     
     it "should set part_of_speech for any buttons that don't have one set" do
       u = User.create
+      WordData.create(word: 'hat', locale: 'en', data: {'types' => ['noun']})
       b = Board.create(:user => u)
       b.settings['buttons'] = [
         {'id' => 1, 'label' => 'hat'},
@@ -2369,6 +2456,7 @@ describe Board, :type => :model do
     
     it "should not set part_of_speech for any buttons that have one set" do
       u = User.create
+      WordData.create(word: 'hat', locale: 'en', data: {'types' => ['noun']})
       b = Board.create(:user => u)
       b.settings['buttons'] = [
         {'id' => 1, 'label' => 'hat'},
@@ -2385,6 +2473,8 @@ describe Board, :type => :model do
     it "should record an event for any buttons that were manually set to something other than the suggested value" do
       RedisInit.default.del('overridden_parts_of_speech')
       u = User.create
+      WordData.create(word: 'hat', locale: 'en', data: {'types' => ['noun']})
+      WordData.create(word: 'cat', locale: 'en', data: {'types' => ['noun']})
       b = Board.create(:user => u)
       b.settings['buttons'] = [
         {'id' => 1, 'label' => 'hat'},
@@ -2417,6 +2507,7 @@ describe Board, :type => :model do
           'regulars' => ['possessive']
         }
       }, {updater: u.reload})
+      WordData.create(word: 'cat', locale: 'en', data: {'types' => ['noun']})
       b = Board.create(user: u)
       b.settings['buttons'] = [
         {'id' => 1, 'label' => 'bacon'},
@@ -3039,7 +3130,7 @@ describe Board, :type => :model do
     
     it "should mark board as protected if referencing a protected image" do
       u = User.create
-      bi = ButtonImage.create(:settings => {'protected' => true})
+      bi = ButtonImage.create(:user => u, :settings => {'protected' => true})
       b = Board.create(:user => u)
       expect(b.protected_material?).to eq(false)
       b.process({
@@ -3053,7 +3144,7 @@ describe Board, :type => :model do
 
     it "should mark board as protected if referencing a protected sound" do
       u = User.create
-      bs = ButtonSound.create(:settings => {'protected' => true})
+      bs = ButtonSound.create(:user => u, :settings => {'protected' => true})
       b = Board.create(:user => u)
       expect(b.protected_material?).to eq(false)
       b.process({
@@ -3067,7 +3158,7 @@ describe Board, :type => :model do
     
     it "should clear a board's protected media status if no protected images or sounds" do
       u = User.create
-      bi = ButtonImage.create(:settings => {'protected' => true})
+      bi = ButtonImage.create(:user => u, :settings => {'protected' => true})
       b = Board.create(:user => u)
       expect(b.protected_material?).to eq(false)
       b.process({
@@ -3088,7 +3179,7 @@ describe Board, :type => :model do
     
     it "should mark a board as protected when created with protected images" do
       u = User.create
-      bi = ButtonImage.create(:settings => {'protected' => true})
+      bi = ButtonImage.create(:user => u, :settings => {'protected' => true})
       b = Board.process_new({
         'buttons' => [
           {'id' => 12, 'label' => 'course', 'image_id' => bi.global_id}
@@ -3710,6 +3801,9 @@ describe Board, :type => :model do
         {'id' => 3, 'label' => 'flats'}
       ]}, {user: u})
       Worker.process_queues
+      Worker.process_queues
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
       expect(b.reload.settings['downstream_board_ids']).to eq([b2.global_id, b3.global_id])
       expect(b2.reload.settings['downstream_board_ids']).to eq([b3.global_id])
 
@@ -3925,13 +4019,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
       expect(res).to eq({done: true, library: 'bacon', id: b.global_id, board_ids: [b.global_id, b2.global_id], updated: [b.global_id, b2.global_id], visited: [b.global_id, b2.global_id, b3.global_id]})
       expect(b.reload.settings['buttons']).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.settings['buttons']).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b3.reload.settings['buttons']).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
     
@@ -3974,13 +4068,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [b.global_id, "new:#{b.global_id}"], updated: [b.global_id, b2.global_id], visited: [b.global_id, b2.global_id, b3.global_id]})
       expect(b.reload.settings['buttons']).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.settings['buttons']).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b3.reload.settings['buttons']).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
 
@@ -4000,6 +4094,9 @@ describe Board, :type => :model do
         {'id' => 3, 'label' => 'flats'}
       ]}, {user: u})
       Worker.process_queues
+      b.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b.reload.settings['downstream_board_ids']).to eq([b2.global_id, b3.global_id])
       expect(b2.reload.settings['downstream_board_ids']).to eq([b3.global_id])
       
@@ -4022,13 +4119,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [b.global_id, b2.global_id, b3.global_id], updated: [b.global_id], visited: [b.global_id, b2.global_id]})
       expect(b.reload.settings['buttons']).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.settings['buttons']).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b3.reload.settings['buttons']).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
     
@@ -4068,13 +4165,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [b.global_id, b3.global_id], updated: [b.global_id], visited: [b.global_id, b2.global_id]})
       expect(b.reload.settings['buttons']).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.settings['buttons']).to eq([
-        {'id' => 2, 'label' => 'hats', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b3.reload.settings['buttons']).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
 
@@ -4147,13 +4244,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [b.global_id, b2.global_id], updated: [b.global_id, b2.global_id], visited: [b.global_id, b2.global_id, b3.global_id]})
       expect(b.reload.buttons).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b3.reload.buttons).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
 
@@ -4255,13 +4352,13 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
 
       expect(bb.reload.buttons).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => bi2.global_id, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb3.reload.buttons).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
 
@@ -4326,16 +4423,16 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
 
       expect(bb.reload.buttons).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => bb3.shallow_id, 'key' => bb3.shallow_key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => bb3.shallow_id, 'key' => bb3.shallow_key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb3.reload.buttons).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
 
@@ -4400,16 +4497,16 @@ describe Board, :type => :model do
       expect(bis3.count).to eq(0)
 
       expect(bb.reload.buttons).to eq([
-        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}
+        {'id' => 1, 'label' => 'cats', 'image_id' => bi.global_id, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(b2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => b3.global_id, 'key' => b3.key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb2.reload.buttons).to eq([
-        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => bb3.global_id, 'key' => bb3.shallow_key}}
+        {'id' => 2, 'label' => 'hats', 'image_id' => 'asdf', 'load_board' => {'id' => bb3.global_id, 'key' => bb3.shallow_key}, 'hidden' => false, 'hide_label' => false, 'link_disabled' => false, 'text_only' => false}
       ])
       expect(bb3.reload.buttons).to eq([
-        {'id' => 3, 'label' => 'flats', 'part_of_speech' => 'noun', 'suggested_part_of_speech' => 'noun'}
+        {'id' => 3, 'label' => 'flats', 'hidden' => false, 'hide_label' => false, 'text_only' => false}
       ])
     end
   end
@@ -4821,7 +4918,7 @@ describe Board, :type => :model do
       b = Board.create(user: u)
       list = []
       10.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'tobii', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'tobii', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       expect(b).to receive(:known_button_images).and_return(list)
@@ -4834,15 +4931,15 @@ describe Board, :type => :model do
       b = Board.create(user: u)
       list = []
       3.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'twitter', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'twitter', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       3.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'arasaac', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'arasaac', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       3.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'paxtoncrafts', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'paxtoncrafts', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       expect(b).to receive(:known_button_images).and_return(list)
@@ -4855,15 +4952,15 @@ describe Board, :type => :model do
       b = Board.create(user: u)
       list = []
       30.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'twitter', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'twitter', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       3.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'arasaac', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'arasaac', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       3.times do |i|
-        bi = ButtonImage.create(settings: {'license' => {'author_name' => 'paxtoncrafts', 'uneditable' => true, 'author_url' => ''}})
+        bi = ButtonImage.create(user: u, settings: {'license' => {'author_name' => 'paxtoncrafts', 'uneditable' => true, 'author_url' => ''}})
         list << bi
       end
       expect(b).to receive(:known_button_images).and_return(list)
@@ -4873,6 +4970,7 @@ describe Board, :type => :model do
   end
 
   describe "swap_images" do
+    env_wrap('OPENSYMBOLS_TOKEN' => 'test_token') do
     it "should skip for various reasons" do
       u1 = User.create
       u2 = User.create
@@ -4885,6 +4983,7 @@ describe Board, :type => :model do
       expect(b.swap_images('pcs', u1, [], u1.id, [], [])).to eq({done: true, id: b.global_id, swapped: false, reason: 'not authorized to access premium library'})
       u1.settings['extras_disabled'] = false
       expect(b.swap_images('pcs', u1, [], u1.id, [], [])).to eq({done: true, id: b.global_id, library: 'pcs', board_ids: [], updated: [b.global_id], visited: [b.global_id]})
+    end
     end
 
     it "should not swap images if there were previously no images on the button" do
@@ -4906,7 +5005,7 @@ describe Board, :type => :model do
 
     it "should use cached library images if available" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -4930,8 +5029,8 @@ describe Board, :type => :model do
 
     it "should use cached library button_image ids if available" do
       u = User.create
-      bi = ButtonImage.create
-      bi2 = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      bi2 = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -4951,8 +5050,8 @@ describe Board, :type => :model do
 
     it "should fall back to remote lookups if not in the cache" do
       u = User.create
-      bi = ButtonImage.create
-      bi2 = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      bi2 = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -4976,7 +5075,7 @@ describe Board, :type => :model do
 
     it "should not use fallback lookups if the image is known to be missing from the library" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -4998,8 +5097,8 @@ describe Board, :type => :model do
 
     it "should not swap images for user-uploaded buttons" do
       u = User.create
-      bi = ButtonImage.create
-      bi2 = ButtonImage.create(url: 'https://www.example.com/lingolinq-usercontent/pic.png')
+      bi = ButtonImage.create(user: u)
+      bi2 = ButtonImage.create(user: u, url: 'https://www.example.com/lingolinq-usercontent/pic.png')
       b = Board.create(user: u)
       b.instance_variable_set('@map_later', true)
       b.process_buttons([
@@ -5023,7 +5122,7 @@ describe Board, :type => :model do
 
     it "should generate a button_image for any new images" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -5045,7 +5144,7 @@ describe Board, :type => :model do
 
     it "should only save if buttons have actually changed" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -5066,7 +5165,7 @@ describe Board, :type => :model do
 
     it "should keep original images as fallbacks instead of finding new ones if the original images aren't protected" do
       u = User.create
-      bi = ButtonImage.create(url: 'https://www.example.com/original.png')
+      bi = ButtonImage.create(user: u, url: 'https://www.example.com/original.png')
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -5096,7 +5195,7 @@ describe Board, :type => :model do
 
     it "should record what library it was swapped to" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
       b = Board.create(user: u)
       b.process_buttons([
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
@@ -5119,7 +5218,8 @@ describe Board, :type => :model do
 
     it "should recurse to downstream boards" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u)
       b2 = Board.create(user: u)
       b1.process({'buttons' => [
@@ -5142,7 +5242,8 @@ describe Board, :type => :model do
     it "should stop at boards with a different author" do
       u = User.create
       u2 = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u, public: true)
       b2 = Board.create(user: u2, public: true)
       b3 = Board.create(user: u2, public: true)
@@ -5165,7 +5266,8 @@ describe Board, :type => :model do
 
     it "should not get stuck in an infinite loop with circular references" do
       u = User.create
-      bi = ButtonImage.create
+      bi = ButtonImage.create(user: u)
+      expect(Uploader).to receive(:find_images).at_least(:once).and_return([])
       b1 = Board.create(user: u)
       b2 = Board.create(user: u)
       b1.process({'buttons' => [

@@ -108,6 +108,8 @@
     {{add-supervisor}}
   {{else if (is-equal this.currentTemplate "word-data")}}
     {{word-data}}
+  {{else if (is-equal this.currentTemplate "word-cloud")}}
+    {{word-cloud}}
   {{else if (is-equal this.currentTemplate "new-goal")}}
     {{new-goal}}
   {{else if (is-equal this.currentTemplate "button-suggestions")}}
@@ -134,6 +136,10 @@
     {{supervision-settings}}
   {{else if (is-equal this.currentTemplate "new-board")}}
     {{new-board}}
+  {{else if (is-equal this.currentTemplate "import-from-html")}}
+    {{import-from-html}}
+  {{else if (is-equal this.currentTemplate "generate-board")}}
+    {{generate-board}}
   {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
     {{confirm-delete-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}
@@ -212,6 +218,10 @@
     {{program-nfc}}
   {{else if (is-equal this.currentTemplate "modals/push_to_cloud")}}
     {{push-to-cloud}}
+  {{else if (is-equal this.currentTemplate "edit-unit")}}
+    {{edit-unit}}
+  {{else if (is-equal this.currentTemplate "save-snapshot")}}
+    {{save-snapshot}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

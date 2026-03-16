@@ -70,7 +70,7 @@
       {{/if}}
     </div>
   {{/if}}
-  {{#with this.model as |board|}}
+  {{#let this.model as |board|}}
   <div style={{this.board_style}} class={{this.display_class}} data-id={{board.id}} lang={{this.app_state.board_lang}}>
     {{#if board.has_background}}
       <div style={{this.bg_style}} id='board_bg' class={{this.bg_class}}>
@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if this.app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" redraw="redraw" tabindex="0"}}
+              {{board-canvas id="board_canvas" onInsert=(action "redraw") tabindex="0"}}
             {{else}}
               {{#each this.ordered_buttons as |row|}}
                 <div class="button_row">
@@ -173,7 +173,7 @@
     {{/if}}
     <div style="clear: left;"></div>
   </div>
-  {{/with}}
+  {{/let}}
 {{else}}
   <p>{{this.error_message}}</p>
   {{#if this.model.retrying}}

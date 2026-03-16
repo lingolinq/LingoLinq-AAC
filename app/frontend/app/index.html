@@ -13,6 +13,17 @@
 
     {{content-for "head"}}
 
+    <!-- Chart.js + Sankey plugin: load before vendor to avoid concatenation conflicts (Identifier 's' / define) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+            integrity="sha384-hGq3zA5FQXkzR3vXbVq3w2iVqkQ6Q0zA9TgqP4mWmVv2zj0C+5H0WJxYr1l7Z0bF"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"
+            integrity="sha384-xQwZV4H3t0N2p4XgXH7F4mZP9r6mWc2tYx2C6PqS6qL4eVY7g5nKqk9uK2b4v3dK"
+            crossorigin="anonymous"></script>
+
+    <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
+    <script src="/assets/globals.js"></script>
+
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
 
@@ -24,6 +35,20 @@
 
     <script src="{{rootURL}}assets/vendor.js"></script>
     <script src="{{rootURL}}assets/frontend.js"></script>
+
+    <!-- When served by Ember dev server (not Rails), inject domain_settings so layout matches production -->
+    <script>
+      if (typeof window.domain_settings === 'undefined') {
+        window.domain_settings = {
+          app_name: 'LingoLinq',
+          company_name: 'Someone',
+          logo_url: '/images/logo-big.png',
+          full_domain: true,
+          support_url: 'https://lingolinq.zendesk.com',
+          domain: window.location.host || 'localhost'
+        };
+      }
+    </script>
 
     {{content-for "body-footer"}}
   </body>

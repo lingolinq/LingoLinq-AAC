@@ -4,6 +4,19 @@
 # This file is idempotent - it can be run multiple times safely without creating duplicates.
 # It checks for existing records before creating new ones.
 #
+# Sensitive credentials: Use environment variables. In production/staging, SEED_*_PASSWORD
+# must be set; in development/test, defaults are used if not set.
+#   SEED_EXAMPLE_PASSWORD - example user (default in dev: 'password')
+#   SEED_ADMIN_PASSWORD   - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_DEMO_PASSWORD   - demo users: SLPs, students (default in dev: 'demo2025!')
+
+def seed_password(env_key, dev_default)
+  if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
+    raise "Cannot seed: #{env_key} must be set in production/staging. Use strong credentials."
+  end
+  ENV[env_key].presence || dev_default
+end
+#
 # Examples:
 #
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
@@ -23,6 +36,7 @@ else
   puts "Starting database seeding..."
   puts "=" * 60
 
+  example_password = seed_password('SEED_EXAMPLE_PASSWORD', 'password')
   user1 = User.find_by(user_name: 'example')
   unless user1
     user1 = User.process_new({
@@ -30,7 +44,7 @@ else
       user_name: 'example',
       email: 'admin@example.com',
       public: false,
-      password: 'password',
+      password: example_password,
       description: "I'm just here to help",
       location: "Anywhere and everywhere"
     }, { 
@@ -46,8 +60,11 @@ else
   user1.settings['subscription']['never_expires'] = true
   user1.settings['subscription']['plan_id'] = 'slp_monthly_granted'
   user1.settings['subscription']['started'] = 1.year.ago.iso8601
+  user1.settings['preferences'] ||= {}
+  user1.settings['preferences']['logging'] = true
+  user1.settings['preferences']['geo_logging'] = true
   user1.save!
-  puts "✓ Ensured example user has lifetime subscription"
+  puts "✓ Ensured example user has lifetime subscription and geo logging enabled"
 
   org = Organization.find_by(admin: true)
   unless org
@@ -284,7 +301,7 @@ else
     lat = 35.674831
     long = -108.0297416
     u = user1
-    d = Device.find_or_create_by(:user => u)
+    d = Device.find_or_create_by(:user => u, :developer_key_id => 0, :device_key => 'default')
     ts = Time.now.to_i - 100
     s1 = LogSession.process_new({'events' => [{'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => board1.global_id}}, 'geo' => [lat, long], 'timestamp' => ts}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
     s2 = LogSession.process_new({'events' => [{'type' => 'button', 'button' => {'label' => 'go', 'board' => {'id' => board1.global_id}}, 'geo' => [lat + 0.0001, long + 0.0001], 'timestamp' => ts + 2}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
@@ -307,7 +324,10 @@ else
     s19 = LogSession.process_new({'events' => [{'type' => 'button', 'button' => {'label' => 'fun', 'board' => {'id' => board1.global_id}}, 'geo' => [lat - 0.0001, long - 0.0001], 'timestamp' => ts + 59}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
     s20 = LogSession.process_new({'events' => [{'type' => 'utterance', 'utterance' => {'text' => 'this is fun', 'buttons' => []}, 'geo' => [lat, long], 'timestamp' => ts + 60}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
     s21 = LogSession.process_new({'events' => [{'type' => 'utterance', 'utterance' => {'text' => 'this is fun', 'buttons' => []}, 'geo' => [lat + 0.0001, long], 'timestamp' => ts + 61}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-    puts "✓ Created log sessions"
+    # Run geo clustering synchronously so the stats Locations map shows data (normally runs via Resque)
+    ClusterLocation.clusterize_ips(u.global_id)
+    ClusterLocation.clusterize_geos(u.global_id)
+    puts "✓ Created log sessions with geo clusters for stats map"
   else
     puts "✓ Log sessions already exist, skipping"
   end
@@ -315,6 +335,19 @@ else
   puts "=" * 60
   puts "Initial seeding complete!"
   puts "=" * 60
+end
+
+# Ensure example user has logging and geo_logging enabled for stats map (runs every seed)
+example_user = User.find_by(user_name: 'example')
+if example_user
+  example_user.settings ||= {}
+  example_user.settings['preferences'] ||= {}
+  if !example_user.settings['preferences']['geo_logging']
+    example_user.settings['preferences']['geo_logging'] = true
+    example_user.settings['preferences']['logging'] = true
+    example_user.save!
+    puts "✓ Enabled geo_logging and logging for example user (stats map will show)"
+  end
 end
 
 # Import word data - runs regardless of whether initial seed data exists
@@ -335,6 +368,16 @@ if suggestion_count == 0
   puts "✓ Imported suggestions"
 else
   puts "✓ Word suggestions already imported, skipping"
+end
+
+# Core word list integration template - required for Modify Core Word List modal to work.
+# Runs every time seeds run so existing deployments get it.
+core_list_template = UserIntegration.find_by(template: true, integration_key: 'core_word_list')
+unless core_list_template
+  UserIntegration.create!(template: true, integration_key: 'core_word_list', settings: {})
+  puts "✓ Created core word list integration template"
+else
+  puts "✓ Core word list integration template already exists"
 end
 
 # Organization seeding: defined in lib/seed_organization.rb so it can be loaded without running full seeds.
@@ -399,6 +442,8 @@ unless DEMO_ALREADY_SEEDED
   puts "=" * 60
 
   # ---- 1. Site Admin with lifetime license ----
+  admin_password = seed_password('SEED_ADMIN_PASSWORD', 'admin2025!')
+  demo_password = seed_password('SEED_DEMO_PASSWORD', 'demo2025!')
   demo_admin = User.find_by(user_name: 'lingolinq_admin')
   unless demo_admin
     demo_admin = User.process_new({
@@ -406,16 +451,16 @@ unless DEMO_ALREADY_SEEDED
       user_name: 'lingolinq_admin',
       email: 'admin@lingolinq.com',
       public: false,
-      password: 'admin2025!',
+      password: admin_password,
       description: "LingoLinq site administrator",
       location: "Portland, OR"
     }, {
       is_admin: true
     })
-    puts "  Created site admin: lingolinq_admin / admin2025!"
+    puts "  Created site admin: lingolinq_admin"
   end
   # Always ensure password and subscription are set (handles interrupted seed runs)
-  demo_admin.generate_password('admin2025!')
+  demo_admin.generate_password(admin_password)
   demo_admin.settings ||= {}
   demo_admin.settings['subscription'] ||= {}
   demo_admin.settings['subscription']['never_expires'] = true
@@ -466,7 +511,7 @@ unless DEMO_ALREADY_SEEDED
         user_name: profile[:user_name],
         email: profile[:email],
         public: false,
-        password: 'demo2025!',
+        password: demo_password,
         description: "Speech-Language Pathologist at Demo School District",
         location: profile[:location]
       }, {
@@ -563,7 +608,7 @@ unless DEMO_ALREADY_SEEDED
         user_name: profile[:user_name],
         email: "#{profile[:user_name]}@demoschooldistrict.org",
         public: false,
-        password: 'demo2025!',
+        password: demo_password,
         description: "AAC user, age #{profile[:age]}",
         location: "Portland, OR"
       }, {
@@ -691,7 +736,11 @@ unless DEMO_ALREADY_SEEDED
 
     # Create device with realistic metadata
     dev_profile = device_profiles[student_idx % device_profiles.length]
-    device = Device.find_or_create_by(user: student)
+    device = Device.find_or_initialize_by(user: student, developer_key_id: 0)
+    # Ensure device_key is always set, even for pre-existing system-generated devices
+    if device.device_key.blank?
+      device.device_key = "seed-student-#{student.id}"
+    end
     device.settings ||= {}
     device.settings['name'] = "#{profile[:name].split.first}'s #{dev_profile[:name_suffix]}"
     device.settings['ip_address'] = "10.0.#{student_idx}.1"
@@ -882,6 +931,14 @@ unless DEMO_ALREADY_SEEDED
 
   puts "\n  Total log sessions created: #{total_sessions_created}"
 
+  # Run geo clustering synchronously so the stats Locations map shows data (normally runs via Resque)
+  puts "\n  Building geo clusters for stats map..."
+  students.each do |student_data|
+    ClusterLocation.clusterize_ips(student_data[:user].global_id)
+    ClusterLocation.clusterize_geos(student_data[:user].global_id)
+  end
+  puts "  ✓ Geo clusters built for #{students.length} students"
+
   # ---- Generate WeeklyStatsSummary records from seeded sessions ----
   # The after_save callback on LogSession only *schedules* background jobs
   # for WeeklyStatsSummary generation (via RemoteAction/Worker). In dev or
@@ -925,8 +982,9 @@ unless DEMO_ALREADY_SEEDED
   puts "\n" + "=" * 60
   puts "Demo School District seeding complete!"
   puts "=" * 60
-  puts "\nLogin Credentials (all passwords: demo2025!):"
-  puts "  Admin:       lingolinq_admin / admin2025!"
+  puts "\nLogin Credentials:"
+  puts "  Admin:       lingolinq_admin (password from SEED_ADMIN_PASSWORD)"
+  puts "  SLP/Students: (password from SEED_DEMO_PASSWORD)"
   puts "  SLP 1:       sarah_chen_slp (manager + supervisor)"
   puts "  SLP 2:       marcus_williams_slp"
   puts "  SLP 3:       elena_rodriguez_slp"
