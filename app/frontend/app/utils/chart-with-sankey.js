@@ -1,10 +1,5 @@
 /**
- * Chart.js with Sankey plugin - bundled via npm (no CDN dependency).
- * Import Chart from here to use sankey charts; the plugin is registered on first import.
+ * Chart.js with Sankey plugin - loaded via app.import in ember-cli-build.js.
+ * Import Chart from here to use sankey charts; the Sankey plugin is auto-registered when the vendor script loads.
  */
-import { Chart } from 'chart.js';
-import { SankeyController, Flow } from 'chartjs-chart-sankey';
-
-Chart.register(SankeyController, Flow);
-
-export default Chart;
+export default window.Chart;

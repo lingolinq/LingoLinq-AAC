@@ -224,7 +224,8 @@ class Device < ActiveRecord::Base
   
   def unique_device_key
     raise "must be saved first" unless self.global_id
-    return device_key if self.system_generated?
+    # Treat nil as 0 for legacy devices (e.g. from seeds) that were created without developer_key_id
+    return (device_key || 'default') if self.developer_key_id.nil? || self.system_generated?
     raise "missing developer_key_id" unless self.developer_key_id
     "#{self.device_key}_#{self.developer_key_id}"
   end
