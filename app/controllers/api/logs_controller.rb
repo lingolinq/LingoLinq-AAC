@@ -172,7 +172,9 @@ class Api::LogsController < ApplicationController
     user = user_id ? User.find_by_path(user_id) : @api_user
     return unless allowed?(user, 'model')
     
-    log = LogSession.process_as_follow_on(params['log'].to_unsafe_h, {
+    log_data = params['log']
+    log_data = log_data.permit! if log_data.is_a?(ActionController::Parameters)
+    log = LogSession.process_as_follow_on(log_data.to_unsafe_h, {
       :author => @api_user,
       :ip_address => ip,
       :user => user,
@@ -221,7 +223,9 @@ class Api::LogsController < ApplicationController
       return unless allowed?(user, 'never_allow')
     end    
     
-    log.process(params['log'], {
+    log_update_data = params['log']
+    log_update_data = log_update_data.permit! if log_update_data.is_a?(ActionController::Parameters)
+    log.process(log_update_data, {
       :author => @api_user,
       :user => user,
       :device => Device.find_by_global_id(@api_device_id),

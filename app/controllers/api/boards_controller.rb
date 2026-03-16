@@ -370,13 +370,14 @@ class Api::BoardsController < ApplicationController
   end
   
   def from_html
-    html = params['html'].to_s
+    permitted = params.permit(:html, :name, :key, :locale)
+    html = permitted[:html].to_s
     return api_error(400, { error: 'html required' }) if html.blank?
 
     board_opts = {
-      name: params['name'].presence || 'Imported Board',
-      key: params['key'].presence,
-      locale: params['locale'].presence || 'en'
+      name: permitted[:name].presence || 'Imported Board',
+      key: permitted[:key].presence,
+      locale: permitted[:locale].presence || 'en'
     }.compact
 
     board = Converters::HtmlBoard.create_from_html(html, @api_user, board_opts)
@@ -411,7 +412,8 @@ class Api::BoardsController < ApplicationController
       rows: rows,
       columns: columns,
       locale: locale_param,
-      include_core_words: include_core_words
+      include_core_words: include_core_words,
+      user: @api_user
     )
     if result[:error]
       return api_error(503, { error: result[:error] })
@@ -439,7 +441,12 @@ class Api::BoardsController < ApplicationController
       processed_params = JSON.parse(request.body.read)
     end
     # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
-    board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
+    # JSON-parsed params are plain hashes; Rails params need permit! since models do their own filtering.
+    board_params = if request.content_type == 'application/json'
+      processed_params['board'] || {}
+    else
+      params['board'] ? params.require('board').permit! : {}
+    end
     if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
       user = User.find_by_path(board_params['for_user_id'])
       if !user
@@ -550,11 +557,14 @@ class Api::BoardsController < ApplicationController
     end
     res = false
     if processed_params['button']
-      res = board.process_button(processed_params['button'])
+      button_data = processed_params['button'].is_a?(ActionController::Parameters) ? processed_params['button'].permit! : processed_params['button']
+      res = board.process_button(button_data)
     else
+      board_data = processed_params['board']
+      board_data = board_data.permit! if board_data.is_a?(ActionController::Parameters)
       version_date = Date.parse(request.headers['X-LingoLinq-Version']) rescue nil
       add_voc_error = version_date && version_date < Date.parse('August 3, 2021')
-      new_board = board.process(processed_params['board'], {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
+      new_board = board.process(board_data, {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
       board = new_board if new_board.is_a?(Board)
       res = !!new_board
     end
@@ -727,6 +737,7 @@ class Api::BoardsController < ApplicationController
     ids = params['board_ids_to_translate'] || []
     ids << board.global_id
     translations = params['translations']
+    translations = translations.permit! if translations.is_a?(ActionController::Parameters)
     translations = translations.to_unsafe_h if translations.respond_to?(:to_unsafe_h)
     set_as_default = true
     set_as_default = false if params['set_as_default'] == false || params['set_as_default'] == 'false' || params['set_as_default'] == 0 || params['set_as_default'] == '0'

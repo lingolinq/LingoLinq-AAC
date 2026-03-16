@@ -28,18 +28,20 @@ class Api::IntegrationsController < ApplicationController
   end
   
   def create
-    user = User.find_by_path(params['integration']['user_id'])
-    return unless exists?(user, params['integration']['user_id'])
+    int_data = params['integration']
+    int_data = int_data.permit! if int_data.is_a?(ActionController::Parameters)
+    user = User.find_by_path(int_data['user_id'])
+    return unless exists?(user, int_data['user_id'])
     return unless allowed?(user, 'supervise')
     integration = nil
-    if params['integration'] && params['integration']['integration_key']
-      template = UserIntegration.find_by(template: true, integration_key: params['integration']['integration_key'])
+    if int_data && int_data['integration_key']
+      template = UserIntegration.find_by(template: true, integration_key: int_data['integration_key'])
       integration = UserIntegration.find_or_initialize_by(user: user, template_integration: template)
     end
     if integration
-      integration.process(params['integration'], {user: user})
+      integration.process(int_data, {user: user})
     else
-      integration = UserIntegration.process_new(params['integration'], {user: user})
+      integration = UserIntegration.process_new(int_data, {user: user})
     end
     if integration.errored?
       api_error(400, {error: "integration creation failed", errors: integration && integration.processing_errors})      
@@ -52,7 +54,9 @@ class Api::IntegrationsController < ApplicationController
     integration = UserIntegration.find_by_path(params['id'])
     return unless exists?(integration, params['id'])
     return unless allowed?(integration, 'edit')
-    if integration.process(params['integration'])
+    int_update = params['integration']
+    int_update = int_update.permit! if int_update.is_a?(ActionController::Parameters)
+    if integration.process(int_update)
       render json: JsonApi::Integration.as_json(integration, {wrapper: true, permissions: @api_user})
     else
       api_error(400, {error: "integration update failed", errors: integration.processing_errors})

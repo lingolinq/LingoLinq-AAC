@@ -12,13 +12,15 @@ class Api::SoundsController < ApplicationController
   end
   
   def create
+    sound_data = params['sound']
+    sound_data = sound_data.permit! if sound_data.is_a?(ActionController::Parameters)
     user = @api_user
-    if params['sound']['user_id']
-      user = User.find_by_path(params['sound']['user_id'])
-      return unless exists?(user, params['sound']['user_id'])
+    if sound_data && sound_data['user_id']
+      user = User.find_by_path(sound_data['user_id'])
+      return unless exists?(user, sound_data['user_id'])
       return unless allowed?(user, 'supervise')
     end
-    sound = ButtonSound.process_new(params['sound'], {:user => user, :remote_upload_possible => true})
+    sound = ButtonSound.process_new(sound_data, {:user => user, :remote_upload_possible => true})
     if !sound || sound.errored?
       api_error(400, {error: "sound creation failed", errors: sound && sound.processing_errors})
     else
@@ -51,7 +53,9 @@ class Api::SoundsController < ApplicationController
     sound = ButtonSound.find_by_path(params['id'])
     return unless exists?(sound, params['id'])
     return unless allowed?(sound, 'edit')
-    if sound.process(params['sound'])
+    sound_update = params['sound']
+    sound_update = sound_update.permit! if sound_update.is_a?(ActionController::Parameters)
+    if sound.process(sound_update)
       render json: JsonApi::Sound.as_json(sound, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "sound update failed", errors: sound.processing_errors})
