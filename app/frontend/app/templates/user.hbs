@@ -1,3 +1,6 @@
+{{#if (is-equal this.app_state.current_route "user.board-alt.index")}}
+  {{outlet}}
+{{else}}
 <div class="md-user-layout hide_print">
   {{#if (and this.from_dashboard (or (is-equal this.app_state.current_route "user.stats") (is-equal this.app_state.current_route "user.logs")))}}
   <div class="md-shell md-shell--reports-view">
@@ -53,3 +56,4 @@
   </div>
   {{/if}}
 </div>
+{{/if}}

@@ -600,7 +600,7 @@ export default Service.extend({
     }
     this.set('from_url', from_url);
     var from = [transition.from_route].concat(transition.from_params);
-    if(from[0] && from[0] != 'board.index') {
+    if(from[0] && from[0] != 'board.index' && from[0] != 'user.board-alt.index') {
       this.set('from_route', from);
     }
     this.set('latest_board_id', null);
@@ -616,7 +616,7 @@ export default Service.extend({
     if(capabilities.mobile) {
       this.set('index_view', transition.to_route == 'index');
     }
-    if(transition.to_route == 'board.index') {
+    if(transition.to_route == 'board.index' || transition.to_route == 'user.board-alt.index') {
       boundClasses.setup();
       var delay = this.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
       LingoLinq.log.track('global transition handled');
@@ -636,7 +636,7 @@ export default Service.extend({
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
-    if(transition.to_route != 'board.index') {
+    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index') {
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {

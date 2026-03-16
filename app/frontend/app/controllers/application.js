@@ -64,6 +64,10 @@ export default Controller.extend({
     if (!key || key.indexOf('/') === -1) { return null; }
     return key.split('/').slice(1).join('/');
   }),
+  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
+  on_board_alt: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'user.board-alt.index';
+  }),
 
   init() {
     this._super(...arguments);
@@ -1724,6 +1728,7 @@ export default Controller.extend({
   useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
+    if (route === 'user.board-alt.index') { return false; }
     return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
       (route === 'about' && cu) ||
       (route === 'features' && cu) ||

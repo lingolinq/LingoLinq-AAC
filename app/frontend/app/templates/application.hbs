@@ -1,4 +1,4 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
@@ -219,9 +219,14 @@
         {{! Done with Boards + normal_mode + board_id in flex layout: col1 = Done (2 rows), col2 = normal_mode then board_id }}
         <div class="nav-header__board-bar">
         <button id='board_done' class='btn btn-default' {{action "back_to_from_route"}}>
-          <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
-          <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
-          <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
+          {{#if this.on_board_alt}}
+            <span class='board-done__exit-icon'></span>
+            <span class='board-done__exit-label'>{{t "Exit Boards" key="exit_boards"}}</span>
+          {{else}}
+            <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
+            <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
+            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
+          {{/if}}
         </button>
         <div class="nav-header__board-bar-right">
         <span id="normal_mode">
@@ -1079,6 +1084,21 @@
       </LinkTo>
     {{/if}}
     {{/unless}}
+    {{#if this.app_state.currentBoardState.id}}
+      {{#unless this.app_state.speak_mode}}
+        {{#unless this.app_state.edit_mode}}
+          {{#if this.on_board_alt}}
+            <LinkTo @route="board" @model={{this.board.model.key}} class="board-alt-view-toggle board-alt-view-toggle--active" aria-label={{t "View in Standard Mode" key="view_standard_mode"}} title={{t "View in Standard Mode" key="view_standard_mode"}}>
+              <span class="board-alt-view-toggle__icon"></span>
+            </LinkTo>
+          {{else}}
+            <LinkTo @route="user.board-alt.index" @models={{array this.board_alt_username this.board_alt_boardname}} class="board-alt-view-toggle" aria-label={{t "View in Board Alt Mode" key="view_board_alt_mode"}} title={{t "View in Board Alt Mode" key="view_board_alt_mode"}}>
+              <span class="board-alt-view-toggle__icon"></span>
+            </LinkTo>
+          {{/if}}
+        {{/unless}}
+      {{/unless}}
+    {{/if}}
     {{#if this.app_state.currentUser}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
@@ -1227,12 +1247,21 @@
     {{/each}}
     {{#if this.board_alt_username}}
       {{#if this.board_alt_boardname}}
-        <LinkTo @route="user.board-alt" @models={{array this.board_alt_username this.board_alt_boardname}} class="sidebar_item sidebar_item--board-alt">
-          <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/></svg>
-          </span>
-          {{t "Board Alt" key="board_alt"}}
-        </LinkTo>
+        {{#if this.on_board_alt}}
+          <LinkTo @route="board" @model={{this.board.model}} class="sidebar_item sidebar_item--board-alt sidebar_item--board-alt-active">
+            <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/></svg>
+            </span>
+            {{t "Original" key="board_alt_return"}}
+          </LinkTo>
+        {{else}}
+          <LinkTo @route="user.board-alt" @models={{array this.board_alt_username this.board_alt_boardname}} class="sidebar_item sidebar_item--board-alt">
+            <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/></svg>
+            </span>
+            {{t "Board Alt" key="board_alt"}}
+          </LinkTo>
+        {{/if}}
       {{/if}}
     {{/if}}
     {{#if this.app_state.currentUser.preferences.quick_sidebar}}

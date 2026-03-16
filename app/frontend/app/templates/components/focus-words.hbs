@@ -1,14 +1,14 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-focus-words-modal-wrap">
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
+    <span class="la-modal-header-label">
       {{t "Focus Words" key="focus_words"}}
       {{#if this.model.user}}
-        -
-        <img src={{this.model.user.avatar_url_with_fallback}} style='width: 50px;'>
-        {{this.model.user.user_name}}
+        <img src={{this.model.user.avatar_url_with_fallback}} style='width: 28px; height: 28px; border-radius: 50%; vertical-align: middle; margin-left: 6px;'>
+        <span style='font-size: 14px; font-weight: 500; opacity: 0.75;'>{{this.model.user.user_name}}</span>
       {{/if}}
-    </h3>
+    </span>
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
   </div>
   <div class="modal-body">
     <div class='row'>
@@ -245,5 +245,6 @@
       <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
     {{/if}}
     <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
   </div>
 {{/modal-dialog}}

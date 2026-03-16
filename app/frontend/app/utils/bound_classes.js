@@ -51,6 +51,7 @@ var boundClasses = {};
         if(button.background_color) {
           var fill = window.tinycolor(button.background_color || '#fff');
           str = str + 'background-color: ' + fill.toRgbString() + ';';
+          str = str + '--btn-bg: ' + fill.toRgbString() + ';';
           button.dark_background_color = window.tinycolor(fill.toRgb()).darken(5).toRgbString();
           hoverStr = hoverStr + 'background-color: ' + button.dark_background_color + ';';
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
