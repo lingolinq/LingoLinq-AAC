@@ -22,19 +22,20 @@
     "node": ">= 20.0.0"
   },
   "devDependencies": {
-    "@ember/jquery": "^1.1.0",
+    "@ember/jquery": "^2.0.0",
     "@ember/optional-features": "^2.3.0",
     "@ember/test-helpers": "^2.9.3",
     "babel-eslint": "^10.1.0",
     "bootstrap": "^3.4.1",
     "broccoli-asset-rev": "^3.0.0",
     "broccoli-replace": "^0.12.0",
+    "chart.js": "^4.5.1",
+    "chartjs-chart-sankey": "^0.14.0",
     "davidshimjs-qrcodejs": "^0.0.2",
     "ember-cli": "~3.28.0",
     "ember-cli-app-version": "^7.0.0",
     "ember-cli-babel": "^7.26.6",
     "ember-cli-dependency-checker": "^3.1.0",
-    "ember-cli-deprecation-workflow": "^2.2.0",
     "ember-cli-eslint": "^5.1.0",
     "ember-cli-htmlbars": "^5.7.2",
     "ember-cli-inject-live-reload": "^2.1.0",
@@ -59,7 +60,7 @@
     "jquery": "^3.7.1",
     "jquery-minicolors": "^2.1.10",
     "loader.js": "^4.7.0",
-    "lodash": ">=4.17.11",
+    "lodash": "^4.17.21",
     "merge": ">=1.2.1",
     "moment": "^2.29.4",
     "patch-package": "^8.0.1",
@@ -70,10 +71,7 @@
     "recordrtc": "^5.6.2",
     "sass": "^1.97.1",
     "tinycolor2": "^1.6.0",
-    "wordcloud2": "^1.0.0"
-  },
-  "dependencies": {
-    "ember-cli-update": "^0.48.2"
+    "wordcloud": "^1.2.3"
   },
   "overrides": {
     "ember-cli-babel": "^7.26.6"

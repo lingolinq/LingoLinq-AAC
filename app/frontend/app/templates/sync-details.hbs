@@ -116,11 +116,13 @@
     {{else}}
       <p style='margin-top: 20px;'>{{t "No sync details to show" key="no_sync_details"}}</p>
     {{/if}}
-    {{#if this.stashes.usage_log.length}}
+    {{#if this.stashes}}
+      {{#if this.stashes.usage_log.length}}
       <p style='margin-top: 20px;'>
         {{this.stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
         {{date this.first_log_date}}
       </p>
+      {{/if}}
     {{/if}}
   </div>
   <div class="modal-footer">

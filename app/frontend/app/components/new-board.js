@@ -94,6 +94,10 @@ export default Component.extend({
     return this.get('model.for_user_id');
   }),
 
+  ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
+    return !!this.appState.get('feature_flags.ai_board_generation');
+  }),
+
   willDestroy() {
     // Stop recording before teardown (don't use send() - component is being destroyed)
     var speech = this.get('speech');
@@ -203,6 +207,14 @@ export default Component.extend({
   actions: {
     close: function() {
       this.get('modal').close();
+    },
+    importFromHtml: function() {
+      this.get('modal').close();
+      modalUtil.open('import-from-html');
+    },
+    generateWithAi: function() {
+      this.get('modal').close();
+      modalUtil.open('generate-board');
     },
     opening: function() {
       const component = this;

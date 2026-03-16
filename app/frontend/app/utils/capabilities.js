@@ -41,18 +41,41 @@ if(window.cd_request_file_system) {
     return window.native_cd_request_file_system(type, size, success, error);
   }
 }
-// Note: webkitPersistentStorage/persistentStorage are deprecated in favor of navigator.storage.persist()
-// However, we still need these for queryUsageAndQuota and requestQuota until the File System API is fully migrated
-window.cd_persistent_storage = window.navigator.webkitPersistentStorage || window.navigator.persistentStorage;
-if(window.cd_persistent_storage) {
-  window.native_cd_persistent_storage = window.cd_persistent_storage;
-  window.cd_persistent_storage = {};
-  // to enable debugging
-  window.cd_persistent_storage.queryUsageAndQuota = function(success, error) {
-    return window.native_cd_persistent_storage.queryUsageAndQuota(success, error);
+// Prefer standardized navigator.storage (StorageManager API) over deprecated
+// webkitPersistentStorage/persistentStorage (StorageType.persistent).
+// navigator.storage.estimate() replaces queryUsageAndQuota, persist() replaces requestQuota.
+if(window.navigator.storage && window.navigator.storage.estimate && window.navigator.storage.persist) {
+  window.cd_persistent_storage = {
+    queryUsageAndQuota: function(success, error) {
+      window.navigator.storage.estimate().then(function(estimate) {
+        success(estimate.usage || 0, estimate.quota || 0);
+      }).catch(function(err) {
+        if(error) { error(err); }
+      });
+    },
+    requestQuota: function(size, success, error) {
+      window.navigator.storage.persist().then(function(granted) {
+        if(granted) {
+          success(size);
+        } else {
+          if(error) { error(new Error('Persistent storage not granted')); }
+        }
+      }).catch(function(err) {
+        if(error) { error(err); }
+      });
+    }
   };
-  window.cd_persistent_storage.requestQuota = function(size, success, error) {
-    return window.native_cd_persistent_storage.requestQuota(size, success, error);
+} else if(window.navigator.webkitPersistentStorage || window.navigator.persistentStorage) {
+  // Fallback for older browsers
+  window.cd_persistent_storage = window.navigator.webkitPersistentStorage || window.navigator.persistentStorage;
+  window.native_cd_persistent_storage = window.cd_persistent_storage;
+  window.cd_persistent_storage = {
+    queryUsageAndQuota: function(success, error) {
+      return window.native_cd_persistent_storage.queryUsageAndQuota(success, error);
+    },
+    requestQuota: function(size, success, error) {
+      return window.native_cd_persistent_storage.requestQuota(size, success, error);
+    }
   };
 }
 
@@ -247,14 +270,22 @@ var capabilities;
         capabilities.sync_access_token = function() {
           var auth_settings = stashes.get_object('auth_settings', true) || {};
           var new_token = auth_settings.access_token;
+          var has_valid_current = capabilities.access_token && capabilities.access_token !== 'none';
+          var has_valid_new = new_token && new_token !== 'none';
+          // Never overwrite a valid token with empty/'none' (stashes may not be populated yet, e.g. right after login)
+          if(!has_valid_new && has_valid_current) {
+            return;
+          }
           if(new_token !== capabilities.access_token) {
-            var old_token_preview = capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none';
-            var new_token_preview = new_token ? new_token.substring(0, 10) + '...' : 'none';
-            console.log('[capabilities] Syncing access_token', {
-              old_token_preview: old_token_preview,
-              new_token_preview: new_token_preview,
-              changed: new_token !== capabilities.access_token
-            });
+            if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {
+              var old_token_preview = capabilities.access_token ? capabilities.access_token.substring(0, 10) + '...' : 'none';
+              var new_token_preview = new_token ? new_token.substring(0, 10) + '...' : 'none';
+              console.log('[capabilities] Syncing access_token', {
+                old_token_preview: old_token_preview,
+                new_token_preview: new_token_preview,
+                changed: new_token !== capabilities.access_token
+              });
+            }
             capabilities.access_token = new_token;
           }
         };
@@ -1230,6 +1261,11 @@ var capabilities;
                   dirs.push(e.name);
                 }
               });
+              if(dirs.length === 0) {
+                all_files.size = 0;
+                promise.resolve(all_files);
+                return;
+              }
               var done_dirs = 0;
               dirs.forEach(function(dir) {
                 capabilities.storage.list_files(dir, true).then(function(list) {
@@ -2356,7 +2392,7 @@ var capabilities;
       if(!db_key || db_key.match(/^db2/)) {
         db_key = "db";
       }
-      var key = "coughDropStorage::" + (db_id || "__") + "===" + db_key;
+      var key = "lingolinqStorage::" + (db_id || "__") + "===" + db_key;
       capabilities.db_name = key;
   
   
@@ -2391,7 +2427,7 @@ var capabilities;
   };
   capabilities.delete_database = function() {
     return capabilities.dbman.delete_database(capabilities.db_name).then(function() {
-      stashes.persist_raw('cd_db_key', '');
+      stashes.persist_raw('ll_db_key', '');
       stashes.db_settings(capabilities);
     });
   };

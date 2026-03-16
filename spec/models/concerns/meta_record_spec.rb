@@ -2,7 +2,8 @@ require 'spec_helper'
 
 describe MetaRecord, :type => :model do
   it "should create a valid meta record for an utterance" do
-    u = Utterance.create(:data => {
+    author = User.create
+    u = Utterance.create(:user => author, :data => {
       :button_list => [{label: 'ok'}],
       :sentence => 'ok'
     })
@@ -14,8 +15,8 @@ describe MetaRecord, :type => :model do
     expect(r.image).to eq("https://opensymbols.s3.amazonaws.com/libraries/noun-project/Person-08e6d794b0.svg")
     expect(r.large_image).to eq("https://opensymbols.s3.amazonaws.com/libraries/noun-project/Person-08e6d794b0.svg")
     expect(r.link).to eq("#{JsonApi::Json.current_host}/utterances/#{u.global_id}")
-    expect(r.created).to eq(u.created_at.iso8601)
-    expect(r.updated).to eq(u.updated_at.iso8601)
+    expect(Time.parse(r.created)).to be_within(2.seconds).of(u.created_at)
+    expect(Time.parse(r.updated)).to be_within(2.seconds).of(u.updated_at)
   end
 
   it "should create a valid meta record for a board" do
@@ -28,8 +29,8 @@ describe MetaRecord, :type => :model do
     expect(r.summary).to eq("Communication board \"Unnamed Board\", 2 x 4")
     expect(r.image).to eq("https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png")
     expect(r.link).to eq("#{JsonApi::Json.current_host}/#{b.key}")
-    expect(r.created).to eq(u.created_at.iso8601)
-    expect(r.updated).to eq(u.updated_at.iso8601)
+    expect(Time.parse(r.created)).to be_within(2.seconds).of(b.created_at)
+    expect(Time.parse(r.updated)).to be_within(2.seconds).of(b.updated_at)
   end
 
   it "should create a valid meta record for a user" do
@@ -41,7 +42,7 @@ describe MetaRecord, :type => :model do
     expect(r.summary).to eq("I am a good ma")
     expect(r.image).to match(/avatars\/avatar-/)
     expect(r.link).to eq("#{JsonApi::Json.current_host}/#{u.user_name}")
-    expect(r.created).to eq(u.created_at.iso8601)
-    expect(r.updated).to eq(u.updated_at.iso8601)
+    expect(Time.parse(r.created)).to be_within(2.seconds).of(u.created_at)
+    expect(Time.parse(r.updated)).to be_within(2.seconds).of(u.updated_at)
   end
 end

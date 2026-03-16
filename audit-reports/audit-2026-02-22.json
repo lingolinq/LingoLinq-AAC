@@ -1,0 +1,217 @@
+{
+  "audit_date": "2026-02-22",
+  "mvp_readiness_score": 6.95,
+  "total_findings": 134,
+  "severity_counts": {
+    "critical": 5,
+    "high": 28,
+    "medium": 51,
+    "low": 50
+  },
+  "domain_scores": {
+    "ember": { "raw_score": 0, "weight": 0.20, "weighted_score": 0.0, "findings": { "critical": 0, "high": 7, "medium": 9, "low": 8, "total": 24 } },
+    "rails": { "raw_score": 0, "weight": 0.25, "weighted_score": 0.0, "findings": { "critical": 2, "high": 7, "medium": 11, "low": 6, "total": 26 } },
+    "api": { "raw_score": 25, "weight": 0.15, "weighted_score": 3.75, "findings": { "critical": 0, "high": 1, "medium": 10, "low": 15, "total": 26 } },
+    "privacy": { "raw_score": 0, "weight": 0.20, "weighted_score": 0.0, "findings": { "critical": 0, "high": 6, "medium": 11, "low": 7, "total": 24 } },
+    "dependencies": { "raw_score": 32, "weight": 0.10, "weighted_score": 3.2, "findings": { "critical": 1, "high": 2, "medium": 3, "low": 8, "total": 14 } },
+    "infrastructure": { "raw_score": 0, "weight": 0.10, "weighted_score": 0.0, "findings": { "critical": 2, "high": 5, "medium": 7, "low": 6, "total": 20 } }
+  },
+  "top_blockers": [
+    {
+      "rank": 1,
+      "domain": "rails",
+      "severity": "critical",
+      "finding": "permit_all_parameters = true globally disables Strong Parameters, allowing mass-assignment attacks on every controller action",
+      "remediation": "Remove config/initializers/permit_all_parameters.rb and add explicit strong parameter permits to every controller"
+    },
+    {
+      "rank": 2,
+      "domain": "rails",
+      "severity": "critical",
+      "finding": "SQL injection via string interpolation in BoardDownstreamButtonSet.reconcile (line 690)",
+      "remediation": "Replace where(\"id > #{start_id}\") with where('id > ?', start_id)"
+    },
+    {
+      "rank": 3,
+      "domain": "infrastructure",
+      "severity": "critical",
+      "finding": "No CI/CD pipeline -- code auto-deploys to production without tests or security scans",
+      "remediation": "Implement GitHub Actions with rspec, ember test, bundle audit, npm audit gates"
+    },
+    {
+      "rank": 4,
+      "domain": "dependencies",
+      "severity": "critical",
+      "finding": "Rack 2.2.21 has CVE-2026-22860 (directory traversal, CVSS 7.5) and CVE-2026-25500 (stored XSS)",
+      "remediation": "bundle update rack (to 2.2.22+)"
+    },
+    {
+      "rank": 5,
+      "domain": "privacy",
+      "severity": "high",
+      "finding": "Access tokens stored/logged in API call logs, console.log, DEBUG-level Rails logs, and application_controller",
+      "remediation": "Hash tokens before storage, remove console.log of tokens, set log level to INFO in production"
+    },
+    {
+      "rank": 6,
+      "domain": "privacy",
+      "severity": "high",
+      "finding": "IP addresses and User-Agent stored indefinitely in device settings and LogSession with no retention policy",
+      "remediation": "Implement IP anonymization at collection time and add scheduled data purge jobs"
+    },
+    {
+      "rank": 7,
+      "domain": "infrastructure",
+      "severity": "high",
+      "finding": "Database IP allow list permits all IPs (0.0.0.0/0)",
+      "remediation": "Restrict to Render internal network IPs"
+    },
+    {
+      "rank": 8,
+      "domain": "infrastructure",
+      "severity": "high",
+      "finding": "No Content Security Policy headers configured",
+      "remediation": "Create config/initializers/content_security_policy.rb with strict CSP"
+    },
+    {
+      "rank": 9,
+      "domain": "ember",
+      "severity": "high",
+      "finding": "75 sendAction() calls block Ember 4.0 upgrade (removed in 4.0)",
+      "remediation": "Replace all sendAction with closure actions"
+    },
+    {
+      "rank": 10,
+      "domain": "dependencies",
+      "severity": "high",
+      "finding": "lodash 4.17.21 has CVE-2025-13465 (prototype pollution, CVSS 7.2)",
+      "remediation": "Upgrade lodash to 4.17.23 in app/frontend/package.json"
+    }
+  ],
+  "cross_cutting_themes": [
+    {
+      "theme": "Token and credential exposure",
+      "domains": ["rails", "privacy", "infrastructure"],
+      "description": "Access tokens appear in API logs, console output, Rails debug logs, and controller logs. Combined with permit_all_parameters, leaked tokens grant unrestricted write access."
+    },
+    {
+      "theme": "Missing security boundaries",
+      "domains": ["rails", "infrastructure", "privacy"],
+      "description": "No Strong Parameters, no CSP, no password complexity, no session timeout, database open to all IPs, no CI/CD security gates."
+    },
+    {
+      "theme": "Unmaintained and vulnerable dependencies",
+      "domains": ["dependencies", "rails", "ember"],
+      "description": "Rack has active CVEs, lodash has prototype pollution, Ember 3.28 is EOL, multiple gems abandoned."
+    },
+    {
+      "theme": "PII accumulation without governance",
+      "domains": ["privacy", "rails", "infrastructure"],
+      "description": "IPs, user agents, geolocation, emails, tokens stored indefinitely with no retention policies, no purges, incomplete consent."
+    },
+    {
+      "theme": "Technical debt blocking modernization",
+      "domains": ["ember", "rails", "api"],
+      "description": "Ember is entirely legacy-pattern (484 classic files), 33 models skip ApplicationRecord, schema out of sync."
+    },
+    {
+      "theme": "No quality gates in deployment",
+      "domains": ["infrastructure", "rails", "ember"],
+      "description": "Code deploys without tests, linting, or security scanning. Low frontend test coverage. No documented rollback."
+    }
+  ],
+  "action_items": {
+    "immediate": [
+      "Remove permit_all_parameters and add explicit strong params to controllers",
+      "Fix SQL injection in BoardDownstreamButtonSet.reconcile",
+      "Upgrade Rack to 2.2.22+ (CVE-2026-22860, CVE-2026-25500)",
+      "Scrub access tokens from all log outputs",
+      "Restrict database IP allow list to Render internal network"
+    ],
+    "this_week": [
+      "Implement GitHub Actions CI/CD pipeline",
+      "Configure Content Security Policy headers",
+      "Add session timeout and password complexity requirements",
+      "Upgrade lodash to 4.17.23 (CVE-2025-13465)",
+      "Implement data retention policies for LogSession, devices, PaperTrail",
+      "Configure Render health check endpoints"
+    ],
+    "this_sprint": [
+      "Migrate 33 models to ApplicationRecord, 3 mailers to ApplicationMailer",
+      "Fix Utterance timestamp API contract mismatch",
+      "Remove 75 sendAction() calls (Ember 4.0 blocker)",
+      "Implement GDPR consent mechanism",
+      "Document and test database backup/restore procedure",
+      "Remove abandoned gems (coffee-rails, rails_12factor, s3, rack-offline)",
+      "Fix schema file sync and migration version"
+    ],
+    "this_quarter": [
+      "Begin incremental Ember modernization (native classes, @tracked, angle-bracket)",
+      "Implement production CORS configuration",
+      "Resolve 10 medium-severity API contract mismatches",
+      "Remove jQuery dependency from 56 frontend files",
+      "Implement monitoring and alerting",
+      "Schedule data retention purge jobs"
+    ]
+  },
+  "ember_audit": {
+    "ember_version": "~3.28.0",
+    "migration_effort": "extreme",
+    "file_counts": { "components": 216, "routes": 57, "controllers": 188, "helpers": 18, "models": 22, "templates": 447, "utils": 32, "services": 6, "test_files": 102 },
+    "key_metrics": {
+      "this_get_calls": 6779,
+      "this_set_calls": 4327,
+      "extend_files": 484,
+      "computed_properties": 1375,
+      "tracked_properties": 22,
+      "action_helpers": 2571,
+      "send_action_calls": 75,
+      "super_calls": 188,
+      "jquery_usages": 257,
+      "bower_dependencies": 9
+    }
+  },
+  "rails_audit": {
+    "rails_version": "7.2.3",
+    "ruby_version": "3.4.4",
+    "file_counts": { "models": 49, "controllers": 29, "specs": 152, "migrations": 130 }
+  },
+  "api_audit": {
+    "ember_models": 22,
+    "rails_serializers": 27,
+    "api_endpoints": 28,
+    "fully_matched": 17,
+    "partial": 4,
+    "missing": 4
+  },
+  "privacy_audit": {
+    "compliance_checklist": {
+      "right_to_erasure": true,
+      "data_portability": true,
+      "consent_mechanism": false,
+      "access_controls": true,
+      "encryption_at_rest": true,
+      "audit_logging": true,
+      "data_minimization": false
+    }
+  },
+  "dependency_audit": {
+    "ruby_gems_total": 89,
+    "node_packages_total": 27,
+    "active_cves": ["CVE-2026-22860 (rack)", "CVE-2026-25500 (rack)", "CVE-2025-13465 (lodash)"]
+  },
+  "infrastructure_audit": {
+    "render_services": 11,
+    "checklist": {
+      "https_enforced": true,
+      "health_checks": false,
+      "cicd_pipeline": false,
+      "monitoring": "partial",
+      "backup_strategy": "partial",
+      "secret_management": true,
+      "rate_limiting": true,
+      "cors_configured": "development_only",
+      "logging": true
+    }
+  }
+}

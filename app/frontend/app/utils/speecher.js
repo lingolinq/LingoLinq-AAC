@@ -432,9 +432,34 @@ var speecher = EmberObject.extend({
   speak_id: 0,
   speak_text: function(text, collection_id, opts) {
     opts = opts || {};
+    if(!text) { return; }
+    text = text.toString();
+    text = text.replace(/…/, '...');
+    // iOS TTS quirk (normalize before dedupe so we match across variants)
+    if(text.replace(/\s+/g, '') == "I") { text = "eye"; }
+    if(text.replace(/\s+/g, '') == "went") { text = "wend"; }
+    // Prevent double vocalization FIRST (before stop()): same text in quick succession
+    // from two paths (e.g. main + scanner with different voice = woman then man).
+    // Must run before stop() or the second call would cancel the first utterance.
+    // Normalize for comparison (scanner may pass label, main path vocalization; trim/lower to match)
+    var norm = text.replace(/\s+/g, ' ').trim().toLowerCase();
+    var lastNorm = (this.last_spoken_text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    var now = Date.now();
+    var lastTime = this.last_spoken_text_time || 0;
+    var pendingNorm = (this.speak_pending_text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    var pendingTime = this.speak_pending_time || 0;
+    // Same text recently (1s): skip duplicate from second path (e.g. scanner) or slow repeat
+    if(lastNorm && norm === lastNorm && (now - lastTime) < 1000) {
+      return;
+    }
+    // Same text in pending (150ms): concurrent call for this text (e.g. touch + mouse on quick second tap) - skip
+    if(pendingNorm && norm === pendingNorm && (now - pendingTime) < 150) {
+      return;
+    }
+    this.speak_pending_text = text;
+    this.speak_pending_time = now;
     var already_in_collection = collection_id && this.speaking_from_collection == collection_id;
     if(this.speaking_from_collection && !collection_id) {
-      // lets the user start building their next sentence without interrupting the current one
       return;
     } else if(this.speaking && opts.interrupt === false) {
       return;
@@ -443,18 +468,14 @@ var speecher = EmberObject.extend({
     } else if(this.speaking_from_collection && opts.prevent_repeat && opts.prevent_any) {
       return;
     }
+    this.last_spoken_text = text;
+    this.last_spoken_text_time = Date.now();
     var interrupted = false;
     if(already_in_collection) {
     } else {
       interrupted = this.speaking;
       this.stop('text');
     }
-    if(!text) { return; }
-    text = text.toString();
-    text = text.replace(/…/, '...');
-    // iOS TTS quirk
-    if(text.replace(/\s+/g, '') == "I") { text = "eye"; }
-    if(text.replace(/\s+/g, '') == "went") { text = "wend"; }
     var _this = this;
     var speak_id = this.speak_id++;
     this.last_speak_id = speak_id;

@@ -372,6 +372,8 @@ module Uploader
     found_words = {}
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
+      list = words - found_words.keys
+
       # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
       if ENV['OPENSYMBOLS_SECRET'].present?
         require 'open_symbols' unless defined?(OpenSymbols)
@@ -383,7 +385,6 @@ module Uploader
           protected_source = 'symbolstix'
         end
         
-        list = words - found_words.keys
         results = {}
         
         if library == 'opensymbols'
@@ -414,7 +415,7 @@ module Uploader
           allow_search: find_missing,
           locale: locale,
           search_token: token
-        }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10, :ssl_verifypeer => false)
+        }.to_json, headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json' }, timeout: 10)
         results = {}
         results = JSON.parse(res.body) unless res.code >= 400
       end
@@ -531,7 +532,7 @@ module Uploader
       key = ENV['PIXABAY_KEY']
       return false unless key
       url = "https://pixabay.com/api/?key=#{key}&q=#{CGI.escape(keyword)}&image_type=#{type}&per_page=30&safesearch=true"
-      req = Typhoeus.get(url, timeout: 5, :ssl_verifypeer => false)
+      req = Typhoeus.get(url, timeout: 5)
       results = JSON.parse(req.body) rescue nil
       return [] unless results && results['hits']
       list = []
@@ -566,7 +567,7 @@ module Uploader
       else
       end
       key = ENV['GIPHY_KEY']
-      res = Typhoeus.get("http://api.giphy.com/v1/gifs/search?q=#{CGI.escape(str)}&api_key=#{key}&lang=#{lang}&rating=#{rating}", timeout: 5)
+      res = Typhoeus.get("https://api.giphy.com/v1/gifs/search?q=#{CGI.escape(str)}&api_key=#{key}&lang=#{lang}&rating=#{rating}", timeout: 5)
       results = JSON.parse(res.body)
       list = []
       results['data'].each do |result|
@@ -621,9 +622,10 @@ module Uploader
           token += ":symbolstix"
           protected_source = 'symbolstix'
         end
-        res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", :ssl_verifypeer => false, timeout: 5)
+        res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", timeout: 5)
         results = JSON.parse(res.body) rescue []
         results.each do |result|
+          next unless result.is_a?(Hash)
           if result['extension']
             type = MIME::Types.type_for(result['extension'])[0]
             result['content_type'] = type.content_type

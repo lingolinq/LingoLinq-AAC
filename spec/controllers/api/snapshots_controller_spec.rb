@@ -77,7 +77,8 @@ describe Api::SnapshotsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      s = LogSnapshot.create
+      u = User.create
+      s = LogSnapshot.create(:user => u)
       get :show, params: {:id => s.global_id}
       assert_unauthorized
     end
@@ -106,7 +107,8 @@ describe Api::SnapshotsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      s = LogSnapshot.create
+      u = User.create
+      s = LogSnapshot.create(:user => u)
       put :update, params: {:id => s.global_id}
       assert_unauthorized
     end
@@ -136,7 +138,8 @@ describe Api::SnapshotsController, :type => :controller do
     
     it "should require authorization" do
       token_user
-      s = LogSnapshot.create
+      u = User.create
+      s = LogSnapshot.create(:user => u)
       delete :destroy, params: {:id => s.global_id}
       assert_unauthorized
     end

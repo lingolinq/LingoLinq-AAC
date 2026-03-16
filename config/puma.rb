@@ -1,4 +1,5 @@
-workers Integer(ENV['WEB_CONCURRENCY'] || 3)
+# Use 1 worker in development to rule out multi-worker token validation race (POST /token vs GET /api/*)
+workers Integer(ENV['WEB_CONCURRENCY'] || (ENV['RACK_ENV'] == 'development' ? 1 : 3))
 threads_count = Integer(ENV['MAX_THREADS'] || 5)
 threads threads_count, threads_count
 

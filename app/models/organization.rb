@@ -942,6 +942,7 @@ class Organization < ActiveRecord::Base
     end
     user.update_subscription_organization(self, pending, sponsored, eval_account)
     user.schedule(:update_available_boards) unless @skip_user_available_boards_check
+    UserLink.invalidate_cache_for(self)
     user
   end
   

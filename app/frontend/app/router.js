@@ -1,6 +1,6 @@
 import { on } from '@ember/object/evented';
-import Ember from 'ember';
 import EmberRouter from '@ember/routing/router';
+import { isTesting } from '@ember/debug';
 import config from './config/environment';
 import capabilities from './utils/capabilities';
 
@@ -26,8 +26,7 @@ const Router = EmberRouter.extend({
   
   init() {
     this._super(...arguments);
-    // Check Ember.testing at runtime to satisfy ESLint
-    if (Ember.testing) {
+    if (isTesting()) {
       this.location = 'none';
     }
   }
@@ -95,6 +94,8 @@ Router.map(function() {
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});
+  // Setup must come before user so /setup matches the wizard, not user with id "setup"
+  this.route('setup', { path: '/setup'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
     this.route('edit');
     this.route('preferences');
@@ -113,7 +114,6 @@ Router.map(function() {
     this.route('confirm_registration', { path: '/confirm_registration/:code' });
     this.route('password_reset', { path: '/password_reset/:code' });
   });
-  this.route('setup', { path: '/setup'});
   this.route('board', { resetNamespace: true, path: '/*key'}, function() {
 //    this.route('error');
     this.route('stats');

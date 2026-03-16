@@ -100,10 +100,13 @@ export default Component.extend({
     'model.locale',
     'model.board_ids',
     function() {
-      var words = this.get('model.button_set.buttons') || [];
-      if (this.get('model.board.buttons')) {
+      var words = (this.get('model.button_set.buttons') || []).slice();
+      // Only merge board.buttons when button_set hasn't loaded yet (fallback).
+      // When both exist, button_set.buttons already contains the board's buttons;
+      // merging causes duplicates when board_id/id comparison fails (e.g. type mismatch).
+      if (this.get('model.board.buttons') && words.length === 0) {
         var _this = this;
-        var board_id = this.get('model.board.id');
+        var board_id = this.get('model.board.global_id') || this.get('model.board.id');
         this.get('model.board.buttons').forEach(function(button) {
           if (!words.find(function(b) { return b.board_id === board_id && b.id === button.id; })) {
             words.push($.extend({}, button, {
@@ -118,7 +121,7 @@ export default Component.extend({
       var locale = this.get('model.locale');
       var board_ids = this.get('model.old_board_ids_to_translate');
       var translations = this.get('translations') || {};
-      var original_board_id = this.get('model.board.id');
+      var original_board_id = this.get('model.board.global_id') || this.get('model.board.id');
       var translating = !!(this.get('translating'));
       words.forEach(function(b, idx) {
         if (translating) {

@@ -478,6 +478,14 @@ module Relinking
             opts[:board_links][button['load_board']['id']].uniq!
           end
         end
+        # Include starting_new_board's links so it gets relinked to the new copies (e.g. b2a -> b2b)
+        (starting_new_board.buttons || []).each do |button|
+          if button['load_board'] && button['load_board']['id']
+            opts[:board_links][button['load_board']['id']] ||= []
+            opts[:board_links][button['load_board']['id']] << starting_new_board.global_id
+            opts[:board_links][button['load_board']['id']].uniq!
+          end
+        end
 
         # puts "done with copies"
 

@@ -59,6 +59,12 @@ export default Component.extend({
   status_message: computed('progress.status', 'progress.sub_status', function() {
     return progress_tracker.status_text(this.get('progress.status'), this.get('progress.sub_status'));
   }),
+  error_detail: computed('progress.result', function() {
+    const result = this.get('progress.result');
+    if (!result) { return null; }
+    if (typeof result === 'string') { return result; }
+    return result.error || null;
+  }),
   num_percent: computed('progress.percent', function() {
     return Math.round(100 * (this.get('progress.percent') || 0));
   }),

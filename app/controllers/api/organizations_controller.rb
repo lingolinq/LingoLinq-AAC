@@ -18,10 +18,19 @@ class Api::OrganizationsController < ApplicationController
   def users
     return unless allowed?(@org, 'edit')
     users = @org.users
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
     if params['recent']
       users = users.order(id: :desc)
+    elsif sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     else
-      users = users.order('user_name')
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     end
     prefix = "/organizations/#{@org.global_id}/users"
     org_manager = @org.allows?(@api_user, 'manage')
@@ -153,9 +162,20 @@ class Api::OrganizationsController < ApplicationController
   
   def supervisors
     return unless allowed?(@org, 'edit')
-    users = @org.supervisors.order('user_name')
+    users = @org.supervisors
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    if sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    else
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    end
     prefix = "/organizations/#{@org.global_id}/supervisors"
-
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix, :profile_type => 'supervisor'})
   end
 
@@ -168,7 +188,19 @@ class Api::OrganizationsController < ApplicationController
   
   def evals
     return unless allowed?(@org, 'edit')
-    users = @org.evals.order('user_name')
+    users = @org.evals
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    if sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    else
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    end
     prefix = "/organizations/#{@org.global_id}/evals"
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix})
   end
@@ -525,10 +557,11 @@ class Api::OrganizationsController < ApplicationController
       statuses = {}
       sizes = []
       board_ids = []
-      links = UserLink.links_for(org).select{|l| l['type'] == 'org_user' && l['state']['status'] }
+      links = UserLink.links_for(org).select{|l| l['type'] == 'org_user' && (l['state'] || {})['status'] }
       approved_users.each do |user|
-        if user.settings['preferences']['home_board']
-          board_ids.push(user.settings['preferences']['home_board']['id'])
+        pref = (user.settings || {})['preferences'] || {}
+        if pref['home_board'] && pref['home_board']['id']
+          board_ids.push(pref['home_board']['id'])
         end
         link = links.detect{|l| l['user_id'] == user.global_id }
         state = link && link['state'] && link['state']['status'] && link['state']['status']['state']
@@ -539,14 +572,18 @@ class Api::OrganizationsController < ApplicationController
       Board.find_batches_by_global_id(board_ids.uniq){|b| boards_hash[b.global_id] = b }
       approved_users.each do |user|
         user.access_methods.each{|m| methods[m] = (methods[m] || 0) + 1 }
-        if user.settings['external_device']
-          dn = user.settings['external_device']['device_name']
+        ext_dev = (user.settings || {})['external_device']
+        pref = (user.settings || {})['preferences'] || {}
+        if ext_dev
+          dn = ext_dev['device_name']
           dn = "Unnamed" if dn.blank?
           devices[dn] = (devices[dn] || 0) + 1
-          vocabs[user.settings['external_device']['vocab_name']] = (vocabs[user.settings['external_device']['vocab_name']] || 0) + 1
-          sizes << user.settings['external_device']['size']
-        elsif user.settings['preferences']['home_board']
-          brd = boards_hash[user.settings['preferences']['home_board']['id']]
+          vn = ext_dev['vocab_name']
+          vn = 'Unknown' if vn.blank?
+          vocabs[vn] = (vocabs[vn] || 0) + 1
+          sizes << ext_dev['size'] if ext_dev['size']
+        elsif pref['home_board'] && pref['home_board']['id']
+          brd = boards_hash[pref['home_board']['id']]
           if brd
             grid = BoardContent.load_content(brd, 'grid')
             devices['LingoLinq'] = (devices['LingoLinq'] || 0) + 1
@@ -565,7 +602,7 @@ class Api::OrganizationsController < ApplicationController
         clumped_vocabs = {}
         vocabs.each do |voc, cnt|
           if cnt <= (vocabs.keys.length / 6) && voc.instance_variable_get('@board_key')
-            clumped_vocabs['Other'] = (clumbed_vocabs['Other'] || 0) + 1
+            clumped_vocabs['Other'] = (clumped_vocabs['Other'] || 0) + 1
           else
             clumped_vocabs[voc] = cnt
           end
@@ -585,26 +622,85 @@ class Api::OrganizationsController < ApplicationController
       return api_error 400, {:error => "unrecognized report: #{params['report']}"}
     end
     res = {}
-    res[:user] = users.sort_by(&:user_name).map{|u| 
-      r = JsonApi::User.as_json(u, limited_identity: true); 
-      r['org_status'] = u.instance_variable_get('@org_status') if u.instance_variable_get('@org_status')
-      r['vocab_name'] = u.instance_variable_get('@vocab_name') if u.instance_variable_get('@vocab_name')
-      r['email'] = u.settings['email'];
-      if org.admin?
-        r['referrer'] = u.settings['referrer']
-        r['ad_referrer'] = u.settings['ad_referrer']
-        r['registration_type'] = u.registration_type
-        r['joined'] = u.created_at.iso8601
+    if users
+      # Convert to array if needed (some branches return ActiveRecord::Relation)
+      user_list = users.respond_to?(:to_a) ? users.to_a : users
+      # Apply filter (search by user_name or email)
+      filter_str = (params['filter'] || params['q'] || '').to_s.strip.downcase
+      if filter_str.present?
+        user_list = user_list.select do |u|
+          (u.user_name || '').downcase.include?(filter_str) ||
+            (u.settings['email'] || '').downcase.include?(filter_str)
+        end
       end
-      r 
-    } if users
+      # Apply sort
+      sort_by = (params['sort_by'] || 'user_name').to_s
+      sort_order = (params['sort_order'] || 'asc').to_s
+      sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+      user_list = user_list.sort_by do |u|
+        val = case sort_by
+        when 'joined'
+          u.created_at&.to_i || 0
+        when 'email'
+          (u.settings['email'] || '').downcase
+        else
+          (u.user_name || '').downcase
+        end
+        [val.is_a?(String) ? val : val, u.id]
+      end
+      user_list = user_list.reverse if sort_order == 'desc'
+      # Pagination
+      per_page = params['per_page'] ? [JsonApi::User::MAX_PAGE, params['per_page'].to_i].min : JsonApi::User::DEFAULT_PAGE
+      per_page = JsonApi::User::DEFAULT_PAGE if per_page < 1
+      offset = params['offset'].to_i
+      offset = 0 if offset < 0
+      page_users = user_list.slice(offset, per_page + 1)
+      more = page_users && page_users.length > per_page
+      page_users = page_users ? page_users[0, per_page] : []
+      serialized = page_users.map do |u|
+        r = JsonApi::User.as_json(u, limited_identity: true)
+        r['org_status'] = u.instance_variable_get('@org_status') if u.instance_variable_get('@org_status')
+        r['vocab_name'] = u.instance_variable_get('@vocab_name') if u.instance_variable_get('@vocab_name')
+        r['email'] = u.settings['email']
+        if org.admin?
+          r['referrer'] = u.settings['referrer']
+          r['ad_referrer'] = u.settings['ad_referrer']
+          r['registration_type'] = u.registration_type
+          r['joined'] = u.created_at.iso8601
+        end
+        r
+      end
+      res[:user] = serialized
+      prefix = "#{JsonApi::Json.current_host}/api/v1/organizations/#{org.global_id}/admin_reports"
+      meta = {
+        per_page: per_page,
+        offset: offset,
+        next_offset: offset + per_page,
+        more: more
+      }
+      if more
+        next_params = "report=#{CGI.escape(params['report'])}&offset=#{offset + per_page}&per_page=#{per_page}"
+        next_params += "&sort_by=#{CGI.escape(sort_by)}" if sort_by != 'user_name'
+        next_params += "&sort_order=#{CGI.escape(sort_order)}" if sort_order != 'asc'
+        next_params += "&filter=#{CGI.escape(filter_str)}" if filter_str.present?
+        meta[:next_url] = "#{prefix}?#{next_params}"
+      end
+      res[:meta] = meta
+    end
     res[:stats] = stats if stats
     render json: res.to_json
   end
   
   def logs
     return unless allowed?(@org, 'manage')
-    logs = @org.log_sessions.order(id: :desc)
+    logs = @org.log_sessions
+    if params['user_id'].present?
+      user = User.find_by_path(params['user_id'])
+      logs = logs.where(user_id: user.id) if user
+    end
+    sort_order = (params['sort_order'] || 'desc').to_s
+    sort_order = 'desc' unless ['asc', 'desc'].include?(sort_order)
+    logs = logs.order("started_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     prefix = "/organizations/#{@org.global_id}/logs"
     render json: JsonApi::Log.paginate(params, logs, {:prefix => prefix})
   end

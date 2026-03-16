@@ -1,5 +1,5 @@
-import Ember from 'ember';
 import Component from '@ember/component';
+import templateHelpers from '../../utils/template_helpers';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
@@ -34,13 +34,18 @@ export default Component.extend({
         if(elem) {
           var map = new window.google.maps.Map(elem, {
             scrollwheel: false,
-            maxZoom: 16
+            maxZoom: 16,
+            center: { lat: 20, lng: 0 },
+            zoom: 2
           });
           var markers = [];
-          stats.get('geo_locations').forEach(function(location) {
+          var geoLocations = stats.get('geo_locations').filter(function(loc) {
+            return loc.geo && loc.geo.latitude != null && loc.geo.longitude != null;
+          });
+          geoLocations.forEach(function(location) {
             var title = i18n.t('session_count', "session", {count: location.total_sessions});
             var marker = new window.google.maps.Marker({
-              position: new window.google.maps.LatLng(location.geo.latitude, location.geo.longitude),
+              position: new window.google.maps.LatLng(parseFloat(location.geo.latitude), parseFloat(location.geo.longitude)),
               // TODO: https://developers.google.com/maps/documentation/javascript/examples/marker-animations-iteration
               // animation: window.google.maps.Animation.DROP,
               title: title
@@ -49,13 +54,24 @@ export default Component.extend({
             marker.setMap(map);
             markers.push(marker);
 
-            var dater = Ember.templateHelpers.date;
-            var html = title + "<br/>" + dater(location.started_at, null) +
-                        " to <br/>" + dater(location.ended_at, null) + "<br/>" +
-                        "<a href='#' class='ember_link' data-location_id='" + location.id + "'>filter by this location</a>";
+            var dater = templateHelpers.date;
+            var container = document.createElement('div');
+            container.appendChild(document.createTextNode(title));
+            container.appendChild(document.createElement('br'));
+            container.appendChild(document.createTextNode(dater(location.started_at, null)));
+            container.appendChild(document.createTextNode(' to '));
+            container.appendChild(document.createElement('br'));
+            container.appendChild(document.createTextNode(dater(location.ended_at, null)));
+            container.appendChild(document.createElement('br'));
+            var link = document.createElement('a');
+            link.href = '#';
+            link.className = 'ember_link';
+            link.dataset.location_id = String(location.id);
+            link.textContent = i18n.t('filter_by_location', 'filter by this location');
+            container.appendChild(link);
 
             var info = new window.google.maps.InfoWindow({
-              content: html
+              content: container
             });
             window.google.maps.event.addListener(marker, 'click', function() {
               if(current_info) {
@@ -65,11 +81,16 @@ export default Component.extend({
               info.open(map, marker);
             });
           });
-          var bounds = new window.google.maps.LatLngBounds();
-          for(var i=0;i<markers.length;i++) {
-           bounds.extend(markers[i].getPosition());
+          if(markers.length > 0) {
+            var bounds = new window.google.maps.LatLngBounds();
+            for(var i=0;i<markers.length;i++) {
+              bounds.extend(markers[i].getPosition());
+            }
+            map.fitBounds(bounds);
           }
-          map.fitBounds(bounds);
+          setTimeout(function() {
+            window.google.maps.event.trigger(map, 'resize');
+          }, 100);
         }
       }
     });

@@ -135,7 +135,14 @@ export default Component.extend({
         const _this = this;
         log.save().then(function() {
           modal.close(true);
-        }, function() {});
+        }, function(err) {
+          const resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || {};
+          const details = resp.errors;
+          const msg = (Array.isArray(details) && details.length > 0)
+            ? i18n.t('assessment_save_failed_with_errors', "Could not save assessment: %{details}", { details: details.join('; ') })
+            : (resp.error || i18n.t('assessment_save_failed', "Could not save assessment. Please try again."));
+          modal.error(msg);
+        });
       } else {
         stashes.log_event(assessment, this.get('model.user.id'));
         stashes.push_log(true);

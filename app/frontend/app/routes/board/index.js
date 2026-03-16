@@ -44,7 +44,7 @@ export default Route.extend({
       model.load_button_set();
     }
     _this.appState.set('currentBoardState', {
-      id: model.get('id'),
+      id: model.get('global_id') || model.get('id'),
       key: model.get('key'),
       parent_id: model.get('parent_board_id'),
       name: model.get('name'),

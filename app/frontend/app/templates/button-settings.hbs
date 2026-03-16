@@ -15,7 +15,7 @@
           {{#if this.board.translations}}
             <li class={{if this.languageState "active" "inactive"}} {{action "setState" "language"}}><a href="#">{{t "Language" key="language"}}</a></li>
           {{/if}}
-          {{#if this.app_state.feature_flags.board_levels}}
+          {{#if this.appState.feature_flags.board_levels}}
             <li class={{if this.extrasState "active" "inactive"}} {{action "setState" "extras"}}><a href="#">{{t "Extras" key="extras"}}</a></li>
           {{/if}}
         </ul>
@@ -30,7 +30,7 @@
                 <h4>{{t "Button Settings" key="button_settings"}}</h4>
                 {{#if this.auto_help}}
                   <button {{action "disable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Skip this help in the future" key="skip_help"}}</button>
-                {{else if this.app_state.currentUser.preferences.disable_button_help}}
+                {{else if this.appState.currentUser.preferences.disable_button_help}}
                   <button {{action "enable_auto_help"}} class='btn btn-default btn-sm' style='position: absolute; top: -10px; right: 0;'>{{t "Start here in the future" key="re_enable_help"}}</button>
                 {{/if}}
               </div>
@@ -74,7 +74,7 @@
             <div class="col-sm-10 col-sm-offset-2">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @checked={{this.model.hide_label}} @type="checkbox" />
+                  <Input @checked={{this.model.hide_label}} @type="checkbox" {{on "change" (action "updateHideLabel" value="target.checked")}} />
                   {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>
@@ -146,12 +146,12 @@
     {{else}}
       <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
-    {{#if this.app_state.feature_flags.skin_tones}}
+    {{#if this.appState.feature_flags.skin_tones}}
       <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
     {{/if}}
     <div style="clear: left;"></div>
     {{#if this.premium_symbol_library}}
-      {{#if this.app_state.currentUser.subscription.grace_trial_period}}
+      {{#if this.appState.currentUser.subscription.grace_trial_period}}
         <div class='text-danger'>
           {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
         </div>
@@ -306,11 +306,11 @@
           {{else if missing_library.pcs}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/pcs.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "PCS (BoardMaker) is a paid third-party symbol library supported by Tobii Dynavix with over 18,000 symbols. %app_name% users can purchase access to PCS symbols as an upgrade on their"  key="pcs_explainer"}}
-            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>billing page</LinkTo>.
           {{else if missing_library.symbolstix}}
             <img src="https://lingolinq.s3.amazonaws.com/icons/symbolstix.png" style='width: 50px; float: left; margin-right: 10px; margin-bottom: 5px;'>
             {{t "SymbolStix is a paid third-party symbol library supported by News2You with over 48,000 symbols. %app_name% users can purchase access to SymbolStix symbols as an upgrade on their"  key="symbolstix_explainer"}}
-            {{#link-to "user.subscription" app_state.currentUser.user_name}}billing page{{/link-to}}.
+            <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>billing page</LinkTo>.
           {{else}}
             {{t "Premium symbol support required" key="premium_symbols_required"}}
           {{/if}}
@@ -360,7 +360,7 @@
       <label class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
       <div class="col-sm-10">
         <p class="form-control-static">
-          {{#if model.load_board.key}}
+          {{#if this.model.load_board.key}}
             <img src={{this.model.icon}} style="height: 20px;">
             <a href={{this.model.link}} target="_blank" rel="noopener">{{this.model.load_board.key}}</a>
           {{else}}
@@ -404,7 +404,7 @@
                   <p>{{t "There was an error sharing the board" key="error_sharing_board"}}</p>
                 </div>
               {{else}}
-                {{#with confirm_found_board as |board|}}
+                {{#let this.confirm_found_board as |board|}}
                   <div class="col-sm-4">
                     <span class="well well-sm board_icon">
                       <span style='display: block;' title={{board.long_preview}}>
@@ -470,7 +470,7 @@
                                share with them? -->
                     <button class='btn btn-default' {{action "copy_found_board"}}>{{t "Copy This Board" key="copy_this_board"}}</button>
                   </div>
-                {{/with}}
+                {{/let}}
               {{/if}}
             </div>
           {{else}}
@@ -479,7 +479,7 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" action="selectFoundBoard" locale=this.foundBoards.locale}}
+                      {{board-icon board=board noinfo=true option="select" onAction=(action "selectFoundBoard") locale=this.foundBoards.locale}}
                     </div>
                   {{/each}}
                 </div>
@@ -1161,7 +1161,7 @@
         <Input @value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty" />
       </div>
     </div>
-    {{#if app_state.feature_flags.inflections_overlay}}
+    {{#if this.appState.feature_flags.inflections_overlay}}
       <div class='form-group'>
         <label for="inflections" class="col-sm-4 control-label">{{t "Inflections" key="inflections"}}</label>
         <div class='col-sm-8'>
@@ -1283,7 +1283,7 @@
         </div>
       </div>
     {{/if}}
-    {{#if app_state.feature_flags.inflections_overlay}}
+    {{#if this.appState.feature_flags.inflections_overlay}}
       <div class='form-group'>
         <label for="inflections" class="col-sm-2 control-label">{{t "Inflections" key="inflections"}}</label>
         <div class='col-sm-10'>

@@ -19,7 +19,7 @@
       <a class="list-group-item" href="#" style="height: 80px;" {{action "getting_started"}}>
         <span class="glyphicon glyphicon-user"></span>
         <strong>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</strong>
-        <div class="progress" style="margin-bottom: 0;">
+        <div class="progress" style="margin-bottom: 0; width: 75%;">
           <div class="progress-bar" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.blank_slate_percent_style}}>
             <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
           </div>
@@ -213,9 +213,9 @@
             {{t "rooms:" key="rooms_colon"}}
             {{#each this.app_state.currentUser.supervised_units as |unit|}}
               <span style='margin-right: 10px; white-space: nowrap;'>
-                {{#link-to "organization.room" unit.organization_id unit.id}}
+                <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>
                   {{unit.name}}
-                {{/link-to}}
+                </LinkTo>
               </span>
             {{/each}}
           </span>
@@ -228,9 +228,9 @@
             <span style='white-space: normal;'>
               {{#each this.managed_orgs as |org|}}
                 <span style="margin-right: 10px; white-space: nowrap;">
-                  {{#link-to "organization" org.id}}
+                  <LinkTo @route="organization" @model={{org.id}}>
                     {{org.name}}
-                  {{/link-to}}
+                  </LinkTo>
                 </span>
               {{/each}}
             </span>
@@ -270,7 +270,7 @@
           <span class='text-muted' style='font-size: 12px; margin-top: 10px;'>
             {{t "Last Log" key="latest_session"}}
             {{#if this.logs.[0]}}
-              <span title={{date log.started_at}}>
+              <span title={{date this.logs.[0].started_at}}>
                 {{date_ago this.logs.[0].started_at}}
               </span>
             {{/if}}
@@ -278,7 +278,7 @@
           <br>
           {{#if this.logs.loading}}
             {{t "Loading..." key="loading"}}
-          {{else if this.logs.eror}}
+          {{else if this.logs.error}}
             {{t "Failed to load" key="failed_to_load"}}
           {{else if this.logs.[0]}}
             <div style='padding-right: 10px; white-space: normal; max-height: 40px; overflow: hidden;'>
@@ -299,8 +299,8 @@
 
   </div>
   <div style='padding: 0 10px;' class='collapsible'>
-    <div style="float: right;">
-      <a href="#" {{action "reload"}}>{{t "reload" key="reload"}}</a>
+    <div class="left_reload_holder">
+      <a href="#" class="left_reload_link" {{action "reload"}}><span class="glyphicon glyphicon-refresh"></span></a>
     </div>
     {{#if (persistence-value 'sync_log')}}
       <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
@@ -310,32 +310,32 @@
   </div>
 </div>
 <div class='col col-sm-8 col-md-9' id="new_right">
-  <div class='new_pills_wrapper' style='position: absolute; top: -40px; left: 10px; right: 0; z-index: 5;'>
-    <ul class="nav nav-pills new_pills">
-      <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
-      {{#unless this.app_state.currentUser.modeling_only}}
-        {{#if this.show_communicators_tab}}
-          <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
-        {{/if}}
-      {{/unless}}
-      <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
-          {{t "Updates" key="updates"}}
-          {{#if this.pending_updates}}
-            <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
-              {{#if this.pending_updates.count}}
-                {{this.pending_updates.count}}
-              {{else}}
-                {{t "!" key="exclaim"}}
-              {{/if}}
-            </span>
-          {{/if}}
-        </a></li>
-      {{/unless}}
-    </ul>
-  </div>
   <div class='row big_buttons' style='padding-right: 10px;'>
+    <div class='col-xs-12 new_pills_wrapper'>
+      <ul class="nav nav-pills new_pills">
+        <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
+        {{#unless this.app_state.currentUser.modeling_only}}
+          {{#if this.show_communicators_tab}}
+            <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
+          {{/if}}
+        {{/unless}}
+        <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
+        {{#unless this.app_state.currentUser.modeling_only}}
+          <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
+            {{t "Updates" key="updates"}}
+            {{#if this.pending_updates}}
+              <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
+                {{#if this.pending_updates.count}}
+                  {{this.pending_updates.count}}
+                {{else}}
+                  {{t "!" key="exclaim"}}
+                {{/if}}
+              </span>
+            {{/if}}
+          </a></li>
+        {{/unless}}
+      </ul>
+    </div>
     {{#if this.index_nav.supervisees}}
       {{#unless this.app_state.currentUser.modeling_only}}
       <div class='col-xs-12'>
@@ -348,13 +348,13 @@
         <div class='col-lg-6 col-md-12' style='padding: 0 5px;'>
           <div style='border: 5px solid #ccc; border-radius: 10px; margin-bottom: 10px; padding: 10px 15px;'>
             <div style='float: left; position: relative;'>
-              {{#link-to "user" supervisee.user_name}}
+              <LinkTo @route="user" @model={{supervisee.user_name}}>
                 {{#if supervisee.local_avatar_url}}
                   <img src={{supervisee.local_avatar_url}} rel-url={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
                 {{else}}
                   <img src={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
                 {{/if}}
-              {{/link-to}}
+              </LinkTo>
               {{#if supervisee.online}}
                 <div title='currently online' class='online_marker'></div>
               {{/if}}
@@ -420,7 +420,7 @@
                 </div>
               </button>
               <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "images/modeling_ideas.svg"}}>
+                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
                 <div style='line-height: 14px;'>
                   {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
                 </div>
@@ -428,8 +428,8 @@
               <div class="btn-group">
                 <button class='btn btn-default dropdown-toggle button_row_extras' style='margin-bottom: 5px; border-width: 2px; border-color: #ddd; color: #888;'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class='text'>{{t "Extras" key="extras"}} </span><span class="caret"></span></button>
                 <ul class="dropdown-menu" style='left: auto; right: 0;'>
-                  <li>{{#link-to "board" supervisee.home_board_key}}{{t "Home Board" key="home_board"}}{{/link-to}}</li>
-                  <li>{{#link-to "user" supervisee.user_name}}{{t "Account" key="account"}}{{/link-to}}</li>
+                  <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
+                  <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
                   <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
                   <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
                   <li><a href="#" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
@@ -546,7 +546,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_primary' class='btn big_button btn-primary' {{action "homeInSpeakMode"}}>
-              <span class='glyphicon glyphicon-volume-up'></span>
+              <img src={{path "images/Sound.png"}} class="sound_icon">
               {{t "Speak Mode" key="speak_mode"}}
             </button>
           </div>
@@ -563,7 +563,7 @@
         {{else}}
           <div class='col-md-3 col-xs-4 big_button_holder'>
             <button id='nav_secondary' class='btn big_button btn-default' {{action "stats"}}>
-              <img src={{path "images/bar_chart.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
+              <img src={{path "images/chart.png"}}>
               {{t "Reports" key="reports"}}
             </button>
           </div>
@@ -572,7 +572,7 @@
           {{#if this.modeling_ideas_available}}
             <div class='col-md-3 col-xs-4 big_button_holder'>
               <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
-                <img src={{path "images/modeling_ideas.svg"}} style='opacity: 0.9; filter: grayscale(60%);'>
+                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
                 {{t "Modeling<br>Ideas" key="modeling_ideas_two_lines"}}
               </button>
             </div>
@@ -598,7 +598,7 @@
         {{/if}}
         <div class='col-md-3 col-xs-4 big_button_holder'>
           <button id='nav_extras' class='btn big_button btn-default' {{action "toggle_extras"}} style='touch-action: manipulation;'>
-            <img src={{path "images/extras.svg"}}>
+            <img src={{path "images/Extras.png"}}>
             {{t "Extras" key="extras"}} <span class={{if this.show_main_extras "caret" "caret-right"}}></span>
           </button>
         </div>
@@ -736,15 +736,15 @@
             <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
             {{t "current home board:" key="current_home_board"}}<br>
             {{#if this.app_state.currentUser.preferences.home_board}}
-              {{#link-to "board" this.app_state.currentUser.preferences.home_board.key}}
+              <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}}>
                 <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-              {{/link-to}}
+              </LinkTo>
             {{else}}
-              {{#link-to "home-boards"}}
+              <LinkTo @route="home-boards">
                 <span style='font-size: 20px;'>
                   {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
                 </span>
-              {{/link-to}}
+              </LinkTo>
             {{/if}}
             <div style='clear: left;'></div>
           </div>
@@ -753,12 +753,12 @@
         {{#if this.suggested_selected}}
           {{#unless this.app_state.currentUser.supporter_role}}
             <div class="col-xs-12" style="margin-bottom: 10px;">
-              {{#link-to "home-boards"}}
+              <LinkTo @route="home-boards">
                 <span>
                 <span class="glyphicon glyphicon-search"></span>
                 {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
                 </span>
-              {{/link-to}}
+              </LinkTo>
             </div>
           {{/unless}}
         {{/if}}
@@ -814,9 +814,9 @@
                   <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
                 </a>
               {{/if}}
-              {{#link-to "download"}}
+              <LinkTo @route="download">
                 <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
-              {{/link-to}}
+              </LinkTo>
             </div>
           </div>
         {{/if}}
@@ -824,30 +824,30 @@
         <div style="margin-left: 20px;">
           {{#if this.app_state.currentUser.pending_org}}
             <p>
-              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}{{/link-to}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}</LinkTo>
             </p>
           {{/if}}
           {{#if this.app_state.currentUser.pending_supervision_org}}
             <p>
-              {{#link-to "user" this.app_state.currentUser.user_name}}<span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}{{/link-to}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}</LinkTo>
             </p>
           {{/if}}
           {{#if this.app_state.currentUser.pending_board_shares}}
             {{#each this.app_state.currentUser.pending_board_shares as |share|}}
               <p>
                 <span class="glyphicon glyphicon-share"></span>
-                {{#link-to "board" share.board_key}}{{share.board_key}}{{/link-to}}
+                <LinkTo @route="board" @model={{share.board_key}}>{{share.board_key}}</LinkTo>
                 {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
               </p>
             {{/each}}
           {{/if}}
           {{#if this.app_state.currentUser.unread_messages}}
             <p>
-            {{#link-to "user.logs" this.app_state.currentUser.user_name (query-params type="note")}}
+            <LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
               <span class="glyphicon glyphicon-envelope"></span>
               {{t "You have " key="you_have"}}
               {{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}
-            {{/link-to}}
+            </LinkTo>
             </p>
           {{/if}}
           {{#if this.app_state.currentUser.parsed_notifications}}
@@ -887,18 +887,18 @@
                 <span title={{date log.started_at}}>
                   {{date_ago log.started_at}}
                 </span>
-                {{#link-to "user.log" log.user.user_name log.id}}
+                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
                   {{#if log.assessment}}
                     {{t "assessment" key="assessment"}}
                   {{else}}
                     {{t "button" count=log.button_count key="button_count"}}
                   {{/if}}
-                {{/link-to}}
+                </LinkTo>
                 {{#if this.app_state.currentUser.supporter_role}}
                   <span> -
-                    {{#link-to "user" log.user.user_name}}
+                    <LinkTo @route="user" @model={{log.user.user_name}}>
                       {{log.user.user_name}}
-                    {{/link-to}}
+                    </LinkTo>
                   </span>
                 {{/if}}
                 <br>

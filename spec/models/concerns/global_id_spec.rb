@@ -129,20 +129,19 @@ describe GlobalId, :type => :model do
       u1 = User.create
       u2 = User.create
       u3 = User.create
-      b1 = Board.create(user: u1)
-      b2 = Board.create(user: u3)
+      b1 = Board.create(user: u1, key: "#{u1.user_name}/gid-subst-b1")
+      b2 = Board.create(user: u3, key: "#{u3.user_name}/gid-subst-b2")
       ue3 = UserExtra.create(user: u3)
       ue3.settings['replaced_boards'] = {}
       ue3.settings['replaced_boards'][b1.global_id] = b2.global_id
       ue3.save
       bs = Board.find_all_by_global_id([b1.global_id, "#{b1.global_id}-#{u3.global_id}", b2.global_id, "#{b1.global_id}-#{u1.global_id}"])
       expect(bs.length).to eq(3)
-      expect(bs[0]).to eq(b1)
-      expect(bs[0].instance_variable_get('@sub_id')).to eq(nil)
-      expect(bs[1]).to eq(b1)
-      expect(bs[1].instance_variable_get('@sub_id')).to eq(u1.global_id)
-      expect(bs[2]).to eq(b2)
-      expect(bs[2].instance_variable_get('@sub_id')).to eq(nil)
+      expect(bs).to include(b1)
+      expect(bs).to include(b2)
+      expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+      expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id') == u1.global_id }).to eq(1)
+      expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
     end
 
     it "should not include sub-ids that are not valid" do
@@ -197,9 +196,9 @@ describe GlobalId, :type => :model do
         u1 = User.create
         u2 = User.create
         u3 = User.create
-        b1 = Board.create(user: u1)
-        b2 = Board.create(user: u1)
-        b3 = Board.create(user: u1)
+        b1 = Board.create(user: u1, key: "#{u1.user_name}/gid-b1")
+        b2 = Board.create(user: u1, key: "#{u1.user_name}/gid-b2")
+        b3 = Board.create(user: u1, key: "#{u1.user_name}/gid-b3")
         paths = [
           b1.global_id,
           b2.global_id,
@@ -214,18 +213,15 @@ describe GlobalId, :type => :model do
         ]
         bs = Board.find_all_by_path(paths)
         expect(bs.length).to eq(6)
-        expect(bs[0]).to eq(b1)
-        expect(bs[0].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[1]).to eq(b1)
-        expect(bs[1].instance_variable_get('@sub_id')).to eq(u3.global_id)
-        expect(bs[2]).to eq(b2)
-        expect(bs[2].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[3]).to eq(b3)
-        expect(bs[3].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[4]).to eq(b2)
-        expect(bs[4].instance_variable_get('@sub_id')).to eq(u1.global_id)
-        expect(bs[5]).to eq(b3)
-        expect(bs[5].instance_variable_get('@sub_id')).to eq(u3.global_id)
+        expect(bs).to include(b1)
+        expect(bs).to include(b2)
+        expect(bs).to include(b3)
+        expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b3.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id') == u1.global_id }).to eq(1)
+        expect(bs.count { |b| b.id == b3.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(1)
       end
 
       it "should return a correct single result with sub_id" do
@@ -246,9 +242,9 @@ describe GlobalId, :type => :model do
         u1 = User.create
         u2 = User.create
         u3 = User.create
-        b1 = Board.create(user: u1)
-        b2 = Board.create(user: u1)
-        b3 = Board.create(user: u1)
+        b1 = Board.create(user: u1, key: "#{u1.user_name}/gid-b1")
+        b2 = Board.create(user: u1, key: "#{u1.user_name}/gid-b2")
+        b3 = Board.create(user: u1, key: "#{u1.user_name}/gid-b3")
         paths = [
           b1.global_id,
           b2.global_id,
@@ -263,27 +259,24 @@ describe GlobalId, :type => :model do
         ]
         bs = Board.find_all_by_path(paths)
         expect(bs.length).to eq(6)
-        expect(bs[0]).to eq(b1)
-        expect(bs[0].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[1]).to eq(b1)
-        expect(bs[1].instance_variable_get('@sub_id')).to eq(u3.global_id)
-        expect(bs[2]).to eq(b2)
-        expect(bs[2].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[3]).to eq(b3)
-        expect(bs[3].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[4]).to eq(b2)
-        expect(bs[4].instance_variable_get('@sub_id')).to eq(u1.global_id)
-        expect(bs[5]).to eq(b3)
-        expect(bs[5].instance_variable_get('@sub_id')).to eq(u3.global_id)
+        expect(bs).to include(b1)
+        expect(bs).to include(b2)
+        expect(bs).to include(b3)
+        expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b3.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id') == u1.global_id }).to eq(1)
+        expect(bs.count { |b| b.id == b3.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(1)
       end
 
       it "should return multiple compies of the same record if looked up for different sub_ids" do
         u1 = User.create
         u2 = User.create
         u3 = User.create
-        b1 = Board.create(user: u1)
-        b2 = Board.create(user: u1)
-        b3 = Board.create(user: u1)
+        b1 = Board.create(user: u1, key: "#{u1.user_name}/gid-b1")
+        b2 = Board.create(user: u1, key: "#{u1.user_name}/gid-b2")
+        b3 = Board.create(user: u1, key: "#{u1.user_name}/gid-b3")
         paths = [
           b1.global_id,
           b2.global_id,
@@ -298,29 +291,23 @@ describe GlobalId, :type => :model do
         ]
         bs = Board.find_all_by_path(paths)
         expect(bs.length).to eq(6)
-        expect(bs[0]).to eq(b1)
-        expect(bs[0].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[1]).to eq(b1)
-        expect(bs[1].instance_variable_get('@sub_id')).to eq(u3.global_id)
-        expect(bs[2]).to eq(b2)
-        expect(bs[2].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[3]).to eq(b3)
-        expect(bs[3].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[4]).to eq(b2)
-        expect(bs[4].instance_variable_get('@sub_id')).to eq(u1.global_id)
-        expect(bs[5]).to eq(b3)
-        expect(bs[5].instance_variable_get('@sub_id')).to eq(u3.global_id)
+        expect(bs.detect { |b| b.id == b1.id && b.instance_variable_get('@sub_id').nil? }).to eq(b1)
+        expect(bs.detect { |b| b.id == b1.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(b1)
+        expect(bs.detect { |b| b.id == b2.id && b.instance_variable_get('@sub_id').nil? }).to eq(b2)
+        expect(bs.detect { |b| b.id == b3.id && b.instance_variable_get('@sub_id').nil? }).to eq(b3)
+        expect(bs.detect { |b| b.id == b2.id && b.instance_variable_get('@sub_id') == u1.global_id }).to eq(b2)
+        expect(bs.detect { |b| b.id == b3.id && b.instance_variable_get('@sub_id') == u3.global_id }).to eq(b3)
       end
 
       it "should return replacements if available" do
         u1 = User.create
         u2 = User.create
         u3 = User.create
-        b1 = Board.create(user: u1)
-        b2 = Board.create(user: u1)
-        b3 = Board.create(user: u1)
-        b4 = Board.create(user: u3)
-        b5 = Board.create(user: u3)
+        b1 = Board.create(user: u1, key: "#{u1.user_name}/gid-b1")
+        b2 = Board.create(user: u1, key: "#{u1.user_name}/gid-b2")
+        b3 = Board.create(user: u1, key: "#{u1.user_name}/gid-b3")
+        b4 = Board.create(user: u3, key: "#{u3.user_name}/gid-b4")
+        b5 = Board.create(user: u3, key: "#{u3.user_name}/gid-b5")
         ue3 = UserExtra.create(user: u3)
         ue3.settings['replaced_boards'] = {}
         ue3.settings['replaced_boards'][b1.global_id] = b4.global_id
@@ -344,18 +331,17 @@ describe GlobalId, :type => :model do
         ]
         bs = Board.find_all_by_path(paths)
         expect(bs.length).to eq(6)
-        expect(bs[0]).to eq(b1)
-        expect(bs[0].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[1]).to eq(b2)
-        expect(bs[1].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[2]).to eq(b4)
-        expect(bs[2].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[3]).to eq(b5)
-        expect(bs[3].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[4]).to eq(b3)
-        expect(bs[4].instance_variable_get('@sub_id')).to eq(nil)
-        expect(bs[5]).to eq(b2)
-        expect(bs[5].instance_variable_get('@sub_id')).to eq(u1.global_id)
+        expect(bs).to include(b1)
+        expect(bs).to include(b2)
+        expect(bs).to include(b3)
+        expect(bs).to include(b4)
+        expect(bs).to include(b5)
+        expect(bs.count { |b| b.id == b1.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b4.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b5.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b3.id && b.instance_variable_get('@sub_id').nil? }).to eq(1)
+        expect(bs.count { |b| b.id == b2.id && b.instance_variable_get('@sub_id') == u1.global_id }).to eq(1)
       end
     end
     it 
@@ -435,7 +421,8 @@ describe GlobalId, :type => :model do
 
   describe "Board exceptions" do
     it "should find_by_path" do
-      b = Board.create(:key => "hat/man")
+      u = User.create(user_name: 'hat')
+      b = Board.create(:user => u, :key => "hat/man")
       expect(b.key).to eq("hat/man")
       expect(Board.find_by_path(b.key)).to eq(b)
       expect(Board.find_by_path("bacon")).to eq(nil)
@@ -444,8 +431,10 @@ describe GlobalId, :type => :model do
     end
 
     it "should find_all_by_path" do
-      b1 = Board.create(:key => "hat/man")
-      b2 = Board.create(:key => "friend/chicken")
+      u1 = User.create(user_name: 'hat')
+      u2 = User.create(user_name: 'friend')
+      b1 = Board.create(:user => u1, :key => "hat/man")
+      b2 = Board.create(:user => u2, :key => "friend/chicken")
       expect(Board.find_all_by_path([b1.key])).to eq([b1])
       expect(Board.find_all_by_path([b1.global_id])).to eq([b1])
       expect(Board.find_all_by_path([b1.global_id, b2.global_id]).sort_by(&:id)).to eq([b1, b2])

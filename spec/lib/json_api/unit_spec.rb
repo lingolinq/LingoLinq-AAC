@@ -96,9 +96,12 @@ describe JsonApi::Unit do
       expect(json['communicators'].length).to eq(2)
       expect(json['supervisors']).to_not eq(nil)
       expect(json['supervisors'].length).to eq(2)
-      expect(json['supervisors'][1]['user_name']).to eq(u4.user_name)
-      expect(json['supervisors'][1]['org_unit_edit_permission']).to eq(true)
-      expect(json['supervisors'][0]['org_unit_edit_permission']).to eq(false)
+      sup_with_edit = json['supervisors'].find { |s| s['org_unit_edit_permission'] }
+      sup_without_edit = json['supervisors'].find { |s| !s['org_unit_edit_permission'] }
+      expect(sup_with_edit['user_name']).to eq(u4.user_name)
+      expect(sup_with_edit['org_unit_edit_permission']).to eq(true)
+      expect(sup_without_edit['user_name']).to eq(u2.user_name)
+      expect(sup_without_edit['org_unit_edit_permission']).to eq(false)
     end
 
     it "should include for communicators/supervisors, profile history if saved on UserLink records" do
@@ -212,6 +215,25 @@ describe JsonApi::Unit do
       expect(json['org_communicator_profile']).to eq(false)
       expect(json['org_supervisor_profile']).to eq(true)
       expect(json['org_profile']).to eq(true)
+    end
+    it "should not throw a TypeError when external_device is a string" do
+      user = User.create
+      o = Organization.create
+      unit = OrganizationUnit.create(:settings => {'name' => 'Roomy'}, :organization => o)
+      UserLink.generate(user, unit, 'org_unit_communicator').save!
+      user.update!(settings: { 'external_device' => 'some string' })
+      expect { JsonApi::Unit.build_json(unit) }.not_to raise_error
+    end
+
+    it "should merge external_device when it is a hash" do
+      user = User.create
+      o = Organization.create
+      unit = OrganizationUnit.create(:settings => {'name' => 'Roomy'}, :organization => o)
+      UserLink.generate(user, unit, 'org_unit_communicator').save!
+      user.update!(settings: { 'external_device' => { 'id' => 'device_1' } })
+      json = JsonApi::Unit.build_json(unit)
+      communicator = json['communicators'].first
+      expect(communicator['device']).to eq({ external_device: true, 'id' => 'device_1' })
     end
   end
   

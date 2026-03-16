@@ -46,7 +46,6 @@ module OpenSymbols
           url,
           params: params,
           headers: { 'Authorization' => "Bearer #{token}" },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -60,7 +59,6 @@ module OpenSymbols
             url,
             params: params,
             headers: { 'Authorization' => "Bearer #{token}" },
-            ssl_verifypeer: false,
             timeout: 10
           )
         end
@@ -82,37 +80,42 @@ module OpenSymbols
       end
     end
 
-    # Get default symbols for a list of queries by searching each word
-    # @param library [String] the repository key (e.g., 'opensymbols', 'mulberry')
+    # Get default symbols for a list of queries.
+    # Uses bulk /defaults endpoint for specific repos (single request) or
+    # per-word search for the 'opensymbols' meta-repo (no bulk endpoint).
+    # @param library [String] the repository key (e.g., 'opensymbols', 'arasaac')
     # @param queries [Array<String>] list of terms to search for
     # @param locale [String] locale code
     # @return [Hash] mapping of query to symbol object
     def defaults(library, queries, locale)
       return {} if queries.blank?
       library = 'opensymbols' if library == 'original'
+      words = queries.compact.reject(&:blank?)
+      return {} if words.blank?
 
-      # Map library to repo/favor params matching find_images logic
+      # Map library to repo/favor params
       repo = nil
       favor = nil
       case library
       when 'opensymbols'
-        # search all repos
+        # No bulk endpoint for meta-repo; fall back to per-word search
       when 'tawasol'
         favor = 'tawasol'
       when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
         repo = library
       end
 
-      results = {}
-      queries.each do |word|
-        next if word.blank?
-        symbols = search(word, locale: locale, repo: repo, favor: favor)
-        if symbols.any?
-          s = symbols.first
-          results[word] = s
+      if repo
+        fetch_defaults_bulk(repo, words, locale)
+      else
+        # opensymbols or tawasol: no bulk endpoint, search each word
+        results = {}
+        words.each do |word|
+          symbols = search(word, locale: locale, repo: repo, favor: favor)
+          results[word] = symbols.first if symbols.any?
         end
+        results
       end
-      results
     end
     
     # Search for symbols and return in LingoLinq format
@@ -212,7 +215,6 @@ module OpenSymbols
         response = Typhoeus.post(
           "https://www.opensymbols.org/api/v2/token",
           body: { secret: secret },
-          ssl_verifypeer: false,
           timeout: 10
         )
         
@@ -265,6 +267,39 @@ module OpenSymbols
       end
     end
     
+    def fetch_defaults_bulk(repo, words, locale)
+      token = access_token
+      return {} unless token
+
+      url = "https://www.opensymbols.org/api/v2/repositories/#{repo}/defaults"
+      body = { words: words, allow_search: true, locale: locale }.to_json
+      headers = { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }
+
+      begin
+        response = Typhoeus.post(url, body: body, headers: headers, timeout: 10)
+
+        if response.code == 401
+          clear_token_cache
+          token = generate_new_token
+          return {} unless token
+          response = Typhoeus.post(url, body: body, headers: { 'Authorization' => "Bearer #{token}", 'Content-Type' => 'application/json' }, timeout: 10)
+        end
+
+        if response.code == 429
+          Rails.logger.warn 'OpenSymbols API throttled'
+          return {}
+        end
+
+        return {} unless response.success?
+
+        raw = JSON.parse(response.body)
+        transform_defaults_results(raw.is_a?(Hash) ? raw : {})
+      rescue => e
+        Rails.logger.error "OpenSymbols Defaults API exception: #{e.message}"
+        {}
+      end
+    end
+
     # Transform defaults API response to LingoLinq format
     # The defaults endpoint returns {word => symbol_object}
     # We preserve the hash structure but transform each symbol_object

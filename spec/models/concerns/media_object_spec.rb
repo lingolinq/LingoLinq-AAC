@@ -1,9 +1,10 @@
 require 'spec_helper'
 
 describe MediaObject, :type => :model do
+  let(:u) { User.create }
   describe "update_media_object" do
     it "should update the record if the filename has changed" do
-      bs = ButtonSound.create(:settings => {'full_filename' => 'sounds/1/2/3/4/5/6/a-b.wav', 'transcoding_keys' => ['qwert']})
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'sounds/1/2/3/4/5/6/a-b.wav', 'transcoding_keys' => ['qwert']})
       # expect(Uploader).to receive(:remote_remove).with('sounds/1/2/3/4/5/6/a-b.wav')
       res = bs.update_media_object({
         'filename' => 'sounds/1/2/3/4/5/6/a-b.mp3',
@@ -28,7 +29,7 @@ describe MediaObject, :type => :model do
     end
     
     it "should return false if nothing has changed" do
-      bs = ButtonSound.create(:settings => {'full_filename' => 'sounds/1/2/3/4/5/6/a-b.wav'})
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'sounds/1/2/3/4/5/6/a-b.wav'})
       expect(Uploader).to_not receive(:remote_remove)
       res = bs.update_media_object({'filename' => 'sounds/1/2/3/4/5/6/a-b.wav'})
       expect(res).to eq(false)
@@ -37,7 +38,7 @@ describe MediaObject, :type => :model do
   
   describe "media_object_error" do
     it "should append error messages" do
-      bs = ButtonSound.create
+      bs = ButtonSound.create(:user => u)
       bs.media_object_error('asdf')
       expect(bs.reload.settings['media_object_errors']).to eq(['asdf'])
       bs.media_object_error({a: 1})
@@ -47,20 +48,20 @@ describe MediaObject, :type => :model do
   
   describe "schedule_transcoding" do
     it "should do nothing if transcoding already attempted" do
-      bs = ButtonSound.create(:settings => {'transcoding_attempted' => true})
+      bs = ButtonSound.create(:user => u, :settings => {'transcoding_attempted' => true})
       expect(Worker).to_not receive(:schedule)
       bs.schedule_transcoding
     end
     
     it "should do nothing if no filename defined" do
-      bs = ButtonSound.create(:settings => {})
+      bs = ButtonSound.create(:user => u, :settings => {})
       expect(Worker).to_not receive(:schedule)
       bs.schedule_transcoding
     end
     
     it "should schedule transcoding only the first save after a filename is created" do
       expect(GoSecure).to receive(:nonce).and_return('chicken').at_least(1).times
-      bs = ButtonSound.create(:settings => {'full_filename' => 'a/b/c'})
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c'})
       prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
       expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, 'chicken')).to eq(true)
 
@@ -73,7 +74,7 @@ describe MediaObject, :type => :model do
     
     it "should re-transcode if already attempted but force=true" do
       expect(GoSecure).to receive(:nonce).and_return('chicken').at_least(1).times
-      bs = ButtonSound.create(:settings => {'full_filename' => 'a/b/c'})
+      bs = ButtonSound.create(:user => u, :settings => {'full_filename' => 'a/b/c'})
       prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
       expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, 'chicken')).to eq(true)
 

@@ -665,9 +665,12 @@ var Subscription = EmberObject.extend({
   })
 });
 
+var update_classes_observer = observer.apply(null, obs_properties.concat([obs_func]));
+
 Subscription.reopenClass({
   obs_func: obs_func,
   obs_properties: obs_properties,
+  update_classes_observer: update_classes_observer,
   // Static service registry for use in event listeners and static methods
   _services: {
     appState: null,
@@ -831,7 +834,7 @@ document.addEventListener("deviceready", function() {
       var user_id = store.user_id || Subscription.in_app_store.user_id || Subscription.get_app_state().get('currentUser.id');
       var user = store.user || Subscription.in_app_store.user || Subscription.get_app_state().get('currentUser');
       var pre_purchase = product.alias == 'App Pre-Purchase';
-      var device_id = (window.device && window.device.uuid) || Subscription.get_stashes().get_raw('coughDropDeviceId');
+      var device_id = (window.device && window.device.uuid) || Subscription.get_stashes().get_raw('lingolinqDeviceId');
       if(!user_id) {
         return callback(false, {
           code: store.INTERNAL_ERROR,

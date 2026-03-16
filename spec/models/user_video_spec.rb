@@ -20,6 +20,7 @@ describe UserVideo, type: :model do
         'url' => nil
       })
       v.save
+      v.settings ||= {}
       v.settings['duration'] = 12
       v.url = 'http://www.example.com/video.mp4'
       expect(v.summary_hash).to eq({

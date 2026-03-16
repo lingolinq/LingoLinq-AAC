@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - ./tmp/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: bundle exec puma -C config/puma.rb
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/app/frontend/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/postgres
+      - REDIS_URL=redis://redis:6379/1
+      - RAILS_ENV=development
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bundle exec rake resque:work QUEUES=priority,default,slow
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/postgres
+      - REDIS_URL=redis://redis:6379/1
+      - RAILS_ENV=development
+      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

@@ -1,4 +1,4 @@
-import Ember from 'ember';
+import * as emberDebug from '@ember/debug';
 import {
   describe,
   it,
@@ -2098,7 +2098,7 @@ describe("persistence", function() {
       stub(persistence, 'ajax', function(url, opts) {
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_event_at', (new Date()).getTime() - 100);
       persistence.set('last_sync_stamp_interval', 10000);
@@ -2117,7 +2117,7 @@ describe("persistence", function() {
       stub(persistence, 'ajax', function(url, opts) {
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_event_at', (new Date()).getTime() - 100);
       persistence.set('last_sync_stamp_interval', 10000);
@@ -2133,7 +2133,7 @@ describe("persistence", function() {
       stub(persistence, 'ajax', function(url, opts) {
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_event_at', 2);
       persistence.set('last_sync_stamp_interval', 10000);
@@ -2150,7 +2150,7 @@ describe("persistence", function() {
       stub(persistence, 'ajax', function(url, opts) {
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_event_at', 2);
       persistence.set('last_sync_stamp_interval', 10000);
@@ -2169,7 +2169,7 @@ describe("persistence", function() {
       stub(persistence, 'ajax', function(url, opts) {
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_event_at', 2);
       persistence.set('last_sync_stamp_interval', 10000);
@@ -2188,7 +2188,7 @@ describe("persistence", function() {
         called = true;
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);
@@ -2209,7 +2209,7 @@ describe("persistence", function() {
         called = true;
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);
@@ -2229,7 +2229,7 @@ describe("persistence", function() {
         called = true;
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);
@@ -2256,7 +2256,7 @@ describe("persistence", function() {
         }
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);
@@ -2288,7 +2288,7 @@ describe("persistence", function() {
         }
         return RSVP.reject();
       });
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);
@@ -2310,7 +2310,7 @@ describe("persistence", function() {
         return RSVP.reject();
       });
 
-      stub(Ember, 'testing', false);
+      stub(emberDebug, 'isTesting', function() { return false; });
       stashes.set('auth_settings', {});
       persistence.set('last_sync_stamp_interval', 10000);
       persistence.set('last_sync_at', (new Date()).getTime() - 100);

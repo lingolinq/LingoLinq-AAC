@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import $ from 'jquery';
 import i18n from '../utils/i18n';
@@ -572,6 +572,44 @@ export default Controller.extend({
   already_have_board: computed('setup_user.preferences.home_board', 'do_find_board', function() {
     return this.get('setup_user.preferences.home_board') && !this.get('do_find_board');
   }),
+  _save_user_timer: null,
+  _schedule_user_save: function(user) {
+    var _this = this;
+    if(this._save_user_timer) {
+      runCancel(this._save_user_timer);
+    }
+    this._save_user_timer = runLater(function() {
+      _this._save_user_timer = null;
+      _this._do_user_save(user);
+    }, 400);
+  },
+  _do_user_save: function(user) {
+    var _this = this;
+    if(!user || !user.save) { return; }
+    if(this.appState && this.appState.controller) {
+      this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
+    }
+    user.save().then(function() {
+      if(_this.appState && _this.appState.controller) {
+        _this.appState.controller.set('footer_status', null);
+      }
+    }, function(err) {
+      if(_this.appState && _this.appState.controller) {
+        _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
+      }
+    });
+  },
+  flush_pending_save: function() {
+    var user = this.get('setup_user') || this.get('fake_user');
+    if(this._save_user_timer && user && user.save) {
+      runCancel(this._save_user_timer);
+      this._save_user_timer = null;
+      this._do_user_save(user);
+    } else if(this._save_user_timer) {
+      runCancel(this._save_user_timer);
+      this._save_user_timer = null;
+    }
+  },
   actions: {
     noop: function() {
 
@@ -623,20 +661,8 @@ export default Controller.extend({
         modal.open('enable-logging', {save: true, user: _this.get('setup_user')});
       }
       if(user.save) {
-        if(_this.appState && _this.appState.controller) {
-          _this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
-        }
-        user.save().then(function() {
-          if(_this.appState && _this.appState.controller) {
-            _this.appState.controller.set('footer_status', null);
-          }
-          // Do not call user.reload() here: the save response already updates the record,
-          // and reload() triggered observer loops (repeated PUT/GET) when opening the wizard.
-        }, function(err) {
-          if(_this.appState && _this.appState.controller) {
-            _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
-          }
-        });
+        // Debounce saves to avoid excessive PUT/GET when clicking through options
+        _this._schedule_user_save(user);
       }
     },
     update_scroll: function(val) {

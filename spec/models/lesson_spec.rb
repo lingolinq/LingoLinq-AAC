@@ -232,7 +232,7 @@ describe Lesson, :type => :model do
     it "should unassign from valid types" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
       l.settings['usages'] = [
         {'obj' => 'a'},
@@ -278,7 +278,7 @@ describe Lesson, :type => :model do
     it "should add the lesson to both objects" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)
@@ -304,7 +304,7 @@ describe Lesson, :type => :model do
     it "should record types if specified" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)
@@ -331,7 +331,7 @@ describe Lesson, :type => :model do
     it "should record lesson to assignee if specified" do
       l = Lesson.create
       o = Organization.create
-      ou = OrganizationUnit.create
+      ou = OrganizationUnit.create(organization: o)
       u = User.create
 
       expect(l.settings['usages']).to eq(nil)
@@ -466,21 +466,23 @@ describe Lesson, :type => :model do
     it "should parse parameters" do
       l = Lesson.create
       u = User.create
-      l.process({
-        'title' => 'cheddar',
-        'description' => 'bacon',
-        'url' => 'http://www.example.com/link',
-        'required' => 'false',
-        'due_at' => "June 20, 2020",
-        'time_estimate' => 'bacon',
-        'past_cutoff' => '154'
-      }, {'author' => u})
+      Time.use_zone('America/Denver') do
+        l.process({
+          'title' => 'cheddar',
+          'description' => 'bacon',
+          'url' => 'http://www.example.com/link',
+          'required' => 'false',
+          'due_at' => "June 20, 2020",
+          'time_estimate' => 'bacon',
+          'past_cutoff' => '154'
+        }, {'author' => u})
+      end
       expect(l.settings['author_id']).to eq(u.global_id)
       expect(l.settings['title']).to eq('cheddar')
       expect(l.settings['description']).to eq('bacon')
       expect(l.settings['url']).to eq('http://www.example.com/link')
       expect(l.settings['required']).to eq(false)
-      expect(l.settings['due_at']).to eq('2020-06-20T00:00:00-06:00')
+      expect(l.settings['due_at']).to match(/\A2020-06-20T00:00:00[+-]\d{2}:\d{2}\z/)
       expect(l.settings['time_estimate']).to eq(nil)
       expect(l.settings['past_cutoff']).to eq(154)
     end

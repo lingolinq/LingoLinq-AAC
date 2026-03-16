@@ -1,6 +1,11 @@
 require "spec_helper"
 
 describe SubscriptionMailer, :type => :mailer do
+  def long_ordinal_date(date)
+    return '' unless date
+    "#{date.strftime('%B')} #{date.day.ordinalize}, #{date.strftime('%Y')}"
+  end
+
   after(:each) do
     JsonApi::Json.load_domain("default")
   end
@@ -10,16 +15,16 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.one_day_until_expiration(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Trial Ending")
+      expect(m.subject).to eq("LingoLinq - Trial Ending")
       
       html = message_body(m, :html)
       expect(html).to match(/set to expire/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/<b>#{u.settings['name']}<\/b>/)
       
       text = message_body(m, :text)
       expect(text).to match(/set to expire/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/"#{u.settings['name']}"/)
     end
   end
@@ -29,16 +34,16 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:expires_at => Date.parse('June 1, 2015'), :settings => {'email' => 'fred@example.com'})
       m = SubscriptionMailer.expiration_approaching(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Billing Notice")
+      expect(m.subject).to eq("LingoLinq - Billing Notice")
       
       html = message_body(m, :html)
       expect(html).to match(/#{u.user_name}/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/to be updated soon/)
       
       text = message_body(m, :text)
       expect(text).to match(/#{u.user_name}/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/to be updated soon/)
     end
   end
@@ -48,16 +53,16 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.one_week_until_expiration(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Trial Ending")
+      expect(m.subject).to eq("LingoLinq - Trial Ending")
       
       html = message_body(m, :html)
       expect(html).to match(/will conclude soon/)
-      expect(html).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(html).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(html).to match(/<b>#{u.settings['name']}<\/b>/)
       
       text = message_body(m, :text)
       expect(text).to match(/about to expire/)
-      expect(text).to match(/#{u.expires_at.to_s(:long_ordinal)}/)
+      expect(text).to match(/#{Regexp.escape(long_ordinal_date(u.expires_at))}/)
       expect(text).to match(/"#{u.settings['name']}"/)
     end
   end
@@ -67,7 +72,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.purchase_bounced(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Problem with your Subscription")
+      expect(m.subject).to eq("LingoLinq - Problem with your Subscription")
       
       html = message_body(m, :html)
       expect(html).to match(/there was an unexpected problem/)
@@ -83,14 +88,14 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.purchase_confirmed(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Purchase Confirmed")
+      expect(m.subject).to eq("LingoLinq - Purchase Confirmed")
       
       html = message_body(m, :html)
-      expect(html).to match(/Thank you for purchasing MyCoolApp/)
+      expect(html).to match(/Thank you for purchasing LingoLinq/)
       expect(html).to match(/<b>#{u.settings['name']}<\/b>/)
       
       text = message_body(m, :text)
-      expect(text).to match(/Thank you for purchasing MyCoolApp/)
+      expect(text).to match(/Thank you for purchasing LingoLinq/)
       expect(text).to match(/"#{u.settings['name']}"/)
     end  end
   
@@ -99,7 +104,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.subscription_expired(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Subscription Expired")
+      expect(m.subject).to eq("LingoLinq - Subscription Expired")
       
       html = message_body(m, :html)
       expect(html).to match(/account will no longer have premium account access/)
@@ -117,10 +122,10 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.new_subscription(u.global_id)
       expect(m.to).to eq(["nobody@example.com"])
-      expect(m.subject).to eq("MyCoolApp - New Subscription")
+      expect(m.subject).to eq("LingoLinq - New Subscription")
       
       html = m.body.to_s
-      expect(html).to match(/just updated their MyCoolApp billing information/)
+      expect(html).to match(/just updated their LingoLinq billing information/)
       expect(html).to match(/#{u.user_name}<\/a>/)
     end  
   end
@@ -131,7 +136,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.subscription_pause_failed(u.global_id)
       expect(m.to).to eq(["nobody@example.com"])
-      expect(m.subject).to eq("MyCoolApp - Subscription Pause Failed")
+      expect(m.subject).to eq("LingoLinq - Subscription Pause Failed")
       
       html = message_body(m, :html)
       expect(html).to match(/problem trying to pause the subscription/)
@@ -148,7 +153,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.subscription_resume_failed(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Subscription Needs Attention")
+      expect(m.subject).to eq("LingoLinq - Subscription Needs Attention")
       
       html = message_body(m, :html)
       expect(html).to match(/tried to auto-resume the subscription/)
@@ -166,7 +171,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.chargeback_created(u.global_id)
       expect(m.to).to eq(["nobody@example.com"])
-      expect(m.subject).to eq("MyCoolApp - Chargeback Created")
+      expect(m.subject).to eq("LingoLinq - Chargeback Created")
       
       html = message_body(m, :html)
       expect(html).to match(/chargeback event for a purchase triggered/)
@@ -183,7 +188,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.subscription_expiring(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Subscription Needs Attention")
+      expect(m.subject).to eq("LingoLinq - Subscription Needs Attention")
       
       html = message_body(m, :html)
       expect(html).to match(/an error handling the current billing information/)
@@ -207,15 +212,15 @@ describe SubscriptionMailer, :type => :mailer do
       expect(gift.settings['giver_email']).to eq('bob@example.com')
       m = SubscriptionMailer.gift_created(gift.global_id)
       expect(m.to).to eq(['bob@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Created")
+      expect(m.subject).to eq("LingoLinq - Gift Created")
 
       html = message_body(m, :html)
-      expect(html).to match(/purchasing MyCoolApp as a gift for someone else/)
+      expect(html).to match(/purchasing LingoLinq as a gift for someone else/)
       expect(html).to match(/<b>#{gift.code}<\/b>/)
       expect(html).to match(/2 years/)
       
       text = message_body(m, :text)
-      expect(text).to match(/purchasing MyCoolApp as a gift for someone else/)
+      expect(text).to match(/purchasing LingoLinq as a gift for someone else/)
       expect(text).to match(/"#{gift.code}"/)
       expect(text).to match(/2 years/)
     end
@@ -234,7 +239,7 @@ describe SubscriptionMailer, :type => :mailer do
       expect(gift.settings['giver_email']).to eq('fred@example.com')
       m = SubscriptionMailer.gift_created(gift.global_id)
       expect(m.to).to eq(['bob@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Bulk Purchase")
+      expect(m.subject).to eq("LingoLinq - Bulk Purchase")
 
       html = message_body(m, :html)
       expect(html).to match(/Below are the details of your purchase:/)
@@ -267,7 +272,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_redeemed(gift.global_id)
       expect(m.to).to eq(['bob@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Redeemed")
+      expect(m.subject).to eq("LingoLinq - Gift Redeemed")
 
       html = message_body(m, :html)
       expect(html).to match(/notice that the gift you purchased/)
@@ -322,7 +327,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_seconds_added(gift.global_id)
       expect(m.to).to eq(['susan@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Purchase Received")
+      expect(m.subject).to eq("LingoLinq - Gift Purchase Received")
 
       html = message_body(m, :html)
       expect(html).to match(/you recently redeemed a gift code/)
@@ -351,7 +356,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_updated(gift.global_id, 'purchase')
       expect(m.to).to eq(['nobody@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Purchased")
+      expect(m.subject).to eq("LingoLinq - Gift Purchased")
 
       html = m.body.to_s
       expect(html).to match(/Giver: #{giver.user_name}/)
@@ -377,7 +382,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_updated(gift.global_id, 'redeem')
       expect(m.to).to eq(['nobody@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Redeemed")
+      expect(m.subject).to eq("LingoLinq - Gift Redeemed")
 
       html = m.body.to_s
       expect(html).to match(/Name: good one/)
@@ -404,7 +409,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_updated(gift.global_id, 'redeem')
       expect(m.to).to eq(['nobody@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Bulk Purchase")
+      expect(m.subject).to eq("LingoLinq - Bulk Purchase")
 
       html = m.body.to_s
       expect(html).to match(/Email: org@example.com/)
@@ -427,7 +432,7 @@ describe SubscriptionMailer, :type => :mailer do
       
       m = SubscriptionMailer.gift_updated(gift.global_id, 'purchase')
       expect(m.to).to eq(['nobody@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Purchased")
+      expect(m.subject).to eq("LingoLinq - Gift Purchased")
 
       html = m.body.to_s
       expect(html).to match(/Giver: #{giver.user_name}/)
@@ -439,7 +444,7 @@ describe SubscriptionMailer, :type => :mailer do
       gift.save
       m = SubscriptionMailer.gift_updated(gift.global_id, 'purchase')
       expect(m.to).to eq(['nobody@example.com'])
-      expect(m.subject).to eq("MyCoolApp - Gift Purchased")
+      expect(m.subject).to eq("LingoLinq - Gift Purchased")
 
       html = m.body.to_s
       expect(html).to match(/Giver: #{giver.user_name}/)
@@ -453,7 +458,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.deletion_warning(u.global_id, 1)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Account Deletion Notice")
+      expect(m.subject).to eq("LingoLinq - Account Deletion Notice")
       
       html = message_body(m, :html)
       expect(html).to match(/inactive for a long time/)
@@ -470,7 +475,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.deletion_warning(u.global_id, 2)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Account Deletion Notice")
+      expect(m.subject).to eq("LingoLinq - Account Deletion Notice")
       
       html = message_body(m, :html)
       expect(html).to match(/inactive for a long time/)
@@ -489,7 +494,7 @@ describe SubscriptionMailer, :type => :mailer do
       u = User.create(:settings => {'name' => 'fred', 'email' => 'fred@example.com'})
       m = SubscriptionMailer.account_deleted(u.global_id)
       expect(m.to).to eq([u.settings['email']])
-      expect(m.subject).to eq("MyCoolApp - Account Deleted")
+      expect(m.subject).to eq("LingoLinq - Account Deleted")
       
       html = message_body(m, :html)
       expect(html).to match(/has been deleted/)
@@ -508,7 +513,7 @@ describe SubscriptionMailer, :type => :mailer do
       u.save
       m = SubscriptionMailer.unsubscribe_reason(u.global_id, 'bacon is good')
       expect(m.to).to eq([ENV['SYSTEM_ERROR_EMAIL']])
-      expect(m.subject).to eq('MyCoolApp - User Unsubscribed')
+      expect(m.subject).to eq('LingoLinq - User Unsubscribed')
       html = m.body.to_s
       expect(html).to match(/#{u.user_name}/)
       expect(html).to match(/bacon is good/)
@@ -520,7 +525,7 @@ describe SubscriptionMailer, :type => :mailer do
       u.save
       m = SubscriptionMailer.unsubscribe_reason(u.global_id)
       expect(m.to).to eq([ENV['SYSTEM_ERROR_EMAIL']])
-      expect(m.subject).to eq('MyCoolApp - User Unsubscribed')
+      expect(m.subject).to eq('LingoLinq - User Unsubscribed')
 
       html = m.body.to_s
       expect(html).to match(/#{u.user_name}/)

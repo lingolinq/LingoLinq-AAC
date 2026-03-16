@@ -61,19 +61,20 @@ module Converters::LingoLinq
         'text_only' => board.settings['text_only'],
         'hide_empty' => board.settings['hide_empty']
       }
-      if board.unshareable? 
-        res['protected_content_user_identifier'] = board.user ? board.user.settings['email'] : "nobody@example.com"
-        res['ext_lingolinq_settings']['protected_user_id'] = board.user.global_id if board.user
+      if board.protected_material? && board.user
+        # Include owner identifier so the author can re-import their own board
+        res['protected_content_user_identifier'] = board.user.settings['email'] || "nobody@example.com"
+        res['ext_lingolinq_settings']['protected_user_id'] = board.user.global_id
       end
     end
     grid = []
     res['buttons'] = []
-    button_count = board.buttons.length
+    button_count = (board.buttons || []).length
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
     Progress.as_percent(0.3, 1.0) do
-      board.buttons.each_with_index do |original_button, idx|
+      (board.buttons || []).each_with_index do |original_button, idx|
         button = {
           'id' => original_button['id'],
           'label' => original_button['label'],
@@ -103,7 +104,9 @@ module Converters::LingoLinq
             button['translations'][loc]['label'] = hash['label']
             button['translations'][loc]['vocalization'] = hash['vocalization'] if !hash['vocalization'].to_s.match(/^(\:|=+)/) || !hash['vocalization'].to_s.match(/&&/)
             button['translations'][loc]['ext_lingolinq_rules'] = hash['rules'] if hash['rules']
-            (hash['inflections'] || []).each_with_index do |str, idx| 
+            inflections = hash['inflections']
+            inflections = inflections.is_a?(Array) ? inflections : []
+            inflections.each_with_index do |str, idx| 
               next unless str
               button['translations'][loc]['inflections'] ||= {}
               button['translations'][loc]['inflections'][locs[idx]] = str
@@ -176,10 +179,17 @@ module Converters::LingoLinq
               'protected' => image_settings['protected'],
               'protected_source' => image_settings['protected_source'],
               'license' => OBF::Utils.parse_license(image_settings['license']),
-              'url' => Uploader.fronted_url(image_settings['url']),
+              'url' => image_settings['url'].present? ? Uploader.fronted_url(image_settings['url']) : nil,
               'data_url' => "#{JsonApi::Json.current_host}/api/v1/images/#{image.global_id}",
               'content_type' => image_settings['content_type']
             }
+            # Word Art, webcam, file upload: stored as data URI only. OBF needs data to embed.
+            if image['url'].blank? && (image_record.data.present? || image_record.settings['data_uri'].present?)
+              image['data'] = image_record.data.presence || image_record.settings['data_uri']
+              image['content_type'] ||= image_record.settings['content_type']
+              image['width'] ||= image_record.settings['width'].to_i
+              image['height'] ||= image_record.settings['height'].to_i
+            end
             if skinned_url && skinned_url != image['url']
               image['ext_lingolinq_unskinned_url'] = image['url']
               image['url'] = Uploader.fronted_url(skinned_url)
@@ -245,7 +255,25 @@ module Converters::LingoLinq
         Progress.update_current_progress(idx.to_f / button_count.to_f, "hashify button #{button['id']} from #{board.global_id}")
       end
     end
-    res['grid'] = BoardContent.load_content(board, 'grid')
+    grid = BoardContent.load_content(board, 'grid') || {}
+    # Ensure grid['order'] is an array of arrays (can be String/Hash from legacy/import data)
+    if grid['order']
+      if grid['order'].is_a?(Hash)
+        order_array = grid['order'].keys.sort_by(&:to_i).map do |k|
+          row = grid['order'][k]
+          row.is_a?(Array) ? row : (row.is_a?(Hash) ? row.keys.sort_by(&:to_i).map { |j| row[j] } : [])
+        end
+        grid = grid.merge('order' => order_array)
+      elsif grid['order'].is_a?(String)
+        grid = grid.merge('order' => [])
+      elsif grid['order'].is_a?(Array)
+        # Ensure each row is an array (rows can be Hash from Rails params)
+        grid = grid.merge('order' => grid['order'].map do |row|
+          row.is_a?(Array) ? row : (row.is_a?(Hash) ? row.keys.sort_by(&:to_i).map { |j| row[j] } : [])
+        end)
+      end
+    end
+    res['grid'] = grid
     res
   end
   
@@ -261,12 +289,16 @@ module Converters::LingoLinq
     raise "missing id" unless obj['id']
     protected_sources = opts['user'] ? opts['user'].enabled_protected_sources(true) : []
     if obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['protected'] && obj['ext_lingolinq_settings']['key']
+      importer = opts['user']
+      board_owner_id = obj['ext_lingolinq_settings']['protected_user_id']
       user_name = obj['ext_lingolinq_settings']['key'].split(/\//)[0]
-      if user_name != opts['user'].user_name
-        if obj['ext_lingolinq_settings']['protected_user_id'] != opts['user'].global_id
-          raise "can't import protected boards to a different user"
-        end
-      end
+      # Allow import if: (1) key says same user, (2) importer is board owner, or
+      # (3) importer has edit permission on the board owner (supervisor/manager)
+      board_owner = board_owner_id && User.find_by_global_id(board_owner_id)
+      allowed = (user_name == importer.user_name) ||
+                (board_owner_id == importer.global_id) ||
+                (board_owner && board_owner.allows?(importer, 'edit'))
+      raise "can't import protected boards to a different user" unless allowed
     end
 
     hashes = {}
@@ -292,12 +324,18 @@ module Converters::LingoLinq
           item['ref_url'] = item['ext_lingolinq_unskinned_url'] || item['url']
         end
         if record && !hashes[item['id']]
-          item.delete('data')
+          data_uri = item.delete('data') || item['ref_url']
           item.delete('url')
 
           if Uploader.valid_remote_url?(item['ref_url'])
             item['url'] = item['ref_url']
             item.delete('ref_url')
+          elsif data_uri.to_s.match(/^data:/)
+            # Data URIs (from OBZ path→base64) must be passed to process so ButtonImage stores them.
+            # Use both data_url (checked first) and url for maximum compatibility.
+            item['data_url'] = data_uri
+            item['url'] = data_uri
+            item['ref_url'] ||= data_uri  # Keep for upload_to_remote
           end
 
           record.process(item)
@@ -510,8 +548,6 @@ module Converters::LingoLinq
         }
       end
     end
-    
-    sleep 10
     
     content['boards'].each do |board|
       board['images'] = content['images'] || []

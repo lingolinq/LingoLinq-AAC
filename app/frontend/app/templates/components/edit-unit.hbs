@@ -1,0 +1,54 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Edit Room Details" key="edit_room_details"}}</h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-horizontal" {{action "save" on="submit"}}>
+      {{#unless this.model.curriculum_only}}
+      <div class="form-group">
+        <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
+        <div class="col-sm-7">
+          <Input @value={{this.model.unit.name}} class="form-control" id="name" placeholder="Room Name" />
+        </div>
+      </div>
+      {{else}}
+        <div class="form-group">
+            <div class='col-sm-8 col-sm-offset-3'>
+              <p class='form-control-static'>
+                {{t "Each room can have its own list of assigned cirruclum. These can be links to any topics or material the room is curretly focused on. Any curriculum set will be available to all room communicators." key="curriculum_explainer"}}
+              </p>
+            </div>
+        </div>
+      {{/unless}}
+      <div class="form-group">
+        <label for="name" class="col-sm-3 control-label">{{t "Curriculum" key="curriculum"}}</label>
+        <div class="col-sm-8">
+          {{#each this.model.unit.topics as |row|}}
+            <div class='row' style='margin-top: 5px;'>
+              <div class='col-sm-5'><Input @value={{row.title}} class="form-control" placeholder="topic" /></div>
+              <div class='col-sm-6'><Input @value={{row.url}} class="form-control" placeholder="https://" /></div>
+              <div class='col-sm-1'><a href='#' {{action "remove_curriculum_row" row}}><span class='glyphicon glyphicon-remove'></span></a></div>
+            </div>
+          {{/each}}
+          <div style='margin-top: 5px;'><button class='btn btn-default btn-sm' {{action "add_curriculum_row"}}>{{t "add row" key="add_row_lower"}}</button></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
+            {{#if this.saving}}
+              {{t "Updating Room..." key="updating_room"}}
+            {{else}}
+              {{t "Update Room" key="update_room"}}
+            {{/if}}
+          </button>
+          <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+          {{#if this.error}}
+            <p class='text-danger'>{{t "There was an unexpected error while updating the room" key="error_updating_room"}}</p>
+          {{/if}}
+        </div>
+      </div>
+    </form>
+  </div>
+{{/modal-dialog}}

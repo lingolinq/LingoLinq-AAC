@@ -4,6 +4,10 @@ services:
     runtime: ruby
     plan: starter
     branch: functional-baseline
+    previews:
+      generation: automatic
+      expireAfterDays: 7
+    previewPlan: free
     buildCommand: "./bin/render-build.sh"
     preDeployCommand: bundle exec rails db:migrate
     startCommand: bundle exec puma -C config/puma.rb
@@ -16,7 +20,7 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: lingolinq-db
+          name: lingolinq-prod-db
           property: connectionString
       - key: REDIS_URL
         fromService:
@@ -44,8 +48,11 @@ services:
     runtime: ruby
     plan: starter
     branch: main
+    previews:
+      generation: automatic
+      expireAfterDays: 7
+    previewPlan: free
     buildCommand: "bundle install --deployment"
-
     startCommand: env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
     envVars:
       - key: RAILS_ENV
@@ -56,7 +63,7 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: lingolinq-db
+          name: lingolinq-prod-db
           property: connectionString
       - key: REDIS_URL
         fromService:
@@ -67,10 +74,10 @@ services:
         value: "true"
 
 databases:
-  - name: lingolinq-db
-    plan: free
-    databaseName: lingolinq_production_jron
-    user: lingolinq_production_jron_user
+  - name: lingolinq-prod-db
+    plan: basic_256mb
+    databaseName: lingolinq_prod_db_xkb1
+    user: lingolinq_prod_db_xkb1_user
 
   - name: lingolinq-redis
     plan: free

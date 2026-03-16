@@ -17,9 +17,16 @@ export default DS.RESTSerializer.extend({
    */
   normalizeResponse(store, primaryModelClass, payload, id, requestType) {
     // Handle the case where we request 'user' with id 'self' but get back a different ID.
-    // Pass a copy with id forced to 'self' so Ember Data never sees the real id and never
-    // tries to update the RecordIdentifier (which would trigger the "id should not be updated" warning).
-    if (primaryModelClass.modelName === 'user' && id === 'self' && requestType === 'findRecord' && payload) {
+    // fetch-manager passes snapshot.id (e.g. 'self') and operation (e.g. 'updateRecord') to
+    // normalizeResponse. For user 'self', snapshot.id is 'self'.
+    // Pass a copy with id forced to 'self' so Ember Data never tries to update the RecordIdentifier.
+    // id.endsWith(':self') is safe: backend user IDs use global_id format (e.g. 1_42) and never end with ':self'.
+    var userSelfRequestTypes = ['findRecord', 'updateRecord'];
+    var idIndicatesSelf = id === 'self' || id === 'user:self' || (typeof id === 'string' && id.endsWith(':self'));
+    if (primaryModelClass.modelName === 'user' &&
+      userSelfRequestTypes.indexOf(requestType) !== -1 &&
+      payload &&
+      idIndicatesSelf) {
       var userData = payload.user || payload;
       if (userData && userData.id && userData.id !== 'self') {
         var actualId = userData.id;
@@ -43,6 +50,21 @@ export default DS.RESTSerializer.extend({
       });
       if (match) {
         payload.board = match;
+      }
+    }
+
+    // When we request a board by key (e.g. findRecord('board', 'example/winter')), the API returns
+    // the board with global_id as id (e.g. '1_10'). Ember Data then tries to update the
+    // RecordIdentifier from 'example/winter' to '1_10', which triggers "The 'id' for a
+    // RecordIdentifier should not be updated once it has been set." Normalize so the primary
+    // data id matches the request; store the backend id as _actual_id for comparisons/API.
+    if (primaryModelClass.modelName === 'board' && requestType === 'findRecord' && payload && payload.board) {
+      var boardData = payload.board;
+      var boardId = boardData.id;
+      if (boardId != null && String(boardId) !== String(id)) {
+        payload = Object.assign({}, payload, {
+          board: Object.assign({}, boardData, { id: id, _actual_id: boardId })
+        });
       }
     }
 

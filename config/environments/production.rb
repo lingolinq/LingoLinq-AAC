@@ -1,4 +1,4 @@
-LingoLinq::Application.configure do
+Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Code is not reloaded between requests.
@@ -10,7 +10,7 @@ LingoLinq::Application.configure do
   # Rake tasks automatically ignore this option for performance.
   config.eager_load = true
 
-  config.secret_key_base = ENV["SECRET_KEY_BASE"]
+  config.secret_key_base = ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]
   
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
@@ -26,7 +26,7 @@ LingoLinq::Application.configure do
   config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || ENV['RENDER'].present?
 
   # Compress JavaScripts and CSS.
-  config.assets.js_compressor = :uglifier
+  # uglifier is deprecated, JavaScript compression handled by ember-cli-terser in frontend
   config.assets.css_compressor = :sass
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.

@@ -61,7 +61,7 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
-    str = GoSecure.encrypt("#{params['user_id']}.#{params['text']}", 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
+    str = GoSecure.encrypt("#{params['user_id']}.#{params['text']}", 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).map(&:strip).join('$')
     render json: {encoded: str, user_id: user.global_id}
   end
 
@@ -69,8 +69,16 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
+    return api_error(400, {error: 'text required'}) if params['text'].blank?
     str, iv = params['text'].split(/\$/)
-    user_id, text = GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2) rescue nil
+    user_id, text = begin
+      GoSecure.decrypt(str, iv, 'ws_content_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./, 2)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError
+      [nil, nil]
+    rescue StandardError => e
+      Rails.logger.warn("ws_decrypt: unexpected error #{e.class}: #{e.message}")
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && text
     return api_error(400, {error: 'user_id mismatch'}) unless user_id == user.global_id
     render json: {decoded: text, user_id: user.global_id}    
@@ -78,9 +86,16 @@ class Api::UsersController < ApplicationController
 
   def ws_lookup
     obfuscated_user_id = params['user_id']
-    return api_error(400, {error: 'user_id required'}) unless !obfuscated_user_id.blank?
+    return api_error(400, {error: 'user_id required'}) if obfuscated_user_id.blank?
     str, iv = obfuscated_user_id.sub(/^me\$/, '').split(/\$/)
-    user_id, device_id = GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY']).split(/\./) rescue nil
+    user_id, device_id = begin
+      GoSecure.decrypt(str, iv, 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY']).split(/\./)
+    rescue OpenSSL::Cipher::CipherError, ArgumentError
+      [nil, nil]
+    rescue StandardError => e
+      Rails.logger.warn("ws_lookup: unexpected error #{e.class}: #{e.message}")
+      [nil, nil]
+    end
     return api_error(400, {error: 'invalid decryption'}) unless user_id && device_id
     user = User.find_by_path(user_id)
     return unless exists?(user, user_id)
@@ -111,14 +126,14 @@ class Api::UsersController < ApplicationController
     # We manually set the IV so that device_id remains consistent across 
     # page reloads, and doesn't imply multiple devices to the websocket service
     iv = Digest::SHA2.hexdigest("user_settings_iv_for_" + (@token || @api_user.global_id))[0, 16]
-    device_id = GoSecure.encrypt("#{@api_user.global_id}.#{@api_device_id}", 'ws_device_id_encrypted', ENV['CDWEBSOCKET_ENCRYPTION_KEY'], iv).map(&:strip).join('$')
+    device_id = GoSecure.encrypt("#{@api_user.global_id}.#{@api_device_id}", 'ws_device_id_encrypted', ENV['LLWEBSOCKET_ENCRYPTION_KEY'], iv).map(&:strip).join('$')
     ts = Time.now.to_i
     if user.global_id == @api_user.global_id
       res[:my_device_id] = "me$#{device_id}"
     else
       res[:my_device_id] = device_id
     end
-    code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30]
+    code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
     res[:verifier] = "#{code}:#{ts}"
     if user.supporter_role?
       sups = user.supervisees
@@ -131,7 +146,7 @@ class Api::UsersController < ApplicationController
           }
           if user.global_id == @api_user.global_id
             sup[:my_device_id] = device_id
-            code = GoSecure.sha512("#{ws_user_id}:#{device_id}:#{ts}", "room_join_verifier", ENV['CDWEBSOCKET_SHARED_VERIFIER'])[0, 30]
+            code = GoSecure.sha512("#{ws_user_id}:#{device_id}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
             sup[:verifier] = "#{code}:#{ts}"
           end
           sup
@@ -168,7 +183,7 @@ class Api::UsersController < ApplicationController
         users = lookup.where(:user_name => query)
         users = [lookup.find_by_global_id(query)].compact if users.count == 0 && query.match(/^\d+_\d+$/)
         if users.count == 0
-          users = lookup.where(["user_name ILIKE ?", "%#{query}%"]).order('user_name')
+          users = lookup.where(["user_name ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(query)}%"]).order('user_name')
         end
       end
     end
@@ -687,7 +702,17 @@ class Api::UsersController < ApplicationController
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      return api_error 400, { error: 'No daily_use log found for this user' }
+      # Return empty structure when no log exists yet; frontend shows "No data loaded"
+      # instead of error; log is created when user first pushes usage via stashes
+      render json: {
+        log: {
+          id: "daily_use-empty-#{user.global_id}",
+          type: 'daily_use',
+          user: { id: user.global_id, user_name: user.user_name },
+          author: { id: user.global_id, user_name: user.user_name },
+          daily_use: []
+        }
+      }
     end
   end
   
@@ -730,7 +755,7 @@ class Api::UsersController < ApplicationController
         safe_url = ButtonImage.cached_copy_url(request.original_url, user, false)
         if safe_url
           expires_in 12.days, :public => true
-          return redirect_to safe_url
+          return redirect_to safe_url, allow_other_host: true
         end
         url = Uploader.found_image_url(params['image_id'], params['library'], user)
         if url

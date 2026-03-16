@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Usage:
+#   ./bin/rspec_failures_by_file           # Run rspec and count failures per file
+#   ./bin/rspec_failures_by_file rspec.log # Parse existing rspec output file
+#
+# Run rspec, save output, then extract failed spec files and count failures per file.
+# Using a temp file avoids re-running rspec when piped (and potential different results).
+
+set -e
+
+if [ -n "$1" ]; then
+  # Parse existing file
+  INPUT="$1"
+else
+  # Run rspec and save to temp file
+  INPUT=$(mktemp)
+  trap "rm -f '$INPUT'" EXIT
+  bundle exec rspec --format progress 2>&1 | tee "$INPUT" || true
+fi
+
+# Extract "rspec ./path:line" lines from Failed examples section, get file path, count
+grep -E "(Failures|Failed examples):" -A 5000 "$INPUT" |
+  grep "rspec \./" |
+  sed 's/rspec //' |
+  cut -d'#' -f1 |
+  cut -d: -f1 |
+  sort |
+  uniq -c |
+  sort -rn

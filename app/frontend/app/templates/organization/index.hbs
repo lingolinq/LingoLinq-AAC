@@ -545,7 +545,7 @@
         {{t "Loading..." key="loading"}}
       {{else if this.report.error}}
         {{t "Error Loading Statistics" key="error_loading_statistic"}}
-      {{else}}
+      {{else if this.report.stats}}
         <div class='row'>
           <div class='col-sm-6' style='margin-bottom: 15px;'>
             <strong>{{t "Access Methods" key="access_methods"}}</strong>
@@ -570,6 +570,8 @@
             {{stats/bar-breakdown hash=this.report.stats.sizes org_id=this.model.id order="size"}}
           </div>
         </div>
+      {{else}}
+        <p><em>{{t "No statistics available for this organization" key="no_stats_available"}}</em></p>
       {{/if}}
     {{/if}}
     <div>

@@ -4,7 +4,7 @@ class DeletedBoard < ActiveRecord::Base
   secure_serialize :settings
   before_save :generate_defaults
   belongs_to :user
-  belongs_to :board
+  belongs_to :board, optional: true
   include Replicate
   
   def generate_defaults

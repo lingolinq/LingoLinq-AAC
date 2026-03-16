@@ -1,10 +1,9 @@
-import Ember from 'ember';
 import Component from '@ember/component';
+import { isTesting } from '@ember/debug';
 import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import $ from 'jquery';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
-import session from '../utils/session';
 import { isEmpty } from '@ember/utils';
 import LingoLinq from '../app';
 import { htmlSafe } from '@ember/template';
@@ -14,10 +13,23 @@ import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 
+// Debug: logs that persist across full page reload (stored in sessionStorage)
+var _loginDebugLog = [];
+function _loginDebug(msg, data) {
+  var entry = { t: Date.now(), msg: msg, data: data || {} };
+  _loginDebugLog.push(entry);
+  try { sessionStorage.setItem('lingolinq_login_debug', JSON.stringify(_loginDebugLog.slice(-50))); } catch (e) {}
+  if ((typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.verboseDebug)) {
+    console.log('[LOGIN-DEBUG]', msg, data);
+  }
+}
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   stashes: service('stashes'),
+  router: service('router'),
+  session: service('session'),
   app_state: alias('appState'),
   willInsertElement: function() {
     var _this = this;
@@ -54,7 +66,7 @@ export default Component.extend({
       }, timeout);
       this.get('pendingTimeouts').push(timeoutHandle);
       if(this.get('restore') !== false) {
-        session.restore(true);
+        this.session.restore(true);
       }
     }
     if(this.get('set_overflow')) {
@@ -75,7 +87,7 @@ export default Component.extend({
     if(!_this.get('client_secret')) {
       console.log('[login-form] No client_secret, starting token check');
       _this.set('requesting', true);
-      session.check_token().then(function(result) {
+      _this.session.check_token().then(function(result) {
         if (_this.isDestroyed || _this.isDestroying) {
           console.log('[login-form] Component destroyed during token check success');
           return;
@@ -135,7 +147,7 @@ export default Component.extend({
       type: 'GET'
     }).then(function(data) {
       if(data.authenticated && data.token) {
-        return session.confirm_authentication(data.token).then(function() {
+        return _this.session.confirm_authentication(data.token).then(function() {
           _this.handle_auth(data.token);
         }, function(err) {
           return RSVP.reject(err);
@@ -154,7 +166,7 @@ export default Component.extend({
     if(capabilities.installed_app) {
       var popout_id = (new Date()).getTime() + "T" + Math.round(Math.random() * 999999);
       url = url + "&popout_id=" + popout_id;
-      session.wait_for_token(popout_id).then(function(res) {
+      _this.session.wait_for_token(popout_id).then(function(res) {
         _this.handle_auth(res);
       }, function(err) {
         _this.set('login_followup', false);
@@ -199,17 +211,41 @@ export default Component.extend({
       // TODO: admin UI for resetting 2fa
     } else if(data.temporary_device) {
       // Eval accounts can only have one session at a time
-      _this.send('login_success', false);
-      _this.set('login_single_assertion', true);
-      _this.set('login_followup', false);
+      _this.session.confirm_authentication(data).then(function() {
+        _this.set('login_single_assertion', true);
+        _this.set('login_followup', false);
+        _this.send('login_success', false);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
+      });
     } else if(!data.long_token) {
       // follow-up question, is this a shared device?
-      _this.send('login_success', false);
-      _this.set('login_followup', true);
-      _this.set('login_single_assertion', false)
-      _this.set('login_followup_already_long_token', data.long_token_set);
+      _this.session.confirm_authentication(data).then(function() {
+        _this.set('login_followup', true);
+        _this.set('login_single_assertion', false);
+        _this.set('login_followup_already_long_token', data.long_token_set);
+        _this.send('login_success', false);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
+      });
     } else {
-      _this.send('login_success', true);
+      _this.session.confirm_authentication(data).then(function() {
+        _this.send('login_success', true);
+      }, function(err) {
+        if (!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('logging_in', false);
+          _this.appState.set('logging_in', false);
+          _this.set('login_error', i18n.t('login_error', "There was an unexpected problem logging in"));
+        }
+      });
     }
   },
   first_login: computed(function() {
@@ -247,46 +283,118 @@ export default Component.extend({
   actions: {
     login_success: function(reload) {
       var _this = this;
+      _loginDebug('login_success called', { reload: reload });
+
+      var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+      _loginDebug('Before flush', { has_token: !!auth_settings.access_token, user_name: auth_settings.user_name });
+      
+      // Store the token temporarily so we don't lose it during flush
+      var saved_token = auth_settings.access_token;
+      var saved_user_name = auth_settings.user_name;
+      var saved_user_id = auth_settings.user_id;
+
+      // When reload is false: we're showing "Trust this device" / "Shared device" UI.
+      // Restore session so API calls and navbar reflect authenticated state while the dialog is shown.
+      if(!reload) {
+        _loginDebug('login_success: reload=false, showing follow-up UI (Trust device / Shared device)');
+        if(saved_token) {
+          capabilities.access_token = saved_token;
+          if(capabilities.sync_access_token) { capabilities.sync_access_token(); }
+          _this.session.set('isAuthenticated', true);
+          _this.session.set('access_token', saved_token);
+          _this.session.set('user_name', saved_user_name);
+          _this.session.set('user_id', saved_user_id);
+        }
+        _this.set('logging_in', false);
+        _this.appState.set('logging_in', false);
+        return;
+      }
+
+      // Restore session early so if we transition before wait completes (e.g. fallback timeout),
+      // the index route will see isAuthenticated/access_token and load the user correctly
+      if(saved_token) {
+        capabilities.access_token = saved_token;
+        if(capabilities.sync_access_token) { capabilities.sync_access_token(); }
+        _this.session.set('isAuthenticated', true);
+        _this.session.set('access_token', saved_token);
+        _this.session.set('user_name', saved_user_name);
+        _this.session.set('user_id', saved_user_id);
+      }
+
       if(reload) {
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
       }
+      // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {
         _this.stashes.setup();
+      }).then(function() {
+        var auth_settings = _this.stashes.get_object('auth_settings', true) || {};
+        // Use saved_token as fallback if flush/setup cleared auth_settings from memory briefly
+        var token = auth_settings.access_token || saved_token;
+        capabilities.access_token = token;
+        if(token && capabilities.sync_access_token) {
+          capabilities.sync_access_token();
+        }
+        _loginDebug('After flush', { has_token: !!token, ls_has_auth: !!localStorage['lingolinqStash-auth_settings'] });
+        _this.set('logging_in', false);
+        _this.set('login_followup', false);
+        _this.set('login_single_assertion', false);
+        _this.set('logged_in', true);
+        // Sync session state from stashes so isAuthenticated/access_token are set
+        _this.session.restore();
+        // Fetch user and set sessionUser/currentUser so navbar shows signed-in state
+        return _this.appState.refresh_session_user();
       });
-      var auth_settings = this.stashes.get_object('auth_settings', true) || {};
-      capabilities.access_token = auth_settings.access_token;
-      _this.set('logging_in', false);
-      _this.set('login_followup', false);
-      _this.set('login_single_assertion', false);
-      _this.set('logged_in', true);
       if(reload) {
         runLater(function() {
           _this.appState.set('logging_in', true);
         }, 1000);
-        if(Ember.testing) {
+        if(isTesting()) {
           console.error("would have redirected to home");
-        } else {
+        } else if(capabilities.installed_app) {
           wait.then(function() {
             if(_this.get('return')) {
               location.reload();
-              session.set('return', true);
-            } else if(capabilities.installed_app) {
+              _this.session.set('return', true);
+            } else {
               location.href = '#/';
               location.reload();
-            } else {
-              location.href = '/';
             }
           });
+        } else {
+          // Web: use full page reload after login (same approach as installed app).
+          // Client-side transition was unreliable: on index route transitionTo('index') is a no-op,
+          // and the dashboard only shows when appState.currentUser is set by refresh_session_user.
+          // A reload guarantees session restore from localStorage and clean dashboard load.
+          var reloadDone = false;
+          var doReload = function() {
+            if(reloadDone || _this.isDestroyed || _this.isDestroying) { return; }
+            reloadDone = true;
+            if(_this.get('return')) {
+              _this.session.set('return', true);
+            }
+            _loginDebug('Web: reloading to dashboard');
+            location.assign('/');
+          };
+          wait.then(doReload, function(err) {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            console.warn('[login_success] User fetch failed, reloading anyway', err);
+            doReload();
+          });
+          // Fallback: if wait hangs (e.g. slow API, IndexedDB), reload after 6s
+          var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
+          RSVP.race([wait, timeoutPromise]).then(doReload, function() { doReload(); });
         }
       }
     },
     login_force_logut: function(choice) {
+      var _this = this;
       if(choice) {
-        this.send('login_followup', true);
+        _this.send('login_followup', true);
       } else {
-        session.invalidate(true);        
+        _this.session.invalidate(true);
       }
     },
     login_followup: function(choice) {
@@ -450,7 +558,7 @@ export default Component.extend({
       });
     },
     logout: function() {
-      session.invalidate(true);
+      this.session.invalidate(true);
     },
     confirm_2fa: function() {
       var _this = this;
@@ -462,7 +570,7 @@ export default Component.extend({
         type: 'GET'
       }).then(function(data) {
         if(data.authenticated && data.token && data.valid_2fa) {
-          session.confirm_authentication(data.token).then(function() {
+          _this.session.confirm_authentication(data.token).then(function() {
             _this.set('status_2fa', {confirmed: true});
             _this.handle_auth(data.token);
           }, function(err) {
@@ -496,7 +604,7 @@ export default Component.extend({
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
         this.set('password', null);
         _this.set('login_followup_already_long_token', false);
-        session.authenticate(data).then(function(data) {
+        _this.session.authenticate(data).then(function(data) {
           console.log('[login-form] Authentication succeeded', {
             has_redirect: !!data.redirect,
             has_token: !!data.access_token
