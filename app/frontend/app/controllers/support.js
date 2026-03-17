@@ -31,7 +31,7 @@ export default modal.ModalController.extend({
     toggle_cookies: function() {
       var _this = this;
       if(app_state.get('sessionUser')) {
-        app_state.set('sessionUser.watch_cookies');
+        app_state.set('sessionUser.watch_cookies', true);
         app_state.set('sessionUser.preferences.cookies', !app_state.get('sessionUser.preferences.cookies'));
         app_state.get('sessionUser').save().then(function() {
           _this.set('cookies', !!app_state.get('sessionUser.preferences.cookies'));
