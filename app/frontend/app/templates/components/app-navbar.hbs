@@ -29,6 +29,7 @@
             <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key="fsa_nav_about"}}</LinkTo>
           </div>
           <div class="la-topbar-right header-unauth-right">
+            <LinkTo @route="login" class="la-topbar-sign-in">{{t "Sign In" key="login"}}</LinkTo>
             <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
             <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{action "toggleLandingDrawer"}}>
               <span class="la-topbar-hamburger__bar"></span>

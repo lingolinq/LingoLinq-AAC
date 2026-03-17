@@ -183,7 +183,7 @@ export default Service.extend({
     
     // Auto-fade if not sticky
     if (!options.sticky) {
-      const timeout = options.below_header ? 500 : (options.timeout || 1500);
+      const timeout = options.below_header ? 3500 : (options.timeout || 1500);
       this.set('flashTimer', runLater(() => {
         this.fadeFlash();
       }, timeout));

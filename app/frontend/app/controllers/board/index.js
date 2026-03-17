@@ -43,6 +43,7 @@ export default Controller.extend({
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    if (this.appState.get('speak_mode')) { runLater(() => { this._setupSpeakBarObserver(); }, 200); }
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying'); }
     editManager.process_for_displaying(ignore_fast_html);
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() done'); }
@@ -386,7 +387,7 @@ export default Controller.extend({
       this.appState.set('window_inner_width', inner_width);
       this.appState.set('window_inner_height', height);
       var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
-      var topHeight = this.appState.get('header_height') + 5;
+      var topHeight = this.appState.get('header_height') + 5 + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
@@ -454,6 +455,54 @@ export default Controller.extend({
       }
     }
   ),
+  _speakBarObserver: null,
+  _watchSpeakMode: observer('appState.speak_mode', function() {
+    var _this = this;
+    if (_this.appState.get('speak_mode')) {
+      runLater(function() { _this._setupSpeakBarObserver(); }, 100);
+    } else {
+      _this._teardownSpeakBarObserver();
+      _this.appState.set('extra_header_height', 0);
+      document.documentElement.style.removeProperty('--speak-bar-extra');
+    }
+  }),
+  _setupSpeakBarObserver() {
+    if (this._speakBarObserver) { return; }
+    var _this = this;
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader) { return; }
+    this._speakBarObserver = new ResizeObserver(function() {
+      _this._updateFromSpeakBarResize();
+    });
+    this._speakBarObserver.observe(innerHeader);
+    this._updateFromSpeakBarResize();
+  },
+  _teardownSpeakBarObserver() {
+    if (this._speakBarObserver) {
+      this._speakBarObserver.disconnect();
+      this._speakBarObserver = null;
+    }
+  },
+  _updateFromSpeakBarResize() {
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader || !this.appState.get('speak_mode')) { return; }
+    var actualHeight = innerHeader.offsetHeight;
+    var topbarHeight = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')
+    ) || this.appState.get('header_height') || 0;
+    var extra = Math.max(0, actualHeight - topbarHeight);
+    var prevExtra = this.appState.get('extra_header_height') || 0;
+    if (prevExtra === extra) { return; }
+    this.appState.set('extra_header_height', extra);
+    document.documentElement.style.setProperty('--speak-bar-extra', extra + 'px');
+    this.computeHeight();
+  },
+  willDestroy() {
+    this._super(...arguments);
+    this._teardownSpeakBarObserver();
+    this.appState.set('extra_header_height', 0);
+    document.documentElement.style.removeProperty('--speak-bar-extra');
+  },
   board_style: computed('height', 'model.background.color', function() {
     var str = "position: relative; height: " + (this.get('height') + 5) + "px;";
     if(this.get('model.background.color') && window.tinycolor) {

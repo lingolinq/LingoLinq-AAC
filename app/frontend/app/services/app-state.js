@@ -2156,6 +2156,7 @@ export default Service.extend({
       return size;
     }
   ),
+  extra_header_height: 0,
   header_height: computed('header_size', 'speak_mode', function() {
     if(this.get('speak_mode')) {
       var size = this.get('header_size');

@@ -1,4 +1,4 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "landing") "landing-route"}}  {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}}">
   <div id="inner_header">
@@ -9,17 +9,31 @@
     <span id="speak">
       <span class="speak-header__home-marker">
         {{#triple-click-listener triple_click="meta_home_click"}}
-          <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
-            <span class="sr-only">{{t "Home" key="home"}}</span>
-            <span class="glyphicon glyphicon-home button_icon"></span>
-            {{#unless this.app_state.eval_mode}}
-              {{#if this.stashes.temporary_root_board_state}}
-                <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key="home_or_board_lock_set"}}></span>
-              {{else if this.stashes.sticky_board}}
-                <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key="board_lock_set"}}></span>
+          {{#if this.on_board_or_alt}}
+            <button class='btn btn-default access {{if this.boardPickerVisible "board-picker-btn--open"}}' id="home_button" {{action (if this.boardPickerVisible "closeBoardPicker" "openBoardPicker")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}} aria-expanded={{if this.boardPickerVisible "true" "false"}}>
+              {{#if this.boardPickerVisible}}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              {{else}}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                  <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+                </svg>
               {{/if}}
-            {{/unless}}
-          </button>
+            </button>
+          {{else}}
+            <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
+              <span class="sr-only">{{t "Home" key="home"}}</span>
+              <span class="glyphicon glyphicon-home button_icon"></span>
+              {{#unless this.app_state.eval_mode}}
+                {{#if this.stashes.temporary_root_board_state}}
+                  <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key="home_or_board_lock_set"}}></span>
+                {{else if this.stashes.sticky_board}}
+                  <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key="board_lock_set"}}></span>
+                {{/if}}
+              {{/unless}}
+            </button>
+          {{/if}}
         {{/triple-click-listener}}
       </span>
       {{#if this.show_back}}
@@ -553,6 +567,7 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
+              <LinkTo @route="login" class="la-topbar-sign-in">{{t "Sign In" key='login'}}</LinkTo>
               <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
               <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{action "toggleLandingNav"}}>
                 <span class="la-topbar-hamburger__bar"></span>
@@ -1209,16 +1224,14 @@
 </div>
 {{#if this.app_state.sidebar_visible}}
   <div id="sidebar" class='noselect advanced_selection' style={{this.sidebar_style}}>
-    {{#unless this.app_state.currentUser.preferences.quick_sidebar}}
-      <span style="margin: 5px; text-align: right; white-space: nowrap;">
-        {{#if this.app_state.currentUser}}
-          <button class='btn btn-default' style="width: 50%;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
-          <button class='btn btn-default' id='sidebar_close' style="width: calc(50% - 14px); padding-left: 0; padding-right: 0;" {{action "toggleSidebar"}}>&times;</button>
-        {{else}}
-          <button id='sidebar_close' class='btn btn-default' style="width: 90%;" {{action "toggleSidebar"}}>&times; {{t "Hide" key="hide_upper"}}</button>
-        {{/if}}
-      </span>
-    {{/unless}}
+    <span style="display: block; text-align: center; padding: 5px;">
+      <button id='sidebar_close' class='btn btn-default' style="width: 90%;" {{action (if this.app_state.currentUser.preferences.quick_sidebar "stickSidebar" "toggleSidebar")}}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true" style="pointer-events: none;">
+          <polyline points="18 15 12 9 6 15" style="pointer-events: none;"></polyline>
+          <polyline points="18 20 12 14 6 20" style="pointer-events: none;"></polyline>
+        </svg>
+      </button>
+    </span>
     {{#each this.app_state.sidebar_boards as |board|}}
       {{#if board.alert}}
         <a href="#" {{action "alert" "sidebar"}} class='sidebar_item'>
@@ -1252,7 +1265,7 @@
             <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/></svg>
             </span>
-            {{t "Original" key="board_alt_return"}}
+            {{t "Option" key="board_alt_return"}}
           </LinkTo>
         {{else}}
           <LinkTo @route="user.board-alt" @models={{array this.board_alt_username this.board_alt_boardname}} class="sidebar_item sidebar_item--board-alt">
@@ -1264,13 +1277,6 @@
         {{/if}}
       {{/if}}
     {{/if}}
-    {{#if this.app_state.currentUser.preferences.quick_sidebar}}
-      {{#unless this.app_state.currentUser.preferences.lock_quick_sidebar}}
-        <span style="margin: 5px; text-align: right;">
-          <button class='btn btn-default' style="width: 90px; margin-bottom: 5px; " {{action "stickSidebar"}}>Hide</button>
-        </span>
-      {{/unless}}
-    {{/if}}
   </div>
 {{else}}
   {{#if this.app_state.speak_mode}}
@@ -1281,7 +1287,10 @@
             {{#if this.app_state.fenced_sidebar_board}}
               <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;'></span>
             {{/if}}
-            {{t "sidebar" key="sidebar"}}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true" style="pointer-events: none;">
+              <polyline points="6 9 12 15 18 9" style="pointer-events: none;"></polyline>
+              <polyline points="6 14 12 20 18 14" style="pointer-events: none;"></polyline>
+            </svg>
           </div>
         {{/unless}}
       {{/unless}}
@@ -1302,6 +1311,34 @@
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
   {{page-footer support=(action "support") language=(action "language")}}
+{{/if}}
+
+{{#if this.boardPickerVisible}}
+  <div id="board_picker_backdrop" {{action "closeBoardPicker"}} style="position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 900;"></div>
+  <div id="board_picker" role="dialog" aria-label={{t "My Boards" key="my_boards"}}>
+    <div id="board_picker_header">
+      <span class="la-section-eyebrow-badge">{{t "My Boards" key="my_boards"}}</span>
+      <button type="button" class="board-picker__close" {{action "closeBoardPicker"}} aria-label={{t "Close" key="close"}}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div id="board_picker_inner">
+      {{#if this.boardPickerLoading}}
+        <p class="board-picker__loading">{{t "Loading boards..." key="loading_boards"}}</p>
+      {{else}}
+        {{#each this.boardPickerBoards as |board|}}
+          <a href="#" {{action "pickBoard" board.key}} class="board-picker__item">
+            <span class="board-picker__thumb">
+              <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
+            </span>
+            <span class="board-picker__name">{{board.name}}</span>
+          </a>
+        {{/each}}
+      {{/if}}
+    </div>
+  </div>
 {{/if}}
 
 </div>

@@ -424,13 +424,13 @@ var modal = EmberObject.extend({
       if(!sticky) {
         runLater(function() {
           _this.fade_flash();
-        }, below_header ? 500 : (opts.timeout || 1500));
+        }, below_header ? 3500 : (opts.timeout || 1500));
       }
       return;
     }
     var _this = this;
     runLater(function() {
-      var timeout = below_header ? 500 : 1500;
+      var timeout = below_header ? 3500 : 1500;
       if(opts.timeout) { timeout = opts.timeout; }
       modal.route.render('flash-message', { into: 'application', outlet: 'flash-message'});
       if(!sticky) {

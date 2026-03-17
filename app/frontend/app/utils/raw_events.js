@@ -2090,7 +2090,8 @@ var buttonTracker = EmberObject.extend({
       } else if(region.id == 'sidebar_tease') {
         return buttonTracker.element_wrap(region);
       } else if(region.id == 'sidebar') {
-        return buttonTracker.element_wrap($target.closest(".btn,a")[0]);
+        var sidebarTarget = $target[0] && $target[0].closest ? $target[0].closest('.btn,a') : $target.closest('.btn,a')[0];
+        return buttonTracker.element_wrap(sidebarTarget);
       } else if(region.id == 'speak_menu') {
         return buttonTracker.element_wrap($target.closest("a,.speak_menu_button")[0]);
       } else if(region.tagName == 'HEADER') {

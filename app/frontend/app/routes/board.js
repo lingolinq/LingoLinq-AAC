@@ -14,6 +14,18 @@ export default Route.extend({
   store: service('store'),
   stashes: service('stashes'),
   appState: service('app-state'),
+  beforeModel: function(transition) {
+    var to = transition.to;
+    var key = (to && to.parent && to.parent.params && to.parent.params.key) ||
+              (to && to.params && to.params.key) ||
+              (transition.params && transition.params['board'] && transition.params['board'].key);
+    if(key && key.indexOf('/') !== -1 && !key.match(/^integrations\//) && !key.match(/^obf\//)) {
+      var parts = key.split('/');
+      var user_id = parts[0];
+      var boardname = parts.slice(1).join('/');
+      this.replaceWith('user.board-alt', user_id, boardname);
+    }
+  },
   model: function(params) {
     var _this = this;
     // TODO: when on the home screen if you have a large board and hit to open

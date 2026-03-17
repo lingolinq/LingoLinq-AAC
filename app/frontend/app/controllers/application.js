@@ -68,6 +68,18 @@ export default Controller.extend({
   on_board_alt: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
+  /** True when the current page is the regular board view (not board-alt). */
+  on_board: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'board.index';
+  }),
+  /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
+  on_board_or_alt: computed('on_board', 'on_board_alt', function() {
+    return this.get('on_board') || this.get('on_board_alt');
+  }),
+
+  boardPickerVisible: false,
+  boardPickerLoading: false,
+  boardPickerBoards: null,
 
   init() {
     this._super(...arguments);
@@ -515,6 +527,32 @@ export default Controller.extend({
       runLater(function() {
         model.prompt();
       }, 100);
+    },
+    openBoardPicker: function() {
+      var _this = this;
+      _this.set('boardPickerVisible', true);
+      _this.set('boardPickerLoading', true);
+      _this.set('boardPickerBoards', null);
+      var userId = _this.appState.get('referenced_user.id');
+      LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
+        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
+        var arr = boards.toArray().sort(function(a, b) {
+          if(a.get('key') === homeKey) { return -1; }
+          if(b.get('key') === homeKey) { return 1; }
+          return (a.get('name') || '').localeCompare(b.get('name') || '');
+        });
+        _this.set('boardPickerBoards', arr);
+        _this.set('boardPickerLoading', false);
+      }, function() {
+        _this.set('boardPickerLoading', false);
+      });
+    },
+    closeBoardPicker: function() {
+      this.set('boardPickerVisible', false);
+    },
+    pickBoard: function(key) {
+      this.set('boardPickerVisible', false);
+      this.jumpToBoard({ key: key });
     },
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
