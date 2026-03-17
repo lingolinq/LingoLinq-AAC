@@ -5,9 +5,12 @@ import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 
 export default modal.ModalController.extend({
+  _cookiesEnabled: function(val) {
+    return val === true || val === 'true';
+  },
   opening: function() {
     if(app_state.get('sessionUser')) {
-      this.set('cookies', !!app_state.get('sessionUser.preferences.cookies'));
+      this.set('cookies', this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies')));
     } else {
       this.set('cookies', localStorage['enable_cookies'] == 'true');
     }
@@ -32,9 +35,10 @@ export default modal.ModalController.extend({
       var _this = this;
       if(app_state.get('sessionUser')) {
         app_state.set('sessionUser.watch_cookies', true);
-        app_state.set('sessionUser.preferences.cookies', !app_state.get('sessionUser.preferences.cookies'));
+        var currentlyEnabled = _this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies'));
+        app_state.set('sessionUser.preferences.cookies', !currentlyEnabled);
         app_state.get('sessionUser').save().then(function() {
-          _this.set('cookies', !!app_state.get('sessionUser.preferences.cookies'));
+          _this.set('cookies', _this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies')));
         }, function() { });
       } else {
         app_state.toggle_cookies(localStorage['enable_cookies'] != 'true');
