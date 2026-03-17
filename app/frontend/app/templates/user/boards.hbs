@@ -222,9 +222,13 @@
                 </li>
               {{/each}}
             </ul>
-            {{#unless this.show_all_boards}}
+            {{#if this.board_list.has_more}}
               <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
-            {{/unless}}
+            {{else}}
+              {{#unless this.show_all_boards}}
+                <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
+              {{/unless}}
+            {{/if}}
           {{else}}
             {{#if this.board_list.sub_result}}
               <p><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.parent_object.board.key}}</em></p>
@@ -265,9 +269,9 @@
                   {{/if}}
                 {{/if}}
               {{/each}}
-              {{#unless this.show_all_boards}}
+              {{#if this.board_list.has_more}}
                 {{#unless this.filterString}}
-                  <div class="ub-boards-page__show-more">
+                  <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
                     <a href="#" class="ub-boards-page__show-more-btn" {{action "show_more_boards"}}>
                       {{t "More" key="more"}}
                       <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
@@ -276,7 +280,7 @@
                     </a>
                   </div>
                 {{/unless}}
-              {{/unless}}
+              {{/if}}
             </div>
           {{/if}}
         {{else}}
@@ -287,5 +291,14 @@
   </section>
 
   </div>{{!-- /.ub-boards-page__content --}}
+
+  {{#if this.show_back_to_top}}
+    <div class="ub-boards-page__back-to-top-wrap">
+      <button class="ub-boards-page__back-to-top" type="button" {{action "scroll_to_top"}} title={{t "Back to top" key="back_to_top"}}>
+        <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
+        <span class="ub-boards-page__back-to-top-label">{{t "Top" key="top"}}</span>
+      </button>
+    </div>
+  {{/if}}
 
 </div>

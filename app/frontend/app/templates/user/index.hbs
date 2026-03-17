@@ -578,9 +578,9 @@
                   </li>
                 {{/each}}
               </ul>
-              {{#unless this.show_all_boards}}
+              {{#if this.board_list.has_more}}
                 <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
-              {{/unless}}
+              {{/if}}
             {{else}}
               {{#if this.board_list.sub_result}}
                 <div style='margin-bottom: 5px;'><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.parent_object.board.key}}</em></div>
@@ -621,13 +621,13 @@
                     {{/if}}
                   {{/if}}
                 {{/each}}
-                {{#unless this.show_all_boards}}
+                {{#if this.board_list.has_more}}
                   {{#unless this.filterString}}
-                    <div class="col-sm-12" style='clear: left;'>
+                    <div class="col-sm-12" style='clear: left; overflow-anchor: none;'>
                       <a href="#" {{action "show_more_boards"}}>{{t "show more" key="show_more"}}</a>
                     </div>
                   {{/unless}}
-                {{/unless}}
+                {{/if}}
               </div>
             {{/if}}
           {{else}}

@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, schedule } from '@ember/runloop';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -277,6 +277,7 @@ export default Controller.extend({
           this.set_show_all_boards();
         }
         res.filtered_results = new_list.slice(0, 18);
+        res.has_more = new_list.length > 18;
       }
       res.filtered_results_key = res.filtered_results.map(function(b) { return (b.id || b.board.id) + (b.children || []).length; }).join(',');
       return res;
@@ -568,9 +569,25 @@ export default Controller.extend({
       modal.open('supervision-settings', {user: this.get('model')});
     },
     show_more_boards: function() {
+      var scrollY = window.scrollY || window.pageYOffset;
       var current = this.get('boards_display_limit') || 18;
       this.set('boards_display_limit', current + 48);
       this.set('show_all_boards', true);
+      this.set('show_back_to_top', true);
+      schedule('afterRender', function() {
+        requestAnimationFrame(function() {
+          window.scrollTo(0, scrollY);
+        });
+      });
+    },
+    scroll_to_top: function() {
+      this.set('show_back_to_top', false);
+      var boardsSection = document.querySelector('.ub-boards-page__content');
+      if(boardsSection) {
+        boardsSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     },
     set_selected: function(selected) {
       this.set('selected', selected);

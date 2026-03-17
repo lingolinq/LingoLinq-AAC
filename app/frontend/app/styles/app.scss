@@ -33680,6 +33680,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     margin-left: 0 !important;
     margin-right: 0 !important;
     width: 100%;
+    overflow-anchor: none;
 
     .simple_board_holder {
       padding: 0;
@@ -33817,6 +33818,62 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     }
   }
   &__loading { color: #8a9ab8; font-size: 0.92rem; padding: 12px 0; }
+
+  // ── Back to Top ─────────────────────────────────────────────
+  &__back-to-top-wrap {
+    position: sticky;
+    bottom: 2rem;
+    z-index: 100;
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: none;
+    padding: 0 1rem;
+  }
+  &__back-to-top {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(20, 127, 130, 0.25);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    color: #147f82;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(17, 26, 46, 0.10), 0 4px 20px rgba(20, 127, 130, 0.08);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    animation: ub-back-to-top-fade-in 0.3s ease forwards;
+
+    .glyphicon {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
+    &:hover {
+      background: rgba(20, 127, 130, 0.08);
+      border-color: #147f82;
+      box-shadow: 0 4px 18px rgba(20, 127, 130, 0.18), 0 6px 24px rgba(17, 26, 46, 0.10);
+      transform: translateY(-2px);
+    }
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(20, 127, 130, 0.12);
+    }
+  }
+  &__back-to-top-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1;
+  }
+  @keyframes ub-back-to-top-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   // ── Getting Started ───────────────────────────────────────
   &__getting-started {
