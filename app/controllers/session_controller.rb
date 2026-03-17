@@ -526,8 +526,6 @@ class SessionController < ApplicationController
 
         u.password_used!
         token_json = JsonApi::Token.as_json(u, d)
-        # Debug logging for token response (never log token values)
-        Rails.logger.debug("Token response for user #{u.user_name}: keys=#{token_json.keys.inspect}")
         # Rails 7: render json: expects a hash, not a pre-encoded string
         render json: token_json
       else
