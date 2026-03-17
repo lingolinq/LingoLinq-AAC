@@ -208,7 +208,7 @@ module AiBoardGenerator
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
       if anthropic_key.present?
         return {
-          provider: :anthropic,
+          provider: :claude,
           api_key: anthropic_key,
           model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
         }
