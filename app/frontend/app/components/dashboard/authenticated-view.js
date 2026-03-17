@@ -49,6 +49,17 @@ export default Component.extend({
         return this.appState.get('currentUser.preferences.home_board.key') || this.appState.get('currentUser.supporter_view');
     }
   ),
+  last_board_name: computed('stashes.root_board_state', 'appState.currentUser.user_name', function() {
+    var fromStash = this.stashes.get('root_board_state.name');
+    if(fromStash) { return fromStash; }
+    var userName = this.appState.get('currentUser.user_name');
+    if(!userName) { return null; }
+    try {
+      var stored = localStorage['ll_last_board_' + userName];
+      if(stored) { return JSON.parse(stored).name || null; }
+    } catch(e) { }
+    return null;
+  }),
   needs_sync: computed('persistence.last_sync_at', function() {
     if (!this || typeof this.get !== 'function') { return false; }
     var p = null;

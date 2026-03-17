@@ -110,6 +110,7 @@ export default Controller.extend({
     'selected',
     'parent_object',
     'show_all_boards',
+    'boards_display_limit',
     // 'filterString',
     'model.id',
     'model.my_boards',
@@ -268,7 +269,9 @@ export default Controller.extend({
         });
         res.filtered_results = new_list.slice(0, 18);
       } else */ if(this.get('show_all_boards')) {
-        res.filtered_results = new_list.slice(0, 300);
+        var limit = this.get('boards_display_limit') || new_list.length;
+        res.filtered_results = new_list.slice(0, limit);
+        res.has_more = new_list.length > limit;
       } else {
         if(list.done && new_list && new_list.length <= 18) {
           this.set_show_all_boards();
@@ -565,11 +568,14 @@ export default Controller.extend({
       modal.open('supervision-settings', {user: this.get('model')});
     },
     show_more_boards: function() {
+      var current = this.get('boards_display_limit') || 18;
+      this.set('boards_display_limit', current + 48);
       this.set('show_all_boards', true);
     },
     set_selected: function(selected) {
       this.set('selected', selected);
       this.set('show_all_boards', false);
+      this.set('boards_display_limit', null);
       this.set('parent_object', null);
 //       this.set('filterString', '');
     },

@@ -675,6 +675,15 @@ export default Service.extend({
     LingoLinq.protected_user = protect_user;
     this.stashes.persist('protected_user', protect_user);
   }),
+  _persist_last_board_for_user: observer('stashes.root_board_state', function() {
+    var state = this.stashes.get('root_board_state');
+    var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    if(state && state.name && userName) {
+      try {
+        localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
+      } catch(e) { }
+    }
+  }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
     // automatically set them as the temporary root board for browsing
@@ -1499,8 +1508,8 @@ export default Service.extend({
         user_preferred = speak_mode_user.get('preferences.home_board');
       }
     }
-    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || {key: 'example/yesno'};
-    if(preferred.locale) {
+    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
+    if(preferred && preferred.locale) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }

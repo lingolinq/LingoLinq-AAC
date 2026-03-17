@@ -79,7 +79,11 @@
         <div class="md-card__row">
           <div class="md-chip md-chip--soft">
             <span class="md-chip__dot" aria-hidden="true"></span>
-            {{t "Last board: Beginner Lessons" key="md_last_board"}}
+            {{#if this.last_board_name}}
+              {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
+            {{else}}
+              {{t "Last board: None" key="md_last_board_none"}}
+            {{/if}}
           </div>
           <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
             {{t "Continue Speaking" key="continue_speaking"}}

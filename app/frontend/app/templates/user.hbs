@@ -21,6 +21,14 @@
       </div>
     </div>
   </div>
+  {{else if (is-equal this.app_state.current_route "user.boards")}}
+  <div class="md-shell md-shell--user md-shell--boards-page">
+    <div class="md-workspace">
+      <main class="md-main md-main--user">
+        {{outlet}}
+      </main>
+    </div>
+  </div>
   {{else}}
   <div class="md-shell md-shell--user">
     <div class="md-workspace">

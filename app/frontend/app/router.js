@@ -111,6 +111,7 @@ Router.map(function() {
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
+    this.route('boards', { path: '/boards' });
     this.route('edit');
     this.route('preferences');
     this.route('subscription');
