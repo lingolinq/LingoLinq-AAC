@@ -123,7 +123,16 @@ class ApplicationController < ActionController::Base
         end
       end
     else
-      Rails.logger.debug("check_api_token: No token found for path #{request.path}, params['access_token']: #{params['access_token'].present? ? '[FILTERED]' : 'nil'}, Authorization header: #{request.headers['Authorization'] ? 'present' : 'missing'}")
+      raw_access_token = params['access_token']
+      access_token_param_log_value =
+        if raw_access_token.blank?
+          'nil'
+        elsif raw_access_token == 'none'
+          "'none' (treated as missing)"
+        else
+          '[FILTERED]'
+        end
+      Rails.logger.debug("check_api_token: No token found for path #{request.path}, params['access_token']: #{access_token_param_log_value}, Authorization header: #{request.headers['Authorization'] ? 'present' : 'missing'}")
       # Log when no token is provided for API requests
       if request.path.match(/^\/api/) && !request.path.match(/^\/api\/v1\/token/)
         Rails.logger.debug("No token provided for API request: #{request.path}")
