@@ -194,15 +194,14 @@ export default Component.extend({
         _this.set('labels', labels);
         if (res && res.name) { _this.set('name', res.name); }
         if (res && res.description) { _this.set('description', res.description); }
-      }, function(xhr) {
+      }, function(err) {
         var msg = i18n.t('generate_failed', 'Generation failed');
-        if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
-          msg = xhr.responseJSON.error;
-        } else if (xhr && xhr.responseText) {
-          try {
-            var j = JSON.parse(xhr.responseText);
-            if (j && j.error) { msg = j.error; }
-          } catch (e) {}
+        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
+          try { return JSON.parse(err.responseText); } catch (e) { return null; }
+        })() : null);
+        if (resp && resp.error) {
+          msg = resp.error;
+          if (resp.error_detail) { msg += ' (' + resp.error_detail + ')'; }
         }
         _this.set('status', { error: msg });
       });
