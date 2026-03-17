@@ -20,7 +20,7 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: lingolinq-db
+          name: lingolinq-prod-db
           property: connectionString
       - key: REDIS_URL
         fromService:
@@ -63,7 +63,7 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: lingolinq-db
+          name: lingolinq-prod-db
           property: connectionString
       - key: REDIS_URL
         fromService:
@@ -74,10 +74,10 @@ services:
         value: "true"
 
 databases:
-  - name: lingolinq-db
-    plan: free
-    databaseName: lingolinq_production_jron
-    user: lingolinq_production_jron_user
+  - name: lingolinq-prod-db
+    plan: basic_256mb
+    databaseName: lingolinq_prod_db_xkb1
+    user: lingolinq_prod_db_xkb1_user
 
   - name: lingolinq-redis
     plan: free

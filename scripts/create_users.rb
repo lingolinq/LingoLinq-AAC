@@ -55,7 +55,7 @@ end
 
 # 1. Full Authority User: larry / password from CREATE_USERS_DEFAULT_PASSWORD
 puts "--- Setting up Full Authority User ---"
-larry = create_user('larry', default_password, { 
+larry = create_user('larry', default_password, {
   name: 'Larry Admin', 
   email: 'larry@lingolinq.com', 
   is_admin: true 
@@ -74,7 +74,7 @@ end
 
 # 2. Demo District Admin: NYC_test / password from CREATE_USERS_DEFAULT_PASSWORD
 puts "\n--- Setting up Demo District Admin ---"
-nyc = create_user('NYC_test', default_password, { 
+nyc = create_user('NYC_test', default_password, {
   name: 'NYC Test Admin', 
   email: 'nyc_test@example.com' 
 })

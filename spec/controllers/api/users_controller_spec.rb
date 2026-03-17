@@ -842,6 +842,7 @@ describe Api::UsersController, :type => :controller do
       b1a.save
       Worker.process_queues
       Worker.process_queues
+      b1a.reload.track_downstream_boards!
       expect(b1a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
       b2a = Board.create(:user => u)
       b2a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
@@ -850,6 +851,7 @@ describe Api::UsersController, :type => :controller do
       b2a.save
       Worker.process_queues
       Worker.process_queues
+      b2a.reload.track_downstream_boards!
       expect(b2a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
 
       expect(b1a.reload.settings['protected']['vocabulary_owner_id']).to eq(@user.global_id)

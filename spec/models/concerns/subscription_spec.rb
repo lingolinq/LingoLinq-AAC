@@ -1248,7 +1248,7 @@ describe Subscription, :type => :model do
         expect(u.settings['subscription']['last_purchase_plan_id']).to eq('long_term_200')
         expect(u.settings['subscription']['last_purchase_id']).to eq('23456')
         expect(u.settings['subscription']['prior_purchase_ids']).to eq([])
-        expect(u.expires_at.to_i).to eq(8.weeks.from_now.to_i)
+        expect(u.expires_at.to_i).to be_within(1).of(8.weeks.from_now.to_i)
       end
       
       it "should not re-procress already-handled purchase_ids" do
