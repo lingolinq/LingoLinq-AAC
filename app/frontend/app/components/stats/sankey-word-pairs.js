@@ -4,9 +4,6 @@ import { computed } from '@ember/object';
 
 export default Component.extend({
   wordPairsData: null,
-  dataForChart: computed('wordPairsData', function() {
-    return this.get('wordPairsData') || [];
-  }),
   elem_class: computed('side_by_side', function() {
     if (this.get('side_by_side')) {
       return htmlSafe('col-sm-6 col-xs-12');
