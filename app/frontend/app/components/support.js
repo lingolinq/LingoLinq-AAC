@@ -62,7 +62,7 @@ export default Component.extend({
     toggle_cookies() {
       const appState = this.get('appState');
       if (appState.get('sessionUser')) {
-        appState.set('sessionUser.watch_cookies');
+        appState.set('sessionUser.watch_cookies', true);
         const currentlyEnabled = this._cookiesEnabled(appState.get('sessionUser.preferences.cookies'));
         appState.set('sessionUser.preferences.cookies', !currentlyEnabled);
         appState.get('sessionUser').save().then(() => {
