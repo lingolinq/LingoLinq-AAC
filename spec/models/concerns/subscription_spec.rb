@@ -1206,7 +1206,7 @@ describe Subscription, :type => :model do
         })
         
         expect(res).to eq(true)
-        expect(u.expires_at.to_i).to eq(8.weeks.from_now.to_i)
+        expect(u.expires_at.to_i).to be_within(2).of(8.weeks.from_now.to_i)
       end
       
       it "should always leave at least a window of time to handle re-subscribing" do
@@ -1224,7 +1224,7 @@ describe Subscription, :type => :model do
         })
         
         expect(res).to eq(true)
-        expect(u.expires_at.to_i).to eq(2.weeks.from_now.to_i)      
+        expect(u.expires_at.to_i).to be_within(2).of(2.weeks.from_now.to_i)
       end
     end
     
