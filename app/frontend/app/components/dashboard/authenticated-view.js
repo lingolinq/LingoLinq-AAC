@@ -44,6 +44,7 @@ export default Component.extend({
   },
   didInsertElement() {
     this._super(...arguments);
+    this._loadPreviewBoards();
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
@@ -595,7 +596,9 @@ export default Component.extend({
     if (!user || !user.get('id')) { return; }
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
-    _this.get('store').query('board', { user_id: user.get('id') }).then(function(boards) {
+    // Fetch preview boards (5) and total count in parallel
+    _this.get('store').query('board', { user_id: user.get('id'), per_page: 5 }).then(function(boards) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', results);
       var meta = _this.get('persistence').meta('board', boards);
@@ -609,6 +612,7 @@ export default Component.extend({
   _fetchRemainingForCount: function(userId, offset, accumulated) {
     var _this = this;
     _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
       var count = accumulated + boards.map(function(b) { return b; }).length;
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
@@ -617,6 +621,7 @@ export default Component.extend({
         _this.set('_fetchedBoardCount', count);
       }
     }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
       _this.set('_fetchedBoardCount', accumulated);
     });
   },
@@ -704,7 +709,11 @@ export default Component.extend({
       if (tab === 'extras') {
         var ux = this.appState.get('currentUser.user_name');
         if (ux) {
-          this.get('router').transitionTo('user.extras', ux);
+          this.get('router').transitionTo('user.extras', ux).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
         }
         return;
       }
@@ -730,7 +739,30 @@ export default Component.extend({
     },
     go: function(dest) {
       if (dest === 'speak') {
-        this.send('homeInSpeakMode');
+        var user = this.appState.get('currentUser');
+        var lastBoard = this.stashes.get('root_board_state');
+        // Fall back to localStorage if stash doesn't have the board
+        if (!lastBoard || !lastBoard.key) {
+          var userName = user && user.get('user_name');
+          if (userName) {
+            try {
+              var stored = localStorage['ll_last_board_' + userName];
+              if (stored) {
+                lastBoard = JSON.parse(stored);
+              }
+            } catch(e) { }
+          }
+        }
+        var homeBoard = user && user.get('preferences.home_board');
+        if (lastBoard && lastBoard.key) {
+          this.get('router').transitionTo('board', lastBoard.key);
+          this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
+        } else if (homeBoard && homeBoard.key) {
+          this.get('router').transitionTo('board', homeBoard.key);
+          this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+        } else if (user && user.get('user_name')) {
+          this.get('router').transitionTo('user.boards', user.get('user_name'));
+        }
         return;
       }
       if (dest === 'reports') {

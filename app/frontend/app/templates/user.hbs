@@ -22,7 +22,7 @@
       {{#if (and this.from_dashboard (is-equal this.app_state.current_route "user.stats"))}}
       <header class="md-hero md-hero--dashboard md-hero--reports-dashboard" aria-label={{t "Dashboard" key="dashboard"}}>
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Reports for %{username}" key="reports_for_username" username=this.model.user_name}}</span></h1>
-        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's look at some useful information..." key="reports_dashboard_hero_sub"}}</span></p>
+        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's look at some" key="reports_dashboard_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "useful information..." key="reports_dashboard_hero_sub_em"}}</em></span></p>
       </header>
       {{/if}}
       <div class="md-user-outlet md-user-outlet--in-workspace">
