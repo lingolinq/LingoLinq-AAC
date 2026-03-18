@@ -3,6 +3,7 @@ import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
+  wordPairsData: null,
   elem_class: computed('side_by_side', function() {
     if (this.get('side_by_side')) {
       return htmlSafe('col-sm-6 col-xs-12');

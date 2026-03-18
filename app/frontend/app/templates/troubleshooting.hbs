@@ -118,6 +118,8 @@
                       <td class="la-troubleshooting-cell">
                         {{#if this.storage.pending}}
                           {{t "Checking..." key="checking"}}
+                        {{else if (is-equal this.storage.size -1)}}
+                          {{t "unavailable" key="unavailable"}}
                         {{else}}
                           {{t "%{size}Mb" size=this.storage.size key="megabytes"}}
                         {{/if}}

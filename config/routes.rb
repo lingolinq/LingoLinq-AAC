@@ -37,6 +37,7 @@ LingoLinq::Application.routes.draw do
   get '/goal_status/:goal_id/:goal_code' => 'boards#log_goal_status'
   get '/videos/:source/:id' => 'boards#video'
   get '/privacy' => 'boards#privacy'
+  get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
