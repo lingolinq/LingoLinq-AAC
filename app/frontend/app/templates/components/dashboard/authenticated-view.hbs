@@ -17,14 +17,20 @@
   </nav>
   <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
     <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <span class="md-pillnav-dropdown__label">{{this.activeTabLabel}}</span>
+      <span class="md-pillnav-dropdown__label">
+        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
+        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
+        {{this.activeTabLabel}}
+      </span>
       <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}>{{t "Home" key="home"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}>{{t "Boards" key="boards"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}>{{t "Reports" key="reports"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}>{{t "Extras" key="extras"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
     </ul>
   </div>
 
@@ -124,7 +130,6 @@
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
           <div class="md-stat">
-            <img src={{path "images/icon-boards.png"}} class="md-card__boards-icon md-card__boards-icon--before-num" alt="" aria-hidden="true">
             <div class="md-stat__num">{{this.boardCount}}</div>
             <div class="md-stat__meta">
               <div>{{t "Total" key="total"}}</div>
@@ -133,78 +138,14 @@
           </div>
         </div>
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-chat.svg"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Make Small Talk" key="make_small_talk"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-getting-started.svg"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Beginner Lessons" key="beginner_lessons"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-sound.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Conversation…" key="conversation_ellipsis"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-lightbulb.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 4" key="board_4"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-house.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 5" key="board_5"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-logging.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 6" key="board_6"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--a md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-reports2.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 7" key="board_7"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--b md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-extras.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 8" key="board_8"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--c md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-modeling.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 9" key="board_9"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--d md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/pastel-star.svg"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 10" key="board_10"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--e md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/browse-boards-icon.svg"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 11" key="board_11"}}</div>
-          </button>
-          <button type="button" class="md-strip__item" role="listitem" {{action "go" "boards"}}>
-            <div class="md-thumb md-thumb--f md-thumb--with-icon" aria-hidden="true">
-              <img src={{path "images/icon-boards.png"}} class="md-thumb__icon" alt="">
-            </div>
-            <div class="md-strip__label">{{t "Board 12" key="board_12"}}</div>
-          </button>
+          {{#each this.previewBoards as |preview|}}
+            <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
+              <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
+                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
+              </div>
+              <div class="md-strip__label">{{preview.name}}</div>
+            </button>
+          {{/each}}
         </div>
         <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
           {{t "View All Boards →" key="view_all_boards"}}

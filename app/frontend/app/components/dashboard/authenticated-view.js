@@ -40,6 +40,7 @@ export default Component.extend({
     if (initial) {
       this.set('activeTab', initial);
     }
+    this._loadPreviewBoards();
   },
   didInsertElement() {
     this._super(...arguments);
@@ -575,14 +576,60 @@ export default Component.extend({
     }
     return 5;
   }),
-  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', function() {
+  previewBoards: computed('_fetchedPreviewBoards.[]', function() {
+    var boards = this.get('_fetchedPreviewBoards') || [];
+    var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
+    return boards.slice(0, 5).map(function(board, idx) {
+      return {
+        board: board,
+        name: board.get('name') || board.get('key'),
+        imageUrl: board.get('icon_url_with_fallback'),
+        key: board.get('key'),
+        thumbClass: thumbClasses[idx % thumbClasses.length]
+      };
+    });
+  }),
+  _loadPreviewBoards: observer('appState.currentUser.id', function() {
+    var _this = this;
+    var user = _this.get('appState.currentUser');
+    if (!user || !user.get('id')) { return; }
+    if (_this.get('_previewBoardsLoaded')) { return; }
+    _this.set('_previewBoardsLoaded', true);
+    _this.get('store').query('board', { user_id: user.get('id') }).then(function(boards) {
+      var results = boards.map(function(b) { return b; });
+      _this.set('_fetchedPreviewBoards', results);
+      var meta = _this.get('persistence').meta('board', boards);
+      if (meta && meta.more) {
+        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results.length);
+      } else {
+        _this.set('_fetchedBoardCount', results.length);
+      }
+    });
+  }),
+  _fetchRemainingForCount: function(userId, offset, accumulated) {
+    var _this = this;
+    _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+      var count = accumulated + boards.map(function(b) { return b; }).length;
+      var meta = _this.get('persistence').meta('board', boards);
+      if (meta && meta.more) {
+        _this._fetchRemainingForCount(userId, meta.next_offset, count);
+      } else {
+        _this.set('_fetchedBoardCount', count);
+      }
+    }, function() {
+      _this.set('_fetchedBoardCount', accumulated);
+    });
+  },
+  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', '_fetchedBoardCount', function() {
     var user = this.get('appState.currentUser');
-    if (!user) { return 12; }
+    if (!user) { return 0; }
     var roots = user.get('root_boards');
     if (roots && roots.length !== undefined) { return roots.length; }
     var mine = user.get('my_boards');
     if (mine && mine.length !== undefined) { return mine.length; }
-    return 12;
+    var fetched = this.get('_fetchedBoardCount');
+    if (fetched !== undefined && fetched !== null) { return fetched; }
+    return 0;
   }),
   extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
@@ -606,6 +653,11 @@ export default Component.extend({
   }),
 
   actions: {
+    goToBoard: function(boardKey) {
+      if (boardKey) {
+        this.get('router').transitionTo('board', boardKey);
+      }
+    },
     invalidateSession: function() {
       session.invalidate(true);
     },

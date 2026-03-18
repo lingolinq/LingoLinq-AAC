@@ -488,18 +488,18 @@ body:has(#within_ember.bento-page-with-footer) {
   flex-direction: column !important;
 }
 
-/* Dashboard boards tab: .md-shell lives under #index_view (AuthenticatedView tagName ''), not under
+/* Dashboard: .md-shell lives under #index_view (AuthenticatedView tagName ‘’), not under
    .ember-view. #index_view’s flex:1 + min-height:0 caps height to viewport so shell bg stops early.
-   Standalone user.boards uses md-user-layout → md-shell without this #index_view rule — hence it “works” there. */
-#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell--dashboard-boards-full),
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell--dashboard-boards-full) {
+   Apply to ANY .md-shell (home, boards, extras tabs), not just boards-full. */
+#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell),
+#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell) {
   flex: 0 0 auto !important;
   min-height: auto !important;
   height: auto !important;
   overflow: visible !important;
 }
-#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell--dashboard-boards-full) > .md-shell,
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell--dashboard-boards-full) > .md-shell {
+#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell) > .md-shell,
+#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell) > .md-shell {
   flex: 0 0 auto;
   min-height: 100vh;
   height: auto;
@@ -27709,23 +27709,57 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   // Authenticated navbar: when hamburger is present, only brand + menu — hide all else (#identity wins specificity so we need it and !important)
+  // Apply globally to any #inner_header with .app-navbar, not just .header-index-with-dark-toggle
   .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--desktop,
-  .header-index-with-dark-toggle .app-navbar #identity {
+  .header-index-with-dark-toggle .app-navbar #identity,
+  #inner_header .app-navbar .app-navbar-auth-nav--desktop,
+  #inner_header .app-navbar #identity,
+  .app-navbar .app-navbar-auth-nav--desktop,
+  .app-navbar #identity {
     display: none !important;
   }
-  .header-index-with-dark-toggle .app-navbar #header_search {
-    display: none;
+  .header-index-with-dark-toggle .app-navbar #header_search,
+  #inner_header .app-navbar #header_search,
+  .app-navbar #header_search {
+    display: none !important;
   }
-  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1) {
-    display: none;
+  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1),
+  #inner_header .app-navbar .app-navbar__nav-header > *:not(h1),
+  .app-navbar .app-navbar__nav-header > *:not(h1) {
+    display: none !important;
   }
-  .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--mobile {
-    display: flex;
+  .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--mobile,
+  #inner_header .app-navbar .app-navbar-auth-nav--mobile,
+  .app-navbar .app-navbar-auth-nav--mobile {
+    display: flex !important;
     align-items: center;
     margin-left: auto;
   }
-  .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--mobile .la-topbar-hamburger {
-    display: flex;
+  .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--mobile .la-topbar-hamburger,
+  #inner_header .app-navbar .app-navbar-auth-nav--mobile .la-topbar-hamburger,
+  .app-navbar .app-navbar-auth-nav--mobile .la-topbar-hamburger {
+    display: flex !important;
+  }
+  .header-index-with-dark-toggle .la-topbar-hamburger,
+  #inner_header .la-topbar-hamburger,
+  .app-navbar-auth-nav--mobile .la-topbar-hamburger {
+    background: transparent !important;
+    border: none !important;
+    gap: 6px;
+    align-items: center;
+  }
+  .header-index-with-dark-toggle .la-topbar-hamburger__bar,
+  #inner_header .la-topbar-hamburger__bar,
+  .app-navbar-auth-nav--mobile .la-topbar-hamburger__bar {
+    background: #374151 !important;
+    border-radius: 2px;
+    height: 2px;
+    width: 20px;
+  }
+  .header-index-with-dark-toggle .la-topbar-hamburger__bar:nth-child(3),
+  #inner_header .la-topbar-hamburger__bar:nth-child(3),
+  .app-navbar-auth-nav--mobile .la-topbar-hamburger__bar:nth-child(3) {
+    display: none;
   }
 
   // Unauthenticated navbar: when hamburger shows, hide Try Free so only hamburger remains (brand when present is outside this block)
@@ -28882,24 +28916,30 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .md-shell {
   min-height: 100vh;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding-top: 3rem;
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1200px 600px at 20% 20%, rgba(44, 183, 176, 0.12), transparent 55%),
-    radial-gradient(1200px 600px at 80% 15%, rgba(240, 106, 91, 0.10), transparent 60%),
-    radial-gradient(1000px 700px at 60% 85%, rgba(91, 141, 239, 0.12), transparent 60%),
-    var(--md-bg);
+    radial-gradient(1400px 700px at 10% 5%, rgba(49, 111, 112, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba(70, 80, 95, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba(55, 65, 81, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba(42, 157, 143, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba(76, 134, 216, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust(#f4f3f0, $lightness: 10%)} 0%, #{color.adjust(#ebe8e4, $lightness: 10%)} 50%, #{color.adjust(#e0dcd6, $lightness: 10%)} 100%);
   color: var(--md-ink);
 }
 
 .md-workspace {
-  max-width: 1200px;
+  max-width: min(1200px, calc(100% - 24px));
   width: 100%;
   box-sizing: border-box;
   margin: 40px auto;
-  padding: 40px 40px calc(40px - 7rem) 40px;
+  padding: 40px 40px calc(40px - 9rem) 40px;
   border-radius: 48px;
+  overflow: hidden;
+  min-width: 0;
   background: rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -28934,11 +28974,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     min-height: auto;
   }
   .md-workspace {
-    margin-top: 24px;
-    margin-left: 12px;
-    margin-right: 12px;
-    padding-left: 16px;
-    padding-right: 16px;
+    margin: 0;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
 
@@ -29269,6 +29307,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-workspace > .md-main {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -29622,6 +29662,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     "sup   boards";
   grid-template-rows: auto 1fr 0;
   align-items: start;
+  max-width: 100%;
+  overflow: hidden;
 }
 .md-grid--with-getting-started {
   grid-template-areas:
@@ -30344,9 +30386,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: var(--md-r-lg);
   background: var(--md-surface);
   border: 1px solid var(--md-line);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   overflow: hidden;
   padding: 18px;
+  min-width: 0;
 }
 /* Modern dashboard: subtle vertical gradient on cards instead of flat white */
 .md-grid .md-card {
@@ -30382,11 +30425,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-link:active { transform: scale(var(--md-tap)); }
 
 /* --- Getting Started Card (home only, when checklist incomplete) --- */
-.md-card--getting-started {
+.md-grid--dashboard .md-card--getting-started,
+.md-grid--with-getting-started .md-card--getting-started {
   grid-area: getting_started;
   position: relative;
-  overflow: hidden;
   display: flex;
+  border-radius: var(--md-r-lg);
+  -webkit-border-radius: var(--md-r-lg);
+  overflow: hidden;
+  box-shadow: none;
   flex-direction: column;
   align-items: stretch;
   padding-top: 32px;
@@ -31009,7 +31056,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-stat__num { font-weight: 950; font-size: 26px; line-height: 1; }
 .md-card--boards .md-stat__num {
   font-size: 23.4px; /* 26 * 0.9 */
-  margin-left: -2rem;
 }
 .md-stat__meta { font-size: 13px; color: rgba(17, 26, 46, 0.78); }
 .md-stat__meta .md-muted { font-size: 12px; }
@@ -31065,6 +31111,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-thumb--with-icon {
   display: grid;
   place-items: center;
+}
+.md-thumb__board-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.md-grid--dashboard .md-thumb .md-thumb__board-img {
+  filter: saturate(0.4);
 }
 .md-thumb__icon {
   width: 43px; /* 36 * 1.2 */
@@ -33187,6 +33242,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* ---------- Responsive ---------- */
 @media (max-width: 945px) {
   /* Modern dashboard: single-column layout under 945px; workspace expands to content, #content scrolls vertically */
+  #index_view {
+    padding-bottom: 0 !important;
+  }
+  .md-shell {
+    background:
+      radial-gradient(800px 500px at 5% 0%, rgba(49, 111, 112, 0.22), transparent 50%),
+      radial-gradient(700px 400px at 95% 10%, rgba(76, 134, 216, 0.18), transparent 50%),
+      radial-gradient(900px 500px at 50% 100%, rgba(42, 157, 143, 0.16), transparent 45%),
+      radial-gradient(600px 400px at 80% 50%, rgba(118, 147, 185, 0.14), transparent 50%),
+      radial-gradient(500px 300px at 20% 70%, rgba(242, 185, 90, 0.10), transparent 50%),
+      radial-gradient(600px 350px at 60% 30%, rgba(70, 80, 95, 0.12), transparent 50%),
+      linear-gradient(180deg, #fefefe 0%, #fafafa 50%, #f7f7f7 100%) !important;
+  }
   .md-shell,
   #content .ember-view > .md-shell,
   #content > .md-shell {
@@ -33202,28 +33270,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     min-height: min-content;
   }
   .md-workspace {
-    margin-left: 24px;
-    margin-right: 24px;
-    padding-left: 24px;
-    padding-right: 24px;
+    margin: 0;
+    padding: 24px 16px calc(24px - 9rem) 16px;
+    border-radius: 24px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .md-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
       "speak"
       "extras"
+      "boards";
+    grid-template-rows: auto auto auto;
+    grid-auto-rows: auto;
+  }
+  .md-grid .md-card {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* Show sup row only when supervisors tab is active */
+  .md-grid:has(.md-supervisors-page) {
+    grid-template-areas:
+      "speak"
+      "extras"
       "boards"
       "sup";
-    grid-template-rows: unset;
-    grid-auto-rows: auto;
+    grid-template-rows: auto auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "speak"
       "extras"
+      "boards";
+    grid-template-rows: auto auto auto auto;
+  }
+  .md-grid--with-getting-started:has(.md-supervisors-page) {
+    grid-template-areas:
+      "getting_started"
+      "speak"
+      "extras"
       "boards"
       "sup";
+    grid-template-rows: auto auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";
@@ -33240,6 +33331,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-shell--extras-view .md-grid {
     grid-template-rows: minmax(60vh, auto);
   }
+  .md-grid__divider {
+    display: none;
+  }
   /* Boards card: in column layout size to content so it doesn't collapse */
   .md-grid .md-card--boards {
     height: auto;
@@ -33250,32 +33344,36 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     flex: 0 1 auto;
     min-height: min-content;
   }
+  .md-grid .md-card--boards .md-btn--wide {
+    margin-top: 20px;
+  }
 }
 
 @media (max-width: 820px) {
   /* Tighter workspace spacing and strip/people grids; workspace still expands to content with vertical scroll */
   .md-workspace {
-    margin-top: 24px;
-    margin-left: 12px;
-    margin-right: 12px;
-    padding-left: 16px;
-    padding-right: 16px;
+    margin: 0;
+    padding: 20px 12px calc(20px - 9rem) 12px;
+    border-radius: 20px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .md-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
       "speak"
       "extras"
-      "boards"
-      "sup";
+      "boards";
+    grid-template-rows: auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "speak"
       "extras"
-      "boards"
-      "sup";
+      "boards";
+    grid-template-rows: auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";
@@ -33320,6 +33418,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-pillnav-dropdown {
     display: block;
     position: relative;
+    width: 25%;
+    margin-left: auto;
+    margin-right: auto;
     margin-top: 0;
     margin-bottom: 0;
   }
@@ -33358,6 +33459,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-pillnav-dropdown__label {
     flex: 1;
     text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .md-pillnav-dropdown__chevron {
@@ -33396,8 +33500,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     opacity: 1;
   }
 
+  .md-pillnav-dropdown__icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
+    flex-shrink: 0;
+    color: inherit;
+  }
   .md-pillnav-dropdown__option {
-    display: block;
+    display: flex;
+    align-items: center;
     width: 100%;
     min-height: 44px;
     padding: 10px 18px;
