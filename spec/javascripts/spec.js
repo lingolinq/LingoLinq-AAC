@@ -4,6 +4,6 @@
 # spec/javascripts/*_spec.js
 # spec/javascripts/*_spec.js.erb
 #
-#=require application-test
-#=require spec_helper.js
-#=require_tree ./
+//=require application-test
+//=require spec_helper.js
+//=require_tree ./

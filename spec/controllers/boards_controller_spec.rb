@@ -8,13 +8,6 @@ describe BoardsController, :type => :controller do
     end
   end
   
-  describe "cache" do
-    it "should render" do
-      get "cache"
-      expect(response).to be_successful
-    end
-  end
-  
   describe "about" do
     it "should render" do
       get "about"

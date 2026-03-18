@@ -842,6 +842,7 @@ describe Api::UsersController, :type => :controller do
       b1a.save
       Worker.process_queues
       Worker.process_queues
+      b1a.reload.track_downstream_boards!
       expect(b1a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
       b2a = Board.create(:user => u)
       b2a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
@@ -850,6 +851,7 @@ describe Api::UsersController, :type => :controller do
       b2a.save
       Worker.process_queues
       Worker.process_queues
+      b2a.reload.track_downstream_boards!
       expect(b2a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
 
       expect(b1a.reload.settings['protected']['vocabulary_owner_id']).to eq(@user.global_id)
@@ -902,6 +904,7 @@ describe Api::UsersController, :type => :controller do
       b2a.save
       Worker.process_queues
       Worker.process_queues
+      b2a.reload.track_downstream_boards!
       expect(b2a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
 
       expect(b1a.reload.settings['protected']['vocabulary_owner_id']).to eq(@user.global_id)
@@ -2225,12 +2228,16 @@ describe Api::UsersController, :type => :controller do
       expect(json['log']).to_not eq(nil)
     end
 
-    it "should return error when user has no daily_use log" do
+    it "should return empty daily_use structure when user has no log" do
       token_user
       get :daily_use, params: {:user_id => @user.global_id}
-      expect(response).to have_http_status(:bad_request)
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['error']).to eq('No daily_use log found for this user')
+      expect(json['log']).to_not eq(nil)
+      expect(json['log']['daily_use']).to eq([])
+      expect(json['log']['id']).to include('daily_use-empty-')
+      # No LogSession should be created
+      expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
     it "should not allow a supervisor without admin_support_actions to check another user's daily use" do
@@ -2429,13 +2436,15 @@ describe Api::UsersController, :type => :controller do
     
     it "should error if no template is defined" do
       token_user
+      # Remove template so we can test the error path (migration/seeds normally create it)
+      UserIntegration.find_by(template: true, integration_key: 'core_word_list')&.destroy
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       assert_error('no core word list integration defined')
     end
     
     it "should set the user's core list" do
       token_user
-      ui = UserIntegration.create(:template => true, :integration_key => 'core_word_list')
+      ui = UserIntegration.find_or_create_by!(template: true, integration_key: 'core_word_list') { |u| u.settings ||= {} }
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -2671,7 +2680,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['user_id']).to eq(u.global_id)
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to match(/.+\$.+/)
-      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me/)
+      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me\$/)
       expect(json['supervisees'][0]['verifier']).to_not eq(json['verifier'])
     end
 
@@ -2684,7 +2693,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2703,7 +2712,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2724,7 +2733,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u1.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i

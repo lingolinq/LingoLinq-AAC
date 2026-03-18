@@ -407,6 +407,16 @@ LingoLinq.extra_keyed_colors = [
   {border: '#ff2f25', fill: '#f3a4a4', label: 'else'}
 ];
 
+// Shared stats chart colors - used by pie charts and Sankey charts so they stay in sync
+LingoLinq.stats_colors = {
+  core: '#49c7e8',
+  fringe: '#e5cea2',
+  partsOfSpeechColor: function(type) {
+    var color = LingoLinq.keyed_colors.find(function(c) { return c.types.indexOf(type) >= 0; });
+    return window.tinycolor((color || {fill: '#ccc'}).fill).saturate(10).darken(20).toHexString();
+  }
+};
+
 LingoLinq.licenseOptions.license_url = function(id) {
   for(var idx = 0; idx < LingoLinq.licenseOptions.length; idx++) {
     if(LingoLinq.licenseOptions[idx].id == id) {
@@ -818,8 +828,9 @@ LingoLinq.Visualizations = {
       };
       script = document.createElement('script');
       script.type = 'text/javascript';
+      script.async = true;
       // TODO: pull api keys out into config file?
-      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&' +
+      script.src = 'https://maps.googleapis.com/maps/api/js?v=3.exp&loading=async&' +
           'callback=ready_to_do_maps&key=' + window.maps_key;
       document.body.appendChild(script);
     } else {

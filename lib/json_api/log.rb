@@ -175,6 +175,8 @@ module JsonApi::Log
   end
 
   def self.paginate_meta(params, json)
-    {:user_id => params['user_id'], :type => params['type'], :start => params['start'], :end => params['end'], :device_id => params['device_id'], :location_id => params['location_id']}
+    meta = {:user_id => params['user_id'], :type => params['type'], :start => params['start'], :end => params['end'], :device_id => params['device_id'], :location_id => params['location_id']}
+    meta[:sort_order] = params['sort_order'] if params['sort_order'].present?
+    meta
   end
 end

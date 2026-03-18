@@ -700,7 +700,7 @@
           <div class="well" style="max-width: 500px;">
             <span class="glyphicon glyphicon-usd" style="font-size: 50px; float: left;"></span>
             <div style="margin-bottom: 5px; margin-top: -5px;">
-              {{this.model.id}} - {{this.model.email}} - {{subscription.subscription_plan_description}} - {{this.model.subscription.billing_state}}
+              {{this.model.id}} - {{this.model.email}} - {{this.model.subscription.subscription_plan_description}} - {{this.model.subscription.billing_state}}
               {{#if this.model.subscription.expires}}
                 {{t " -- expires" key="dash_expires"}}
                 {{date this.model.subscription.expires "day"}}

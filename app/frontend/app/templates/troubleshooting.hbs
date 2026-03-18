@@ -1,6 +1,13 @@
 <div class="row">
   <div class="col-sm-10 col-sm-offset-1">
-    <h2>{{t "App Troubleshooting" key="app_troubleshooting"}}</h2>
+    <h2 style="text-align: center;">{{t "Support and FAQ's" key="support_and_faqs"}}</h2>
+    <div style="margin-bottom: 30px;">
+      <p><strong>{{t "How do I get help if something isn't working?" key="faq_help"}}</strong></p>
+      <p>{{t "Use the Support link in the menu to report problems. You can also run the compatibility tests below to check if your device supports the features %app_name% needs." key="faq_help_answer"}}</p>
+      <p><strong>{{t "How can I fix storage or sync issues?" key="faq_storage"}}</strong></p>
+      <p>{{t "Use the App Details section below to clear file storage, databases, or local storage. After clearing, you may need to reload the page or re-sync your boards." key="faq_storage_answer"}}</p>
+    </div>
+    <h4>{{t "App Troubleshooting" key="app_troubleshooting"}}</h4>
     <p>
       {{t "This tool can help test for functionality that is expected or required in order for %app_name% to function correctly. Some tests will run automatically, while others may require manual testing. If you come across anything unexpected please hit the 'Support' link at the bottom of the page and report the problem." key="troubleshooting_intro"}}
     </p>
@@ -88,6 +95,8 @@
               <td style='vertical-align: middle;'>
                 {{#if this.storage.pending}}
                   {{t "Checking..." key="checking"}}
+                {{else if (is-equal this.storage.size -1)}}
+                  {{t "unavailable" key="unavailable"}}
                 {{else}}
                   {{t "%{size}Mb" size=this.storage.size key="megabytes"}}
                 {{/if}}

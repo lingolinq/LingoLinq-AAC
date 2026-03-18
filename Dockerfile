@@ -39,8 +39,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # Set environment
 ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development test" \
-    BUNDLE_DEPLOYMENT="1" \
-    SKIP_OFFLINE_MANIFEST="1"
+    BUNDLE_DEPLOYMENT="1"
 
 # Install gems
 COPY Gemfile Gemfile.lock ./

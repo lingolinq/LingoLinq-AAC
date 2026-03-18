@@ -1206,7 +1206,7 @@ describe Subscription, :type => :model do
         })
         
         expect(res).to eq(true)
-        expect(u.expires_at.to_i).to eq(8.weeks.from_now.to_i)
+        expect(u.expires_at.to_i).to be_within(2).of(8.weeks.from_now.to_i)
       end
       
       it "should always leave at least a window of time to handle re-subscribing" do
@@ -1224,7 +1224,7 @@ describe Subscription, :type => :model do
         })
         
         expect(res).to eq(true)
-        expect(u.expires_at.to_i).to eq(2.weeks.from_now.to_i)      
+        expect(u.expires_at.to_i).to be_within(2).of(2.weeks.from_now.to_i)
       end
     end
     
@@ -1248,7 +1248,7 @@ describe Subscription, :type => :model do
         expect(u.settings['subscription']['last_purchase_plan_id']).to eq('long_term_200')
         expect(u.settings['subscription']['last_purchase_id']).to eq('23456')
         expect(u.settings['subscription']['prior_purchase_ids']).to eq([])
-        expect(u.expires_at.to_i).to eq(8.weeks.from_now.to_i)
+        expect(u.expires_at.to_i).to be_within(1).of(8.weeks.from_now.to_i)
       end
       
       it "should not re-procress already-handled purchase_ids" do
@@ -1796,7 +1796,8 @@ describe Subscription, :type => :model do
       u.settings['subscription']['last_purchased'] = 3.years.ago.iso8601
       hash2 = u.subscription_hash
 
-      expect(hash).to eq(hash2)
+      # timestamp is set by Time.now on each call; compare meaningful fields only
+      expect(hash.except('timestamp')).to eq(hash2.except('timestamp'))
     end
 
     it "should change when a paid communicator expires" do
@@ -2853,9 +2854,11 @@ describe Subscription, :type => :model do
         'last_purchase_plan_id' => 'asdf'
       }
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })
@@ -2881,9 +2884,11 @@ describe Subscription, :type => :model do
       }
       expect(Purchasing).to receive(:change_user_id).with('222222', u1.global_id, u2.global_id)
       u1.transfer_subscription_to(u2)
+      ts = u1.settings['subscription']['transfer_ts']
+      expect(ts).to be_within(2).of(Time.now.to_i)
       expect(u1.settings['subscription']).to eq({
         'expiration_source' => 'grace_period',
-        'transfer_ts' => Time.now.to_i,
+        'transfer_ts' => ts,
         'transferred_to' => [u2.global_id],
         'bacon' => '1234'
       })

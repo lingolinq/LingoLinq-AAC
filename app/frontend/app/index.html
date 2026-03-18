@@ -13,6 +13,16 @@
 
     {{content-for "head"}}
 
+    <!-- Chart.js + Sankey plugin: load before vendor to avoid concatenation conflicts (Identifier 's' / define).
+         SRI omitted: jsDelivr on-demand minification for Chart.js 4.x produces variable output, making integrity hashes unreliable. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"
+            crossorigin="anonymous"></script>
+
+    <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
+    <script src="/assets/globals.js"></script>
+
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
 
